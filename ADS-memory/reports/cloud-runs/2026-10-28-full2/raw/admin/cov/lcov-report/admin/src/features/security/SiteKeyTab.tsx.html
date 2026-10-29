@@ -1,0 +1,940 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/security/SiteKeyTab.tsx</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">admin/src/features/security</a> SiteKeyTab.tsx</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>45/45</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>52/52</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>14/14</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>42/42</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">38x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">38x</span>
+<span class="cline-any cline-yes">38x</span>
+<span class="cline-any cline-yes">38x</span>
+<span class="cline-any cline-yes">38x</span>
+<span class="cline-any cline-yes">38x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">38x</span>
+<span class="cline-any cline-yes">38x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">37x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-yes">27x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">20x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">18x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-yes">22x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { siteKeyStatusBadgeLabel } from "./hooks/site-key-status.rules";
+import { AGENT_PRIVATE_ATTRIBUTE, agentHandle } from "@jini-ai/agentic";
+&nbsp;
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { siteKeyGenerateErrorMessage } from "./security-i18n";
+import { useWiredSiteKey } from "./hooks/use-site-key.hooks";
+import type { SiteKeyController, SiteKeyGenerateFailure } from "./hooks/use-site-key.hooks";
+import { useRevealedKeyCopy } from "./SiteKeyTab.hooks";
+import { isSiteKeyLocked, siteKeyLockedNote, useWiredSiteKeyRecovery, type SiteKeyRecoveryController } from "./hooks/use-site-key-recovery.hooks";
+import { SiteKeyRecoveryCard } from "./SiteKeyRecoveryCard";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+&nbsp;
+/**
+ * @file The Secrets page's Site key tab — view/reveal/generate the file half of
+ * `TOVU_SITE_KEY`'s resolution (`features/webhooks/keyring.env.ts`, server-side).
+ *
+ * ## What this tab covers, as of the 2026-09-09 durability fix
+ *
+ * A generated key file now genuinely protects production too: it lives on the durable data volume
+ * (not the container's ephemeral rootfs), the production boot gate accepts it, and the keyring
+ * that seals every real stored credential (BYOK, publish/source-control/custom creds,
+ * media-provider secrets) can now read one. {@link SiteKeyScopeNotice} still discloses the one
+ * remaining gap: webhook signing / newsletter tokens still require the env var in production —
+ * that keyring's own construction is deliberately unchanged this pass (a committed regression
+ * test pins it). See `server/inbound/admin-http/routes/system/site-key.ts`'s header for the
+ * full account, including the accepted tradeoff (a key file now lives beside the database it
+ * protects — a volume backup carries both).
+ *
+ * ## No rotate/replace
+ *
+ * `POST .../generate` only ever creates. Replacing an existing key would orphan every secret
+ * already sealed under the old one, and a confirmation strong enough for that (not a generic "are
+ * you sure") is a separate, NOT-built feature — reported as out of scope rather than half-built.
+ * Once a key is active (`status.active`), {@link SiteKeyGenerateAction} shows no control that
+ * could be mistaken for one.
+ *
+ * ## Reveal — one mechanism, available any time a key is active
+ *
+ * An earlier brief had generate show its new value once, at creation, fingerprint-only after
+ * that. The owner superseded it: "i want that token to be visible to admins or else when it
+ * breaks they have no idea whats going on." {@link SiteKeyRevealAction} is the ONE place this
+ * tab ever renders a key VALUE — never on page load, only behind its own explicit click, and
+ * usable at any time afterward (not just right after a generate), for exactly the diagnostic
+ * reason the owner gave: confirming the value here matches what's set in the host's secrets, or
+ * figuring out why credentials stopped decrypting. No audit trail on reveal — this codebase has
+ * no general-purpose sensitive-read audit mechanism to hook into (checked, not built here).
+ */
+&nbsp;
+export interface SiteKeyTabProps {
+  /** DI seam for tests — same convention as every other wired-hook prop in this app. */
+  useSiteKeyHook?: typeof useWiredSiteKey;
+  /** DI seam for the locked site's recovery card. */
+  useSiteKeyRecoveryHook?: typeof useWiredSiteKeyRecovery;
+}
+&nbsp;
+function resolveSiteKeyHook(override: typeof useWiredSiteKey | undefined): typeof useWiredSiteKey {
+  return override ?? useWiredSiteKey;
+}
+&nbsp;
+export function SiteKeyTab(props: SiteKeyTabProps) {
+  const useSiteKeyHook = resolveSiteKeyHook(props.useSiteKeyHook);
+  const useRecoveryHook = props.useSiteKeyRecoveryHook ?? useWiredSiteKeyRecovery;
+  const controller = useSiteKeyHook();
+  const recovery = useRecoveryHook(controller.refresh);
+  return (
+    &lt;div
+      className="site-key-tab"
+      {...agentHandle({ handle: "security-site-key" }, {
+        role: "region",
+        label: controller.t("View and reveal the site key"),
+      })}
+    &gt;
+      &lt;SiteKeyBody controller={controller} recovery={recovery} /&gt;
+    &lt;/div&gt;
+  );
+}
+&nbsp;
+/** Loading/error/loaded split — pulled out purely for the complexity gate, same reasoning
+ *  `AccessTokensBody` documents in `AccessTokensTab.tsx`. */
+function SiteKeyBody({ controller, recovery }: { controller: SiteKeyController; recovery: SiteKeyRecoveryController }) {
+  const translate = controller.t;
+  if (controller.loadError) {
+    return (
+      &lt;p className="notice error" role="status" {...agentHandle({ handle: "security-site-key-load-error" }, { role: "status", label: "Shows the error when the site key's status could not be loaded" })}&gt;
+        {controller.loadError}
+      &lt;/p&gt;
+    );
+  }
+  if (controller.status === undefined) {
+    return &lt;p className="site-key-loading"&gt;{translate("Loading…")}&lt;/p&gt;;
+  }
+  return (
+    &lt;&gt;
+      &lt;SiteKeyScopeNotice runtimeMode={controller.status.runtimeMode} t={translate} /&gt;
+      {isSiteKeyLocked(controller.status, controller.generateError) || recovery.resultMessage ? &lt;SiteKeyRecoveryCard recovery={recovery} /&gt; : null}
+      &lt;SiteKeyStatusCard controller={controller} status={controller.status} /&gt;
+    &lt;/&gt;
+  );
+}
+&nbsp;
+/** The always-visible "what this covers" disclosure — see this file's header. Rendered
+ *  unconditionally, not just on failure: the fact it states is true whether or not anything has
+ *  gone wrong, and the owner's own "self-contained" framing is exactly what this exists to make
+ *  precise before anyone clicks anything.
+ *
+ *  Rewritten 2026-09-09 per the owner's live review ("the site key content needs to be simpler
+ *  ... users are not gonna know what this even is"): leads with one plain sentence any operator
+ *  can act on, keeps the production-only storage tradeoff visible (it changes what someone should
+ *  do, not just background trivia), and demotes the webhook/newsletter exception to a de-emphasized
+ *  note — same `.jini-field-hint` convention `AgentPlugins.tsx`'s section footnotes use — since it's
+ *  a real but secondary caveat, not something a first-time reader needs to parse up front. */
+function SiteKeyScopeNotice({ runtimeMode, t: translate }: { runtimeMode: "production" | "local"; t: Translate }) {
+  return (
+    &lt;div className="notice warning site-key-scope-notice" {...agentHandle({ handle: "security-site-key-scope-notice" }, { role: "status", label: "What this site key does and does not cover" })}&gt;
+      &lt;p&gt;{translate("This key protects the passwords, API keys, and other credentials you've saved in Tovu — including on your live site.")}&lt;/p&gt;
+      {runtimeMode === "production" ? (
+        &lt;p&gt;{translate("On a live site, this key is stored right next to your database. Anyone who gets a full backup of your server would get both your data and the key that unlocks it.")}&lt;/p&gt;
+      ) : null}
+      &lt;p className="jini-field-hint site-key-scope-detail"&gt;
+        {translate("One exception: webhook signing and newsletter unsubscribe links use a separate key on your live site.")}
+      &lt;/p&gt;
+    &lt;/div&gt;
+  );
+}
+&nbsp;
+/** The status card — badge + fingerprint + source-specific note + Reveal + Generate. Split out
+ *  purely for the complexity gate. Only rendered once the status has loaded, so `status` is the
+ *  controller's own, already-narrowed value. */
+function SiteKeyStatusCard({ controller, status }: { controller: SiteKeyController; status: NonNullable&lt;SiteKeyController["status"]&gt; }) {
+  const translate = controller.t;
+  return (
+    &lt;section className="card site-key-status-card" {...agentHandle({ handle: "security-site-key-status" }, { role: "region", label: "The active site key's source, fingerprint, and reveal control" })}&gt;
+      &lt;h3 className="site-key-status-heading"&gt;{translate("Site key")}&lt;/h3&gt;
+      &lt;p className="site-key-status-badge-row"&gt;
+        &lt;span className={`status ${siteKeyStatusBadgeClass(status.active, status.invalid)}`}&gt;{siteKeyStatusBadgeLabel({ status, t: translate })}&lt;/span&gt;
+        {status.fingerprint ? (
+          &lt;span className="site-key-fingerprint-group" title={translate("A short ID for this key. It changes if the key changes.")}&gt;
+            &lt;span className="site-key-fingerprint-label"&gt;{translate("Fingerprint")}&lt;/span&gt;
+            &lt;code className="site-key-fingerprint"&gt;{status.fingerprint}&lt;/code&gt;
+          &lt;/span&gt;
+        ) : null}
+      &lt;/p&gt;
+      &lt;p className="site-key-status-note"&gt;{siteKeyLockedNote(status, controller.generateError, translate) ?? siteKeyStatusNote(status, translate)}&lt;/p&gt;
+      &lt;SiteKeyRevealAction controller={controller} /&gt;
+      {/* Site-key plan (2026-09-24) §A.6: Generate is hidden by default, not deleted — the
+          server route, `useSiteKey`'s `generate()`, and this tab's own `SiteKeyGenerateAction`
+          all stay wired (see that component's own header) so a later slice can re-expose it (e.g.
+          behind an "advanced" disclosure) without rebuilding the plumbing. There is no existing
+          "advanced" disclosure pattern on this tab to tuck it into, so this pass just hides it. */}
+    &lt;/section&gt;
+  );
+}
+&nbsp;
+function siteKeyStatusBadgeClass(active: boolean, invalid: boolean | undefined): string {
+  if (invalid) return "status-warning";
+  return active ? "status-ok" : "status-neutral";
+}
+&nbsp;
+&nbsp;
+/** The source-specific explanatory line under the badge — one sentence per case, no `{path}`
+ *  template needed (the path is rendered as its own `&lt;code&gt;`, not interpolated into translated
+ *  prose). Reworded 2026-09-09 alongside {@link SiteKeyScopeNotice} so the badge's
+ *  "environment variable" vs. "key file" distinction is explained in plain terms here rather than
+ *  assumed — the badge itself stays terse, this line carries the plain-language context. The
+ *  `TOVU_SITE_KEY` variable name stays in the invalid-env case since fixing it requires
+ *  that exact name. The `"none"` case was reworded again for the site-key plan (2026-09-24) item 3:
+ *  it used to promise that clicking Generate would save a key to `status.keyFilePath` — stale ever
+ *  since Generate was hidden by default (§A.6) in favor of `ensureSiteKeyForBoot` minting one
+ *  automatically at boot, and doubly so once no fixed path is even guaranteed to be the one that
+ *  ends up used (per-site keys, §A.1). @complexity O(1). */
+function siteKeyStatusNote(status: { active: boolean; source: "env" | "file" | "none"; invalid?: boolean; keyFilePath: string }, translate: Translate) {
+  if (status.invalid) {
+    return status.source === "env" ? (
+      &lt;&gt;{translate("A key is set up for this install, but it's not in a usable format, so Tovu can't use it. Fix the value stored in the TOVU_SITE_KEY environment variable to resolve this.")}&lt;/&gt;
+    ) : (
+      &lt;&gt;
+        {translate("The key file at")} &lt;code&gt;{status.keyFilePath}&lt;/code&gt; {translate("isn't in a usable format, so Tovu can't use it. It will need to be replaced by hand on the server — this tab can't do that yet.")}
+      &lt;/&gt;
+    );
+  }
+  if (status.source === "env") {
+    return &lt;&gt;{translate("This key was set up directly on the server rather than as a file, and it's already active — there's nothing to do here. Changing it means updating it on the server and restarting.")}&lt;/&gt;;
+  }
+  if (status.source === "file") {
+    return (
+      &lt;&gt;
+        {translate("Stored in a file on this server, at")} &lt;code&gt;{status.keyFilePath}&lt;/code&gt;
+      &lt;/&gt;
+    );
+  }
+  return &lt;&gt;{translate("A key is created automatically when this site starts.")}&lt;/&gt;;
+}
+&nbsp;
+/** Reveal — never shown on page load; the button is present whenever a key is active, and clicking
+ *  it fetches (and displays, with a copy control) the raw value. Human-only: Reveal carries no agent
+ *  handle, so the assistant's page driver cannot click it. {@link SiteKeyRevealedValue}'s
+ *  own Hide button toggles it back off, client-side only (no server call). @complexity O(1). */
+function SiteKeyRevealAction({ controller }: { controller: SiteKeyController }) {
+  const translate = controller.t;
+  const status = controller.status;
+  if (!status?.active) return null;
+  if (controller.revealedHex) {
+    return &lt;SiteKeyRevealedValue hex={controller.revealedHex} onHide={controller.hideRevealed} t={translate} /&gt;;
+  }
+  return (
+    &lt;div className="site-key-reveal-action"&gt;
+      &lt;button
+        type="button"
+        className="btn-secondary"
+        disabled={controller.revealing}
+        onClick={() =&gt; void controller.reveal()}
+      &gt;
+        {controller.revealing ? translate("Revealing…") : translate("Reveal")}
+      &lt;/button&gt;
+      {controller.revealError ? (
+        &lt;p className="notice error" role="status" {...agentHandle({ handle: "security-site-key-reveal-error" }, { role: "status", label: "Shows the error when revealing the site key failed" })}&gt;
+          {controller.revealError}
+        &lt;/p&gt;
+      ) : null}
+    &lt;/div&gt;
+  );
+}
+&nbsp;
+/** The revealed value itself, plus Copy/Hide — the ONLY place in this tab that ever renders a key
+ *  VALUE rather than a fingerprint. The value is `data-agent-private`, so no published ancestor's
+ *  text carries it to the agent, and neither it nor Copy has a handle. @complexity O(1). */
+function SiteKeyRevealedValue({ hex, onHide, t: translate }: { hex: string; onHide: () =&gt; void; t: Translate }) {
+  const { copied, copy } = useRevealedKeyCopy(hex);
+  return (
+    &lt;div className="site-key-revealed-value"&gt;
+      &lt;code {...{ [AGENT_PRIVATE_ATTRIBUTE]: "" }}&gt;{hex}&lt;/code&gt;
+      &lt;div className="site-key-revealed-actions"&gt;
+        &lt;button type="button" className="btn-secondary" onClick={() =&gt; void copy()}&gt;
+          {copied ? translate("Copied!") : translate("Copy")}
+        &lt;/button&gt;
+        &lt;button type="button" className="btn-ghost" onClick={onHide} {...agentHandle({ handle: "security-site-key-hide" }, { role: "button", label: "Hide the revealed site key" })}&gt;
+          {translate("Hide")}
+        &lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+&nbsp;
+/** The Generate button + its own error banner. Shown only for the genuinely decidable case — no
+ *  key at all (`status.source === "none"`) — never once a key is active, and never for an
+ *  existing-but-invalid file or env var either (sol packet-3 finding 3-1, 2026-09-16): the server
+ *  route only ever CREATES a key file, so offering Generate against a file that already exists
+ *  (valid or not) is a guaranteed 409 with no path to success. A confirmed replace/rotate flow for
+ *  that state is a separate, deliberately NOT-built feature (this file's own header). Works in
+ *  every runtime mode now (2026-09-09 durability fix) — no longer disabled in production.
+ *  @complexity O(1). */
+export function SiteKeyGenerateAction({ controller }: { controller: SiteKeyController }) {
+  const translate = controller.t;
+  const status = controller.status;
+  if (!status || status.source !== "none") return null;
+  return (
+    &lt;div className="site-key-generate-action"&gt;
+      &lt;button
+        type="button"
+        className="btn-primary"
+        disabled={controller.generating}
+        onClick={() =&gt; void controller.generate()}
+        {...agentHandle({ handle: "security-site-key-generate" }, { role: "button", label: "Generate a site key file for this install" })}
+      &gt;
+        {controller.generating ? translate("Generating…") : translate("Generate a key")}
+      &lt;/button&gt;
+      {controller.generateError ? &lt;SiteKeyGenerateErrorNote failure={controller.generateError} t={translate} /&gt; : null}
+    &lt;/div&gt;
+  );
+}
+&nbsp;
+function SiteKeyGenerateErrorNote({ failure, t: translate }: { failure: SiteKeyGenerateFailure; t: Translate }) {
+  const locale = useAdminLocale();
+  const text =
+    failure.kind === "already-exists"
+      ? translate("A key file already exists. This tab only creates a new key — it never overwrites one.")
+      : failure.kind === "generic"
+        ? siteKeyGenerateErrorMessage(locale, failure.detail)
+        : failure.detail;
+  return (
+    &lt;p className="notice error" role="status" {...agentHandle({ handle: "security-site-key-generate-error" }, { role: "status", label: "Shows the error when generating a site key file failed" })}&gt;
+      {text}
+    &lt;/p&gt;
+  );
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

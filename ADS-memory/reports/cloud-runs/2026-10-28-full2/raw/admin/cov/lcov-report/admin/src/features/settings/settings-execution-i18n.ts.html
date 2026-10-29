@@ -1,0 +1,1087 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/settings/settings-execution-i18n.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">admin/src/features/settings</a> settings-execution-i18n.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>7/7</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>1/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>1/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>7/7</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a>
+<a name='L323'></a><a href='#L323'>323</a>
+<a name='L324'></a><a href='#L324'>324</a>
+<a name='L325'></a><a href='#L325'>325</a>
+<a name='L326'></a><a href='#L326'>326</a>
+<a name='L327'></a><a href='#L327'>327</a>
+<a name='L328'></a><a href='#L328'>328</a>
+<a name='L329'></a><a href='#L329'>329</a>
+<a name='L330'></a><a href='#L330'>330</a>
+<a name='L331'></a><a href='#L331'>331</a>
+<a name='L332'></a><a href='#L332'>332</a>
+<a name='L333'></a><a href='#L333'>333</a>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">66x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">66x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">85x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">85x</span>
+<span class="cline-any cline-yes">1870x</span>
+<span class="cline-any cline-yes">1870x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">85x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { COMMON_I18N } from "../../lib/i18n-common";
+/**
+ * @file The Settings screen's own copy for its AI agent tab: what the admin's stored BYOK key
+ * cannot do at the form's endpoint, plus the rest of the tab's own copy — `AdminByokKeyFooter`'s
+ * "Saved to the server…" / "Stored on the server…" status lines, `AdminByokSettingsFooter`'s
+ * "Settings saved." confirmation, and the Local CLI scope label.
+ *
+ * Not in `SettingsUi.tsx`'s `t`: that one reads `@jini-ai/ui`'s and `@jini-ai/cms`'s settings-dialog
+ * dictionaries, which are other packages' copy. Not in `settings-capabilities-i18n.ts` either: that file is
+ * the "no backend yet" notes.
+ *
+ * All six keys also live in `features/ai-assistant/ai-assistant-i18n.ts` for AI Assistant's mount of
+ * the same form. Every value here is copied from there verbatim, so the two screens word the ask
+ * alike; `__tests__/settings-execution-i18n.unit.test.ts` fails if either copy changes alone for the
+ * two stored-key asks. No `en` block: English is this dict's own key text, so
+ * `createDictionaryTranslator`'s `?? key` fallback already renders it for that locale — a literal
+ * `en` entry mapping each key to itself would be dead weight.
+ */
+&nbsp;
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+import { ADMIN_LOCALES } from "../../lib/settings-tabs";
+&nbsp;
+const SETTINGS_EXECUTION_DICT: Record&lt;string, Record&lt;string, string&gt;&gt; = {
+  es: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI está oculto por ahora en los sitios desplegados. Se usa BYOK; tu elección guardada no cambia.",
+    "AI agent": "Agente de IA",
+    "Detected on this computer.": "Detectado en este ordenador.",
+    "Authentication required. Sign in before sending.": "Se requiere autenticación. Inicia sesión antes de enviar.",
+    "No API key saved on the server. Save one first.": "No hay ninguna clave de API guardada en el servidor. Guarda una primero.",
+    "Your saved key is for a different provider. Paste a key for this one.": "Tu clave guardada es de otro proveedor. Pega una clave para este.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "Tu clave guardada no tiene un proveedor guardado. Pega la clave de nuevo para probarla.",
+    "Saved to the server, encrypted.": "Guardada en el servidor, cifrada.",
+    "Settings saved.": "Configuración guardada.",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "Almacenada en el servidor, cifrada. Pega una clave nueva para reemplazarla.",
+    "Detected on the Tovu server, not on your own computer.": "Detectado en el servidor de Tovu, no en tu propio equipo.",
+  },
+  id: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI sementara disembunyikan di situs yang diterapkan. BYOK digunakan; pilihan tersimpan Anda tetap sama.",
+    "AI agent": "Agen AI",
+    "Detected on this computer.": "Terdeteksi di komputer ini.",
+    "Authentication required. Sign in before sending.": "Autentikasi diperlukan. Masuk sebelum mengirim.",
+    "No API key saved on the server. Save one first.": "Tidak ada kunci API yang tersimpan di server. Simpan satu terlebih dahulu.",
+    "Your saved key is for a different provider. Paste a key for this one.": "Kunci tersimpan Anda untuk penyedia lain. Tempel kunci untuk penyedia ini.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "Kunci tersimpan Anda tidak memiliki penyedia yang tersimpan. Tempel kunci lagi untuk mengujinya.",
+    "Saved to the server, encrypted.": "Disimpan ke server, terenkripsi.",
+    "Settings saved.": "Pengaturan disimpan.",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "Disimpan di server, terenkripsi. Tempel kunci baru untuk menggantinya.",
+    "Detected on the Tovu server, not on your own computer.": "Terdeteksi di server Tovu, bukan di komputer Anda sendiri.",
+  },
+  de: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI ist auf bereitgestellten Websites vorerst ausgeblendet. BYOK wird verwendet; Ihre gespeicherte Auswahl bleibt unverändert.",
+    "AI agent": "KI-Agent",
+    "Detected on this computer.": "Auf diesem Computer erkannt.",
+    "Authentication required. Sign in before sending.": "Authentifizierung erforderlich. Melden Sie sich vor dem Senden an.",
+    "No API key saved on the server. Save one first.": "Kein API-Schlüssel auf dem Server gespeichert. Speichern Sie zuerst einen.",
+    "Your saved key is for a different provider. Paste a key for this one.": "Ihr gespeicherter Schlüssel gehört zu einem anderen Anbieter. Fügen Sie einen Schlüssel für diesen ein.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "Für Ihren gespeicherten Schlüssel ist kein Anbieter gespeichert. Fügen Sie den Schlüssel erneut ein, um ihn zu testen.",
+    "Saved to the server, encrypted.": "Verschlüsselt auf dem Server gespeichert.",
+    "Settings saved.": "Einstellungen gespeichert.",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "Verschlüsselt auf dem Server gespeichert. Fügen Sie einen neuen Schlüssel ein, um ihn zu ersetzen.",
+    "Detected on the Tovu server, not on your own computer.": "Auf dem Tovu-Server erkannt, nicht auf Ihrem eigenen Computer.",
+  },
+  "zh-CN": {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "已部署的网站暂时隐藏 Local CLI。当前使用 BYOK；您保存的选择保持不变。",
+    "AI agent": "AI 智能体",
+    "Detected on this computer.": "在这台计算机上检测到。",
+    "Authentication required. Sign in before sending.": "需要身份验证。请先登录再发送。",
+    "No API key saved on the server. Save one first.": "服务器上没有保存 API 密钥。请先保存一个。",
+    "Your saved key is for a different provider. Paste a key for this one.": "已保存的密钥属于其他提供商。请粘贴此提供商的密钥。",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "已保存的密钥未关联提供商。请重新粘贴密钥以进行测试。",
+    "Saved to the server, encrypted.": "已加密保存到服务器。",
+    "Settings saved.": "设置已保存。",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "已加密存储在服务器上。粘贴新密钥即可替换。",
+    "Detected on the Tovu server, not on your own computer.": "在 Tovu 服务器上检测到，而非您自己的计算机。",
+  },
+  "zh-TW": {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "已部署的網站暫時隱藏 Local CLI。目前使用 BYOK；您儲存的選擇保持不變。",
+    "AI agent": "AI 代理",
+    "Detected on this computer.": "在這台電腦上偵測到。",
+    "Authentication required. Sign in before sending.": "需要驗證身分。請先登入再傳送。",
+    "No API key saved on the server. Save one first.": "伺服器上沒有儲存 API 金鑰。請先儲存一個。",
+    "Your saved key is for a different provider. Paste a key for this one.": "已儲存的金鑰屬於其他供應商。請貼上此供應商的金鑰。",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "已儲存的金鑰未關聯供應商。請重新貼上金鑰以進行測試。",
+    "Saved to the server, encrypted.": "已加密儲存至伺服器。",
+    "Settings saved.": "設定已儲存。",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "已加密儲存在伺服器上。貼上新金鑰即可取代。",
+    "Detected on the Tovu server, not on your own computer.": "在 Tovu 伺服器上偵測到，而非您自己的電腦。",
+  },
+  "pt-BR": {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI está oculto por enquanto nos sites implantados. BYOK é usado; sua escolha salva permanece igual.",
+    "AI agent": "Agente de IA",
+    "Detected on this computer.": "Detectado neste computador.",
+    "Authentication required. Sign in before sending.": "Autenticação necessária. Entre antes de enviar.",
+    "No API key saved on the server. Save one first.": "Nenhuma chave de API salva no servidor. Salve uma primeiro.",
+    "Your saved key is for a different provider. Paste a key for this one.": "Sua chave salva é de outro provedor. Cole uma chave para este.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "Sua chave salva não tem um provedor salvo. Cole a chave novamente para testá-la.",
+    "Saved to the server, encrypted.": "Salva no servidor, criptografada.",
+    "Settings saved.": "Configurações salvas.",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "Armazenada no servidor, criptografada. Cole uma nova chave para substituí-la.",
+    "Detected on the Tovu server, not on your own computer.": "Detectado no servidor da Tovu, não no seu próprio computador.",
+  },
+  ru: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "На развёрнутых сайтах Local CLI пока скрыт. Используется BYOK; сохранённый выбор не изменён.",
+    "AI agent": "ИИ-агент",
+    "Detected on this computer.": "Обнаружено на этом компьютере.",
+    "Authentication required. Sign in before sending.": "Требуется авторизация. Войдите перед отправкой.",
+    "No API key saved on the server. Save one first.": "На сервере не сохранён API-ключ. Сначала сохраните ключ.",
+    "Your saved key is for a different provider. Paste a key for this one.": "Сохранённый ключ относится к другому провайдеру. Вставьте ключ для этого.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "Для сохранённого ключа не сохранён провайдер. Вставьте ключ снова, чтобы проверить его.",
+    "Saved to the server, encrypted.": "Сохранено на сервере в зашифрованном виде.",
+    "Settings saved.": "Настройки сохранены.",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "Хранится на сервере в зашифрованном виде. Вставьте новый ключ, чтобы заменить его.",
+    "Detected on the Tovu server, not on your own computer.": "Обнаружено на сервере Tovu, а не на вашем компьютере.",
+  },
+  fa: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI فعلاً در سایت‌های مستقر پنهان است. از BYOK استفاده می‌شود؛ انتخاب ذخیره‌شده شما تغییر نمی‌کند.",
+    "AI agent": "عامل هوش مصنوعی",
+    "Detected on this computer.": "روی این رایانه شناسایی شد.",
+    "Authentication required. Sign in before sending.": "احراز هویت لازم است. پیش از ارسال وارد شوید.",
+    "No API key saved on the server. Save one first.": "هیچ کلید API روی سرور ذخیره نشده است. ابتدا یک کلید ذخیره کنید.",
+    "Your saved key is for a different provider. Paste a key for this one.": "کلید ذخیره‌شده شما برای ارائه‌دهنده دیگری است. کلیدی برای این ارائه‌دهنده جای‌گذاری کنید.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "برای کلید ذخیره‌شده شما ارائه‌دهنده‌ای ذخیره نشده است. برای آزمایش، کلید را دوباره جای‌گذاری کنید.",
+    "Saved to the server, encrypted.": "به‌صورت رمزنگاری‌شده روی سرور ذخیره شد.",
+    "Settings saved.": "تنظیمات ذخیره شد.",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "به‌صورت رمزنگاری‌شده روی سرور ذخیره شده است. برای جایگزینی، کلید جدید را جای‌گذاری کنید.",
+    "Detected on the Tovu server, not on your own computer.": "روی سرور Tovu شناسایی شد، نه روی رایانه‌ی خودتان.",
+  },
+  ar: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI مخفي مؤقتًا على المواقع المنشورة. يُستخدم BYOK؛ اختيارك المحفوظ لم يتغير.",
+    "AI agent": "وكيل الذكاء الاصطناعي",
+    "Detected on this computer.": "اكتُشف على هذا الكمبيوتر.",
+    "Authentication required. Sign in before sending.": "المصادقة مطلوبة. سجّل الدخول قبل الإرسال.",
+    "No API key saved on the server. Save one first.": "لا يوجد مفتاح API محفوظ على الخادم. احفظ مفتاحًا أولًا.",
+    "Your saved key is for a different provider. Paste a key for this one.": "مفتاحك المحفوظ يخص مزوّدًا آخر. الصق مفتاحًا لهذا المزوّد.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "لا يوجد مزوّد محفوظ مع مفتاحك المحفوظ. الصق المفتاح مرة أخرى لاختباره.",
+    "Saved to the server, encrypted.": "حُفظ على الخادم، مشفَّرًا.",
+    "Settings saved.": "حُفظت الإعدادات.",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "مخزَّن على الخادم، مشفَّرًا. الصق مفتاحًا جديدًا لاستبداله.",
+    "Detected on the Tovu server, not on your own computer.": "اكتُشف على خادم Tovu، وليس على جهاز الكمبيوتر الخاص بك.",
+  },
+  ja: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "デプロイ済みサイトでは、Local CLI は現在非表示です。BYOK を使用します。保存済みの選択は変更されません。",
+    "AI agent": "AI エージェント",
+    "Detected on this computer.": "このコンピューターで検出されました。",
+    "Authentication required. Sign in before sending.": "認証が必要です。送信する前にログインしてください。",
+    "No API key saved on the server. Save one first.": "サーバーに API キーが保存されていません。先にキーを保存してください。",
+    "Your saved key is for a different provider. Paste a key for this one.": "保存されているキーは別のプロバイダー用です。このプロバイダーのキーを貼り付けてください。",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "保存されているキーにはプロバイダーが保存されていません。テストするにはキーをもう一度貼り付けてください。",
+    "Saved to the server, encrypted.": "暗号化されてサーバーに保存済みです。",
+    "Settings saved.": "設定を保存しました。",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "暗号化されてサーバーに保存されています。置き換えるには新しいキーを貼り付けてください。",
+    "Detected on the Tovu server, not on your own computer.": "自分のコンピューターではなく、Tovuサーバー上で検出されました。",
+  },
+  ko: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "배포된 사이트에서는 현재 Local CLI가 숨겨집니다. BYOK가 사용되며 저장된 선택은 변경되지 않습니다.",
+    "AI agent": "AI 에이전트",
+    "Detected on this computer.": "이 컴퓨터에서 감지되었습니다.",
+    "Authentication required. Sign in before sending.": "인증이 필요합니다. 보내기 전에 로그인하세요.",
+    "No API key saved on the server. Save one first.": "서버에 저장된 API 키가 없습니다. 먼저 키를 저장하세요.",
+    "Your saved key is for a different provider. Paste a key for this one.": "저장된 키는 다른 공급자용입니다. 이 공급자의 키를 붙여넣으세요.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "저장된 키에 공급자가 저장되어 있지 않습니다. 테스트하려면 키를 다시 붙여넣으세요.",
+    "Saved to the server, encrypted.": "암호화되어 서버에 저장되었습니다.",
+    "Settings saved.": "설정이 저장되었습니다.",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "암호화되어 서버에 저장되어 있습니다. 교체하려면 새 키를 붙여넣으세요.",
+    "Detected on the Tovu server, not on your own computer.": "사용자님의 컴퓨터가 아니라 Tovu 서버에서 감지되었습니다.",
+  },
+  pl: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI jest na razie ukryte we wdrożonych witrynach. Używane jest BYOK; zapisany wybór pozostaje bez zmian.",
+    "AI agent": "Agent AI",
+    "Detected on this computer.": "Wykryto na tym komputerze.",
+    "Authentication required. Sign in before sending.": "Wymagane uwierzytelnienie. Zaloguj się przed wysłaniem.",
+    "No API key saved on the server. Save one first.": "Na serwerze nie zapisano klucza API. Najpierw zapisz klucz.",
+    "Your saved key is for a different provider. Paste a key for this one.": "Zapisany klucz należy do innego dostawcy. Wklej klucz dla tego dostawcy.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "Zapisany klucz nie ma zapisanego dostawcy. Wklej klucz ponownie, aby go przetestować.",
+    "Saved to the server, encrypted.": "Zapisano na serwerze, zaszyfrowany.",
+    "Settings saved.": "Ustawienia zapisane.",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "Przechowywany na serwerze, zaszyfrowany. Wklej nowy klucz, aby go zastąpić.",
+    "Detected on the Tovu server, not on your own computer.": "Wykryto na serwerze Tovu, a nie na Twoim komputerze.",
+  },
+  hu: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "A telepített webhelyeken a Local CLI egyelőre rejtve van. A BYOK használatos; a mentett választás változatlan.",
+    "AI agent": "AI-ügynök",
+    "Detected on this computer.": "Ezen a számítógépen észlelve.",
+    "Authentication required. Sign in before sending.": "Hitelesítés szükséges. Küldés előtt jelentkezzen be.",
+    "No API key saved on the server. Save one first.": "Nincs API-kulcs mentve a szerveren. Először mentsen egyet.",
+    "Your saved key is for a different provider. Paste a key for this one.": "A mentett kulcs egy másik szolgáltatóhoz tartozik. Illesszen be egy kulcsot ehhez.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "A mentett kulcshoz nincs szolgáltató mentve. A teszteléshez illessze be újra a kulcsot.",
+    "Saved to the server, encrypted.": "Titkosítva mentve a szerverre.",
+    "Settings saved.": "Beállítások mentve.",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "Titkosítva tárolva a szerveren. A cseréhez illesszen be egy új kulcsot.",
+    "Detected on the Tovu server, not on your own computer.": "A Tovu szerveren észlelve, nem a saját számítógépén.",
+  },
+  fr: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI est masqué pour le moment sur les sites déployés. BYOK est utilisé ; votre choix enregistré reste inchangé.",
+    "AI agent": "Agent IA",
+    "Detected on this computer.": "Détecté sur cet ordinateur.",
+    "Authentication required. Sign in before sending.": "Authentification requise. Connectez-vous avant d’envoyer.",
+    "No API key saved on the server. Save one first.": "Aucune clé API enregistrée sur le serveur. Enregistrez-en une d'abord.",
+    "Your saved key is for a different provider. Paste a key for this one.": "Votre clé enregistrée est celle d'un autre fournisseur. Collez une clé pour celui-ci.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "Aucun fournisseur n'est enregistré avec votre clé. Collez à nouveau la clé pour la tester.",
+    "Saved to the server, encrypted.": "Enregistrée sur le serveur, chiffrée.",
+    "Settings saved.": "Paramètres enregistrés.",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "Stockée sur le serveur, chiffrée. Collez une nouvelle clé pour la remplacer.",
+    "Detected on the Tovu server, not on your own computer.": "Détecté sur le serveur Tovu, pas sur votre propre ordinateur.",
+  },
+  uk: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "На розгорнутих сайтах Local CLI поки приховано. Використовується BYOK; збережений вибір не змінено.",
+    "AI agent": "ШІ-агент",
+    "Detected on this computer.": "Виявлено на цьому комп’ютері.",
+    "Authentication required. Sign in before sending.": "Потрібна автентифікація. Увійдіть перед надсиланням.",
+    "No API key saved on the server. Save one first.": "На сервері не збережено API-ключ. Спочатку збережіть ключ.",
+    "Your saved key is for a different provider. Paste a key for this one.": "Збережений ключ належить іншому постачальнику. Вставте ключ для цього.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "Для збереженого ключа не збережено постачальника. Вставте ключ ще раз, щоб перевірити його.",
+    "Saved to the server, encrypted.": "Збережено на сервері в зашифрованому вигляді.",
+    "Settings saved.": "Налаштування збережено.",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "Зберігається на сервері в зашифрованому вигляді. Вставте новий ключ, щоб замінити його.",
+    "Detected on the Tovu server, not on your own computer.": "Виявлено на сервері Tovu, а не на вашому комп'ютері.",
+  },
+  tr: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Dağıtılan sitelerde Local CLI şimdilik gizlidir. BYOK kullanılır; kaydedilmiş seçiminiz değişmez.",
+    "AI agent": "Yapay zekâ ajanı",
+    "Detected on this computer.": "Bu bilgisayarda algılandı.",
+    "Authentication required. Sign in before sending.": "Kimlik doğrulaması gerekiyor. Göndermeden önce oturum açın.",
+    "No API key saved on the server. Save one first.": "Sunucuda kayıtlı API anahtarı yok. Önce bir anahtar kaydedin.",
+    "Your saved key is for a different provider. Paste a key for this one.": "Kayıtlı anahtarınız başka bir sağlayıcıya ait. Bu sağlayıcı için bir anahtar yapıştırın.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "Kayıtlı anahtarınızla birlikte kaydedilmiş bir sağlayıcı yok. Test etmek için anahtarı yeniden yapıştırın.",
+    "Saved to the server, encrypted.": "Sunucuya şifrelenerek kaydedildi.",
+    "Settings saved.": "Ayarlar kaydedildi.",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "Sunucuda şifrelenerek saklanıyor. Değiştirmek için yeni bir anahtar yapıştırın.",
+    "Detected on the Tovu server, not on your own computer.": "Kendi bilgisayarınızda değil, Tovu sunucusunda algılandı.",
+  },
+  th: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "ขณะนี้ Local CLI ถูกซ่อนบนเว็บไซต์ที่นำขึ้นใช้งาน โดยใช้ BYOK แทน ตัวเลือกที่บันทึกไว้ของคุณยังคงเดิม",
+    "AI agent": "เอเจนต์ AI",
+    "Detected on this computer.": "ตรวจพบบนคอมพิวเตอร์เครื่องนี้",
+    "Authentication required. Sign in before sending.": "ต้องยืนยันตัวตน โปรดเข้าสู่ระบบก่อนส่ง",
+    "No API key saved on the server. Save one first.": "ไม่มีคีย์ API ที่บันทึกไว้บนเซิร์ฟเวอร์ โปรดบันทึกคีย์ก่อน",
+    "Your saved key is for a different provider. Paste a key for this one.": "คีย์ที่บันทึกไว้เป็นของผู้ให้บริการรายอื่น วางคีย์สำหรับผู้ให้บริการนี้",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "คีย์ที่บันทึกไว้ไม่มีผู้ให้บริการที่บันทึกไว้ วางคีย์อีกครั้งเพื่อทดสอบ",
+    "Saved to the server, encrypted.": "บันทึกลงเซิร์ฟเวอร์แบบเข้ารหัสแล้ว",
+    "Settings saved.": "บันทึกการตั้งค่าแล้ว",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "จัดเก็บบนเซิร์ฟเวอร์แบบเข้ารหัส วางคีย์ใหม่เพื่อแทนที่",
+    "Detected on the Tovu server, not on your own computer.": "ตรวจพบบนเซิร์ฟเวอร์ Tovu ไม่ใช่บนคอมพิวเตอร์ของคุณเอง",
+  },
+  it: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "Local CLI è per ora nascosto sui siti distribuiti. Si usa BYOK; la scelta salvata resta invariata.",
+    "AI agent": "Agente IA",
+    "Detected on this computer.": "Rilevato su questo computer.",
+    "Authentication required. Sign in before sending.": "Autenticazione richiesta. Accedi prima di inviare.",
+    "No API key saved on the server. Save one first.": "Nessuna chiave API salvata sul server. Salvane prima una.",
+    "Your saved key is for a different provider. Paste a key for this one.": "La chiave salvata è di un altro provider. Incolla una chiave per questo.",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "Alla chiave salvata non è associato alcun provider. Incolla di nuovo la chiave per testarla.",
+    "Saved to the server, encrypted.": "Salvata sul server, crittografata.",
+    "Settings saved.": "Impostazioni salvate.",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "Archiviata sul server, crittografata. Incolla una nuova chiave per sostituirla.",
+    "Detected on the Tovu server, not on your own computer.": "Rilevato sul server Tovu, non sul tuo computer.",
+  },
+  hi: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "डिप्लॉय की गई साइटों पर Local CLI अभी छिपा हुआ है। BYOK का उपयोग होता है; आपका सहेजा गया विकल्प नहीं बदलता।",
+    "AI agent": "AI एजेंट",
+    "Detected on this computer.": "इस कंप्यूटर पर पता लगाया गया।",
+    "Authentication required. Sign in before sending.": "प्रमाणीकरण आवश्यक है। भेजने से पहले साइन इन करें।",
+    "No API key saved on the server. Save one first.": "सर्वर पर कोई API कुंजी सहेजी नहीं गई है। पहले एक कुंजी सहेजें।",
+    "Your saved key is for a different provider. Paste a key for this one.": "आपकी सहेजी गई कुंजी किसी दूसरे प्रदाता की है। इस प्रदाता के लिए कुंजी पेस्ट करें।",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "आपकी सहेजी गई कुंजी के साथ कोई प्रदाता सहेजा नहीं गया है। जाँचने के लिए कुंजी फिर से पेस्ट करें।",
+    "Saved to the server, encrypted.": "सर्वर पर एन्क्रिप्टेड रूप से सहेजा गया।",
+    "Settings saved.": "सेटिंग्स सहेजी गईं।",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "सर्वर पर एन्क्रिप्टेड रूप से संग्रहीत। इसे बदलने के लिए एक नई कुंजी पेस्ट करें।",
+    "Detected on the Tovu server, not on your own computer.": "Tovu सर्वर पर पहचाना गया, आपके अपने कंप्यूटर पर नहीं।",
+  },
+  ur: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "تعینات شدہ سائٹس پر Local CLI فی الحال پوشیدہ ہے۔ BYOK استعمال ہوتا ہے؛ آپ کا محفوظ انتخاب تبدیل نہیں ہوتا۔",
+    "AI agent": "AI ایجنٹ",
+    "Detected on this computer.": "اس کمپیوٹر پر دریافت ہوا۔",
+    "Authentication required. Sign in before sending.": "توثیق درکار ہے۔ بھیجنے سے پہلے سائن ان کریں۔",
+    "No API key saved on the server. Save one first.": "سرور پر کوئی API کلید محفوظ نہیں ہے۔ پہلے ایک کلید محفوظ کریں۔",
+    "Your saved key is for a different provider. Paste a key for this one.": "آپ کی محفوظ کلید کسی دوسرے فراہم کنندہ کی ہے۔ اس فراہم کنندہ کے لیے کلید پیسٹ کریں۔",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "آپ کی محفوظ کلید کے ساتھ کوئی فراہم کنندہ محفوظ نہیں ہے۔ جانچنے کے لیے کلید دوبارہ پیسٹ کریں۔",
+    "Saved to the server, encrypted.": "سرور پر خفیہ کاری کے ساتھ محفوظ ہو گئی۔",
+    "Settings saved.": "ترتیبات محفوظ ہو گئیں۔",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "سرور پر خفیہ کاری کے ساتھ محفوظ ہے۔ اسے بدلنے کے لیے نئی کلید پیسٹ کریں۔",
+    "Detected on the Tovu server, not on your own computer.": "Tovu سرور پر شناخت ہوئی، آپ کے اپنے کمپیوٹر پر نہیں۔",
+  },
+  bn: {
+    "Local CLI is hidden on deployed sites for now. BYOK is used; your saved choice is unchanged.": "স্থাপিত সাইটে Local CLI আপাতত লুকানো আছে। BYOK ব্যবহার করা হয়; আপনার সংরক্ষিত পছন্দ অপরিবর্তিত থাকে।",
+    "AI agent": "AI এজেন্ট",
+    "Detected on this computer.": "এই কম্পিউটারে শনাক্ত হয়েছে।",
+    "Authentication required. Sign in before sending.": "প্রমাণীকরণ প্রয়োজন। পাঠানোর আগে সাইন ইন করুন।",
+    "No API key saved on the server. Save one first.": "সার্ভারে কোনো API কী সংরক্ষিত নেই। আগে একটি কী সংরক্ষণ করুন।",
+    "Your saved key is for a different provider. Paste a key for this one.": "আপনার সংরক্ষিত কী অন্য একটি প্রদানকারীর। এই প্রদানকারীর জন্য একটি কী পেস্ট করুন।",
+    "Your saved key has no provider saved with it. Paste the key again to test it.": "আপনার সংরক্ষিত কী-এর সঙ্গে কোনো প্রদানকারী সংরক্ষিত নেই। পরীক্ষা করতে কী আবার পেস্ট করুন।",
+    "Saved to the server, encrypted.": "এনক্রিপ্ট করে সার্ভারে সংরক্ষিত হয়েছে।",
+    "Settings saved.": "সেটিংস সংরক্ষিত হয়েছে।",
+    "Stored on the server, encrypted. Paste a new key to replace it.":
+      "এনক্রিপ্ট করে সার্ভারে সংরক্ষিত আছে। প্রতিস্থাপন করতে নতুন কী পেস্ট করুন।",
+    "Detected on the Tovu server, not on your own computer.": "Tovu সার্ভারে শনাক্ত হয়েছে, আপনার নিজের কম্পিউটারে নয়।",
+  },
+};
+&nbsp;
+export const t = createDictionaryTranslator({ featureDictionary: SETTINGS_EXECUTION_DICT }, { commonDictionary: COMMON_I18N });
+&nbsp;
+/** Keep the package's internal translation key stable while changing all rendered labels/ARIA.
+ * Host dictionary overlays are the published extension point; installed packages stay untouched. */
+export function aiAgentPanelDictionaries(
+  { dictionaries }: { dictionaries: Partial&lt;Record&lt;string, Readonly&lt;Record&lt;string, string&gt;&gt;&gt;&gt; }, _optional = {},
+): Partial&lt;Record&lt;string, Record&lt;string, string&gt;&gt;&gt; {
+  const result: Partial&lt;Record&lt;string, Record&lt;string, string&gt;&gt;&gt; = { ...dictionaries };
+  // Through the translator, never an inline dictionary index (dictionary-lookup-sinks guard).
+  for (const { code: locale } of ADMIN_LOCALES) {
+    const label = t({ locale: locale, key: 'AI agent' });
+    result[locale] = { ...dictionaries[locale], 'Execution mode': label, 'AI agent': label };
+  }
+  return result;
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

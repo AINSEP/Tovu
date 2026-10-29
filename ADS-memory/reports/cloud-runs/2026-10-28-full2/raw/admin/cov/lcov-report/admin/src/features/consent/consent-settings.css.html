@@ -1,0 +1,520 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/consent/consent-settings.css</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">admin/src/features/consent</a> consent-settings.css</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/* Administration → Cookie Consent. Feature-scoped: `.consent-*` page classes plus the plain
+   `jini-consent-*` classes Jini's field sections and preview frame render (Jini ships no CSS for
+   them; hosts style them). Only admin tokens, so light and dark follow the admin theme. */
+&nbsp;
+/* Every tab sits flat on the page, no card frame; headings, spacing and hairlines group the content
+   instead. The `.card` classes stay on the markup for their type scale (`.card p` → 13px). */
+.consent-page .card { background: none; border: 0; border-radius: 0; box-shadow: none; padding: 0; backdrop-filter: none; }
+.consent-page .card-head { margin: 0 0 var(--space-2); padding: 0; border-bottom: 0; }
+/* Stacked sections (Overview, Rules) read as separate groups through a hairline between them. */
+.consent-overview &gt; .card + .card,
+.consent-editor:not(.consent-editor-with-preview) &gt; .card + .card { border-top: 1px solid var(--border); padding-top: var(--space-5); }
+&nbsp;
+/* Overview: the same rhythm as Deployment's tabs, so sections never touch. */
+.consent-overview { display: flex; flex-direction: column; gap: var(--space-5); margin-top: var(--space-5); }
+.consent-note { margin: var(--space-3) 0 0; font-size: var(--text-sm); color: var(--muted); }
+.consent-problem-list,
+.consent-paused-list { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.consent-problem-list li { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-1) var(--space-3); color: var(--fg-2); }
+.consent-fix-link { font-weight: 600; white-space: nowrap; }
+/* Label left, count right, a hairline between rows: a scannable tally, not a run-on word. */
+.consent-paused-list { gap: 0; max-width: 24rem; }
+.consent-paused-list li {
+  display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-4);
+  padding: var(--space-2) 0; border-bottom: 1px solid var(--border); color: var(--fg-2);
+}
+.consent-paused-list li:last-child { border-bottom: 0; }
+.consent-paused-list strong { color: var(--fg); font-variant-numeric: tabular-nums; }
+&nbsp;
+/* Header status beside Publish. */
+.consent-save-status { font-size: var(--text-sm); color: var(--muted); }
+&nbsp;
+/* Editor tabs: fields left, live preview right; one column once the pair would squeeze below
+   ~26rem each. The preview sticks while the longer field column scrolls past it. */
+.consent-editor { display: grid; gap: var(--space-5); margin-top: var(--space-5); align-items: start; }
+.consent-editor-with-preview { grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); }
+.consent-editor &gt; * { min-width: 0; }
+/* Rules has no preview: keep its fields at a readable measure instead of the full content width. */
+.consent-editor:not(.consent-editor-with-preview) { max-width: 48rem; }
+.consent-preview-pane { position: sticky; top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+.consent-fixed-rules { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: var(--space-2); color: var(--fg-2); }
+&nbsp;
+/* Jini field sections. The legend matches the shared `.card-title`
+   (styles.css): the heading face at 14px/600, not a second, larger display-face tier. */
+.jini-consent-settings-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: var(--space-4); }
+.jini-consent-settings-fields legend {
+  padding: 0; margin-bottom: var(--space-2);
+  font-family: var(--jini-font-heading); font-size: var(--text-base); font-weight: 600; line-height: 1.3; color: var(--fg);
+}
+/* The legend only repeats the active tab's name ("Look &amp; position" under Look &amp; Position), so it is
+   hidden from view but kept as the field group's accessible name. */
+.consent-editor .jini-consent-settings-fields &gt; legend {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.jini-consent-settings-field { display: grid; gap: var(--space-1); min-width: 0; align-content: start; }
+/* Native radio group: options wrap before they squeeze, with a stable space for the own-banner hint. */
+.jini-consent-banner-modes { border: 0; padding: 0; margin: 0; min-width: 0; }
+.jini-consent-banner-options { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.jini-consent-banner-options label { display: flex; align-items: center; gap: var(--space-2); min-height: 2.75rem; color: var(--fg); font-size: var(--text-sm); cursor: pointer; }
+.jini-consent-banner-options input[type="radio"] { flex-shrink: 0; margin: 0; accent-color: var(--primary); }
+.jini-consent-banner-options input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.jini-consent-banner-mode-hint { overflow-wrap: anywhere; }
+.consent-css-warnings { overflow-wrap: anywhere; }
+.consent-css-warnings p { margin: 0; }
+.consent-css-warnings ul { margin: var(--space-2) 0 0; padding-inline-start: var(--space-4); }
+@media (max-width: 480px) {
+  .jini-consent-banner-options { flex-direction: column; gap: 0; }
+}
+/* The admin's input type (styles.css `input, select, textarea`), not the 16px page text. */
+.jini-consent-settings-field .jini-input { width: 100%; min-width: 0; max-width: 100%; font-family: var(--font-ui); font-size: var(--text-sm); }
+.jini-consent-settings-field textarea { resize: vertical; }
+/* Each control sized to what it holds, not the column: selects to their longest option, short text
+   and the policy version to a field's width, the banner message and Custom CSS capped at one shared
+   readable measure so their right edges line up. The field is a grid, which stretches its children,
+   so a select also needs `justify-self: start` for `width: auto` to take. */
+.consent-page .jini-consent-settings-field select.jini-input { justify-self: start; width: auto; min-width: 12rem; max-width: min(18rem, 100%); }
+.consent-page .jini-consent-settings-field input[type="text"].jini-input { max-width: 16rem; }
+/* Banner fields by position (Jini renders them in a fixed order with no per-field hook): the title
+   reads as a short sentence, the two link URLs can be full addresses; the button labels and link
+   text keep the 16rem above. */
+.consent-page .jini-consent-settings-fields:has(input[type="text"]) &gt; .jini-consent-settings-field:nth-of-type(1) input.jini-input { max-width: 24rem; }
+.consent-page .jini-consent-settings-fields:has(input[type="text"]) &gt; .jini-consent-settings-field:is(:nth-of-type(6), :nth-of-type(8)) input.jini-input { max-width: 36rem; }
+.consent-page .consent-editor:not(.consent-editor-with-preview) .jini-consent-settings-field input[type="text"].jini-input { max-width: 12rem; }
+.consent-page .jini-consent-settings-field input[type="number"].jini-input { max-width: 8rem; }
+.consent-page .jini-consent-settings-field textarea.jini-input { max-width: 36rem; }
+/* The on/off row only needs its label and switch side by side; wider and the switch drifts away. */
+.consent-page .consent-editor .jini-toggle-row { max-width: 24rem; }
+/* On a phone the column is already narrow: text fields take all of it so their edges line up instead
+   of stepping between 12, 16, 24rem and full width. Selects and px fields keep their own size. Same
+   specificity as the banner by-position rules above, so this later rule wins. */
+@media (max-width: 480px) {
+  .consent-page .jini-consent-settings-fields:has(input[type="text"]) &gt; .jini-consent-settings-field input[type="text"].jini-input { max-width: 100%; }
+  .consent-page .consent-editor .jini-toggle-row { max-width: none; }
+}
+.jini-consent-settings-fields .jini-hint { margin: 0; font-size: var(--text-sm); color: var(--muted); }
+.jini-consent-field-problems { display: grid; gap: var(--space-1); }
+.jini-consent-settings-fields .jini-hint-error { color: var(--danger); }
+.jini-consent-css { font-family: var(--font-mono); font-size: var(--text-sm); }
+&nbsp;
+/* Appearance tokens: an even grid of small controls, as many per row as fit, each column only as
+   wide as a swatch row needs. */
+.consent-page .jini-consent-token-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 10rem)); gap: var(--space-4); }
+.jini-consent-color-row { display: flex; align-items: center; gap: var(--space-2); min-height: 2.25rem; }
+.jini-consent-color {
+  inline-size: 2.25rem; block-size: 2.25rem; flex-shrink: 0; padding: 2px; cursor: pointer;
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface);
+}
+.jini-consent-color-row code { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); }
+.jini-consent-color-row .jini-btn-link {
+  margin-left: auto; padding: 0; border: 0; background: none; cursor: pointer;
+  font-size: var(--text-sm); color: var(--accent-text, var(--accent));
+}
+&nbsp;
+/* Preview: Phone/Desktop as the admin's segmented control, the page in a framed viewport. */
+.jini-consent-preview { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.jini-consent-preview-widths {
+  display: inline-flex; align-self: flex-start; gap: 0.25rem; padding: 0.2rem;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2);
+}
+.jini-consent-preview-widths button {
+  border: 0; background: transparent; padding: 0.35rem 0.75rem; border-radius: 6px;
+  font: inherit; font-size: 0.85rem; cursor: pointer; color: var(--muted); box-shadow: none;
+}
+.jini-consent-preview-widths button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: var(--jini-control-shadow-segment); }
+.jini-consent-preview-frame {
+  display: block; max-width: 100%; block-size: 34rem; margin-inline: auto;
+  border: 1px solid var(--border); border-radius: var(--r-md); background: #fff;
+}
+/* Desktop lays the page out at a real desktop width (set from rules.ts) and scales it to the pane,
+   so the banner shows its desktop layout, not the phone sheet it uses at 480px and below. The
+   negative margins give back the layout space the scale-down frees. Jini sets an inline width. */
+.consent-preview-pane .jini-consent-preview-frame.is-desktop {
+  box-sizing: border-box; max-width: none; margin: 0;
+  width: var(--consent-preview-desktop-width, 100%) !important;
+  block-size: calc(34rem / var(--consent-preview-scale, 1));
+  margin-block-end: calc(34rem - 34rem / var(--consent-preview-scale, 1));
+  margin-inline-end: calc(var(--consent-preview-desktop-width, 0px) * (var(--consent-preview-scale, 1) - 1));
+  transform: scale(var(--consent-preview-scale, 1)); transform-origin: 0 0;
+}
+.jini-consent-preview-empty {
+  display: grid; place-items: center; block-size: 34rem; margin: 0;
+  border: 1px dashed var(--border); border-radius: var(--r-md); color: var(--muted);
+}
+&nbsp;
+/* Look &amp; Position: "Reset to default" under Custom CSS, shown once the owner changed the default. */
+.consent-css-reset { display: flex; justify-content: flex-end; margin-top: var(--space-3); }
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

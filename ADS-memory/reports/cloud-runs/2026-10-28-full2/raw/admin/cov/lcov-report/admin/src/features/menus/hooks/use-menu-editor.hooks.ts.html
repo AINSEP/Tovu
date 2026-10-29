@@ -1,0 +1,1408 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/menus/hooks/use-menu-editor.hooks.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../../index.html">All files</a> / <a href="index.html">admin/src/features/menus/hooks</a> use-menu-editor.hooks.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>187/187</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>100/100</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>44/44</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>145/145</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a>
+<a name='L323'></a><a href='#L323'>323</a>
+<a name='L324'></a><a href='#L324'>324</a>
+<a name='L325'></a><a href='#L325'>325</a>
+<a name='L326'></a><a href='#L326'>326</a>
+<a name='L327'></a><a href='#L327'>327</a>
+<a name='L328'></a><a href='#L328'>328</a>
+<a name='L329'></a><a href='#L329'>329</a>
+<a name='L330'></a><a href='#L330'>330</a>
+<a name='L331'></a><a href='#L331'>331</a>
+<a name='L332'></a><a href='#L332'>332</a>
+<a name='L333'></a><a href='#L333'>333</a>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a>
+<a name='L336'></a><a href='#L336'>336</a>
+<a name='L337'></a><a href='#L337'>337</a>
+<a name='L338'></a><a href='#L338'>338</a>
+<a name='L339'></a><a href='#L339'>339</a>
+<a name='L340'></a><a href='#L340'>340</a>
+<a name='L341'></a><a href='#L341'>341</a>
+<a name='L342'></a><a href='#L342'>342</a>
+<a name='L343'></a><a href='#L343'>343</a>
+<a name='L344'></a><a href='#L344'>344</a>
+<a name='L345'></a><a href='#L345'>345</a>
+<a name='L346'></a><a href='#L346'>346</a>
+<a name='L347'></a><a href='#L347'>347</a>
+<a name='L348'></a><a href='#L348'>348</a>
+<a name='L349'></a><a href='#L349'>349</a>
+<a name='L350'></a><a href='#L350'>350</a>
+<a name='L351'></a><a href='#L351'>351</a>
+<a name='L352'></a><a href='#L352'>352</a>
+<a name='L353'></a><a href='#L353'>353</a>
+<a name='L354'></a><a href='#L354'>354</a>
+<a name='L355'></a><a href='#L355'>355</a>
+<a name='L356'></a><a href='#L356'>356</a>
+<a name='L357'></a><a href='#L357'>357</a>
+<a name='L358'></a><a href='#L358'>358</a>
+<a name='L359'></a><a href='#L359'>359</a>
+<a name='L360'></a><a href='#L360'>360</a>
+<a name='L361'></a><a href='#L361'>361</a>
+<a name='L362'></a><a href='#L362'>362</a>
+<a name='L363'></a><a href='#L363'>363</a>
+<a name='L364'></a><a href='#L364'>364</a>
+<a name='L365'></a><a href='#L365'>365</a>
+<a name='L366'></a><a href='#L366'>366</a>
+<a name='L367'></a><a href='#L367'>367</a>
+<a name='L368'></a><a href='#L368'>368</a>
+<a name='L369'></a><a href='#L369'>369</a>
+<a name='L370'></a><a href='#L370'>370</a>
+<a name='L371'></a><a href='#L371'>371</a>
+<a name='L372'></a><a href='#L372'>372</a>
+<a name='L373'></a><a href='#L373'>373</a>
+<a name='L374'></a><a href='#L374'>374</a>
+<a name='L375'></a><a href='#L375'>375</a>
+<a name='L376'></a><a href='#L376'>376</a>
+<a name='L377'></a><a href='#L377'>377</a>
+<a name='L378'></a><a href='#L378'>378</a>
+<a name='L379'></a><a href='#L379'>379</a>
+<a name='L380'></a><a href='#L380'>380</a>
+<a name='L381'></a><a href='#L381'>381</a>
+<a name='L382'></a><a href='#L382'>382</a>
+<a name='L383'></a><a href='#L383'>383</a>
+<a name='L384'></a><a href='#L384'>384</a>
+<a name='L385'></a><a href='#L385'>385</a>
+<a name='L386'></a><a href='#L386'>386</a>
+<a name='L387'></a><a href='#L387'>387</a>
+<a name='L388'></a><a href='#L388'>388</a>
+<a name='L389'></a><a href='#L389'>389</a>
+<a name='L390'></a><a href='#L390'>390</a>
+<a name='L391'></a><a href='#L391'>391</a>
+<a name='L392'></a><a href='#L392'>392</a>
+<a name='L393'></a><a href='#L393'>393</a>
+<a name='L394'></a><a href='#L394'>394</a>
+<a name='L395'></a><a href='#L395'>395</a>
+<a name='L396'></a><a href='#L396'>396</a>
+<a name='L397'></a><a href='#L397'>397</a>
+<a name='L398'></a><a href='#L398'>398</a>
+<a name='L399'></a><a href='#L399'>399</a>
+<a name='L400'></a><a href='#L400'>400</a>
+<a name='L401'></a><a href='#L401'>401</a>
+<a name='L402'></a><a href='#L402'>402</a>
+<a name='L403'></a><a href='#L403'>403</a>
+<a name='L404'></a><a href='#L404'>404</a>
+<a name='L405'></a><a href='#L405'>405</a>
+<a name='L406'></a><a href='#L406'>406</a>
+<a name='L407'></a><a href='#L407'>407</a>
+<a name='L408'></a><a href='#L408'>408</a>
+<a name='L409'></a><a href='#L409'>409</a>
+<a name='L410'></a><a href='#L410'>410</a>
+<a name='L411'></a><a href='#L411'>411</a>
+<a name='L412'></a><a href='#L412'>412</a>
+<a name='L413'></a><a href='#L413'>413</a>
+<a name='L414'></a><a href='#L414'>414</a>
+<a name='L415'></a><a href='#L415'>415</a>
+<a name='L416'></a><a href='#L416'>416</a>
+<a name='L417'></a><a href='#L417'>417</a>
+<a name='L418'></a><a href='#L418'>418</a>
+<a name='L419'></a><a href='#L419'>419</a>
+<a name='L420'></a><a href='#L420'>420</a>
+<a name='L421'></a><a href='#L421'>421</a>
+<a name='L422'></a><a href='#L422'>422</a>
+<a name='L423'></a><a href='#L423'>423</a>
+<a name='L424'></a><a href='#L424'>424</a>
+<a name='L425'></a><a href='#L425'>425</a>
+<a name='L426'></a><a href='#L426'>426</a>
+<a name='L427'></a><a href='#L427'>427</a>
+<a name='L428'></a><a href='#L428'>428</a>
+<a name='L429'></a><a href='#L429'>429</a>
+<a name='L430'></a><a href='#L430'>430</a>
+<a name='L431'></a><a href='#L431'>431</a>
+<a name='L432'></a><a href='#L432'>432</a>
+<a name='L433'></a><a href='#L433'>433</a>
+<a name='L434'></a><a href='#L434'>434</a>
+<a name='L435'></a><a href='#L435'>435</a>
+<a name='L436'></a><a href='#L436'>436</a>
+<a name='L437'></a><a href='#L437'>437</a>
+<a name='L438'></a><a href='#L438'>438</a>
+<a name='L439'></a><a href='#L439'>439</a>
+<a name='L440'></a><a href='#L440'>440</a>
+<a name='L441'></a><a href='#L441'>441</a>
+<a name='L442'></a><a href='#L442'>442</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">54x</span>
+<span class="cline-any cline-yes">53x</span>
+<span class="cline-any cline-yes">53x</span>
+<span class="cline-any cline-yes">101x</span>
+<span class="cline-any cline-yes">52x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">20x</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">20x</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">82x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">336x</span>
+<span class="cline-any cline-yes">97x</span>
+<span class="cline-any cline-yes">97x</span>
+<span class="cline-any cline-yes">97x</span>
+<span class="cline-any cline-yes">97x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">84x</span>
+<span class="cline-any cline-yes">84x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">84x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">74x</span>
+<span class="cline-any cline-yes">71x</span>
+<span class="cline-any cline-yes">71x</span>
+<span class="cline-any cline-yes">71x</span>
+<span class="cline-any cline-yes">71x</span>
+<span class="cline-any cline-yes">71x</span>
+<span class="cline-any cline-yes">71x</span>
+<span class="cline-any cline-yes">74x</span>
+<span class="cline-any cline-yes">74x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">74x</span>
+<span class="cline-any cline-yes">74x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">83x</span>
+<span class="cline-any cline-yes">79x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">84x</span>
+<span class="cline-any cline-yes">84x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">40x</span>
+<span class="cline-any cline-yes">40x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">50x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-yes">40x</span>
+<span class="cline-any cline-yes">40x</span>
+<span class="cline-any cline-yes">40x</span>
+<span class="cline-any cline-yes">40x</span>
+<span class="cline-any cline-yes">40x</span>
+<span class="cline-any cline-yes">40x</span>
+<span class="cline-any cline-yes">40x</span>
+<span class="cline-any cline-yes">40x</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">35x</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">15x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">21x</span>
+<span class="cline-any cline-yes">20x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">40x</span>
+<span class="cline-any cline-yes">40x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">412x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">130x</span>
+<span class="cline-any cline-yes">8981x</span>
+<span class="cline-any cline-yes">130x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { useCallback as useQueryFetchCallback } from "react";
+import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type AdminMenu, type AdminMenuItem, type AdminMenuMode } from "@/lib/api";
+import { isVersionConflict, VERSION_CONFLICT_MESSAGE } from "@/lib/version-conflict";
+import { navigate as realNavigate } from "@/lib/router";
+import { slugRedirectPath } from "@/lib/slug-redirect-path";
+import { useDirtyGuard, type Translate } from "@jini-ai/ui/panel-kit";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { menuAuthoringForSave, menuHtmlEmbed, menuHtmlStarter } from "../html-rules";
+import { t as translate } from "../menus-i18n";
+import { defaultMenusPort } from "./menus-dependencies.hooks";
+import type { MenusPort } from "./menus-port.hooks";
+import { hasPageLinks, pageItemsForSave, type MenuPageChoice } from "../page-link-rules";
+import { toSlug } from "../../../../../website/src/platform/html/slug";
+&nbsp;
+/**
+ * @file Everything the per-menu tree editor does, so `MenuEditor.tsx` is only markup.
+ *
+ * Extracted verbatim — same state, same order, same effect, same error strings. `props.menuId ===
+ * null` is create mode (unsaved menu, empty tree to start); a non-null id loads and edits an
+ * existing menu.
+ *
+ * The immutable tree operations below (`mapAtPath` … `moveAtPath`) and the `newItem` factory move
+ * with the state actions they implement (`changeAt`/`removeAt`/`addChildAt`/`moveAt`/`addRootItem`).
+ * `countDescendants` and `targetForKind` stay in `MenuEditor.tsx` — they're only ever called from
+ * inside `ItemRow`'s own markup (confirm copy, select-driven target reshaping), not from this
+ * hook's state transitions.
+ *
+ * Naming follows `hooks/use-settings-slice.hooks.ts` and `hooks/use-dirty-guard.hooks.ts`:
+ * `use-&lt;thing&gt;.hooks.ts`. Feature-local because nothing outside `features/menus` needs it; promote
+ * to `src/hooks/` only when a second feature actually does.
+ *
+ * `deps.port`/`deps.navigate` are injected (see `menus-port.hooks.ts`) rather than reaching for
+ * `lib/api`'s `api` and `lib/router`'s `navigate` directly, sharing the `MenusPort`
+ * `use-menus.hooks.ts` also injects.
+ *
+ * `deps.t` (standing i18n rule, 2026-08-11 — see `use-menus.hooks.ts`'s identical note): injected
+ * so `MenuEditor.tsx` (and `ItemRow`, which it threads `t` into as a prop) source their UI copy
+ * from this hook instead of their own `useAdminLocale()`/`MENUS_DICT` import. This hook's OWN error
+ * strings stay hardcoded English (unchanged) — `useAdminLocale()`/`MENUS_DICT` are read only inside
+ * {@link useWiredMenuEditor}.
+ */
+&nbsp;
+export interface MenuEditorDependencies {
+  port: MenusPort;
+  navigate: (path: string, options?: { replace?: boolean }) =&gt; void;
+  t: Translate;
+  clipboard?: { writeText: (text: string) =&gt; Promise&lt;void&gt; };
+  /** Draft item IDs retain their browser UUID / timestamp fallback with controllable entropy. */
+  itemIdSource?: {
+    crypto?: Partial&lt;Pick&lt;Crypto, "randomUUID"&gt;&gt;;
+    nowMs: () =&gt; number;
+    random: () =&gt; number;
+  };
+}
+&nbsp;
+function newItemId({ source }: { source: NonNullable&lt;MenuEditorDependencies["itemIdSource"]&gt; }): string {
+  return source.crypto?.randomUUID?.() ?? `item-${source.nowMs()}-${source.random().toString(36).slice(2)}`;
+}
+&nbsp;
+function newItem({ source }: { source: NonNullable&lt;MenuEditorDependencies["itemIdSource"]&gt; }): AdminMenuItem {
+  return { id: newItemId({ source }), label: "", target: { kind: "url", href: "" } };
+}
+&nbsp;
+// ---------------------------------------------------------------------------
+// Immutable tree operations over a `path` (array of sibling indices from the
+// root down to the target node). The tree is bounded (menu-service.ts caps
+// depth at 5, item count at 500), so plain recursive rebuilds are fine —
+// no need for an index/map structure at this scale.
+// ---------------------------------------------------------------------------
+&nbsp;
+function mapAtPath(
+  items: AdminMenuItem[],
+  path: number[],
+  fn: (item: AdminMenuItem) =&gt; AdminMenuItem
+): AdminMenuItem[] {
+  if (path.length === 0) return items;
+  const [index, ...rest] = path;
+  return items.map((item, i) =&gt; {
+    if (i !== index) return item;
+    if (rest.length === 0) return fn(item);
+    return { ...item, children: mapAtPath(item.children ?? [], rest, fn) };
+  });
+}
+&nbsp;
+function removeAtPath(items: AdminMenuItem[], path: number[]): AdminMenuItem[] {
+  if (path.length === 0) return items;
+  const [index, ...rest] = path;
+  if (rest.length === 0) return items.filter((_, i) =&gt; i !== index);
+  return items.map((item, i) =&gt;
+    i === index ? { ...item, children: removeAtPath(item.children ?? [], rest) } : item
+  );
+}
+&nbsp;
+function addChildAtPath(items: AdminMenuItem[], path: number[], createItem: () =&gt; AdminMenuItem): AdminMenuItem[] {
+  if (path.length === 0) return [...items, createItem()];
+  const [index, ...rest] = path;
+  return items.map((item, i) =&gt; {
+    if (i !== index) return item;
+    if (rest.length === 0) return { ...item, children: [...(item.children ?? []), createItem()] };
+    return { ...item, children: addChildAtPath(item.children ?? [], rest, createItem) };
+  });
+}
+&nbsp;
+function getChildrenAtPath(items: AdminMenuItem[], path: number[]): AdminMenuItem[] {
+  if (path.length === 0) return items;
+  const [index, ...rest] = path;
+  return getChildrenAtPath(items[index]?.children ?? [], rest);
+}
+&nbsp;
+function moveAtPath(items: AdminMenuItem[], path: number[], direction: -1 | 1): AdminMenuItem[] {
+  const parentPath = path.slice(0, -1);
+  const index = path[path.length - 1];
+  const siblings = getChildrenAtPath(items, parentPath);
+  const target = index + direction;
+  if (target &lt; 0 || target &gt;= siblings.length) return items;
+  const reordered = [...siblings];
+  [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+  // Root moves replace the list itself; nested moves replace one parent's children through
+  // `mapAtPath`. (A dedicated `setChildrenAtPath` walker used to do this with its own
+  // `item.children ?? []` fallback, which could never run: reaching here means `siblings` had
+  // `target` in range, so every ancestor on `parentPath` already has a children array.)
+  if (parentPath.length === 0) return reordered;
+  return mapAtPath(items, parentPath, (parent) =&gt; ({ ...parent, children: reordered }));
+}
+&nbsp;
+/** What `useDirtyGuard` compares — everything an operator can actually edit on this screen. */
+interface MenuFormState {
+  title: string;
+  slug: string;
+  items: AdminMenuItem[];
+  mode: AdminMenuMode;
+  html: string;
+}
+&nbsp;
+export interface MenuEditorController {
+  pageChoices?: MenuPageChoice[];
+  copyHtmlEmbed: () =&gt; Promise&lt;void&gt;;
+  copyFeedback: string | null;
+  isNew: boolean;
+  menu: AdminMenu | null;
+  title: string;
+  setTitle: (title: string) =&gt; void;
+  slug: string;
+  setSlug: (slug: string) =&gt; void;
+  items: AdminMenuItem[];
+  /** The active tab: `"items"` ("Options", the tree editor) or `"html"` (raw menu markup). Save
+   *  saves this mode; a menu stored in HTML mode opens on the HTML tab. */
+  mode: AdminMenuMode;
+  /** Switches tabs. The first switch to HTML with no markup yet seeds {@link menuHtmlStarter} from
+   *  the current items (forms' `changeMode` rule); the other mode's data is never cleared. */
+  changeMode: (mode: AdminMenuMode) =&gt; void;
+  html: string;
+  setHtml: (html: string) =&gt; void;
+  message: string | null;
+  error: string | null;
+  loading: boolean;
+  confirmLeave: () =&gt; boolean;
+  changeAt: (path: number[], fn: (item: AdminMenuItem) =&gt; AdminMenuItem) =&gt; void;
+  removeAt: (path: number[]) =&gt; void;
+  addChildAt: (path: number[]) =&gt; void;
+  moveAt: (path: number[], direction: -1 | 1) =&gt; void;
+  addRootItem: () =&gt; void;
+  save: () =&gt; Promise&lt;void&gt;;
+  /**
+   * Whether a Save request is currently in flight (S4a, 2026-09-20) — the button had no `disabled`
+   * at all, unlike Pages/Posts' twin `saving` field (`PageEditorController.saving`,
+   * `PostEditorController.saving` from the same pass, `use-post-editor.hooks.ts` M4). A double click
+   * sent two `updateMenuTree` calls carrying the same `expectedVersion`; the first landed, the
+   * second's basis was already stale, so the operator saw an error line next to "Saved". Unlike
+   * Pages/Posts, this screen has no "later click wins" intent to preserve (Menus has one action, not
+   * a Save-vs-Publish race), so `save()` itself drops a same-tick re-entry via a synchronous
+   * `useRef` guard rather than letting a second write reach the port at all — see `save()`'s own
+   * comment.
+   */
+  saving: boolean;
+  /** Bound translator — `MenuEditor.tsx`'s only source of UI copy; see this file's own header. */
+  t: Translate;
+}
+&nbsp;
+function menuSaveError({ error, t }: { error: unknown; t: Translate }, _optional = {}): string {
+  // A lost compare-and-set (`409 VERSION_CONFLICT`, real since menu saves became
+  // compare-and-set, wm S4) gets translated "someone else changed this" copy instead of the
+  // server's "menu '&lt;id&gt;' was modified concurrently…" text. Other errors (a slug already taken
+  // is also a 409, without the code) keep the server message.
+  if (isVersionConflict(error)) return t(VERSION_CONFLICT_MESSAGE);
+  return error instanceof Error ? error.message : "save failed";
+}
+&nbsp;
+export function useMenuEditor(menuId: string | null, { port, navigate, t, clipboard,
+  itemIdSource = { crypto: globalThis.crypto, nowMs: Date.now, random: Math.random },
+}: MenuEditorDependencies): MenuEditorController {
+  const isNew = menuId === null;
+  const fetchMenu = useCallback(async () =&gt; {
+    try { return await port.getMenu(menuId!); }
+    catch (error) { throw new Error(error instanceof Error ? error.message : t("failed to load menu")); }
+  }, [menuId, port, t]);
+  const menuKey = useMemo(() =&gt; ["menus", "detail", menuId ?? "new"] as const, [menuId]);
+  const loader = useCachedLoader({ key: menuKey, fetch: fetchMenu }, { staleTime: 0 });
+  const hydratedRoute = useRef&lt;string | null | undefined&gt;(undefined);
+  const write = useFetchMutation({ run: ({ input }: { input: () =&gt; Promise&lt;unknown&gt; }) =&gt; input() }, { invalidates: [["menus"]] });
+  const [copyFeedback, setCopyFeedback] = useState&lt;string | null&gt;(null);
+  const [menu, setMenu] = useState&lt;AdminMenu | null&gt;(null);
+  const [title, setTitle] = useState("");
+  const [slug, setSlug] = useState("");
+  // A cleared slug is still an explicit edit. Track intent rather than testing whether it is empty.
+  const slugEdited = useRef(false);
+  const [items, setItems] = useState&lt;AdminMenuItem[]&gt;([]);
+  const [mode, setMode] = useState&lt;AdminMenuMode&gt;("items");
+  const [html, setHtml] = useState("");
+  const needsPages = hasPageLinks({ items });
+  const pageQueryFetch = useQueryFetchCallback(async () =&gt; (await port.listPages!({})).pages, [port]);
+  const pageQuery = useFetchQuery({ key: ["menus", "page-options"], fetch: pageQueryFetch }, { enabled: needsPages &amp;&amp; !!port.listPages, staleTime: 0 });
+  const pageChoices = needsPages ? pageQuery.data : undefined;
+  const [message, setMessage] = useState&lt;string | null&gt;(null);
+  const [error, setError] = useState&lt;string | null&gt;(null);
+  const [loading, setLoading] = useState(!isNew);
+  // Snapshot of the last loaded-or-saved state (audit finding: no editor screen tracks this at
+  // all today, so there is nothing for a dirty check to compare against). `null` only while a load
+  // is still in flight — set immediately for `isNew` (an empty menu IS the loaded state to diff
+  // against), and refreshed after every successful save so a saved edit stops reading as dirty.
+  const [original, setOriginal] = useState&lt;MenuFormState | null&gt;(null);
+&nbsp;
+  // Stale-response guard (2026-08-12 audit finding): this is a route-param loader — the panel
+  // router reuses this same component/hook across `/new` and every `/:id`, so navigating from one
+  // menu to another (or from an existing menu to `/new`) can let an OLDER `getMenu` response land
+  // after a NEWER one, overwriting the currently-viewed menu with a previous one's data (or, for
+  // `/new`, populating a blank editor with a stale record — the operator would then be editing and
+  // saving over the wrong menu). `cancelled` is flipped by this same effect's own cleanup the
+  // instant `menuId`/`isNew` changes again, before the new run starts — guarded on every completion
+  // path (`then`/`catch`/`finally`), not just the success path, since an unguarded `finally`
+  // clearing `loading` is the one most likely to leave stale data on screen with no spinner to flag
+  // it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the loader captures the port; an already hydrated route retains its draft.
+  useEffect(() =&gt; {
+    if (hydratedRoute.current === menuId) return;
+    let cancelled = false;
+    setCopyFeedback(null);
+    slugEdited.current = false;
+    if (isNew) {
+      setMenu(null);
+      setTitle("");
+      setSlug("");
+      setItems([]);
+      setMode("items");
+      setHtml("");
+      setOriginal({ title: "", slug: "", items: [], mode: "items", html: "" });
+      setLoading(false);
+      hydratedRoute.current = menuId;
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    // Await a fresh version on every route entry; a retained cache value is only display data.
+    loader.load()
+      .then(({ menu }) =&gt; {
+        if (cancelled) return;
+        hydratedRoute.current = menuId;
+        setMenu(menu);
+        setTitle(menu.title);
+        setSlug(menu.slug);
+        setItems(menu.items);
+        setMode(menu.mode ?? "items");
+        setHtml(menu.html ?? "");
+        setOriginal({ title: menu.title, slug: menu.slug, items: menu.items, mode: menu.mode ?? "items", html: menu.html ?? "" });
+        // readable-slugs S6b: an old id-based bookmark quietly catches up to the slug URL, same
+        // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule posts/pages/widgets already apply.
+        const redirectPath = slugRedirectPath("/menus", menuId as string, menu);
+        if (redirectPath) navigate(redirectPath, { replace: true });
+      })
+      .catch((e) =&gt; {
+        if (cancelled) return;
+        // Always an `Error`: `fetchMenu` above rethrows every failure as one (with the translated
+        // "failed to load menu" fallback for a non-Error rejection), so no second fallback here.
+        setError((e as Error).message);
+      })
+      .finally(() =&gt; {
+        if (cancelled) return;
+        setLoading(false);
+      });
+    return () =&gt; {
+      cancelled = true;
+    };
+  }, [menuId, isNew, loader]);
+&nbsp;
+  const { confirmLeave } = useDirtyGuard&lt;MenuFormState&gt;({ current: { title, slug, items, mode, html }, original }, { host: window, translate: (key) =&gt; key });
+&nbsp;
+  // Stale-response guard, save() half (2026-08-12 audit finding): the load effect's `cancelled`
+  // flag above is scoped to a single effect run and flipped by that SAME effect's own cleanup — but
+  // save() isn't an effect, so a route change mid-save never flips it. `activeMenuIdRef` always
+  // holds the latest `menuId` this hook was RENDERED with (updated every render, not just on effect
+  // re-run), so save()'s completion handlers can tell whether the operator has already navigated to
+  // a different menu by the time create/update resolves, and skip committing state that belongs to
+  // a menu no longer on screen. The `isNew` branch's own `navigate()` + early `return` stays
+  // unguarded on purpose: it must always fire to land the operator on the menu they just created.
+  const activeMenuIdRef = useRef(menuId);
+  activeMenuIdRef.current = menuId;
+&nbsp;
+  // Same-tick re-entry guard for `save()` (S4a, 2026-09-20) — see `MenuEditorController.saving`'s
+  // own doc for the double-write bug this closes. A plain `useRef`, not `useSettlementGeneration`
+  // (Pages/Posts' primitive): this screen has only one write action, so there is no "later click
+  // wins" outcome to preserve — the second same-tick call should simply not happen at all. Checked
+  // synchronously at the top of `save()`, before anything else runs, so two calls issued in the same
+  // tick (a double click) both observe the first one's claim.
+  const savingRef = useRef(false);
+  const [saving, setSaving] = useState(false);
+&nbsp;
+  /** New-menu titles derive through the same browser-safe slug owner as pages/forms; persisted URLs stay stable. */
+  function changeTitle(next: string): void {
+    setTitle(next);
+    if (isNew &amp;&amp; !slugEdited.current) setSlug(toSlug(next));
+  }
+&nbsp;
+  /** Any explicit slug edit ends automatic derivation for this menu, including an intentionally empty value. */
+  function changeSlug(next: string): void {
+    slugEdited.current = true;
+    setSlug(next);
+  }
+&nbsp;
+  function changeAt(path: number[], fn: (item: AdminMenuItem) =&gt; AdminMenuItem) {
+    setItems((prev) =&gt; mapAtPath(prev, path, fn));
+  }
+  function removeAt(path: number[]) {
+    setItems((prev) =&gt; removeAtPath(prev, path));
+  }
+  function addChildAt(path: number[]) {
+    setItems((prev) =&gt; addChildAtPath(prev, path, () =&gt; newItem({ source: itemIdSource })));
+  }
+  function moveAt(path: number[], direction: -1 | 1) {
+    setItems((prev) =&gt; moveAtPath(prev, path, direction));
+  }
+  function addRootItem() {
+    setItems((prev) =&gt; [...prev, newItem({ source: itemIdSource })]);
+  }
+  function changeMode(next: AdminMenuMode) {
+    // `pageItemsForSave` fills each page link's public path from the catalogue, so the starter
+    // links to real URLs rather than `#`.
+    if (next === "html" &amp;&amp; html === "") setHtml(menuHtmlStarter({ items: pageItemsForSave({ items, pages: pageChoices }) }));
+    setMode(next);
+  }
+&nbsp;
+  async function copyHtmlEmbed() {
+    if (!menu) return;
+    const copyingForMenuId = menuId;
+    try {
+      await (clipboard ?? navigator.clipboard).writeText(menuHtmlEmbed({ slug: menu.slug }));
+      if (activeMenuIdRef.current === copyingForMenuId) setCopyFeedback(t("Copied!"));
+    } catch {
+      if (activeMenuIdRef.current === copyingForMenuId) setCopyFeedback(t("Could not copy embed"));
+    }
+  }
+&nbsp;
+  async function save() {
+    // Drop a same-tick duplicate outright — see `savingRef`'s own comment above and
+    // `MenuEditorController.saving`'s doc for why this screen prefers "the second click never
+    // happens" over Pages/Posts' "let the later one win".
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    const savingForMenuId = menuId;
+    setMessage(null);
+    setError(null);
+    try {
+      const saveItems = pageItemsForSave({ items, pages: pageChoices });
+      const authoring = menuAuthoringForSave({ mode, html, storedMode: menu?.mode });
+      if (isNew) {
+        const { menu: created } = await write.mutate({ input: () =&gt; port.createMenu({ title, slug }, { items: saveItems, ...authoring }) }) as Awaited&lt;ReturnType&lt;typeof port.createMenu&gt;&gt;;
+        navigate(`/menus/${created.slug}`);
+        return;
+      }
+      if (!menu) return;
+      const { menu: saved } = await write.mutate({ input: () =&gt; port.updateMenuTree(
+        { id: menu.id, expectedVersion: menu.version, items: saveItems },
+        { title, slug, ...authoring }
+      ) }) as Awaited&lt;ReturnType&lt;typeof port.updateMenuTree&gt;&gt;;
+      if (activeMenuIdRef.current !== savingForMenuId) return;
+      setMenu(saved);
+      setItems(saved.items);
+      // The server stores HTML parse5-balanced, so show (and baseline on) what it actually kept.
+      const savedHtml = saved.html ?? html;
+      setHtml(savedHtml);
+      // A saved edit is no longer "unsaved" — re-baseline what the dirty check compares against,
+      // or the guard would keep firing for a change the operator just persisted.
+      setOriginal({ title, slug, items: saved.items, mode, html: savedHtml });
+      setMessage(`Saved · version ${saved.version}`);
+    } catch (e) {
+      if (activeMenuIdRef.current !== savingForMenuId) return;
+      setError(menuSaveError({ error: e, t }));
+    } finally {
+      // Unconditional, unlike the `activeMenuIdRef` checks above: this flag tracks whether THIS
+      // save cycle is still on the wire, not whether its result still belongs to the menu on
+      // screen, so it always clears when the request settles, whichever menu that request was for.
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }
+&nbsp;
+  return {
+    pageChoices,
+    copyHtmlEmbed,
+    copyFeedback,
+    isNew,
+    menu,
+    title,
+    setTitle: changeTitle,
+    slug,
+    setSlug: changeSlug,
+    items,
+    mode,
+    changeMode,
+    html,
+    setHtml,
+    message,
+    error,
+    loading,
+    confirmLeave,
+    changeAt,
+    removeAt,
+    addChildAt,
+    moveAt,
+    addRootItem,
+    save,
+    saving,
+    t,
+  };
+}
+&nbsp;
+/**
+ * Binds the real `/api/.../menus` client, the real `lib/router` `navigate`, and a
+ * `MENUS_DICT`-bound translator — see `menus-dependencies.hooks.ts`.
+ *
+ * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
+ * `MenuEditor.tsx` composes this and a test composes {@link useMenuEditor} with
+ * `createFakeMenusPort`.
+ */
+export function useWiredMenuEditor(menuId: string | null): MenuEditorController {
+  const locale = useAdminLocale();
+  const t = (key: string): string =&gt; translate({ locale: locale, key: key });
+  return useMenuEditor(menuId, { port: defaultMenusPort, navigate: realNavigate, t });
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../../sorter.js"></script>
+        <script src="../../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

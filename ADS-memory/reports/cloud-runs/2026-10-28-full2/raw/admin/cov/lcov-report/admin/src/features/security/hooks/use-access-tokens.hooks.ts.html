@@ -1,0 +1,2809 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/security/hooks/use-access-tokens.hooks.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../../index.html">All files</a> / <a href="index.html">admin/src/features/security/hooks</a> use-access-tokens.hooks.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>331/331</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">99.52% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>209/210</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>104/104</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>240/240</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a>
+<a name='L323'></a><a href='#L323'>323</a>
+<a name='L324'></a><a href='#L324'>324</a>
+<a name='L325'></a><a href='#L325'>325</a>
+<a name='L326'></a><a href='#L326'>326</a>
+<a name='L327'></a><a href='#L327'>327</a>
+<a name='L328'></a><a href='#L328'>328</a>
+<a name='L329'></a><a href='#L329'>329</a>
+<a name='L330'></a><a href='#L330'>330</a>
+<a name='L331'></a><a href='#L331'>331</a>
+<a name='L332'></a><a href='#L332'>332</a>
+<a name='L333'></a><a href='#L333'>333</a>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a>
+<a name='L336'></a><a href='#L336'>336</a>
+<a name='L337'></a><a href='#L337'>337</a>
+<a name='L338'></a><a href='#L338'>338</a>
+<a name='L339'></a><a href='#L339'>339</a>
+<a name='L340'></a><a href='#L340'>340</a>
+<a name='L341'></a><a href='#L341'>341</a>
+<a name='L342'></a><a href='#L342'>342</a>
+<a name='L343'></a><a href='#L343'>343</a>
+<a name='L344'></a><a href='#L344'>344</a>
+<a name='L345'></a><a href='#L345'>345</a>
+<a name='L346'></a><a href='#L346'>346</a>
+<a name='L347'></a><a href='#L347'>347</a>
+<a name='L348'></a><a href='#L348'>348</a>
+<a name='L349'></a><a href='#L349'>349</a>
+<a name='L350'></a><a href='#L350'>350</a>
+<a name='L351'></a><a href='#L351'>351</a>
+<a name='L352'></a><a href='#L352'>352</a>
+<a name='L353'></a><a href='#L353'>353</a>
+<a name='L354'></a><a href='#L354'>354</a>
+<a name='L355'></a><a href='#L355'>355</a>
+<a name='L356'></a><a href='#L356'>356</a>
+<a name='L357'></a><a href='#L357'>357</a>
+<a name='L358'></a><a href='#L358'>358</a>
+<a name='L359'></a><a href='#L359'>359</a>
+<a name='L360'></a><a href='#L360'>360</a>
+<a name='L361'></a><a href='#L361'>361</a>
+<a name='L362'></a><a href='#L362'>362</a>
+<a name='L363'></a><a href='#L363'>363</a>
+<a name='L364'></a><a href='#L364'>364</a>
+<a name='L365'></a><a href='#L365'>365</a>
+<a name='L366'></a><a href='#L366'>366</a>
+<a name='L367'></a><a href='#L367'>367</a>
+<a name='L368'></a><a href='#L368'>368</a>
+<a name='L369'></a><a href='#L369'>369</a>
+<a name='L370'></a><a href='#L370'>370</a>
+<a name='L371'></a><a href='#L371'>371</a>
+<a name='L372'></a><a href='#L372'>372</a>
+<a name='L373'></a><a href='#L373'>373</a>
+<a name='L374'></a><a href='#L374'>374</a>
+<a name='L375'></a><a href='#L375'>375</a>
+<a name='L376'></a><a href='#L376'>376</a>
+<a name='L377'></a><a href='#L377'>377</a>
+<a name='L378'></a><a href='#L378'>378</a>
+<a name='L379'></a><a href='#L379'>379</a>
+<a name='L380'></a><a href='#L380'>380</a>
+<a name='L381'></a><a href='#L381'>381</a>
+<a name='L382'></a><a href='#L382'>382</a>
+<a name='L383'></a><a href='#L383'>383</a>
+<a name='L384'></a><a href='#L384'>384</a>
+<a name='L385'></a><a href='#L385'>385</a>
+<a name='L386'></a><a href='#L386'>386</a>
+<a name='L387'></a><a href='#L387'>387</a>
+<a name='L388'></a><a href='#L388'>388</a>
+<a name='L389'></a><a href='#L389'>389</a>
+<a name='L390'></a><a href='#L390'>390</a>
+<a name='L391'></a><a href='#L391'>391</a>
+<a name='L392'></a><a href='#L392'>392</a>
+<a name='L393'></a><a href='#L393'>393</a>
+<a name='L394'></a><a href='#L394'>394</a>
+<a name='L395'></a><a href='#L395'>395</a>
+<a name='L396'></a><a href='#L396'>396</a>
+<a name='L397'></a><a href='#L397'>397</a>
+<a name='L398'></a><a href='#L398'>398</a>
+<a name='L399'></a><a href='#L399'>399</a>
+<a name='L400'></a><a href='#L400'>400</a>
+<a name='L401'></a><a href='#L401'>401</a>
+<a name='L402'></a><a href='#L402'>402</a>
+<a name='L403'></a><a href='#L403'>403</a>
+<a name='L404'></a><a href='#L404'>404</a>
+<a name='L405'></a><a href='#L405'>405</a>
+<a name='L406'></a><a href='#L406'>406</a>
+<a name='L407'></a><a href='#L407'>407</a>
+<a name='L408'></a><a href='#L408'>408</a>
+<a name='L409'></a><a href='#L409'>409</a>
+<a name='L410'></a><a href='#L410'>410</a>
+<a name='L411'></a><a href='#L411'>411</a>
+<a name='L412'></a><a href='#L412'>412</a>
+<a name='L413'></a><a href='#L413'>413</a>
+<a name='L414'></a><a href='#L414'>414</a>
+<a name='L415'></a><a href='#L415'>415</a>
+<a name='L416'></a><a href='#L416'>416</a>
+<a name='L417'></a><a href='#L417'>417</a>
+<a name='L418'></a><a href='#L418'>418</a>
+<a name='L419'></a><a href='#L419'>419</a>
+<a name='L420'></a><a href='#L420'>420</a>
+<a name='L421'></a><a href='#L421'>421</a>
+<a name='L422'></a><a href='#L422'>422</a>
+<a name='L423'></a><a href='#L423'>423</a>
+<a name='L424'></a><a href='#L424'>424</a>
+<a name='L425'></a><a href='#L425'>425</a>
+<a name='L426'></a><a href='#L426'>426</a>
+<a name='L427'></a><a href='#L427'>427</a>
+<a name='L428'></a><a href='#L428'>428</a>
+<a name='L429'></a><a href='#L429'>429</a>
+<a name='L430'></a><a href='#L430'>430</a>
+<a name='L431'></a><a href='#L431'>431</a>
+<a name='L432'></a><a href='#L432'>432</a>
+<a name='L433'></a><a href='#L433'>433</a>
+<a name='L434'></a><a href='#L434'>434</a>
+<a name='L435'></a><a href='#L435'>435</a>
+<a name='L436'></a><a href='#L436'>436</a>
+<a name='L437'></a><a href='#L437'>437</a>
+<a name='L438'></a><a href='#L438'>438</a>
+<a name='L439'></a><a href='#L439'>439</a>
+<a name='L440'></a><a href='#L440'>440</a>
+<a name='L441'></a><a href='#L441'>441</a>
+<a name='L442'></a><a href='#L442'>442</a>
+<a name='L443'></a><a href='#L443'>443</a>
+<a name='L444'></a><a href='#L444'>444</a>
+<a name='L445'></a><a href='#L445'>445</a>
+<a name='L446'></a><a href='#L446'>446</a>
+<a name='L447'></a><a href='#L447'>447</a>
+<a name='L448'></a><a href='#L448'>448</a>
+<a name='L449'></a><a href='#L449'>449</a>
+<a name='L450'></a><a href='#L450'>450</a>
+<a name='L451'></a><a href='#L451'>451</a>
+<a name='L452'></a><a href='#L452'>452</a>
+<a name='L453'></a><a href='#L453'>453</a>
+<a name='L454'></a><a href='#L454'>454</a>
+<a name='L455'></a><a href='#L455'>455</a>
+<a name='L456'></a><a href='#L456'>456</a>
+<a name='L457'></a><a href='#L457'>457</a>
+<a name='L458'></a><a href='#L458'>458</a>
+<a name='L459'></a><a href='#L459'>459</a>
+<a name='L460'></a><a href='#L460'>460</a>
+<a name='L461'></a><a href='#L461'>461</a>
+<a name='L462'></a><a href='#L462'>462</a>
+<a name='L463'></a><a href='#L463'>463</a>
+<a name='L464'></a><a href='#L464'>464</a>
+<a name='L465'></a><a href='#L465'>465</a>
+<a name='L466'></a><a href='#L466'>466</a>
+<a name='L467'></a><a href='#L467'>467</a>
+<a name='L468'></a><a href='#L468'>468</a>
+<a name='L469'></a><a href='#L469'>469</a>
+<a name='L470'></a><a href='#L470'>470</a>
+<a name='L471'></a><a href='#L471'>471</a>
+<a name='L472'></a><a href='#L472'>472</a>
+<a name='L473'></a><a href='#L473'>473</a>
+<a name='L474'></a><a href='#L474'>474</a>
+<a name='L475'></a><a href='#L475'>475</a>
+<a name='L476'></a><a href='#L476'>476</a>
+<a name='L477'></a><a href='#L477'>477</a>
+<a name='L478'></a><a href='#L478'>478</a>
+<a name='L479'></a><a href='#L479'>479</a>
+<a name='L480'></a><a href='#L480'>480</a>
+<a name='L481'></a><a href='#L481'>481</a>
+<a name='L482'></a><a href='#L482'>482</a>
+<a name='L483'></a><a href='#L483'>483</a>
+<a name='L484'></a><a href='#L484'>484</a>
+<a name='L485'></a><a href='#L485'>485</a>
+<a name='L486'></a><a href='#L486'>486</a>
+<a name='L487'></a><a href='#L487'>487</a>
+<a name='L488'></a><a href='#L488'>488</a>
+<a name='L489'></a><a href='#L489'>489</a>
+<a name='L490'></a><a href='#L490'>490</a>
+<a name='L491'></a><a href='#L491'>491</a>
+<a name='L492'></a><a href='#L492'>492</a>
+<a name='L493'></a><a href='#L493'>493</a>
+<a name='L494'></a><a href='#L494'>494</a>
+<a name='L495'></a><a href='#L495'>495</a>
+<a name='L496'></a><a href='#L496'>496</a>
+<a name='L497'></a><a href='#L497'>497</a>
+<a name='L498'></a><a href='#L498'>498</a>
+<a name='L499'></a><a href='#L499'>499</a>
+<a name='L500'></a><a href='#L500'>500</a>
+<a name='L501'></a><a href='#L501'>501</a>
+<a name='L502'></a><a href='#L502'>502</a>
+<a name='L503'></a><a href='#L503'>503</a>
+<a name='L504'></a><a href='#L504'>504</a>
+<a name='L505'></a><a href='#L505'>505</a>
+<a name='L506'></a><a href='#L506'>506</a>
+<a name='L507'></a><a href='#L507'>507</a>
+<a name='L508'></a><a href='#L508'>508</a>
+<a name='L509'></a><a href='#L509'>509</a>
+<a name='L510'></a><a href='#L510'>510</a>
+<a name='L511'></a><a href='#L511'>511</a>
+<a name='L512'></a><a href='#L512'>512</a>
+<a name='L513'></a><a href='#L513'>513</a>
+<a name='L514'></a><a href='#L514'>514</a>
+<a name='L515'></a><a href='#L515'>515</a>
+<a name='L516'></a><a href='#L516'>516</a>
+<a name='L517'></a><a href='#L517'>517</a>
+<a name='L518'></a><a href='#L518'>518</a>
+<a name='L519'></a><a href='#L519'>519</a>
+<a name='L520'></a><a href='#L520'>520</a>
+<a name='L521'></a><a href='#L521'>521</a>
+<a name='L522'></a><a href='#L522'>522</a>
+<a name='L523'></a><a href='#L523'>523</a>
+<a name='L524'></a><a href='#L524'>524</a>
+<a name='L525'></a><a href='#L525'>525</a>
+<a name='L526'></a><a href='#L526'>526</a>
+<a name='L527'></a><a href='#L527'>527</a>
+<a name='L528'></a><a href='#L528'>528</a>
+<a name='L529'></a><a href='#L529'>529</a>
+<a name='L530'></a><a href='#L530'>530</a>
+<a name='L531'></a><a href='#L531'>531</a>
+<a name='L532'></a><a href='#L532'>532</a>
+<a name='L533'></a><a href='#L533'>533</a>
+<a name='L534'></a><a href='#L534'>534</a>
+<a name='L535'></a><a href='#L535'>535</a>
+<a name='L536'></a><a href='#L536'>536</a>
+<a name='L537'></a><a href='#L537'>537</a>
+<a name='L538'></a><a href='#L538'>538</a>
+<a name='L539'></a><a href='#L539'>539</a>
+<a name='L540'></a><a href='#L540'>540</a>
+<a name='L541'></a><a href='#L541'>541</a>
+<a name='L542'></a><a href='#L542'>542</a>
+<a name='L543'></a><a href='#L543'>543</a>
+<a name='L544'></a><a href='#L544'>544</a>
+<a name='L545'></a><a href='#L545'>545</a>
+<a name='L546'></a><a href='#L546'>546</a>
+<a name='L547'></a><a href='#L547'>547</a>
+<a name='L548'></a><a href='#L548'>548</a>
+<a name='L549'></a><a href='#L549'>549</a>
+<a name='L550'></a><a href='#L550'>550</a>
+<a name='L551'></a><a href='#L551'>551</a>
+<a name='L552'></a><a href='#L552'>552</a>
+<a name='L553'></a><a href='#L553'>553</a>
+<a name='L554'></a><a href='#L554'>554</a>
+<a name='L555'></a><a href='#L555'>555</a>
+<a name='L556'></a><a href='#L556'>556</a>
+<a name='L557'></a><a href='#L557'>557</a>
+<a name='L558'></a><a href='#L558'>558</a>
+<a name='L559'></a><a href='#L559'>559</a>
+<a name='L560'></a><a href='#L560'>560</a>
+<a name='L561'></a><a href='#L561'>561</a>
+<a name='L562'></a><a href='#L562'>562</a>
+<a name='L563'></a><a href='#L563'>563</a>
+<a name='L564'></a><a href='#L564'>564</a>
+<a name='L565'></a><a href='#L565'>565</a>
+<a name='L566'></a><a href='#L566'>566</a>
+<a name='L567'></a><a href='#L567'>567</a>
+<a name='L568'></a><a href='#L568'>568</a>
+<a name='L569'></a><a href='#L569'>569</a>
+<a name='L570'></a><a href='#L570'>570</a>
+<a name='L571'></a><a href='#L571'>571</a>
+<a name='L572'></a><a href='#L572'>572</a>
+<a name='L573'></a><a href='#L573'>573</a>
+<a name='L574'></a><a href='#L574'>574</a>
+<a name='L575'></a><a href='#L575'>575</a>
+<a name='L576'></a><a href='#L576'>576</a>
+<a name='L577'></a><a href='#L577'>577</a>
+<a name='L578'></a><a href='#L578'>578</a>
+<a name='L579'></a><a href='#L579'>579</a>
+<a name='L580'></a><a href='#L580'>580</a>
+<a name='L581'></a><a href='#L581'>581</a>
+<a name='L582'></a><a href='#L582'>582</a>
+<a name='L583'></a><a href='#L583'>583</a>
+<a name='L584'></a><a href='#L584'>584</a>
+<a name='L585'></a><a href='#L585'>585</a>
+<a name='L586'></a><a href='#L586'>586</a>
+<a name='L587'></a><a href='#L587'>587</a>
+<a name='L588'></a><a href='#L588'>588</a>
+<a name='L589'></a><a href='#L589'>589</a>
+<a name='L590'></a><a href='#L590'>590</a>
+<a name='L591'></a><a href='#L591'>591</a>
+<a name='L592'></a><a href='#L592'>592</a>
+<a name='L593'></a><a href='#L593'>593</a>
+<a name='L594'></a><a href='#L594'>594</a>
+<a name='L595'></a><a href='#L595'>595</a>
+<a name='L596'></a><a href='#L596'>596</a>
+<a name='L597'></a><a href='#L597'>597</a>
+<a name='L598'></a><a href='#L598'>598</a>
+<a name='L599'></a><a href='#L599'>599</a>
+<a name='L600'></a><a href='#L600'>600</a>
+<a name='L601'></a><a href='#L601'>601</a>
+<a name='L602'></a><a href='#L602'>602</a>
+<a name='L603'></a><a href='#L603'>603</a>
+<a name='L604'></a><a href='#L604'>604</a>
+<a name='L605'></a><a href='#L605'>605</a>
+<a name='L606'></a><a href='#L606'>606</a>
+<a name='L607'></a><a href='#L607'>607</a>
+<a name='L608'></a><a href='#L608'>608</a>
+<a name='L609'></a><a href='#L609'>609</a>
+<a name='L610'></a><a href='#L610'>610</a>
+<a name='L611'></a><a href='#L611'>611</a>
+<a name='L612'></a><a href='#L612'>612</a>
+<a name='L613'></a><a href='#L613'>613</a>
+<a name='L614'></a><a href='#L614'>614</a>
+<a name='L615'></a><a href='#L615'>615</a>
+<a name='L616'></a><a href='#L616'>616</a>
+<a name='L617'></a><a href='#L617'>617</a>
+<a name='L618'></a><a href='#L618'>618</a>
+<a name='L619'></a><a href='#L619'>619</a>
+<a name='L620'></a><a href='#L620'>620</a>
+<a name='L621'></a><a href='#L621'>621</a>
+<a name='L622'></a><a href='#L622'>622</a>
+<a name='L623'></a><a href='#L623'>623</a>
+<a name='L624'></a><a href='#L624'>624</a>
+<a name='L625'></a><a href='#L625'>625</a>
+<a name='L626'></a><a href='#L626'>626</a>
+<a name='L627'></a><a href='#L627'>627</a>
+<a name='L628'></a><a href='#L628'>628</a>
+<a name='L629'></a><a href='#L629'>629</a>
+<a name='L630'></a><a href='#L630'>630</a>
+<a name='L631'></a><a href='#L631'>631</a>
+<a name='L632'></a><a href='#L632'>632</a>
+<a name='L633'></a><a href='#L633'>633</a>
+<a name='L634'></a><a href='#L634'>634</a>
+<a name='L635'></a><a href='#L635'>635</a>
+<a name='L636'></a><a href='#L636'>636</a>
+<a name='L637'></a><a href='#L637'>637</a>
+<a name='L638'></a><a href='#L638'>638</a>
+<a name='L639'></a><a href='#L639'>639</a>
+<a name='L640'></a><a href='#L640'>640</a>
+<a name='L641'></a><a href='#L641'>641</a>
+<a name='L642'></a><a href='#L642'>642</a>
+<a name='L643'></a><a href='#L643'>643</a>
+<a name='L644'></a><a href='#L644'>644</a>
+<a name='L645'></a><a href='#L645'>645</a>
+<a name='L646'></a><a href='#L646'>646</a>
+<a name='L647'></a><a href='#L647'>647</a>
+<a name='L648'></a><a href='#L648'>648</a>
+<a name='L649'></a><a href='#L649'>649</a>
+<a name='L650'></a><a href='#L650'>650</a>
+<a name='L651'></a><a href='#L651'>651</a>
+<a name='L652'></a><a href='#L652'>652</a>
+<a name='L653'></a><a href='#L653'>653</a>
+<a name='L654'></a><a href='#L654'>654</a>
+<a name='L655'></a><a href='#L655'>655</a>
+<a name='L656'></a><a href='#L656'>656</a>
+<a name='L657'></a><a href='#L657'>657</a>
+<a name='L658'></a><a href='#L658'>658</a>
+<a name='L659'></a><a href='#L659'>659</a>
+<a name='L660'></a><a href='#L660'>660</a>
+<a name='L661'></a><a href='#L661'>661</a>
+<a name='L662'></a><a href='#L662'>662</a>
+<a name='L663'></a><a href='#L663'>663</a>
+<a name='L664'></a><a href='#L664'>664</a>
+<a name='L665'></a><a href='#L665'>665</a>
+<a name='L666'></a><a href='#L666'>666</a>
+<a name='L667'></a><a href='#L667'>667</a>
+<a name='L668'></a><a href='#L668'>668</a>
+<a name='L669'></a><a href='#L669'>669</a>
+<a name='L670'></a><a href='#L670'>670</a>
+<a name='L671'></a><a href='#L671'>671</a>
+<a name='L672'></a><a href='#L672'>672</a>
+<a name='L673'></a><a href='#L673'>673</a>
+<a name='L674'></a><a href='#L674'>674</a>
+<a name='L675'></a><a href='#L675'>675</a>
+<a name='L676'></a><a href='#L676'>676</a>
+<a name='L677'></a><a href='#L677'>677</a>
+<a name='L678'></a><a href='#L678'>678</a>
+<a name='L679'></a><a href='#L679'>679</a>
+<a name='L680'></a><a href='#L680'>680</a>
+<a name='L681'></a><a href='#L681'>681</a>
+<a name='L682'></a><a href='#L682'>682</a>
+<a name='L683'></a><a href='#L683'>683</a>
+<a name='L684'></a><a href='#L684'>684</a>
+<a name='L685'></a><a href='#L685'>685</a>
+<a name='L686'></a><a href='#L686'>686</a>
+<a name='L687'></a><a href='#L687'>687</a>
+<a name='L688'></a><a href='#L688'>688</a>
+<a name='L689'></a><a href='#L689'>689</a>
+<a name='L690'></a><a href='#L690'>690</a>
+<a name='L691'></a><a href='#L691'>691</a>
+<a name='L692'></a><a href='#L692'>692</a>
+<a name='L693'></a><a href='#L693'>693</a>
+<a name='L694'></a><a href='#L694'>694</a>
+<a name='L695'></a><a href='#L695'>695</a>
+<a name='L696'></a><a href='#L696'>696</a>
+<a name='L697'></a><a href='#L697'>697</a>
+<a name='L698'></a><a href='#L698'>698</a>
+<a name='L699'></a><a href='#L699'>699</a>
+<a name='L700'></a><a href='#L700'>700</a>
+<a name='L701'></a><a href='#L701'>701</a>
+<a name='L702'></a><a href='#L702'>702</a>
+<a name='L703'></a><a href='#L703'>703</a>
+<a name='L704'></a><a href='#L704'>704</a>
+<a name='L705'></a><a href='#L705'>705</a>
+<a name='L706'></a><a href='#L706'>706</a>
+<a name='L707'></a><a href='#L707'>707</a>
+<a name='L708'></a><a href='#L708'>708</a>
+<a name='L709'></a><a href='#L709'>709</a>
+<a name='L710'></a><a href='#L710'>710</a>
+<a name='L711'></a><a href='#L711'>711</a>
+<a name='L712'></a><a href='#L712'>712</a>
+<a name='L713'></a><a href='#L713'>713</a>
+<a name='L714'></a><a href='#L714'>714</a>
+<a name='L715'></a><a href='#L715'>715</a>
+<a name='L716'></a><a href='#L716'>716</a>
+<a name='L717'></a><a href='#L717'>717</a>
+<a name='L718'></a><a href='#L718'>718</a>
+<a name='L719'></a><a href='#L719'>719</a>
+<a name='L720'></a><a href='#L720'>720</a>
+<a name='L721'></a><a href='#L721'>721</a>
+<a name='L722'></a><a href='#L722'>722</a>
+<a name='L723'></a><a href='#L723'>723</a>
+<a name='L724'></a><a href='#L724'>724</a>
+<a name='L725'></a><a href='#L725'>725</a>
+<a name='L726'></a><a href='#L726'>726</a>
+<a name='L727'></a><a href='#L727'>727</a>
+<a name='L728'></a><a href='#L728'>728</a>
+<a name='L729'></a><a href='#L729'>729</a>
+<a name='L730'></a><a href='#L730'>730</a>
+<a name='L731'></a><a href='#L731'>731</a>
+<a name='L732'></a><a href='#L732'>732</a>
+<a name='L733'></a><a href='#L733'>733</a>
+<a name='L734'></a><a href='#L734'>734</a>
+<a name='L735'></a><a href='#L735'>735</a>
+<a name='L736'></a><a href='#L736'>736</a>
+<a name='L737'></a><a href='#L737'>737</a>
+<a name='L738'></a><a href='#L738'>738</a>
+<a name='L739'></a><a href='#L739'>739</a>
+<a name='L740'></a><a href='#L740'>740</a>
+<a name='L741'></a><a href='#L741'>741</a>
+<a name='L742'></a><a href='#L742'>742</a>
+<a name='L743'></a><a href='#L743'>743</a>
+<a name='L744'></a><a href='#L744'>744</a>
+<a name='L745'></a><a href='#L745'>745</a>
+<a name='L746'></a><a href='#L746'>746</a>
+<a name='L747'></a><a href='#L747'>747</a>
+<a name='L748'></a><a href='#L748'>748</a>
+<a name='L749'></a><a href='#L749'>749</a>
+<a name='L750'></a><a href='#L750'>750</a>
+<a name='L751'></a><a href='#L751'>751</a>
+<a name='L752'></a><a href='#L752'>752</a>
+<a name='L753'></a><a href='#L753'>753</a>
+<a name='L754'></a><a href='#L754'>754</a>
+<a name='L755'></a><a href='#L755'>755</a>
+<a name='L756'></a><a href='#L756'>756</a>
+<a name='L757'></a><a href='#L757'>757</a>
+<a name='L758'></a><a href='#L758'>758</a>
+<a name='L759'></a><a href='#L759'>759</a>
+<a name='L760'></a><a href='#L760'>760</a>
+<a name='L761'></a><a href='#L761'>761</a>
+<a name='L762'></a><a href='#L762'>762</a>
+<a name='L763'></a><a href='#L763'>763</a>
+<a name='L764'></a><a href='#L764'>764</a>
+<a name='L765'></a><a href='#L765'>765</a>
+<a name='L766'></a><a href='#L766'>766</a>
+<a name='L767'></a><a href='#L767'>767</a>
+<a name='L768'></a><a href='#L768'>768</a>
+<a name='L769'></a><a href='#L769'>769</a>
+<a name='L770'></a><a href='#L770'>770</a>
+<a name='L771'></a><a href='#L771'>771</a>
+<a name='L772'></a><a href='#L772'>772</a>
+<a name='L773'></a><a href='#L773'>773</a>
+<a name='L774'></a><a href='#L774'>774</a>
+<a name='L775'></a><a href='#L775'>775</a>
+<a name='L776'></a><a href='#L776'>776</a>
+<a name='L777'></a><a href='#L777'>777</a>
+<a name='L778'></a><a href='#L778'>778</a>
+<a name='L779'></a><a href='#L779'>779</a>
+<a name='L780'></a><a href='#L780'>780</a>
+<a name='L781'></a><a href='#L781'>781</a>
+<a name='L782'></a><a href='#L782'>782</a>
+<a name='L783'></a><a href='#L783'>783</a>
+<a name='L784'></a><a href='#L784'>784</a>
+<a name='L785'></a><a href='#L785'>785</a>
+<a name='L786'></a><a href='#L786'>786</a>
+<a name='L787'></a><a href='#L787'>787</a>
+<a name='L788'></a><a href='#L788'>788</a>
+<a name='L789'></a><a href='#L789'>789</a>
+<a name='L790'></a><a href='#L790'>790</a>
+<a name='L791'></a><a href='#L791'>791</a>
+<a name='L792'></a><a href='#L792'>792</a>
+<a name='L793'></a><a href='#L793'>793</a>
+<a name='L794'></a><a href='#L794'>794</a>
+<a name='L795'></a><a href='#L795'>795</a>
+<a name='L796'></a><a href='#L796'>796</a>
+<a name='L797'></a><a href='#L797'>797</a>
+<a name='L798'></a><a href='#L798'>798</a>
+<a name='L799'></a><a href='#L799'>799</a>
+<a name='L800'></a><a href='#L800'>800</a>
+<a name='L801'></a><a href='#L801'>801</a>
+<a name='L802'></a><a href='#L802'>802</a>
+<a name='L803'></a><a href='#L803'>803</a>
+<a name='L804'></a><a href='#L804'>804</a>
+<a name='L805'></a><a href='#L805'>805</a>
+<a name='L806'></a><a href='#L806'>806</a>
+<a name='L807'></a><a href='#L807'>807</a>
+<a name='L808'></a><a href='#L808'>808</a>
+<a name='L809'></a><a href='#L809'>809</a>
+<a name='L810'></a><a href='#L810'>810</a>
+<a name='L811'></a><a href='#L811'>811</a>
+<a name='L812'></a><a href='#L812'>812</a>
+<a name='L813'></a><a href='#L813'>813</a>
+<a name='L814'></a><a href='#L814'>814</a>
+<a name='L815'></a><a href='#L815'>815</a>
+<a name='L816'></a><a href='#L816'>816</a>
+<a name='L817'></a><a href='#L817'>817</a>
+<a name='L818'></a><a href='#L818'>818</a>
+<a name='L819'></a><a href='#L819'>819</a>
+<a name='L820'></a><a href='#L820'>820</a>
+<a name='L821'></a><a href='#L821'>821</a>
+<a name='L822'></a><a href='#L822'>822</a>
+<a name='L823'></a><a href='#L823'>823</a>
+<a name='L824'></a><a href='#L824'>824</a>
+<a name='L825'></a><a href='#L825'>825</a>
+<a name='L826'></a><a href='#L826'>826</a>
+<a name='L827'></a><a href='#L827'>827</a>
+<a name='L828'></a><a href='#L828'>828</a>
+<a name='L829'></a><a href='#L829'>829</a>
+<a name='L830'></a><a href='#L830'>830</a>
+<a name='L831'></a><a href='#L831'>831</a>
+<a name='L832'></a><a href='#L832'>832</a>
+<a name='L833'></a><a href='#L833'>833</a>
+<a name='L834'></a><a href='#L834'>834</a>
+<a name='L835'></a><a href='#L835'>835</a>
+<a name='L836'></a><a href='#L836'>836</a>
+<a name='L837'></a><a href='#L837'>837</a>
+<a name='L838'></a><a href='#L838'>838</a>
+<a name='L839'></a><a href='#L839'>839</a>
+<a name='L840'></a><a href='#L840'>840</a>
+<a name='L841'></a><a href='#L841'>841</a>
+<a name='L842'></a><a href='#L842'>842</a>
+<a name='L843'></a><a href='#L843'>843</a>
+<a name='L844'></a><a href='#L844'>844</a>
+<a name='L845'></a><a href='#L845'>845</a>
+<a name='L846'></a><a href='#L846'>846</a>
+<a name='L847'></a><a href='#L847'>847</a>
+<a name='L848'></a><a href='#L848'>848</a>
+<a name='L849'></a><a href='#L849'>849</a>
+<a name='L850'></a><a href='#L850'>850</a>
+<a name='L851'></a><a href='#L851'>851</a>
+<a name='L852'></a><a href='#L852'>852</a>
+<a name='L853'></a><a href='#L853'>853</a>
+<a name='L854'></a><a href='#L854'>854</a>
+<a name='L855'></a><a href='#L855'>855</a>
+<a name='L856'></a><a href='#L856'>856</a>
+<a name='L857'></a><a href='#L857'>857</a>
+<a name='L858'></a><a href='#L858'>858</a>
+<a name='L859'></a><a href='#L859'>859</a>
+<a name='L860'></a><a href='#L860'>860</a>
+<a name='L861'></a><a href='#L861'>861</a>
+<a name='L862'></a><a href='#L862'>862</a>
+<a name='L863'></a><a href='#L863'>863</a>
+<a name='L864'></a><a href='#L864'>864</a>
+<a name='L865'></a><a href='#L865'>865</a>
+<a name='L866'></a><a href='#L866'>866</a>
+<a name='L867'></a><a href='#L867'>867</a>
+<a name='L868'></a><a href='#L868'>868</a>
+<a name='L869'></a><a href='#L869'>869</a>
+<a name='L870'></a><a href='#L870'>870</a>
+<a name='L871'></a><a href='#L871'>871</a>
+<a name='L872'></a><a href='#L872'>872</a>
+<a name='L873'></a><a href='#L873'>873</a>
+<a name='L874'></a><a href='#L874'>874</a>
+<a name='L875'></a><a href='#L875'>875</a>
+<a name='L876'></a><a href='#L876'>876</a>
+<a name='L877'></a><a href='#L877'>877</a>
+<a name='L878'></a><a href='#L878'>878</a>
+<a name='L879'></a><a href='#L879'>879</a>
+<a name='L880'></a><a href='#L880'>880</a>
+<a name='L881'></a><a href='#L881'>881</a>
+<a name='L882'></a><a href='#L882'>882</a>
+<a name='L883'></a><a href='#L883'>883</a>
+<a name='L884'></a><a href='#L884'>884</a>
+<a name='L885'></a><a href='#L885'>885</a>
+<a name='L886'></a><a href='#L886'>886</a>
+<a name='L887'></a><a href='#L887'>887</a>
+<a name='L888'></a><a href='#L888'>888</a>
+<a name='L889'></a><a href='#L889'>889</a>
+<a name='L890'></a><a href='#L890'>890</a>
+<a name='L891'></a><a href='#L891'>891</a>
+<a name='L892'></a><a href='#L892'>892</a>
+<a name='L893'></a><a href='#L893'>893</a>
+<a name='L894'></a><a href='#L894'>894</a>
+<a name='L895'></a><a href='#L895'>895</a>
+<a name='L896'></a><a href='#L896'>896</a>
+<a name='L897'></a><a href='#L897'>897</a>
+<a name='L898'></a><a href='#L898'>898</a>
+<a name='L899'></a><a href='#L899'>899</a>
+<a name='L900'></a><a href='#L900'>900</a>
+<a name='L901'></a><a href='#L901'>901</a>
+<a name='L902'></a><a href='#L902'>902</a>
+<a name='L903'></a><a href='#L903'>903</a>
+<a name='L904'></a><a href='#L904'>904</a>
+<a name='L905'></a><a href='#L905'>905</a>
+<a name='L906'></a><a href='#L906'>906</a>
+<a name='L907'></a><a href='#L907'>907</a>
+<a name='L908'></a><a href='#L908'>908</a>
+<a name='L909'></a><a href='#L909'>909</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1620x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">46x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1459x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">506x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-yes">189x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1450x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">193x</span>
+<span class="cline-any cline-yes">193x</span>
+<span class="cline-any cline-yes">193x</span>
+<span class="cline-any cline-yes">193x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1470x</span>
+<span class="cline-any cline-yes">1470x</span>
+<span class="cline-any cline-yes">1470x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">489x</span>
+<span class="cline-any cline-yes">486x</span>
+<span class="cline-any cline-yes">484x</span>
+<span class="cline-any cline-yes">480x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">28x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">28x</span>
+<span class="cline-any cline-yes">22x</span>
+<span class="cline-any cline-yes">22x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">198x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">378x</span>
+<span class="cline-any cline-yes">282x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">200x</span>
+<span class="cline-any cline-yes">95x</span>
+<span class="cline-any cline-yes">95x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">200x</span>
+<span class="cline-any cline-yes">95x</span>
+<span class="cline-any cline-yes">95x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">201x</span>
+<span class="cline-any cline-yes">95x</span>
+<span class="cline-any cline-yes">95x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">349x</span>
+<span class="cline-any cline-yes">136x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">18x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">61x</span>
+<span class="cline-any cline-yes">61x</span>
+<span class="cline-any cline-yes">61x</span>
+<span class="cline-any cline-yes">61x</span>
+<span class="cline-any cline-yes">25x</span>
+<span class="cline-any cline-yes">61x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">32x</span>
+<span class="cline-any cline-yes">18x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">18x</span>
+<span class="cline-any cline-yes">32x</span>
+<span class="cline-any cline-yes">32x</span>
+<span class="cline-any cline-yes">32x</span>
+<span class="cline-any cline-yes">32x</span>
+<span class="cline-any cline-yes">17x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">410x</span>
+<span class="cline-any cline-yes">206x</span>
+<span class="cline-any cline-yes">191x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">62x</span>
+<span class="cline-any cline-yes">62x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">446x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1408x</span>
+<span class="cline-any cline-yes">1408x</span>
+<span class="cline-any cline-yes">1408x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">131x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">237x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">499x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { credentialDraftError, translateCredentialMessage } from "@/lib/credential-copy";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets/contracts";
+&nbsp;
+import {
+  describeApiError,
+  type AdminCustomCredentialCategoryId,
+  type AdminCustomCredentialSummary,
+  type AdminPublishConnectionInput,
+  type AdminPublishCredentialSummary,
+  type AdminSourceControlConnectionInput,
+  type AdminSourceControlCredentialSummary,
+} from "@/lib/api";
+import { localizePublishTargets, localizeSourceControlProviders } from "@/lib/descriptor-i18n";
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
+import { withPromotedDefault } from "../../deployment/rules";
+import {
+  t as defaultT,
+  accessTokenDuplicateNameMessage,
+  accessTokenMakeDefaultErrorMessage,
+  accessTokenRemoveErrorMessage,
+  accessTokenSaveErrorMessage,
+  accessTokensLoadErrorMessage,
+} from "../security-i18n";
+import {
+  ACCESS_TOKENS_RESOURCE,
+  accessTokenCategoryMatches,
+  accessTokenExistingRowReadyToSave,
+  accessTokenNameTaken,
+  accessTokenProviderInfo,
+  accessTokenProviders,
+  accessTokenProvidersWithSavedRows,
+  accessTokenRowMatchesQuery,
+  accessTokenRowProviderInfo,
+  accessTokenRowReadyToSave,
+  accessTokenRowsForProvider,
+  buildAccessTokenConnectionInput,
+  buildAccessTokenRows,
+  buildAccessTokenUpdatePatch,
+  buildAdditionalHostsInput,
+  buildCustomCredentialRows,
+  buildCustomCredentialUpdatePatch,
+  buildCustomProviderConnectionInput,
+  classifyAccessTokenSubmitError,
+  customCredentialNameTaken,
+  customCredentialReadyToSave,
+  sortAccessTokenGroups,
+  type AccessTokenCategoryId,
+  type AccessTokenFormFields,
+  type AccessTokenKind,
+  type AccessTokenProviderInfo,
+  type AccessTokenProviderRef,
+  type AccessTokenRow,
+  type AccessTokenRowCategoryId,
+  type CustomCredentialFormFields,
+} from "../rules";
+import { defaultAccessTokensPort } from "./access-tokens-dependencies.hooks";
+import type { AccessTokensPort } from "./access-tokens-port.hooks";
+&nbsp;
+/**
+ * @file The Access Tokens tab's controller — the ONE place that reads and writes BOTH
+ * `publish_credential_sets` and `source_control_credential_sets`, merges them into one
+ * `kind`-tagged row list, and exposes the multi-row Create/Replace/Remove/default-selection surface
+ * neither origin store's own page ever built (`rules.ts`'s own header explains why: both origin
+ * pages only ever created ONE — the default — row per provider; this hook is where "a second, third,
+ * differently-scoped token" and "which saved token does a publish actually use" get a UI for the
+ * first time).
+ *
+ * ## Two independent fetches, two independent seed-once effects
+ *
+ * Same `useFetchQuery` + one-time `seededRef` shape `usePublishCredentials`/
+ * `useSourceControlCredentials` each already use — duplicated here (not factored into a shared
+ * helper) because the two queries have different keys, different snapshot shapes
+ * (`AdminPublishCredentialsSnapshot` carries `executionMode`, the source-control one does not), and
+ * different failure modes to report independently in {@link AccessTokensController.loadError}.
+ *
+ * ## No write-on-load migration — the legacy label is display-only, computed fresh every render
+ *
+ * An earlier pass fired a best-effort `PUT .../:id` on load to rewrite every row still carrying the
+ * sentinel label (`"default"`) either origin page ever wrote. That write was rejected before it
+ * shipped, for four reasons: it mutates data on a plain page OPEN, which is a surprising thing for a
+ * read to do; `(workspaceId, providerId, label)` is UNIQUE, so two tabs open at once (or a React
+ * StrictMode double-invoke in dev) can race and one PUT loses to a 409 with nothing to show for it;
+ * an install nobody ever opens this page on never migrates, so "v1 transfers the tokens" was never
+ * actually true for every workspace; and a failed PUT during a page load has nowhere good to surface
+ * an error for what the reader didn't even ask this screen to do. `rules.ts`'s `buildAccessTokenRows`
+ * already computes {@link AccessTokenRow.name} correctly on every call — a legacy row reads with its
+ * friendly computed name from the very first render, with zero writes, and a REAL label is only ever
+ * persisted when a human renames, replaces, or creates a row through this page's own forms.
+ *
+ * ## The category filter narrows `groups`, not the search count
+ *
+ * `category`/`setCategory` gate which PROVIDERS even enter {@link groups} (a provider outside the
+ * active category is dropped before the query filter ever runs, same as if it didn't exist this
+ * render) — {@link AccessTokensController.totalCount}/`matchCount` stay a GLOBAL count across every
+ * category on purpose: the search-count line answers "how many tokens does this install hold",
+ * which should not silently change meaning depending on which category tab happens to be selected.
+ *
+ * ## Optimistic Create/Replace, refetch-on-write for Remove/Make-default
+ *
+ * Create/Replace splice their own known result into local state (one round trip), same pattern
+ * `usePublishCredentials.save` uses. Remove and Make-default do NOT — both can change which OTHER row
+ * in the same provider group is `isDefault` (delete promotes the most-recently-updated remaining row;
+ * `store.ts`'s own invariant, not reimplemented here), so both re-fetch that ONE store's full list
+ * after the write rather than duplicating the server's promotion rule client-side. This workspace's
+ * saved-credential count is small (`VendorCredentialSetRepoPort.listByWorkspace`'s own doc), so the
+ * extra round trip is cheap and correct beats fast-but-possibly-wrong here.
+ */
+&nbsp;
+interface DraftFields {
+  readonly name: string;
+  readonly token: string;
+  /** The provider's extra descriptor fields, keyed by field name. */
+  readonly values: Readonly&lt;Record&lt;string, string&gt;&gt;;
+  readonly username: string;
+  readonly worksFor: string[];
+  /** Explicit selections, including clearing all chips, override create-time suggestions. */
+  readonly worksForEdited?: boolean;
+}
+function blankDraft(): DraftFields {
+  return { name: "", token: "", values: {}, username: "", worksFor: [] };
+}
+&nbsp;
+interface BusyState {
+  readonly saving: boolean;
+  readonly error: string | null;
+}
+const IDLE: BusyState = { saving: false, error: null };
+&nbsp;
+interface AddFormEntry {
+  readonly visible: boolean;
+  readonly draft: DraftFields;
+  readonly saving: boolean;
+  readonly error: string | null;
+}
+function blankAddFormEntry(): AddFormEntry {
+  return { visible: false, draft: blankDraft(), saving: false, error: null };
+}
+&nbsp;
+/** The standalone "Add custom provider" dialog's own draft — kept separate from {@link DraftFields}
+ *  (used by the seven catalog providers' per-provider add forms) since it carries `category`/
+ *  `baseUrl`, which nothing else in this hook's state shapes have. */
+interface CustomDraftFields {
+  /** Omitted selects the server's project-first default. */
+  readonly scope?: "project" | "site";
+  readonly name: string;
+  readonly category: AccessTokenRowCategoryId;
+  readonly baseUrl: string;
+  /** Raw textarea text — see `rules.ts`'s `CustomCredentialFormFields.additionalHosts` doc. */
+  readonly additionalHosts: string;
+  readonly token: string;
+  readonly username: string;
+  readonly worksFor: string[];
+  readonly worksForEdited?: boolean;
+}
+function blankCustomDraft(): CustomDraftFields {
+  return { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", worksFor: [] };
+}
+&nbsp;
+/** Create-only form metadata: let Jini suggest exact option ids until the user selects or clears.
+ * Returns a draft patch without I/O or mutation. O(options) time/space on a label change.
+ */
+function addWorksForPatch({ draft, patch, options }: {
+  draft: Pick&lt;DraftFields, "worksFor" | "worksForEdited"&gt;;
+  patch: Partial&lt;Pick&lt;DraftFields, "name" | "worksFor"&gt;&gt;;
+  options: { value: string; label: string }[];
+}, _options = {}) {
+  const worksForEdited = draft.worksForEdited || patch.worksFor !== undefined;
+  const worksFor = !worksForEdited &amp;&amp; patch.name !== undefined
+    ? suggestCredentialWorksFor({ label: patch.name, providers: options.map(option =&gt; ({ id: option.value, vendorId: option.value })) })
+    : patch.worksFor ?? draft.worksFor;
+  return { worksFor, worksForEdited };
+}
+&nbsp;
+/** The `addForms`/`existingDrafts` map key for one provider — a plain string join rather than a
+ *  nested `Record&lt;kind, Record&lt;providerId, ...&gt;&gt;`, since every lookup already has both parts
+ *  available and a flat map avoids an extra existence check on the outer key at every read.
+ *  @complexity O(1). */
+function addFormKey(ref: AccessTokenProviderRef): string {
+  return `${ref.kind}:${ref.providerId}`;
+}
+&nbsp;
+export interface AccessTokenExistingRowState {
+  readonly row: AccessTokenRow;
+  readonly name: string;
+  readonly token: string;
+  /** The provider's extra descriptor fields, keyed by field name. */
+  readonly values: Readonly&lt;Record&lt;string, string&gt;&gt;;
+  readonly username: string;
+  readonly worksFor: string[];
+  /** Whether this form's Save may be pressed, from `rules.ts`'s readiness gates. */
+  readonly readyToSave: boolean;
+  readonly saving: boolean;
+  readonly error: string | null;
+}
+/** Merges one saved row with its own draft/busy state — defaults name to the row's current display
+ *  name (Replace's "current Name pre-filled" behavior) and username to the row's own saved username
+ *  (2026-09-01: a custom row's `username` is now a plaintext read-model field, {@link
+ *  AccessTokenRow.username}'s own doc), with Token/Account left blank, same "never read a secret
+ *  back" posture every credential form in this app already has.
+ *  @complexity O(1). */
+function existingRowState(
+  row: AccessTokenRow,
+  draft: DraftFields | undefined,
+  busy: BusyState | undefined,
+  info: AccessTokenProviderInfo
+): AccessTokenExistingRowState {
+  const d = draft ?? { ...blankDraft(), name: row.name, username: row.username ?? "", worksFor: row.worksFor ?? [] };
+  const b = busy ?? IDLE;
+  const readyToSave = accessTokenExistingRowReadyToSave({ ref: { kind: row.kind, providerId: row.providerId }, ...d }, row, info);
+  return { row, name: d.name, token: d.token, values: d.values, username: d.username, worksFor: d.worksFor, readyToSave, saving: b.saving, error: b.error };
+}
+&nbsp;
+export interface AccessTokenAddFormState {
+  readonly visible: boolean;
+  readonly name: string;
+  readonly token: string;
+  /** The provider's extra descriptor fields, keyed by field name. */
+  readonly values: Readonly&lt;Record&lt;string, string&gt;&gt;;
+  readonly username: string;
+  readonly worksFor: string[];
+  /** Whether this form's Save may be pressed, from `rules.ts`'s readiness gates. */
+  readonly readyToSave: boolean;
+  readonly saving: boolean;
+  readonly error: string | null;
+}
+/** @complexity O(1). */
+function addFormState(entry: AddFormEntry | undefined, info: AccessTokenProviderInfo): AccessTokenAddFormState {
+  const e = entry ?? blankAddFormEntry();
+  const readyToSave = accessTokenRowReadyToSave({ ref: { kind: info.kind, providerId: info.providerId }, ...e.draft }, info);
+  return { visible: e.visible, name: e.draft.name, token: e.draft.token, values: e.draft.values, username: e.draft.username, worksFor: e.draft.worksFor, readyToSave, saving: e.saving, error: e.error };
+}
+&nbsp;
+export interface AccessTokenProviderGroupState {
+  readonly info: AccessTokenProviderInfo;
+  /** Already filtered against the active search query — see this file's header. */
+  readonly rows: readonly AccessTokenExistingRowState[];
+  readonly addForm: AccessTokenAddFormState;
+}
+&nbsp;
+/** The standalone "Add custom provider" dialog's own public state — a top-level controller field
+ *  rather than a `ref`-keyed entry in {@link AccessTokenProviderGroupState.addForm}'s map, since a
+ *  custom row is created with no existing provider group to attach the form to (this file's own
+ *  header on why `"custom"` rows have no catalog entry at all). */
+export interface AccessTokenCustomAddFormState {
+  readonly scope?: "project" | "site";
+  readonly name: string;
+  readonly category: AccessTokenRowCategoryId;
+  readonly baseUrl: string;
+  readonly additionalHosts: string;
+  readonly token: string;
+  readonly username: string;
+  readonly worksFor: string[];
+  readonly saving: boolean;
+  readonly error: string | null;
+}
+&nbsp;
+export interface AccessTokensController {
+  /** One entry per {@link accessTokenProviders} provider plus one per saved custom credential,
+   *  ordered by `rules.ts`'s `sortAccessTokenGroups` (saved-before-unsaved, then category-chip
+   *  order, then alphabetical by label — the owner's 2026-09-21 ruling) — `undefined` until BOTH
+   *  stores' first load resolves. Unlike `PublishCredentialsController.rows`, a provider's own
+   *  `rows` array here can hold more than one saved connection. */
+  groups: readonly AccessTokenProviderGroupState[] | undefined;
+  /** Loaded deploy host and source-control vendor ids; saved unknown ids remain selectable. */
+  worksForOptions: { value: string; label: string }[];
+  loadError: string | null;
+&nbsp;
+  query: string;
+  setQuery: (value: string) =&gt; void;
+  /** The active category filter — `"all"` by default. See this file's header for why this narrows
+   *  {@link groups} but not {@link totalCount}/{@link matchCount}. */
+  category: AccessTokenCategoryId;
+  setCategory: (value: AccessTokenCategoryId) =&gt; void;
+  /** Every saved row across both stores, regardless of the active query OR category — the
+   *  match-count line's denominator. */
+  totalCount: number;
+  /** Saved rows that match the active query, regardless of category — the match-count line's
+   *  numerator; equals {@link totalCount} when `query` is blank. */
+  matchCount: number;
+&nbsp;
+  setExistingField: (rowId: string, patch: Partial&lt;DraftFields&gt;) =&gt; void;
+  replaceToken: (row: AccessTokenRow) =&gt; Promise&lt;void&gt;;
+  removeToken: (row: AccessTokenRow) =&gt; Promise&lt;void&gt;;
+  makeDefault: (row: AccessTokenRow) =&gt; Promise&lt;void&gt;;
+&nbsp;
+  openAddForm: (ref: AccessTokenProviderRef) =&gt; void;
+  closeAddForm: (ref: AccessTokenProviderRef) =&gt; void;
+  setAddField: (ref: AccessTokenProviderRef, patch: Partial&lt;DraftFields&gt;) =&gt; void;
+  createToken: (ref: AccessTokenProviderRef) =&gt; Promise&lt;void&gt;;
+&nbsp;
+  /** The "Add custom provider" dialog's own field state — see {@link AccessTokenCustomAddFormState}. */
+  customAddForm: AccessTokenCustomAddFormState;
+  setCustomAddField: (patch: Partial&lt;CustomDraftFields&gt;) =&gt; void;
+  /** Clears the dialog's fields — called on Cancel and after a successful save; does not itself
+   *  close the native `&lt;dialog&gt;` (the caller's own ref does that, same split
+   *  {@link RemoveConfirmDialog} already draws between this hook's state and DOM visibility). */
+  resetCustomAddForm: () =&gt; void;
+  createCustomCredential: () =&gt; Promise&lt;boolean&gt;;
+  projectKeysAvailable?: boolean;
+  customKeyBusy: Readonly&lt;Record&lt;string, BusyState&gt;&gt;;
+  setCustomKeyUse: (required: { row: AccessTokenRow; use: boolean }, optional?: Record&lt;string, never&gt;) =&gt; Promise&lt;void&gt;;
+&nbsp;
+  t: Translate;
+}
+&nbsp;
+/** Translates a rejected create/update/delete into a form-ready string — pulled out of the hook body
+ *  for the same complexity-budget reason `publishCredentialSubmitErrorMessage` documents in its own
+ *  file. @complexity O(1). */
+function accessTokenSubmitErrorMessage(err: unknown, t: Translate, locale: string, providerLabel: string, attemptedName: string): string {
+  const classified = classifyAccessTokenSubmitError(err);
+  if (classified.kind === "duplicate-label") return accessTokenDuplicateNameMessage(locale, attemptedName, providerLabel);
+  if (classified.kind === "validation") return accessTokenSaveErrorMessage(locale, translateCredentialMessage({ message: classified.detail, locale }));
+  return accessTokenSaveErrorMessage(locale, describeApiError(err, t("unknown error")));
+}
+&nbsp;
+/** Translates a rejected remove/make-default into a row-ready string via `template` — the
+ *  Remove/Make-default counterpart of {@link accessTokenSubmitErrorMessage}, kept separate rather
+ *  than widened onto it: neither action has a "duplicate name"/"validation" failure mode to
+ *  classify (`classifyAccessTokenSubmitError`'s two special cases are Create/Replace-only), so this
+ *  is the plain `describeApiError` extraction alone, worded per-action by the caller's own template
+ *  (Terra audit MEDIUM finding, 2026-08-19: neither action surfaced a rejected call at all before
+ *  this fix). @complexity O(1). */
+function accessTokenActionErrorMessage(err: unknown, t: Translate, locale: string, template: (locale: string, error: string) =&gt; string): string {
+  return template(locale, describeApiError(err, t("unknown error")));
+}
+&nbsp;
+/** Combines the three independent list-fetch failures (publish, source-control, custom) into one
+ *  user-facing message, publish taking priority — pulled out of the hook body for the same
+ *  complexity-budget reason {@link accessTokenSubmitErrorMessage} documents. */
+function accessTokensLoadError(
+  publishError: unknown,
+  sourceControlError: unknown,
+  customError: unknown,
+  t: Translate,
+  locale: string
+): string | null {
+  if (publishError) return accessTokensLoadErrorMessage(locale, describeApiError(publishError, t("unknown error")));
+  if (sourceControlError) return accessTokensLoadErrorMessage(locale, describeApiError(sourceControlError, t("unknown error")));
+  if (customError) return accessTokensLoadErrorMessage(locale, describeApiError(customError, t("unknown error")));
+  return null;
+}
+&nbsp;
+/** Returns the first rejected settlement's reason among `results`, or `undefined` if every one
+ *  fulfilled — lets {@link reloadAllStores} surface a background reload's per-store failure to the
+ *  user without going back to a `Promise.all` that would discard the OTHER two stores' successfully
+ *  refreshed data just because one rejected (2026-09-05 Gemini audit, verified: a just-revoked token
+ *  in a store that itself reloaded fine could keep rendering as active, because the ONE other
+ *  store's transient failure erased all three). Priority matches {@link accessTokensLoadError}'s own
+ *  publish-then-source-control-then-custom order, since `results` is always built in that order.
+ *  @complexity O(n) in the settled-result count (always 3 here). */
+function firstRejectionReason(results: readonly PromiseSettledResult&lt;unknown&gt;[]): unknown {
+  return results.find((r): r is PromiseRejectedResult =&gt; r.status === "rejected")?.reason;
+}
+&nbsp;
+/** Normalizes one store's update payload into the exact `{label?, connection?, isDefault?}` shape
+ *  each port method wants, dispatching on `kind` — the one place a `connection`'s union type is cast
+ *  down to the specific store's own type (see `rules.ts`'s `buildAccessTokenConnectionInput` doc for
+ *  why this is safe). Split out of {@link useAccessTokens}'s action functions purely to keep each of
+ *  those under this repo's complexity gate. */
+async function writeCredential(
+  port: AccessTokensPort,
+  kind: AccessTokenKind,
+  mode: { readonly type: "create"; readonly label: string } | { readonly type: "update"; readonly id: string },
+  patch: { label?: string; connection?: AdminPublishConnectionInput | AdminSourceControlConnectionInput; isDefault?: boolean; worksFor?: string[] }
+): Promise&lt;AdminPublishCredentialSummary | AdminSourceControlCredentialSummary&gt; {
+  if (kind === "publish") {
+    const connection = patch.connection as AdminPublishConnectionInput | undefined;
+    return mode.type === "create"
+      ? port.publish.create({ label: mode.label, connection: connection!, isDefault: patch.isDefault, worksFor: patch.worksFor })
+      : port.publish.update(mode.id, { ...patch, connection });
+  }
+  const connection = patch.connection as AdminSourceControlConnectionInput | undefined;
+  return mode.type === "create"
+    ? port.sourceControl.create({ label: mode.label, connection: connection!, isDefault: patch.isDefault })
+    : port.sourceControl.update(mode.id, { ...patch, connection });
+}
+&nbsp;
+export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: string): AccessTokensController {
+  const publishQuery = useFetchQuery({ key: ["security", "publish-credentials"], fetch: () =&gt; port.publish.list() });
+  const sourceControlQuery = useFetchQuery({ key: ["security", "source-control-credentials"], fetch: () =&gt; port.sourceControl.list() });
+  const customQuery = useFetchQuery({ key: ["security", "custom-credentials"], fetch: () =&gt; port.custom.list() });
+  // The deploy hosts are data from the deploy registry. A failed load leaves only source-control
+  // and custom providers named; saved publish rows still list, under their own ids.
+  const publishTargetsQuery = useFetchQuery({ key: ["security", "publish-targets"], fetch: () =&gt; port.publishTargets.list() });
+  // The source-control hosts come from plugins the same way; a failed load names none of them.
+  const sourceControlProvidersQuery = useFetchQuery({ key: ["security", "source-control-providers"], fetch: () =&gt; port.sourceControlProviders.list() });
+  const providers = useMemo(
+    // Each host's own text (labels, guidance, extra-field labels) in the viewer's locale.
+    () =&gt;
+      accessTokenProviders(
+        localizePublishTargets(publishTargetsQuery.data, locale),
+        sourceControlProvidersQuery.data === undefined ? undefined : localizeSourceControlProviders(sourceControlProvidersQuery.data, locale)
+      ),
+    [publishTargetsQuery.data, sourceControlProvidersQuery.data, locale]
+  );
+  // The existing catalogs own ids and labels; no parallel provider list lives in this UI.
+  const worksForOptions = useMemo(() =&gt; Array.from(new Map([
+    ...(localizePublishTargets(publishTargetsQuery.data, locale) ?? []).map(target =&gt; [target.id, { value: target.id, label: target.label }] as const),
+    ...(localizeSourceControlProviders(sourceControlProvidersQuery.data ?? [], locale)).map(provider =&gt; [provider.id, { value: provider.id, label: provider.label }] as const),
+  ]).values()), [publishTargetsQuery.data, sourceControlProvidersQuery.data, locale]);
+  const publishTargetsSettled = publishTargetsQuery.status !== "loading" &amp;&amp; sourceControlProvidersQuery.status !== "loading";
+  const [publishCredentials, setPublishCredentials] = useState&lt;AdminPublishCredentialSummary[] | undefined&gt;(undefined);
+  const [sourceControlCredentials, setSourceControlCredentials] = useState&lt;AdminSourceControlCredentialSummary[] | undefined&gt;(undefined);
+  const [customCredentials, setCustomCredentials] = useState&lt;AdminCustomCredentialSummary[] | undefined&gt;(undefined);
+&nbsp;
+  const publishSeededRef = useRef(false);
+  useEffect(() =&gt; {
+    if (publishSeededRef.current || publishQuery.status === "loading" || !publishQuery.data) return;
+    publishSeededRef.current = true;
+    setPublishCredentials(publishQuery.data.credentials);
+  }, [publishQuery.status, publishQuery.data]);
+&nbsp;
+  const sourceControlSeededRef = useRef(false);
+  useEffect(() =&gt; {
+    if (sourceControlSeededRef.current || sourceControlQuery.status === "loading" || !sourceControlQuery.data) return;
+    sourceControlSeededRef.current = true;
+    setSourceControlCredentials(sourceControlQuery.data.credentials);
+  }, [sourceControlQuery.status, sourceControlQuery.data]);
+&nbsp;
+  const customSeededRef = useRef(false);
+  useEffect(() =&gt; {
+    if (customSeededRef.current || customQuery.status === "loading" || !customQuery.data) return;
+    customSeededRef.current = true;
+    setCustomCredentials(customQuery.data.credentials);
+  }, [customQuery.status, customQuery.data]);
+&nbsp;
+  // Set from a background reload (below) — merged into `loadError` so a failed refresh is as
+  // visible as a failed initial load, instead of the unhandled rejection this used to produce (LOW
+  // audit finding, 2026-09-03: `reloadAllStores` awaited all three stores with no `catch`).
+  const [reloadError, setReloadError] = useState&lt;string | null&gt;(null);
+  // Flips true the first time ANY background reload completes (success or failure) — lets
+  // `loadError` below stop consulting `publishQuery.error`/`sourceControlQuery.error`/
+  // `customQuery.error` once a reload has run at all, since those three are frozen at whatever they
+  // were on the INITIAL fetch and nothing ever clears them afterward (2026-09-05 Gemini audit,
+  // verified: without this, an initial fetch failure showed a permanent error banner even after a
+  // later background reload fixed the problem, because `accessTokensLoadError(...) ?? reloadError`
+  // always prefers that stale, never-reset initial error over `reloadError`'s honest "no error"
+  // `null` — reordering the `??` would not have helped, since a successful reload also produces
+  // `null`, the exact value `??` treats as "keep checking further"; only gating on "has a reload
+  // happened at all" tells the difference between "no reload has run yet" and "the last reload
+  // succeeded").
+  const [hasReloadedOnce, setHasReloadedOnce] = useState(false);
+  // Monotonic per-attempt id (extracted into `useSettlementGeneration` 2026-09-06; see that hook's
+  // doc for why `use-static-publish.hooks.ts`'s own `previewGenerationRef` did NOT adopt it): a
+  // content-refresh notification can fire again while a previous reload is still in flight
+  // (2026-09-05 Gemini audit, verified: `useContentRefreshSubscription` invokes `triggerReload` — a
+  // fresh, ungated `reloadAllStores()` call every time — with no de-dupe of overlapping reloads),
+  // and network completion order does not have to match start order.
+  const settlement = useSettlementGeneration();
+&nbsp;
+  /**
+   * Re-reads all three stores directly, bypassing `useFetchQuery`'s cache — an out-of-band write
+   * (today `custom_credential_set_username`/`custom_credential_set_token`,
+   * `apps/website/src/features/custom-credentials/agent-tools.ts`) has nothing to invalidate that
+   * this hook would ever re-read: `publishQuery`/`sourceControlQuery`/`customQuery` only ever feed
+   * the ONE-TIME seed effects above (`publishSeededRef` et al.), and every subsequent read this hook
+   * shows the operator comes from `publishCredentials`/`sourceControlCredentials`/`customCredentials`
+   * local state instead — the same reason `removeToken`/`makeDefault` already call
+   * `port.*.list()`/`refetchStore` directly rather than `invalidate()`ing a query nothing re-seeds
+   * from. Safe to overwrite unconditionally, unlike `use-settings-slice.hooks.ts`'s guarded
+   * `refresh()`: a row's `existingDrafts`/`existingBusy` entry is keyed by row id in its OWN state,
+   * not carried on the row itself, so replacing the row list here cannot clobber an operator's
+   * in-progress edit or in-flight save the way overwriting a settings tab's single edited `value`
+   * could.
+   *
+   * `Promise.allSettled`, not `Promise.all` (2026-09-05 Gemini audit, CONFIRMED): a `Promise.all`
+   * rejects as soon as ANY of the three rejects, discarding the other two stores' already-resolved,
+   * genuinely fresher results — a revoked token in a store that itself reloaded fine could keep
+   * rendering as active because an unrelated store merely blipped. Each store here is applied
+   * independently on its own success, and the first failure (if any) still surfaces through
+   * `reloadError` via {@link firstRejectionReason} — no store's failure is silently swallowed, it
+   * just no longer holds the other two hostage.
+   *
+   * Guarded by `settlement` (2026-09-05 Gemini audit, CONFIRMED): with no ordering guard, an older
+   * reload that happens to resolve AFTER a newer one already committed its results would overwrite
+   * the newer, correct data with its own now-stale snapshot. Every commit below (`if
+   * (!settlement.isCurrent(requestGeneration)) return;`) is skipped whenever a newer
+   * `reloadAllStores()` call has started since this one began.
+   *
+   * No longer wrapped in `try`/`catch` (the per-store settlement above is what used to need it) —
+   * `triggerReload` below still calls this fire-and-forget (`void reloadAllStores()`, required by
+   * `useContentRefreshSubscription`'s `onRefresh: () =&gt; void` contract), but nothing in this function
+   * can now throw: `Promise.allSettled` itself never rejects.
+   */
+  const reloadAllStores = useCallback(async () =&gt; {
+    const requestGeneration = settlement.next();
+    const results = await Promise.allSettled([port.publish.list(), port.sourceControl.list(), port.custom.list()]);
+    if (!settlement.isCurrent({ generation: requestGeneration })) return; // superseded by a newer reload
+    const [publishResult, sourceControlResult, customResult] = results;
+    if (publishResult.status === "fulfilled") setPublishCredentials(publishResult.value.credentials);
+    if (sourceControlResult.status === "fulfilled") setSourceControlCredentials(sourceControlResult.value.credentials);
+    if (customResult.status === "fulfilled") setCustomCredentials(customResult.value.credentials);
+    const failureReason = firstRejectionReason(results);
+    setReloadError(failureReason === undefined ? null : accessTokensLoadErrorMessage(locale, describeApiError(failureReason, t("unknown error"))));
+    setHasReloadedOnce(true);
+  }, [port, locale, t]);
+&nbsp;
+  // Stable identity — see `use-media.hooks.ts`'s identical `invalidateList` note for why an inline
+  // arrow here would resubscribe `useContentRefreshSubscription` on every render for no benefit.
+  const triggerReload = useCallback(() =&gt; {
+    void reloadAllStores();
+  }, [reloadAllStores]);
+  useContentRefreshSubscription(ACCESS_TOKENS_RESOURCE, triggerReload);
+&nbsp;
+  // Once a reload has completed at least once, `reloadError` alone is authoritative — see
+  // `hasReloadedOnce`'s own doc for why the initial-fetch errors below cannot be trusted past that
+  // point (they are never reset). Before any reload, this is unchanged from before: the initial
+  // load's own three-way priority, falling back to `reloadError` (still its initial `null`).
+  const loadError = hasReloadedOnce
+    ? reloadError
+    : (accessTokensLoadError(publishQuery.error, sourceControlQuery.error, customQuery.error, t, locale) ?? reloadError);
+&nbsp;
+  const rows = useMemo&lt;AccessTokenRow[] | undefined&gt;(() =&gt; {
+    if (publishCredentials === undefined || sourceControlCredentials === undefined || customCredentials === undefined || !publishTargetsSettled) return undefined;
+    return [
+      ...buildAccessTokenRows("publish", publishCredentials, providers),
+      ...buildAccessTokenRows("source-control", sourceControlCredentials, providers),
+      ...buildCustomCredentialRows(customCredentials),
+    ];
+  }, [publishCredentials, sourceControlCredentials, customCredentials, publishTargetsSettled, providers]);
+&nbsp;
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState&lt;AccessTokenCategoryId&gt;("all");
+  const [existingDrafts, setExistingDrafts] = useState&lt;Record&lt;string, DraftFields&gt;&gt;({});
+  const [existingBusy, setExistingBusy] = useState&lt;Record&lt;string, BusyState&gt;&gt;({});
+  const [addForms, setAddForms] = useState&lt;Record&lt;string, AddFormEntry&gt;&gt;({});
+  const [customAddDraft, setCustomAddDraft] = useState&lt;CustomDraftFields&gt;(blankCustomDraft());
+  const [customAddBusy, setCustomAddBusy] = useState&lt;BusyState&gt;(IDLE);
+  const [customKeyBusy, setCustomKeyBusy] = useState&lt;Record&lt;string, BusyState&gt;&gt;({});
+  const customKeyPending = useRef(new Set&lt;string&gt;());
+&nbsp;
+  /** Applies explicit site opt-in through the shared attachment owner, then refreshes metadata.
+   * Per-key pending guards prevent duplicate clicks; failures leave usage unchanged and visible.
+   * @complexity O(n log n) refresh time and O(n) space for n saved keys; no per-key HTTP requests.
+   */
+  async function setCustomKeyUse({ row, use }: { row: AccessTokenRow; use: boolean }, _optional = {}): Promise&lt;void&gt; {
+    if (row.scope !== "project" || customKeyPending.current.has(row.id)) return;
+    customKeyPending.current.add(row.id);
+    setCustomKeyBusy(prev =&gt; ({ ...prev, [row.id]: { saving: true, error: null } }));
+    try {
+      await port.custom.useKey({ keyId: row.id, use });
+      await reloadAllStores();
+      setCustomKeyBusy(prev =&gt; ({ ...prev, [row.id]: IDLE }));
+    } catch (err) {
+      setCustomKeyBusy(prev =&gt; ({ ...prev, [row.id]: { saving: false, error: describeApiError(err, t("unknown error")) } }));
+    } finally {
+      customKeyPending.current.delete(row.id);
+    }
+  }
+&nbsp;
+  function mergeCredential(kind: AccessTokenKind, result: AdminPublishCredentialSummary | AdminSourceControlCredentialSummary, isNew: boolean): void {
+    if (kind === "publish") {
+      const row = result as AdminPublishCredentialSummary;
+      setPublishCredentials((prev) =&gt; mergeRaw(prev ?? [], row, isNew));
+    } else {
+      const row = result as AdminSourceControlCredentialSummary;
+      setSourceControlCredentials((prev) =&gt; mergeRaw(prev ?? [], row, isNew));
+    }
+  }
+&nbsp;
+  async function refetchStore(kind: AccessTokenKind): Promise&lt;void&gt; {
+    if (kind === "publish") setPublishCredentials((await port.publish.list()).credentials);
+    else setSourceControlCredentials((await port.sourceControl.list()).credentials);
+  }
+&nbsp;
+  /** Seeds a row's FIRST draft update from the persisted row (name AND username included), not a
+   *  blank draft — fixes a HIGH audit finding (2026-08-19 Codex sol bug/architecture audit): the
+   *  previous `prev[rowId] ?? blankDraft()` fallback seeded `name: ""` whenever Token/Account/Username
+   *  was the first field touched, so the very next render displayed a cleared Name field and disabled
+   *  Save until the user retyped it — see {@link existingRowState}'s own analogous, already-correct
+   *  fallback (`row.name`), which this now matches. Username joined this same fallback on 2026-09-01:
+   *  once a custom row can carry a saved {@link AccessTokenRow.username}, touching Token first (before
+   *  ever touching Username) would otherwise blank a saved username out of the draft the identical way
+   *  it used to blank Name. @complexity O(1). */
+  function setExistingField(rowId: string, patch: Partial&lt;DraftFields&gt;): void {
+    if (patch.token !== undefined) setExistingBusy(prev =&gt; ({ ...prev, [rowId]: { saving: prev[rowId]?.saving ?? false, error: credentialDraftError({ value: patch.token! }, { locale }) } }));
+    setExistingDrafts((prev) =&gt; {
+      const existing = prev[rowId];
+      if (existing) return { ...prev, [rowId]: { ...existing, ...patch } };
+      const persistedRow = rows?.find((r) =&gt; r.id === rowId);
+      return { ...prev, [rowId]: { ...blankDraft(), name: persistedRow?.name ?? "", username: persistedRow?.username ?? "", worksFor: persistedRow?.worksFor ?? [], ...patch } };
+    });
+  }
+&nbsp;
+  /** {@link replaceToken}'s `kind: "custom"` branch — a custom row has no `AccessTokenFormFields`
+   *  shape to build (no `ref`-keyed catalog lookup, no descriptor `values`), so it reuses only what genuinely
+   *  applies: {@link customCredentialReplaceReadyToSave}'s readiness rule (rename-alone, username-alone,
+   *  or either together is ready, same as a new token — see that function's own doc for why this is
+   *  NOT {@link accessTokenReplaceReadyToSave}) and {@link customCredentialNameTaken}'s workspace-wide
+   *  duplicate check (see that function's own doc for why it is NOT {@link accessTokenNameTaken}).
+   *  Split out purely to keep {@link replaceToken} itself under this repo's complexity gate. */
+  async function replaceCustomCredential(row: AccessTokenRow): Promise&lt;void&gt; {
+    const draft = existingDrafts[row.id] ?? { ...blankDraft(), name: row.name, username: row.username ?? "", worksFor: row.worksFor ?? [] };
+    const fields: AccessTokenFormFields = { ref: { kind: "custom", providerId: row.providerId }, ...draft };
+    const error = credentialDraftError({ value: fields.token }, { locale });
+    if (error) { setExistingBusy(prev =&gt; ({ ...prev, [row.id]: { saving: false, error } })); return; }
+    if (!accessTokenExistingRowReadyToSave(fields, row, accessTokenRowProviderInfo(providers, row))) return;
+    if (customCredentialNameTaken((rows ?? []).filter(candidate =&gt; candidate.scope === row.scope), fields.name, row.id)) {
+      setExistingBusy((prev) =&gt; ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), t("this workspace")) } }));
+      return;
+    }
+    setExistingBusy((prev) =&gt; ({ ...prev, [row.id]: { saving: true, error: null } }));
+    const nameChanged = fields.name.trim() !== row.name.trim();
+    const hasToken = fields.token.trim() !== "";
+    try {
+      const result = await port.custom.update(row.id, buildCustomCredentialUpdatePatch(fields, nameChanged, hasToken, row.username, { currentWorksFor: row.worksFor }));
+      // PUT returns credential metadata; retain the latest attachment snapshot from the inventory.
+      setCustomCredentials(prev =&gt; (prev ?? []).map(item =&gt; item.id === result.id
+        ? { ...result, usedBy: item.usedBy, usedByThisSite: item.usedByThisSite } : <span class="branch-1 cbranch-no" title="branch not covered" >item)</span>);
+      // Reset to `result.username`, not `fields.username` or blank — `result` is the server's own
+      // post-write state, so it is correct whether the operator typed a new username, left it blank
+      // to PRESERVE the one already saved (`buildCustomProviderConnectionInput` omits a blank
+      // username from the payload rather than sending `""` — see this file's own header), or this
+      // save carried no `connection` at all (a rename-only patch). Seeding from `fields.username`
+      // instead would show a stale value whenever the omit-to-preserve path fired; seeding blank
+      // would resurrect the exact "saved username reads as empty" bug this file exists to fix.
+      setExistingDrafts((prev) =&gt; ({ ...prev, [row.id]: { ...blankDraft(), name: fields.name.trim(), username: result.username ?? "", worksFor: result.worksFor } }));
+      setExistingBusy((prev) =&gt; ({ ...prev, [row.id]: IDLE }));
+    } catch (err) {
+      setExistingBusy((prev) =&gt; ({ ...prev, [row.id]: { saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, t("this workspace"), fields.name) } }));
+    }
+  }
+&nbsp;
+  async function replaceToken(row: AccessTokenRow): Promise&lt;void&gt; {
+    if (row.kind === "custom") return replaceCustomCredential(row);
+    const ref: AccessTokenProviderRef = { kind: row.kind, providerId: row.providerId };
+    // `row.username` is always undefined here (it is only ever set for `kind: "custom"` rows — see
+    // AccessTokenRow.username's own doc), so this is a no-op today. Kept for symmetry with
+    // replaceCustomCredential's identical fallback, so a future publish/source-control provider that
+    // grows a saved username inherits the correct prefill automatically instead of silently reading
+    // blank the same way custom rows used to.
+    const draft = existingDrafts[row.id] ?? { ...blankDraft(), name: row.name, username: row.username ?? "", worksFor: row.worksFor ?? [] };
+    const fields: AccessTokenFormFields = { ref, ...draft };
+    const info = accessTokenProviderInfo(providers, ref);
+    const error = credentialDraftError({ value: fields.token }, { locale });
+    if (error) { setExistingBusy(prev =&gt; ({ ...prev, [row.id]: { saving: false, error } })); return; }
+    if (!accessTokenExistingRowReadyToSave(fields, row, info)) return;
+    const providerLabel = info.label;
+    if (accessTokenNameTaken(rows ?? [], ref, fields.name, row.id)) {
+      setExistingBusy((prev) =&gt; ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), providerLabel) } }));
+      return;
+    }
+    setExistingBusy((prev) =&gt; ({ ...prev, [row.id]: { saving: true, error: null } }));
+    const nameChanged = fields.name.trim() !== row.name.trim();
+    const hasToken = fields.token.trim() !== "";
+    try {
+      const patch = buildAccessTokenUpdatePatch(fields, nameChanged, hasToken, info, { currentWorksFor: row.worksFor });
+      const result = await writeCredential(port, row.kind, { type: "update", id: row.id }, patch);
+      mergeCredential(row.kind, result, false);
+      // Same symmetry note as this function's draft fallback above: `result` (a publish/source-control
+      // summary) never carries a `username` fact, so `row.username ?? ""` — not `result.username` —
+      // is the only value available, and it is always "" today for these two kinds.
+      setExistingDrafts((prev) =&gt; ({ ...prev, [row.id]: { ...blankDraft(), name: fields.name.trim(), username: row.username ?? "", worksFor: "worksFor" in result ? result.worksFor : [] } }));
+      setExistingBusy((prev) =&gt; ({ ...prev, [row.id]: IDLE }));
+    } catch (err) {
+      setExistingBusy((prev) =&gt; ({ ...prev, [row.id]: { saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, providerLabel, fields.name) } }));
+    }
+  }
+&nbsp;
+  /** Removes a saved row, now with real error handling (Terra audit MEDIUM finding, 2026-08-19):
+   *  this used to await the API call with no `try`/`catch`, per-row busy/error state, or caught
+   *  rejection at all — a normal failure (auth, network, server error) produced an unhandled
+   *  rejection and left the operator staring at a row that looked untouched, with no way to tell
+   *  the remove had not applied. A rejection now lands in {@link existingBusy}, the SAME per-row
+   *  state {@link replaceToken} already renders through `state.error` — no new UI surface needed.
+   *  @complexity O(1) plus one network round trip. */
+  async function removeToken(row: AccessTokenRow): Promise&lt;void&gt; {
+    setExistingBusy((prev) =&gt; ({ ...prev, [row.id]: { saving: true, error: null } }));
+    try {
+      if (row.kind === "custom") {
+        await port.custom.remove(row.id);
+        setCustomCredentials((await port.custom.list()).credentials);
+      } else {
+        if (row.kind === "publish") await port.publish.remove(row.id);
+        else await port.sourceControl.remove(row.id);
+        await refetchStore(row.kind);
+      }
+      setExistingBusy((prev) =&gt; ({ ...prev, [row.id]: IDLE }));
+    } catch (err) {
+      setExistingBusy((prev) =&gt; ({ ...prev, [row.id]: { saving: false, error: accessTokenActionErrorMessage(err, t, locale, accessTokenRemoveErrorMessage) } }));
+    }
+  }
+&nbsp;
+  /** Splices the server-confirmed promotion into the right store's local state, via
+   *  `deployment/rules.ts`'s `withPromotedDefault` — the `makeDefault` counterpart of
+   *  {@link mergeCredential}. Reused rather than reimplemented (terra review 2026-09-20): the old
+   *  `makeDefault` treated the write AND the reconcile refetch below as one unit inside a single
+   *  try/catch, so a refetch that failed on its own (a real, separate network call) reported the
+   *  WHOLE promotion as failed and left the pre-promotion list on screen, even though the server had
+   *  already confirmed it. `custom` rows never reach `makeDefault` (`AccessTokensTab.tsx`'s
+   *  `TokenRowDefaultIndicator` never renders a "Make default" control for a singleton custom group),
+   *  so only the two branches `refetchStore` itself already handles are needed here.
+   *  @complexity O(1) dispatch; O(n) inside `withPromotedDefault`. */
+  function applyPromotedDefault(kind: AccessTokenKind, result: AdminPublishCredentialSummary | AdminSourceControlCredentialSummary): void {
+    if (kind === "publish") setPublishCredentials((prev) =&gt; withPromotedDefault(prev ?? [], result as AdminPublishCredentialSummary));
+    else setSourceControlCredentials((prev) =&gt; withPromotedDefault(prev ?? [], result as AdminSourceControlCredentialSummary));
+  }
+&nbsp;
+  /** Best-effort re-read after a promotion the server already confirmed — same shape and reasoning as
+   *  `use-publish-credentials.hooks.ts`'s `reconcileCredentials`: a failure here is swallowed because
+   *  {@link applyPromotedDefault} already applied the server's own confirmed response, so surfacing an
+   *  error would falsely tell the operator the promotion itself failed. */
+  async function reconcileStore(kind: AccessTokenKind): Promise&lt;void&gt; {
+    try {
+      await refetchStore(kind);
+    } catch {
+      // See this function's doc — the confirmed local promotion (applyPromotedDefault) stands.
+    }
+  }
+&nbsp;
+  /** Same error-handling fix as {@link removeToken}'s own doc, for the "Make default" action. */
+  async function makeDefault(row: AccessTokenRow): Promise&lt;void&gt; {
+    if (row.isDefault) return;
+    setExistingBusy((prev) =&gt; ({ ...prev, [row.id]: { saving: true, error: null } }));
+    try {
+      const result = await writeCredential(port, row.kind, { type: "update", id: row.id }, { isDefault: true });
+      applyPromotedDefault(row.kind, result);
+      await reconcileStore(row.kind);
+      setExistingBusy((prev) =&gt; ({ ...prev, [row.id]: IDLE }));
+    } catch (err) {
+      setExistingBusy((prev) =&gt; ({ ...prev, [row.id]: { saving: false, error: accessTokenActionErrorMessage(err, t, locale, accessTokenMakeDefaultErrorMessage) } }));
+    }
+  }
+&nbsp;
+  function openAddForm(ref: AccessTokenProviderRef): void {
+    const key = addFormKey(ref);
+    setAddForms((prev) =&gt; ({ ...prev, [key]: { ...(prev[key] ?? blankAddFormEntry()), visible: true } }));
+  }
+  function closeAddForm(ref: AccessTokenProviderRef): void {
+    setAddForms((prev) =&gt; ({ ...prev, [addFormKey(ref)]: blankAddFormEntry() }));
+  }
+  function setAddField(ref: AccessTokenProviderRef, patch: Partial&lt;DraftFields&gt;): void {
+    const key = addFormKey(ref);
+    if (patch.token !== undefined) setAddForms(prev =&gt; ({ ...prev, [key]: { ...(prev[key] ?? blankAddFormEntry()), error: credentialDraftError({ value: patch.token! }, { locale, required: true }) } }));
+    setAddForms((prev) =&gt; {
+      const entry = prev[key] ?? blankAddFormEntry();
+      const compatibility = ref.kind === "publish" ? addWorksForPatch({ draft: entry.draft, patch, options: worksForOptions }) : {};
+      return { ...prev, [key]: { ...entry, draft: { ...entry.draft, ...patch, ...compatibility } } };
+    });
+  }
+&nbsp;
+  async function createToken(ref: AccessTokenProviderRef): Promise&lt;void&gt; {
+    const key = addFormKey(ref);
+    const entry = addForms[key] ?? blankAddFormEntry();
+    const fields: AccessTokenFormFields = { ref, ...entry.draft };
+    const info = accessTokenProviderInfo(providers, ref);
+    const error = credentialDraftError({ value: fields.token }, { locale, required: true });
+    if (error) { setAddForms(prev =&gt; ({ ...prev, [key]: { ...entry, saving: false, error } })); return; }
+    if (!accessTokenRowReadyToSave(fields, info)) return;
+    const providerLabel = info.label;
+    if (accessTokenNameTaken(rows ?? [], ref, fields.name)) {
+      setAddForms((prev) =&gt; ({ ...prev, [key]: { ...entry, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), providerLabel) } }));
+      return;
+    }
+    setAddForms((prev) =&gt; ({ ...prev, [key]: { ...entry, saving: true, error: null } }));
+    try {
+      const connection = buildAccessTokenConnectionInput(fields, info);
+      const result = await writeCredential(port, ref.kind, { type: "create", label: fields.name.trim() }, { connection, ...(ref.kind === "publish" ? { worksFor: fields.worksFor } : {}) });
+      mergeCredential(ref.kind, result, true);
+      setAddForms((prev) =&gt; ({ ...prev, [key]: blankAddFormEntry() }));
+    } catch (err) {
+      setAddForms((prev) =&gt; ({
+        ...prev,
+        [key]: { ...entry, saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, providerLabel, fields.name) },
+      }));
+    }
+  }
+&nbsp;
+  /** One singleton group per saved custom row — no shared catalog entry to group under (this file's
+   *  own header), so each row IS its own group. `addForm` is always the inert blank state: creation
+   *  happens through the standalone dialog (`customAddForm` below), never through a per-group
+   *  `[+ Add another]` affordance — `AccessTokensTab.tsx`'s `ProviderGroup` skips rendering that
+   *  affordance for `kind: "custom"` groups for the identical reason. */
+  const customGroups = useMemo&lt;readonly AccessTokenProviderGroupState[]&gt;(() =&gt; {
+    if (rows === undefined) return [];
+    return rows
+      .filter((row) =&gt; row.kind === "custom" &amp;&amp; accessTokenCategoryMatches(row.category ?? "general", category) &amp;&amp; accessTokenRowMatchesQuery(row, accessTokenRowProviderInfo(providers, row), query))
+      .map((row) =&gt; {
+        const info = accessTokenRowProviderInfo(providers, row);
+        return { info, rows: [existingRowState(row, existingDrafts[row.id], existingBusy[row.id], info)], addForm: addFormState(undefined, info) };
+      });
+  }, [rows, existingDrafts, existingBusy, query, category, providers]);
+&nbsp;
+  const groups = useMemo&lt;readonly AccessTokenProviderGroupState[] | undefined&gt;(() =&gt; {
+    if (rows === undefined) return undefined;
+    // A provider outside the active category is dropped here, before the query filter ever runs —
+    // see this file's header for why that keeps `totalCount`/`matchCount` a global fact instead.
+    // A saved row whose provider is not listed still gets its group, so it can be removed.
+    const catalogGroups = accessTokenProvidersWithSavedRows(providers, rows).filter((info) =&gt; accessTokenCategoryMatches(info.category, category)).map((info) =&gt; {
+      const providerRows = accessTokenRowsForProvider(rows, info).filter((row) =&gt; accessTokenRowMatchesQuery(row, info, query));
+      return {
+        info,
+        rows: providerRows.map((row) =&gt; existingRowState(row, existingDrafts[row.id], existingBusy[row.id], info)),
+        addForm: addFormState(addForms[addFormKey(info)], info),
+      };
+    });
+    // Saved-before-unsaved, then category-chip order, then alphabetical by label — the owner's
+    // 2026-09-21 ordering ruling (`rules.ts`'s `sortAccessTokenGroups` doc). Applied to the
+    // already-category-and-query-filtered list above, so it holds for the "All" chip, any single
+    // category chip, and an active search query alike.
+    return sortAccessTokenGroups([...catalogGroups, ...customGroups]);
+  }, [rows, existingDrafts, existingBusy, addForms, query, category, customGroups, providers]);
+&nbsp;
+  const totalCount = rows?.length ?? 0;
+  const matchCount = rows === undefined ? 0 : rows.filter((row) =&gt; accessTokenRowMatchesQuery(row, accessTokenRowProviderInfo(providers, row), query)).length;
+&nbsp;
+  function setCustomAddField(patch: Partial&lt;CustomDraftFields&gt;): void {
+    if (patch.token !== undefined) setCustomAddBusy(prev =&gt; ({ ...prev, error: credentialDraftError({ value: patch.token! }, { locale, required: true }) }));
+    setCustomAddDraft((prev) =&gt; ({ ...prev, ...patch, ...addWorksForPatch({ draft: prev, patch, options: worksForOptions }) }));
+  }
+&nbsp;
+  function resetCustomAddForm(): void {
+    setCustomAddDraft(blankCustomDraft());
+    setCustomAddBusy(IDLE);
+  }
+&nbsp;
+  /** Returns whether the save succeeded — `AccessTokensTab.tsx`'s dialog uses this to decide whether
+   *  to close itself (native `&lt;dialog&gt;` close is a DOM action this hook does not own, same split
+   *  {@link RemoveConfirmDialog} already draws). */
+  async function createCustomCredential(): Promise&lt;boolean&gt; {
+    const fields: CustomCredentialFormFields = customAddDraft;
+    const scope = customQuery.data?.projectKeysAvailable ? customAddDraft.scope ?? "project" : "site";
+    const error = credentialDraftError({ value: fields.token }, { locale, required: true });
+    if (error) { setCustomAddBusy({ saving: false, error }); return false; }
+    if (!customCredentialReadyToSave(fields)) return false;
+    if (customCredentialNameTaken((rows ?? []).filter(row =&gt; (row.scope ?? "site") === scope), fields.name)) {
+      setCustomAddBusy({ saving: false, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), t("this workspace")) });
+      return false;
+    }
+    setCustomAddBusy({ saving: true, error: null });
+    try {
+      const result = await port.custom.create({
+        scope,
+        label: fields.name.trim(),
+        worksFor: fields.worksFor,
+        category: fields.category,
+        baseUrl: fields.baseUrl.trim(),
+        additionalHosts: buildAdditionalHostsInput(fields.additionalHosts),
+        connection: buildCustomProviderConnectionInput(fields),
+      });
+      setCustomCredentials((prev) =&gt; mergeRaw(prev ?? [], result, true));
+      resetCustomAddForm();
+      return true;
+    } catch (err) {
+      setCustomAddBusy({ saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, t("this workspace"), fields.name) });
+      return false;
+    }
+  }
+&nbsp;
+  return {
+    groups,
+    worksForOptions,
+    loadError,
+    query,
+    setQuery,
+    category,
+    setCategory,
+    totalCount,
+    matchCount,
+    setExistingField,
+    replaceToken,
+    removeToken,
+    makeDefault,
+    openAddForm,
+    closeAddForm,
+    setAddField,
+    createToken,
+    customAddForm: { ...customAddDraft, saving: customAddBusy.saving, error: customAddBusy.error },
+    setCustomAddField,
+    resetCustomAddForm,
+    createCustomCredential,
+    projectKeysAvailable: customQuery.data?.projectKeysAvailable === true,
+    customKeyBusy,
+    setCustomKeyUse,
+    t,
+  };
+}
+&nbsp;
+/** @complexity O(n) in the provider's own (small) saved-row count. */
+function mergeRaw&lt;T extends { id: string }&gt;(list: readonly T[], result: T, isNew: boolean): T[] {
+  return isNew ? [...list, result] : list.map((item) =&gt; (item.id === result.id ? result : item));
+}
+&nbsp;
+/**
+ * Binds the real port, and a `t` bound to the real resolved locale — the zero-argument half of the
+ * `useX(dependencies)` / `useWiredX()` pair, same shape `useWiredPublishCredentials`/
+ * `useWiredSourceControlCredentials` document.
+ *
+ * `boundT` is a `useCallback` (matching `useWiredSites`'s identical `const t = useCallback(...)`),
+ * not a plain arrow function recreated every render (2026-09-05 Gemini audit, CONFIRMED): `t` flows
+ * into `reloadAllStores`'s own `useCallback` dependency array above, which is correct — `t` is a
+ * genuine dependency there (`accessTokensLoadErrorMessage`/`describeApiError` both call it) — but a
+ * dependency that changes identity every render still defeats the surrounding `useCallback` just the
+ * same. That in turn gave `triggerReload` a new identity every render, and `triggerReload` is exactly
+ * what `useContentRefreshSubscription`'s own header warns changes identity every render (see this
+ * hook's own `triggerReload` comment): its effect deps are `[resource, onRefresh]`, so an unstable
+ * `onRefresh` tore down and rebuilt the SSE subscription on every single render for no benefit. Only
+ * `locale` changing should ever produce a new `boundT`.
+ */
+export function useWiredAccessTokens(): AccessTokensController {
+  const locale = useAdminLocale();
+  const boundT = useCallback((key: string): string =&gt; defaultT({ locale: locale, key: key }), [locale]);
+  return useAccessTokens(defaultAccessTokensPort, boundT, locale);
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../../sorter.js"></script>
+        <script src="../../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

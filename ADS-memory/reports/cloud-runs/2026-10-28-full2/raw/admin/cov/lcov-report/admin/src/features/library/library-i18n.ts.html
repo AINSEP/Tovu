@@ -1,0 +1,1447 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/library/library-i18n.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">admin/src/features/library</a> library-i18n.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>2/2</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>2/2</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a>
+<a name='L323'></a><a href='#L323'>323</a>
+<a name='L324'></a><a href='#L324'>324</a>
+<a name='L325'></a><a href='#L325'>325</a>
+<a name='L326'></a><a href='#L326'>326</a>
+<a name='L327'></a><a href='#L327'>327</a>
+<a name='L328'></a><a href='#L328'>328</a>
+<a name='L329'></a><a href='#L329'>329</a>
+<a name='L330'></a><a href='#L330'>330</a>
+<a name='L331'></a><a href='#L331'>331</a>
+<a name='L332'></a><a href='#L332'>332</a>
+<a name='L333'></a><a href='#L333'>333</a>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a>
+<a name='L336'></a><a href='#L336'>336</a>
+<a name='L337'></a><a href='#L337'>337</a>
+<a name='L338'></a><a href='#L338'>338</a>
+<a name='L339'></a><a href='#L339'>339</a>
+<a name='L340'></a><a href='#L340'>340</a>
+<a name='L341'></a><a href='#L341'>341</a>
+<a name='L342'></a><a href='#L342'>342</a>
+<a name='L343'></a><a href='#L343'>343</a>
+<a name='L344'></a><a href='#L344'>344</a>
+<a name='L345'></a><a href='#L345'>345</a>
+<a name='L346'></a><a href='#L346'>346</a>
+<a name='L347'></a><a href='#L347'>347</a>
+<a name='L348'></a><a href='#L348'>348</a>
+<a name='L349'></a><a href='#L349'>349</a>
+<a name='L350'></a><a href='#L350'>350</a>
+<a name='L351'></a><a href='#L351'>351</a>
+<a name='L352'></a><a href='#L352'>352</a>
+<a name='L353'></a><a href='#L353'>353</a>
+<a name='L354'></a><a href='#L354'>354</a>
+<a name='L355'></a><a href='#L355'>355</a>
+<a name='L356'></a><a href='#L356'>356</a>
+<a name='L357'></a><a href='#L357'>357</a>
+<a name='L358'></a><a href='#L358'>358</a>
+<a name='L359'></a><a href='#L359'>359</a>
+<a name='L360'></a><a href='#L360'>360</a>
+<a name='L361'></a><a href='#L361'>361</a>
+<a name='L362'></a><a href='#L362'>362</a>
+<a name='L363'></a><a href='#L363'>363</a>
+<a name='L364'></a><a href='#L364'>364</a>
+<a name='L365'></a><a href='#L365'>365</a>
+<a name='L366'></a><a href='#L366'>366</a>
+<a name='L367'></a><a href='#L367'>367</a>
+<a name='L368'></a><a href='#L368'>368</a>
+<a name='L369'></a><a href='#L369'>369</a>
+<a name='L370'></a><a href='#L370'>370</a>
+<a name='L371'></a><a href='#L371'>371</a>
+<a name='L372'></a><a href='#L372'>372</a>
+<a name='L373'></a><a href='#L373'>373</a>
+<a name='L374'></a><a href='#L374'>374</a>
+<a name='L375'></a><a href='#L375'>375</a>
+<a name='L376'></a><a href='#L376'>376</a>
+<a name='L377'></a><a href='#L377'>377</a>
+<a name='L378'></a><a href='#L378'>378</a>
+<a name='L379'></a><a href='#L379'>379</a>
+<a name='L380'></a><a href='#L380'>380</a>
+<a name='L381'></a><a href='#L381'>381</a>
+<a name='L382'></a><a href='#L382'>382</a>
+<a name='L383'></a><a href='#L383'>383</a>
+<a name='L384'></a><a href='#L384'>384</a>
+<a name='L385'></a><a href='#L385'>385</a>
+<a name='L386'></a><a href='#L386'>386</a>
+<a name='L387'></a><a href='#L387'>387</a>
+<a name='L388'></a><a href='#L388'>388</a>
+<a name='L389'></a><a href='#L389'>389</a>
+<a name='L390'></a><a href='#L390'>390</a>
+<a name='L391'></a><a href='#L391'>391</a>
+<a name='L392'></a><a href='#L392'>392</a>
+<a name='L393'></a><a href='#L393'>393</a>
+<a name='L394'></a><a href='#L394'>394</a>
+<a name='L395'></a><a href='#L395'>395</a>
+<a name='L396'></a><a href='#L396'>396</a>
+<a name='L397'></a><a href='#L397'>397</a>
+<a name='L398'></a><a href='#L398'>398</a>
+<a name='L399'></a><a href='#L399'>399</a>
+<a name='L400'></a><a href='#L400'>400</a>
+<a name='L401'></a><a href='#L401'>401</a>
+<a name='L402'></a><a href='#L402'>402</a>
+<a name='L403'></a><a href='#L403'>403</a>
+<a name='L404'></a><a href='#L404'>404</a>
+<a name='L405'></a><a href='#L405'>405</a>
+<a name='L406'></a><a href='#L406'>406</a>
+<a name='L407'></a><a href='#L407'>407</a>
+<a name='L408'></a><a href='#L408'>408</a>
+<a name='L409'></a><a href='#L409'>409</a>
+<a name='L410'></a><a href='#L410'>410</a>
+<a name='L411'></a><a href='#L411'>411</a>
+<a name='L412'></a><a href='#L412'>412</a>
+<a name='L413'></a><a href='#L413'>413</a>
+<a name='L414'></a><a href='#L414'>414</a>
+<a name='L415'></a><a href='#L415'>415</a>
+<a name='L416'></a><a href='#L416'>416</a>
+<a name='L417'></a><a href='#L417'>417</a>
+<a name='L418'></a><a href='#L418'>418</a>
+<a name='L419'></a><a href='#L419'>419</a>
+<a name='L420'></a><a href='#L420'>420</a>
+<a name='L421'></a><a href='#L421'>421</a>
+<a name='L422'></a><a href='#L422'>422</a>
+<a name='L423'></a><a href='#L423'>423</a>
+<a name='L424'></a><a href='#L424'>424</a>
+<a name='L425'></a><a href='#L425'>425</a>
+<a name='L426'></a><a href='#L426'>426</a>
+<a name='L427'></a><a href='#L427'>427</a>
+<a name='L428'></a><a href='#L428'>428</a>
+<a name='L429'></a><a href='#L429'>429</a>
+<a name='L430'></a><a href='#L430'>430</a>
+<a name='L431'></a><a href='#L431'>431</a>
+<a name='L432'></a><a href='#L432'>432</a>
+<a name='L433'></a><a href='#L433'>433</a>
+<a name='L434'></a><a href='#L434'>434</a>
+<a name='L435'></a><a href='#L435'>435</a>
+<a name='L436'></a><a href='#L436'>436</a>
+<a name='L437'></a><a href='#L437'>437</a>
+<a name='L438'></a><a href='#L438'>438</a>
+<a name='L439'></a><a href='#L439'>439</a>
+<a name='L440'></a><a href='#L440'>440</a>
+<a name='L441'></a><a href='#L441'>441</a>
+<a name='L442'></a><a href='#L442'>442</a>
+<a name='L443'></a><a href='#L443'>443</a>
+<a name='L444'></a><a href='#L444'>444</a>
+<a name='L445'></a><a href='#L445'>445</a>
+<a name='L446'></a><a href='#L446'>446</a>
+<a name='L447'></a><a href='#L447'>447</a>
+<a name='L448'></a><a href='#L448'>448</a>
+<a name='L449'></a><a href='#L449'>449</a>
+<a name='L450'></a><a href='#L450'>450</a>
+<a name='L451'></a><a href='#L451'>451</a>
+<a name='L452'></a><a href='#L452'>452</a>
+<a name='L453'></a><a href='#L453'>453</a>
+<a name='L454'></a><a href='#L454'>454</a>
+<a name='L455'></a><a href='#L455'>455</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">44x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">44x</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { COMMON_I18N } from "../../lib/i18n-common";
+/**
+ * @file Translations for the Library screen (`Library.tsx`) — this feature's own dictionary, not
+ * `lib/admin-nav-i18n.ts` (which only carries the sidebar's "Library" label). Same fallback as every
+ * other admin `t()`: translated value, then `COMMON_I18N` (Cancel/More/Name/Save/Saving…), then
+ * the English key itself. `lib/__tests__/untranslated-copy.unit.test.ts` checks every locale here.
+ */
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+&nbsp;
+const LIBRARY_DICT: Record&lt;string, Record&lt;string, string&gt;&gt; = {
+  es: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "No subas aquí claves, tokens ni secretos confidenciales.",
+    Library: "Biblioteca", Content: "Contenido", Upload: "Subir", Documents: "Documentos",
+    "Private documents the assistant can read. Visitors never see them.": "Documentos privados que el asistente puede leer. Los visitantes nunca los ven.",
+    "Drop documents here, or click to browse": "Suelta documentos aquí o haz clic para buscarlos",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown, texto, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV o JSON · hasta 10 MiB cada uno",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "Paquete de carpeta: guarda como archivo único en Pages/Keynote y vuelve a subirlo.",
+    Uploads: "Subidas", "Waiting…": "En espera…", "Uploading…": "Subiendo…", Uploaded: "Subido", "Upload failed.": "Error al subir.",
+    "This file type isn't supported.": "Este tipo de archivo no es compatible.", "Larger than 10 MiB.": "Supera los 10 MiB.", "This file is empty.": "Este archivo está vacío.",
+    "View in Documents": "Ver en Documentos", "Clear list": "Borrar lista",
+    "You don't have permission to upload documents.": "No tienes permiso para subir documentos.",
+    "Loading documents…": "Cargando documentos…", "Couldn't load documents.": "No se pudieron cargar los documentos.",
+    "No documents yet.": "Aún no hay documentos.", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "Sube archivos Markdown, de texto, PDF, Word, CSV o JSON para que el asistente los lea.",
+    "Upload documents": "Subir documentos", Type: "Tipo", Size: "Tamaño", "Upload date": "Fecha de subida", "Uploaded by": "Subido por", Unknown: "Desconocido",
+    'Actions for "{title}"': "Acciones para «{title}»", Preview: "Vista previa", Download: "Descargar", Rename: "Cambiar nombre", "Move to Trash": "Mover a la papelera",
+    "Moving…": "Moviendo…", "Moved to Trash.": "Movido a la papelera.", "Open Trash": "Abrir papelera", "Move to Trash failed.": "No se pudo mover a la papelera.",
+    "New name": "Nuevo nombre", "Rename failed.": "No se pudo cambiar el nombre.", Close: "Cerrar",
+    "Loading preview…": "Cargando vista previa…", "Preview failed.": "No se pudo cargar la vista previa.",
+    "No preview for this file type. Download it to open it.": "No hay vista previa para este tipo de archivo. Descárgalo para abrirlo.",
+    "Showing the first 64 KB. Download the file to see all of it.": "Se muestran los primeros 64 KB. Descarga el archivo para verlo completo.",
+  },
+  id: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Jangan unggah kunci, token, atau rahasia sensitif apa pun di sini.",
+    Library: "Pustaka", Content: "Konten", Upload: "Unggah", Documents: "Dokumen",
+    "Private documents the assistant can read. Visitors never see them.": "Dokumen pribadi yang dapat dibaca asisten. Pengunjung tidak pernah melihatnya.",
+    "Drop documents here, or click to browse": "Letakkan dokumen di sini, atau klik untuk memilih",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown, teks, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, atau JSON · maksimal 10 MiB per file",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "Paket folder: simpan sebagai satu file di Pages/Keynote, lalu unggah lagi.",
+    Uploads: "Unggahan", "Waiting…": "Menunggu…", "Uploading…": "Mengunggah…", Uploaded: "Terunggah", "Upload failed.": "Gagal mengunggah.",
+    "This file type isn't supported.": "Jenis file ini tidak didukung.", "Larger than 10 MiB.": "Lebih dari 10 MiB.", "This file is empty.": "File ini kosong.",
+    "View in Documents": "Lihat di Dokumen", "Clear list": "Kosongkan daftar",
+    "You don't have permission to upload documents.": "Anda tidak memiliki izin untuk mengunggah dokumen.",
+    "Loading documents…": "Memuat dokumen…", "Couldn't load documents.": "Tidak dapat memuat dokumen.",
+    "No documents yet.": "Belum ada dokumen.", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "Unggah file Markdown, teks, PDF, Word, CSV, atau JSON agar dapat dibaca asisten.",
+    "Upload documents": "Unggah dokumen", Type: "Jenis", Size: "Ukuran", "Upload date": "Tanggal unggah", "Uploaded by": "Diunggah oleh", Unknown: "Tidak diketahui",
+    'Actions for "{title}"': "Tindakan untuk \"{title}\"", Preview: "Pratinjau", Download: "Unduh", Rename: "Ganti nama", "Move to Trash": "Pindahkan ke Sampah",
+    "Moving…": "Memindahkan…", "Moved to Trash.": "Dipindahkan ke Sampah.", "Open Trash": "Buka Sampah", "Move to Trash failed.": "Gagal memindahkan ke Sampah.",
+    "New name": "Nama baru", "Rename failed.": "Gagal mengganti nama.", Close: "Tutup",
+    "Loading preview…": "Memuat pratinjau…", "Preview failed.": "Pratinjau gagal dimuat.",
+    "No preview for this file type. Download it to open it.": "Tidak ada pratinjau untuk jenis file ini. Unduh untuk membukanya.",
+    "Showing the first 64 KB. Download the file to see all of it.": "Menampilkan 64 KB pertama. Unduh file untuk melihat seluruhnya.",
+  },
+  de: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Lade hier keine sensiblen Schlüssel, Tokens oder Geheimnisse hoch.",
+    Library: "Bibliothek", Content: "Inhalt", Upload: "Hochladen", Documents: "Dokumente",
+    "Private documents the assistant can read. Visitors never see them.": "Private Dokumente, die der Assistent lesen kann. Besucher sehen sie nie.",
+    "Drop documents here, or click to browse": "Dokumente hier ablegen oder zum Auswählen klicken",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown, Text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV oder JSON · bis zu 10 MiB pro Datei",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "Ordnerpaket: In Pages/Keynote als einzelne Datei sichern und erneut hochladen.",
+    Uploads: "Hochgeladene Dateien", "Waiting…": "Wartet…", "Uploading…": "Wird hochgeladen…", Uploaded: "Hochgeladen", "Upload failed.": "Hochladen fehlgeschlagen.",
+    "This file type isn't supported.": "Dieser Dateityp wird nicht unterstützt.", "Larger than 10 MiB.": "Größer als 10 MiB.", "This file is empty.": "Diese Datei ist leer.",
+    "View in Documents": "In Dokumenten ansehen", "Clear list": "Liste leeren",
+    "You don't have permission to upload documents.": "Du hast keine Berechtigung, Dokumente hochzuladen.",
+    "Loading documents…": "Dokumente werden geladen…", "Couldn't load documents.": "Dokumente konnten nicht geladen werden.",
+    "No documents yet.": "Noch keine Dokumente.", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "Lade Markdown-, Text-, PDF-, Word-, CSV- oder JSON-Dateien hoch, die der Assistent lesen soll.",
+    "Upload documents": "Dokumente hochladen", Type: "Typ", Size: "Größe", "Upload date": "Hochgeladen am", "Uploaded by": "Hochgeladen von", Unknown: "Unbekannt",
+    'Actions for "{title}"': "Aktionen für „{title}“", Preview: "Vorschau", Download: "Herunterladen", Rename: "Umbenennen", "Move to Trash": "In den Papierkorb",
+    "Moving…": "Wird verschoben…", "Moved to Trash.": "In den Papierkorb verschoben.", "Open Trash": "Papierkorb öffnen", "Move to Trash failed.": "Verschieben in den Papierkorb fehlgeschlagen.",
+    "New name": "Neuer Name", "Rename failed.": "Umbenennen fehlgeschlagen.", Close: "Schließen",
+    "Loading preview…": "Vorschau wird geladen…", "Preview failed.": "Vorschau konnte nicht geladen werden.",
+    "No preview for this file type. Download it to open it.": "Für diesen Dateityp gibt es keine Vorschau. Lade die Datei herunter, um sie zu öffnen.",
+    "Showing the first 64 KB. Download the file to see all of it.": "Die ersten 64 KB werden angezeigt. Lade die Datei herunter, um alles zu sehen.",
+  },
+  "zh-CN": {
+    "Do not load any sensitive keys, tokens, or secrets here.": "请勿在此上传任何敏感密钥、令牌或机密信息。",
+    Library: "资料库", Content: "内容", Upload: "上传", Documents: "文档",
+    "Private documents the assistant can read. Visitors never see them.": "助手可以读取的私有文档。访客永远看不到。",
+    "Drop documents here, or click to browse": "将文档拖放到此处，或点击浏览",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown、文本、PDF、Word, Excel, PowerPoint, Pages, Keynote, RTF、CSV 或 JSON · 每个最大 10 MiB",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "文件夹包：请在 Pages/Keynote 中存为单个文件，然后重新上传。",
+    Uploads: "上传列表", "Waiting…": "等待中…", "Uploading…": "正在上传…", Uploaded: "已上传", "Upload failed.": "上传失败。",
+    "This file type isn't supported.": "不支持此文件类型。", "Larger than 10 MiB.": "超过 10 MiB。", "This file is empty.": "此文件为空。",
+    "View in Documents": "在文档中查看", "Clear list": "清空列表",
+    "You don't have permission to upload documents.": "你没有上传文档的权限。",
+    "Loading documents…": "正在加载文档…", "Couldn't load documents.": "无法加载文档。",
+    "No documents yet.": "还没有文档。", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "上传 Markdown、文本、PDF、Word、CSV 或 JSON 文件供助手读取。",
+    "Upload documents": "上传文档", Type: "类型", Size: "大小", "Upload date": "上传日期", "Uploaded by": "上传者", Unknown: "未知",
+    'Actions for "{title}"': "“{title}”的操作", Preview: "预览", Download: "下载", Rename: "重命名", "Move to Trash": "移到回收站",
+    "Moving…": "正在移动…", "Moved to Trash.": "已移到回收站。", "Open Trash": "打开回收站", "Move to Trash failed.": "移到回收站失败。",
+    "New name": "新名称", "Rename failed.": "重命名失败。", Close: "关闭",
+    "Loading preview…": "正在加载预览…", "Preview failed.": "预览加载失败。",
+    "No preview for this file type. Download it to open it.": "此文件类型无法预览。请下载后打开。",
+    "Showing the first 64 KB. Download the file to see all of it.": "仅显示前 64 KB。下载文件以查看全部内容。",
+  },
+  "zh-TW": {
+    "Do not load any sensitive keys, tokens, or secrets here.": "請勿在此上傳任何敏感金鑰、權杖或機密資訊。",
+    Library: "資料庫", Content: "內容", Upload: "上傳", Documents: "文件",
+    "Private documents the assistant can read. Visitors never see them.": "助理可以讀取的私人文件。訪客永遠看不到。",
+    "Drop documents here, or click to browse": "將文件拖放到這裡，或點擊瀏覽",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown、文字、PDF、Word, Excel, PowerPoint, Pages, Keynote, RTF、CSV 或 JSON · 每個最大 10 MiB",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "檔案夾套件：請在 Pages/Keynote 中儲存為單一檔案，再重新上傳。",
+    Uploads: "上傳清單", "Waiting…": "等待中…", "Uploading…": "上傳中…", Uploaded: "已上傳", "Upload failed.": "上傳失敗。",
+    "This file type isn't supported.": "不支援此檔案類型。", "Larger than 10 MiB.": "超過 10 MiB。", "This file is empty.": "此檔案是空的。",
+    "View in Documents": "在文件中檢視", "Clear list": "清除清單",
+    "You don't have permission to upload documents.": "你沒有上傳文件的權限。",
+    "Loading documents…": "正在載入文件…", "Couldn't load documents.": "無法載入文件。",
+    "No documents yet.": "還沒有文件。", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "上傳 Markdown、文字、PDF、Word、CSV 或 JSON 檔案供助理讀取。",
+    "Upload documents": "上傳文件", Type: "類型", Size: "大小", "Upload date": "上傳日期", "Uploaded by": "上傳者", Unknown: "未知",
+    'Actions for "{title}"': "「{title}」的操作", Preview: "預覽", Download: "下載", Rename: "重新命名", "Move to Trash": "移至垃圾桶",
+    "Moving…": "移動中…", "Moved to Trash.": "已移至垃圾桶。", "Open Trash": "開啟垃圾桶", "Move to Trash failed.": "移至垃圾桶失敗。",
+    "New name": "新名稱", "Rename failed.": "重新命名失敗。", Close: "關閉",
+    "Loading preview…": "正在載入預覽…", "Preview failed.": "預覽載入失敗。",
+    "No preview for this file type. Download it to open it.": "此檔案類型無法預覽。請下載後開啟。",
+    "Showing the first 64 KB. Download the file to see all of it.": "僅顯示前 64 KB。下載檔案以檢視全部內容。",
+  },
+  "pt-BR": {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Não carregue aqui chaves, tokens ou segredos confidenciais.",
+    Library: "Biblioteca", Content: "Conteúdo", Upload: "Enviar", Documents: "Documentos",
+    "Private documents the assistant can read. Visitors never see them.": "Documentos privados que o assistente pode ler. Os visitantes nunca os veem.",
+    "Drop documents here, or click to browse": "Solte documentos aqui ou clique para procurar",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown, texto, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV ou JSON · até 10 MiB cada",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "Pacote de pasta: salve como arquivo único no Pages/Keynote e envie novamente.",
+    Uploads: "Envios", "Waiting…": "Aguardando…", "Uploading…": "Enviando…", Uploaded: "Enviado", "Upload failed.": "Falha no envio.",
+    "This file type isn't supported.": "Este tipo de arquivo não é compatível.", "Larger than 10 MiB.": "Maior que 10 MiB.", "This file is empty.": "Este arquivo está vazio.",
+    "View in Documents": "Ver em Documentos", "Clear list": "Limpar lista",
+    "You don't have permission to upload documents.": "Você não tem permissão para enviar documentos.",
+    "Loading documents…": "Carregando documentos…", "Couldn't load documents.": "Não foi possível carregar os documentos.",
+    "No documents yet.": "Nenhum documento ainda.", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "Envie arquivos Markdown, de texto, PDF, Word, CSV ou JSON para o assistente ler.",
+    "Upload documents": "Enviar documentos", Type: "Tipo", Size: "Tamanho", "Upload date": "Data de envio", "Uploaded by": "Enviado por", Unknown: "Desconhecido",
+    'Actions for "{title}"': "Ações para \"{title}\"", Preview: "Visualizar", Download: "Baixar", Rename: "Renomear", "Move to Trash": "Mover para a lixeira",
+    "Moving…": "Movendo…", "Moved to Trash.": "Movido para a lixeira.", "Open Trash": "Abrir lixeira", "Move to Trash failed.": "Não foi possível mover para a lixeira.",
+    "New name": "Novo nome", "Rename failed.": "Não foi possível renomear.", Close: "Fechar",
+    "Loading preview…": "Carregando visualização…", "Preview failed.": "Não foi possível carregar a visualização.",
+    "No preview for this file type. Download it to open it.": "Não há visualização para este tipo de arquivo. Baixe-o para abrir.",
+    "Showing the first 64 KB. Download the file to see all of it.": "Mostrando os primeiros 64 KB. Baixe o arquivo para ver tudo.",
+  },
+  ru: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Не загружайте сюда конфиденциальные ключи, токены или секреты.",
+    Library: "Библиотека", Content: "Контент", Upload: "Загрузка", Documents: "Документы",
+    "Private documents the assistant can read. Visitors never see them.": "Личные документы, которые может читать ассистент. Посетители их никогда не видят.",
+    "Drop documents here, or click to browse": "Перетащите документы сюда или нажмите, чтобы выбрать",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown, текст, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV или JSON · до 10 МиБ каждый",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "Пакет-папка: сохраните в Pages/Keynote одним файлом и загрузите снова.",
+    Uploads: "Загрузки", "Waiting…": "Ожидание…", "Uploading…": "Загрузка…", Uploaded: "Загружено", "Upload failed.": "Не удалось загрузить.",
+    "This file type isn't supported.": "Этот тип файла не поддерживается.", "Larger than 10 MiB.": "Больше 10 МиБ.", "This file is empty.": "Файл пуст.",
+    "View in Documents": "Открыть в документах", "Clear list": "Очистить список",
+    "You don't have permission to upload documents.": "У вас нет прав на загрузку документов.",
+    "Loading documents…": "Загрузка документов…", "Couldn't load documents.": "Не удалось загрузить документы.",
+    "No documents yet.": "Документов пока нет.", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "Загрузите файлы Markdown, текст, PDF, Word, CSV или JSON, чтобы ассистент мог их прочитать.",
+    "Upload documents": "Загрузить документы", Type: "Тип", Size: "Размер", "Upload date": "Дата загрузки", "Uploaded by": "Загрузил", Unknown: "Неизвестно",
+    'Actions for "{title}"': "Действия для «{title}»", Preview: "Просмотр", Download: "Скачать", Rename: "Переименовать", "Move to Trash": "В корзину",
+    "Moving…": "Перемещение…", "Moved to Trash.": "Перемещено в корзину.", "Open Trash": "Открыть корзину", "Move to Trash failed.": "Не удалось переместить в корзину.",
+    "New name": "Новое имя", "Rename failed.": "Не удалось переименовать.", Close: "Закрыть",
+    "Loading preview…": "Загрузка просмотра…", "Preview failed.": "Не удалось загрузить просмотр.",
+    "No preview for this file type. Download it to open it.": "Для этого типа файла нет просмотра. Скачайте его, чтобы открыть.",
+    "Showing the first 64 KB. Download the file to see all of it.": "Показаны первые 64 КБ. Скачайте файл, чтобы увидеть его целиком.",
+  },
+  fa: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "هیچ کلید، توکن یا اطلاعات محرمانهٔ حساسی را اینجا بارگذاری نکنید.",
+    Library: "کتابخانه", Content: "محتوا", Upload: "بارگذاری", Documents: "اسناد",
+    "Private documents the assistant can read. Visitors never see them.": "اسناد خصوصی که دستیار می‌تواند بخواند. بازدیدکنندگان هرگز آن‌ها را نمی‌بینند.",
+    "Drop documents here, or click to browse": "اسناد را اینجا رها کنید یا برای انتخاب کلیک کنید",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown، متن، PDF، Word, Excel, PowerPoint, Pages, Keynote, RTF، CSV یا JSON · حداکثر ۱۰ مبی‌بایت برای هر فایل",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "بستهٔ پوشه‌ای: در Pages/Keynote به‌صورت یک فایل ذخیره و دوباره بارگذاری کنید.",
+    Uploads: "بارگذاری‌ها", "Waiting…": "در انتظار…", "Uploading…": "در حال بارگذاری…", Uploaded: "بارگذاری شد", "Upload failed.": "بارگذاری ناموفق بود.",
+    "This file type isn't supported.": "این نوع فایل پشتیبانی نمی‌شود.", "Larger than 10 MiB.": "بزرگ‌تر از ۱۰ مبی‌بایت.", "This file is empty.": "این فایل خالی است.",
+    "View in Documents": "مشاهده در اسناد", "Clear list": "پاک کردن فهرست",
+    "You don't have permission to upload documents.": "شما اجازهٔ بارگذاری اسناد را ندارید.",
+    "Loading documents…": "در حال بارگیری اسناد…", "Couldn't load documents.": "بارگیری اسناد ممکن نشد.",
+    "No documents yet.": "هنوز سندی وجود ندارد.", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "فایل‌های Markdown، متن، PDF، Word، CSV یا JSON را بارگذاری کنید تا دستیار آن‌ها را بخواند.",
+    "Upload documents": "بارگذاری اسناد", Type: "نوع", Size: "اندازه", "Upload date": "تاریخ بارگذاری", "Uploaded by": "بارگذاری‌شده توسط", Unknown: "نامشخص",
+    'Actions for "{title}"': "اقدامات برای «{title}»", Preview: "پیش‌نمایش", Download: "دانلود", Rename: "تغییر نام", "Move to Trash": "انتقال به سطل زباله",
+    "Moving…": "در حال انتقال…", "Moved to Trash.": "به سطل زباله منتقل شد.", "Open Trash": "باز کردن سطل زباله", "Move to Trash failed.": "انتقال به سطل زباله ناموفق بود.",
+    "New name": "نام جدید", "Rename failed.": "تغییر نام ناموفق بود.", Close: "بستن",
+    "Loading preview…": "در حال بارگیری پیش‌نمایش…", "Preview failed.": "بارگیری پیش‌نمایش ناموفق بود.",
+    "No preview for this file type. Download it to open it.": "برای این نوع فایل پیش‌نمایشی وجود ندارد. برای باز کردن، آن را دانلود کنید.",
+    "Showing the first 64 KB. Download the file to see all of it.": "۶۴ کیلوبایت اول نمایش داده می‌شود. برای دیدن کل فایل آن را دانلود کنید.",
+  },
+  ar: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "لا ترفع هنا أي مفاتيح أو رموز وصول أو معلومات سرية حساسة.",
+    Library: "المكتبة", Content: "المحتوى", Upload: "رفع", Documents: "المستندات",
+    "Private documents the assistant can read. Visitors never see them.": "مستندات خاصة يمكن للمساعد قراءتها. لا يراها الزوار أبدًا.",
+    "Drop documents here, or click to browse": "أفلت المستندات هنا، أو انقر للتصفح",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown أو نص أو PDF أو Word, Excel, PowerPoint, Pages, Keynote, RTF أو CSV أو JSON · حتى 10 ميبيبايت لكل ملف",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "حزمة مجلد: احفظها كملف واحد في Pages/Keynote ثم أعد رفعها.",
+    Uploads: "عمليات الرفع", "Waiting…": "في الانتظار…", "Uploading…": "جارٍ الرفع…", Uploaded: "تم الرفع", "Upload failed.": "فشل الرفع.",
+    "This file type isn't supported.": "نوع الملف هذا غير مدعوم.", "Larger than 10 MiB.": "أكبر من 10 ميبيبايت.", "This file is empty.": "هذا الملف فارغ.",
+    "View in Documents": "عرض في المستندات", "Clear list": "مسح القائمة",
+    "You don't have permission to upload documents.": "ليس لديك إذن برفع المستندات.",
+    "Loading documents…": "جارٍ تحميل المستندات…", "Couldn't load documents.": "تعذّر تحميل المستندات.",
+    "No documents yet.": "لا توجد مستندات بعد.", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "ارفع ملفات Markdown أو نصية أو PDF أو Word أو CSV أو JSON ليقرأها المساعد.",
+    "Upload documents": "رفع المستندات", Type: "النوع", Size: "الحجم", "Upload date": "تاريخ الرفع", "Uploaded by": "رفعه", Unknown: "غير معروف",
+    'Actions for "{title}"': "إجراءات لـ «{title}»", Preview: "معاينة", Download: "تنزيل", Rename: "إعادة تسمية", "Move to Trash": "نقل إلى سلة المهملات",
+    "Moving…": "جارٍ النقل…", "Moved to Trash.": "تم النقل إلى سلة المهملات.", "Open Trash": "فتح سلة المهملات", "Move to Trash failed.": "تعذّر النقل إلى سلة المهملات.",
+    "New name": "الاسم الجديد", "Rename failed.": "تعذّرت إعادة التسمية.", Close: "إغلاق",
+    "Loading preview…": "جارٍ تحميل المعاينة…", "Preview failed.": "تعذّر تحميل المعاينة.",
+    "No preview for this file type. Download it to open it.": "لا تتوفر معاينة لهذا النوع من الملفات. نزّله لفتحه.",
+    "Showing the first 64 KB. Download the file to see all of it.": "يتم عرض أول 64 كيلوبايت. نزّل الملف لرؤيته كاملًا.",
+  },
+  ja: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "機密性の高いキー、トークン、シークレットはここにアップロードしないでください。",
+    Library: "ライブラリ", Content: "コンテンツ", Upload: "アップロード", Documents: "ドキュメント",
+    "Private documents the assistant can read. Visitors never see them.": "アシスタントが読める非公開のドキュメントです。訪問者には表示されません。",
+    "Drop documents here, or click to browse": "ここにドキュメントをドロップするか、クリックして選択",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown、テキスト、PDF、Word, Excel, PowerPoint, Pages, Keynote, RTF、CSV、JSON · 1 ファイル最大 10 MiB",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "フォルダ形式です。Pages/Keynote で単一ファイルとして保存し、再度アップロードしてください。",
+    Uploads: "アップロード一覧", "Waiting…": "待機中…", "Uploading…": "アップロード中…", Uploaded: "アップロード済み", "Upload failed.": "アップロードに失敗しました。",
+    "This file type isn't supported.": "このファイル形式には対応していません。", "Larger than 10 MiB.": "10 MiB を超えています。", "This file is empty.": "このファイルは空です。",
+    "View in Documents": "ドキュメントで表示", "Clear list": "一覧をクリア",
+    "You don't have permission to upload documents.": "ドキュメントをアップロードする権限がありません。",
+    "Loading documents…": "ドキュメントを読み込み中…", "Couldn't load documents.": "ドキュメントを読み込めませんでした。",
+    "No documents yet.": "ドキュメントはまだありません。", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "アシスタントに読ませる Markdown、テキスト、PDF、Word、CSV、JSON ファイルをアップロードしてください。",
+    "Upload documents": "ドキュメントをアップロード", Type: "種類", Size: "サイズ", "Upload date": "アップロード日", "Uploaded by": "アップロードした人", Unknown: "不明",
+    'Actions for "{title}"': "「{title}」の操作", Preview: "プレビュー", Download: "ダウンロード", Rename: "名前を変更", "Move to Trash": "ゴミ箱に移動",
+    "Moving…": "移動中…", "Moved to Trash.": "ゴミ箱に移動しました。", "Open Trash": "ゴミ箱を開く", "Move to Trash failed.": "ゴミ箱に移動できませんでした。",
+    "New name": "新しい名前", "Rename failed.": "名前を変更できませんでした。", Close: "閉じる",
+    "Loading preview…": "プレビューを読み込み中…", "Preview failed.": "プレビューを読み込めませんでした。",
+    "No preview for this file type. Download it to open it.": "このファイル形式はプレビューできません。ダウンロードして開いてください。",
+    "Showing the first 64 KB. Download the file to see all of it.": "最初の 64 KB を表示しています。すべて見るにはファイルをダウンロードしてください。",
+  },
+  ko: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "민감한 키, 토큰 또는 비밀 정보를 여기에 업로드하지 마세요.",
+    Library: "라이브러리", Content: "콘텐츠", Upload: "업로드", Documents: "문서",
+    "Private documents the assistant can read. Visitors never see them.": "어시스턴트가 읽을 수 있는 비공개 문서입니다. 방문자에게는 표시되지 않습니다.",
+    "Drop documents here, or click to browse": "여기에 문서를 놓거나 클릭하여 찾아보기",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown, 텍스트, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV 또는 JSON · 파일당 최대 10MiB",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "폴더 패키지입니다. Pages/Keynote에서 단일 파일로 저장한 뒤 다시 업로드하세요.",
+    Uploads: "업로드 목록", "Waiting…": "대기 중…", "Uploading…": "업로드 중…", Uploaded: "업로드됨", "Upload failed.": "업로드하지 못했습니다.",
+    "This file type isn't supported.": "지원되지 않는 파일 형식입니다.", "Larger than 10 MiB.": "10MiB를 초과합니다.", "This file is empty.": "빈 파일입니다.",
+    "View in Documents": "문서에서 보기", "Clear list": "목록 지우기",
+    "You don't have permission to upload documents.": "문서를 업로드할 권한이 없습니다.",
+    "Loading documents…": "문서를 불러오는 중…", "Couldn't load documents.": "문서를 불러오지 못했습니다.",
+    "No documents yet.": "아직 문서가 없습니다.", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "어시스턴트가 읽을 Markdown, 텍스트, PDF, Word, CSV 또는 JSON 파일을 업로드하세요.",
+    "Upload documents": "문서 업로드", Type: "유형", Size: "크기", "Upload date": "업로드 날짜", "Uploaded by": "업로드한 사람", Unknown: "알 수 없음",
+    'Actions for "{title}"': "\"{title}\" 작업", Preview: "미리보기", Download: "다운로드", Rename: "이름 바꾸기", "Move to Trash": "휴지통으로 이동",
+    "Moving…": "이동 중…", "Moved to Trash.": "휴지통으로 이동했습니다.", "Open Trash": "휴지통 열기", "Move to Trash failed.": "휴지통으로 이동하지 못했습니다.",
+    "New name": "새 이름", "Rename failed.": "이름을 바꾸지 못했습니다.", Close: "닫기",
+    "Loading preview…": "미리보기를 불러오는 중…", "Preview failed.": "미리보기를 불러오지 못했습니다.",
+    "No preview for this file type. Download it to open it.": "이 파일 형식은 미리 볼 수 없습니다. 다운로드하여 여세요.",
+    "Showing the first 64 KB. Download the file to see all of it.": "처음 64KB만 표시합니다. 전체를 보려면 파일을 다운로드하세요.",
+  },
+  pl: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Nie przesyłaj tutaj żadnych poufnych kluczy, tokenów ani sekretów.",
+    Library: "Biblioteka", Content: "Treść", Upload: "Prześlij", Documents: "Dokumenty",
+    "Private documents the assistant can read. Visitors never see them.": "Prywatne dokumenty, które może czytać asystent. Odwiedzający nigdy ich nie widzą.",
+    "Drop documents here, or click to browse": "Upuść dokumenty tutaj lub kliknij, aby wybrać",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown, tekst, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV lub JSON · do 10 MiB każdy",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "Pakiet folderu: zapisz w Pages/Keynote jako pojedynczy plik i prześlij ponownie.",
+    Uploads: "Przesyłane pliki", "Waiting…": "Oczekuje…", "Uploading…": "Przesyłanie…", Uploaded: "Przesłano", "Upload failed.": "Nie udało się przesłać.",
+    "This file type isn't supported.": "Ten typ pliku nie jest obsługiwany.", "Larger than 10 MiB.": "Większy niż 10 MiB.", "This file is empty.": "Ten plik jest pusty.",
+    "View in Documents": "Pokaż w Dokumentach", "Clear list": "Wyczyść listę",
+    "You don't have permission to upload documents.": "Nie masz uprawnień do przesyłania dokumentów.",
+    "Loading documents…": "Wczytywanie dokumentów…", "Couldn't load documents.": "Nie udało się wczytać dokumentów.",
+    "No documents yet.": "Nie ma jeszcze dokumentów.", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "Prześlij pliki Markdown, tekstowe, PDF, Word, CSV lub JSON, aby asystent mógł je przeczytać.",
+    "Upload documents": "Prześlij dokumenty", Type: "Typ", Size: "Rozmiar", "Upload date": "Data przesłania", "Uploaded by": "Przesłał(a)", Unknown: "Nieznany",
+    'Actions for "{title}"': "Działania dla „{title}”", Preview: "Podgląd", Download: "Pobierz", Rename: "Zmień nazwę", "Move to Trash": "Przenieś do kosza",
+    "Moving…": "Przenoszenie…", "Moved to Trash.": "Przeniesiono do kosza.", "Open Trash": "Otwórz kosz", "Move to Trash failed.": "Nie udało się przenieść do kosza.",
+    "New name": "Nowa nazwa", "Rename failed.": "Nie udało się zmienić nazwy.", Close: "Zamknij",
+    "Loading preview…": "Wczytywanie podglądu…", "Preview failed.": "Nie udało się wczytać podglądu.",
+    "No preview for this file type. Download it to open it.": "Brak podglądu dla tego typu pliku. Pobierz go, aby otworzyć.",
+    "Showing the first 64 KB. Download the file to see all of it.": "Wyświetlono pierwsze 64 KB. Pobierz plik, aby zobaczyć całość.",
+  },
+  hu: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Ne tölts fel ide érzékeny kulcsokat, tokeneket vagy titkos adatokat.",
+    Library: "Könyvtár", Content: "Tartalom", Upload: "Feltöltés", Documents: "Dokumentumok",
+    "Private documents the assistant can read. Visitors never see them.": "Privát dokumentumok, amelyeket az asszisztens olvashat. A látogatók soha nem látják őket.",
+    "Drop documents here, or click to browse": "Húzd ide a dokumentumokat, vagy kattints a tallózáshoz",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown, szöveg, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV vagy JSON · fájlonként legfeljebb 10 MiB",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "Mappacsomag: mentse egyetlen fájlként a Pages/Keynote-ban, majd töltse fel újra.",
+    Uploads: "Feltöltések", "Waiting…": "Várakozik…", "Uploading…": "Feltöltés…", Uploaded: "Feltöltve", "Upload failed.": "A feltöltés sikertelen.",
+    "This file type isn't supported.": "Ez a fájltípus nem támogatott.", "Larger than 10 MiB.": "Nagyobb, mint 10 MiB.", "This file is empty.": "Ez a fájl üres.",
+    "View in Documents": "Megtekintés a Dokumentumokban", "Clear list": "Lista törlése",
+    "You don't have permission to upload documents.": "Nincs jogosultságod dokumentumok feltöltéséhez.",
+    "Loading documents…": "Dokumentumok betöltése…", "Couldn't load documents.": "Nem sikerült betölteni a dokumentumokat.",
+    "No documents yet.": "Még nincsenek dokumentumok.", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "Tölts fel Markdown-, szöveg-, PDF-, Word-, CSV- vagy JSON-fájlokat, hogy az asszisztens elolvashassa őket.",
+    "Upload documents": "Dokumentumok feltöltése", Type: "Típus", Size: "Méret", "Upload date": "Feltöltés dátuma", "Uploaded by": "Feltöltötte", Unknown: "Ismeretlen",
+    'Actions for "{title}"': "Műveletek: „{title}”", Preview: "Előnézet", Download: "Letöltés", Rename: "Átnevezés", "Move to Trash": "Áthelyezés a kukába",
+    "Moving…": "Áthelyezés…", "Moved to Trash.": "Áthelyezve a kukába.", "Open Trash": "Kuka megnyitása", "Move to Trash failed.": "Nem sikerült a kukába helyezni.",
+    "New name": "Új név", "Rename failed.": "Az átnevezés sikertelen.", Close: "Bezárás",
+    "Loading preview…": "Előnézet betöltése…", "Preview failed.": "Nem sikerült betölteni az előnézetet.",
+    "No preview for this file type. Download it to open it.": "Ehhez a fájltípushoz nincs előnézet. Töltsd le a megnyitáshoz.",
+    "Showing the first 64 KB. Download the file to see all of it.": "Az első 64 KB látható. Töltsd le a fájlt a teljes tartalomhoz.",
+  },
+  fr: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Ne chargez ici aucune clé, aucun jeton ni aucune information confidentielle.",
+    Library: "Bibliothèque", Content: "Contenu", Upload: "Importer", Documents: "Fichiers",
+    "Private documents the assistant can read. Visitors never see them.": "Documents privés que l’assistant peut lire. Les visiteurs ne les voient jamais.",
+    "Drop documents here, or click to browse": "Déposez des documents ici ou cliquez pour parcourir",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown, texte, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV ou JSON · 10 Mio maximum chacun",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "Dossier paquet : enregistrez un fichier unique dans Pages/Keynote, puis réessayez.",
+    Uploads: "Importations", "Waiting…": "En attente…", "Uploading…": "Importation…", Uploaded: "Importé", "Upload failed.": "Échec de l’importation.",
+    "This file type isn't supported.": "Ce type de fichier n’est pas pris en charge.", "Larger than 10 MiB.": "Plus de 10 Mio.", "This file is empty.": "Ce fichier est vide.",
+    "View in Documents": "Voir dans Fichiers", "Clear list": "Vider la liste",
+    "You don't have permission to upload documents.": "Vous n’avez pas l’autorisation d’importer des documents.",
+    "Loading documents…": "Chargement des documents…", "Couldn't load documents.": "Impossible de charger les documents.",
+    "No documents yet.": "Aucun document pour l’instant.", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "Importez des fichiers Markdown, texte, PDF, Word, CSV ou JSON que l’assistant pourra lire.",
+    "Upload documents": "Importer des documents", Type: "Format", Size: "Taille", "Upload date": "Date d’importation", "Uploaded by": "Importé par", Unknown: "Inconnu",
+    'Actions for "{title}"': "Actions pour « {title} »", Preview: "Aperçu", Download: "Télécharger", Rename: "Renommer", "Move to Trash": "Mettre à la corbeille",
+    "Moving…": "Déplacement…", "Moved to Trash.": "Placé dans la corbeille.", "Open Trash": "Ouvrir la corbeille", "Move to Trash failed.": "Impossible de mettre à la corbeille.",
+    "New name": "Nouveau nom", "Rename failed.": "Impossible de renommer.", Close: "Fermer",
+    "Loading preview…": "Chargement de l’aperçu…", "Preview failed.": "Impossible de charger l’aperçu.",
+    "No preview for this file type. Download it to open it.": "Aucun aperçu pour ce type de fichier. Téléchargez-le pour l’ouvrir.",
+    "Showing the first 64 KB. Download the file to see all of it.": "Affichage des 64 premiers Ko. Téléchargez le fichier pour tout voir.",
+  },
+  uk: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Не завантажуйте сюди конфіденційні ключі, токени чи секрети.",
+    Library: "Бібліотека", Content: "Вміст", Upload: "Завантаження", Documents: "Документи",
+    "Private documents the assistant can read. Visitors never see them.": "Приватні документи, які може читати асистент. Відвідувачі їх ніколи не бачать.",
+    "Drop documents here, or click to browse": "Перетягніть документи сюди або натисніть, щоб вибрати",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown, текст, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV або JSON · до 10 МіБ кожен",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "Пакет-папка: збережіть у Pages/Keynote одним файлом і завантажте знову.",
+    Uploads: "Завантаження файлів", "Waiting…": "Очікування…", "Uploading…": "Завантаження…", Uploaded: "Завантажено", "Upload failed.": "Не вдалося завантажити.",
+    "This file type isn't supported.": "Цей тип файлу не підтримується.", "Larger than 10 MiB.": "Більше 10 МіБ.", "This file is empty.": "Файл порожній.",
+    "View in Documents": "Переглянути в документах", "Clear list": "Очистити список",
+    "You don't have permission to upload documents.": "У вас немає дозволу завантажувати документи.",
+    "Loading documents…": "Завантаження документів…", "Couldn't load documents.": "Не вдалося завантажити документи.",
+    "No documents yet.": "Документів ще немає.", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "Завантажте файли Markdown, текст, PDF, Word, CSV або JSON, щоб асистент міг їх прочитати.",
+    "Upload documents": "Завантажити документи", Type: "Тип", Size: "Розмір", "Upload date": "Дата завантаження", "Uploaded by": "Завантажив", Unknown: "Невідомо",
+    'Actions for "{title}"': "Дії для «{title}»", Preview: "Перегляд", Download: "Звантажити", Rename: "Перейменувати", "Move to Trash": "У кошик",
+    "Moving…": "Переміщення…", "Moved to Trash.": "Переміщено в кошик.", "Open Trash": "Відкрити кошик", "Move to Trash failed.": "Не вдалося перемістити в кошик.",
+    "New name": "Нова назва", "Rename failed.": "Не вдалося перейменувати.", Close: "Закрити",
+    "Loading preview…": "Завантаження перегляду…", "Preview failed.": "Не вдалося завантажити перегляд.",
+    "No preview for this file type. Download it to open it.": "Для цього типу файлу немає перегляду. Звантажте його, щоб відкрити.",
+    "Showing the first 64 KB. Download the file to see all of it.": "Показано перші 64 КБ. Звантажте файл, щоб побачити його повністю.",
+  },
+  tr: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Buraya hassas anahtarlar, erişim belirteçleri veya gizli bilgiler yüklemeyin.",
+    Library: "Kitaplık", Content: "İçerik", Upload: "Yükle", Documents: "Belgeler",
+    "Private documents the assistant can read. Visitors never see them.": "Asistanın okuyabildiği özel belgeler. Ziyaretçiler bunları asla görmez.",
+    "Drop documents here, or click to browse": "Belgeleri buraya bırakın veya göz atmak için tıklayın",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown, metin, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV veya JSON · her biri en fazla 10 MiB",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "Klasör paketi: Pages/Keynote’ta tek dosya olarak kaydedip yeniden yükleyin.",
+    Uploads: "Yüklemeler", "Waiting…": "Bekliyor…", "Uploading…": "Yükleniyor…", Uploaded: "Yüklendi", "Upload failed.": "Yükleme başarısız oldu.",
+    "This file type isn't supported.": "Bu dosya türü desteklenmiyor.", "Larger than 10 MiB.": "10 MiB'den büyük.", "This file is empty.": "Bu dosya boş.",
+    "View in Documents": "Belgelerde görüntüle", "Clear list": "Listeyi temizle",
+    "You don't have permission to upload documents.": "Belge yükleme izniniz yok.",
+    "Loading documents…": "Belgeler yükleniyor…", "Couldn't load documents.": "Belgeler yüklenemedi.",
+    "No documents yet.": "Henüz belge yok.", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "Asistanın okuması için Markdown, metin, PDF, Word, CSV veya JSON dosyaları yükleyin.",
+    "Upload documents": "Belge yükle", Type: "Tür", Size: "Boyut", "Upload date": "Yükleme tarihi", "Uploaded by": "Yükleyen", Unknown: "Bilinmiyor",
+    'Actions for "{title}"': "\"{title}\" için işlemler", Preview: "Önizle", Download: "İndir", Rename: "Yeniden adlandır", "Move to Trash": "Çöp kutusuna taşı",
+    "Moving…": "Taşınıyor…", "Moved to Trash.": "Çöp kutusuna taşındı.", "Open Trash": "Çöp kutusunu aç", "Move to Trash failed.": "Çöp kutusuna taşınamadı.",
+    "New name": "Yeni ad", "Rename failed.": "Yeniden adlandırılamadı.", Close: "Kapat",
+    "Loading preview…": "Önizleme yükleniyor…", "Preview failed.": "Önizleme yüklenemedi.",
+    "No preview for this file type. Download it to open it.": "Bu dosya türü için önizleme yok. Açmak için indirin.",
+    "Showing the first 64 KB. Download the file to see all of it.": "İlk 64 KB gösteriliyor. Tamamını görmek için dosyayı indirin.",
+  },
+  th: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "อย่าอัปโหลดคีย์ โทเค็น หรือข้อมูลลับที่มีความอ่อนไหวใด ๆ ที่นี่",
+    Library: "คลังเอกสาร", Content: "เนื้อหา", Upload: "อัปโหลด", Documents: "เอกสาร",
+    "Private documents the assistant can read. Visitors never see them.": "เอกสารส่วนตัวที่ผู้ช่วยอ่านได้ ผู้เยี่ยมชมจะไม่เห็นเอกสารเหล่านี้",
+    "Drop documents here, or click to browse": "วางเอกสารที่นี่ หรือคลิกเพื่อเลือกไฟล์",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown, ข้อความ, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV หรือ JSON · ไม่เกิน 10 MiB ต่อไฟล์",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "แพ็กเกจโฟลเดอร์: บันทึกเป็นไฟล์เดียวใน Pages/Keynote แล้วอัปโหลดอีกครั้ง",
+    Uploads: "รายการอัปโหลด", "Waiting…": "กำลังรอ…", "Uploading…": "กำลังอัปโหลด…", Uploaded: "อัปโหลดแล้ว", "Upload failed.": "อัปโหลดไม่สำเร็จ",
+    "This file type isn't supported.": "ไม่รองรับไฟล์ประเภทนี้", "Larger than 10 MiB.": "ใหญ่กว่า 10 MiB", "This file is empty.": "ไฟล์นี้ว่างเปล่า",
+    "View in Documents": "ดูในเอกสาร", "Clear list": "ล้างรายการ",
+    "You don't have permission to upload documents.": "คุณไม่มีสิทธิ์อัปโหลดเอกสาร",
+    "Loading documents…": "กำลังโหลดเอกสาร…", "Couldn't load documents.": "โหลดเอกสารไม่ได้",
+    "No documents yet.": "ยังไม่มีเอกสาร", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "อัปโหลดไฟล์ Markdown, ข้อความ, PDF, Word, CSV หรือ JSON ให้ผู้ช่วยอ่าน",
+    "Upload documents": "อัปโหลดเอกสาร", Type: "ประเภท", Size: "ขนาด", "Upload date": "วันที่อัปโหลด", "Uploaded by": "อัปโหลดโดย", Unknown: "ไม่ทราบ",
+    'Actions for "{title}"': "การทำงานสำหรับ \"{title}\"", Preview: "ดูตัวอย่าง", Download: "ดาวน์โหลด", Rename: "เปลี่ยนชื่อ", "Move to Trash": "ย้ายไปถังขยะ",
+    "Moving…": "กำลังย้าย…", "Moved to Trash.": "ย้ายไปถังขยะแล้ว", "Open Trash": "เปิดถังขยะ", "Move to Trash failed.": "ย้ายไปถังขยะไม่สำเร็จ",
+    "New name": "ชื่อใหม่", "Rename failed.": "เปลี่ยนชื่อไม่สำเร็จ", Close: "ปิด",
+    "Loading preview…": "กำลังโหลดตัวอย่าง…", "Preview failed.": "โหลดตัวอย่างไม่สำเร็จ",
+    "No preview for this file type. Download it to open it.": "ไฟล์ประเภทนี้ไม่มีตัวอย่าง ดาวน์โหลดเพื่อเปิดไฟล์",
+    "Showing the first 64 KB. Download the file to see all of it.": "แสดง 64 KB แรก ดาวน์โหลดไฟล์เพื่อดูทั้งหมด",
+  },
+  it: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "Non caricare qui chiavi, token o segreti riservati.",
+    Library: "Libreria", Content: "Contenuti", Upload: "Carica", Documents: "Documenti",
+    "Private documents the assistant can read. Visitors never see them.": "Documenti privati che l’assistente può leggere. I visitatori non li vedono mai.",
+    "Drop documents here, or click to browse": "Trascina qui i documenti o fai clic per sfogliare",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown, testo, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV o JSON · fino a 10 MiB ciascuno",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "Pacchetto cartella: salva come file singolo in Pages/Keynote e carica di nuovo.",
+    Uploads: "Caricamenti", "Waiting…": "In attesa…", "Uploading…": "Caricamento…", Uploaded: "Caricato", "Upload failed.": "Caricamento non riuscito.",
+    "This file type isn't supported.": "Questo tipo di file non è supportato.", "Larger than 10 MiB.": "Più grande di 10 MiB.", "This file is empty.": "Questo file è vuoto.",
+    "View in Documents": "Vedi in Documenti", "Clear list": "Svuota elenco",
+    "You don't have permission to upload documents.": "Non hai l’autorizzazione per caricare documenti.",
+    "Loading documents…": "Caricamento dei documenti…", "Couldn't load documents.": "Impossibile caricare i documenti.",
+    "No documents yet.": "Nessun documento.", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "Carica file Markdown, di testo, PDF, Word, CSV o JSON da far leggere all’assistente.",
+    "Upload documents": "Carica documenti", Type: "Tipo", Size: "Dimensione", "Upload date": "Data di caricamento", "Uploaded by": "Caricato da", Unknown: "Sconosciuto",
+    'Actions for "{title}"': "Azioni per «{title}»", Preview: "Anteprima", Download: "Scarica", Rename: "Rinomina", "Move to Trash": "Sposta nel cestino",
+    "Moving…": "Spostamento…", "Moved to Trash.": "Spostato nel cestino.", "Open Trash": "Apri il cestino", "Move to Trash failed.": "Impossibile spostare nel cestino.",
+    "New name": "Nuovo nome", "Rename failed.": "Impossibile rinominare.", Close: "Chiudi",
+    "Loading preview…": "Caricamento anteprima…", "Preview failed.": "Impossibile caricare l’anteprima.",
+    "No preview for this file type. Download it to open it.": "Nessuna anteprima per questo tipo di file. Scaricalo per aprirlo.",
+    "Showing the first 64 KB. Download the file to see all of it.": "Sono mostrati i primi 64 KB. Scarica il file per vederlo tutto.",
+  },
+  hi: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "यहाँ कोई भी संवेदनशील कुंजी, टोकन या गुप्त जानकारी अपलोड न करें।",
+    Library: "लाइब्रेरी", Content: "सामग्री", Upload: "अपलोड", Documents: "दस्तावेज़",
+    "Private documents the assistant can read. Visitors never see them.": "निजी दस्तावेज़ जिन्हें सहायक पढ़ सकता है। विज़िटर इन्हें कभी नहीं देखते।",
+    "Drop documents here, or click to browse": "दस्तावेज़ यहाँ छोड़ें, या चुनने के लिए क्लिक करें",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown, टेक्स्ट, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV या JSON · हर फ़ाइल अधिकतम 10 MiB",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "फ़ोल्डर पैकेज: Pages/Keynote में एक फ़ाइल के रूप में सहेजें, फिर अपलोड करें।",
+    Uploads: "अपलोड सूची", "Waiting…": "प्रतीक्षा में…", "Uploading…": "अपलोड हो रहा है…", Uploaded: "अपलोड हो गया", "Upload failed.": "अपलोड विफल रहा।",
+    "This file type isn't supported.": "यह फ़ाइल प्रकार समर्थित नहीं है।", "Larger than 10 MiB.": "10 MiB से बड़ी है।", "This file is empty.": "यह फ़ाइल खाली है।",
+    "View in Documents": "दस्तावेज़ों में देखें", "Clear list": "सूची साफ़ करें",
+    "You don't have permission to upload documents.": "आपको दस्तावेज़ अपलोड करने की अनुमति नहीं है।",
+    "Loading documents…": "दस्तावेज़ लोड हो रहे हैं…", "Couldn't load documents.": "दस्तावेज़ लोड नहीं हो सके।",
+    "No documents yet.": "अभी कोई दस्तावेज़ नहीं है।", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "सहायक के पढ़ने के लिए Markdown, टेक्स्ट, PDF, Word, CSV या JSON फ़ाइलें अपलोड करें।",
+    "Upload documents": "दस्तावेज़ अपलोड करें", Type: "प्रकार", Size: "आकार", "Upload date": "अपलोड की तारीख", "Uploaded by": "अपलोडकर्ता", Unknown: "अज्ञात",
+    'Actions for "{title}"': "\"{title}\" के लिए कार्रवाइयाँ", Preview: "पूर्वावलोकन", Download: "डाउनलोड करें", Rename: "नाम बदलें", "Move to Trash": "ट्रैश में ले जाएँ",
+    "Moving…": "ले जाया जा रहा है…", "Moved to Trash.": "ट्रैश में ले जाया गया।", "Open Trash": "ट्रैश खोलें", "Move to Trash failed.": "ट्रैश में नहीं ले जाया जा सका।",
+    "New name": "नया नाम", "Rename failed.": "नाम नहीं बदला जा सका।", Close: "बंद करें",
+    "Loading preview…": "पूर्वावलोकन लोड हो रहा है…", "Preview failed.": "पूर्वावलोकन लोड नहीं हो सका।",
+    "No preview for this file type. Download it to open it.": "इस फ़ाइल प्रकार का पूर्वावलोकन नहीं है। खोलने के लिए इसे डाउनलोड करें।",
+    "Showing the first 64 KB. Download the file to see all of it.": "पहले 64 KB दिखाए जा रहे हैं। पूरी फ़ाइल देखने के लिए इसे डाउनलोड करें।",
+  },
+  ur: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "یہاں کوئی بھی حساس کلید، ٹوکن یا خفیہ معلومات اپ لوڈ نہ کریں۔",
+    Library: "لائبریری", Content: "مواد", Upload: "اپ لوڈ", Documents: "دستاویزات",
+    "Private documents the assistant can read. Visitors never see them.": "نجی دستاویزات جنہیں اسسٹنٹ پڑھ سکتا ہے۔ وزیٹرز انہیں کبھی نہیں دیکھتے۔",
+    "Drop documents here, or click to browse": "دستاویزات یہاں چھوڑیں، یا منتخب کرنے کے لیے کلک کریں",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown، متن، PDF، Word, Excel, PowerPoint, Pages, Keynote, RTF، CSV یا JSON · ہر فائل زیادہ سے زیادہ 10 MiB",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "فولڈر پیکیج: Pages/Keynote میں ایک فائل کے طور پر محفوظ کر کے دوبارہ اپ لوڈ کریں۔",
+    Uploads: "اپ لوڈز", "Waiting…": "انتظار…", "Uploading…": "اپ لوڈ ہو رہا ہے…", Uploaded: "اپ لوڈ ہو گیا", "Upload failed.": "اپ لوڈ ناکام رہا۔",
+    "This file type isn't supported.": "یہ فائل کی قسم معاون نہیں ہے۔", "Larger than 10 MiB.": "10 MiB سے بڑی ہے۔", "This file is empty.": "یہ فائل خالی ہے۔",
+    "View in Documents": "دستاویزات میں دیکھیں", "Clear list": "فہرست صاف کریں",
+    "You don't have permission to upload documents.": "آپ کو دستاویزات اپ لوڈ کرنے کی اجازت نہیں ہے۔",
+    "Loading documents…": "دستاویزات لوڈ ہو رہی ہیں…", "Couldn't load documents.": "دستاویزات لوڈ نہیں ہو سکیں۔",
+    "No documents yet.": "ابھی کوئی دستاویز نہیں ہے۔", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "اسسٹنٹ کے پڑھنے کے لیے Markdown، متن، PDF، Word، CSV یا JSON فائلیں اپ لوڈ کریں۔",
+    "Upload documents": "دستاویزات اپ لوڈ کریں", Type: "قسم", Size: "سائز", "Upload date": "اپ لوڈ کی تاریخ", "Uploaded by": "اپ لوڈ کنندہ", Unknown: "نامعلوم",
+    'Actions for "{title}"': "\"{title}\" کے لیے کارروائیاں", Preview: "پیش منظر", Download: "ڈاؤن لوڈ کریں", Rename: "نام تبدیل کریں", "Move to Trash": "ردی کی ٹوکری میں منتقل کریں",
+    "Moving…": "منتقل ہو رہا ہے…", "Moved to Trash.": "ردی کی ٹوکری میں منتقل ہو گیا۔", "Open Trash": "ردی کی ٹوکری کھولیں", "Move to Trash failed.": "ردی کی ٹوکری میں منتقل نہیں ہو سکا۔",
+    "New name": "نیا نام", "Rename failed.": "نام تبدیل نہیں ہو سکا۔", Close: "بند کریں",
+    "Loading preview…": "پیش منظر لوڈ ہو رہا ہے…", "Preview failed.": "پیش منظر لوڈ نہیں ہو سکا۔",
+    "No preview for this file type. Download it to open it.": "اس فائل کی قسم کا پیش منظر نہیں ہے۔ کھولنے کے لیے اسے ڈاؤن لوڈ کریں۔",
+    "Showing the first 64 KB. Download the file to see all of it.": "پہلے 64 KB دکھائے جا رہے ہیں۔ پوری فائل دیکھنے کے لیے اسے ڈاؤن لوڈ کریں۔",
+  },
+  bn: {
+    "Do not load any sensitive keys, tokens, or secrets here.": "এখানে কোনো সংবেদনশীল কী, টোকেন বা গোপন তথ্য আপলোড করবেন না।",
+    Library: "লাইব্রেরি", Content: "কনটেন্ট", Upload: "আপলোড", Documents: "নথি",
+    "Private documents the assistant can read. Visitors never see them.": "ব্যক্তিগত নথি যা সহকারী পড়তে পারে। দর্শকরা কখনও এগুলো দেখে না।",
+    "Drop documents here, or click to browse": "নথি এখানে ছাড়ুন, অথবা বেছে নিতে ক্লিক করুন",
+    "Documents: Markdown, text, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV, JSON · up to 10 MiB each": "Markdown, টেক্সট, PDF, Word, Excel, PowerPoint, Pages, Keynote, RTF, CSV বা JSON · প্রতিটি সর্বোচ্চ 10 MiB",
+    "Folder package: in Pages/Keynote, save as a single file, then upload again.": "ফোল্ডার প্যাকেজ: Pages/Keynote-এ একটি ফাইল হিসেবে সেভ করে আবার আপলোড করুন।",
+    Uploads: "আপলোডসমূহ", "Waiting…": "অপেক্ষমাণ…", "Uploading…": "আপলোড হচ্ছে…", Uploaded: "আপলোড হয়েছে", "Upload failed.": "আপলোড ব্যর্থ হয়েছে।",
+    "This file type isn't supported.": "এই ফাইলের ধরন সমর্থিত নয়।", "Larger than 10 MiB.": "10 MiB-এর চেয়ে বড়।", "This file is empty.": "এই ফাইলটি খালি।",
+    "View in Documents": "নথিতে দেখুন", "Clear list": "তালিকা মুছুন",
+    "You don't have permission to upload documents.": "আপনার নথি আপলোড করার অনুমতি নেই।",
+    "Loading documents…": "নথি লোড হচ্ছে…", "Couldn't load documents.": "নথি লোড করা যায়নি।",
+    "No documents yet.": "এখনও কোনো নথি নেই।", "Upload Markdown, text, PDF, Word, CSV or JSON files for the assistant to read.": "সহকারীর পড়ার জন্য Markdown, টেক্সট, PDF, Word, CSV বা JSON ফাইল আপলোড করুন।",
+    "Upload documents": "নথি আপলোড করুন", Type: "ধরন", Size: "আকার", "Upload date": "আপলোডের তারিখ", "Uploaded by": "আপলোড করেছেন", Unknown: "অজানা",
+    'Actions for "{title}"': "\"{title}\"-এর জন্য কাজ", Preview: "প্রিভিউ", Download: "ডাউনলোড", Rename: "নাম বদলান", "Move to Trash": "ট্র্যাশে সরান",
+    "Moving…": "সরানো হচ্ছে…", "Moved to Trash.": "ট্র্যাশে সরানো হয়েছে।", "Open Trash": "ট্র্যাশ খুলুন", "Move to Trash failed.": "ট্র্যাশে সরানো যায়নি।",
+    "New name": "নতুন নাম", "Rename failed.": "নাম বদলানো যায়নি।", Close: "বন্ধ করুন",
+    "Loading preview…": "প্রিভিউ লোড হচ্ছে…", "Preview failed.": "প্রিভিউ লোড করা যায়নি।",
+    "No preview for this file type. Download it to open it.": "এই ধরনের ফাইলের প্রিভিউ নেই। খুলতে ডাউনলোড করুন।",
+    "Showing the first 64 KB. Download the file to see all of it.": "প্রথম 64 KB দেখানো হচ্ছে। পুরোটা দেখতে ফাইলটি ডাউনলোড করুন।",
+  },
+};
+&nbsp;
+export const t = createDictionaryTranslator({ featureDictionary: LIBRARY_DICT }, { commonDictionary: COMMON_I18N });
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

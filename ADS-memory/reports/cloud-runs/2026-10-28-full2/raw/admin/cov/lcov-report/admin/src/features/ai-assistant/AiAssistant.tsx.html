@@ -1,0 +1,3271 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/ai-assistant/AiAssistant.tsx</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">admin/src/features/ai-assistant</a> AiAssistant.tsx</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>95/95</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>111/111</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>34/34</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>81/81</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a>
+<a name='L323'></a><a href='#L323'>323</a>
+<a name='L324'></a><a href='#L324'>324</a>
+<a name='L325'></a><a href='#L325'>325</a>
+<a name='L326'></a><a href='#L326'>326</a>
+<a name='L327'></a><a href='#L327'>327</a>
+<a name='L328'></a><a href='#L328'>328</a>
+<a name='L329'></a><a href='#L329'>329</a>
+<a name='L330'></a><a href='#L330'>330</a>
+<a name='L331'></a><a href='#L331'>331</a>
+<a name='L332'></a><a href='#L332'>332</a>
+<a name='L333'></a><a href='#L333'>333</a>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a>
+<a name='L336'></a><a href='#L336'>336</a>
+<a name='L337'></a><a href='#L337'>337</a>
+<a name='L338'></a><a href='#L338'>338</a>
+<a name='L339'></a><a href='#L339'>339</a>
+<a name='L340'></a><a href='#L340'>340</a>
+<a name='L341'></a><a href='#L341'>341</a>
+<a name='L342'></a><a href='#L342'>342</a>
+<a name='L343'></a><a href='#L343'>343</a>
+<a name='L344'></a><a href='#L344'>344</a>
+<a name='L345'></a><a href='#L345'>345</a>
+<a name='L346'></a><a href='#L346'>346</a>
+<a name='L347'></a><a href='#L347'>347</a>
+<a name='L348'></a><a href='#L348'>348</a>
+<a name='L349'></a><a href='#L349'>349</a>
+<a name='L350'></a><a href='#L350'>350</a>
+<a name='L351'></a><a href='#L351'>351</a>
+<a name='L352'></a><a href='#L352'>352</a>
+<a name='L353'></a><a href='#L353'>353</a>
+<a name='L354'></a><a href='#L354'>354</a>
+<a name='L355'></a><a href='#L355'>355</a>
+<a name='L356'></a><a href='#L356'>356</a>
+<a name='L357'></a><a href='#L357'>357</a>
+<a name='L358'></a><a href='#L358'>358</a>
+<a name='L359'></a><a href='#L359'>359</a>
+<a name='L360'></a><a href='#L360'>360</a>
+<a name='L361'></a><a href='#L361'>361</a>
+<a name='L362'></a><a href='#L362'>362</a>
+<a name='L363'></a><a href='#L363'>363</a>
+<a name='L364'></a><a href='#L364'>364</a>
+<a name='L365'></a><a href='#L365'>365</a>
+<a name='L366'></a><a href='#L366'>366</a>
+<a name='L367'></a><a href='#L367'>367</a>
+<a name='L368'></a><a href='#L368'>368</a>
+<a name='L369'></a><a href='#L369'>369</a>
+<a name='L370'></a><a href='#L370'>370</a>
+<a name='L371'></a><a href='#L371'>371</a>
+<a name='L372'></a><a href='#L372'>372</a>
+<a name='L373'></a><a href='#L373'>373</a>
+<a name='L374'></a><a href='#L374'>374</a>
+<a name='L375'></a><a href='#L375'>375</a>
+<a name='L376'></a><a href='#L376'>376</a>
+<a name='L377'></a><a href='#L377'>377</a>
+<a name='L378'></a><a href='#L378'>378</a>
+<a name='L379'></a><a href='#L379'>379</a>
+<a name='L380'></a><a href='#L380'>380</a>
+<a name='L381'></a><a href='#L381'>381</a>
+<a name='L382'></a><a href='#L382'>382</a>
+<a name='L383'></a><a href='#L383'>383</a>
+<a name='L384'></a><a href='#L384'>384</a>
+<a name='L385'></a><a href='#L385'>385</a>
+<a name='L386'></a><a href='#L386'>386</a>
+<a name='L387'></a><a href='#L387'>387</a>
+<a name='L388'></a><a href='#L388'>388</a>
+<a name='L389'></a><a href='#L389'>389</a>
+<a name='L390'></a><a href='#L390'>390</a>
+<a name='L391'></a><a href='#L391'>391</a>
+<a name='L392'></a><a href='#L392'>392</a>
+<a name='L393'></a><a href='#L393'>393</a>
+<a name='L394'></a><a href='#L394'>394</a>
+<a name='L395'></a><a href='#L395'>395</a>
+<a name='L396'></a><a href='#L396'>396</a>
+<a name='L397'></a><a href='#L397'>397</a>
+<a name='L398'></a><a href='#L398'>398</a>
+<a name='L399'></a><a href='#L399'>399</a>
+<a name='L400'></a><a href='#L400'>400</a>
+<a name='L401'></a><a href='#L401'>401</a>
+<a name='L402'></a><a href='#L402'>402</a>
+<a name='L403'></a><a href='#L403'>403</a>
+<a name='L404'></a><a href='#L404'>404</a>
+<a name='L405'></a><a href='#L405'>405</a>
+<a name='L406'></a><a href='#L406'>406</a>
+<a name='L407'></a><a href='#L407'>407</a>
+<a name='L408'></a><a href='#L408'>408</a>
+<a name='L409'></a><a href='#L409'>409</a>
+<a name='L410'></a><a href='#L410'>410</a>
+<a name='L411'></a><a href='#L411'>411</a>
+<a name='L412'></a><a href='#L412'>412</a>
+<a name='L413'></a><a href='#L413'>413</a>
+<a name='L414'></a><a href='#L414'>414</a>
+<a name='L415'></a><a href='#L415'>415</a>
+<a name='L416'></a><a href='#L416'>416</a>
+<a name='L417'></a><a href='#L417'>417</a>
+<a name='L418'></a><a href='#L418'>418</a>
+<a name='L419'></a><a href='#L419'>419</a>
+<a name='L420'></a><a href='#L420'>420</a>
+<a name='L421'></a><a href='#L421'>421</a>
+<a name='L422'></a><a href='#L422'>422</a>
+<a name='L423'></a><a href='#L423'>423</a>
+<a name='L424'></a><a href='#L424'>424</a>
+<a name='L425'></a><a href='#L425'>425</a>
+<a name='L426'></a><a href='#L426'>426</a>
+<a name='L427'></a><a href='#L427'>427</a>
+<a name='L428'></a><a href='#L428'>428</a>
+<a name='L429'></a><a href='#L429'>429</a>
+<a name='L430'></a><a href='#L430'>430</a>
+<a name='L431'></a><a href='#L431'>431</a>
+<a name='L432'></a><a href='#L432'>432</a>
+<a name='L433'></a><a href='#L433'>433</a>
+<a name='L434'></a><a href='#L434'>434</a>
+<a name='L435'></a><a href='#L435'>435</a>
+<a name='L436'></a><a href='#L436'>436</a>
+<a name='L437'></a><a href='#L437'>437</a>
+<a name='L438'></a><a href='#L438'>438</a>
+<a name='L439'></a><a href='#L439'>439</a>
+<a name='L440'></a><a href='#L440'>440</a>
+<a name='L441'></a><a href='#L441'>441</a>
+<a name='L442'></a><a href='#L442'>442</a>
+<a name='L443'></a><a href='#L443'>443</a>
+<a name='L444'></a><a href='#L444'>444</a>
+<a name='L445'></a><a href='#L445'>445</a>
+<a name='L446'></a><a href='#L446'>446</a>
+<a name='L447'></a><a href='#L447'>447</a>
+<a name='L448'></a><a href='#L448'>448</a>
+<a name='L449'></a><a href='#L449'>449</a>
+<a name='L450'></a><a href='#L450'>450</a>
+<a name='L451'></a><a href='#L451'>451</a>
+<a name='L452'></a><a href='#L452'>452</a>
+<a name='L453'></a><a href='#L453'>453</a>
+<a name='L454'></a><a href='#L454'>454</a>
+<a name='L455'></a><a href='#L455'>455</a>
+<a name='L456'></a><a href='#L456'>456</a>
+<a name='L457'></a><a href='#L457'>457</a>
+<a name='L458'></a><a href='#L458'>458</a>
+<a name='L459'></a><a href='#L459'>459</a>
+<a name='L460'></a><a href='#L460'>460</a>
+<a name='L461'></a><a href='#L461'>461</a>
+<a name='L462'></a><a href='#L462'>462</a>
+<a name='L463'></a><a href='#L463'>463</a>
+<a name='L464'></a><a href='#L464'>464</a>
+<a name='L465'></a><a href='#L465'>465</a>
+<a name='L466'></a><a href='#L466'>466</a>
+<a name='L467'></a><a href='#L467'>467</a>
+<a name='L468'></a><a href='#L468'>468</a>
+<a name='L469'></a><a href='#L469'>469</a>
+<a name='L470'></a><a href='#L470'>470</a>
+<a name='L471'></a><a href='#L471'>471</a>
+<a name='L472'></a><a href='#L472'>472</a>
+<a name='L473'></a><a href='#L473'>473</a>
+<a name='L474'></a><a href='#L474'>474</a>
+<a name='L475'></a><a href='#L475'>475</a>
+<a name='L476'></a><a href='#L476'>476</a>
+<a name='L477'></a><a href='#L477'>477</a>
+<a name='L478'></a><a href='#L478'>478</a>
+<a name='L479'></a><a href='#L479'>479</a>
+<a name='L480'></a><a href='#L480'>480</a>
+<a name='L481'></a><a href='#L481'>481</a>
+<a name='L482'></a><a href='#L482'>482</a>
+<a name='L483'></a><a href='#L483'>483</a>
+<a name='L484'></a><a href='#L484'>484</a>
+<a name='L485'></a><a href='#L485'>485</a>
+<a name='L486'></a><a href='#L486'>486</a>
+<a name='L487'></a><a href='#L487'>487</a>
+<a name='L488'></a><a href='#L488'>488</a>
+<a name='L489'></a><a href='#L489'>489</a>
+<a name='L490'></a><a href='#L490'>490</a>
+<a name='L491'></a><a href='#L491'>491</a>
+<a name='L492'></a><a href='#L492'>492</a>
+<a name='L493'></a><a href='#L493'>493</a>
+<a name='L494'></a><a href='#L494'>494</a>
+<a name='L495'></a><a href='#L495'>495</a>
+<a name='L496'></a><a href='#L496'>496</a>
+<a name='L497'></a><a href='#L497'>497</a>
+<a name='L498'></a><a href='#L498'>498</a>
+<a name='L499'></a><a href='#L499'>499</a>
+<a name='L500'></a><a href='#L500'>500</a>
+<a name='L501'></a><a href='#L501'>501</a>
+<a name='L502'></a><a href='#L502'>502</a>
+<a name='L503'></a><a href='#L503'>503</a>
+<a name='L504'></a><a href='#L504'>504</a>
+<a name='L505'></a><a href='#L505'>505</a>
+<a name='L506'></a><a href='#L506'>506</a>
+<a name='L507'></a><a href='#L507'>507</a>
+<a name='L508'></a><a href='#L508'>508</a>
+<a name='L509'></a><a href='#L509'>509</a>
+<a name='L510'></a><a href='#L510'>510</a>
+<a name='L511'></a><a href='#L511'>511</a>
+<a name='L512'></a><a href='#L512'>512</a>
+<a name='L513'></a><a href='#L513'>513</a>
+<a name='L514'></a><a href='#L514'>514</a>
+<a name='L515'></a><a href='#L515'>515</a>
+<a name='L516'></a><a href='#L516'>516</a>
+<a name='L517'></a><a href='#L517'>517</a>
+<a name='L518'></a><a href='#L518'>518</a>
+<a name='L519'></a><a href='#L519'>519</a>
+<a name='L520'></a><a href='#L520'>520</a>
+<a name='L521'></a><a href='#L521'>521</a>
+<a name='L522'></a><a href='#L522'>522</a>
+<a name='L523'></a><a href='#L523'>523</a>
+<a name='L524'></a><a href='#L524'>524</a>
+<a name='L525'></a><a href='#L525'>525</a>
+<a name='L526'></a><a href='#L526'>526</a>
+<a name='L527'></a><a href='#L527'>527</a>
+<a name='L528'></a><a href='#L528'>528</a>
+<a name='L529'></a><a href='#L529'>529</a>
+<a name='L530'></a><a href='#L530'>530</a>
+<a name='L531'></a><a href='#L531'>531</a>
+<a name='L532'></a><a href='#L532'>532</a>
+<a name='L533'></a><a href='#L533'>533</a>
+<a name='L534'></a><a href='#L534'>534</a>
+<a name='L535'></a><a href='#L535'>535</a>
+<a name='L536'></a><a href='#L536'>536</a>
+<a name='L537'></a><a href='#L537'>537</a>
+<a name='L538'></a><a href='#L538'>538</a>
+<a name='L539'></a><a href='#L539'>539</a>
+<a name='L540'></a><a href='#L540'>540</a>
+<a name='L541'></a><a href='#L541'>541</a>
+<a name='L542'></a><a href='#L542'>542</a>
+<a name='L543'></a><a href='#L543'>543</a>
+<a name='L544'></a><a href='#L544'>544</a>
+<a name='L545'></a><a href='#L545'>545</a>
+<a name='L546'></a><a href='#L546'>546</a>
+<a name='L547'></a><a href='#L547'>547</a>
+<a name='L548'></a><a href='#L548'>548</a>
+<a name='L549'></a><a href='#L549'>549</a>
+<a name='L550'></a><a href='#L550'>550</a>
+<a name='L551'></a><a href='#L551'>551</a>
+<a name='L552'></a><a href='#L552'>552</a>
+<a name='L553'></a><a href='#L553'>553</a>
+<a name='L554'></a><a href='#L554'>554</a>
+<a name='L555'></a><a href='#L555'>555</a>
+<a name='L556'></a><a href='#L556'>556</a>
+<a name='L557'></a><a href='#L557'>557</a>
+<a name='L558'></a><a href='#L558'>558</a>
+<a name='L559'></a><a href='#L559'>559</a>
+<a name='L560'></a><a href='#L560'>560</a>
+<a name='L561'></a><a href='#L561'>561</a>
+<a name='L562'></a><a href='#L562'>562</a>
+<a name='L563'></a><a href='#L563'>563</a>
+<a name='L564'></a><a href='#L564'>564</a>
+<a name='L565'></a><a href='#L565'>565</a>
+<a name='L566'></a><a href='#L566'>566</a>
+<a name='L567'></a><a href='#L567'>567</a>
+<a name='L568'></a><a href='#L568'>568</a>
+<a name='L569'></a><a href='#L569'>569</a>
+<a name='L570'></a><a href='#L570'>570</a>
+<a name='L571'></a><a href='#L571'>571</a>
+<a name='L572'></a><a href='#L572'>572</a>
+<a name='L573'></a><a href='#L573'>573</a>
+<a name='L574'></a><a href='#L574'>574</a>
+<a name='L575'></a><a href='#L575'>575</a>
+<a name='L576'></a><a href='#L576'>576</a>
+<a name='L577'></a><a href='#L577'>577</a>
+<a name='L578'></a><a href='#L578'>578</a>
+<a name='L579'></a><a href='#L579'>579</a>
+<a name='L580'></a><a href='#L580'>580</a>
+<a name='L581'></a><a href='#L581'>581</a>
+<a name='L582'></a><a href='#L582'>582</a>
+<a name='L583'></a><a href='#L583'>583</a>
+<a name='L584'></a><a href='#L584'>584</a>
+<a name='L585'></a><a href='#L585'>585</a>
+<a name='L586'></a><a href='#L586'>586</a>
+<a name='L587'></a><a href='#L587'>587</a>
+<a name='L588'></a><a href='#L588'>588</a>
+<a name='L589'></a><a href='#L589'>589</a>
+<a name='L590'></a><a href='#L590'>590</a>
+<a name='L591'></a><a href='#L591'>591</a>
+<a name='L592'></a><a href='#L592'>592</a>
+<a name='L593'></a><a href='#L593'>593</a>
+<a name='L594'></a><a href='#L594'>594</a>
+<a name='L595'></a><a href='#L595'>595</a>
+<a name='L596'></a><a href='#L596'>596</a>
+<a name='L597'></a><a href='#L597'>597</a>
+<a name='L598'></a><a href='#L598'>598</a>
+<a name='L599'></a><a href='#L599'>599</a>
+<a name='L600'></a><a href='#L600'>600</a>
+<a name='L601'></a><a href='#L601'>601</a>
+<a name='L602'></a><a href='#L602'>602</a>
+<a name='L603'></a><a href='#L603'>603</a>
+<a name='L604'></a><a href='#L604'>604</a>
+<a name='L605'></a><a href='#L605'>605</a>
+<a name='L606'></a><a href='#L606'>606</a>
+<a name='L607'></a><a href='#L607'>607</a>
+<a name='L608'></a><a href='#L608'>608</a>
+<a name='L609'></a><a href='#L609'>609</a>
+<a name='L610'></a><a href='#L610'>610</a>
+<a name='L611'></a><a href='#L611'>611</a>
+<a name='L612'></a><a href='#L612'>612</a>
+<a name='L613'></a><a href='#L613'>613</a>
+<a name='L614'></a><a href='#L614'>614</a>
+<a name='L615'></a><a href='#L615'>615</a>
+<a name='L616'></a><a href='#L616'>616</a>
+<a name='L617'></a><a href='#L617'>617</a>
+<a name='L618'></a><a href='#L618'>618</a>
+<a name='L619'></a><a href='#L619'>619</a>
+<a name='L620'></a><a href='#L620'>620</a>
+<a name='L621'></a><a href='#L621'>621</a>
+<a name='L622'></a><a href='#L622'>622</a>
+<a name='L623'></a><a href='#L623'>623</a>
+<a name='L624'></a><a href='#L624'>624</a>
+<a name='L625'></a><a href='#L625'>625</a>
+<a name='L626'></a><a href='#L626'>626</a>
+<a name='L627'></a><a href='#L627'>627</a>
+<a name='L628'></a><a href='#L628'>628</a>
+<a name='L629'></a><a href='#L629'>629</a>
+<a name='L630'></a><a href='#L630'>630</a>
+<a name='L631'></a><a href='#L631'>631</a>
+<a name='L632'></a><a href='#L632'>632</a>
+<a name='L633'></a><a href='#L633'>633</a>
+<a name='L634'></a><a href='#L634'>634</a>
+<a name='L635'></a><a href='#L635'>635</a>
+<a name='L636'></a><a href='#L636'>636</a>
+<a name='L637'></a><a href='#L637'>637</a>
+<a name='L638'></a><a href='#L638'>638</a>
+<a name='L639'></a><a href='#L639'>639</a>
+<a name='L640'></a><a href='#L640'>640</a>
+<a name='L641'></a><a href='#L641'>641</a>
+<a name='L642'></a><a href='#L642'>642</a>
+<a name='L643'></a><a href='#L643'>643</a>
+<a name='L644'></a><a href='#L644'>644</a>
+<a name='L645'></a><a href='#L645'>645</a>
+<a name='L646'></a><a href='#L646'>646</a>
+<a name='L647'></a><a href='#L647'>647</a>
+<a name='L648'></a><a href='#L648'>648</a>
+<a name='L649'></a><a href='#L649'>649</a>
+<a name='L650'></a><a href='#L650'>650</a>
+<a name='L651'></a><a href='#L651'>651</a>
+<a name='L652'></a><a href='#L652'>652</a>
+<a name='L653'></a><a href='#L653'>653</a>
+<a name='L654'></a><a href='#L654'>654</a>
+<a name='L655'></a><a href='#L655'>655</a>
+<a name='L656'></a><a href='#L656'>656</a>
+<a name='L657'></a><a href='#L657'>657</a>
+<a name='L658'></a><a href='#L658'>658</a>
+<a name='L659'></a><a href='#L659'>659</a>
+<a name='L660'></a><a href='#L660'>660</a>
+<a name='L661'></a><a href='#L661'>661</a>
+<a name='L662'></a><a href='#L662'>662</a>
+<a name='L663'></a><a href='#L663'>663</a>
+<a name='L664'></a><a href='#L664'>664</a>
+<a name='L665'></a><a href='#L665'>665</a>
+<a name='L666'></a><a href='#L666'>666</a>
+<a name='L667'></a><a href='#L667'>667</a>
+<a name='L668'></a><a href='#L668'>668</a>
+<a name='L669'></a><a href='#L669'>669</a>
+<a name='L670'></a><a href='#L670'>670</a>
+<a name='L671'></a><a href='#L671'>671</a>
+<a name='L672'></a><a href='#L672'>672</a>
+<a name='L673'></a><a href='#L673'>673</a>
+<a name='L674'></a><a href='#L674'>674</a>
+<a name='L675'></a><a href='#L675'>675</a>
+<a name='L676'></a><a href='#L676'>676</a>
+<a name='L677'></a><a href='#L677'>677</a>
+<a name='L678'></a><a href='#L678'>678</a>
+<a name='L679'></a><a href='#L679'>679</a>
+<a name='L680'></a><a href='#L680'>680</a>
+<a name='L681'></a><a href='#L681'>681</a>
+<a name='L682'></a><a href='#L682'>682</a>
+<a name='L683'></a><a href='#L683'>683</a>
+<a name='L684'></a><a href='#L684'>684</a>
+<a name='L685'></a><a href='#L685'>685</a>
+<a name='L686'></a><a href='#L686'>686</a>
+<a name='L687'></a><a href='#L687'>687</a>
+<a name='L688'></a><a href='#L688'>688</a>
+<a name='L689'></a><a href='#L689'>689</a>
+<a name='L690'></a><a href='#L690'>690</a>
+<a name='L691'></a><a href='#L691'>691</a>
+<a name='L692'></a><a href='#L692'>692</a>
+<a name='L693'></a><a href='#L693'>693</a>
+<a name='L694'></a><a href='#L694'>694</a>
+<a name='L695'></a><a href='#L695'>695</a>
+<a name='L696'></a><a href='#L696'>696</a>
+<a name='L697'></a><a href='#L697'>697</a>
+<a name='L698'></a><a href='#L698'>698</a>
+<a name='L699'></a><a href='#L699'>699</a>
+<a name='L700'></a><a href='#L700'>700</a>
+<a name='L701'></a><a href='#L701'>701</a>
+<a name='L702'></a><a href='#L702'>702</a>
+<a name='L703'></a><a href='#L703'>703</a>
+<a name='L704'></a><a href='#L704'>704</a>
+<a name='L705'></a><a href='#L705'>705</a>
+<a name='L706'></a><a href='#L706'>706</a>
+<a name='L707'></a><a href='#L707'>707</a>
+<a name='L708'></a><a href='#L708'>708</a>
+<a name='L709'></a><a href='#L709'>709</a>
+<a name='L710'></a><a href='#L710'>710</a>
+<a name='L711'></a><a href='#L711'>711</a>
+<a name='L712'></a><a href='#L712'>712</a>
+<a name='L713'></a><a href='#L713'>713</a>
+<a name='L714'></a><a href='#L714'>714</a>
+<a name='L715'></a><a href='#L715'>715</a>
+<a name='L716'></a><a href='#L716'>716</a>
+<a name='L717'></a><a href='#L717'>717</a>
+<a name='L718'></a><a href='#L718'>718</a>
+<a name='L719'></a><a href='#L719'>719</a>
+<a name='L720'></a><a href='#L720'>720</a>
+<a name='L721'></a><a href='#L721'>721</a>
+<a name='L722'></a><a href='#L722'>722</a>
+<a name='L723'></a><a href='#L723'>723</a>
+<a name='L724'></a><a href='#L724'>724</a>
+<a name='L725'></a><a href='#L725'>725</a>
+<a name='L726'></a><a href='#L726'>726</a>
+<a name='L727'></a><a href='#L727'>727</a>
+<a name='L728'></a><a href='#L728'>728</a>
+<a name='L729'></a><a href='#L729'>729</a>
+<a name='L730'></a><a href='#L730'>730</a>
+<a name='L731'></a><a href='#L731'>731</a>
+<a name='L732'></a><a href='#L732'>732</a>
+<a name='L733'></a><a href='#L733'>733</a>
+<a name='L734'></a><a href='#L734'>734</a>
+<a name='L735'></a><a href='#L735'>735</a>
+<a name='L736'></a><a href='#L736'>736</a>
+<a name='L737'></a><a href='#L737'>737</a>
+<a name='L738'></a><a href='#L738'>738</a>
+<a name='L739'></a><a href='#L739'>739</a>
+<a name='L740'></a><a href='#L740'>740</a>
+<a name='L741'></a><a href='#L741'>741</a>
+<a name='L742'></a><a href='#L742'>742</a>
+<a name='L743'></a><a href='#L743'>743</a>
+<a name='L744'></a><a href='#L744'>744</a>
+<a name='L745'></a><a href='#L745'>745</a>
+<a name='L746'></a><a href='#L746'>746</a>
+<a name='L747'></a><a href='#L747'>747</a>
+<a name='L748'></a><a href='#L748'>748</a>
+<a name='L749'></a><a href='#L749'>749</a>
+<a name='L750'></a><a href='#L750'>750</a>
+<a name='L751'></a><a href='#L751'>751</a>
+<a name='L752'></a><a href='#L752'>752</a>
+<a name='L753'></a><a href='#L753'>753</a>
+<a name='L754'></a><a href='#L754'>754</a>
+<a name='L755'></a><a href='#L755'>755</a>
+<a name='L756'></a><a href='#L756'>756</a>
+<a name='L757'></a><a href='#L757'>757</a>
+<a name='L758'></a><a href='#L758'>758</a>
+<a name='L759'></a><a href='#L759'>759</a>
+<a name='L760'></a><a href='#L760'>760</a>
+<a name='L761'></a><a href='#L761'>761</a>
+<a name='L762'></a><a href='#L762'>762</a>
+<a name='L763'></a><a href='#L763'>763</a>
+<a name='L764'></a><a href='#L764'>764</a>
+<a name='L765'></a><a href='#L765'>765</a>
+<a name='L766'></a><a href='#L766'>766</a>
+<a name='L767'></a><a href='#L767'>767</a>
+<a name='L768'></a><a href='#L768'>768</a>
+<a name='L769'></a><a href='#L769'>769</a>
+<a name='L770'></a><a href='#L770'>770</a>
+<a name='L771'></a><a href='#L771'>771</a>
+<a name='L772'></a><a href='#L772'>772</a>
+<a name='L773'></a><a href='#L773'>773</a>
+<a name='L774'></a><a href='#L774'>774</a>
+<a name='L775'></a><a href='#L775'>775</a>
+<a name='L776'></a><a href='#L776'>776</a>
+<a name='L777'></a><a href='#L777'>777</a>
+<a name='L778'></a><a href='#L778'>778</a>
+<a name='L779'></a><a href='#L779'>779</a>
+<a name='L780'></a><a href='#L780'>780</a>
+<a name='L781'></a><a href='#L781'>781</a>
+<a name='L782'></a><a href='#L782'>782</a>
+<a name='L783'></a><a href='#L783'>783</a>
+<a name='L784'></a><a href='#L784'>784</a>
+<a name='L785'></a><a href='#L785'>785</a>
+<a name='L786'></a><a href='#L786'>786</a>
+<a name='L787'></a><a href='#L787'>787</a>
+<a name='L788'></a><a href='#L788'>788</a>
+<a name='L789'></a><a href='#L789'>789</a>
+<a name='L790'></a><a href='#L790'>790</a>
+<a name='L791'></a><a href='#L791'>791</a>
+<a name='L792'></a><a href='#L792'>792</a>
+<a name='L793'></a><a href='#L793'>793</a>
+<a name='L794'></a><a href='#L794'>794</a>
+<a name='L795'></a><a href='#L795'>795</a>
+<a name='L796'></a><a href='#L796'>796</a>
+<a name='L797'></a><a href='#L797'>797</a>
+<a name='L798'></a><a href='#L798'>798</a>
+<a name='L799'></a><a href='#L799'>799</a>
+<a name='L800'></a><a href='#L800'>800</a>
+<a name='L801'></a><a href='#L801'>801</a>
+<a name='L802'></a><a href='#L802'>802</a>
+<a name='L803'></a><a href='#L803'>803</a>
+<a name='L804'></a><a href='#L804'>804</a>
+<a name='L805'></a><a href='#L805'>805</a>
+<a name='L806'></a><a href='#L806'>806</a>
+<a name='L807'></a><a href='#L807'>807</a>
+<a name='L808'></a><a href='#L808'>808</a>
+<a name='L809'></a><a href='#L809'>809</a>
+<a name='L810'></a><a href='#L810'>810</a>
+<a name='L811'></a><a href='#L811'>811</a>
+<a name='L812'></a><a href='#L812'>812</a>
+<a name='L813'></a><a href='#L813'>813</a>
+<a name='L814'></a><a href='#L814'>814</a>
+<a name='L815'></a><a href='#L815'>815</a>
+<a name='L816'></a><a href='#L816'>816</a>
+<a name='L817'></a><a href='#L817'>817</a>
+<a name='L818'></a><a href='#L818'>818</a>
+<a name='L819'></a><a href='#L819'>819</a>
+<a name='L820'></a><a href='#L820'>820</a>
+<a name='L821'></a><a href='#L821'>821</a>
+<a name='L822'></a><a href='#L822'>822</a>
+<a name='L823'></a><a href='#L823'>823</a>
+<a name='L824'></a><a href='#L824'>824</a>
+<a name='L825'></a><a href='#L825'>825</a>
+<a name='L826'></a><a href='#L826'>826</a>
+<a name='L827'></a><a href='#L827'>827</a>
+<a name='L828'></a><a href='#L828'>828</a>
+<a name='L829'></a><a href='#L829'>829</a>
+<a name='L830'></a><a href='#L830'>830</a>
+<a name='L831'></a><a href='#L831'>831</a>
+<a name='L832'></a><a href='#L832'>832</a>
+<a name='L833'></a><a href='#L833'>833</a>
+<a name='L834'></a><a href='#L834'>834</a>
+<a name='L835'></a><a href='#L835'>835</a>
+<a name='L836'></a><a href='#L836'>836</a>
+<a name='L837'></a><a href='#L837'>837</a>
+<a name='L838'></a><a href='#L838'>838</a>
+<a name='L839'></a><a href='#L839'>839</a>
+<a name='L840'></a><a href='#L840'>840</a>
+<a name='L841'></a><a href='#L841'>841</a>
+<a name='L842'></a><a href='#L842'>842</a>
+<a name='L843'></a><a href='#L843'>843</a>
+<a name='L844'></a><a href='#L844'>844</a>
+<a name='L845'></a><a href='#L845'>845</a>
+<a name='L846'></a><a href='#L846'>846</a>
+<a name='L847'></a><a href='#L847'>847</a>
+<a name='L848'></a><a href='#L848'>848</a>
+<a name='L849'></a><a href='#L849'>849</a>
+<a name='L850'></a><a href='#L850'>850</a>
+<a name='L851'></a><a href='#L851'>851</a>
+<a name='L852'></a><a href='#L852'>852</a>
+<a name='L853'></a><a href='#L853'>853</a>
+<a name='L854'></a><a href='#L854'>854</a>
+<a name='L855'></a><a href='#L855'>855</a>
+<a name='L856'></a><a href='#L856'>856</a>
+<a name='L857'></a><a href='#L857'>857</a>
+<a name='L858'></a><a href='#L858'>858</a>
+<a name='L859'></a><a href='#L859'>859</a>
+<a name='L860'></a><a href='#L860'>860</a>
+<a name='L861'></a><a href='#L861'>861</a>
+<a name='L862'></a><a href='#L862'>862</a>
+<a name='L863'></a><a href='#L863'>863</a>
+<a name='L864'></a><a href='#L864'>864</a>
+<a name='L865'></a><a href='#L865'>865</a>
+<a name='L866'></a><a href='#L866'>866</a>
+<a name='L867'></a><a href='#L867'>867</a>
+<a name='L868'></a><a href='#L868'>868</a>
+<a name='L869'></a><a href='#L869'>869</a>
+<a name='L870'></a><a href='#L870'>870</a>
+<a name='L871'></a><a href='#L871'>871</a>
+<a name='L872'></a><a href='#L872'>872</a>
+<a name='L873'></a><a href='#L873'>873</a>
+<a name='L874'></a><a href='#L874'>874</a>
+<a name='L875'></a><a href='#L875'>875</a>
+<a name='L876'></a><a href='#L876'>876</a>
+<a name='L877'></a><a href='#L877'>877</a>
+<a name='L878'></a><a href='#L878'>878</a>
+<a name='L879'></a><a href='#L879'>879</a>
+<a name='L880'></a><a href='#L880'>880</a>
+<a name='L881'></a><a href='#L881'>881</a>
+<a name='L882'></a><a href='#L882'>882</a>
+<a name='L883'></a><a href='#L883'>883</a>
+<a name='L884'></a><a href='#L884'>884</a>
+<a name='L885'></a><a href='#L885'>885</a>
+<a name='L886'></a><a href='#L886'>886</a>
+<a name='L887'></a><a href='#L887'>887</a>
+<a name='L888'></a><a href='#L888'>888</a>
+<a name='L889'></a><a href='#L889'>889</a>
+<a name='L890'></a><a href='#L890'>890</a>
+<a name='L891'></a><a href='#L891'>891</a>
+<a name='L892'></a><a href='#L892'>892</a>
+<a name='L893'></a><a href='#L893'>893</a>
+<a name='L894'></a><a href='#L894'>894</a>
+<a name='L895'></a><a href='#L895'>895</a>
+<a name='L896'></a><a href='#L896'>896</a>
+<a name='L897'></a><a href='#L897'>897</a>
+<a name='L898'></a><a href='#L898'>898</a>
+<a name='L899'></a><a href='#L899'>899</a>
+<a name='L900'></a><a href='#L900'>900</a>
+<a name='L901'></a><a href='#L901'>901</a>
+<a name='L902'></a><a href='#L902'>902</a>
+<a name='L903'></a><a href='#L903'>903</a>
+<a name='L904'></a><a href='#L904'>904</a>
+<a name='L905'></a><a href='#L905'>905</a>
+<a name='L906'></a><a href='#L906'>906</a>
+<a name='L907'></a><a href='#L907'>907</a>
+<a name='L908'></a><a href='#L908'>908</a>
+<a name='L909'></a><a href='#L909'>909</a>
+<a name='L910'></a><a href='#L910'>910</a>
+<a name='L911'></a><a href='#L911'>911</a>
+<a name='L912'></a><a href='#L912'>912</a>
+<a name='L913'></a><a href='#L913'>913</a>
+<a name='L914'></a><a href='#L914'>914</a>
+<a name='L915'></a><a href='#L915'>915</a>
+<a name='L916'></a><a href='#L916'>916</a>
+<a name='L917'></a><a href='#L917'>917</a>
+<a name='L918'></a><a href='#L918'>918</a>
+<a name='L919'></a><a href='#L919'>919</a>
+<a name='L920'></a><a href='#L920'>920</a>
+<a name='L921'></a><a href='#L921'>921</a>
+<a name='L922'></a><a href='#L922'>922</a>
+<a name='L923'></a><a href='#L923'>923</a>
+<a name='L924'></a><a href='#L924'>924</a>
+<a name='L925'></a><a href='#L925'>925</a>
+<a name='L926'></a><a href='#L926'>926</a>
+<a name='L927'></a><a href='#L927'>927</a>
+<a name='L928'></a><a href='#L928'>928</a>
+<a name='L929'></a><a href='#L929'>929</a>
+<a name='L930'></a><a href='#L930'>930</a>
+<a name='L931'></a><a href='#L931'>931</a>
+<a name='L932'></a><a href='#L932'>932</a>
+<a name='L933'></a><a href='#L933'>933</a>
+<a name='L934'></a><a href='#L934'>934</a>
+<a name='L935'></a><a href='#L935'>935</a>
+<a name='L936'></a><a href='#L936'>936</a>
+<a name='L937'></a><a href='#L937'>937</a>
+<a name='L938'></a><a href='#L938'>938</a>
+<a name='L939'></a><a href='#L939'>939</a>
+<a name='L940'></a><a href='#L940'>940</a>
+<a name='L941'></a><a href='#L941'>941</a>
+<a name='L942'></a><a href='#L942'>942</a>
+<a name='L943'></a><a href='#L943'>943</a>
+<a name='L944'></a><a href='#L944'>944</a>
+<a name='L945'></a><a href='#L945'>945</a>
+<a name='L946'></a><a href='#L946'>946</a>
+<a name='L947'></a><a href='#L947'>947</a>
+<a name='L948'></a><a href='#L948'>948</a>
+<a name='L949'></a><a href='#L949'>949</a>
+<a name='L950'></a><a href='#L950'>950</a>
+<a name='L951'></a><a href='#L951'>951</a>
+<a name='L952'></a><a href='#L952'>952</a>
+<a name='L953'></a><a href='#L953'>953</a>
+<a name='L954'></a><a href='#L954'>954</a>
+<a name='L955'></a><a href='#L955'>955</a>
+<a name='L956'></a><a href='#L956'>956</a>
+<a name='L957'></a><a href='#L957'>957</a>
+<a name='L958'></a><a href='#L958'>958</a>
+<a name='L959'></a><a href='#L959'>959</a>
+<a name='L960'></a><a href='#L960'>960</a>
+<a name='L961'></a><a href='#L961'>961</a>
+<a name='L962'></a><a href='#L962'>962</a>
+<a name='L963'></a><a href='#L963'>963</a>
+<a name='L964'></a><a href='#L964'>964</a>
+<a name='L965'></a><a href='#L965'>965</a>
+<a name='L966'></a><a href='#L966'>966</a>
+<a name='L967'></a><a href='#L967'>967</a>
+<a name='L968'></a><a href='#L968'>968</a>
+<a name='L969'></a><a href='#L969'>969</a>
+<a name='L970'></a><a href='#L970'>970</a>
+<a name='L971'></a><a href='#L971'>971</a>
+<a name='L972'></a><a href='#L972'>972</a>
+<a name='L973'></a><a href='#L973'>973</a>
+<a name='L974'></a><a href='#L974'>974</a>
+<a name='L975'></a><a href='#L975'>975</a>
+<a name='L976'></a><a href='#L976'>976</a>
+<a name='L977'></a><a href='#L977'>977</a>
+<a name='L978'></a><a href='#L978'>978</a>
+<a name='L979'></a><a href='#L979'>979</a>
+<a name='L980'></a><a href='#L980'>980</a>
+<a name='L981'></a><a href='#L981'>981</a>
+<a name='L982'></a><a href='#L982'>982</a>
+<a name='L983'></a><a href='#L983'>983</a>
+<a name='L984'></a><a href='#L984'>984</a>
+<a name='L985'></a><a href='#L985'>985</a>
+<a name='L986'></a><a href='#L986'>986</a>
+<a name='L987'></a><a href='#L987'>987</a>
+<a name='L988'></a><a href='#L988'>988</a>
+<a name='L989'></a><a href='#L989'>989</a>
+<a name='L990'></a><a href='#L990'>990</a>
+<a name='L991'></a><a href='#L991'>991</a>
+<a name='L992'></a><a href='#L992'>992</a>
+<a name='L993'></a><a href='#L993'>993</a>
+<a name='L994'></a><a href='#L994'>994</a>
+<a name='L995'></a><a href='#L995'>995</a>
+<a name='L996'></a><a href='#L996'>996</a>
+<a name='L997'></a><a href='#L997'>997</a>
+<a name='L998'></a><a href='#L998'>998</a>
+<a name='L999'></a><a href='#L999'>999</a>
+<a name='L1000'></a><a href='#L1000'>1000</a>
+<a name='L1001'></a><a href='#L1001'>1001</a>
+<a name='L1002'></a><a href='#L1002'>1002</a>
+<a name='L1003'></a><a href='#L1003'>1003</a>
+<a name='L1004'></a><a href='#L1004'>1004</a>
+<a name='L1005'></a><a href='#L1005'>1005</a>
+<a name='L1006'></a><a href='#L1006'>1006</a>
+<a name='L1007'></a><a href='#L1007'>1007</a>
+<a name='L1008'></a><a href='#L1008'>1008</a>
+<a name='L1009'></a><a href='#L1009'>1009</a>
+<a name='L1010'></a><a href='#L1010'>1010</a>
+<a name='L1011'></a><a href='#L1011'>1011</a>
+<a name='L1012'></a><a href='#L1012'>1012</a>
+<a name='L1013'></a><a href='#L1013'>1013</a>
+<a name='L1014'></a><a href='#L1014'>1014</a>
+<a name='L1015'></a><a href='#L1015'>1015</a>
+<a name='L1016'></a><a href='#L1016'>1016</a>
+<a name='L1017'></a><a href='#L1017'>1017</a>
+<a name='L1018'></a><a href='#L1018'>1018</a>
+<a name='L1019'></a><a href='#L1019'>1019</a>
+<a name='L1020'></a><a href='#L1020'>1020</a>
+<a name='L1021'></a><a href='#L1021'>1021</a>
+<a name='L1022'></a><a href='#L1022'>1022</a>
+<a name='L1023'></a><a href='#L1023'>1023</a>
+<a name='L1024'></a><a href='#L1024'>1024</a>
+<a name='L1025'></a><a href='#L1025'>1025</a>
+<a name='L1026'></a><a href='#L1026'>1026</a>
+<a name='L1027'></a><a href='#L1027'>1027</a>
+<a name='L1028'></a><a href='#L1028'>1028</a>
+<a name='L1029'></a><a href='#L1029'>1029</a>
+<a name='L1030'></a><a href='#L1030'>1030</a>
+<a name='L1031'></a><a href='#L1031'>1031</a>
+<a name='L1032'></a><a href='#L1032'>1032</a>
+<a name='L1033'></a><a href='#L1033'>1033</a>
+<a name='L1034'></a><a href='#L1034'>1034</a>
+<a name='L1035'></a><a href='#L1035'>1035</a>
+<a name='L1036'></a><a href='#L1036'>1036</a>
+<a name='L1037'></a><a href='#L1037'>1037</a>
+<a name='L1038'></a><a href='#L1038'>1038</a>
+<a name='L1039'></a><a href='#L1039'>1039</a>
+<a name='L1040'></a><a href='#L1040'>1040</a>
+<a name='L1041'></a><a href='#L1041'>1041</a>
+<a name='L1042'></a><a href='#L1042'>1042</a>
+<a name='L1043'></a><a href='#L1043'>1043</a>
+<a name='L1044'></a><a href='#L1044'>1044</a>
+<a name='L1045'></a><a href='#L1045'>1045</a>
+<a name='L1046'></a><a href='#L1046'>1046</a>
+<a name='L1047'></a><a href='#L1047'>1047</a>
+<a name='L1048'></a><a href='#L1048'>1048</a>
+<a name='L1049'></a><a href='#L1049'>1049</a>
+<a name='L1050'></a><a href='#L1050'>1050</a>
+<a name='L1051'></a><a href='#L1051'>1051</a>
+<a name='L1052'></a><a href='#L1052'>1052</a>
+<a name='L1053'></a><a href='#L1053'>1053</a>
+<a name='L1054'></a><a href='#L1054'>1054</a>
+<a name='L1055'></a><a href='#L1055'>1055</a>
+<a name='L1056'></a><a href='#L1056'>1056</a>
+<a name='L1057'></a><a href='#L1057'>1057</a>
+<a name='L1058'></a><a href='#L1058'>1058</a>
+<a name='L1059'></a><a href='#L1059'>1059</a>
+<a name='L1060'></a><a href='#L1060'>1060</a>
+<a name='L1061'></a><a href='#L1061'>1061</a>
+<a name='L1062'></a><a href='#L1062'>1062</a>
+<a name='L1063'></a><a href='#L1063'>1063</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">46x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">162x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">320x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">57x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">57x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">57x</span>
+<span class="cline-any cline-yes">57x</span>
+<span class="cline-any cline-yes">57x</span>
+<span class="cline-any cline-yes">57x</span>
+<span class="cline-any cline-yes">57x</span>
+<span class="cline-any cline-yes">57x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">57x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">57x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">51x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">30x</span>
+<span class="cline-any cline-yes">29x</span>
+<span class="cline-any cline-yes">25x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-yes">15x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">83x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">30x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">28x</span>
+<span class="cline-any cline-yes">27x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">82x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">82x</span>
+<span class="cline-any cline-yes">82x</span>
+<span class="cline-any cline-yes">82x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">75x</span>
+<span class="cline-any cline-yes">75x</span>
+<span class="cline-any cline-yes">75x</span>
+<span class="cline-any cline-yes">75x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">80x</span>
+<span class="cline-any cline-yes">80x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">80x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">286x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">74x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">74x</span>
+<span class="cline-any cline-yes">74x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">74x</span>
+<span class="cline-any cline-yes">73x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">72x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">144x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">432x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">54x</span>
+<span class="cline-any cline-yes">54x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">99x</span>
+<span class="cline-any cline-yes">99x</span>
+<span class="cline-any cline-yes">99x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">99x</span>
+<span class="cline-any cline-yes">2393x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">99x</span>
+<span class="cline-any cline-yes">97x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">77x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">77x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">77x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
+import { useId } from "react";
+import { useAdminLocale } from '../../hooks/use-admin-locale.hooks';
+import { useTovuSettingsExecution } from '../../hooks/use-tovu-execution-adapters.hooks';
+import { useTovuExecutionPolicy } from '../../hooks/use-tovu-execution-policy.hooks';
+import { isDesktopAdmin, localCliScopeCopy } from '../settings/ai-agent-presentation';
+import { t as tExecution } from '../settings/settings-execution-i18n';
+import {
+  ByokProviderForm,
+  ExecutionTab,
+  I18nProvider,
+  SETTINGS_DIALOG_DICTIONARIES,
+  SettingsDialogShell,
+  type SettingsDialogTab,
+} from "@jini-ai/ui";
+import "@jini-ai/ui/settings-dialog.css";
+import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
+import { agentHandle } from "@jini-ai/agentic";
+import { InfoTip } from "@jini-ai/ui/admin-widgets";
+import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
+import { useAdminAssistantSwitch } from "./hooks/use-admin-assistant-switch.hooks";
+import { AdminPermanentDeletes } from "./AdminPermanentDeletes";
+import { AdminSubagents } from "./AdminSubagents";
+import { AssistantToggleRow } from "./AssistantToggleRow";
+import { VisitorAssistantPanel } from "./VisitorAssistantPanel";
+import { VisitorAssistantTabs } from "./VisitorAssistantTabs";
+import { visitorKeyFooterLines } from "./rules";
+import "./ai-assistant.css";
+import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
+import { useWiredAssistantDaemonRestart, type AssistantDaemonRestartController } from "./hooks/use-assistant-daemon-restart.hooks";
+import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
+import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
+import { createProbeErrorDescriber } from "../../lib/stored-credential-endpoint";
+import {
+  useAiAssistantTab,
+  resolveAiAssistantTabSubtitle,
+  useWiredAiAssistant,
+} from "./hooks/use-ai-assistant.hooks";
+import {
+  useWiredVisitorCredentialForm,
+  visitorCredentialSaveIdleMessage,
+  visitorCredentialSaveStatusMessage,
+  visitorCredentialSettingsStatusMessage,
+  type VisitorCredentialFormController,
+} from "./hooks/use-visitor-credential-form.hooks";
+import { useStoredCredentialHint } from "../../hooks/use-credential-hint.hooks";
+import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
+import { t as translateAiAssistantLabel } from "./ai-assistant-i18n";
+import { useWiredAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+&nbsp;
+/**
+ * @file "AI Assistant" admin screen — the `/admin/ai-assistant` route. Markup only.
+ *
+ * State and API calls for each stateful piece live in their own `hooks/use-&lt;thing&gt;.hooks.ts` file
+ * (one per component, per this feature's convention — see `features/integrations/hooks/` for the
+ * same split applied to a smaller feature); pure derivations live in `rules.ts`.
+ *
+ * Three things.
+ *
+ * 1. The master on/off switch for the VISITOR-FACING assistant. Off is the default and off is a
+ *    hard off: the server ships no assistant bundle and exposes no assistant endpoint when this is
+ *    false (see `src/assistant/public-assistant-settings.ts` for the contract in full). Saved
+ *    immediately on toggle rather than behind a Save button, because the reason an operator opens
+ *    this screen is usually that something is going wrong — a permissions problem, a bad deploy,
+ *    runaway token spend — and an off switch that needs a second click to take effect is the wrong
+ *    shape for that moment. The screen re-renders from the SERVER's response, never from the value
+ *    it optimistically sent, so a failed write cannot leave the UI claiming the assistant is off
+ *    while it is still live.
+ *
+ * 2. A roadmap accordion naming the operator controls that are NOT built. Present, not hidden:
+ *    somebody about to turn this on needs to know that there is currently no cost ceiling, no
+ *    per-visitor rate limit, and no live spend view, and the place to learn that is the screen where
+ *    they flip the switch — not a backlog. Rendered as inert unchecked items with no toggles, per
+ *    the same reasoning `features/workspace/Workspace.tsx` uses for its always-disabled delete control: a
+ *    control that looks live but does nothing is worse than an honest "not yet".
+ *
+ * 3. Execution mode for the ADMIN's own assistant — a second mount of the same `ExecutionTab` over
+ *    the same `core.execution` ledger namespace that Settings → AI agent uses. See
+ *    {@link AdminExecutionMode} for why it is copied here rather than moved, and for the one prop
+ *    the two mounts must never disagree about.
+ *
+ * Mirrors `features/workspace/Workspace.tsx`'s fetch/loading/error shape and `@jini-ai/admin/comments/react`'s
+ * settings-form conventions. Its CSS lives with the other `--page-flow` rules in `styles.css`,
+ * scoped to `.settings-ui-section--page-flow` so nothing here can reach the Settings screen, which
+ * renders the same shell and the same `ByokProviderForm` and deliberately keeps its card look.
+ */
+&nbsp;
+/** One not-yet-built control. `detail` is the operator-facing "what would this do for me", not an
+ * implementation note — the point of surfacing these is that the gaps are decision-relevant. */
+interface RoadmapItem {
+  key: string;
+  label: string;
+  detail: string;
+}
+&nbsp;
+/**
+ * The controls this screen deliberately does not have yet.
+ *
+ * Two distinct concerns, kept distinct rather than collapsed into one "limits" row, because they
+ * fail differently: a cost cap bounds the bill, and a status view is how you notice a problem is
+ * happening. Shipping only one of them would leave a real hole that a combined label would hide.
+ *
+ * Per-visitor rate limiting used to be listed here and **shipped** in SPEC-046 REQ-7 — the public
+ * chat endpoint is now bounded at 10 requests / 5 min / IP (`SITE_ASSISTANT_PER_IP` in
+ * `server/middleware/rate-limit.ts`). It is deliberately not surfaced as a *control* yet: the window
+ * is a code constant, not an operator-editable setting, so a row here would imply a knob that does
+ * not exist. Move it into the settings surface above, not back into this list, if it becomes tunable.
+ */
+const ROADMAP: readonly RoadmapItem[] = [
+  {
+    key: "budget",
+    label: "Token / cost budget caps",
+    detail:
+      "Per-day and per-conversation spend ceilings, with the assistant disabling itself when a ceiling is exhausted. Until this exists, the switch above is the only spending control.",
+  },
+  {
+    key: "status",
+    label: "Live status and recent activity",
+    detail:
+      "Assistant health, recent conversation counts, and spend to date — the view that would tell you a budget or rate-limit problem is happening while it is happening.",
+  },
+];
+&nbsp;
+/** Shared 16px icon frame, so a tab's glyph can be written as bare path data. Same helper, same
+ *  reason, as `features/settings/SettingsUi.tsx`'s — kept local rather than exported from there because that
+ *  file is a screen, not a component library, and importing a screen for one SVG wrapper would couple
+ *  two unrelated sections. If a third screen needs it, that is the point to promote it. */
+function TabIcon({ children }: { children: React.ReactNode }) {
+  return (
+    &lt;svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5"&gt;
+      {children}
+    &lt;/svg&gt;
+  );
+}
+&nbsp;
+// `t` is required: the only caller (`AiAssistant`) always threads its own, so a default never applied.
+function RoadmapChecklist({ t }: { t: (key: string) =&gt; string }) {
+  return (
+    &lt;section className="assistant-roadmap"&gt;
+      &lt;h2&gt;{t("Not built yet")}&lt;/h2&gt;
+      &lt;p className="muted-cell"&gt;
+        {t(
+          "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.",
+        )}
+      &lt;/p&gt;
+      {ROADMAP.map((item) =&gt; (
+        &lt;details key={item.key}&gt;
+          &lt;summary&gt;
+            {/* Disabled and unchecked: this is a status marker, not a control. A live-looking
+                checkbox here would imply the feature can be enabled from this screen. */}
+            &lt;input type="checkbox" checked={false} disabled readOnly aria-hidden="true" tabIndex={-1} /&gt;
+            &lt;span&gt;{t(item.label)}&lt;/span&gt;
+            &lt;span className="assistant-roadmap-tag"&gt;{t("Not implemented")}&lt;/span&gt;
+          &lt;/summary&gt;
+          &lt;p className="muted-cell"&gt;{t(item.detail)}&lt;/p&gt;
+        &lt;/details&gt;
+      ))}
+    &lt;/section&gt;
+  );
+}
+&nbsp;
+/**
+ * Opens or closes the admin's own assistant dock — the same thing the floating action button does.
+ *
+ * ## Why this exists when a FAB already does it
+ *
+ * The FAB is a single 56px circle pinned to the bottom-right corner, and it has a history of not
+ * being where the operator expects it. If it is ever off-screen, obscured, or simply not noticed,
+ * the admin assistant becomes unreachable with no other affordance anywhere in the product. This is
+ * the discoverable, keyboard-reachable fallback: a labelled control on the page that is *about* the
+ * assistant, which is where someone looking for it would go.
+ *
+ * Deliberately NOT a persisted setting, unlike the public-site switch directly above it. The admin
+ * assistant is always available to a signed-in administrator (see that switch's own copy) — there is
+ * nothing to enable. This reflects and drives panel visibility for the current session only, which
+ * is why it reads its value live rather than from `settings`. State lives in
+ * `hooks/use-admin-assistant-switch.hooks.ts`.
+ */
+interface AdminAssistantSwitchProps {
+  /**
+   * Dependency injection seam for tests — the same convention `features/posts/Posts.tsx`'s
+   * `usePostsHook` uses. Defaulted to the real hook, so production callers pass nothing.
+   */
+  useAdminAssistantSwitchHook?: typeof useAdminAssistantSwitch;
+  /** `AiAssistant`'s own `t`, threaded rather than read here via `useAdminLocale()` directly — see
+   *  that component's own comment for why. Required: its only caller always passes one, so the
+   *  English-passthrough default it used to carry never applied. */
+  t: (key: string) =&gt; string;
+}
+&nbsp;
+function AdminAssistantSwitch({
+  useAdminAssistantSwitchHook = useAdminAssistantSwitch,
+  t,
+}: AdminAssistantSwitchProps) {
+  const { open, setOpen } = useAdminAssistantSwitchHook();
+&nbsp;
+  // No `.notice` wrapper, matching the Visitor tab's switch: this screen's `--page-flow` block
+  // flattens the shell's card chrome so each panel reads as one form on the page's own background.
+  // The two inline explainer paragraphs were removed (owner, 2026-10-09): the label says what it
+  // does, and the ⓘ carries the one sentence that is still useful.
+  return (
+    &lt;div className="assistant-switch"&gt;
+      &lt;AssistantToggleRow t={t} label={t("Open the assistant panel")}
+        info={t("Shows or hides the assistant panel in this admin.")}
+        checked={open} onChange={setOpen}
+        inputProps={agentHandle({ handle: "ai-assistant-admin-dock-toggle" }, { role: "field", label: "Open the assistant panel" })} /&gt;
+    &lt;/div&gt;
+  );
+}
+&nbsp;
+/**
+ * Execution mode for the ADMIN's own assistant — the Local CLI / BYOK segmented control and the
+ * detected-CLI grid, mounted here directly under {@link AdminAssistantSwitch}.
+ *
+ * ## Copied, not moved
+ *
+ * `features/settings/SettingsUi.tsx`'s "Execution mode" tab still exists and still renders the same
+ * `ExecutionTab` against the same ledger namespace. This is a second mount of one component over one
+ * store, not a fork and not a relocation: both screens read and write `core.execution`, so a change
+ * made here is visible there and vice versa. That is the intended behaviour — the setting has one
+ * home in the ledger and two places an operator might look for it — but it does mean the two mounts
+ * cannot be allowed to drift in their props. If one gains a prop that changes what gets stored, the
+ * other needs it too.
+ *
+ * ## Why this belongs on the Admin tab
+ *
+ * This is the tab about the assistant in THIS admin, and execution mode is the single setting that
+ * decides what actually answers it: a CLI detected on the Tovu server, or a BYOK key held in this
+ * browser. The switch above only shows and hides the panel. Everything that determines whether the
+ * panel can do anything is here.
+ *
+ * ## The port, and the one thing it must not do
+ *
+ * `createExecutionPort({ useAdminStoredCredential: true })` — the same call `SettingsUi.tsx` makes.
+ * The `useStoredCredential: true` opt-in that {@link VisitorCredentialForm} passes must never appear
+ * here: that flag makes the probe routes fall back to the SITE's server-side visitor credential, and
+ * this screen is about the admin's own key. Opting in would silently test a different key than the
+ * one this tab configures.
+ *
+ * `useAdminStoredCredential` is the correct flag for that same key, which is server-side and
+ * write-only since 2026-08-05 — so the field this screen renders is legitimately empty and the
+ * probes had nothing to send. It is what makes the Model field a live picker here instead of the
+ * free-text box it fell back to. See `lib/execution-settings.ts`'s comments on both options for the
+ * full reasoning. State lives in `hooks/use-admin-execution-mode.hooks.ts`.
+ */
+interface AdminExecutionModeProps {
+  useExecutionPolicy?: typeof useTovuExecutionPolicy;
+  useAdminExecutionModeHook?: typeof useAdminExecutionMode;
+  /**
+   * Dependency injection seam for tests — same convention as `useAdminExecutionModeHook` above, and
+   * the same seam `SettingsUi.tsx`'s own `useAdminExecutionCredentialHook` prop opens over the SAME
+   * shared hook. Was an inline `useWiredAdminExecutionCredential({...})` call in the body until this
+   * pass; the two mounts must stay consistent (see this component's own "must never disagree" doc
+   * above), so both convert together rather than one seaming ahead of the other.
+   */
+  useAdminExecutionCredentialHook?: typeof useWiredAdminExecutionCredential;
+  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. */
+  t?: (key: string) =&gt; string;
+}
+&nbsp;
+/**
+ * Resolves `t` to the English-passthrough default when a caller passes none — same
+ * `??`-avoidance idiom `MenuEditor.tsx`'s `orEmpty`/`AssistantDock.tsx`'s/`App.tsx`'s resolver
+ * groups use (2026-08-14, DI migration sweep's complexity follow-up): ESLint's
+ * cyclomatic-complexity rule counts a default parameter value inside a function's OWN body as one
+ * of that function's own branches — a call out to a separately-scoped resolver does not. Shared by
+ * `AdminExecutionMode` and `VisitorCredentialKeyFooter` below, since both use the identical
+ * `(key: string) =&gt; key` fallback.
+ */
+function resolveT(override: ((key: string) =&gt; string) | undefined): (key: string) =&gt; string {
+  return override ?? ((key: string) =&gt; key);
+}
+function resolveAdminExecutionModeHook(
+  override: typeof useAdminExecutionMode | undefined
+): typeof useAdminExecutionMode {
+  return override ?? useAdminExecutionMode;
+}
+function resolveAdminExecutionCredentialHook(
+  override: typeof useWiredAdminExecutionCredential | undefined
+): typeof useWiredAdminExecutionCredential {
+  return override ?? useWiredAdminExecutionCredential;
+}
+&nbsp;
+/** Exported (unlike `AdminAssistantSwitch`) so `AdminExecutionMode.unit.test.tsx` can drive its two
+ *  DI seams directly, the same way `VisitorCredentialForm` is exported for its own test file. */
+export function AdminExecutionMode(props: AdminExecutionModeProps) {
+  // No `AdminExecutionModeProps = {}` default on the parameter itself (2026-08-14, same reasoning
+  // as `App.tsx`'s own removal): every real call site is JSX, which always constructs an actual
+  // props object — `{}` when no attributes are given, never `undefined` — and every field on
+  // `AdminExecutionModeProps` is optional, so `{}` still satisfies the type.
+  const useAdminExecutionModeHook = resolveAdminExecutionModeHook(props.useAdminExecutionModeHook);
+  const useAdminExecutionCredentialHook = resolveAdminExecutionCredentialHook(props.useAdminExecutionCredentialHook);
+  const t = resolveT(props.t);
+  const { port, execution } = useAdminExecutionModeHook();
+  const locale = useAdminLocale();
+  const executionPolicy = useTovuSettingsExecution({ config: execution.value, onChange: execution.onChange, locale }, { usePolicy: props.useExecutionPolicy });
+&nbsp;
+  // Called unconditionally, ahead of the `execution.value === null` gate below (rules of hooks) —
+  // same reasoning `SettingsUi.tsx`'s identical call documents: the credential hook's own effects
+  // don't read `byok` until an explicit Save/migrate press, and the panel this feeds isn't rendered
+  // until past the gate anyway.
+  const adminCredential = useAdminExecutionCredentialHook({
+    byok: execution.value?.byok ?? DEFAULT_EXECUTION_CONFIG.byok,
+    onByokChange: (byok) =&gt; execution.onChange({ ...(execution.value ?? DEFAULT_EXECUTION_CONFIG), byok }),
+  });
+&nbsp;
+  // `null` until the initial ledger read settles. Rendering `ExecutionTab` against the default config
+  // in the meantime would show "Local CLI" selected for a workspace that has BYOK stored, and the
+  // first edit would then diff against a base that was never what was persisted.
+  if (execution.value === null) return &lt;p className="muted-cell"&gt;{t("Loading execution settings…")}&lt;/p&gt;;
+&nbsp;
+  return (
+    &lt;section className="assistant-execution" data-tovu-local-cli={executionPolicy.visibility}&gt;
+      {execution.loadError ? &lt;div className="save-error"&gt;{execution.loadError}&lt;/div&gt; : null}
+      &lt;AdminByokMigrationPrompt controller={adminCredential} agentHandle="ai-assistant-admin-byok-migration" /&gt;
+      {executionPolicy.note &amp;&amp; &lt;p className="muted-cell" role="status"&gt;{executionPolicy.note}&lt;/p&gt;}
+      &lt;ExecutionTab
+        presets={DEFAULT_PROVIDER_PRESETS}
+        config={executionPolicy.config}
+        onConfigChange={executionPolicy.onConfigChange}
+        localCliUnavailableReason={executionPolicy.unavailableReason}
+        port={port.current}
+        // Detection runs wherever the Tovu SERVER runs. On desktop that is this computer;
+        // on a deployed CMS it is a different one. Share Settings' bridge-based scope copy
+        // so neither mount makes a false claim about whose CLIs these are.
+        localCliScopeLabel={tExecution({ locale, key: localCliScopeCopy({ desktop: isDesktopAdmin({}) }) })}
+        // The admin's own BYOK credential is encrypted server-side and write-only (2026-08-05) —
+        // same six pass-through props `SettingsUi.tsx`'s mount sets, and for the same "must never
+        // disagree" reason this file's own header already documents for `useStoredCredential`. The
+        // two footers write DISJOINT patches (key vs. settings); see
+        // `hooks/use-admin-execution-credential.hooks.ts`. `canDiscoverModels` keeps a provider switch
+        // from probing with a key saved for another endpoint; `describeProbeError` words the server's
+        // endpoint-pin refusals in plain language (`lib/stored-credential-endpoint.ts`).
+        apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
+        apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
+        canDiscoverModels={adminCredential.canDiscoverModels}
+        describeProbeError={createProbeErrorDescriber(t)}
+        apiKeyFooter={&lt;AdminByokKeyFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-key" t={t} /&gt;}
+        formFooter={&lt;AdminByokSettingsFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-settings" t={t} /&gt;}
+      /&gt;
+      {/*
+        Save feedback for the ledger's OWN debounced auto-save — `SettingsUi.tsx` gets the equivalent
+        from its page chrome (`mergeSaveStates` across six slices); this screen has no such chrome, so
+        without a line here Local CLI edits (mode switch, agent pick, env change — none of which have
+        an explicit save button) would be completely silent. Local CLI mode ONLY: every BYOK field
+        edit routes through this SAME `execution.onChange` (see `ByokProviderForm`'s `onConfigChange`),
+        so while BYOK is selected this line used to fire in parallel with whichever of the two footers
+        above just confirmed its own save — two stacked "Saved." lines under one button press (owner-
+        reported). BYOK mode's two explicit buttons already own all user-facing save confirmation for
+        their fields, so this generic line has nothing left to say there.
+      */}
+      {executionPolicy.config.mode === "local-cli" ? (
+        &lt;&gt;
+          &lt;p className="assistant-save-line" role="status"&gt;
+            {execution.saveState.status === "saving" ? t("Saving…") : null}
+            {execution.saveState.status === "saved" ? t("Saved.") : null}
+          &lt;/p&gt;
+          {execution.saveState.status === "error" ? &lt;div className="save-error"&gt;{execution.saveState.message}&lt;/div&gt; : null}
+        &lt;/&gt;
+      ) : null}
+    &lt;/section&gt;
+  );
+}
+&nbsp;
+/**
+ * Manual recovery control for the Local CLI daemon process `AdminExecutionMode` just configured —
+ * the "human's not gonna know how to restart a Node process" seam
+ * (`server/routes/admin/system/assistant-daemon.ts`, backed by `src/assistant/daemon-supervisor.ts`).
+ *
+ * Renders directly under `AdminExecutionMode` in the same tab, not on its own tab: this control is
+ * only meaningful in the context of "Local CLI" mode (a BYOK-mode admin has no daemon process to
+ * restart), and putting it beside the mode picker keeps that context visible without a separate
+ * screen having to re-explain it.
+ *
+ * ## Why this never says "restarted successfully" or "healthy"
+ *
+ * `restart()`'s own contract (`use-assistant-daemon-restart.hooks.ts`) is that a restart being
+ * ACCEPTED and the daemon becoming HEALTHY are two different facts, and only the first one is ever
+ * knowable from this button press — there is no "daemon became healthy" signal anywhere in
+ * `daemon-supervisor.ts`. This component's copy is written to match that exactly: the result line
+ * says "accepted", never "restarted" on its own, and the status line below it says "no known
+ * failure right now" rather than "healthy". Reporting anything stronger would repeat the same
+ * lying-comment failure mode a past defect in this repo was caused by.
+ */
+interface AssistantDaemonRestartProps {
+  useExecutionPolicy?: typeof useTovuExecutionPolicy;
+  /** Dependency injection seam for tests — same convention as `AdminExecutionModeProps
+   *  .useAdminExecutionModeHook`. */
+  useAssistantDaemonRestartHook?: () =&gt; AssistantDaemonRestartController;
+  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. */
+  t?: (key: string) =&gt; string;
+}
+&nbsp;
+function resolveAssistantDaemonRestartHook(
+  override: (() =&gt; AssistantDaemonRestartController) | undefined
+): () =&gt; AssistantDaemonRestartController {
+  return override ?? useWiredAssistantDaemonRestart;
+}
+&nbsp;
+/** The status line under the button — one of three mutually exclusive messages keyed on
+ *  `knownFailed`/`checkingStatus`/`statusError`. Pulled to a top-level pure function for the same
+ *  reason `visitorCredentialKeyStatusMessage` above is: an independently testable decision instead
+ *  of a ternary chain inline in the component's JSX. */
+export function assistantDaemonStatusMessage(
+  controller: Pick&lt;AssistantDaemonRestartController, "knownFailed" | "checkingStatus" | "statusError"&gt;,
+  t: Translate = (key) =&gt; key
+): string | null {
+  if (controller.statusError) return controller.statusError;
+  if (controller.checkingStatus &amp;&amp; controller.knownFailed === null) return t("Checking status…");
+  if (controller.knownFailed === true) return t("Known failed — the last attempt to start it did not succeed.");
+  if (controller.knownFailed === false) return t("No known failure right now.");
+  return null;
+}
+&nbsp;
+export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
+  const useAssistantDaemonRestartHook = resolveAssistantDaemonRestartHook(props.useAssistantDaemonRestartHook);
+  const t = resolveT(props.t);
+  const controller = useAssistantDaemonRestartHook();
+  const { restarting, restartResult, restartError, checkingStatus, checkStatus, restart } = controller;
+  const statusMessage = assistantDaemonStatusMessage(controller, t);
+  // This panel only reads the policy's `allowed` verdict and never edits the execution config, so
+  // it calls the policy hook directly rather than the settings adapter (`useTovuSettingsExecution`),
+  // whose required config-change sink would have been a no-op nobody could ever invoke here.
+  const usePolicy = props.useExecutionPolicy ?? useTovuExecutionPolicy;
+  const executionPolicy = usePolicy({ config: DEFAULT_EXECUTION_CONFIG, locale: useAdminLocale() });
+  if (!executionPolicy.allowed) return null;
+&nbsp;
+  return (
+    &lt;section className="assistant-daemon-restart"&gt;
+      &lt;h2&gt;{t("Local CLI process")}&lt;/h2&gt;
+      &lt;p className="muted-cell"&gt;
+        {t(
+          "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that."
+        )}
+      &lt;/p&gt;
+      &lt;div className="assistant-daemon-restart-actions"&gt;
+        &lt;button
+          type="button"
+          className="btn-secondary"
+          onClick={() =&gt; void restart()}
+          disabled={restarting}
+          {...agentHandle({ handle: "ai-assistant-daemon-restart" }, { role: "button", label: "Restart the Local CLI assistant process" })}
+        &gt;
+          {restarting ? t("Restarting…") : t("Restart assistant")}
+        &lt;/button&gt;
+        &lt;button
+          type="button"
+          className="btn-secondary"
+          onClick={() =&gt; void checkStatus()}
+          disabled={checkingStatus}
+          {...agentHandle({ handle: "ai-assistant-daemon-check-status" }, { role: "button", label: "Check the Local CLI assistant process status" })}
+        &gt;
+          {t("Check status")}
+        &lt;/button&gt;
+      &lt;/div&gt;
+      {restartError ? &lt;div className="save-error"&gt;{restartError}&lt;/div&gt; : null}
+      {!restartError &amp;&amp; restartResult ? (
+        &lt;p className="assistant-save-line" role="status"&gt;
+          {restartResult.ok
+            ? t("Restart accepted. This does not confirm the process is healthy yet — check the status below.")
+            : t("Restart refused: {reason}").replace("{reason}", restartResult.reason ?? "")}
+        &lt;/p&gt;
+      ) : null}
+      {statusMessage ? &lt;p className="muted-cell" role="status"&gt;{statusMessage}&lt;/p&gt; : null}
+    &lt;/section&gt;
+  );
+}
+&nbsp;
+/**
+ * The SITE's provider credential — the key that lets anonymous VISITORS chat on the deployed public
+ * site. Reuses `@jini-ai/ui`'s `ByokProviderForm` unmodified, the same component
+ * `features/settings/SettingsUi.tsx`'s Execution-mode tab renders, because this is deliberately the same
+ * credential-entry surface rather than a lookalike.
+ *
+ * ## The distinction this tab exists to make legible
+ *
+ * There are two API keys in this product and until now only one of them had a screen, which is why
+ * an operator could save a key, see it persisted, and still get nothing on their public site:
+ *
+ * - **Settings → AI agent → BYOK** is the ADMIN's own key. `lib/execution-settings.ts` stores
+ *   it browser-local on purpose (its own comment: "the browser is the source of truth for `apiKey`
+ *   (the ledger never sees it)"). It powers the assistant dock in THIS browser. A deployed server
+ *   never sees it, and it cannot serve visitors.
+ * - **This tab** is the SITE's key. It must live server-side, because the thing consuming it is
+ *   `src/server/modules/site-assistant.ts` answering anonymous internet traffic on a machine the
+ *   admin's browser is not.
+ *
+ * That is why the copy below states it in plain language rather than relying on the tab title: the
+ * failure mode is silent, and an operator who assumes the Settings key covers this gets a visitor
+ * assistant that is enabled, mounted, and permanently unable to answer.
+ *
+ * ## Saving
+ *
+ * Wired to ADR-058's encrypted server-side store (`GET`/`PUT`/`DELETE
+ * /api/admin/v1/workspaces/:id/assistant/site-credential`), which encrypts at rest under a
+ * deploy-time site key rather than putting a secret in the ADR-028 settings ledger.
+ *
+ * Writing is an explicit press of one of TWO buttons — "Save key" writes the key, "Save settings"
+ * writes provider/base URL/model and never a key (owner ruling, 2026-09-02; the single overloaded
+ * Save could not honestly report which of its two jobs it had just done). See
+ * `hooks/use-visitor-credential-form.hooks.ts`'s `saveVisitorKey`/`saveVisitorSettings` for that
+ * split and for why the earlier debounced auto-save was removed (it made every keystroke in a
+ * credential field a write, and destroyed a live key during development), and `dirty` for why a mount
+ * or a hydration can never trigger one.
+ *
+ * ⚠️ Operationally required: the server must have `TOVU_SITE_KEY` (hex) set, or every
+ * save answers `503 SECRET_STORE_UNCONFIGURED`. That is ADR-058 failing CLOSED on purpose — a
+ * missing site key must not silently mint a key file — not a bug in this screen. `rules.ts`'s
+ * `describeApiError` translates it into copy that tells the operator their key is fine and the
+ * server is not.
+ */
+/** The "test it, see what it allows, know it saved" trio directly under the key field — the Save
+ *  button, the Test Key button, and the discovery/save status lines. Split out of
+ *  `VisitorCredentialForm` per the complexity-pass extraction rule: this block alone accounted for
+ *  nearly all of the parent's branches (the Save/Test-Key `disabled` conditions, the three
+ *  discovery-status lines, the five save-state lines), so pulling it into its own top-level
+ *  component — mirroring `AdminExecutionMode`'s own `AdminByokKeyFooter` split immediately above in
+ *  this same file — is what actually moved the parent's score, not just its ESLint per-closure one. */
+type VisitorCredentialKeyFooterProps = Pick&lt;
+  VisitorCredentialFormController,
+  "saveState" | "stored" | "storedKeyIsForOtherEndpoint" | "discovery"
+&gt; &amp; {
+  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. Defaults to English
+   *  passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct renders (no `t` passed) keep
+   *  finding "Save key"/"Test Key" by their exact English accessible names. */
+  t?: (key: string) =&gt; string;
+};
+&nbsp;
+/** The "Save model settings" control and its status line, directly under Model — the
+ *  sibling of {@link VisitorCredentialKeyFooter}, and separate from it for the same reason the admin
+ *  panel's two footers are separate: two buttons writing two disjoint patches belong beside the
+ *  fields each one writes, and neither may report the other's work. */
+type VisitorCredentialSettingsFooterProps = Pick&lt;
+  VisitorCredentialFormController,
+  "dirty" | "settingsSaveState" | "saveSettings"
+&gt; &amp; {
+  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. */
+  t?: (key: string) =&gt; string;
+};
+&nbsp;
+/** The status span next to the Save/Test Key buttons — one of three mutually exclusive messages
+ *  keyed on `discovery.status`. Pulled to a top-level pure function, same reasoning as
+ *  `visitorCredentialApiKeyPlaceholder` above: it was three sibling ternaries in the footer's JSX,
+ *  now one independently testable decision. */
+/**
+ * @param t - `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. Defaults to
+ *   English passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct, locale-unaware calls
+ *   keep asserting the exact English strings they always have.
+ */
+/** {@link visitorCredentialKeyStatusMessage}'s idle line on its own: always a string, so the Test key
+ *  ⓘ reads it without a null fallback that could never apply. */
+function visitorCredentialKeyIdleMessage(t: Translate): string {
+  return t("Checks the key against the provider and lists the models it can use.");
+}
+&nbsp;
+export function visitorCredentialKeyStatusMessage(
+  discovery: VisitorCredentialFormController["discovery"],
+  t: Translate = (key) =&gt; key,
+): string | null {
+  if (discovery.status === "ok") {
+    return t("Key works — {count} models available.").replace("{count}", String(discovery.models.length));
+  }
+  if (discovery.status === "idle") return visitorCredentialKeyIdleMessage(t);
+  if (discovery.status === "loading") return t("Asking the provider which models this key allows…");
+  return null;
+}
+&nbsp;
+/** The Save key / Test Key pair, on the key input's own line (`ByokProviderForm`'s `apiKeyActions`,
+ *  2026-10-09 redesign). Split from {@link VisitorCredentialKeyFooter}, which keeps the status lines
+ *  under the field: buttons beside the input they act on, results on their own full-width lines. */
+type VisitorCredentialKeyActionsProps = Pick&lt;
+  VisitorCredentialFormController,
+  "config" | "saveState" | "hasUsableKey" | "discovery" | "saveKey" | "runKeyTest" | "stored" | "storedKeyIsForOtherEndpoint"
+&gt; &amp; { t?: (key: string) =&gt; string };
+&nbsp;
+export function VisitorCredentialKeyActions({
+  config,
+  saveState,
+  hasUsableKey,
+  discovery,
+  saveKey,
+  runKeyTest,
+  stored,
+  storedKeyIsForOtherEndpoint,
+  t: tProp,
+}: VisitorCredentialKeyActionsProps) {
+  const t = resolveT(tProp);
+  // The two IDLE status lines are instructions, so each rides in an ⓘ beside the button it explains
+  // (owner, 2026-10-09); results still print under the field (`VisitorCredentialKeyFooter`).
+  const testInfo = visitorCredentialKeyIdleMessage(t);
+  const saveInfo = visitorCredentialSaveIdleMessage({ stored, t, storedKeyIsForOtherEndpoint });
+  return (
+    &lt;&gt;
+      {/* An explicit "Test Key" control, in addition to the debounced automatic discovery. Two
+          reasons, and the second is the important one:
+&nbsp;
+          1. The automatic path only fires against a PRESET-supplied endpoint (see the security
+             gate in `rules.ts`). For a custom or hand-typed base URL, this button is the only way
+             to discover models — and being an explicit, deliberate press is exactly what makes
+             sending the credential to an operator-chosen host acceptable there.
+          2. Even on a preset endpoint, "type a key and wait for a list to appear" is a weak
+             affordance: nothing tells the operator whether the key was accepted, rejected, or
+             simply not looked at yet. A button that reports a count answers the question they
+             actually have, which is "is this key any good?" */}
+      &lt;button
+        type="button"
+        className="jini-btn jini-byok-test-btn"
+        onClick={() =&gt; void runKeyTest()}
+        // `hasUsableKey`, not `config.apiKey.trim()`. A stored key is a perfectly testable
+        // key — the server has it even though this field is empty — and disabling the
+        // control told the operator their working credential could not be checked.
+        disabled={!hasUsableKey || discovery.status === "loading"}
+        {...agentHandle({ handle: "ai-assistant-visitor-test-key" }, { role: "button", label: "Test the visitor-facing API key against the provider" })}
+      &gt;
+        {discovery.status === "loading" ? t("Testing…") : t("Test key")}
+      &lt;/button&gt;
+      &lt;InfoTip label={testInfo} triggerLabel={t("More info: {name}").replace("{name}", t("Test key"))} agentHandle="ai-assistant-visitor-test-key-info" /&gt;
+      {/* The ONLY control that writes the KEY on this screen (its sibling
+          `VisitorCredentialSettingsFooter` writes the other fields, and never a key).
+&nbsp;
+          Disabled whenever the field is blank, stored key or not: this button's only job is to
+          write the key, and an empty field has no key to write. A stored key does NOT re-enable
+          it — the same narrowing the admin panel's Save key already carries. */}
+      &lt;button
+        type="button"
+        className="btn-primary"
+        onClick={() =&gt; void saveKey()}
+        disabled={!config.apiKey.trim() || saveState.status === "saving"}
+        {...agentHandle({ handle: "ai-assistant-visitor-save-key" }, { role: "button", label: "Save the visitor-facing API key" })}
+      &gt;
+        {saveState.status === "saving" ? t("Saving…") : t("Save key")}
+      &lt;/button&gt;
+      &lt;InfoTip label={saveInfo} triggerLabel={t("More info: {name}").replace("{name}", t("Save key"))} agentHandle="ai-assistant-visitor-save-key-info" /&gt;
+    &lt;/&gt;
+  );
+}
+&nbsp;
+/** Status lines under the key field: what Test Key found, and whether the key saved. */
+export function VisitorCredentialKeyFooter({
+  saveState,
+  stored,
+  storedKeyIsForOtherEndpoint,
+  discovery,
+  t: tProp,
+}: VisitorCredentialKeyFooterProps) {
+  // `t`'s default is resolved through `resolveT` (see that function's own doc, next to
+  // `AdminExecutionMode` above) rather than inline here — keeps this function's cyclomatic
+  // complexity under the ceiling.
+  const t = resolveT(tProp);
+  const lines = visitorKeyFooterLines({ discoveryStatus: discovery.status, saveStatus: saveState.status, storedKeyIsForOtherEndpoint });
+  const keyStatus = lines.keyStatus ? visitorCredentialKeyStatusMessage(discovery, t) : null;
+  return (
+    &lt;div className="assistant-key-footer"&gt;
+      {keyStatus ? &lt;p className="assistant-key-status" role="status"&gt;{keyStatus}&lt;/p&gt; : null}
+&nbsp;
+      {/* `t` passes a provider's own error text through unchanged; it translates only this screen's
+          own plain-language probe copy (`lib/stored-credential-endpoint.ts`'s `describeProbeError`). */}
+      {discovery.status === "error" ? &lt;div className="save-error"&gt;{t(discovery.message)}&lt;/div&gt; : null}
+&nbsp;
+      {/*
+        No model picker here, deliberately: `ByokProviderForm`'s own Model field renders a real
+        searchable picker whenever live discovery returns models, so there is one model control
+        (a second "Model for visitors" select here once edited the same value four fields apart).
+      */}
+&nbsp;
+      {/* Save key's status line — see `visitorCredentialSaveStatusMessage`'s own doc comment for
+          the mask/placeholder reasoning, and for why `dirty` is no longer read here. */}
+      {lines.saveLine ? &lt;p className="assistant-save-line"&gt;{visitorCredentialSaveStatusMessage(saveState, stored, t, storedKeyIsForOtherEndpoint)}&lt;/p&gt; : null}
+      {saveState.status === "error" ? &lt;div className="save-error"&gt;{t(saveState.message)}&lt;/div&gt; : null}
+    &lt;/div&gt;
+  );
+}
+&nbsp;
+/**
+ * The "Save model settings" control and status line, in `ByokProviderForm`'s `modelFooter` slot.
+ * It saves Model plus the Base URL and Max tokens inside Advanced; it never writes the key.
+ *
+ * Gated on `dirty` exactly as the old single Save was: this is the button that could otherwise
+ * offer, on load, to write back the values the server just sent — or, if hydration had failed, this
+ * form's hardcoded defaults over a perfectly good stored credential. See the controller's `dirty`
+ * doc. It is NOT gated on the key field, because settings are not the key.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function VisitorCredentialSettingsFooter({
+  dirty,
+  settingsSaveState,
+  saveSettings,
+  t: tProp,
+}: VisitorCredentialSettingsFooterProps) {
+  const t = resolveT(tProp);
+  const statusLine = visitorCredentialSettingsStatusMessage(settingsSaveState, t);
+&nbsp;
+  return (
+    &lt;div className="assistant-settings-footer"&gt;
+      &lt;div className="assistant-key-actions"&gt;
+        {/* `.btn-primary`, the same burnt-orange as Save key — see `AdminByokKeyPanel.tsx`'s
+            identical button for the reasoning. The two panels must not disagree about this. */}
+        &lt;button
+          type="button"
+          className="btn-primary"
+          onClick={() =&gt; void saveSettings()}
+          disabled={!dirty || settingsSaveState.status === "saving"}
+          {...agentHandle({ handle: "ai-assistant-visitor-save-settings" }, { role: "button", label: "Save the visitor assistant's provider/model settings" })}
+        &gt;
+          {settingsSaveState.status === "saving" ? t("Saving…") : t("Save model settings")}
+        &lt;/button&gt;
+      &lt;/div&gt;
+      {statusLine ? &lt;p className="assistant-save-line"&gt;{statusLine}&lt;/p&gt; : null}
+      {settingsSaveState.status === "error" ? &lt;div className="save-error"&gt;{t(settingsSaveState.message)}&lt;/div&gt; : null}
+    &lt;/div&gt;
+  );
+}
+&nbsp;
+export { visitorCredentialApiKeyPlaceholder } from "./rules";
+&nbsp;
+interface VisitorCredentialFormProps {
+  useVisitorCredentialFormHook?: typeof useWiredVisitorCredentialForm;
+  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. Defaults to English
+   *  passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct render (no `t` passed) keeps
+   *  finding "Provider"/the intro copy by their exact English text. */
+  t?: (key: string) =&gt; string;
+}
+&nbsp;
+export function VisitorCredentialForm({
+  useVisitorCredentialFormHook = useWiredVisitorCredentialForm,
+  t = (key: string) =&gt; key,
+}: VisitorCredentialFormProps = {}) {
+  const {
+    loadState,
+    config,
+    editConfig,
+    preset,
+    discovery,
+    connectionTest,
+    stored,
+    saveState,
+    settingsSaveState,
+    dirty,
+    hasUsableKey,
+    storedKeyIsForOtherEndpoint,
+    providerGroups,
+    selectPresetById,
+    saveKey,
+    saveSettings,
+    runKeyTest,
+    runTestConnection,
+  } = useVisitorCredentialFormHook();
+&nbsp;
+  /**
+   * The provider picker — ONE native `&lt;select&gt;` labelled "Provider", with "Protocols" and
+   * "Gateways" optgroups (owner, 2026-10-09). It replaced a chip row: six chips spread across the
+   * page for a choice made once. A native select is keyboard- and screen-reader-complete for free.
+   *
+   * Picking an option runs the same `selectPreset` the chips ran (via the hook's
+   * `selectPresetById`), so autosave and field population are identical. See
+   * `hooks/use-visitor-credential-form.hooks.ts`'s `selectPreset` for the non-obvious snapshotting
+   * behaviour behind switching providers, and `rules.ts`'s `configuredPresetIds` for what an
+   * option's "(configured)" suffix — the chips' filled dot — actually claims. The default (saved
+   * provider, else Anthropic) is decided in the hook and `rules.ts`, not here.
+   */
+  const providerSelectId = useId();
+  const apiKeyPlaceholder = useStoredCredentialHint({ stored, storedKeyIsForOtherEndpoint });
+&nbsp;
+  if (loadState.status === "loading") return &lt;p role="status"&gt;{t("Loading saved settings…")}&lt;/p&gt;;
+  if (loadState.status === "error") return &lt;p role="alert"&gt;{t(loadState.message)}&lt;/p&gt;;
+&nbsp;
+  return (
+    &lt;&gt;
+      {/* Same `jini-settings-byok` section wrapper `ExecutionTab` puts around its provider picker and
+          form, so the form inherits the spacing the shared stylesheet already defines for it. */}
+      &lt;section className="jini-settings-section jini-settings-byok"&gt;
+        &lt;div className="visitor-inline-field"&gt;
+          &lt;label htmlFor={providerSelectId}&gt;{t("Provider")}&lt;/label&gt;
+          &lt;select id={providerSelectId} className="jini-input visitor-compact-select" value={preset?.id ?? ""}
+            onChange={(event) =&gt; selectPresetById(event.target.value)}
+            {...agentHandle({ handle: "ai-assistant-visitor-provider" }, { role: "field", label: "Visitor assistant provider" })}&gt;
+            {preset ? null : &lt;option value="" disabled&gt;{t("Custom endpoint")}&lt;/option&gt;}
+            {providerGroups.map((group) =&gt; (
+              &lt;optgroup key={group.label} label={t(group.label)}&gt;
+                {group.options.map(({ preset: option, configured }) =&gt; (
+                  &lt;option key={option.id} value={option.id}&gt;
+                    {configured ? t("{name} (configured)").replace("{name}", option.title) : option.title}
+                  &lt;/option&gt;
+                ))}
+              &lt;/optgroup&gt;
+            ))}
+          &lt;/select&gt;
+        &lt;/div&gt;
+&nbsp;
+      {/* `canTestConnection` left at its default (true): the probe is real here. It posts the typed
+          key to the same admin route the Settings screen uses, so it answers "is this key good?"
+&nbsp;
+          `apiKeyActions` / `apiKeyFooter` / `modelFooter` / `collapseAdvanced` are slots added
+          UPSTREAM in `@jini-ai/ui` for this screen rather than a fork of the component — the standing
+          decision on this workstream. Show sits on the key's own line, Test key + Save key in a row
+          under it (owner, 2026-10-09); their results go directly under that; "Save model settings" sits directly under Model;
+          Base URL and Max tokens (rarely changed) fold behind "Advanced" after Model. */}
+      &lt;ByokProviderForm
+        presets={DEFAULT_PROVIDER_PRESETS}
+        config={config}
+        onConfigChange={editConfig}
+        preset={preset}
+        modelDiscovery={discovery}
+        connectionTest={
+          connectionTest.status === "error"
+            ? { ...connectionTest, message: t(connectionTest.message) }
+            : connectionTest
+        }
+        onTestConnection={() =&gt; void runTestConnection()}
+        // Tells the shared form that the empty key field is not a missing required field, so
+        // "Test connection" stops being permanently disabled on a screen whose key lives on the
+        // server. Only affects the emptiness check for `apiKey`; base URL and model still validate.
+        // `hasUsableKey` rather than "a key is stored": a key stored for another endpoint cannot be
+        // probed here, so after a provider switch the field is genuinely required again.
+        apiKeyStoredExternally={hasUsableKey}
+        deferMissingFeedback
+        apiKeyPlaceholder={apiKeyPlaceholder}
+        collapseAdvanced
+        apiKeyActions={
+          &lt;VisitorCredentialKeyActions
+            config={config}
+            saveState={saveState}
+            hasUsableKey={hasUsableKey}
+            discovery={discovery}
+            saveKey={saveKey}
+            runKeyTest={runKeyTest}
+            stored={stored}
+            storedKeyIsForOtherEndpoint={storedKeyIsForOtherEndpoint}
+            t={t}
+          /&gt;
+        }
+        apiKeyFooter={
+          &lt;VisitorCredentialKeyFooter
+            saveState={saveState}
+            stored={stored}
+            storedKeyIsForOtherEndpoint={storedKeyIsForOtherEndpoint}
+            discovery={discovery}
+            t={t}
+          /&gt;
+        }
+        modelFooter={
+          &lt;VisitorCredentialSettingsFooter
+            dirty={dirty}
+            settingsSaveState={settingsSaveState}
+            saveSettings={saveSettings}
+            t={t}
+          /&gt;
+        }
+        /&gt;
+      &lt;/section&gt;
+    &lt;/&gt;
+  );
+}
+&nbsp;
+/**
+ * Bridges `AiAssistant`'s own `locale` to the mounted `I18nProvider`'s active locale. Renders
+ * nothing; see `hooks/use-ai-assistant-locale-sync.hooks.ts` for the full rationale (an
+ * uncontrolled `initialLocale` prop that only applies at mount) — same shape as
+ * `features/settings/SettingsUi.tsx`'s own `SettingsLocaleSync`.
+ *
+ * @complexity O(1) — one equality check per render, no iteration.
+ * @overallScore 100
+ */
+function AiAssistantLocaleSync({
+  locale,
+  useAiAssistantLocaleSyncHook = useWiredAiAssistantLocaleSync,
+}: {
+  locale: string;
+  /** Dependency injection seam for tests — same convention as `PostsProps.usePostsHook`. */
+  useAiAssistantLocaleSyncHook?: typeof useWiredAiAssistantLocaleSync;
+}) {
+  useAiAssistantLocaleSyncHook({ locale });
+  return null;
+}
+&nbsp;
+export interface AiAssistantProps {
+  /**
+   * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   * for `useCustomSelect`, and `features/posts/Posts.tsx`'s `usePostsHook`.
+   *
+   * Defaulted to the real hook, so production callers (`panels.tsx`) pass nothing and behave
+   * exactly as before. A test supplies a stub and drives the visitor on/off switch through any
+   * state without module mocking or a fake `fetch`. The three sub-components below (`AdminAssistantSwitch`,
+   * `AdminExecutionMode`, `VisitorCredentialForm`) take the same seam over their own hooks, for the
+   * same reason — this is the screen with the most independent state in the app.
+   */
+  useAiAssistantHook?: typeof useWiredAiAssistant;
+  /**
+   * The `?tab=` query value from `panels.tsx`'s `ai-assistant` route (`URLSearchParams.get` returns
+   * `null` when the param is absent). Drives which tab the inline shell opens on — same seam and same
+   * `requestedTabId` reasoning as `SettingsUi.tsx`'s own `tabId` prop.
+   */
+  tabId?: string | null;
+}
+&nbsp;
+export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }: AiAssistantProps = {}) {
+  const themeBoundary = useAdminThemeBoundary({}, {});
+  const { settings, loadError, saveError, saving, setPublicEnabled, setWidget } = useAiAssistantHook();
+  const { activeTabId, onTabChange } = useAiAssistantTab({ tabId });
+&nbsp;
+  /**
+   * The one `useWiredAdminLocale()` call for this whole screen — every subcomponent below (
+   * `AdminAssistantSwitch`, `AdminExecutionMode`, `RoadmapChecklist`, `VisitorCredentialForm`, and
+   * that last one's own `VisitorCredentialKeyFooter`) takes the resulting `t` as a prop rather than
+   * calling the hook itself, so switching the Language setting re-fetches once here, not once per
+   * subcomponent — same "take `t` as a prop" shape `features/settings/SettingsUi.tsx`'s own
+   * `AboutPanel({ t })` uses, for the same reason (a component that isn't a descendant of the
+   * `I18nProvider` mounted below can't call that package's own `useT()`).
+   */
+  const locale = useWiredAdminLocale();
+  const t = (key: string): string =&gt; translateAiAssistantLabel({ locale: locale, key: key });
+&nbsp;
+  if (loadError) return &lt;div className="notice error"&gt;{loadError}&lt;/div&gt;;
+  if (!settings) return &lt;div className="notice"&gt;{t("Loading AI assistant settings…")}&lt;/div&gt;;
+&nbsp;
+  /**
+   * Two tabs, split by WHOSE assistant each one configures — not by kind of control.
+   *
+   * Grouping by kind (all switches on one tab, all credentials on another) was the obvious
+   * alternative and is wrong here: the whole defect this screen is being restructured to fix is that
+   * an operator could not tell the visitor assistant and the admin assistant apart, so a layout that
+   * interleaves them would preserve exactly the confusion the copy is spending words undoing. The
+   * public on/off switch and the site's key belong together because they are two halves of one
+   * question ("can visitors use this, and with what"), and the roadmap sits with them because every
+   * gap it lists — cost caps, live spend — is about visitor traffic, not about the admin dock.
+   */
+  const tabs: SettingsDialogTab[] = [
+    {
+      id: "visitor",
+      label: t("Visitor's AI Assistant"),
+      title: t("Visitor's AI Assistant"),
+      subtitle: t("The assistant your published site offers to readers."),
+      icon: (
+        &lt;TabIcon&gt;
+          &lt;circle cx="9" cy="9" r="6.5" /&gt;
+          &lt;path d="M2.5 9h13M9 2.5c1.8 2 2.7 4.2 2.7 6.5S10.8 15 9 15.5C7.2 15 6.3 11.3 6.3 9S7.2 4.5 9 2.5z" /&gt;
+        &lt;/TabIcon&gt;
+      ),
+      // Status pill, then numbered steps (provider/key, widget, enable). See `VisitorAssistantPanel`.
+      // Card-free like before (see `styles.css`'s `--page-flow` flattening block): one form on the
+      // page's own background rather than a stack of boxes.
+      // Inner tabs (owner, 2026-10-22): "AI provider" is this panel unchanged; "Visitor tools" is the
+      // per-tool Auto | Ask first | Off list. See `VisitorAssistantTabs`.
+      panel: (
+        &lt;VisitorAssistantTabs t={t} providerPanel={
+          &lt;VisitorAssistantPanel t={t} CredentialForm={VisitorCredentialForm}
+            controller={{ settings, saving, saveError, setPublicEnabled, setWidget }} /&gt;
+        } /&gt;
+      ),
+    },
+    {
+      id: "admin",
+      label: t("Admin AI Assistant"),
+      title: t("Admin AI Assistant"),
+      subtitle: t("The assistant in this admin, for signed-in administrators."),
+      icon: (
+        &lt;TabIcon&gt;
+          &lt;rect x="3" y="5" width="12" height="9" rx="2.5" /&gt;
+          &lt;path d="M9 5V2.5M6.5 9v.01M11.5 9v.01M7 12h4" /&gt;
+        &lt;/TabIcon&gt;
+      ),
+      panel: (
+        &lt;&gt;
+          {/* The three switches first, in one group (owner, 2026-10-09): subagents and permanent
+              deletes used to sit under the whole CLI grid, a long scroll from the top. */}
+          &lt;div className="assistant-toggles"&gt;
+            &lt;AdminAssistantSwitch t={t} /&gt;
+            &lt;AdminSubagents t={t} /&gt;
+            &lt;AdminPermanentDeletes t={t} /&gt;
+          &lt;/div&gt;
+          &lt;AdminExecutionMode t={t} /&gt;
+          &lt;AssistantDaemonRestart t={t} /&gt;
+        &lt;/&gt;
+      ),
+    },
+    {
+      id: "roadmap",
+      label: t("Not built yet"),
+      title: t("Not built yet"),
+      subtitle: t("Operator controls that are planned but not implemented."),
+      icon: (
+        &lt;TabIcon&gt;
+          &lt;path d="M9 2.5v6.5l4 2.2" /&gt;
+          &lt;circle cx="9" cy="9" r="6.5" strokeDasharray="2.4 2.2" /&gt;
+        &lt;/TabIcon&gt;
+      ),
+      /**
+       * Its own tab rather than a trailing accordion on the visitor tab.
+       *
+       * Worth stating why, because the original placement had a real argument behind it: the roadmap
+       * sat directly under the enable switch so that somebody about to turn the assistant on would
+       * read "no cost ceiling, no live spend view" in the same glance as the switch itself. That
+       * argument was sound when this screen was one column. It stops working once the visitor tab
+       * also carries a credential form — the gaps end up below a fold, after the thing an operator
+       * actually came to do, which is worse than a tab they can see the label of from the top.
+       *
+       * The label stays blunt ("Not built yet") specifically so the tab strip keeps doing the
+       * disclosure job the accordion used to do. A softer label like "Roadmap" would hide it.
+       */
+      panel: &lt;RoadmapChecklist t={t} /&gt;,
+    },
+  ];
+&nbsp;
+  const subtitle = resolveAiAssistantTabSubtitle({ tabs, activeTabId });
+&nbsp;
+  return (
+    &lt;div className="page ai-assistant-page"&gt;
+      &lt;div className="page-header"&gt;
+        &lt;div className="page-header-text"&gt;
+          {/* Reuses the exact nav vocabulary (`admin-nav-i18n.ts`'s `ES` dict) rather than a second,
+              independent translation of the same two words — "Overview" and "AI Assistant" are the
+              sidebar's own kicker/label for this screen. */}
+          &lt;p className="page-kicker"&gt;{translateAdminNavLabel({ locale: locale, key: "Overview" })}&lt;/p&gt;
+          &lt;h1 className="page-title"&gt;{translateAdminNavLabel({ locale: locale, key: "AI Assistant" })}&lt;/h1&gt;
+          &lt;p className="page-description"&gt;{subtitle}&lt;/p&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+&nbsp;
+      {/*
+        Same shell, same props, and the same `presentation="inline"` page mode `features/settings/SettingsUi.tsx`
+        already uses — so this screen inherits that tab chrome rather than growing a second, similar-
+        but-different one. `I18nProvider` is required, not decorative: `ByokProviderForm` and the shell
+        both call `useT()`, and without a provider above them their strings fall back to raw keys.
+        `syncDocumentAttributes={false}` for the identical reason SettingsUi documents — only this
+        panel's content is translated, so claiming a document-wide language would misinform assistive
+        tech about the untranslated rest of the admin.
+&nbsp;
+        `initialLocale={locale}`, not the hardcoded `"en"` this used to read — `SETTINGS_DIALOG_DICTIONARIES`
+        already ships an `es` dictionary (the same one `SettingsUi.tsx`'s own mount uses), so this is
+        what makes `ByokProviderForm`'s/`SettingsDialogShell`'s OWN internal chrome (field labels,
+        hints, "Test connection", the shell's tab-strip chrome) follow the operator's Language setting
+        too, not just the literal strings this file passes in as props above.
+      */}
+      &lt;I18nProvider initialLocale={locale} dictionaries={SETTINGS_DIALOG_DICTIONARIES} fallbackLocale="en" syncDocumentAttributes={false}&gt;
+        &lt;AiAssistantLocaleSync locale={locale} /&gt;
+        {/*
+          Classic's light pin is REQUIRED, not cosmetic. With the attribute absent entirely the shell's stylesheet falls
+          through to its dark variant, which is why this panel rendered dark inside an otherwise-light
+          admin. Pinned to light rather than wired to a setting because this screen has no appearance
+          control of its own and Classic's dark paint here was never verified. Glass follows the
+          document's resolved scheme through the shared controller at this same boundary.
+&nbsp;
+          `--page-flow` opts out of `.settings-ui-section`'s full-height layout; see that modifier's
+          comment in styles.css for the nested-scroller trap it exists to avoid.
+        */}
+        &lt;div className="settings-ui-section settings-ui-section--page-flow" {...themeBoundary}&gt;
+          &lt;SettingsDialogShell
+            tabs={tabs}
+            presentation="inline"
+            className="jini-tabbed-dialog--inline"
+            fullscreenEnabled={false}
+            activeTabId={activeTabId}
+            onActiveTabIdChange={onTabChange}
+          /&gt;
+        &lt;/div&gt;
+      &lt;/I18nProvider&gt;
+    &lt;/div&gt;
+  );
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

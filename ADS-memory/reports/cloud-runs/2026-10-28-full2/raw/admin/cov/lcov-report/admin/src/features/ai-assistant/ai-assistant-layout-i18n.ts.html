@@ -1,0 +1,1999 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/ai-assistant/ai-assistant-layout-i18n.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">admin/src/features/ai-assistant</a> ai-assistant-layout-i18n.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>6/6</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>1/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>2/2</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>5/5</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a>
+<a name='L323'></a><a href='#L323'>323</a>
+<a name='L324'></a><a href='#L324'>324</a>
+<a name='L325'></a><a href='#L325'>325</a>
+<a name='L326'></a><a href='#L326'>326</a>
+<a name='L327'></a><a href='#L327'>327</a>
+<a name='L328'></a><a href='#L328'>328</a>
+<a name='L329'></a><a href='#L329'>329</a>
+<a name='L330'></a><a href='#L330'>330</a>
+<a name='L331'></a><a href='#L331'>331</a>
+<a name='L332'></a><a href='#L332'>332</a>
+<a name='L333'></a><a href='#L333'>333</a>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a>
+<a name='L336'></a><a href='#L336'>336</a>
+<a name='L337'></a><a href='#L337'>337</a>
+<a name='L338'></a><a href='#L338'>338</a>
+<a name='L339'></a><a href='#L339'>339</a>
+<a name='L340'></a><a href='#L340'>340</a>
+<a name='L341'></a><a href='#L341'>341</a>
+<a name='L342'></a><a href='#L342'>342</a>
+<a name='L343'></a><a href='#L343'>343</a>
+<a name='L344'></a><a href='#L344'>344</a>
+<a name='L345'></a><a href='#L345'>345</a>
+<a name='L346'></a><a href='#L346'>346</a>
+<a name='L347'></a><a href='#L347'>347</a>
+<a name='L348'></a><a href='#L348'>348</a>
+<a name='L349'></a><a href='#L349'>349</a>
+<a name='L350'></a><a href='#L350'>350</a>
+<a name='L351'></a><a href='#L351'>351</a>
+<a name='L352'></a><a href='#L352'>352</a>
+<a name='L353'></a><a href='#L353'>353</a>
+<a name='L354'></a><a href='#L354'>354</a>
+<a name='L355'></a><a href='#L355'>355</a>
+<a name='L356'></a><a href='#L356'>356</a>
+<a name='L357'></a><a href='#L357'>357</a>
+<a name='L358'></a><a href='#L358'>358</a>
+<a name='L359'></a><a href='#L359'>359</a>
+<a name='L360'></a><a href='#L360'>360</a>
+<a name='L361'></a><a href='#L361'>361</a>
+<a name='L362'></a><a href='#L362'>362</a>
+<a name='L363'></a><a href='#L363'>363</a>
+<a name='L364'></a><a href='#L364'>364</a>
+<a name='L365'></a><a href='#L365'>365</a>
+<a name='L366'></a><a href='#L366'>366</a>
+<a name='L367'></a><a href='#L367'>367</a>
+<a name='L368'></a><a href='#L368'>368</a>
+<a name='L369'></a><a href='#L369'>369</a>
+<a name='L370'></a><a href='#L370'>370</a>
+<a name='L371'></a><a href='#L371'>371</a>
+<a name='L372'></a><a href='#L372'>372</a>
+<a name='L373'></a><a href='#L373'>373</a>
+<a name='L374'></a><a href='#L374'>374</a>
+<a name='L375'></a><a href='#L375'>375</a>
+<a name='L376'></a><a href='#L376'>376</a>
+<a name='L377'></a><a href='#L377'>377</a>
+<a name='L378'></a><a href='#L378'>378</a>
+<a name='L379'></a><a href='#L379'>379</a>
+<a name='L380'></a><a href='#L380'>380</a>
+<a name='L381'></a><a href='#L381'>381</a>
+<a name='L382'></a><a href='#L382'>382</a>
+<a name='L383'></a><a href='#L383'>383</a>
+<a name='L384'></a><a href='#L384'>384</a>
+<a name='L385'></a><a href='#L385'>385</a>
+<a name='L386'></a><a href='#L386'>386</a>
+<a name='L387'></a><a href='#L387'>387</a>
+<a name='L388'></a><a href='#L388'>388</a>
+<a name='L389'></a><a href='#L389'>389</a>
+<a name='L390'></a><a href='#L390'>390</a>
+<a name='L391'></a><a href='#L391'>391</a>
+<a name='L392'></a><a href='#L392'>392</a>
+<a name='L393'></a><a href='#L393'>393</a>
+<a name='L394'></a><a href='#L394'>394</a>
+<a name='L395'></a><a href='#L395'>395</a>
+<a name='L396'></a><a href='#L396'>396</a>
+<a name='L397'></a><a href='#L397'>397</a>
+<a name='L398'></a><a href='#L398'>398</a>
+<a name='L399'></a><a href='#L399'>399</a>
+<a name='L400'></a><a href='#L400'>400</a>
+<a name='L401'></a><a href='#L401'>401</a>
+<a name='L402'></a><a href='#L402'>402</a>
+<a name='L403'></a><a href='#L403'>403</a>
+<a name='L404'></a><a href='#L404'>404</a>
+<a name='L405'></a><a href='#L405'>405</a>
+<a name='L406'></a><a href='#L406'>406</a>
+<a name='L407'></a><a href='#L407'>407</a>
+<a name='L408'></a><a href='#L408'>408</a>
+<a name='L409'></a><a href='#L409'>409</a>
+<a name='L410'></a><a href='#L410'>410</a>
+<a name='L411'></a><a href='#L411'>411</a>
+<a name='L412'></a><a href='#L412'>412</a>
+<a name='L413'></a><a href='#L413'>413</a>
+<a name='L414'></a><a href='#L414'>414</a>
+<a name='L415'></a><a href='#L415'>415</a>
+<a name='L416'></a><a href='#L416'>416</a>
+<a name='L417'></a><a href='#L417'>417</a>
+<a name='L418'></a><a href='#L418'>418</a>
+<a name='L419'></a><a href='#L419'>419</a>
+<a name='L420'></a><a href='#L420'>420</a>
+<a name='L421'></a><a href='#L421'>421</a>
+<a name='L422'></a><a href='#L422'>422</a>
+<a name='L423'></a><a href='#L423'>423</a>
+<a name='L424'></a><a href='#L424'>424</a>
+<a name='L425'></a><a href='#L425'>425</a>
+<a name='L426'></a><a href='#L426'>426</a>
+<a name='L427'></a><a href='#L427'>427</a>
+<a name='L428'></a><a href='#L428'>428</a>
+<a name='L429'></a><a href='#L429'>429</a>
+<a name='L430'></a><a href='#L430'>430</a>
+<a name='L431'></a><a href='#L431'>431</a>
+<a name='L432'></a><a href='#L432'>432</a>
+<a name='L433'></a><a href='#L433'>433</a>
+<a name='L434'></a><a href='#L434'>434</a>
+<a name='L435'></a><a href='#L435'>435</a>
+<a name='L436'></a><a href='#L436'>436</a>
+<a name='L437'></a><a href='#L437'>437</a>
+<a name='L438'></a><a href='#L438'>438</a>
+<a name='L439'></a><a href='#L439'>439</a>
+<a name='L440'></a><a href='#L440'>440</a>
+<a name='L441'></a><a href='#L441'>441</a>
+<a name='L442'></a><a href='#L442'>442</a>
+<a name='L443'></a><a href='#L443'>443</a>
+<a name='L444'></a><a href='#L444'>444</a>
+<a name='L445'></a><a href='#L445'>445</a>
+<a name='L446'></a><a href='#L446'>446</a>
+<a name='L447'></a><a href='#L447'>447</a>
+<a name='L448'></a><a href='#L448'>448</a>
+<a name='L449'></a><a href='#L449'>449</a>
+<a name='L450'></a><a href='#L450'>450</a>
+<a name='L451'></a><a href='#L451'>451</a>
+<a name='L452'></a><a href='#L452'>452</a>
+<a name='L453'></a><a href='#L453'>453</a>
+<a name='L454'></a><a href='#L454'>454</a>
+<a name='L455'></a><a href='#L455'>455</a>
+<a name='L456'></a><a href='#L456'>456</a>
+<a name='L457'></a><a href='#L457'>457</a>
+<a name='L458'></a><a href='#L458'>458</a>
+<a name='L459'></a><a href='#L459'>459</a>
+<a name='L460'></a><a href='#L460'>460</a>
+<a name='L461'></a><a href='#L461'>461</a>
+<a name='L462'></a><a href='#L462'>462</a>
+<a name='L463'></a><a href='#L463'>463</a>
+<a name='L464'></a><a href='#L464'>464</a>
+<a name='L465'></a><a href='#L465'>465</a>
+<a name='L466'></a><a href='#L466'>466</a>
+<a name='L467'></a><a href='#L467'>467</a>
+<a name='L468'></a><a href='#L468'>468</a>
+<a name='L469'></a><a href='#L469'>469</a>
+<a name='L470'></a><a href='#L470'>470</a>
+<a name='L471'></a><a href='#L471'>471</a>
+<a name='L472'></a><a href='#L472'>472</a>
+<a name='L473'></a><a href='#L473'>473</a>
+<a name='L474'></a><a href='#L474'>474</a>
+<a name='L475'></a><a href='#L475'>475</a>
+<a name='L476'></a><a href='#L476'>476</a>
+<a name='L477'></a><a href='#L477'>477</a>
+<a name='L478'></a><a href='#L478'>478</a>
+<a name='L479'></a><a href='#L479'>479</a>
+<a name='L480'></a><a href='#L480'>480</a>
+<a name='L481'></a><a href='#L481'>481</a>
+<a name='L482'></a><a href='#L482'>482</a>
+<a name='L483'></a><a href='#L483'>483</a>
+<a name='L484'></a><a href='#L484'>484</a>
+<a name='L485'></a><a href='#L485'>485</a>
+<a name='L486'></a><a href='#L486'>486</a>
+<a name='L487'></a><a href='#L487'>487</a>
+<a name='L488'></a><a href='#L488'>488</a>
+<a name='L489'></a><a href='#L489'>489</a>
+<a name='L490'></a><a href='#L490'>490</a>
+<a name='L491'></a><a href='#L491'>491</a>
+<a name='L492'></a><a href='#L492'>492</a>
+<a name='L493'></a><a href='#L493'>493</a>
+<a name='L494'></a><a href='#L494'>494</a>
+<a name='L495'></a><a href='#L495'>495</a>
+<a name='L496'></a><a href='#L496'>496</a>
+<a name='L497'></a><a href='#L497'>497</a>
+<a name='L498'></a><a href='#L498'>498</a>
+<a name='L499'></a><a href='#L499'>499</a>
+<a name='L500'></a><a href='#L500'>500</a>
+<a name='L501'></a><a href='#L501'>501</a>
+<a name='L502'></a><a href='#L502'>502</a>
+<a name='L503'></a><a href='#L503'>503</a>
+<a name='L504'></a><a href='#L504'>504</a>
+<a name='L505'></a><a href='#L505'>505</a>
+<a name='L506'></a><a href='#L506'>506</a>
+<a name='L507'></a><a href='#L507'>507</a>
+<a name='L508'></a><a href='#L508'>508</a>
+<a name='L509'></a><a href='#L509'>509</a>
+<a name='L510'></a><a href='#L510'>510</a>
+<a name='L511'></a><a href='#L511'>511</a>
+<a name='L512'></a><a href='#L512'>512</a>
+<a name='L513'></a><a href='#L513'>513</a>
+<a name='L514'></a><a href='#L514'>514</a>
+<a name='L515'></a><a href='#L515'>515</a>
+<a name='L516'></a><a href='#L516'>516</a>
+<a name='L517'></a><a href='#L517'>517</a>
+<a name='L518'></a><a href='#L518'>518</a>
+<a name='L519'></a><a href='#L519'>519</a>
+<a name='L520'></a><a href='#L520'>520</a>
+<a name='L521'></a><a href='#L521'>521</a>
+<a name='L522'></a><a href='#L522'>522</a>
+<a name='L523'></a><a href='#L523'>523</a>
+<a name='L524'></a><a href='#L524'>524</a>
+<a name='L525'></a><a href='#L525'>525</a>
+<a name='L526'></a><a href='#L526'>526</a>
+<a name='L527'></a><a href='#L527'>527</a>
+<a name='L528'></a><a href='#L528'>528</a>
+<a name='L529'></a><a href='#L529'>529</a>
+<a name='L530'></a><a href='#L530'>530</a>
+<a name='L531'></a><a href='#L531'>531</a>
+<a name='L532'></a><a href='#L532'>532</a>
+<a name='L533'></a><a href='#L533'>533</a>
+<a name='L534'></a><a href='#L534'>534</a>
+<a name='L535'></a><a href='#L535'>535</a>
+<a name='L536'></a><a href='#L536'>536</a>
+<a name='L537'></a><a href='#L537'>537</a>
+<a name='L538'></a><a href='#L538'>538</a>
+<a name='L539'></a><a href='#L539'>539</a>
+<a name='L540'></a><a href='#L540'>540</a>
+<a name='L541'></a><a href='#L541'>541</a>
+<a name='L542'></a><a href='#L542'>542</a>
+<a name='L543'></a><a href='#L543'>543</a>
+<a name='L544'></a><a href='#L544'>544</a>
+<a name='L545'></a><a href='#L545'>545</a>
+<a name='L546'></a><a href='#L546'>546</a>
+<a name='L547'></a><a href='#L547'>547</a>
+<a name='L548'></a><a href='#L548'>548</a>
+<a name='L549'></a><a href='#L549'>549</a>
+<a name='L550'></a><a href='#L550'>550</a>
+<a name='L551'></a><a href='#L551'>551</a>
+<a name='L552'></a><a href='#L552'>552</a>
+<a name='L553'></a><a href='#L553'>553</a>
+<a name='L554'></a><a href='#L554'>554</a>
+<a name='L555'></a><a href='#L555'>555</a>
+<a name='L556'></a><a href='#L556'>556</a>
+<a name='L557'></a><a href='#L557'>557</a>
+<a name='L558'></a><a href='#L558'>558</a>
+<a name='L559'></a><a href='#L559'>559</a>
+<a name='L560'></a><a href='#L560'>560</a>
+<a name='L561'></a><a href='#L561'>561</a>
+<a name='L562'></a><a href='#L562'>562</a>
+<a name='L563'></a><a href='#L563'>563</a>
+<a name='L564'></a><a href='#L564'>564</a>
+<a name='L565'></a><a href='#L565'>565</a>
+<a name='L566'></a><a href='#L566'>566</a>
+<a name='L567'></a><a href='#L567'>567</a>
+<a name='L568'></a><a href='#L568'>568</a>
+<a name='L569'></a><a href='#L569'>569</a>
+<a name='L570'></a><a href='#L570'>570</a>
+<a name='L571'></a><a href='#L571'>571</a>
+<a name='L572'></a><a href='#L572'>572</a>
+<a name='L573'></a><a href='#L573'>573</a>
+<a name='L574'></a><a href='#L574'>574</a>
+<a name='L575'></a><a href='#L575'>575</a>
+<a name='L576'></a><a href='#L576'>576</a>
+<a name='L577'></a><a href='#L577'>577</a>
+<a name='L578'></a><a href='#L578'>578</a>
+<a name='L579'></a><a href='#L579'>579</a>
+<a name='L580'></a><a href='#L580'>580</a>
+<a name='L581'></a><a href='#L581'>581</a>
+<a name='L582'></a><a href='#L582'>582</a>
+<a name='L583'></a><a href='#L583'>583</a>
+<a name='L584'></a><a href='#L584'>584</a>
+<a name='L585'></a><a href='#L585'>585</a>
+<a name='L586'></a><a href='#L586'>586</a>
+<a name='L587'></a><a href='#L587'>587</a>
+<a name='L588'></a><a href='#L588'>588</a>
+<a name='L589'></a><a href='#L589'>589</a>
+<a name='L590'></a><a href='#L590'>590</a>
+<a name='L591'></a><a href='#L591'>591</a>
+<a name='L592'></a><a href='#L592'>592</a>
+<a name='L593'></a><a href='#L593'>593</a>
+<a name='L594'></a><a href='#L594'>594</a>
+<a name='L595'></a><a href='#L595'>595</a>
+<a name='L596'></a><a href='#L596'>596</a>
+<a name='L597'></a><a href='#L597'>597</a>
+<a name='L598'></a><a href='#L598'>598</a>
+<a name='L599'></a><a href='#L599'>599</a>
+<a name='L600'></a><a href='#L600'>600</a>
+<a name='L601'></a><a href='#L601'>601</a>
+<a name='L602'></a><a href='#L602'>602</a>
+<a name='L603'></a><a href='#L603'>603</a>
+<a name='L604'></a><a href='#L604'>604</a>
+<a name='L605'></a><a href='#L605'>605</a>
+<a name='L606'></a><a href='#L606'>606</a>
+<a name='L607'></a><a href='#L607'>607</a>
+<a name='L608'></a><a href='#L608'>608</a>
+<a name='L609'></a><a href='#L609'>609</a>
+<a name='L610'></a><a href='#L610'>610</a>
+<a name='L611'></a><a href='#L611'>611</a>
+<a name='L612'></a><a href='#L612'>612</a>
+<a name='L613'></a><a href='#L613'>613</a>
+<a name='L614'></a><a href='#L614'>614</a>
+<a name='L615'></a><a href='#L615'>615</a>
+<a name='L616'></a><a href='#L616'>616</a>
+<a name='L617'></a><a href='#L617'>617</a>
+<a name='L618'></a><a href='#L618'>618</a>
+<a name='L619'></a><a href='#L619'>619</a>
+<a name='L620'></a><a href='#L620'>620</a>
+<a name='L621'></a><a href='#L621'>621</a>
+<a name='L622'></a><a href='#L622'>622</a>
+<a name='L623'></a><a href='#L623'>623</a>
+<a name='L624'></a><a href='#L624'>624</a>
+<a name='L625'></a><a href='#L625'>625</a>
+<a name='L626'></a><a href='#L626'>626</a>
+<a name='L627'></a><a href='#L627'>627</a>
+<a name='L628'></a><a href='#L628'>628</a>
+<a name='L629'></a><a href='#L629'>629</a>
+<a name='L630'></a><a href='#L630'>630</a>
+<a name='L631'></a><a href='#L631'>631</a>
+<a name='L632'></a><a href='#L632'>632</a>
+<a name='L633'></a><a href='#L633'>633</a>
+<a name='L634'></a><a href='#L634'>634</a>
+<a name='L635'></a><a href='#L635'>635</a>
+<a name='L636'></a><a href='#L636'>636</a>
+<a name='L637'></a><a href='#L637'>637</a>
+<a name='L638'></a><a href='#L638'>638</a>
+<a name='L639'></a><a href='#L639'>639</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">61x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">61x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">61x</span>
+<span class="cline-any cline-yes">61x</span>
+<span class="cline-any cline-yes">1281x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+&nbsp;
+/**
+ * @file Strings added by the 2026-10-09 AI Assistant layout redesign (status pill, numbered visitor
+ * steps, Provider select, ⓘ tips), in all 21 admin locales.
+ *
+ * A separate file rather than more rows in `ai-assistant-i18n.ts` because another workstream edits
+ * that file; `ai-assistant-i18n.ts` merges this one into its translator with a single line. The
+ * four widget strings that first landed there in `es` only now live here, in every locale.
+ */
+export const AI_ASSISTANT_LAYOUT_DICT: Record&lt;string, Record&lt;string, string&gt;&gt; = {
+  es: {
+    "Loading saved settings…": "Cargando los ajustes guardados…",
+    "Could not load saved settings.": "No se pudieron cargar los ajustes guardados.",
+    "Open the assistant panel": "Abrir el panel del asistente",
+    "Save model settings": "Guardar ajustes del modelo",
+    "More info: {name}": "Más información: {name}",
+    "Shows or hides the assistant panel in this admin.": "Muestra u oculta el panel del asistente en este administrador.",
+    "This key is for your visitors, not for you.": "Esta clave es para tus visitantes, no para ti.",
+    "About the visitor key": "Sobre la clave de visitantes",
+    "Provider": "Proveedor",
+    "{name} (configured)": "{name} (configurado)",
+    "Custom endpoint": "Endpoint personalizado",
+    "Connect an AI provider": "Conecta un proveedor de IA",
+    "Widget": "Widget de chat",
+    "Turn it on": "Actívalo",
+    "Enable the AI assistant on the public site": "Activar el asistente de IA en el sitio público",
+    "Save a key in step 1 first.": "Primero guarda una clave en el paso 1.",
+    "Public site": "Sitio público",
+    "On": "Activado",
+    "Off": "Desactivado",
+    "Needs a key": "Falta una clave",
+    "Visitors can chat with it on every public page.": "Los visitantes pueden chatear con él en cada página pública.",
+    "Visitors see no assistant.": "Los visitantes no ven ningún asistente.",
+    "Test key": "Probar clave",
+    "For visitors who want to talk to your site with AI.": "Para los visitantes que quieren hablar con tu sitio usando IA.",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React es el widget completo. JS puro es más pequeño y carga más rápido.",
+    "When off, your site loads no assistant code and has no chat endpoint.": "Desactivado, tu sitio no carga código del asistente ni tiene endpoint de chat.",
+    "Pure JS": "JS puro",
+  },
+  id: {
+    "Loading saved settings…": "Memuat pengaturan tersimpan…",
+    "Could not load saved settings.": "Tidak dapat memuat pengaturan tersimpan.",
+    "Open the assistant panel": "Buka panel asisten",
+    "Save model settings": "Simpan pengaturan model",
+    "More info: {name}": "Info lebih lanjut: {name}",
+    "Shows or hides the assistant panel in this admin.": "Menampilkan atau menyembunyikan panel asisten di admin ini.",
+    "This key is for your visitors, not for you.": "Kunci ini untuk pengunjung Anda, bukan untuk Anda.",
+    "About the visitor key": "Tentang kunci pengunjung",
+    "Provider": "Penyedia",
+    "{name} (configured)": "{name} (terkonfigurasi)",
+    "Custom endpoint": "Endpoint kustom",
+    "Connect an AI provider": "Hubungkan penyedia AI",
+    "Widget": "Widget obrolan",
+    "Turn it on": "Aktifkan",
+    "Enable the AI assistant on the public site": "Aktifkan asisten AI di situs publik",
+    "Save a key in step 1 first.": "Simpan kunci di langkah 1 terlebih dahulu.",
+    "Public site": "Situs publik",
+    "On": "Aktif",
+    "Off": "Nonaktif",
+    "Needs a key": "Perlu kunci",
+    "Visitors can chat with it on every public page.": "Pengunjung dapat mengobrol dengannya di setiap halaman publik.",
+    "Visitors see no assistant.": "Pengunjung tidak melihat asisten.",
+    "Test key": "Uji Kunci",
+    "For visitors who want to talk to your site with AI.": "Untuk pengunjung yang ingin berbicara dengan situs Anda menggunakan AI.",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React adalah widget lengkap. JS murni lebih kecil dan dimuat lebih cepat.",
+    "When off, your site loads no assistant code and has no chat endpoint.": "Saat nonaktif, situs Anda tidak memuat kode asisten dan tidak punya endpoint obrolan.",
+    "Pure JS": "JS murni",
+  },
+  de: {
+    "Loading saved settings…": "Gespeicherte Einstellungen werden geladen…",
+    "Could not load saved settings.": "Gespeicherte Einstellungen konnten nicht geladen werden.",
+    "Open the assistant panel": "Assistenten-Panel öffnen",
+    "Save model settings": "Modelleinstellungen speichern",
+    "More info: {name}": "Mehr Infos: {name}",
+    "Shows or hides the assistant panel in this admin.": "Blendet das Assistenten-Panel in diesem Admin ein oder aus.",
+    "This key is for your visitors, not for you.": "Dieser Schlüssel ist für Ihre Besucher, nicht für Sie.",
+    "About the visitor key": "Über den Besucherschlüssel",
+    "Provider": "Anbieter",
+    "{name} (configured)": "{name} (konfiguriert)",
+    "Custom endpoint": "Eigener Endpunkt",
+    "Connect an AI provider": "KI-Anbieter verbinden",
+    "Widget": "Chat-Widget",
+    "Turn it on": "Einschalten",
+    "Enable the AI assistant on the public site": "KI-Assistenten auf der öffentlichen Website aktivieren",
+    "Save a key in step 1 first.": "Speichern Sie zuerst in Schritt 1 einen Schlüssel.",
+    "Public site": "Öffentliche Website",
+    "On": "Ein",
+    "Off": "Aus",
+    "Needs a key": "Schlüssel fehlt",
+    "Visitors can chat with it on every public page.": "Besucher können auf jeder öffentlichen Seite mit ihm chatten.",
+    "Visitors see no assistant.": "Besucher sehen keinen Assistenten.",
+    "Test key": "Schlüssel testen",
+    "For visitors who want to talk to your site with AI.": "Für Besucher, die per KI mit Ihrer Website sprechen möchten.",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React ist das vollständige Widget. Reines JS ist kleiner und lädt schneller.",
+    "When off, your site loads no assistant code and has no chat endpoint.": "Ausgeschaltet lädt Ihre Website keinen Assistenten-Code und hat keinen Chat-Endpunkt.",
+    "Pure JS": "Reines JS",
+  },
+  "zh-CN": {
+    "Loading saved settings…": "正在加载已保存的设置…",
+    "Could not load saved settings.": "无法加载已保存的设置。",
+    "Open the assistant panel": "打开助手面板",
+    "Save model settings": "保存模型设置",
+    "More info: {name}": "更多信息：{name}",
+    "Shows or hides the assistant panel in this admin.": "显示或隐藏此后台中的助手面板。",
+    "This key is for your visitors, not for you.": "此密钥供你的访客使用，而不是你自己。",
+    "About the visitor key": "关于访客密钥",
+    "Provider": "提供商",
+    "{name} (configured)": "{name}（已配置）",
+    "Custom endpoint": "自定义端点",
+    "Connect an AI provider": "连接 AI 提供商",
+    "Widget": "聊天组件",
+    "Turn it on": "开启",
+    "Enable the AI assistant on the public site": "在公开站点启用 AI 助手",
+    "Save a key in step 1 first.": "请先在第 1 步保存密钥。",
+    "Public site": "公开站点",
+    "On": "已开启",
+    "Off": "已关闭",
+    "Needs a key": "需要密钥",
+    "Visitors can chat with it on every public page.": "访客可以在每个公开页面与它聊天。",
+    "Visitors see no assistant.": "访客看不到助手。",
+    "Test key": "测试密钥",
+    "For visitors who want to talk to your site with AI.": "供想用 AI 与你的网站对话的访客使用。",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React 是完整组件。纯 JS 更小，加载更快。",
+    "When off, your site loads no assistant code and has no chat endpoint.": "关闭时，你的网站不加载任何助手代码，也没有聊天端点。",
+    "Pure JS": "纯 JS",
+  },
+  "zh-TW": {
+    "Loading saved settings…": "正在載入已儲存的設定…",
+    "Could not load saved settings.": "無法載入已儲存的設定。",
+    "Open the assistant panel": "開啟助理面板",
+    "Save model settings": "儲存模型設定",
+    "More info: {name}": "更多資訊：{name}",
+    "Shows or hides the assistant panel in this admin.": "顯示或隱藏此後台中的助理面板。",
+    "This key is for your visitors, not for you.": "此金鑰供你的訪客使用，而不是你自己。",
+    "About the visitor key": "關於訪客金鑰",
+    "Provider": "供應商",
+    "{name} (configured)": "{name}（已設定）",
+    "Custom endpoint": "自訂端點",
+    "Connect an AI provider": "連接 AI 供應商",
+    "Widget": "聊天元件",
+    "Turn it on": "開啟",
+    "Enable the AI assistant on the public site": "在公開網站啟用 AI 助理",
+    "Save a key in step 1 first.": "請先在第 1 步儲存金鑰。",
+    "Public site": "公開網站",
+    "On": "已開啟",
+    "Off": "已關閉",
+    "Needs a key": "需要金鑰",
+    "Visitors can chat with it on every public page.": "訪客可以在每個公開頁面與它聊天。",
+    "Visitors see no assistant.": "訪客看不到助理。",
+    "Test key": "測試金鑰",
+    "For visitors who want to talk to your site with AI.": "供想用 AI 與你的網站對話的訪客使用。",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React 是完整元件。純 JS 更小，載入更快。",
+    "When off, your site loads no assistant code and has no chat endpoint.": "關閉時，你的網站不載入任何助理程式碼，也沒有聊天端點。",
+    "Pure JS": "純 JS",
+  },
+  "pt-BR": {
+    "Loading saved settings…": "Carregando configurações salvas…",
+    "Could not load saved settings.": "Não foi possível carregar as configurações salvas.",
+    "Open the assistant panel": "Abrir o painel do assistente",
+    "Save model settings": "Salvar configurações do modelo",
+    "More info: {name}": "Mais informações: {name}",
+    "Shows or hides the assistant panel in this admin.": "Mostra ou oculta o painel do assistente neste admin.",
+    "This key is for your visitors, not for you.": "Esta chave é para seus visitantes, não para você.",
+    "About the visitor key": "Sobre a chave de visitantes",
+    "Provider": "Provedor",
+    "{name} (configured)": "{name} (configurado)",
+    "Custom endpoint": "Endpoint personalizado",
+    "Connect an AI provider": "Conecte um provedor de IA",
+    "Widget": "Widget de chat",
+    "Turn it on": "Ative",
+    "Enable the AI assistant on the public site": "Ativar o assistente de IA no site público",
+    "Save a key in step 1 first.": "Salve uma chave no passo 1 primeiro.",
+    "Public site": "Site público",
+    "On": "Ligado",
+    "Off": "Desligado",
+    "Needs a key": "Precisa de chave",
+    "Visitors can chat with it on every public page.": "Os visitantes podem conversar com ele em todas as páginas públicas.",
+    "Visitors see no assistant.": "Os visitantes não veem nenhum assistente.",
+    "Test key": "Testar chave",
+    "For visitors who want to talk to your site with AI.": "Para visitantes que querem conversar com seu site usando IA.",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React é o widget completo. JS puro é menor e carrega mais rápido.",
+    "When off, your site loads no assistant code and has no chat endpoint.": "Desligado, seu site não carrega código do assistente nem tem endpoint de chat.",
+    "Pure JS": "JS puro",
+  },
+  ru: {
+    "Loading saved settings…": "Загрузка сохранённых настроек…",
+    "Could not load saved settings.": "Не удалось загрузить сохранённые настройки.",
+    "Open the assistant panel": "Открыть панель помощника",
+    "Save model settings": "Сохранить настройки модели",
+    "More info: {name}": "Подробнее: {name}",
+    "Shows or hides the assistant panel in this admin.": "Показывает или скрывает панель ассистента в этой админке.",
+    "This key is for your visitors, not for you.": "Этот ключ для ваших посетителей, а не для вас.",
+    "About the visitor key": "О ключе для посетителей",
+    "Provider": "Провайдер",
+    "{name} (configured)": "{name} (настроен)",
+    "Custom endpoint": "Свой эндпоинт",
+    "Connect an AI provider": "Подключите ИИ-провайдера",
+    "Widget": "Виджет чата",
+    "Turn it on": "Включите",
+    "Enable the AI assistant on the public site": "Включить ИИ-ассистента на публичном сайте",
+    "Save a key in step 1 first.": "Сначала сохраните ключ на шаге 1.",
+    "Public site": "Публичный сайт",
+    "On": "Включён",
+    "Off": "Выключен",
+    "Needs a key": "Нужен ключ",
+    "Visitors can chat with it on every public page.": "Посетители могут общаться с ним на каждой публичной странице.",
+    "Visitors see no assistant.": "Посетители не видят ассистента.",
+    "Test key": "Проверить ключ",
+    "For visitors who want to talk to your site with AI.": "Для посетителей, которые хотят общаться с вашим сайтом с помощью ИИ.",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React — полный виджет. Чистый JS меньше и загружается быстрее.",
+    "When off, your site loads no assistant code and has no chat endpoint.": "В выключенном состоянии сайт не загружает код ассистента и не имеет чат-эндпоинта.",
+    "Pure JS": "Чистый JS",
+  },
+  fa: {
+    "Loading saved settings…": "در حال بارگذاری تنظیمات ذخیره‌شده…",
+    "Could not load saved settings.": "تنظیمات ذخیره‌شده بارگذاری نشد.",
+    "Open the assistant panel": "باز کردن پنل دستیار",
+    "Save model settings": "ذخیره تنظیمات مدل",
+    "More info: {name}": "اطلاعات بیشتر: {name}",
+    "Shows or hides the assistant panel in this admin.": "پنل دستیار را در این بخش مدیریت نشان می‌دهد یا پنهان می‌کند.",
+    "This key is for your visitors, not for you.": "این کلید برای بازدیدکنندگان شماست، نه برای خودتان.",
+    "About the visitor key": "درباره کلید بازدیدکنندگان",
+    "Provider": "ارائه‌دهنده",
+    "{name} (configured)": "{name} (پیکربندی‌شده)",
+    "Custom endpoint": "نقطه پایانی سفارشی",
+    "Connect an AI provider": "یک ارائه‌دهنده هوش مصنوعی وصل کنید",
+    "Widget": "ابزارک گفتگو",
+    "Turn it on": "روشنش کنید",
+    "Enable the AI assistant on the public site": "فعال‌سازی دستیار هوش مصنوعی در سایت عمومی",
+    "Save a key in step 1 first.": "ابتدا در مرحله ۱ یک کلید ذخیره کنید.",
+    "Public site": "سایت عمومی",
+    "On": "روشن",
+    "Off": "خاموش",
+    "Needs a key": "نیاز به کلید",
+    "Visitors can chat with it on every public page.": "بازدیدکنندگان می‌توانند در هر صفحه عمومی با آن گفتگو کنند.",
+    "Visitors see no assistant.": "بازدیدکنندگان دستیاری نمی‌بینند.",
+    "Test key": "آزمایش کلید",
+    "For visitors who want to talk to your site with AI.": "برای بازدیدکنندگانی که می‌خواهند با هوش مصنوعی با سایت شما گفتگو کنند.",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React ابزارک کامل است. JS خالص کوچک‌تر است و سریع‌تر بارگذاری می‌شود.",
+    "When off, your site loads no assistant code and has no chat endpoint.": "در حالت خاموش، سایت شما هیچ کد دستیاری بارگذاری نمی‌کند و نقطهٔ پایانی گفتگو ندارد.",
+    "Pure JS": "JS خالص",
+  },
+  ar: {
+    "Loading saved settings…": "جارٍ تحميل الإعدادات المحفوظة…",
+    "Could not load saved settings.": "تعذر تحميل الإعدادات المحفوظة.",
+    "Open the assistant panel": "فتح لوحة المساعد",
+    "Save model settings": "حفظ إعدادات النموذج",
+    "More info: {name}": "مزيد من المعلومات: {name}",
+    "Shows or hides the assistant panel in this admin.": "يُظهر لوحة المساعد في لوحة الإدارة هذه أو يخفيها.",
+    "This key is for your visitors, not for you.": "هذا المفتاح لزوارك، وليس لك.",
+    "About the visitor key": "حول مفتاح الزوار",
+    "Provider": "المزوّد",
+    "{name} (configured)": "{name} (مُهيّأ)",
+    "Custom endpoint": "نقطة نهاية مخصصة",
+    "Connect an AI provider": "اربط مزوّد ذكاء اصطناعي",
+    "Widget": "أداة الدردشة",
+    "Turn it on": "شغّله",
+    "Enable the AI assistant on the public site": "تفعيل مساعد الذكاء الاصطناعي على الموقع العام",
+    "Save a key in step 1 first.": "احفظ مفتاحًا في الخطوة 1 أولًا.",
+    "Public site": "الموقع العام",
+    "On": "مُشغّل",
+    "Off": "متوقف",
+    "Needs a key": "يحتاج مفتاحًا",
+    "Visitors can chat with it on every public page.": "يمكن للزوار الدردشة معه في كل صفحة عامة.",
+    "Visitors see no assistant.": "لا يرى الزوار أي مساعد.",
+    "Test key": "اختبار المفتاح",
+    "For visitors who want to talk to your site with AI.": "للزوار الذين يريدون التحدث مع موقعك باستخدام الذكاء الاصطناعي.",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React هي الأداة الكاملة. JS الخالص أصغر ويُحمَّل أسرع.",
+    "When off, your site loads no assistant code and has no chat endpoint.": "عند الإيقاف، لا يحمّل موقعك أي كود للمساعد ولا توجد نقطة نهاية للدردشة.",
+    "Pure JS": "JS خالص",
+  },
+  ja: {
+    "Loading saved settings…": "保存済みの設定を読み込み中…",
+    "Could not load saved settings.": "保存済みの設定を読み込めませんでした。",
+    "Open the assistant panel": "アシスタントパネルを開く",
+    "Save model settings": "モデル設定を保存",
+    "More info: {name}": "詳細: {name}",
+    "Shows or hides the assistant panel in this admin.": "この管理画面のアシスタントパネルを表示または非表示にします。",
+    "This key is for your visitors, not for you.": "このキーは訪問者用で、あなた用ではありません。",
+    "About the visitor key": "訪問者用キーについて",
+    "Provider": "プロバイダー",
+    "{name} (configured)": "{name}（設定済み）",
+    "Custom endpoint": "カスタムエンドポイント",
+    "Connect an AI provider": "AI プロバイダーを接続",
+    "Widget": "チャットウィジェット",
+    "Turn it on": "オンにする",
+    "Enable the AI assistant on the public site": "公開サイトで AI アシスタントを有効にする",
+    "Save a key in step 1 first.": "まずステップ 1 でキーを保存してください。",
+    "Public site": "公開サイト",
+    "On": "オン",
+    "Off": "オフ",
+    "Needs a key": "キーが必要",
+    "Visitors can chat with it on every public page.": "訪問者はすべての公開ページでチャットできます。",
+    "Visitors see no assistant.": "訪問者にはアシスタントが表示されません。",
+    "Test key": "キーをテスト",
+    "For visitors who want to talk to your site with AI.": "AI でサイトと会話したい訪問者向けです。",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React はフル機能のウィジェットです。純粋な JS は小さく、読み込みが速いです。",
+    "When off, your site loads no assistant code and has no chat endpoint.": "オフのとき、サイトはアシスタントのコードを読み込まず、チャット用エンドポイントもありません。",
+    "Pure JS": "純粋な JS",
+  },
+  ko: {
+    "Loading saved settings…": "저장된 설정을 불러오는 중…",
+    "Could not load saved settings.": "저장된 설정을 불러올 수 없습니다.",
+    "Open the assistant panel": "어시스턴트 패널 열기",
+    "Save model settings": "모델 설정 저장",
+    "More info: {name}": "자세히: {name}",
+    "Shows or hides the assistant panel in this admin.": "이 관리자에서 어시스턴트 패널을 표시하거나 숨깁니다.",
+    "This key is for your visitors, not for you.": "이 키는 방문자를 위한 것이며 본인용이 아닙니다.",
+    "About the visitor key": "방문자 키 정보",
+    "Provider": "제공업체",
+    "{name} (configured)": "{name} (설정됨)",
+    "Custom endpoint": "사용자 지정 엔드포인트",
+    "Connect an AI provider": "AI 제공업체 연결",
+    "Widget": "채팅 위젯",
+    "Turn it on": "켜기",
+    "Enable the AI assistant on the public site": "공개 사이트에서 AI 어시스턴트 사용",
+    "Save a key in step 1 first.": "먼저 1단계에서 키를 저장하세요.",
+    "Public site": "공개 사이트",
+    "On": "켜짐",
+    "Off": "꺼짐",
+    "Needs a key": "키 필요",
+    "Visitors can chat with it on every public page.": "방문자는 모든 공개 페이지에서 대화할 수 있습니다.",
+    "Visitors see no assistant.": "방문자에게 어시스턴트가 보이지 않습니다.",
+    "Test key": "키 테스트",
+    "For visitors who want to talk to your site with AI.": "AI로 사이트와 대화하려는 방문자를 위한 것입니다.",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React는 전체 위젯입니다. 순수 JS는 더 작고 더 빨리 로드됩니다.",
+    "When off, your site loads no assistant code and has no chat endpoint.": "꺼져 있으면 사이트는 어시스턴트 코드를 불러오지 않으며 채팅 엔드포인트도 없습니다.",
+    "Pure JS": "순수 JS",
+  },
+  pl: {
+    "Loading saved settings…": "Wczytywanie zapisanych ustawień…",
+    "Could not load saved settings.": "Nie udało się wczytać zapisanych ustawień.",
+    "Open the assistant panel": "Otwórz panel asystenta",
+    "Save model settings": "Zapisz ustawienia modelu",
+    "More info: {name}": "Więcej informacji: {name}",
+    "Shows or hides the assistant panel in this admin.": "Pokazuje lub ukrywa panel asystenta w tym panelu administracyjnym.",
+    "This key is for your visitors, not for you.": "Ten klucz jest dla Twoich odwiedzających, nie dla Ciebie.",
+    "About the visitor key": "O kluczu dla odwiedzających",
+    "Provider": "Dostawca",
+    "{name} (configured)": "{name} (skonfigurowany)",
+    "Custom endpoint": "Własny endpoint",
+    "Connect an AI provider": "Połącz dostawcę AI",
+    "Widget": "Widżet czatu",
+    "Turn it on": "Włącz go",
+    "Enable the AI assistant on the public site": "Włącz asystenta AI w witrynie publicznej",
+    "Save a key in step 1 first.": "Najpierw zapisz klucz w kroku 1.",
+    "Public site": "Witryna publiczna",
+    "On": "Włączony",
+    "Off": "Wyłączony",
+    "Needs a key": "Wymaga klucza",
+    "Visitors can chat with it on every public page.": "Odwiedzający mogą z nim rozmawiać na każdej stronie publicznej.",
+    "Visitors see no assistant.": "Odwiedzający nie widzą asystenta.",
+    "Test key": "Testuj klucz",
+    "For visitors who want to talk to your site with AI.": "Dla odwiedzających, którzy chcą rozmawiać z Twoją witryną przez AI.",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React to pełny widżet. Czysty JS jest mniejszy i ładuje się szybciej.",
+    "When off, your site loads no assistant code and has no chat endpoint.": "Po wyłączeniu witryna nie ładuje kodu asystenta i nie ma punktu końcowego czatu.",
+    "Pure JS": "Czysty JS",
+  },
+  hu: {
+    "Loading saved settings…": "Mentett beállítások betöltése…",
+    "Could not load saved settings.": "Nem sikerült betölteni a mentett beállításokat.",
+    "Open the assistant panel": "Az asszisztens paneljének megnyitása",
+    "Save model settings": "Modellbeállítások mentése",
+    "More info: {name}": "További információ: {name}",
+    "Shows or hides the assistant panel in this admin.": "Megjeleníti vagy elrejti az asszisztens panelt ebben az adminban.",
+    "This key is for your visitors, not for you.": "Ez a kulcs a látogatóidnak szól, nem neked.",
+    "About the visitor key": "A látogatói kulcsról",
+    "Provider": "Szolgáltató",
+    "{name} (configured)": "{name} (beállítva)",
+    "Custom endpoint": "Egyéni végpont",
+    "Connect an AI provider": "AI-szolgáltató csatlakoztatása",
+    "Widget": "Csevegő widget",
+    "Turn it on": "Bekapcsolás",
+    "Enable the AI assistant on the public site": "AI-asszisztens engedélyezése a nyilvános webhelyen",
+    "Save a key in step 1 first.": "Előbb ments egy kulcsot az 1. lépésben.",
+    "Public site": "Nyilvános webhely",
+    "On": "Be",
+    "Off": "Ki",
+    "Needs a key": "Kulcs szükséges",
+    "Visitors can chat with it on every public page.": "A látogatók minden nyilvános oldalon cseveghetnek vele.",
+    "Visitors see no assistant.": "A látogatók nem látnak asszisztenst.",
+    "Test key": "Kulcs tesztelése",
+    "For visitors who want to talk to your site with AI.": "Azoknak a látogatóknak, akik MI-vel szeretnének beszélgetni az oldaladdal.",
+    "React is the full widget. Pure JS is smaller and loads faster.": "A React a teljes widget. A tiszta JS kisebb és gyorsabban betölt.",
+    "When off, your site loads no assistant code and has no chat endpoint.": "Kikapcsolva az oldal nem tölt be asszisztenskódot, és nincs csevegési végpontja.",
+    "Pure JS": "Tiszta JS",
+  },
+  fr: {
+    "Loading saved settings…": "Chargement des paramètres enregistrés…",
+    "Could not load saved settings.": "Impossible de charger les paramètres enregistrés.",
+    "Open the assistant panel": "Ouvrir le panneau de l’assistant",
+    "Save model settings": "Enregistrer les paramètres du modèle",
+    "More info: {name}": "Plus d’infos : {name}",
+    "Shows or hides the assistant panel in this admin.": "Affiche ou masque le panneau de l’assistant dans cette administration.",
+    "This key is for your visitors, not for you.": "Cette clé est pour vos visiteurs, pas pour vous.",
+    "About the visitor key": "À propos de la clé visiteurs",
+    "Provider": "Fournisseur",
+    "{name} (configured)": "{name} (configuré)",
+    "Custom endpoint": "Point de terminaison personnalisé",
+    "Connect an AI provider": "Connecter un fournisseur d’IA",
+    "Widget": "Widget de chat",
+    "Turn it on": "Activez-le",
+    "Enable the AI assistant on the public site": "Activer l’assistant IA sur le site public",
+    "Save a key in step 1 first.": "Enregistrez d’abord une clé à l’étape 1.",
+    "Public site": "Site public",
+    "On": "Activé",
+    "Off": "Désactivé",
+    "Needs a key": "Clé requise",
+    "Visitors can chat with it on every public page.": "Les visiteurs peuvent discuter avec lui sur chaque page publique.",
+    "Visitors see no assistant.": "Les visiteurs ne voient aucun assistant.",
+    "Test key": "Tester la clé",
+    "For visitors who want to talk to your site with AI.": "Pour les visiteurs qui veulent parler à votre site avec l’IA.",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React est le widget complet. Le JS pur est plus léger et se charge plus vite.",
+    "When off, your site loads no assistant code and has no chat endpoint.": "Désactivé, votre site ne charge aucun code d’assistant et n’a aucun point de terminaison de chat.",
+    "Pure JS": "JS pur",
+  },
+  uk: {
+    "Loading saved settings…": "Завантаження збережених налаштувань…",
+    "Could not load saved settings.": "Не вдалося завантажити збережені налаштування.",
+    "Open the assistant panel": "Відкрити панель помічника",
+    "Save model settings": "Зберегти налаштування моделі",
+    "More info: {name}": "Докладніше: {name}",
+    "Shows or hides the assistant panel in this admin.": "Показує або приховує панель асистента в цій адмінці.",
+    "This key is for your visitors, not for you.": "Цей ключ для ваших відвідувачів, а не для вас.",
+    "About the visitor key": "Про ключ для відвідувачів",
+    "Provider": "Провайдер",
+    "{name} (configured)": "{name} (налаштовано)",
+    "Custom endpoint": "Власний ендпоінт",
+    "Connect an AI provider": "Підключіть ШІ-провайдера",
+    "Widget": "Віджет чату",
+    "Turn it on": "Увімкніть",
+    "Enable the AI assistant on the public site": "Увімкнути ШІ-асистента на публічному сайті",
+    "Save a key in step 1 first.": "Спочатку збережіть ключ на кроці 1.",
+    "Public site": "Публічний сайт",
+    "On": "Увімкнено",
+    "Off": "Вимкнено",
+    "Needs a key": "Потрібен ключ",
+    "Visitors can chat with it on every public page.": "Відвідувачі можуть спілкуватися з ним на кожній публічній сторінці.",
+    "Visitors see no assistant.": "Відвідувачі не бачать асистента.",
+    "Test key": "Перевірити ключ",
+    "For visitors who want to talk to your site with AI.": "Для відвідувачів, які хочуть спілкуватися з вашим сайтом за допомогою ШІ.",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React — повний віджет. Чистий JS менший і завантажується швидше.",
+    "When off, your site loads no assistant code and has no chat endpoint.": "У вимкненому стані сайт не завантажує код асистента й не має чат-ендпоінта.",
+    "Pure JS": "Чистий JS",
+  },
+  tr: {
+    "Loading saved settings…": "Kaydedilen ayarlar yükleniyor…",
+    "Could not load saved settings.": "Kaydedilen ayarlar yüklenemedi.",
+    "Open the assistant panel": "Asistan panelini aç",
+    "Save model settings": "Model ayarlarını kaydet",
+    "More info: {name}": "Daha fazla bilgi: {name}",
+    "Shows or hides the assistant panel in this admin.": "Bu yönetim panelinde asistan panelini gösterir veya gizler.",
+    "This key is for your visitors, not for you.": "Bu anahtar ziyaretçileriniz için, sizin için değil.",
+    "About the visitor key": "Ziyaretçi anahtarı hakkında",
+    "Provider": "Sağlayıcı",
+    "{name} (configured)": "{name} (yapılandırıldı)",
+    "Custom endpoint": "Özel uç nokta",
+    "Connect an AI provider": "Bir yapay zekâ sağlayıcısı bağlayın",
+    "Widget": "Sohbet bileşeni",
+    "Turn it on": "Açın",
+    "Enable the AI assistant on the public site": "Herkese açık sitede yapay zekâ asistanını etkinleştir",
+    "Save a key in step 1 first.": "Önce 1. adımda bir anahtar kaydedin.",
+    "Public site": "Herkese açık site",
+    "On": "Açık",
+    "Off": "Kapalı",
+    "Needs a key": "Anahtar gerekli",
+    "Visitors can chat with it on every public page.": "Ziyaretçiler her herkese açık sayfada onunla sohbet edebilir.",
+    "Visitors see no assistant.": "Ziyaretçiler asistan görmez.",
+    "Test key": "Anahtarı test et",
+    "For visitors who want to talk to your site with AI.": "Sitenizle yapay zekâ üzerinden konuşmak isteyen ziyaretçiler için.",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React tam bileşendir. Saf JS daha küçüktür ve daha hızlı yüklenir.",
+    "When off, your site loads no assistant code and has no chat endpoint.": "Kapalıyken siteniz hiçbir asistan kodu yüklemez ve sohbet uç noktası yoktur.",
+    "Pure JS": "Saf JS",
+  },
+  th: {
+    "Loading saved settings…": "กำลังโหลดการตั้งค่าที่บันทึกไว้…",
+    "Could not load saved settings.": "ไม่สามารถโหลดการตั้งค่าที่บันทึกไว้ได้",
+    "Open the assistant panel": "เปิดแผงผู้ช่วย",
+    "Save model settings": "บันทึกการตั้งค่าโมเดล",
+    "More info: {name}": "ข้อมูลเพิ่มเติม: {name}",
+    "Shows or hides the assistant panel in this admin.": "แสดงหรือซ่อนแผงผู้ช่วยในหน้าผู้ดูแลนี้",
+    "This key is for your visitors, not for you.": "คีย์นี้สำหรับผู้เยี่ยมชมของคุณ ไม่ใช่สำหรับคุณ",
+    "About the visitor key": "เกี่ยวกับคีย์ผู้เยี่ยมชม",
+    "Provider": "ผู้ให้บริการ",
+    "{name} (configured)": "{name} (ตั้งค่าแล้ว)",
+    "Custom endpoint": "ปลายทางกำหนดเอง",
+    "Connect an AI provider": "เชื่อมต่อผู้ให้บริการ AI",
+    "Widget": "วิดเจ็ตแชต",
+    "Turn it on": "เปิดใช้งาน",
+    "Enable the AI assistant on the public site": "เปิดใช้ผู้ช่วย AI บนไซต์สาธารณะ",
+    "Save a key in step 1 first.": "บันทึกคีย์ในขั้นตอนที่ 1 ก่อน",
+    "Public site": "ไซต์สาธารณะ",
+    "On": "เปิด",
+    "Off": "ปิด",
+    "Needs a key": "ต้องมีคีย์",
+    "Visitors can chat with it on every public page.": "ผู้เยี่ยมชมแชตกับผู้ช่วยได้ในทุกหน้าสาธารณะ",
+    "Visitors see no assistant.": "ผู้เยี่ยมชมไม่เห็นผู้ช่วย",
+    "Test key": "ทดสอบคีย์",
+    "For visitors who want to talk to your site with AI.": "สำหรับผู้เยี่ยมชมที่ต้องการคุยกับเว็บไซต์ของคุณด้วย AI",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React คือวิดเจ็ตแบบเต็ม JS ล้วนมีขนาดเล็กกว่าและโหลดเร็วกว่า",
+    "When off, your site loads no assistant code and has no chat endpoint.": "เมื่อปิด เว็บไซต์จะไม่โหลดโค้ดผู้ช่วยและไม่มีปลายทางแชต",
+    "Pure JS": "JS ล้วน",
+  },
+  it: {
+    "Loading saved settings…": "Caricamento delle impostazioni salvate…",
+    "Could not load saved settings.": "Impossibile caricare le impostazioni salvate.",
+    "Open the assistant panel": "Apri il pannello dell’assistente",
+    "Save model settings": "Salva impostazioni del modello",
+    "More info: {name}": "Altre informazioni: {name}",
+    "Shows or hides the assistant panel in this admin.": "Mostra o nasconde il pannello dell’assistente in questo admin.",
+    "This key is for your visitors, not for you.": "Questa chiave è per i tuoi visitatori, non per te.",
+    "About the visitor key": "Informazioni sulla chiave per i visitatori",
+    "Provider": "Fornitore",
+    "{name} (configured)": "{name} (configurato)",
+    "Custom endpoint": "Endpoint personalizzato",
+    "Connect an AI provider": "Collega un fornitore di IA",
+    "Widget": "Widget di chat",
+    "Turn it on": "Attivalo",
+    "Enable the AI assistant on the public site": "Attiva l’assistente IA sul sito pubblico",
+    "Save a key in step 1 first.": "Prima salva una chiave al passo 1.",
+    "Public site": "Sito pubblico",
+    "On": "Attivo",
+    "Off": "Disattivo",
+    "Needs a key": "Serve una chiave",
+    "Visitors can chat with it on every public page.": "I visitatori possono chattare con lui in ogni pagina pubblica.",
+    "Visitors see no assistant.": "I visitatori non vedono alcun assistente.",
+    "Test key": "Testa chiave",
+    "For visitors who want to talk to your site with AI.": "Per i visitatori che vogliono parlare con il tuo sito tramite l’IA.",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React è il widget completo. JS puro è più leggero e si carica più velocemente.",
+    "When off, your site loads no assistant code and has no chat endpoint.": "Quando è spento, il sito non carica codice dell’assistente e non ha alcun endpoint di chat.",
+    "Pure JS": "JS puro",
+  },
+  hi: {
+    "Loading saved settings…": "सहेजी गई सेटिंग लोड हो रही हैं…",
+    "Could not load saved settings.": "सहेजी गई सेटिंग लोड नहीं हो सकीं।",
+    "Open the assistant panel": "असिस्टेंट पैनल खोलें",
+    "Save model settings": "मॉडल सेटिंग सहेजें",
+    "More info: {name}": "अधिक जानकारी: {name}",
+    "Shows or hides the assistant panel in this admin.": "इस एडमिन में असिस्टेंट पैनल दिखाता या छिपाता है।",
+    "This key is for your visitors, not for you.": "यह कुंजी आपके विज़िटर्स के लिए है, आपके लिए नहीं।",
+    "About the visitor key": "विज़िटर कुंजी के बारे में",
+    "Provider": "प्रदाता",
+    "{name} (configured)": "{name} (कॉन्फ़िगर किया गया)",
+    "Custom endpoint": "कस्टम एंडपॉइंट",
+    "Connect an AI provider": "एक AI प्रदाता जोड़ें",
+    "Widget": "चैट विजेट",
+    "Turn it on": "इसे चालू करें",
+    "Enable the AI assistant on the public site": "सार्वजनिक साइट पर AI असिस्टेंट सक्षम करें",
+    "Save a key in step 1 first.": "पहले चरण 1 में एक कुंजी सहेजें।",
+    "Public site": "सार्वजनिक साइट",
+    "On": "चालू",
+    "Off": "बंद",
+    "Needs a key": "कुंजी चाहिए",
+    "Visitors can chat with it on every public page.": "विज़िटर हर सार्वजनिक पेज पर इससे चैट कर सकते हैं।",
+    "Visitors see no assistant.": "विज़िटर्स को कोई असिस्टेंट नहीं दिखता।",
+    "Test key": "कुंजी टेस्ट करें",
+    "For visitors who want to talk to your site with AI.": "उन विज़िटर्स के लिए जो AI से आपकी साइट से बात करना चाहते हैं।",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React पूरा विजेट है। शुद्ध JS छोटा है और तेज़ी से लोड होता है।",
+    "When off, your site loads no assistant code and has no chat endpoint.": "बंद होने पर आपकी साइट कोई सहायक कोड लोड नहीं करती और कोई चैट एंडपॉइंट नहीं होता।",
+    "Pure JS": "शुद्ध JS",
+  },
+  ur: {
+    "Loading saved settings…": "محفوظ ترتیبات لوڈ ہو رہی ہیں…",
+    "Could not load saved settings.": "محفوظ ترتیبات لوڈ نہیں ہو سکیں۔",
+    "Open the assistant panel": "اسسٹنٹ پینل کھولیں",
+    "Save model settings": "ماڈل کی ترتیبات محفوظ کریں",
+    "More info: {name}": "مزید معلومات: {name}",
+    "Shows or hides the assistant panel in this admin.": "اس ایڈمن میں اسسٹنٹ پینل دکھاتا یا چھپاتا ہے۔",
+    "This key is for your visitors, not for you.": "یہ کلید آپ کے وزیٹرز کے لیے ہے، آپ کے لیے نہیں۔",
+    "About the visitor key": "وزیٹر کلید کے بارے میں",
+    "Provider": "فراہم کنندہ",
+    "{name} (configured)": "{name} (ترتیب شدہ)",
+    "Custom endpoint": "حسب ضرورت اینڈپوائنٹ",
+    "Connect an AI provider": "ایک AI فراہم کنندہ جوڑیں",
+    "Widget": "چیٹ ویجیٹ",
+    "Turn it on": "اسے آن کریں",
+    "Enable the AI assistant on the public site": "عوامی سائٹ پر AI اسسٹنٹ فعال کریں",
+    "Save a key in step 1 first.": "پہلے مرحلہ 1 میں ایک کلید محفوظ کریں۔",
+    "Public site": "عوامی سائٹ",
+    "On": "آن",
+    "Off": "آف",
+    "Needs a key": "کلید درکار",
+    "Visitors can chat with it on every public page.": "وزیٹرز ہر عوامی صفحے پر اس سے چیٹ کر سکتے ہیں۔",
+    "Visitors see no assistant.": "وزیٹرز کو کوئی اسسٹنٹ نظر نہیں آتا۔",
+    "Test key": "کلید ٹیسٹ کریں",
+    "For visitors who want to talk to your site with AI.": "ان وزیٹرز کے لیے جو AI کے ذریعے آپ کی سائٹ سے بات کرنا چاہتے ہیں۔",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React مکمل ویجیٹ ہے۔ خالص JS چھوٹا ہے اور تیزی سے لوڈ ہوتا ہے۔",
+    "When off, your site loads no assistant code and has no chat endpoint.": "بند ہونے پر آپ کی سائٹ کوئی اسسٹنٹ کوڈ لوڈ نہیں کرتی اور کوئی چیٹ اینڈپوائنٹ نہیں ہوتا۔",
+    "Pure JS": "خالص JS",
+  },
+  bn: {
+    "Loading saved settings…": "সংরক্ষিত সেটিংস লোড হচ্ছে…",
+    "Could not load saved settings.": "সংরক্ষিত সেটিংস লোড করা যায়নি।",
+    "Open the assistant panel": "সহকারী প্যানেল খুলুন",
+    "Save model settings": "মডেল সেটিংস সংরক্ষণ করুন",
+    "More info: {name}": "আরও তথ্য: {name}",
+    "Shows or hides the assistant panel in this admin.": "এই অ্যাডমিনে সহকারী প্যানেল দেখায় বা লুকায়।",
+    "This key is for your visitors, not for you.": "এই কী আপনার ভিজিটরদের জন্য, আপনার জন্য নয়।",
+    "About the visitor key": "ভিজিটর কী সম্পর্কে",
+    "Provider": "প্রদানকারী",
+    "{name} (configured)": "{name} (কনফিগার করা)",
+    "Custom endpoint": "কাস্টম এন্ডপয়েন্ট",
+    "Connect an AI provider": "একটি AI প্রদানকারী যুক্ত করুন",
+    "Widget": "চ্যাট উইজেট",
+    "Turn it on": "চালু করুন",
+    "Enable the AI assistant on the public site": "পাবলিক সাইটে AI সহকারী চালু করুন",
+    "Save a key in step 1 first.": "প্রথমে ধাপ 1-এ একটি কী সংরক্ষণ করুন।",
+    "Public site": "পাবলিক সাইট",
+    "On": "চালু",
+    "Off": "বন্ধ",
+    "Needs a key": "কী প্রয়োজন",
+    "Visitors can chat with it on every public page.": "ভিজিটররা প্রতিটি পাবলিক পেজে এর সাথে চ্যাট করতে পারেন।",
+    "Visitors see no assistant.": "ভিজিটররা কোনো সহকারী দেখেন না।",
+    "Test key": "কী পরীক্ষা করুন",
+    "For visitors who want to talk to your site with AI.": "যে ভিজিটররা AI দিয়ে আপনার সাইটের সাথে কথা বলতে চান তাদের জন্য।",
+    "React is the full widget. Pure JS is smaller and loads faster.": "React হলো পূর্ণ উইজেট। বিশুদ্ধ JS ছোট এবং দ্রুত লোড হয়।",
+    "When off, your site loads no assistant code and has no chat endpoint.": "বন্ধ থাকলে আপনার সাইট কোনো সহকারী কোড লোড করে না এবং কোনো চ্যাট এন্ডপয়েন্ট থাকে না।",
+    "Pure JS": "বিশুদ্ধ JS",
+  },
+};
+&nbsp;
+export const t = createDictionaryTranslator({ featureDictionary: AI_ASSISTANT_LAYOUT_DICT });
+&nbsp;
+/**
+ * Layers {@link AI_ASSISTANT_LAYOUT_DICT} over a feature dictionary, locale by locale (layout wins
+ * on a shared key, so its all-locale widget strings replace the earlier `es`-only ones).
+ *
+ * @complexity Time/space: O(k) in the total number of keys across both dictionaries.
+ */
+export function withLayoutStrings(
+  { base }: { base: typeof t.dictionary },
+  _options: Record&lt;string, never&gt; = {},
+): Record&lt;string, Record&lt;string, string&gt;&gt; {
+  const layout = t.dictionary;
+  const locales = new Set([...Object.keys(base), ...Object.keys(layout)]);
+  return Object.fromEntries([...locales].map((locale) =&gt; [locale, { ...base[locale], ...layout[locale] }]));
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

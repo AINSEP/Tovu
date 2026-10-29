@@ -1,0 +1,2347 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/pages/rules.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">admin/src/features/pages</a> rules.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>87/87</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>72/72</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>41/41</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>70/70</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a>
+<a name='L323'></a><a href='#L323'>323</a>
+<a name='L324'></a><a href='#L324'>324</a>
+<a name='L325'></a><a href='#L325'>325</a>
+<a name='L326'></a><a href='#L326'>326</a>
+<a name='L327'></a><a href='#L327'>327</a>
+<a name='L328'></a><a href='#L328'>328</a>
+<a name='L329'></a><a href='#L329'>329</a>
+<a name='L330'></a><a href='#L330'>330</a>
+<a name='L331'></a><a href='#L331'>331</a>
+<a name='L332'></a><a href='#L332'>332</a>
+<a name='L333'></a><a href='#L333'>333</a>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a>
+<a name='L336'></a><a href='#L336'>336</a>
+<a name='L337'></a><a href='#L337'>337</a>
+<a name='L338'></a><a href='#L338'>338</a>
+<a name='L339'></a><a href='#L339'>339</a>
+<a name='L340'></a><a href='#L340'>340</a>
+<a name='L341'></a><a href='#L341'>341</a>
+<a name='L342'></a><a href='#L342'>342</a>
+<a name='L343'></a><a href='#L343'>343</a>
+<a name='L344'></a><a href='#L344'>344</a>
+<a name='L345'></a><a href='#L345'>345</a>
+<a name='L346'></a><a href='#L346'>346</a>
+<a name='L347'></a><a href='#L347'>347</a>
+<a name='L348'></a><a href='#L348'>348</a>
+<a name='L349'></a><a href='#L349'>349</a>
+<a name='L350'></a><a href='#L350'>350</a>
+<a name='L351'></a><a href='#L351'>351</a>
+<a name='L352'></a><a href='#L352'>352</a>
+<a name='L353'></a><a href='#L353'>353</a>
+<a name='L354'></a><a href='#L354'>354</a>
+<a name='L355'></a><a href='#L355'>355</a>
+<a name='L356'></a><a href='#L356'>356</a>
+<a name='L357'></a><a href='#L357'>357</a>
+<a name='L358'></a><a href='#L358'>358</a>
+<a name='L359'></a><a href='#L359'>359</a>
+<a name='L360'></a><a href='#L360'>360</a>
+<a name='L361'></a><a href='#L361'>361</a>
+<a name='L362'></a><a href='#L362'>362</a>
+<a name='L363'></a><a href='#L363'>363</a>
+<a name='L364'></a><a href='#L364'>364</a>
+<a name='L365'></a><a href='#L365'>365</a>
+<a name='L366'></a><a href='#L366'>366</a>
+<a name='L367'></a><a href='#L367'>367</a>
+<a name='L368'></a><a href='#L368'>368</a>
+<a name='L369'></a><a href='#L369'>369</a>
+<a name='L370'></a><a href='#L370'>370</a>
+<a name='L371'></a><a href='#L371'>371</a>
+<a name='L372'></a><a href='#L372'>372</a>
+<a name='L373'></a><a href='#L373'>373</a>
+<a name='L374'></a><a href='#L374'>374</a>
+<a name='L375'></a><a href='#L375'>375</a>
+<a name='L376'></a><a href='#L376'>376</a>
+<a name='L377'></a><a href='#L377'>377</a>
+<a name='L378'></a><a href='#L378'>378</a>
+<a name='L379'></a><a href='#L379'>379</a>
+<a name='L380'></a><a href='#L380'>380</a>
+<a name='L381'></a><a href='#L381'>381</a>
+<a name='L382'></a><a href='#L382'>382</a>
+<a name='L383'></a><a href='#L383'>383</a>
+<a name='L384'></a><a href='#L384'>384</a>
+<a name='L385'></a><a href='#L385'>385</a>
+<a name='L386'></a><a href='#L386'>386</a>
+<a name='L387'></a><a href='#L387'>387</a>
+<a name='L388'></a><a href='#L388'>388</a>
+<a name='L389'></a><a href='#L389'>389</a>
+<a name='L390'></a><a href='#L390'>390</a>
+<a name='L391'></a><a href='#L391'>391</a>
+<a name='L392'></a><a href='#L392'>392</a>
+<a name='L393'></a><a href='#L393'>393</a>
+<a name='L394'></a><a href='#L394'>394</a>
+<a name='L395'></a><a href='#L395'>395</a>
+<a name='L396'></a><a href='#L396'>396</a>
+<a name='L397'></a><a href='#L397'>397</a>
+<a name='L398'></a><a href='#L398'>398</a>
+<a name='L399'></a><a href='#L399'>399</a>
+<a name='L400'></a><a href='#L400'>400</a>
+<a name='L401'></a><a href='#L401'>401</a>
+<a name='L402'></a><a href='#L402'>402</a>
+<a name='L403'></a><a href='#L403'>403</a>
+<a name='L404'></a><a href='#L404'>404</a>
+<a name='L405'></a><a href='#L405'>405</a>
+<a name='L406'></a><a href='#L406'>406</a>
+<a name='L407'></a><a href='#L407'>407</a>
+<a name='L408'></a><a href='#L408'>408</a>
+<a name='L409'></a><a href='#L409'>409</a>
+<a name='L410'></a><a href='#L410'>410</a>
+<a name='L411'></a><a href='#L411'>411</a>
+<a name='L412'></a><a href='#L412'>412</a>
+<a name='L413'></a><a href='#L413'>413</a>
+<a name='L414'></a><a href='#L414'>414</a>
+<a name='L415'></a><a href='#L415'>415</a>
+<a name='L416'></a><a href='#L416'>416</a>
+<a name='L417'></a><a href='#L417'>417</a>
+<a name='L418'></a><a href='#L418'>418</a>
+<a name='L419'></a><a href='#L419'>419</a>
+<a name='L420'></a><a href='#L420'>420</a>
+<a name='L421'></a><a href='#L421'>421</a>
+<a name='L422'></a><a href='#L422'>422</a>
+<a name='L423'></a><a href='#L423'>423</a>
+<a name='L424'></a><a href='#L424'>424</a>
+<a name='L425'></a><a href='#L425'>425</a>
+<a name='L426'></a><a href='#L426'>426</a>
+<a name='L427'></a><a href='#L427'>427</a>
+<a name='L428'></a><a href='#L428'>428</a>
+<a name='L429'></a><a href='#L429'>429</a>
+<a name='L430'></a><a href='#L430'>430</a>
+<a name='L431'></a><a href='#L431'>431</a>
+<a name='L432'></a><a href='#L432'>432</a>
+<a name='L433'></a><a href='#L433'>433</a>
+<a name='L434'></a><a href='#L434'>434</a>
+<a name='L435'></a><a href='#L435'>435</a>
+<a name='L436'></a><a href='#L436'>436</a>
+<a name='L437'></a><a href='#L437'>437</a>
+<a name='L438'></a><a href='#L438'>438</a>
+<a name='L439'></a><a href='#L439'>439</a>
+<a name='L440'></a><a href='#L440'>440</a>
+<a name='L441'></a><a href='#L441'>441</a>
+<a name='L442'></a><a href='#L442'>442</a>
+<a name='L443'></a><a href='#L443'>443</a>
+<a name='L444'></a><a href='#L444'>444</a>
+<a name='L445'></a><a href='#L445'>445</a>
+<a name='L446'></a><a href='#L446'>446</a>
+<a name='L447'></a><a href='#L447'>447</a>
+<a name='L448'></a><a href='#L448'>448</a>
+<a name='L449'></a><a href='#L449'>449</a>
+<a name='L450'></a><a href='#L450'>450</a>
+<a name='L451'></a><a href='#L451'>451</a>
+<a name='L452'></a><a href='#L452'>452</a>
+<a name='L453'></a><a href='#L453'>453</a>
+<a name='L454'></a><a href='#L454'>454</a>
+<a name='L455'></a><a href='#L455'>455</a>
+<a name='L456'></a><a href='#L456'>456</a>
+<a name='L457'></a><a href='#L457'>457</a>
+<a name='L458'></a><a href='#L458'>458</a>
+<a name='L459'></a><a href='#L459'>459</a>
+<a name='L460'></a><a href='#L460'>460</a>
+<a name='L461'></a><a href='#L461'>461</a>
+<a name='L462'></a><a href='#L462'>462</a>
+<a name='L463'></a><a href='#L463'>463</a>
+<a name='L464'></a><a href='#L464'>464</a>
+<a name='L465'></a><a href='#L465'>465</a>
+<a name='L466'></a><a href='#L466'>466</a>
+<a name='L467'></a><a href='#L467'>467</a>
+<a name='L468'></a><a href='#L468'>468</a>
+<a name='L469'></a><a href='#L469'>469</a>
+<a name='L470'></a><a href='#L470'>470</a>
+<a name='L471'></a><a href='#L471'>471</a>
+<a name='L472'></a><a href='#L472'>472</a>
+<a name='L473'></a><a href='#L473'>473</a>
+<a name='L474'></a><a href='#L474'>474</a>
+<a name='L475'></a><a href='#L475'>475</a>
+<a name='L476'></a><a href='#L476'>476</a>
+<a name='L477'></a><a href='#L477'>477</a>
+<a name='L478'></a><a href='#L478'>478</a>
+<a name='L479'></a><a href='#L479'>479</a>
+<a name='L480'></a><a href='#L480'>480</a>
+<a name='L481'></a><a href='#L481'>481</a>
+<a name='L482'></a><a href='#L482'>482</a>
+<a name='L483'></a><a href='#L483'>483</a>
+<a name='L484'></a><a href='#L484'>484</a>
+<a name='L485'></a><a href='#L485'>485</a>
+<a name='L486'></a><a href='#L486'>486</a>
+<a name='L487'></a><a href='#L487'>487</a>
+<a name='L488'></a><a href='#L488'>488</a>
+<a name='L489'></a><a href='#L489'>489</a>
+<a name='L490'></a><a href='#L490'>490</a>
+<a name='L491'></a><a href='#L491'>491</a>
+<a name='L492'></a><a href='#L492'>492</a>
+<a name='L493'></a><a href='#L493'>493</a>
+<a name='L494'></a><a href='#L494'>494</a>
+<a name='L495'></a><a href='#L495'>495</a>
+<a name='L496'></a><a href='#L496'>496</a>
+<a name='L497'></a><a href='#L497'>497</a>
+<a name='L498'></a><a href='#L498'>498</a>
+<a name='L499'></a><a href='#L499'>499</a>
+<a name='L500'></a><a href='#L500'>500</a>
+<a name='L501'></a><a href='#L501'>501</a>
+<a name='L502'></a><a href='#L502'>502</a>
+<a name='L503'></a><a href='#L503'>503</a>
+<a name='L504'></a><a href='#L504'>504</a>
+<a name='L505'></a><a href='#L505'>505</a>
+<a name='L506'></a><a href='#L506'>506</a>
+<a name='L507'></a><a href='#L507'>507</a>
+<a name='L508'></a><a href='#L508'>508</a>
+<a name='L509'></a><a href='#L509'>509</a>
+<a name='L510'></a><a href='#L510'>510</a>
+<a name='L511'></a><a href='#L511'>511</a>
+<a name='L512'></a><a href='#L512'>512</a>
+<a name='L513'></a><a href='#L513'>513</a>
+<a name='L514'></a><a href='#L514'>514</a>
+<a name='L515'></a><a href='#L515'>515</a>
+<a name='L516'></a><a href='#L516'>516</a>
+<a name='L517'></a><a href='#L517'>517</a>
+<a name='L518'></a><a href='#L518'>518</a>
+<a name='L519'></a><a href='#L519'>519</a>
+<a name='L520'></a><a href='#L520'>520</a>
+<a name='L521'></a><a href='#L521'>521</a>
+<a name='L522'></a><a href='#L522'>522</a>
+<a name='L523'></a><a href='#L523'>523</a>
+<a name='L524'></a><a href='#L524'>524</a>
+<a name='L525'></a><a href='#L525'>525</a>
+<a name='L526'></a><a href='#L526'>526</a>
+<a name='L527'></a><a href='#L527'>527</a>
+<a name='L528'></a><a href='#L528'>528</a>
+<a name='L529'></a><a href='#L529'>529</a>
+<a name='L530'></a><a href='#L530'>530</a>
+<a name='L531'></a><a href='#L531'>531</a>
+<a name='L532'></a><a href='#L532'>532</a>
+<a name='L533'></a><a href='#L533'>533</a>
+<a name='L534'></a><a href='#L534'>534</a>
+<a name='L535'></a><a href='#L535'>535</a>
+<a name='L536'></a><a href='#L536'>536</a>
+<a name='L537'></a><a href='#L537'>537</a>
+<a name='L538'></a><a href='#L538'>538</a>
+<a name='L539'></a><a href='#L539'>539</a>
+<a name='L540'></a><a href='#L540'>540</a>
+<a name='L541'></a><a href='#L541'>541</a>
+<a name='L542'></a><a href='#L542'>542</a>
+<a name='L543'></a><a href='#L543'>543</a>
+<a name='L544'></a><a href='#L544'>544</a>
+<a name='L545'></a><a href='#L545'>545</a>
+<a name='L546'></a><a href='#L546'>546</a>
+<a name='L547'></a><a href='#L547'>547</a>
+<a name='L548'></a><a href='#L548'>548</a>
+<a name='L549'></a><a href='#L549'>549</a>
+<a name='L550'></a><a href='#L550'>550</a>
+<a name='L551'></a><a href='#L551'>551</a>
+<a name='L552'></a><a href='#L552'>552</a>
+<a name='L553'></a><a href='#L553'>553</a>
+<a name='L554'></a><a href='#L554'>554</a>
+<a name='L555'></a><a href='#L555'>555</a>
+<a name='L556'></a><a href='#L556'>556</a>
+<a name='L557'></a><a href='#L557'>557</a>
+<a name='L558'></a><a href='#L558'>558</a>
+<a name='L559'></a><a href='#L559'>559</a>
+<a name='L560'></a><a href='#L560'>560</a>
+<a name='L561'></a><a href='#L561'>561</a>
+<a name='L562'></a><a href='#L562'>562</a>
+<a name='L563'></a><a href='#L563'>563</a>
+<a name='L564'></a><a href='#L564'>564</a>
+<a name='L565'></a><a href='#L565'>565</a>
+<a name='L566'></a><a href='#L566'>566</a>
+<a name='L567'></a><a href='#L567'>567</a>
+<a name='L568'></a><a href='#L568'>568</a>
+<a name='L569'></a><a href='#L569'>569</a>
+<a name='L570'></a><a href='#L570'>570</a>
+<a name='L571'></a><a href='#L571'>571</a>
+<a name='L572'></a><a href='#L572'>572</a>
+<a name='L573'></a><a href='#L573'>573</a>
+<a name='L574'></a><a href='#L574'>574</a>
+<a name='L575'></a><a href='#L575'>575</a>
+<a name='L576'></a><a href='#L576'>576</a>
+<a name='L577'></a><a href='#L577'>577</a>
+<a name='L578'></a><a href='#L578'>578</a>
+<a name='L579'></a><a href='#L579'>579</a>
+<a name='L580'></a><a href='#L580'>580</a>
+<a name='L581'></a><a href='#L581'>581</a>
+<a name='L582'></a><a href='#L582'>582</a>
+<a name='L583'></a><a href='#L583'>583</a>
+<a name='L584'></a><a href='#L584'>584</a>
+<a name='L585'></a><a href='#L585'>585</a>
+<a name='L586'></a><a href='#L586'>586</a>
+<a name='L587'></a><a href='#L587'>587</a>
+<a name='L588'></a><a href='#L588'>588</a>
+<a name='L589'></a><a href='#L589'>589</a>
+<a name='L590'></a><a href='#L590'>590</a>
+<a name='L591'></a><a href='#L591'>591</a>
+<a name='L592'></a><a href='#L592'>592</a>
+<a name='L593'></a><a href='#L593'>593</a>
+<a name='L594'></a><a href='#L594'>594</a>
+<a name='L595'></a><a href='#L595'>595</a>
+<a name='L596'></a><a href='#L596'>596</a>
+<a name='L597'></a><a href='#L597'>597</a>
+<a name='L598'></a><a href='#L598'>598</a>
+<a name='L599'></a><a href='#L599'>599</a>
+<a name='L600'></a><a href='#L600'>600</a>
+<a name='L601'></a><a href='#L601'>601</a>
+<a name='L602'></a><a href='#L602'>602</a>
+<a name='L603'></a><a href='#L603'>603</a>
+<a name='L604'></a><a href='#L604'>604</a>
+<a name='L605'></a><a href='#L605'>605</a>
+<a name='L606'></a><a href='#L606'>606</a>
+<a name='L607'></a><a href='#L607'>607</a>
+<a name='L608'></a><a href='#L608'>608</a>
+<a name='L609'></a><a href='#L609'>609</a>
+<a name='L610'></a><a href='#L610'>610</a>
+<a name='L611'></a><a href='#L611'>611</a>
+<a name='L612'></a><a href='#L612'>612</a>
+<a name='L613'></a><a href='#L613'>613</a>
+<a name='L614'></a><a href='#L614'>614</a>
+<a name='L615'></a><a href='#L615'>615</a>
+<a name='L616'></a><a href='#L616'>616</a>
+<a name='L617'></a><a href='#L617'>617</a>
+<a name='L618'></a><a href='#L618'>618</a>
+<a name='L619'></a><a href='#L619'>619</a>
+<a name='L620'></a><a href='#L620'>620</a>
+<a name='L621'></a><a href='#L621'>621</a>
+<a name='L622'></a><a href='#L622'>622</a>
+<a name='L623'></a><a href='#L623'>623</a>
+<a name='L624'></a><a href='#L624'>624</a>
+<a name='L625'></a><a href='#L625'>625</a>
+<a name='L626'></a><a href='#L626'>626</a>
+<a name='L627'></a><a href='#L627'>627</a>
+<a name='L628'></a><a href='#L628'>628</a>
+<a name='L629'></a><a href='#L629'>629</a>
+<a name='L630'></a><a href='#L630'>630</a>
+<a name='L631'></a><a href='#L631'>631</a>
+<a name='L632'></a><a href='#L632'>632</a>
+<a name='L633'></a><a href='#L633'>633</a>
+<a name='L634'></a><a href='#L634'>634</a>
+<a name='L635'></a><a href='#L635'>635</a>
+<a name='L636'></a><a href='#L636'>636</a>
+<a name='L637'></a><a href='#L637'>637</a>
+<a name='L638'></a><a href='#L638'>638</a>
+<a name='L639'></a><a href='#L639'>639</a>
+<a name='L640'></a><a href='#L640'>640</a>
+<a name='L641'></a><a href='#L641'>641</a>
+<a name='L642'></a><a href='#L642'>642</a>
+<a name='L643'></a><a href='#L643'>643</a>
+<a name='L644'></a><a href='#L644'>644</a>
+<a name='L645'></a><a href='#L645'>645</a>
+<a name='L646'></a><a href='#L646'>646</a>
+<a name='L647'></a><a href='#L647'>647</a>
+<a name='L648'></a><a href='#L648'>648</a>
+<a name='L649'></a><a href='#L649'>649</a>
+<a name='L650'></a><a href='#L650'>650</a>
+<a name='L651'></a><a href='#L651'>651</a>
+<a name='L652'></a><a href='#L652'>652</a>
+<a name='L653'></a><a href='#L653'>653</a>
+<a name='L654'></a><a href='#L654'>654</a>
+<a name='L655'></a><a href='#L655'>655</a>
+<a name='L656'></a><a href='#L656'>656</a>
+<a name='L657'></a><a href='#L657'>657</a>
+<a name='L658'></a><a href='#L658'>658</a>
+<a name='L659'></a><a href='#L659'>659</a>
+<a name='L660'></a><a href='#L660'>660</a>
+<a name='L661'></a><a href='#L661'>661</a>
+<a name='L662'></a><a href='#L662'>662</a>
+<a name='L663'></a><a href='#L663'>663</a>
+<a name='L664'></a><a href='#L664'>664</a>
+<a name='L665'></a><a href='#L665'>665</a>
+<a name='L666'></a><a href='#L666'>666</a>
+<a name='L667'></a><a href='#L667'>667</a>
+<a name='L668'></a><a href='#L668'>668</a>
+<a name='L669'></a><a href='#L669'>669</a>
+<a name='L670'></a><a href='#L670'>670</a>
+<a name='L671'></a><a href='#L671'>671</a>
+<a name='L672'></a><a href='#L672'>672</a>
+<a name='L673'></a><a href='#L673'>673</a>
+<a name='L674'></a><a href='#L674'>674</a>
+<a name='L675'></a><a href='#L675'>675</a>
+<a name='L676'></a><a href='#L676'>676</a>
+<a name='L677'></a><a href='#L677'>677</a>
+<a name='L678'></a><a href='#L678'>678</a>
+<a name='L679'></a><a href='#L679'>679</a>
+<a name='L680'></a><a href='#L680'>680</a>
+<a name='L681'></a><a href='#L681'>681</a>
+<a name='L682'></a><a href='#L682'>682</a>
+<a name='L683'></a><a href='#L683'>683</a>
+<a name='L684'></a><a href='#L684'>684</a>
+<a name='L685'></a><a href='#L685'>685</a>
+<a name='L686'></a><a href='#L686'>686</a>
+<a name='L687'></a><a href='#L687'>687</a>
+<a name='L688'></a><a href='#L688'>688</a>
+<a name='L689'></a><a href='#L689'>689</a>
+<a name='L690'></a><a href='#L690'>690</a>
+<a name='L691'></a><a href='#L691'>691</a>
+<a name='L692'></a><a href='#L692'>692</a>
+<a name='L693'></a><a href='#L693'>693</a>
+<a name='L694'></a><a href='#L694'>694</a>
+<a name='L695'></a><a href='#L695'>695</a>
+<a name='L696'></a><a href='#L696'>696</a>
+<a name='L697'></a><a href='#L697'>697</a>
+<a name='L698'></a><a href='#L698'>698</a>
+<a name='L699'></a><a href='#L699'>699</a>
+<a name='L700'></a><a href='#L700'>700</a>
+<a name='L701'></a><a href='#L701'>701</a>
+<a name='L702'></a><a href='#L702'>702</a>
+<a name='L703'></a><a href='#L703'>703</a>
+<a name='L704'></a><a href='#L704'>704</a>
+<a name='L705'></a><a href='#L705'>705</a>
+<a name='L706'></a><a href='#L706'>706</a>
+<a name='L707'></a><a href='#L707'>707</a>
+<a name='L708'></a><a href='#L708'>708</a>
+<a name='L709'></a><a href='#L709'>709</a>
+<a name='L710'></a><a href='#L710'>710</a>
+<a name='L711'></a><a href='#L711'>711</a>
+<a name='L712'></a><a href='#L712'>712</a>
+<a name='L713'></a><a href='#L713'>713</a>
+<a name='L714'></a><a href='#L714'>714</a>
+<a name='L715'></a><a href='#L715'>715</a>
+<a name='L716'></a><a href='#L716'>716</a>
+<a name='L717'></a><a href='#L717'>717</a>
+<a name='L718'></a><a href='#L718'>718</a>
+<a name='L719'></a><a href='#L719'>719</a>
+<a name='L720'></a><a href='#L720'>720</a>
+<a name='L721'></a><a href='#L721'>721</a>
+<a name='L722'></a><a href='#L722'>722</a>
+<a name='L723'></a><a href='#L723'>723</a>
+<a name='L724'></a><a href='#L724'>724</a>
+<a name='L725'></a><a href='#L725'>725</a>
+<a name='L726'></a><a href='#L726'>726</a>
+<a name='L727'></a><a href='#L727'>727</a>
+<a name='L728'></a><a href='#L728'>728</a>
+<a name='L729'></a><a href='#L729'>729</a>
+<a name='L730'></a><a href='#L730'>730</a>
+<a name='L731'></a><a href='#L731'>731</a>
+<a name='L732'></a><a href='#L732'>732</a>
+<a name='L733'></a><a href='#L733'>733</a>
+<a name='L734'></a><a href='#L734'>734</a>
+<a name='L735'></a><a href='#L735'>735</a>
+<a name='L736'></a><a href='#L736'>736</a>
+<a name='L737'></a><a href='#L737'>737</a>
+<a name='L738'></a><a href='#L738'>738</a>
+<a name='L739'></a><a href='#L739'>739</a>
+<a name='L740'></a><a href='#L740'>740</a>
+<a name='L741'></a><a href='#L741'>741</a>
+<a name='L742'></a><a href='#L742'>742</a>
+<a name='L743'></a><a href='#L743'>743</a>
+<a name='L744'></a><a href='#L744'>744</a>
+<a name='L745'></a><a href='#L745'>745</a>
+<a name='L746'></a><a href='#L746'>746</a>
+<a name='L747'></a><a href='#L747'>747</a>
+<a name='L748'></a><a href='#L748'>748</a>
+<a name='L749'></a><a href='#L749'>749</a>
+<a name='L750'></a><a href='#L750'>750</a>
+<a name='L751'></a><a href='#L751'>751</a>
+<a name='L752'></a><a href='#L752'>752</a>
+<a name='L753'></a><a href='#L753'>753</a>
+<a name='L754'></a><a href='#L754'>754</a>
+<a name='L755'></a><a href='#L755'>755</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">78x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">415x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">107x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">78x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">122x</span>
+<span class="cline-any cline-yes">114x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">297x</span>
+<span class="cline-any cline-yes">99x</span>
+<span class="cline-any cline-yes">99x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">99x</span>
+<span class="cline-any cline-yes">99x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">149x</span>
+<span class="cline-any cline-yes">127x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">127x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">89x</span>
+<span class="cline-any cline-yes">18x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">78x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">127x</span>
+<span class="cline-any cline-yes">202x</span>
+<span class="cline-any cline-yes">113x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">693x</span>
+<span class="cline-any cline-yes">112x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">65x</span>
+<span class="cline-any cline-yes">65x</span>
+<span class="cline-any cline-yes">65x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">89x</span>
+<span class="cline-any cline-yes">77x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">78x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">40x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">78x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">127x</span>
+<span class="cline-any cline-yes">21x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">722x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">78x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">153x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">20x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">78x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">722x</span>
+<span class="cline-any cline-yes">577x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">78x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">238x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">84x</span>
+<span class="cline-any cline-yes">75x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import type { DataTableSortDirection, DataTableSortState } from "@jini-ai/admin/core";
+import type { RowMenuItem } from "@jini-ai/admin/react";
+&nbsp;
+import type { CanvasStyling } from "@jini-ai/ui/html-editor";
+&nbsp;
+import { buildAgentListHandles } from "@jini-ai/agentic";
+import { type AdminPost } from "../../lib/api";
+import type { Translate } from "@jini-ai/ui/panel-kit";
+import type {
+  StandingDraftAutosaveInput,
+  StandingDraftStaleBasis,
+} from "../../hooks/use-standing-draft-autosave.hooks";
+import { formatRelativeMinutesAgo } from "@jini-ai/ui/panel-kit";
+import { isVersionConflict, VERSION_CONFLICT_CODE } from "../../lib/version-conflict";
+import { t as translate } from "./pages-i18n";
+import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
+import type { PageEditorView } from "./hooks/use-page-editor.hooks";
+import { STATIC_TIER_PAGE_SHELL_TEMPLATES, type ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
+&nbsp;
+/**
+ * @file Pure logic for the `pages` feature — everything that computes a value rather than
+ * rendering one.
+ *
+ * Mirrors `features/posts/rules.ts` exactly, since `Pages.tsx` is `Posts.tsx`'s twin (same
+ * `RowMenu`-building logic, same Publish/Unpublish status-flip rule) backed by the pages-filtered
+ * endpoints.
+ * The bar for landing here is "does it compute something", not "is it rendered" — `pageRowMenuItems`
+ * was a closure inside a `DataTable` cell, reachable only by rendering a table and opening a
+ * popover, which is how its `page.status` conditional ended up permanently untested.
+ */
+&nbsp;
+/**
+ * This screen's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s `TAXONOMY_RESOURCE`
+ * for why this is a plain colocated constant rather than a shared registry. `pages_write_html`
+ * (`apps/website/src/features/pages/agent-tools.ts`) is agent-callable, so `use-pages.hooks.ts` needs
+ * the same "an assistant write shows up without a reload" fix `use-taxonomy.hooks.ts` shipped first,
+ * for the same reason its twin needed it — see `posts/rules.ts`'s `POSTS_RESOURCE`, the reported
+ * bug's own screen (an operator asked the assistant to translate-and-publish a POST).
+ */
+export const PAGES_RESOURCE = "pages";
+&nbsp;
+/**
+ * A page's public path on the live site, derived from its `slug` — mirrors
+ * `@jini-ai/cms/routing`'s `postPublicPath` exactly (same one-line
+ * `"/" -&gt; "/"`, everything else -&gt; `/${slug}` rule), re-implemented here rather than imported
+ * because `apps/admin` is a separately deployed SPA package with no dependency on
+ * `apps/website`'s server source.
+ *
+ * Exists because a Page can now claim the literal root slug `"/"` (`apps/website/src/features/
+ * post/post.ts`'s `ROOT_SLUG`, gated to `kind: "page"`), which a naive `/${slug}` template
+ * doubles into `"//"` — a broken link both as an href and as the visible text in `Pages.tsx`'s
+ * Slug column. `Posts.tsx` has no equivalent call because a Post can never hold `ROOT_SLUG`.
+ *
+ * @complexity O(1).
+ */
+export function pagePublicPath(slug: string): string {
+  return slug === "/" ? "/" : `/${slug}`;
+}
+&nbsp;
+/**
+ * The public preview URL for the CURRENT stored version — cache-busted, so a background refresh
+ * (2026-09-16, `use-external-entry-refresh.hooks.ts`) can force the live-preview iframe to reload
+ * even though its `slug` did not change.
+ *
+ * The public route serves `Cache-Control: public, max-age=60, stale-while-revalidate=300`
+ * (`apps/website/src/server/inbound/public-http/routes/site/pages.ts`), so an unchanged `src` can
+ * keep showing the pre-write HTML for up to a minute after an assistant tool saves a new one. The
+ * `_v` param is never read server-side (the route's only `req.query` use is
+ * `decodeFormSubmissionResultFromQuery`, which looks at form-result keys only) — it exists purely to
+ * change the URL, which is what actually busts the browser cache.
+ *
+ * @complexity O(1).
+ */
+export function pageLivePreviewPath(slug: string, version: number): string {
+  return `${pagePublicPath(slug)}?_v=${version}`;
+}
+&nbsp;
+/** The subset of a page {@link pageAdminPath} reads — kept narrow, same reasoning as
+ *  {@link SavablePage} below, so a collision record (`ThemePageSlugCollision`/
+ *  `ThemeExploreSlugCollision`, both `{ id, slug, title, kind }`) satisfies it structurally with no
+ *  cast, alongside a real `AdminPost`. */
+export interface PageAdminHandle {
+  id: string;
+  slug: string;
+}
+&nbsp;
+/** Readable admin alias for the root page; a real `home` slug uses its id to avoid a collision. */
+export const HOME_PAGE_HANDLE = "home";
+&nbsp;
+/**
+ * The in-SPA path to a page's admin editor — `/pages/&lt;handle&gt;`, the bare route path `navigate()`
+ * (`lib/router.ts`) expects, or that `adminHref()` (same module) turns into a real `&lt;a href&gt;`.
+ *
+ * Prefers the slug, with `home` as the readable alias for the literal root slug `"/"`
+ * (`post.ts`'s `ROOT_SLUG`, gated to `kind: "page"`). The page-editor route is registered as
+ * `/:slug` — one path segment (`panels.tsx`) — so `/` cannot match it, the bug `45101306` fixed
+ * by switching to id-always. The editor maps `home` back to `/` before fetching. The alias wins:
+ * a real page whose legal slug is `home` uses its id, preserving access without reserving a
+ * public slug. `getAdminPostByIdOrSlug` (`apps/website/src/features/post/post.ts`) resolves an
+ * ordinary slug or id server-side (slug checked first, id as the fallback).
+ *
+ * Deliberately returns the bare route path rather than a full href or two id/slug-flavored
+ * variants — a caller building a real `&lt;a href&gt;` wraps this in `adminHref()`; a caller driving the
+ * SPA router passes it straight to `navigate()`. Baking a prefix in here would make it wrong for
+ * whichever caller didn't want it; the previous per-call-site `` `/pages/${page.slug}` `` /
+ * `` `/pages/${page.id}` `` templates are exactly the caller-side duplication this function replaces.
+ *
+ * @complexity O(1).
+ */
+export function pageAdminPath(page: PageAdminHandle): string {
+  if (page.slug === "/") return `/pages/${HOME_PAGE_HANDLE}`;
+  return `/pages/${page.slug === HOME_PAGE_HANDLE ? page.id : page.slug}`;
+}
+&nbsp;
+/** The callbacks a row menu needs. Passed in rather than imported so this module stays free of
+ *  state and navigation, and so a test can assert exactly which one a given row wires up — same
+ *  shape as `posts/rules.ts`'s `PostRowMenuHandlers`. */
+export interface PageRowMenuHandlers {
+  onEdit: (page: AdminPost) =&gt; void;
+  onTogglePublish: (page: AdminPost) =&gt; void;
+  onDelete: (page: AdminPost) =&gt; void;
+}
+&nbsp;
+/**
+ * The row-action menu for one page.
+ *
+ * The branch is the reason this is exported: **the middle item's label and key flip with the row's
+ * own status** — "Unpublish" for a published page, "Publish" for a draft — same deliberate rename
+ * `posts/rules.ts`'s `postRowMenuItems` got (owner request, 2026-09-22), replacing the old rule
+ * that omitted the item entirely for a draft rather than rendering it disabled. See that function's
+ * own doc for the full "why" — a status-only payload sent by the old "Disable" item, always
+ * missing `title`/`slug`, was rejected by `PUT /posts/:id` with "title is required" (owner
+ * screenshot) before the row's status could ever change, and a draft page had no way to publish
+ * from this list at all.
+ *
+ * Both branches call the SAME handler — `onTogglePublish` reads `page.status` itself to decide
+ * which way to flip, so this menu builder does not need two callbacks for what is one reversible
+ * toggle.
+ *
+ * "Delete" is marked `destructive` and only OPENS the confirmation; the delete itself is
+ * `usePages().removePage`, gated on `ConfirmDialog`.
+ *
+ * @complexity Time/space: O(1) — exactly three entries, no iteration.
+ * @overallScore 100
+ */
+export function pageRowMenuItems(page: AdminPost, handlers: PageRowMenuHandlers, locale: string): RowMenuItem[] {
+  const t = (key: string): string =&gt; translate({ locale: locale, key: key });
+  const items: RowMenuItem[] = [{ key: "edit", label: t("Edit"), onSelect: () =&gt; handlers.onEdit(page) }];
+  items.push(
+    page.status === "published"
+      ? { key: "unpublish", label: t("Unpublish"), onSelect: () =&gt; handlers.onTogglePublish(page) }
+      : { key: "publish", label: t("Publish"), onSelect: () =&gt; handlers.onTogglePublish(page) }
+  );
+  items.push({ key: "delete", label: t("Delete"), destructive: true, onSelect: () =&gt; handlers.onDelete(page) });
+  return items;
+}
+&nbsp;
+/**
+ * Row-menu agent handle for every page, keyed by page id. `Pages.tsx` looks a row's handle up BY
+ * ID rather than by render position — mirrors `posts/rules.ts`'s `buildPostRowMenuHandleMap`
+ * verbatim, for the reason that function's own doc gives and that this screen learned the hard way
+ * (2026-09-07 audit claim #2): `DataTable` sorts `rows` internally and passes each `cell` callback
+ * the index into that SORTED order, while the handle array is built from the unsorted `pages` prop,
+ * so any row whose sort position differed from its array position published another page's handle.
+ *
+ * `null` (list not loaded yet) returns an empty map rather than throwing, so the caller can memoize
+ * this unconditionally above its own loading-state early return.
+ *
+ * @complexity Time/space: O(n) in page count.
+ */
+export function buildPageRowMenuHandleMap(pages: AdminPost[] | null): Map&lt;string, string&gt; {
+  if (!pages) return new Map();
+  const handles = buildAgentListHandles({ prefix: "pages-row", ids: pages.map((page) =&gt; page.id) }
+  );
+  return new Map(pages.map((page, index) =&gt; [page.id, handles[index]!]));
+}
+&nbsp;
+/** The callbacks a Theme Page row's menu needs. Passed in rather than imported, same reasoning as
+ *  {@link PageRowMenuHandlers} above — in particular, `onEdit` takes a bare `pageId` rather than
+ *  building the Theme Studio href itself, so this module stays free of navigation: the caller
+ *  (`ThemePagesTab.tsx`) already holds the narrowed, non-null `themeId` `themeStudioHref` needs, and
+ *  is the one place that calls it. */
+export interface ThemePageRowMenuHandlers {
+  onOpenDetails: (pageId: string) =&gt; void;
+  onEdit: (pageId: string) =&gt; void;
+}
+&nbsp;
+/**
+ * The row-action menu for one Theme Page row — pulled out of `ThemePagesTab.tsx`'s `DataTable`
+ * cell for the same reason {@link pageRowMenuItems} was: a claim worth a test, which it cannot have
+ * while it is a closure inside a table cell reachable only by rendering and opening a popover.
+ *
+ * A theme page has no `PostRecord` behind it (see `Pages.tsx`'s own header on this tab's history),
+ * so there is nothing here to disable or delete — just `Details` (the row's full facts, opened in
+ * `ThemePageDetailsModal.tsx`) and `Edit` (the same Theme Studio destination the table's own Theme
+ * Studio column links to, listed directly under `Details` per the 2026-08-31 owner request that
+ * moved it here from the modal's own footer — see `ThemePageDetailsModal.tsx`'s own header, PART 3,
+ * for that history). Kept as its own function (rather than a bare inline array at the call site) so
+ * a future third action lands here, not as a second ad hoc array shape.
+ *
+ * Takes an already-bound {@link Translate} rather than a raw `locale`, unlike {@link pageRowMenuItems}
+ * — `ThemePagesTab.tsx`'s own helpers (`themePagePublishState`, `lockedPublishReason`, …) all take
+ * `t: Translate` already, and this row menu is built inside that same component, so matching ITS
+ * established convention avoids threading a second, redundant `locale` value through the same tree.
+ *
+ * @complexity O(1) — exactly two entries, no iteration.
+ */
+export function themePageRowMenuItems(row: ThemePageRow, handlers: ThemePageRowMenuHandlers, t: Translate): RowMenuItem[] {
+  return [
+    { key: "details", label: t("Details"), onSelect: () =&gt; handlers.onOpenDetails(row.pageId) },
+    { key: "edit", label: t("Edit"), onSelect: () =&gt; handlers.onEdit(row.pageId) },
+  ];
+}
+&nbsp;
+/** What `usePageEditor`'s `save` sends to the two write routes, and whether the HTML route applies
+ *  at all — see `use-page-editor.hooks.ts`'s own `save` for the full "why two routes" reasoning, and
+ *  {@link pageAcceptsHtmlBody} for exactly when `updatePageHtml` is allowed to fire (`updatePost`
+ *  needs a round-tripped `bodyJson` for every Page still in doc format when metadata is written,
+ *  including a new Page about to be converted by the subsequent HTML write). */
+export interface PageSavePlan {
+  canSaveHtml: boolean;
+  statusToWrite: "draft" | "published";
+  updatePostPayload: {
+    title: string;
+    slug: string;
+    status: "draft" | "published";
+    templateChoice: string | null;
+    bodyJson?: Record&lt;string, unknown&gt;;
+    /** The optimistic-concurrency basis — the `version` this editor loaded, NOT a writable field.
+     *  The server compares it and answers `409 VERSION_CONFLICT` when a newer save has superseded
+     *  it. See {@link buildPageSavePlan} for why this write, not the HTML one, carries it. */
+    expectedVersion: number;
+  };
+}
+&nbsp;
+/** The subset of a loaded `AdminPost` {@link pageAcceptsHtmlBody} actually reads — kept narrow
+ *  rather than importing the full `AdminPost` type, so a test can pass a bare literal. Field types
+ *  mirror `AdminPost`'s own exactly (`bodyFormat` optional, `bodyJson` a plain record) so a real
+ *  `AdminPost` is always assignable here without a cast. */
+export interface SavablePage {
+  bodyFormat?: "doc" | "html";
+  bodyJson: Record&lt;string, unknown&gt;;
+}
+&nbsp;
+/** {@link SavablePage} plus the row's `version` — the optimistic-concurrency basis both
+ *  {@link buildPageSavePlan} and {@link buildPageAutosaveDraft} capture. Separate from
+ *  {@link SavablePage} because {@link pageAcceptsHtmlBody} genuinely does not need it and should
+ *  not force a caller to supply one. */
+export interface VersionedSavablePage extends SavablePage {
+  version: number;
+}
+&nbsp;
+/** Whether `bodyJson` holds an actual authored Tiptap document, as opposed to the empty
+ *  `DEFAULT_BODY_JSON` (`{ type: "doc", content: [] }`) every `createPost` row is born with
+ *  (`apps/website/src/features/post/post.ts`). Deliberately conservative: ANY non-empty `content`
+ *  array counts as real content, including a single empty paragraph, because the only thing this
+ *  answer gates is whether we are willing to DESTROY that document — and the cost of being wrong in
+ *  the cautious direction is a refusal the operator is told about, while the cost of being wrong in
+ *  the other direction is silent data loss. An absent/non-array `content` is treated as empty: it is
+ *  not a document this editor could lose anything from. */
+function hasAuthoredDocument(bodyJson: Record&lt;string, unknown&gt;): boolean {
+  const content = bodyJson.content;
+  return Array.isArray(content) &amp;&amp; content.length &gt; 0;
+}
+&nbsp;
+/** Sentinel written into the template `&lt;select&gt;`'s `value` when `templateChoice` is `null` and the
+ *  active theme ships neither canonical page-shell filename — see {@link pagePickerValue}'s own doc.
+ *  Never a real theme filename (those are always `*.html`), so it can never collide with an
+ *  operator's own pick. */
+export const THEME_DEFAULT_SENTINEL = "__theme-default__";
+&nbsp;
+/**
+ * What the Pages template `&lt;select&gt;` should show for a Page's `templateChoice` (bare-page ruling
+ * 2026-09-23, S6). Before this ruling, `value={templateChoice ?? ""}` was enough because `null` and
+ * `""` rendered identically (both fell back to the theme's page shell) — showing `null` as
+ * `""`/"No template chosen" was a harmless simplification. Now they diverge: `""` is a bare page (no
+ * theme chrome at all) and `null` still renders the theme's own page shell ("Theme default"), so
+ * displaying a `null` Page as `""` would claim a render it does not do.
+ *
+ * `null` maps to whichever of {@link STATIC_TIER_PAGE_SHELL_TEMPLATES} (`pages-default.html`, then
+ * the legacy `page-shell.html`) `availableTemplates` actually lists — the REAL filename the live
+ * render already resolves through (`resolveStaticTierPageShellFallback`,
+ * `apps/website/src/features/theme/static-render.ts`), so picking it back explicitly in the UI is a
+ * no-op. When the active theme ships neither name (a declarative/handlebars theme, or a static theme
+ * with no page shell at all), there is no real filename to show, so this returns
+ * {@link THEME_DEFAULT_SENTINEL} instead — the one case the picker renders one extra, synthetic
+ * "Theme default" option for. {@link pickerValueToChoice} maps it back to `null`.
+ *
+ * `""` and a real filename pass straight through unchanged — the picker's value already IS the
+ * stored `templateChoice` for those two cases; only `null` needs translating into something a
+ * `&lt;select&gt;` can render as a real option.
+ *
+ * @complexity O(n) in `availableTemplates.length` — one bounded scan of the two shell candidates.
+ */
+export function pagePickerValue(templateChoice: string | null, availableTemplates: string[]): string {
+  if (templateChoice !== null) return templateChoice;
+  const shipped = STATIC_TIER_PAGE_SHELL_TEMPLATES.find((name) =&gt; availableTemplates.includes(name));
+  return shipped ?? THEME_DEFAULT_SENTINEL;
+}
+&nbsp;
+/**
+ * The inverse of {@link pagePickerValue} — what to write as `templateChoice` when the operator picks
+ * `value` in the `&lt;select&gt;`. Only {@link THEME_DEFAULT_SENTINEL} needs translating back to `null`;
+ * every other value (a real filename, or `""`) is already the exact `templateChoice` to store.
+ * Picking the shell filename directly (rather than the sentinel) stores that real filename, which
+ * renders identically to `null` — a deliberate, disclosed no-op, not a bug.
+ *
+ * @complexity O(1).
+ */
+export function pickerValueToChoice(value: string): string | null {
+  return value === THEME_DEFAULT_SENTINEL ? null : value;
+}
+&nbsp;
+/**
+ * Whether this editor's HTML working copy is a body it may actually write — the single predicate
+ * behind `save`'s `updatePageHtml` call, `contentDirty`'s body comparison, and the standing-draft
+ * autosave's format, so those three cannot disagree about what the operator is editing.
+ *
+ * **An already-`html` Page: always.** That is the original, unchanged rule.
+ *
+ * **A `doc`-format Page: only when the operator authored non-empty HTML into a Page that has no
+ * Tiptap document to lose.** This is the 2026-09-06 fix for "the Pages editor cannot write HTML into
+ * a newly created page": `New Page` (`use-pages.hooks.ts`'s `createPage`) goes through `createPost`,
+ * which forces `bodyFormat: "doc"` by construction (ADR-056 CIC-3 — `CreatePostInput` has no
+ * `bodyFormat` field at all), while `PageEditor.tsx` offers that page an HTML textarea and a GrapesJS
+ * canvas regardless of format. A flat `bodyFormat === "html"` test therefore made every keystroke of
+ * hand-authored markup unsavable through the product, which is why operators had to bypass the
+ * editor and `PUT /pages/:id/html` by hand.
+ *
+ * **The two guards are what keep the F01 data-loss fix intact** (see `use-page-editor.unit.test.ts`'s
+ * own file header): `updatePageHtml`'s first call on a doc-format row converts it and DROPS
+ * `body_json` (`routes/admin/pages/update-html.ts`). `html !== ""` means an ordinary Save or Publish
+ * that never touched the body still takes the metadata-only path — the editor loads `html` as `""`
+ * for a doc-format Page, so an empty working copy is "nothing was authored", never "the operator
+ * cleared it". {@link hasAuthoredDocument} means a legacy Page with a real Tiptap body is never
+ * converted at all, even if markup IS typed over it; that operator gets
+ * {@link pageSaveSuccessMessage}'s "can't be edited here yet" refusal instead of a blanked page.
+ *
+ * @complexity Time O(1), space O(1) — one property read and one length check.
+ */
+export function pageAcceptsHtmlBody(page: SavablePage, html: string): boolean {
+  if (page.bodyFormat === "html") return true;
+  return html !== "" &amp;&amp; !hasAuthoredDocument(page.bodyJson);
+}
+&nbsp;
+/**
+ * `save`'s own decision, pulled out to a top-level pure function per the 2026-08-12
+ * complexity-ceiling pass: what to send `updatePost`, and whether `updatePageHtml` fires at all.
+ * `save` itself keeps only the two `await`s, the `setState` calls, and the try/catch/finally — the
+ * genuinely effectful part that has to stay.
+ *
+ * `form.html` is the working copy, not the saved body: {@link pageAcceptsHtmlBody} needs it to tell
+ * "the operator authored markup into a brand-new page" apart from "an ordinary metadata save on a
+ * page whose body this editor cannot render" — see that function's own doc.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function buildPageSavePlan(
+  page: VersionedSavablePage,
+  form: { title: string; slug: string; status: "draft" | "published"; templateChoice: string | null; html: string },
+  nextStatus?: "draft" | "published"
+): PageSavePlan {
+  const canSaveHtml = pageAcceptsHtmlBody(page, form.html);
+  const statusToWrite = nextStatus ?? form.status;
+  return {
+    canSaveHtml,
+    statusToWrite,
+    updatePostPayload: {
+      title: form.title,
+      slug: form.slug,
+      status: statusToWrite,
+      templateChoice: form.templateChoice,
+      // The basis `save` guards the WHOLE save on. `updatePost` is the only one of the two write
+      // routes that offers compare-and-set against a client-supplied version: `PUT /pages/:id/html`
+      // reads the row and writes it back inside one request (`routes/admin/pages/update-html.ts`),
+      // so the version it conditions on is one it captured microseconds earlier and can never be
+      // the version THIS editor loaded. That is why `save` now writes metadata first and only
+      // reaches the body once this guard has passed — see `save`'s own doc.
+      expectedVersion: page.version,
+      // Metadata is written BEFORE conversion. The server still validates bodyJson
+      // against the loaded doc format even when the following HTML write will replace it.
+      ...(page.bodyFormat === "html" ? {} : { bodyJson: page.bodyJson }),
+    },
+  };
+}
+&nbsp;
+/**
+ * What to send `putAutosave` for the CURRENT working copy — same {@link pageAcceptsHtmlBody} split
+ * a real Save makes, so a parked draft can never be a format the Save that follows it would refuse.
+ * A Page whose body this editor cannot write round-trips `bodyJson` unchanged instead — the same
+ * inert-but-required placeholder that Save already sends for that case.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function buildPageAutosaveDraft(
+  page: VersionedSavablePage,
+  form: { title: string; slug: string; html: string }
+): StandingDraftAutosaveInput {
+  if (pageAcceptsHtmlBody(page, form.html)) {
+    return { bodyFormat: "html", bodyHtml: form.html, title: form.title, slug: form.slug, baseVersion: page.version };
+  }
+  return { bodyFormat: "doc", bodyJson: page.bodyJson, title: form.title, slug: form.slug, baseVersion: page.version };
+}
+&nbsp;
+/** Whether a recovered standing draft was captured before a real Save/Publish since superseded it —
+ *  see `PostRepoPort.writeAutosave`'s own server-side doc for why `baseVersion` is the signal.
+ *  Drives the recovery banner's "from N minutes ago" vs "from before a newer save" wording. */
+export function isAutosaveDraftStale(draftBaseVersion: number, currentVersion: number): boolean {
+  return draftBaseVersion !== currentVersion;
+}
+&nbsp;
+/** The recovery banner's own message — pulled out of `PageEditor.tsx` so the component stays markup
+ *  only (`use-page-editor.hooks.ts`'s file header's own rule). `nowMs` is threaded through rather
+ *  than read internally, same reasoning `formatRelativeMinutesAgo` itself documents. */
+export function pageAutosaveBannerMessage(savedAt: string, nowMs: number, stale: boolean): string {
+  const when = formatRelativeMinutesAgo({ iso: savedAt, nowMs: nowMs });
+  return stale ? `Unsaved changes from before a newer save (captured ${when})` : `Unsaved changes from ${when}`;
+}
+&nbsp;
+/**
+ * The stale-basis notice's own message — the BACKGROUND-autosave counterpart of the recovery
+ * banner's {@link pageAutosaveBannerMessage} just above, and the reason `staleBasis` exists on the
+ * shared autosave hook at all. Kept feature-local and character-identical to
+ * `features/posts/rules.ts`'s `postAutosaveStaleBasisMessage`, the same "no cross-feature import"
+ * boundary {@link isAutosaveDraftStale} already documents for itself.
+ *
+ * Says the four things an operator cannot infer from a screen that otherwise looks completely
+ * normal: that someone else saved, that autosaving has consequently STOPPED (a running editor that
+ * silently persists nothing is the entire defect), that their work is unsaved but still in front of
+ * them, and what actually resumes autosaving.
+ *
+ * Deliberately does NOT promise that the text is recoverable after a reload. The hook does mirror a
+ * refused draft into browser storage (`lib/standing-draft-local-backup.ts`), but that mirror is
+ * best-effort — `localStorage` throws outright in some privacy modes — and it is offered back only
+ * when the server has nothing of its own parked for the entry. "Copy anything you want to keep
+ * first" is advice that is never wrong; a promise of recovery would be one this code cannot keep.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function pageAutosaveStaleBasisMessage(t: Translate, staleBasis: StandingDraftStaleBasis): string {
+  return t(
+    "Someone else saved this while you were editing — you were working from version {baseVersion}, so autosaving has paused and nothing you type now is being stored. Your changes were NOT saved, and are still here in the editor. Reload to pick up their version and resume autosaving; copy anything you want to keep first."
+  ).replace("{baseVersion}", String(staleBasis.baseVersion));
+}
+&nbsp;
+/**
+ * The server's machine-readable `code` for "the version you were editing has been superseded"
+ * (`server/inbound/admin-http/routes/posts/update.ts`'s `sendPostUpdateError`). Named here rather
+ * than string-matched at the call site because that route returns TWO different 409s from the same
+ * `PostConflictError` hierarchy: a slug-uniqueness collision (fix the slug and resend) and this one
+ * (do NOT resend — resending is what erases the other operator's work). Only this one carries a
+ * `code`, which is exactly what makes them tellable apart.
+ *
+ * A feature-local name for `lib/version-conflict.ts`'s shared `VERSION_CONFLICT_CODE`, which
+ * `features/posts/rules.ts`'s `POST_VERSION_CONFLICT_CODE` aliases too. The shared one lives in
+ * `lib/`, so the no-cross-feature-import boundary {@link isAutosaveDraftStale} documents still holds.
+ * Pages and Posts share one server route (`PUT /posts/:id`, kind-blind), so the two names describe
+ * the same wire value on purpose.
+ */
+export const PAGE_VERSION_CONFLICT_CODE = VERSION_CONFLICT_CODE;
+&nbsp;
+/** A rejected save whose basis version had already been superseded — {@link readPageVersionConflict}'s
+ *  output, and the editor's own conflict state. Mirrors `posts/rules.ts`'s `PostSaveConflict`. */
+export interface PageSaveConflict {
+  /** The version the editor believed it was editing. `null` only if the server omitted it. */
+  expectedVersion: number | null;
+  /** The version actually stored now — what the other operator's save produced. `null` only if the
+   *  server omitted it. */
+  currentVersion: number | null;
+  /** The `nextStatus` the rejected save was attempting, carried so an explicit retry re-runs the
+   *  SAME intent. Without it a rejected Publish would silently retry as an ordinary draft save. */
+  attemptedStatus: "draft" | "published" | undefined;
+}
+&nbsp;
+/**
+ * Classifies a caught save error: the version conflict, or `null` for everything else (including
+ * the slug-uniqueness 409, which is the same status from the same error class and must NOT take
+ * this branch — that is the trap this function exists to close).
+ *
+ * Reads both versions out of the response `details` rather than parsing the message prose, and
+ * tolerates their absence (`null`) rather than throwing: an older server that returns the code
+ * without the detail bag must still produce a conflict the editor reacts to, since misreading a
+ * conflict as an ordinary error is what loses an operator's work.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function readPageVersionConflict(
+  e: unknown,
+  attemptedStatus: "draft" | "published" | undefined
+): PageSaveConflict | null {
+  if (!isVersionConflict(e)) return null;
+  const details = (e.body?.details ?? {}) as Record&lt;string, unknown&gt;;
+  return {
+    expectedVersion: typeof details.expectedVersion === "number" ? details.expectedVersion : null,
+    currentVersion: typeof details.currentVersion === "number" ? details.currentVersion : null,
+    attemptedStatus,
+  };
+}
+&nbsp;
+/**
+ * The conflict banner's own message. NOT run through `t()`, for the same reason
+ * {@link pageAutosaveStaleBasisMessage} just above is not — it interpolates two runtime values.
+ *
+ * States the two things an operator has to know and cannot infer: that their work was NOT saved but
+ * is still in front of them, and that saving again overwrites the other person rather than merging.
+ * Deliberately does not promise a merge, a diff, or a way to see what changed — none of those exist
+ * here, and the recovery this screen genuinely offers is "your text is still in the editor".
+ *
+ * @complexity Time/space: O(1).
+ */
+export function pageVersionConflictMessage(t: Translate, conflict: PageSaveConflict): string {
+  const basis =
+    conflict.expectedVersion === null ? t("the version you loaded") : t("version {version}").replace("{version}", String(conflict.expectedVersion));
+  const current =
+    conflict.currentVersion === null ? t("a newer version") : t("version {version}").replace("{version}", String(conflict.currentVersion));
+  return t(
+    "Someone else saved this while you were editing — you were working from {basis}, and {current} is now stored. Your changes were NOT saved, and are still here in the editor. Saving again will replace their version."
+  )
+    .replace("{basis}", basis)
+    .replace("{current}", current);
+}
+&nbsp;
+/** The save-success message — the one piece of copy in `save` that depends on `canSaveHtml`, split
+ *  out alongside {@link buildPageSavePlan} for the same reason. `t`/`locale` are threaded through
+ *  rather than imported, matching every other pure function in this module. */
+export function pageSaveSuccessMessage(t: (locale: string, key: string) =&gt; string, locale: string, canSaveHtml: boolean): string {
+  return canSaveHtml
+    ? t(locale, "Saved")
+    : t(locale, "Saved title, slug, and status. This page's body uses the document editor and can't be edited here yet.");
+}
+&nbsp;
+/** The message when a Save came back with the version it was based on — the server found nothing
+ *  different and wrote nothing (no-op save guard, 2026-10-10). Same copy as the Posts editor's. */
+export function pageUnchangedSaveMessage(t: (locale: string, key: string) =&gt; string, locale: string, version: number): string {
+  return t(locale, "No changes found · nothing new saved (version {version})").replace("{version}", String(version));
+}
+&nbsp;
+/** The exact English copy {@link pagePartialSaveMessage} wraps in `t()` — also the dictionary key
+ *  added to `page-editor-i18n.ts`'s `PAGE_EDITOR_DICT` for every locale, matching this app's "the key
+ *  IS the source string" convention. Kept as a separate constant (rather than inlined in the template
+ *  literal below) so the two stay textually identical by construction. */
+const PAGE_PARTIAL_SAVE_COPY =
+  "Title, slug and status saved, but the page content wasn't. Your content is still here — press Save to retry.";
+&nbsp;
+/**
+ * The banner `usePageEditor` shows when a Page's metadata write landed but its body write then
+ * failed (H1, 2026-09-20) — see `use-page-editor.hooks.ts`'s `PageBodyWriteError` and `writePage` for
+ * why the two writes can now part ways instead of one opaque failure. Appends the underlying reason
+ * in parentheses, the same "state what happened, then why" shape {@link pageVersionConflictMessage}
+ * already uses, falling back to the generic "failed to save page" copy for a non-`Error` rejection —
+ * the same fallback `applySaveFailure`'s own generic branch already uses for that case.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function pagePartialSaveMessage(t: (locale: string, key: string) =&gt; string, locale: string, reason: unknown): string {
+  const why = reason instanceof Error &amp;&amp; reason.message ? reason.message : t(locale, "failed to save page");
+  return `${t(locale, PAGE_PARTIAL_SAVE_COPY)} (${why})`;
+}
+&nbsp;
+/**
+ * Which surface the editor's main pane shows, as a discriminated value rather than a chain of
+ * nested ternaries inside `PageEditor.tsx`'s JSX (2026-09-06 complexity-ceiling pass — that chain
+ * was 6 of `PageEditor`'s 10 cognitive-complexity points against a ceiling of 9, and tripped
+ * `sonarjs/no-nested-conditional` twice on top of it).
+ *
+ * The `interactive` case CARRIES the resolved {@link CanvasStyling} rather than leaving the caller
+ * to re-narrow `ThemeCanvasStylingState` itself. That is the whole reason this returns a union
+ * instead of a bare `"preview" | "html" | ...` string: the narrowing happens once, here, where
+ * TypeScript can see it, so the component never needs a cast to reach `styling` — and a stringly
+ * result would have forced exactly that (or a duplicated `status === "pending"` check in the view,
+ * which is the tangle this replaces).
+ *
+ * `interactive-pending` is a real state, not a loading placeholder that could be skipped:
+ * `InteractiveHtmlEditor` reads its canvas styling ONCE at mount and never reacts to a later value,
+ * so mounting it before the theme's token files settle produces a permanently unstyled canvas. See
+ * `PageEditorController.canvasStyling`'s own doc.
+ *
+ * @complexity Time/space: O(1) — three ordered checks, no iteration.
+ */
+export type PageEditorSurface =
+  | { kind: "preview" }
+  | { kind: "html" }
+  | { kind: "interactive-pending" }
+  | { kind: "interactive"; styling: CanvasStyling };
+&nbsp;
+export function pageEditorSurface(view: PageEditorView, canvasStyling: ThemeCanvasStylingState): PageEditorSurface {
+  if (view === "preview") return { kind: "preview" };
+  if (view === "html") return { kind: "html" };
+  if (canvasStyling.status === "pending") return { kind: "interactive-pending" };
+  return { kind: "interactive", styling: canvasStyling.styling };
+}
+&nbsp;
+/** The pending-html preview form's `target` — see `PageEditorController.previewFormRef`. `""` before
+ *  `page` loads, since `PagePreview` never renders that early. Split out of `usePageEditor` under the
+ *  complexity ceiling. */
+export function pagePreviewFormTarget(page: AdminPost | null): string {
+  return page ? `page-preview-pending-${page.id}` : "";
+}
+&nbsp;
+/**
+ * The `sandbox` flags on BOTH `PagePreviewFrame` iframes (live site and template preview), 2026-10-04.
+ * Before this the preview iframes had no `sandbox` at all, while `update-html.ts`'s header claimed the
+ * authoring preview was sandboxed. The post editor's three `PostPreviewFrame` iframes
+ * (`features/posts/PostEditor.tsx`) import this same constant (owner, 2026-10-04) so the two editors'
+ * flags cannot drift.
+ *
+ * Each flag is there because the preview needs it to render and behave as it does unsandboxed:
+ * - `allow-scripts`: theme JS (menus, carousels, Liquid-rendered widgets) must run in the preview.
+ * - `allow-forms`: shipped themes have real forms (sign-in/sign-up pages, newsletter footers).
+ * - `allow-popups`: authored HTML uses `target="_blank"` links; a popup inherits this sandbox (no
+ *   `allow-popups-to-escape-sandbox`).
+ *
+ * Deliberately absent: `allow-top-navigation` (and its user-activation variant), so the preview can
+ * never navigate the admin tab itself by `target="_top"` links or `top.location`, and `allow-modals`.
+ * Link clicks inside the frame still navigate the frame, which needs no flag.
+ *
+ * Deliberately absent since 2026-10-05: `allow-same-origin`. Both branches load documents from the
+ * admin's own origin (the template-preview route always; the live site in production, where `siteUrl`
+ * returns a root-relative path), and a same-origin document holding `allow-scripts allow-same-origin`
+ * can reach `parent.document`, call `/api/admin/*` with the owner's session, and strip its own sandbox.
+ * Without it the preview runs in an opaque origin, the same isolation Theme Studio's preview already
+ * uses. What that costs, accepted on purpose:
+ * - per-tab scroll memory (`onPreviewFrameLoad` can no longer read or set `contentWindow.scrollY`; its
+ *   `try` swallows the `SecurityError`, so the preview opens at the top),
+ * - Escape inside an expanded post preview (`usePostPreviewIframeEscape` gets a null
+ *   `contentDocument`; the visible exit control still collapses it),
+ * - theme scripts that touch `localStorage`/cookies, or call the site's own APIs, inside the preview.
+ * Theme fonts still load: `/theme-assets` answers font requests with `Access-Control-Allow-Origin: *`
+ * for exactly this opaque-origin case (`theme-content-security-headers.ts`).
+ */
+export const PAGE_PREVIEW_IFRAME_SANDBOX = "allow-scripts allow-forms allow-popups";
+&nbsp;
+/**
+ * The working copy's editable HTML for a loaded row — exactly the mount effect's own
+ * `post.bodyFormat === "html" ? (post.bodyHtml ?? "") : ""` rule, lifted out so
+ * `applyExternalPage` (an assistant write landing while the editor is open) can seed the SAME
+ * initial value the mount effect does, rather than duplicating the ternary at a second call site.
+ * A doc-format row has no editable HTML here — see `pageAcceptsHtmlBody`'s own doc for why this
+ * editor cannot render that body at all.
+ *
+ * @complexity O(1).
+ */
+export function pageEditableHtml(post: AdminPost): string {
+  return post.bodyFormat === "html" ? (post.bodyHtml ?? "") : "";
+}
+&nbsp;
+/**
+ * Whether a background refresh must treat the working copy as possibly holding unsaved edits — the
+ * `isDirty` `usePageEditor` hands `useExternalEntryRefresh`, deliberately wider than the Save
+ * button's own `dirty`.
+ *
+ * The Interactive tab is always "maybe": GrapesJS keeps typed text in its canvas and writes it to
+ * `html` only when the operator leaves that text element (its `update` event is deferred too), so
+ * `dirty` can read false while unsaved typing is on screen. A silent apply there remounts the canvas
+ * and destroys that text — reproduced in a real browser 2026-09-16. On that tab the refresh shows the
+ * Load latest / Keep my edits notice instead. The Preview and HTML tabs write every keystroke
+ * straight to `html`, so `dirty` is exact there.
+ *
+ * @complexity O(1).
+ */
+export function pageRefreshMayHaveUnsavedEdits(input: { dirty: boolean; view: PageEditorView }): boolean {
+  return input.dirty || input.view === "interactive";
+}
+&nbsp;
+/** The external-change notice's own message — plain English, not run through `t()`, matching
+ *  {@link pageVersionConflictMessage} and {@link pageAutosaveStaleBasisMessage} just above:
+ *  `PageEditor.tsx`'s markup is outside the pages dictionary's declared scope (`pages-i18n.ts`'s own
+ *  header). Shown when a newer version lands while the editor has unsaved edits — see
+ *  `use-external-entry-refresh.hooks.ts` for the clean/dirty decision this banner is the dirty half
+ *  of. */
+export const PAGE_EXTERNAL_CHANGE_MESSAGE =
+  "Changed outside the editor, probably by the assistant. Loading the latest version discards your unsaved edits.";
+&nbsp;
+/** The Page editor's `useDirtyGuard` baseline: the loaded row's title/slug/status plus the saved html
+ *  and template choice. `null` before `page` loads, which the guard reads as "nothing is dirty yet".
+ *  Split out of `usePageEditor` under the complexity ceiling. */
+export function pageDirtyGuardBaseline(
+  page: AdminPost | null,
+  savedHtml: string,
+  savedTemplateChoice: string | null,
+): { title: string; slug: string; status: AdminPost["status"]; html: string; templateChoice: string | null } | null {
+  if (!page) return null;
+  return { title: page.title, slug: page.slug, status: page.status, html: savedHtml, templateChoice: savedTemplateChoice };
+}
+&nbsp;
+// ---------------------------------------------------------------------------
+// Column sort (2026-09-02) — mirrors `features/posts/rules.ts`'s own column-sort block exactly, same
+// "twin screens" convention as the rest of this file (this file's own header). "My Pages" had no
+// sort code at all before this pass; migrated onto `DataTable`'s own shared sort mechanism the same
+// day this landed, so it never shipped its own hand-rolled dispatcher/caret/next-state logic — see
+// `posts/rules.ts`'s identical section for the full rationale. Only the domain-specific pieces live
+// here: each column's ascending comparator, the Updated column's non-default starting direction, and
+// every column's accessible-name phrasing.
+// ---------------------------------------------------------------------------
+&nbsp;
+/** The Pages list's default sort on first load — Updated, newest first, matching `posts/rules.ts`'s
+ *  own `DEFAULT_POST_SORT` so switching between the two screens shows a consistent starting order. */
+export const DEFAULT_PAGE_SORT: DataTableSortState = { column: "updated", direction: "desc" };
+&nbsp;
+/** `status` is exactly `"draft" | "published"` (`post.ts`), so plain alphabetical order already
+ *  equals domain order — no custom rank table needed. Ascending-only, matching
+ *  `DataTableColumnSort.compare`'s own contract: `DataTable` negates this for `"desc"`. */
+export function comparePagesByTitle(a: AdminPost, b: AdminPost): number {
+  return a.title.localeCompare(b.title);
+}
+&nbsp;
+/** @see comparePagesByTitle — same contract, compared on `slug` instead of `title`. */
+export function comparePagesBySlug(a: AdminPost, b: AdminPost): number {
+  return a.slug.localeCompare(b.slug);
+}
+&nbsp;
+/** @see comparePagesByTitle — same contract, compared on `status` instead of `title`. */
+export function comparePagesByStatus(a: AdminPost, b: AdminPost): number {
+  return a.status.localeCompare(b.status);
+}
+&nbsp;
+/**
+ * Ascending order = oldest-first; `DataTable` negates it for `"desc"` (newest-first), which is also
+ * this column's own starting direction (its `defaultDirection` in `Pages.tsx`'s column definition) —
+ * same reasoning as `posts/rules.ts`'s `comparePostsByUpdated`. `Date.parse`, not a string compare —
+ * `updatedAt` is ISO-8601 **text** with no schema guarantee against a future non-`Z` UTC-offset
+ * value, which string-sorts wrong against `Z`-form values.
+ */
+export function comparePagesByUpdated(a: AdminPost, b: AdminPost): number {
+  return Date.parse(a.updatedAt) - Date.parse(b.updatedAt);
+}
+&nbsp;
+/**
+ * The accessible name for a lexicographic column's (Title/Slug/Status) sort control, in every state
+ * `DataTable` can ask for — mirrors `posts/rules.ts`'s `postColumnSortLabel` verbatim. `direction` is
+ * `null` when a different column is currently active — `DataTable` resolves that itself.
+ *
+ * `columnName` is a fixed English label supplied by the caller (`Pages.tsx`), not the translated
+ * header text — matching this feature's pre-existing precedent of hardcoded English regardless of
+ * admin locale.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function pageColumnSortLabel(t: Translate, columnName: string, direction: DataTableSortDirection | null): string {
+  if (direction === null) return t("Not sorted by {columnName}. Activate to sort ascending.").replace("{columnName}", columnName);
+  return direction === "asc"
+    ? t("Sorted by {columnName}, ascending. Activate to sort descending.").replace("{columnName}", columnName)
+    : t("Sorted by {columnName}, descending. Activate to sort ascending.").replace("{columnName}", columnName);
+}
+&nbsp;
+/** Same contract as {@link pageColumnSortLabel}, phrased in the Updated column's own "newest"/
+ *  "oldest" vocabulary rather than generic "ascending"/"descending" — mirrors `posts/rules.ts`'s
+ *  `updatedColumnSortLabel` verbatim. */
+export function updatedPageColumnSortLabel(t: Translate, direction: DataTableSortDirection | null): string {
+  if (direction === null) return t("Not sorted by updated date. Activate to sort newest first.");
+  return direction === "desc"
+    ? t("Sorted by updated date, newest first. Activate to sort oldest first.")
+    : t("Sorted by updated date, oldest first. Activate to sort newest first.");
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

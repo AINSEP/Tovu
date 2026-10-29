@@ -1,0 +1,319 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/consent/rules.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">admin/src/features/consent</a> rules.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>28/28</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>42/42</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>11/11</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>19/19</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">102x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">11x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">72x</span>
+<span class="cline-any cline-yes">69x</span>
+<span class="cline-any cline-yes">68x</span>
+<span class="cline-any cline-yes">66x</span>
+<span class="cline-any cline-yes">24x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">155x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import type { ConsentFieldProblem } from '@jini-ai/admin/consent/react';
+import { resolveActiveTabId } from '@jini-ai/ui/panel-kit';
+import { ApiError } from '@/lib/api';
+import type { ConsentDetectedItem } from './settings.hooks';
+&nbsp;
+/** @file Pure decisions for the Cookie Consent page: tabs, problem routing, status copy, publish gate. */
+&nbsp;
+export const CONSENT_TAB_IDS = ['overview', 'banner', 'look', 'rules'] as const;
+export type ConsentTabId = typeof CONSENT_TAB_IDS[number];
+&nbsp;
+/** An absent or unknown `?tab=` opens Overview, like every other tabbed admin screen. */
+export function resolveConsentTabId({ tabId }: { tabId: string | null | undefined }, _optional = {}): ConsentTabId {
+  return resolveActiveTabId({ tabId, validIds: CONSENT_TAB_IDS, defaultId: 'overview' });
+}
+&nbsp;
+/** A stale draft/published revision (HTTP 409): reload and review, never retry over it. */
+export function isConsentConflict({ error }: { error: unknown }, _optional = {}): boolean {
+  return error instanceof ApiError &amp;&amp; error.status === 409;
+}
+&nbsp;
+const FIELD_TABS: Readonly&lt;Record&lt;string, ConsentTabId&gt;&gt; = {
+  title: 'banner', message: 'banner', acceptLabel: 'banner', rejectLabel: 'banner', preferencesLabel: 'banner',
+  privacyPolicyUrl: 'banner', secondaryLinkLabel: 'banner', secondaryLinkUrl: 'banner',
+  placement: 'look', appearance: 'look', customCss: 'look', regionMode: 'rules', policyVersion: 'rules',
+};
+&nbsp;
+/** The tab whose field a problem names, so Overview can link straight to the fix; null when the
+ * fix is not a setting on this page (storage, rendering). */
+export function consentProblemTab({ problem }: { problem: ConsentFieldProblem }, _optional = {}): ConsentTabId | null {
+  return problem.field === undefined ? null : FIELD_TABS[problem.field] ?? null;
+}
+&nbsp;
+const CATEGORY_ORDER = ['necessary', 'functional', 'analytics', 'marketing'];
+&nbsp;
+/** What waits for a visitor's choice, counted per category in the engine's order, then any others.
+ * @complexity O(n log k), n &lt;= 200 detected items, k categories. */
+export function pausedByCategory({ detected }: { detected: readonly ConsentDetectedItem[] }, _optional = {}): { category: string; count: number }[] {
+  const counts = new Map&lt;string, number&gt;();
+  for (const item of detected) counts.set(item.category, (counts.get(item.category) ?? 0) + 1);
+  const rank = (category: string) =&gt; { const index = CATEGORY_ORDER.indexOf(category); return index === -1 ? CATEGORY_ORDER.length : index; };
+  return [...counts].map(([category, count]) =&gt; ({ category, count })).sort((a, b) =&gt; rank(a.category) - rank(b.category) || a.category.localeCompare(b.category));
+}
+&nbsp;
+export type ConsentSaveState = 'idle' | 'saving' | 'saved' | 'error' | 'conflict';
+&nbsp;
+/** The header's one-line status (an English key; the page translates it). */
+export function consentStatusKey({ saveState, hasUnpublished, everPublished }: { saveState: ConsentSaveState; hasUnpublished: boolean; everPublished: boolean }, _optional = {}): string {
+  if (saveState === 'conflict') return 'Someone else changed this. Reload to see it.';
+  if (saveState === 'saving') return 'Saving…';
+  if (saveState === 'error') return "Couldn't save. Your edits are still here.";
+  if (hasUnpublished) return 'Draft saved. Not live yet.';
+  return everPublished ? 'Live.' : 'Not published yet.';
+}
+&nbsp;
+/** Publish only a settled, problem-free draft that differs from what is live. The server re-checks. */
+export function canPublishConsent(
+  { saveState, settled, hasUnpublished, problems, publishing }: { saveState: ConsentSaveState; settled: boolean; hasUnpublished: boolean; problems: readonly ConsentFieldProblem[]; publishing: boolean },
+  _optional = {},
+): boolean {
+  return settled &amp;&amp; hasUnpublished &amp;&amp; !publishing &amp;&amp; problems.length === 0 &amp;&amp; (saveState === 'saved' || saveState === 'idle');
+}
+&nbsp;
+/** "Reset to default" is offered only while the field differs from the site's default banner style
+ * (which the server pre-fills into an empty field and delivers when the field is empty). */
+export function canResetConsentCss({ customCss, defaultCss }: { customCss: string | undefined; defaultCss: string | undefined }, _optional = {}): boolean {
+  return Boolean(defaultCss) &amp;&amp; (customCss ?? '') !== defaultCss;
+}
+&nbsp;
+/** The page width the Desktop preview lays out at. The engine's banner switches to its phone layout
+ * (a full-width sheet) at 480px and below, so a preview drawn at the pane's own ~400px width showed
+ * that phone sheet under the "Desktop" label instead of the corner card visitors see. */
+export const CONSENT_PREVIEW_DESKTOP_WIDTH = 1024;
+&nbsp;
+/** How far the desktop-width page is scaled down to fit the preview pane; never enlarged.
+ * An unmeasured (0) pane keeps 1. @complexity O(1). */
+export function consentPreviewScale({ paneWidth }: { paneWidth: number }, _optional = {}): number {
+  return paneWidth &gt; 0 ? Math.min(1, paneWidth / CONSENT_PREVIEW_DESKTOP_WIDTH) : 1;
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

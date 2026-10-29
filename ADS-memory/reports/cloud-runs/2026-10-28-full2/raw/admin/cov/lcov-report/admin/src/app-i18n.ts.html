@@ -1,0 +1,856 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/app-i18n.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../prettify.css" />
+    <link rel="stylesheet" href="../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">admin/src</a> app-i18n.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>2/2</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>2/2</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">62x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">62x</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { COMMON_I18N } from "./lib/i18n-common";
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+&nbsp;
+/**
+ * @file Translations for `App.tsx`'s own shell-level copy — currently just the "are you sure you
+ * want to log out?" confirmation dialog (owner-requested, 2026-08-31: a misclick on the sidebar's
+ * logout button used to sign the operator out with no chance to back out).
+ *
+ * Kept separate from `lib/admin-nav-i18n.ts` on purpose — that file's own header scopes itself to
+ * "nav only" (group headings, item labels, the "Soon" badge) and explicitly calls every other
+ * screen's copy "a separate... translation surface, not covered here". This dialog's copy is `App`
+ * shell chrome, not a nav label, so it gets its own file rather than stretching that one's scope.
+ * The confirm BUTTON's own label reuses `admin-nav-i18n.ts`'s existing "Log out" translation
+ * directly (same exact English string, already translated in all 21 locales below) rather than
+ * duplicating it here — see `App.tsx`'s call site.
+ *
+ * Also the no-access state `App.tsx`'s `NoAccess` shows for a section the operator holds no
+ * permission for (`lib/panel-access.ts`).
+ *
+ * Same 21-locale set and order as `admin-nav-i18n.ts`/every feature `*-i18n.ts` file in this app.
+ */
+&nbsp;
+const APP_DICT: Record&lt;string, Record&lt;string, string&gt;&gt; = {
+  es: {
+    "Scroll to top": "Ir al principio", "Scroll to bottom": "Ir al final",
+    Dismiss: "Descartar",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "El correo no está configurado: no se envían enlaces de inicio de sesión, confirmaciones ni avisos de formularios.",
+    "Set up email": "Configurar correo",
+    Assistant: "Asistente", "Loading Tovu…": "Cargando Tovu…", "Skip to content": "Saltar al contenido", "Close navigation": "Cerrar navegación", "Open navigation": "Abrir navegación",
+    "Log out?": "¿Cerrar sesión?",
+    "Are you sure you want to log out?": "¿Seguro que quieres cerrar sesión?",
+    "You don't have access to this": "No tienes acceso a esto",
+    "Ask the site owner if you need this section.": "Pide acceso al propietario del sitio si necesitas esta sección.",
+  },
+  id: {
+    "Scroll to top": "Gulir ke atas", "Scroll to bottom": "Gulir ke bawah",
+    Dismiss: "Tutup",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "Email belum diatur: tautan masuk, konfirmasi, dan notifikasi formulir tidak dikirim.",
+    "Set up email": "Atur email",
+    Assistant: "Asisten", "Loading Tovu…": "Memuat Tovu…", "Skip to content": "Lewati ke konten", "Close navigation": "Tutup navigasi", "Open navigation": "Buka navigasi",
+    "Log out?": "Keluar?",
+    "Are you sure you want to log out?": "Yakin ingin keluar?",
+    "You don't have access to this": "Anda tidak memiliki akses ke ini",
+    "Ask the site owner if you need this section.": "Minta akses kepada pemilik situs jika Anda memerlukan bagian ini.",
+  },
+  de: {
+    "Scroll to top": "Nach oben scrollen", "Scroll to bottom": "Nach unten scrollen",
+    Dismiss: "Verwerfen",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "E-Mail ist nicht eingerichtet: Anmeldelinks, Bestätigungen und Formularbenachrichtigungen werden nicht gesendet.",
+    "Set up email": "E-Mail einrichten",
+    Assistant: "Assistent", "Loading Tovu…": "Tovu wird geladen…", "Skip to content": "Zum Inhalt springen", "Close navigation": "Navigation schließen", "Open navigation": "Navigation öffnen",
+    "Log out?": "Abmelden?",
+    "Are you sure you want to log out?": "Möchten Sie sich wirklich abmelden?",
+    "You don't have access to this": "Sie haben keinen Zugriff darauf",
+    "Ask the site owner if you need this section.": "Bitten Sie den Websiteinhaber um Zugriff, wenn Sie diesen Bereich benötigen.",
+  },
+  "zh-CN": {
+    "Scroll to top": "滚动到顶部", "Scroll to bottom": "滚动到底部",
+    Dismiss: "关闭",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "电子邮件尚未设置：不会发送登录链接、确认邮件和表单通知。",
+    "Set up email": "设置电子邮件",
+    Assistant: "助手", "Loading Tovu…": "正在加载 Tovu…", "Skip to content": "跳到内容", "Close navigation": "关闭导航", "Open navigation": "打开导航",
+    "Log out?": "退出登录?",
+    "Are you sure you want to log out?": "确定要退出登录吗?",
+    "You don't have access to this": "您无权访问此内容",
+    "Ask the site owner if you need this section.": "如需使用此部分，请联系网站所有者。",
+  },
+  "zh-TW": {
+    "Scroll to top": "捲動至頂端", "Scroll to bottom": "捲動至底部",
+    Dismiss: "關閉",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "電子郵件尚未設定：不會傳送登入連結、確認信和表單通知。",
+    "Set up email": "設定電子郵件",
+    Assistant: "助理", "Loading Tovu…": "正在載入 Tovu…", "Skip to content": "跳至內容", "Close navigation": "關閉導覽", "Open navigation": "開啟導覽",
+    "Log out?": "登出?",
+    "Are you sure you want to log out?": "確定要登出嗎?",
+    "You don't have access to this": "您無權存取此內容",
+    "Ask the site owner if you need this section.": "如需使用此區段，請聯絡網站擁有者。",
+  },
+  "pt-BR": {
+    "Scroll to top": "Ir para o topo", "Scroll to bottom": "Ir para o final",
+    Dismiss: "Dispensar",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "O e-mail não está configurado: links de login, confirmações e notificações de formulários não são enviados.",
+    "Set up email": "Configurar e-mail",
+    Assistant: "Assistente", "Loading Tovu…": "Carregando Tovu…", "Skip to content": "Ir para o conteúdo", "Close navigation": "Fechar navegação", "Open navigation": "Abrir navegação",
+    "Log out?": "Sair?",
+    "Are you sure you want to log out?": "Tem certeza de que deseja sair?",
+    "You don't have access to this": "Você não tem acesso a isto",
+    "Ask the site owner if you need this section.": "Peça acesso ao proprietário do site se precisar desta seção.",
+  },
+  ru: {
+    "Scroll to top": "Прокрутить вверх", "Scroll to bottom": "Прокрутить вниз",
+    Dismiss: "Скрыть",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "Почта не настроена: ссылки для входа, подтверждения и уведомления форм не отправляются.",
+    "Set up email": "Настроить почту",
+    Assistant: "Помощник", "Loading Tovu…": "Загрузка Tovu…", "Skip to content": "Перейти к содержимому", "Close navigation": "Закрыть навигацию", "Open navigation": "Открыть навигацию",
+    "Log out?": "Выйти?",
+    "Are you sure you want to log out?": "Вы уверены, что хотите выйти?",
+    "You don't have access to this": "У вас нет доступа к этому разделу",
+    "Ask the site owner if you need this section.": "Если вам нужен этот раздел, обратитесь к владельцу сайта.",
+  },
+  fa: {
+    "Scroll to top": "رفتن به بالا", "Scroll to bottom": "رفتن به پایین",
+    Dismiss: "نادیده گرفتن",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "ایمیل راه‌اندازی نشده است: پیوندهای ورود، تأییدیه‌ها و اعلان‌های فرم ارسال نمی‌شوند.",
+    "Set up email": "راه‌اندازی ایمیل",
+    Assistant: "دستیار", "Loading Tovu…": "در حال بارگیری Tovu…", "Skip to content": "پرش به محتوا", "Close navigation": "بستن ناوبری", "Open navigation": "باز کردن ناوبری",
+    "Log out?": "خروج؟",
+    "Are you sure you want to log out?": "آیا مطمئن هستید که می‌خواهید خارج شوید؟",
+    "You don't have access to this": "شما به این بخش دسترسی ندارید",
+    "Ask the site owner if you need this section.": "اگر به این بخش نیاز دارید، از مالک سایت دسترسی بخواهید.",
+  },
+  ar: {
+    "Scroll to top": "التمرير إلى الأعلى", "Scroll to bottom": "التمرير إلى الأسفل",
+    Dismiss: "تجاهل",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "البريد الإلكتروني غير مُعدّ: لا تُرسل روابط تسجيل الدخول والتأكيدات وإشعارات النماذج.",
+    "Set up email": "إعداد البريد الإلكتروني",
+    Assistant: "المساعد", "Loading Tovu…": "جارٍ تحميل Tovu…", "Skip to content": "انتقل إلى المحتوى", "Close navigation": "إغلاق التنقل", "Open navigation": "فتح التنقل",
+    "Log out?": "تسجيل الخروج؟",
+    "Are you sure you want to log out?": "هل أنت متأكد أنك تريد تسجيل الخروج؟",
+    "You don't have access to this": "ليس لديك صلاحية الوصول إلى هذا",
+    "Ask the site owner if you need this section.": "اطلب الوصول من مالك الموقع إذا كنت بحاجة إلى هذا القسم.",
+  },
+  ja: {
+    "Scroll to top": "一番上へ", "Scroll to bottom": "一番下へ",
+    Dismiss: "閉じる",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "メールが未設定です：サインインリンク、確認メール、フォーム通知は送信されません。",
+    "Set up email": "メールを設定",
+    Assistant: "アシスタント", "Loading Tovu…": "Tovu を読み込んでいます…", "Skip to content": "コンテンツに移動", "Close navigation": "ナビゲーションを閉じる", "Open navigation": "ナビゲーションを開く",
+    "Log out?": "ログアウトしますか?",
+    "Are you sure you want to log out?": "本当にログアウトしますか?",
+    "You don't have access to this": "このページにアクセスする権限がありません",
+    "Ask the site owner if you need this section.": "このセクションが必要な場合は、サイトのオーナーに依頼してください。",
+  },
+  ko: {
+    "Scroll to top": "맨 위로", "Scroll to bottom": "맨 아래로",
+    Dismiss: "닫기",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "이메일이 설정되지 않았습니다: 로그인 링크, 확인 메일, 양식 알림이 발송되지 않습니다.",
+    "Set up email": "이메일 설정",
+    Assistant: "도우미", "Loading Tovu…": "Tovu를 불러오는 중…", "Skip to content": "콘텐츠로 건너뛰기", "Close navigation": "탐색 닫기", "Open navigation": "탐색 열기",
+    "Log out?": "로그아웃하시겠습니까?",
+    "Are you sure you want to log out?": "정말로 로그아웃하시겠습니까?",
+    "You don't have access to this": "이 항목에 접근할 권한이 없습니다",
+    "Ask the site owner if you need this section.": "이 섹션이 필요하면 사이트 소유자에게 요청하세요.",
+  },
+  pl: {
+    "Scroll to top": "Przewiń na górę", "Scroll to bottom": "Przewiń na dół",
+    Dismiss: "Odrzuć",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "Poczta nie jest skonfigurowana: linki logowania, potwierdzenia i powiadomienia z formularzy nie są wysyłane.",
+    "Set up email": "Skonfiguruj pocztę",
+    Assistant: "Asystent", "Loading Tovu…": "Ładowanie Tovu…", "Skip to content": "Przejdź do treści", "Close navigation": "Zamknij nawigację", "Open navigation": "Otwórz nawigację",
+    "Log out?": "Wylogować się?",
+    "Are you sure you want to log out?": "Czy na pewno chcesz się wylogować?",
+    "You don't have access to this": "Nie masz dostępu do tej sekcji",
+    "Ask the site owner if you need this section.": "Jeśli potrzebujesz tej sekcji, poproś o dostęp właściciela witryny.",
+  },
+  hu: {
+    "Scroll to top": "Ugrás a tetejére", "Scroll to bottom": "Ugrás az aljára",
+    Dismiss: "Elvetés",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "Az e-mail nincs beállítva: a bejelentkezési linkek, megerősítések és űrlapértesítések nem kerülnek elküldésre.",
+    "Set up email": "E-mail beállítása",
+    Assistant: "Asszisztens", "Loading Tovu…": "Tovu betöltése…", "Skip to content": "Ugrás a tartalomhoz", "Close navigation": "Navigáció bezárása", "Open navigation": "Navigáció megnyitása",
+    "Log out?": "Kijelentkezés?",
+    "Are you sure you want to log out?": "Biztosan ki szeretne jelentkezni?",
+    "You don't have access to this": "Ehhez nincs hozzáférésed",
+    "Ask the site owner if you need this section.": "Ha szükséged van erre a részre, kérj hozzáférést a webhely tulajdonosától.",
+  },
+  fr: {
+    "Scroll to top": "Aller en haut", "Scroll to bottom": "Aller en bas",
+    Dismiss: "Ignorer",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "L’e-mail n’est pas configuré : les liens de connexion, les confirmations et les notifications de formulaires ne sont pas envoyés.",
+    "Set up email": "Configurer l’e-mail",
+    Assistant: "Assistant IA", "Loading Tovu…": "Chargement de Tovu…", "Skip to content": "Aller au contenu", "Close navigation": "Fermer la navigation", "Open navigation": "Ouvrir la navigation",
+    "Log out?": "Se déconnecter ?",
+    "Are you sure you want to log out?": "Voulez-vous vraiment vous déconnecter ?",
+    "You don't have access to this": "Vous n'avez pas accès à cette section",
+    "Ask the site owner if you need this section.": "Demandez l'accès au propriétaire du site si vous avez besoin de cette section.",
+  },
+  uk: {
+    "Scroll to top": "Прокрутити вгору", "Scroll to bottom": "Прокрутити вниз",
+    Dismiss: "Приховати",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "Пошту не налаштовано: посилання для входу, підтвердження та сповіщення форм не надсилаються.",
+    "Set up email": "Налаштувати пошту",
+    Assistant: "Помічник", "Loading Tovu…": "Завантаження Tovu…", "Skip to content": "Перейти до вмісту", "Close navigation": "Закрити навігацію", "Open navigation": "Відкрити навігацію",
+    "Log out?": "Вийти?",
+    "Are you sure you want to log out?": "Ви впевнені, що хочете вийти?",
+    "You don't have access to this": "У вас немає доступу до цього розділу",
+    "Ask the site owner if you need this section.": "Якщо вам потрібен цей розділ, зверніться до власника сайту.",
+  },
+  tr: {
+    "Scroll to top": "Başa git", "Scroll to bottom": "Sona git",
+    Dismiss: "Kapat",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "E-posta kurulmadı: giriş bağlantıları, onaylar ve form bildirimleri gönderilmiyor.",
+    "Set up email": "E-postayı kur",
+    Assistant: "Asistan", "Loading Tovu…": "Tovu yükleniyor…", "Skip to content": "İçeriğe geç", "Close navigation": "Gezinmeyi kapat", "Open navigation": "Gezinmeyi aç",
+    "Log out?": "Çıkış yapılsın mı?",
+    "Are you sure you want to log out?": "Çıkış yapmak istediğinizden emin misiniz?",
+    "You don't have access to this": "Buraya erişiminiz yok",
+    "Ask the site owner if you need this section.": "Bu bölüme ihtiyacınız varsa site sahibinden erişim isteyin.",
+  },
+  th: {
+    "Scroll to top": "เลื่อนไปด้านบนสุด", "Scroll to bottom": "เลื่อนไปด้านล่างสุด",
+    Dismiss: "ปิด",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "ยังไม่ได้ตั้งค่าอีเมล: ไม่มีการส่งลิงก์ลงชื่อเข้าใช้ การยืนยัน และการแจ้งเตือนจากแบบฟอร์ม",
+    "Set up email": "ตั้งค่าอีเมล",
+    Assistant: "ผู้ช่วย", "Loading Tovu…": "กำลังโหลด Tovu…", "Skip to content": "ข้ามไปยังเนื้อหา", "Close navigation": "ปิดการนำทาง", "Open navigation": "เปิดการนำทาง",
+    "Log out?": "ออกจากระบบ?",
+    "Are you sure you want to log out?": "คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?",
+    "You don't have access to this": "คุณไม่มีสิทธิ์เข้าถึงส่วนนี้",
+    "Ask the site owner if you need this section.": "หากต้องการใช้ส่วนนี้ โปรดขอสิทธิ์จากเจ้าของเว็บไซต์",
+  },
+  it: {
+    "Scroll to top": "Torna su", "Scroll to bottom": "Vai in fondo",
+    Dismiss: "Ignora",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "L’email non è configurata: link di accesso, conferme e notifiche dei moduli non vengono inviati.",
+    "Set up email": "Configura email",
+    Assistant: "Assistente", "Loading Tovu…": "Caricamento di Tovu…", "Skip to content": "Vai al contenuto", "Close navigation": "Chiudi navigazione", "Open navigation": "Apri navigazione",
+    "Log out?": "Uscire?",
+    "Are you sure you want to log out?": "Sei sicuro di voler uscire?",
+    "You don't have access to this": "Non hai accesso a questa sezione",
+    "Ask the site owner if you need this section.": "Chiedi l'accesso al proprietario del sito se ti serve questa sezione.",
+  },
+  hi: {
+    "Scroll to top": "ऊपर जाएँ", "Scroll to bottom": "नीचे जाएँ",
+    Dismiss: "खारिज करें",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "ईमेल सेट अप नहीं है: साइन-इन लिंक, पुष्टिकरण और फ़ॉर्म सूचनाएं नहीं भेजी जातीं।",
+    "Set up email": "ईमेल सेट अप करें",
+    Assistant: "सहायक", "Loading Tovu…": "Tovu लोड हो रहा है…", "Skip to content": "सामग्री पर जाएँ", "Close navigation": "नेविगेशन बंद करें", "Open navigation": "नेविगेशन खोलें",
+    "Log out?": "लॉग आउट करें?",
+    "Are you sure you want to log out?": "क्या आप वाकई लॉग आउट करना चाहते हैं?",
+    "You don't have access to this": "आपके पास इसकी पहुँच नहीं है",
+    "Ask the site owner if you need this section.": "यदि आपको इस अनुभाग की आवश्यकता है, तो साइट के स्वामी से पहुँच माँगें।",
+  },
+  ur: {
+    "Scroll to top": "اوپر جائیں", "Scroll to bottom": "نیچے جائیں",
+    Dismiss: "مسترد کریں",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "ای میل سیٹ اپ نہیں ہے: سائن ان لنکس، تصدیقات اور فارم اطلاعات نہیں بھیجی جاتیں۔",
+    "Set up email": "ای میل سیٹ اپ کریں",
+    Assistant: "معاون", "Loading Tovu…": "Tovu لوڈ ہو رہا ہے…", "Skip to content": "مواد پر جائیں", "Close navigation": "نیویگیشن بند کریں", "Open navigation": "نیویگیشن کھولیں",
+    "Log out?": "لاگ آؤٹ کریں؟",
+    "Are you sure you want to log out?": "کیا آپ واقعی لاگ آؤٹ کرنا چاہتے ہیں؟",
+    "You don't have access to this": "آپ کو اس تک رسائی حاصل نہیں ہے",
+    "Ask the site owner if you need this section.": "اگر آپ کو اس حصے کی ضرورت ہے تو سائٹ کے مالک سے رسائی مانگیں۔",
+  },
+  bn: {
+    "Scroll to top": "উপরে যান", "Scroll to bottom": "নিচে যান",
+    Dismiss: "খারিজ করুন",
+    "Email is not set up: sign-in links, confirmations and form notifications are not sent.": "ইমেইল সেট আপ করা হয়নি: সাইন-ইন লিংক, নিশ্চিতকরণ এবং ফর্ম বিজ্ঞপ্তি পাঠানো হয় না।",
+    "Set up email": "ইমেইল সেট আপ করুন",
+    Assistant: "সহকারী", "Loading Tovu…": "Tovu লোড হচ্ছে…", "Skip to content": "বিষয়বস্তুতে যান", "Close navigation": "নেভিগেশন বন্ধ করুন", "Open navigation": "নেভিগেশন খুলুন",
+    "Log out?": "লগ আউট করবেন?",
+    "Are you sure you want to log out?": "আপনি কি নিশ্চিতভাবে লগ আউট করতে চান?",
+    "You don't have access to this": "এতে আপনার অ্যাক্সেস নেই",
+    "Ask the site owner if you need this section.": "এই বিভাগটি প্রয়োজন হলে সাইটের মালিকের কাছে অ্যাক্সেস চান।",
+  },
+};
+&nbsp;
+export const t = createDictionaryTranslator({ featureDictionary: APP_DICT }, { commonDictionary: COMMON_I18N });
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../sorter.js"></script>
+        <script src="../../block-navigation.js"></script>
+    </body>
+</html>
+    

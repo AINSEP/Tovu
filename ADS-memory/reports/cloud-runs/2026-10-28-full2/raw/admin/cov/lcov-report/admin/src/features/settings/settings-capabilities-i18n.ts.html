@@ -1,0 +1,700 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/settings/settings-capabilities-i18n.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">admin/src/features/settings</a> settings-capabilities-i18n.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>2/2</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>2/2</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { COMMON_I18N } from "../../lib/i18n-common";
+/**
+ * @file Settings screen "no backend yet" capability-status notes (the disabled-panel reference
+ * text for Privacy/telemetry, Media providers, Memory, External MCP, and Skills,
+ * plus the About tab's updater note). Moved out of Jini's `@jini-ai/ui` settings-dialog
+ * dictionary (2026-08-08) — those 8 keys name Tovu by name and describe Tovu's own current
+ * backend state, which doesn't belong in a package Zana and other hosts also consume. See
+ * project memory "Settings-dialog i18n relocation" for the full decision record.
+ */
+&nbsp;
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+&nbsp;
+const SETTINGS_CAPABILITIES_DICT: Record&lt;string, Record&lt;string, string&gt;&gt; = {
+  es: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "Consentimiento de telemetría de proveedores. Aún no está conectado a ningún proceso de recopilación en Tovu.",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "No está conectado: esta instalación no tiene ningún proceso de telemetría saliente, así que no se envía nada sin importar esta elección. El control de abajo se muestra solo como referencia y está desactivado hasta que exista un proceso de recopilación real.",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu es un CMS de servidor — las versiones nuevas se publican con un despliegue, no con un actualizador dentro de la app.",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu aún no tiene un backend de proveedores de contenido multimedia. El control de abajo se muestra solo como referencia y está desactivado hasta que exista uno.",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "El asistente de Tovu aún no guarda los datos extraídos entre conversaciones — esto es distinto del historial de chat, que sí se conserva. El control de abajo se muestra solo como referencia y está desactivado hasta que lo haga.",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "El asistente de Tovu ya puede usar herramientas de servidores MCP externos, pero las conexiones se configuran mediante variables de entorno y se aplican al iniciar, no desde aquí. El control de abajo se muestra solo como referencia y está desactivado hasta que se conecte a un almacén de configuración.",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu aún no tiene un backend de habilidades. Aquí, Habilidades vive dentro de Configuración de forma intencional, a diferencia de la página de Integraciones separada de Open Design. El control de abajo se muestra solo como referencia y está desactivado hasta que exista un backend real.",
+  },
+  id: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "Persetujuan telemetri vendor. Belum terhubung ke pipeline pengumpulan data di Tovu.",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "Belum terhubung: instalasi ini tidak memiliki pipeline telemetri keluar, jadi tidak ada yang dikirim terlepas dari pilihan ini. Kontrol di bawah ditampilkan hanya sebagai referensi dan dinonaktifkan sampai ada jalur pengumpulan data yang sesungguhnya.",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu adalah CMS berbasis server — versi baru dirilis melalui deployment, bukan pembaru dalam aplikasi.",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu belum memiliki backend penyedia media. Kontrol di bawah ditampilkan hanya sebagai referensi dan dinonaktifkan sampai backend tersebut ada.",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "Asisten Tovu belum menyimpan fakta yang diekstrak secara permanen antar percakapan — ini terpisah dari riwayat chat, yang memang tersimpan permanen. Kontrol di bawah ditampilkan hanya sebagai referensi dan dinonaktifkan sampai fitur ini tersedia.",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "Asisten Tovu sudah bisa menggunakan alat dari server MCP eksternal, tetapi koneksinya diatur melalui variabel lingkungan dan diterapkan saat startup, bukan dari sini. Kontrol di bawah ditampilkan hanya sebagai referensi dan dinonaktifkan sampai terhubung ke penyimpanan konfigurasi.",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu belum memiliki backend skill. Skill sengaja ditempatkan di Pengaturan di sini, berbeda dengan halaman Integrasi terpisah milik Open Design. Kontrol di bawah ditampilkan hanya sebagai referensi dan dinonaktifkan sampai ada backend sesungguhnya.",
+  },
+  de: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "Einwilligung zur Anbieter-Telemetrie. In Tovu noch nicht an eine Erfassungspipeline angebunden.",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "Nicht angebunden: Diese Installation hat keine ausgehende Telemetrie-Pipeline, daher wird unabhängig von dieser Auswahl nichts gesendet. Das Steuerelement unten dient nur als Referenz und ist deaktiviert, bis ein echter Erfassungsweg existiert.",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu ist ein Server-CMS — neue Versionen werden über ein Deployment ausgeliefert, nicht über einen In-App-Updater.",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu hat noch kein Backend für Medienanbieter. Das Steuerelement unten dient nur als Referenz und ist deaktiviert, bis eines existiert.",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "Der Assistent von Tovu speichert extrahierte Fakten noch nicht dauerhaft über Konversationen hinweg — das ist unabhängig vom Chatverlauf, der sehr wohl erhalten bleibt. Das Steuerelement unten dient nur als Referenz und ist deaktiviert, bis das der Fall ist.",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "Tovus Assistent kann bereits Werkzeuge externer MCP-Server nutzen, aber Verbindungen werden über Umgebungsvariablen eingerichtet und beim Start angewendet, nicht hier. Das Steuerelement unten dient nur als Referenz und ist deaktiviert, bis es an einen Konfigurationsspeicher angebunden ist.",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu hat noch kein Skills-Backend. Skills befindet sich hier bewusst in den Einstellungen, anders als bei Open Designs separater Integrationsseite. Das Steuerelement unten dient nur als Referenz und ist deaktiviert, bis ein echtes Backend existiert.",
+  },
+  "zh-CN": {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "供应商遥测数据同意设置。目前尚未连接到 Tovu 中的数据采集管道。",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "尚未接入：此安装没有出站遥测管道，因此无论此处如何选择都不会发送任何数据。下方控件仅作参考展示，在真正的采集通道建立之前将保持禁用状态。",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu 是一个服务器端 CMS——新版本通过部署发布，而非应用内更新程序。",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu 目前还没有媒体提供方后端。下方控件仅作参考展示，在相应后端建立之前将保持禁用状态。",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "Tovu 的助手目前还不能跨对话持久保存提取出的事实——这与会持久保存的聊天记录是两回事。下方控件仅作参考展示，在支持该功能之前将保持禁用状态。",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "Tovu 的助手已经可以使用外部 MCP 服务器的工具，但连接是通过环境变量配置并在启动时应用的，而不是在这里设置。下方控件仅作参考展示，在接入配置存储之前将保持禁用状态。",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu 目前还没有技能后端。此处“技能”被有意设计在“设置”中，这与 Open Design 中独立的“集成”页面不同。下方控件仅作参考展示，在真正的后端建立之前将保持禁用状态。",
+  },
+  "zh-TW": {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "廠商遙測資料同意設定。目前尚未連接到 Tovu 中的資料蒐集管道。",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "尚未接上：此安裝沒有對外傳送的遙測管道，因此無論此處如何選擇都不會傳送任何資料。下方控制項僅供參考，在建立實際的蒐集管道之前將維持停用狀態。",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu 是伺服器端 CMS——新版本透過部署發佈，而非應用程式內建的更新程式。",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu 目前還沒有媒體提供者後端。下方控制項僅供參考，在建立該後端之前將維持停用狀態。",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "Tovu 的助理目前還無法跨對話持久保存所擷取的事實——這與會持久保存的聊天記錄是兩回事。下方控制項僅供參考，在支援此功能之前將維持停用狀態。",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "Tovu 的助理已經可以使用外部 MCP 伺服器的工具，但連線是透過環境變數設定並在啟動時套用，而不是在這裡設定。下方控制項僅供參考，在接上設定儲存區之前將維持停用狀態。",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu 目前還沒有技能後端。此處的「技能」是刻意設計放在「設定」中，這與 Open Design 獨立的「整合」頁面不同。下方控制項僅供參考，在建立實際後端之前將維持停用狀態。",
+  },
+  "pt-BR": {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "Consentimento de telemetria de fornecedores. Ainda não está conectado a um pipeline de coleta no Tovu.",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "Não conectado: esta instalação não tem um pipeline de telemetria de saída, então nada é enviado independentemente dessa escolha. O controle abaixo é mostrado apenas como referência e fica desativado até que exista um caminho de coleta real.",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "O Tovu é um CMS de servidor — novas versões são lançadas com um deployment, não com um atualizador dentro do app.",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "O Tovu ainda não tem um backend de provedores de mídia. O controle abaixo é mostrado apenas como referência e fica desativado até que exista um.",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "O assistente do Tovu ainda não mantém os fatos extraídos entre conversas — isso é diferente do histórico de chat, que é mantido. O controle abaixo é mostrado apenas como referência e fica desativado até que isso aconteça.",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "O assistente do Tovu já pode usar ferramentas de servidores MCP externos, mas as conexões são configuradas por variáveis de ambiente e aplicadas na inicialização, não aqui. O controle abaixo é mostrado apenas como referência e fica desativado até ser ligado a um armazenamento de configuração.",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "O Tovu ainda não tem um backend de skills. Aqui, Habilidades faz parte de Configurações por design, diferente da página separada de Integrações do Open Design. O controle abaixo é mostrado apenas como referência e fica desativado até que exista um backend real.",
+  },
+  ru: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "Согласие на телеметрию поставщика. Пока не подключено к конвейеру сбора данных в Tovu.",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "Не подключено: у этой установки нет исходящего конвейера телеметрии, поэтому ничего не отправляется независимо от этого выбора. Элемент управления ниже показан для справки и отключён, пока не появится реальный путь сбора данных.",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu — это серверная CMS: новые версии выходят через развёртывание, а не через обновление внутри приложения.",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "У Tovu пока нет бэкенда поставщиков медиа. Элемент управления ниже показан для справки и отключён, пока он не появится.",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "Ассистент Tovu пока не сохраняет извлечённые факты между диалогами — это отдельно от истории чата, которая сохраняется. Элемент управления ниже показан для справки и отключён, пока это не изменится.",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "Ассистент Tovu уже может использовать инструменты внешних серверов MCP, но подключения настраиваются через переменные окружения и применяются при запуске, а не здесь. Элемент управления ниже показан для справки и отключён, пока не подключён к хранилищу конфигурации.",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "У Tovu пока нет бэкенда навыков. Навыки специально находятся в Настройках, в отличие от отдельной страницы интеграций в Open Design. Элемент управления ниже показан для справки и отключён, пока не появится настоящий бэкенд.",
+  },
+  fa: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "رضایت برای تله‌متری فروشنده. هنوز به هیچ فرایند جمع‌آوری داده‌ای در Tovu متصل نیست.",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "متصل نشده: این نصب هیچ فرایند تله‌متری خروجی‌ای ندارد، بنابراین صرف‌نظر از این انتخاب، چیزی ارسال نمی‌شود. کنترل زیر فقط برای مرجع نمایش داده شده و تا زمانی که مسیر جمع‌آوری واقعی وجود نداشته باشد غیرفعال است.",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu یک CMS سرور است — نسخه‌های جدید با یک استقرار عرضه می‌شوند، نه با به‌روزرسانی درون‌برنامه‌ای.",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu هنوز بک‌اند ارائه‌دهندهٔ رسانه ندارد. کنترل زیر فقط برای مرجع نمایش داده شده و تا زمانی که یکی وجود نداشته باشد غیرفعال است.",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "دستیار Tovu هنوز واقعیت‌های استخراج‌شده را میان گفتگوها ماندگار نمی‌کند — این جدا از تاریخچهٔ گفتگو است که ماندگار می‌ماند. کنترل زیر فقط برای مرجع نمایش داده شده و تا زمانی که این ویژگی اضافه شود غیرفعال است.",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "دستیار Tovu هم‌اکنون می‌تواند از ابزارهای سرورهای MCP خارجی استفاده کند، اما اتصال‌ها از طریق متغیرهای محیطی تنظیم می‌شوند و هنگام راه‌اندازی اعمال می‌گردند، نه از اینجا. کنترل زیر فقط برای مرجع نمایش داده شده و تا زمانی که به یک مخزن پیکربندی متصل نشود غیرفعال است.",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu هنوز بک‌اند مهارت‌ها را ندارد. اینجا، مهارت‌ها طبق طراحی درون تنظیمات قرار دارند، برخلاف صفحهٔ جداگانهٔ یکپارچه‌سازی‌ها در Open Design. کنترل زیر فقط برای مرجع نمایش داده شده و تا زمانی که بک‌اند واقعی وجود نداشته باشد غیرفعال است.",
+  },
+  ar: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "الموافقة على القياس عن بُعد لدى المزوّد. لم يتم ربطها بعد بأي مسار لجمع البيانات في Tovu.",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "غير مفعّل: لا يحتوي هذا التثبيت على مسار صادر للقياس عن بُعد، لذا لا يُرسَل أي شيء بغض النظر عن هذا الاختيار. عنصر التحكم أدناه معروض للمرجعية وهو معطّل حتى يتوفر مسار جمع بيانات فعلي.",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu هو نظام إدارة محتوى يعمل على خادم — يتم إصدار النسخ الجديدة عبر عملية نشر، وليس عبر أداة تحديث داخل التطبيق.",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "لا يمتلك Tovu بعد خلفية لمزوّدي الوسائط. عنصر التحكم أدناه معروض للمرجعية ومعطّل حتى تتوفر واحدة.",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "لا يحتفظ مساعد Tovu بعد بالحقائق المستخرجة عبر المحادثات — وهذا أمر منفصل عن سجل المحادثة الذي يظل محفوظًا. عنصر التحكم أدناه معروض للمرجعية ومعطّل حتى يتحقق ذلك.",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "يمكن لمساعد Tovu بالفعل استخدام أدوات من خوادم MCP خارجية، لكن الاتصالات تُضبط عبر متغيرات البيئة وتُطبَّق عند بدء التشغيل، وليس من هنا. عنصر التحكم أدناه معروض للمرجعية ومعطّل حتى يُربط بمخزن إعدادات.",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "لا يمتلك Tovu بعد خلفية للمهارات. توجد المهارات هنا ضمن الإعدادات بحسب التصميم، بخلاف صفحة التكاملات المنفصلة في Open Design. عنصر التحكم أدناه معروض للمرجعية ومعطّل حتى تتوفر خلفية فعلية.",
+  },
+  ja: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "ベンダーのテレメトリへの同意です。Tovuではまだ収集パイプラインに接続されていません。",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "未接続：このインストールには送信用のテレメトリパイプラインがないため、この選択に関わらず何も送信されません。以下のコントロールは参考として表示されており、実際の収集経路が存在するまで無効になっています。",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovuはサーバー型CMSです — 新しいバージョンはアプリ内アップデーターではなく、デプロイによって提供されます。",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovuにはまだメディアプロバイダーのバックエンドがありません。以下のコントロールは参考として表示されており、バックエンドが存在するまで無効になっています。",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "Tovuのアシスタントは、抽出した事実を会話をまたいで保持することはまだできません — これは保持されるチャット履歴とは別のものです。以下のコントロールは参考として表示されており、対応するまで無効になっています。",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "Tovuのアシスタントは既に外部MCPサーバーのツールを利用できますが、接続はここからではなく環境変数で設定され、起動時に適用されます。以下のコントロールは参考として表示されており、設定ストアに接続されるまで無効になっています。",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovuにはまだスキルのバックエンドがありません。Open Designの独立した「連携」ページとは異なり、ここではスキルは意図的に設定内に配置されています。以下のコントロールは参考として表示されており、実際のバックエンドが存在するまで無効になっています。",
+  },
+  ko: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "공급업체 원격 분석 동의입니다. 아직 Tovu의 수집 파이프라인에 연결되어 있지 않습니다.",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "연결되지 않음: 이 설치본에는 외부로 나가는 원격 분석 파이프라인이 없으므로 이 선택과 관계없이 아무것도 전송되지 않습니다. 아래 컨트롤은 참고용으로 표시되며 실제 수집 경로가 생길 때까지 비활성화됩니다.",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu는 서버 CMS입니다 — 새 버전은 앱 내 업데이트가 아니라 배포를 통해 제공됩니다.",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu에는 아직 미디어 제공업체 백엔드가 없습니다. 아래 컨트롤은 참고용으로 표시되며 백엔드가 생길 때까지 비활성화됩니다.",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "Tovu의 어시스턴트는 아직 추출한 사실을 대화 간에 지속적으로 저장하지 않습니다 — 이는 계속 보존되는 채팅 기록과는 별개입니다. 아래 컨트롤은 참고용으로 표시되며 지원될 때까지 비활성화됩니다.",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "Tovu의 어시스턴트는 이미 외부 MCP 서버의 도구를 사용할 수 있지만, 연결은 여기가 아니라 환경 변수로 설정되며 시작할 때 적용됩니다. 아래 컨트롤은 참고용으로 표시되며 구성 저장소에 연결될 때까지 비활성화됩니다.",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu에는 아직 스킬 백엔드가 없습니다. Open Design의 별도 통합 페이지와 달리, 여기서는 스킬이 의도적으로 설정 안에 있습니다. 아래 컨트롤은 참고용으로 표시되며 실제 백엔드가 생길 때까지 비활성화됩니다.",
+  },
+  pl: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "Zgoda na telemetrię dostawcy. Jeszcze niepodłączona do żadnego procesu zbierania danych w Tovu.",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "Niepodłączone: ta instalacja nie ma żadnego wychodzącego procesu telemetrii, więc nic nie jest wysyłane niezależnie od tego wyboru. Poniższa kontrolka jest pokazana wyłącznie poglądowo i jest wyłączona, dopóki nie powstanie rzeczywisty proces zbierania danych.",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu to serwerowy CMS — nowe wersje trafiają do użytku wraz z wdrożeniem, a nie za pomocą aktualizatora w aplikacji.",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu nie ma jeszcze backendu dostawców multimediów. Poniższa kontrolka jest pokazana wyłącznie poglądowo i jest wyłączona, dopóki taki backend nie powstanie.",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "Asystent Tovu nie zapisuje jeszcze trwale wyodrębnionych faktów między rozmowami — to coś innego niż historia czatu, która jest zachowywana. Poniższa kontrolka jest pokazana wyłącznie poglądowo i jest wyłączona, dopóki to nie zacznie działać.",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "Asystent Tovu może już korzystać z narzędzi zewnętrznych serwerów MCP, ale połączenia konfiguruje się przez zmienne środowiskowe i stosuje przy starcie, a nie tutaj. Poniższa kontrolka jest pokazana wyłącznie poglądowo i jest wyłączona, dopóki nie zostanie podłączona do magazynu konfiguracji.",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu nie ma jeszcze backendu umiejętności. Umiejętności celowo znajdują się tutaj w Ustawieniach, w odróżnieniu od osobnej strony Integracje w Open Design. Poniższa kontrolka jest pokazana wyłącznie poglądowo i jest wyłączona, dopóki nie powstanie rzeczywisty backend.",
+  },
+  hu: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "Gyártói telemetria-hozzájárulás. A Tovuban még nincs összekapcsolva gyűjtési folyamattal.",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "Nincs bekötve: ennek a telepítésnek nincs kimenő telemetriai folyamata, így ettől a választástól függetlenül semmi sem kerül elküldésre. Az alábbi vezérlőelem csak tájékoztató jelleggel jelenik meg, és le van tiltva, amíg nem jön létre valódi gyűjtési folyamat.",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "A Tovu egy szerveroldali CMS — az új verziók telepítéssel kerülnek ki, nem alkalmazáson belüli frissítővel.",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "A Tovunak még nincs médiaszolgáltató háttérrendszere. Az alábbi vezérlőelem csak tájékoztató jelleggel jelenik meg, és le van tiltva, amíg nem jön létre egy.",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "A Tovu asszisztense még nem tárolja tartósan a kinyert tényeket a beszélgetések között — ez különbözik a csevegési előzményektől, amelyek tartósan megmaradnak. Az alábbi vezérlőelem csak tájékoztató jelleggel jelenik meg, és le van tiltva, amíg ez meg nem valósul.",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "A Tovu asszisztense már használhatja külső MCP-szerverek eszközeit, de a kapcsolatokat környezeti változókkal kell beállítani, és indításkor lépnek életbe, nem innen. Az alábbi vezérlőelem csak tájékoztató jelleggel jelenik meg, és le van tiltva, amíg nem kapcsolódik egy konfigurációs tárolóhoz.",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "A Tovunak még nincs képességek háttérrendszere. A Képességek itt szándékosan a Beállítások részét képezi, ellentétben az Open Design különálló Integrációk oldalával. Az alábbi vezérlőelem csak tájékoztató jelleggel jelenik meg, és le van tiltva, amíg nem jön létre valódi háttérrendszer.",
+  },
+  fr: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "Consentement à la télémétrie du fournisseur. Pas encore connecté à un pipeline de collecte dans Tovu.",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "Non relié : cette installation n'a pas de pipeline de télémétrie sortant, donc rien n'est envoyé quel que soit ce choix. Le contrôle ci-dessous est affiché à titre de référence et désactivé tant qu'un véritable circuit de collecte n'existe pas.",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu est un CMS serveur — les nouvelles versions sont livrées via un déploiement, pas via un outil de mise à jour intégré.",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu n'a pas encore de backend de fournisseur de médias. Le contrôle ci-dessous est affiché à titre de référence et désactivé tant qu'il n'en existe pas.",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "L'assistant de Tovu ne conserve pas encore les faits extraits d'une conversation à l'autre — ce qui est distinct de l'historique des discussions, qui lui est conservé. Le contrôle ci-dessous est affiché à titre de référence et désactivé tant que ce n'est pas le cas.",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "L'assistant de Tovu peut déjà utiliser les outils de serveurs MCP externes, mais les connexions se configurent via des variables d'environnement et s'appliquent au démarrage, pas ici. Le contrôle ci-dessous est affiché à titre de référence et désactivé tant qu'il n'est pas relié à un magasin de configuration.",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu n'a pas encore de backend de compétences. Les compétences se trouvent volontairement dans les paramètres ici, contrairement à la page Intégrations distincte d'Open Design. Le contrôle ci-dessous est affiché à titre de référence et désactivé tant qu'un véritable backend n'existe pas.",
+  },
+  uk: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "Згода на телеметрію постачальника. Ще не підключено до конвеєра збору даних у Tovu.",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "Не підключено: ця установка не має вихідного конвеєра телеметрії, тому нічого не надсилається незалежно від цього вибору. Елемент керування нижче показано для довідки, і він вимкнений, доки не з'явиться реальний шлях збору даних.",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu — це серверна CMS: нові версії постачаються через розгортання, а не через вбудований засіб оновлення.",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu ще не має бекенду медіапостачальників. Елемент керування нижче показано для довідки, і він вимкнений, доки такий бекенд не з'явиться.",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "Асистент Tovu ще не зберігає видобуті факти між розмовами — це відрізняється від історії чату, яка зберігається. Елемент керування нижче показано для довідки, і він вимкнений, доки це не стане можливим.",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "Асистент Tovu вже може використовувати інструменти зовнішніх серверів MCP, але з'єднання налаштовуються через змінні середовища й застосовуються під час запуску, а не тут. Елемент керування нижче показано для довідки, і він вимкнений, доки не під'єднаний до сховища конфігурації.",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu ще не має бекенду навичок. Навички навмисно розміщені тут у налаштуваннях, на відміну від окремої сторінки інтеграцій Open Design. Елемент керування нижче показано для довідки, і він вимкнений, доки не з'явиться реальний бекенд.",
+  },
+  tr: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "Satıcı telemetri izni. Henüz Tovu'da bir toplama hattına bağlı değil.",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "Bağlı değil: bu kurulumda giden bir telemetri hattı yok, bu yüzden bu seçimden bağımsız olarak hiçbir şey gönderilmez. Aşağıdaki denetim yalnızca referans amacıyla gösterilir ve gerçek bir toplama yolu oluşana kadar devre dışıdır.",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu bir sunucu CMS'idir — yeni sürümler uygulama içi bir güncelleyiciyle değil, bir dağıtımla yayınlanır.",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu'nun henüz bir medya sağlayıcısı arka ucu yok. Aşağıdaki denetim yalnızca referans amacıyla gösterilir ve biri oluşana kadar devre dışıdır.",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "Tovu'nun asistanı henüz çıkarılan bilgileri konuşmalar arasında kalıcı hale getirmiyor — bu, kalıcı olan sohbet geçmişinden ayrıdır. Aşağıdaki denetim yalnızca referans amacıyla gösterilir ve kalıcı hale gelene kadar devre dışıdır.",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "Tovu'nun asistanı harici MCP sunucularının araçlarını halihazırda kullanabilir, ancak bağlantılar buradan değil, ortam değişkenleriyle yapılandırılır ve başlangıçta uygulanır. Aşağıdaki denetim yalnızca referans amacıyla gösterilir ve bir yapılandırma deposuna bağlanana kadar devre dışıdır.",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu'nun henüz bir beceri arka ucu yok. Open Design'ın ayrı Entegrasyonlar sayfasından farklı olarak, burada Beceriler bilinçli olarak Ayarlar içinde yer alır. Aşağıdaki denetim yalnızca referans amacıyla gösterilir ve gerçek bir arka uç oluşana kadar devre dışıdır.",
+  },
+  th: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "การยินยอมส่งข้อมูลเทเลเมทรีให้ผู้จำหน่าย ยังไม่ได้เชื่อมต่อกับไปป์ไลน์การเก็บข้อมูลใน Tovu",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "ยังไม่ได้เชื่อมต่อ: การติดตั้งนี้ไม่มีไปป์ไลน์เทเลเมทรีขาออก จึงไม่มีการส่งข้อมูลใด ๆ ไม่ว่าจะเลือกตัวเลือกนี้หรือไม่ ตัวควบคุมด้านล่างแสดงไว้เพื่อการอ้างอิงเท่านั้น และถูกปิดใช้งานจนกว่าจะมีช่องทางเก็บข้อมูลจริง",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu เป็น CMS แบบเซิร์ฟเวอร์ — เวอร์ชันใหม่จะออกผ่านการดีพลอย ไม่ใช่ผ่านตัวอัปเดตในแอป",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu ยังไม่มีแบ็กเอนด์สำหรับผู้ให้บริการสื่อ ตัวควบคุมด้านล่างแสดงไว้เพื่อการอ้างอิงเท่านั้น และถูกปิดใช้งานจนกว่าจะมีแบ็กเอนด์ดังกล่าว",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "ผู้ช่วยของ Tovu ยังไม่คงข้อเท็จจริงที่สกัดได้ไว้ข้ามบทสนทนา — ซึ่งแยกจากประวัติการแชทที่ยังคงอยู่ ตัวควบคุมด้านล่างแสดงไว้เพื่อการอ้างอิงเท่านั้น และถูกปิดใช้งานจนกว่าจะทำได้",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "ผู้ช่วยของ Tovu สามารถใช้เครื่องมือจากเซิร์ฟเวอร์ MCP ภายนอกได้แล้ว แต่การเชื่อมต่อถูกตั้งค่าผ่านตัวแปรสภาพแวดล้อมและมีผลตอนเริ่มระบบ ไม่ใช่จากที่นี่ ตัวควบคุมด้านล่างแสดงไว้เพื่อการอ้างอิงเท่านั้น และถูกปิดใช้งานจนกว่าจะเชื่อมต่อกับที่เก็บการตั้งค่า",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu ยังไม่มีแบ็กเอนด์สำหรับทักษะ ทักษะถูกออกแบบให้อยู่ในการตั้งค่าที่นี่โดยตั้งใจ ต่างจากหน้าการผสานการทำงานแยกต่างหากของ Open Design ตัวควบคุมด้านล่างแสดงไว้เพื่อการอ้างอิงเท่านั้น และถูกปิดใช้งานจนกว่าจะมีแบ็กเอนด์จริง",
+  },
+  it: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "Consenso alla telemetria del fornitore. Non ancora collegato a una pipeline di raccolta in Tovu.",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "Non collegato: questa installazione non ha una pipeline di telemetria in uscita, quindi non viene inviato nulla indipendentemente da questa scelta. Il controllo sottostante viene mostrato come riferimento ed è disabilitato finché non esiste un vero percorso di raccolta.",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu è un CMS server — le nuove versioni vengono distribuite tramite un deployment, non tramite un aggiornamento integrato nell'app.",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu non ha ancora un backend per i provider multimediali. Il controllo sottostante viene mostrato come riferimento ed è disabilitato finché non ne esiste uno.",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "L'assistente di Tovu non conserva ancora i fatti estratti tra una conversazione e l'altra — cosa distinta dalla cronologia delle chat, che invece viene conservata. Il controllo sottostante viene mostrato come riferimento ed è disabilitato finché non lo farà.",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "L'assistente di Tovu può già usare gli strumenti di server MCP esterni, ma le connessioni si configurano tramite variabili d'ambiente e vengono applicate all'avvio, non da qui. Il controllo sottostante viene mostrato come riferimento ed è disabilitato finché non è collegato a un archivio di configurazione.",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu non ha ancora un backend per le competenze. Qui le competenze si trovano intenzionalmente in Impostazioni, a differenza della pagina Integrazioni separata di Open Design. Il controllo sottostante viene mostrato come riferimento ed è disabilitato finché non esiste un vero backend.",
+  },
+  hi: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "विक्रेता टेलीमेट्री सहमति। अभी तक Tovu में किसी संग्रहण पाइपलाइन से जुड़ा नहीं है।",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "अभी सक्रिय नहीं: इस इंस्टॉलेशन में कोई आउटबाउंड टेलीमेट्री पाइपलाइन नहीं है, इसलिए इस विकल्प के बावजूद कुछ भी नहीं भेजा जाता। नीचे दिया गया नियंत्रण केवल संदर्भ के लिए दिखाया गया है और तब तक अक्षम रहेगा जब तक कि एक वास्तविक संग्रहण पथ मौजूद न हो।",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu एक सर्वर CMS है — नए संस्करण डिप्लॉयमेंट के साथ जारी किए जाते हैं, न कि किसी इन-ऐप अपडेटर के ज़रिए।",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu में अभी तक कोई मीडिया-प्रदाता बैकएंड नहीं है। नीचे दिया गया नियंत्रण केवल संदर्भ के लिए दिखाया गया है और तब तक अक्षम रहेगा जब तक एक मौजूद न हो।",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "Tovu का सहायक अभी तक निकाले गए तथ्यों को बातचीत के दौरान स्थायी रूप से सहेजता नहीं है — यह चैट इतिहास से अलग है, जो वास्तव में सहेजा जाता है। नीचे दिया गया नियंत्रण केवल संदर्भ के लिए दिखाया गया है और तब तक अक्षम रहेगा जब तक यह ऐसा नहीं करता।",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "Tovu का असिस्टेंट पहले से ही बाहरी MCP सर्वर के टूल इस्तेमाल कर सकता है, लेकिन कनेक्शन यहाँ से नहीं, बल्कि एनवायरनमेंट वेरिएबल से सेट किए जाते हैं और शुरू होने पर लागू होते हैं। नीचे दिया गया नियंत्रण केवल संदर्भ के लिए दिखाया गया है और कॉन्फ़िग स्टोर से जुड़ने तक निष्क्रिय रहेगा।",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu में अभी तक कोई स्किल्स बैकएंड नहीं है। यहाँ स्किल्स जानबूझकर सेटिंग्स के अंदर रखी गई हैं, न कि Open Design के अलग इंटीग्रेशन पेज की तरह। नीचे दिया गया नियंत्रण केवल संदर्भ के लिए दिखाया गया है और तब तक अक्षम रहेगा जब तक एक वास्तविक बैकएंड मौजूद न हो।",
+  },
+  ur: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "وینڈر ٹیلی میٹری کی رضامندی۔ ابھی تک Tovu میں کسی کلیکشن پائپ لائن سے منسلک نہیں ہے۔",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "منسلک نہیں: اس انسٹالیشن میں کوئی آؤٹ باؤنڈ ٹیلی میٹری پائپ لائن موجود نہیں ہے، اس لیے اس انتخاب سے قطع نظر کچھ بھی نہیں بھیجا جاتا۔ نیچے دیا گیا کنٹرول محض حوالے کے لیے دکھایا گیا ہے اور اس وقت تک غیر فعال رہے گا جب تک کوئی حقیقی کلیکشن راستہ موجود نہ ہو۔",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu ایک سرور CMS ہے — نئے ورژنز ڈپلائے منٹ کے ذریعے جاری کیے جاتے ہیں، نہ کہ کسی ان ایپ اپڈیٹر کے ذریعے۔",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu میں ابھی تک کوئی میڈیا پرووائیڈر بیک اینڈ موجود نہیں ہے۔ نیچے دیا گیا کنٹرول محض حوالے کے لیے دکھایا گیا ہے اور اس وقت تک غیر فعال رہے گا جب تک کوئی موجود نہ ہو۔",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "Tovu کا اسسٹنٹ ابھی تک نکالے گئے حقائق کو مختلف گفتگوؤں کے دوران مستقل طور پر محفوظ نہیں کرتا — یہ چیٹ ہسٹری سے الگ ہے، جو واقعی محفوظ رہتی ہے۔ نیچے دیا گیا کنٹرول محض حوالے کے لیے دکھایا گیا ہے اور اس وقت تک غیر فعال رہے گا جب تک ایسا نہ ہو۔",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "Tovu کا اسسٹنٹ پہلے ہی بیرونی MCP سرورز کے ٹولز استعمال کر سکتا ہے، لیکن کنکشنز یہاں سے نہیں بلکہ ماحولیاتی متغیرات کے ذریعے ترتیب دیے جاتے ہیں اور آغاز کے وقت لاگو ہوتے ہیں۔ نیچے دیا گیا کنٹرول محض حوالے کے لیے دکھایا گیا ہے اور کنفیگ اسٹور سے منسلک ہونے تک غیر فعال رہے گا۔",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu میں ابھی تک کوئی اسکلز بیک اینڈ موجود نہیں ہے۔ یہاں اسکلز جان بوجھ کر ترتیبات کے اندر رکھی گئی ہیں، Open Design کے علیحدہ انٹیگریشنز پیج کے برعکس۔ نیچے دیا گیا کنٹرول محض حوالے کے لیے دکھایا گیا ہے اور اس وقت تک غیر فعال رہے گا جب تک کوئی حقیقی بیک اینڈ موجود نہ ہو۔",
+  },
+  bn: {
+    "Vendor telemetry consent. Not connected to a collection pipeline in Tovu yet.": "ভেন্ডর টেলিমেট্রি সম্মতি। এখনো Tovu-এর কোনো সংগ্রহ পাইপলাইনের সাথে সংযুক্ত নয়।",
+    "Not wired up: this installation has no outbound telemetry pipeline, so nothing is sent regardless of this choice. The control below is shown for reference and disabled until a real collection path exists.": "সংযুক্ত নয়: এই ইনস্টলেশনে কোনো আউটবাউন্ড টেলিমেট্রি পাইপলাইন নেই, তাই এই পছন্দ যাই হোক না কেন কিছুই পাঠানো হয় না। নিচের নিয়ন্ত্রণটি শুধুমাত্র রেফারেন্সের জন্য দেখানো হয়েছে এবং একটি প্রকৃত সংগ্রহ পথ তৈরি না হওয়া পর্যন্ত নিষ্ক্রিয় থাকবে।",
+    "Tovu is a server CMS — new versions ship with a deployment, not an in-app updater.": "Tovu একটি সার্ভার CMS — নতুন সংস্করণগুলো ডিপ্লয়মেন্টের মাধ্যমে প্রকাশিত হয়, কোনো ইন-অ্যাপ আপডেটারের মাধ্যমে নয়।",
+    "Tovu doesn't have a media-provider backend yet. The control below is shown for reference and disabled until one exists.": "Tovu-এর এখনো কোনো মিডিয়া-প্রোভাইডার ব্যাকএন্ড নেই। নিচের নিয়ন্ত্রণটি শুধুমাত্র রেফারেন্সের জন্য দেখানো হয়েছে এবং একটি তৈরি না হওয়া পর্যন্ত নিষ্ক্রিয় থাকবে।",
+    "Tovu's assistant doesn't persist extracted facts across conversations yet — that's separate from chat history, which does persist. The control below is shown for reference and disabled until it does.": "Tovu-এর অ্যাসিস্ট্যান্ট এখনো নিষ্কাশিত তথ্যগুলো কথোপকথন জুড়ে স্থায়ীভাবে সংরক্ষণ করে না — এটি চ্যাট হিস্টোরি থেকে আলাদা, যা সত্যিই সংরক্ষিত থাকে। নিচের নিয়ন্ত্রণটি শুধুমাত্র রেফারেন্সের জন্য দেখানো হয়েছে এবং তা না হওয়া পর্যন্ত নিষ্ক্রিয় থাকবে।",
+    "Tovu's assistant can already use tools from external MCP servers — but connections are set up through environment variables and applied at startup, not here. The control below is shown for reference and disabled until it's wired to a config store.": "Tovu-র অ্যাসিসট্যান্ট ইতিমধ্যেই বাহ্যিক MCP সার্ভারের টুল ব্যবহার করতে পারে, তবে সংযোগগুলি এখান থেকে নয়, এনভায়রনমেন্ট ভেরিয়েবলের মাধ্যমে কনফিগার করা হয় এবং চালু হওয়ার সময় প্রয়োগ হয়। নিচের নিয়ন্ত্রণটি কেবল রেফারেন্সের জন্য দেখানো হয়েছে এবং কনফিগ স্টোরের সাথে যুক্ত না হওয়া পর্যন্ত নিষ্ক্রিয় থাকবে।",
+    "Tovu has no skills backend yet. Skills lives in Settings here by design, unlike Open Design's separate Integrations page. The control below is shown for reference and disabled until a real backend exists.": "Tovu-এর এখনো কোনো স্কিলস ব্যাকএন্ড নেই। এখানে স্কিলস ইচ্ছাকৃতভাবে সেটিংস-এর মধ্যে রাখা হয়েছে, Open Design-এর আলাদা ইন্টিগ্রেশনস পেজের মতো নয়। নিচের নিয়ন্ত্রণটি শুধুমাত্র রেফারেন্সের জন্য দেখানো হয়েছে এবং একটি প্রকৃত ব্যাকএন্ড তৈরি না হওয়া পর্যন্ত নিষ্ক্রিয় থাকবে।",
+  },
+};
+&nbsp;
+export const t = createDictionaryTranslator({ featureDictionary: SETTINGS_CAPABILITIES_DICT }, { commonDictionary: COMMON_I18N });
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

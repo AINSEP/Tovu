@@ -1,0 +1,514 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/lib/assistant-transport.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../prettify.css" />
+    <link rel="stylesheet" href="../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../index.html">All files</a> / <a href="index.html">admin/src/lib</a> assistant-transport.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>23/23</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>20/20</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>20/20</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>21/21</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">55x</span>
+<span class="cline-any cline-yes">55x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">46x</span>
+<span class="cline-any cline-yes">36x</span>
+<span class="cline-any cline-yes">102x</span>
+<span class="cline-any cline-yes">38x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">56x</span>
+<span class="cline-any cline-yes">51x</span>
+<span class="cline-any cline-yes">51x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">391x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">391x</span>
+<span class="cline-any cline-yes">38x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">47x</span>
+<span class="cline-any cline-yes">47x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { createAssistantTransportClient } from "@jini-ai/chat/transports/http";
+import type { ChatMessage, StartRunInput } from "@jini-ai/chat/core";
+import type { ExecutionConfig } from "@jini-ai/ui";
+import { promptWithSelectedSkills } from "@/features/plugins/selected-skills";
+import { browserQueuedStartPorts, startQueuedDaemonRun } from "./queued-daemon-start";
+import { withAcceptanceCancellation } from "./acceptance-cancellation";
+import { browserDurableSubscriptionPorts, durableRunBindings, followDurableRun } from "./durable-run-subscription";
+import { agUiRunClient } from "./assistant-transport-ag-ui";
+import { RUN_NOTICES } from "@tovu/assistant-run-events";
+import { adminStreamActivity, trackTransportActivity, type StreamActivity } from "./stream-activity";
+export { parseUsageEvent, terminalFailureError, terminalOutcomeNotice, terminalReasonNotice, translateRunAgentPayload } from "@tovu/assistant-run-events";
+export { parseFrame } from "./sse-frames";
+&nbsp;
+/** Product endpoints and projections; Jini owns the chat transport lifecycle. */
+const RUNS_URL = "/api/runs";
+const client = createAssistantTransportClient({ ports: {
+ runsUrl: RUNS_URL, byokTurnUrl: "/api/admin/v1/assistant/byok-turn", byokRunIdPrefix: "byok:", notices: RUN_NOTICES,
+ fetch: (url, init) =&gt; fetch(url, init),
+ mintId: () =&gt; typeof crypto !== "undefined" &amp;&amp; typeof crypto.randomUUID === "function" ? crypto.randomUUID() : String(Date.now()) + "-" + Math.random().toString(36).slice(2),
+ projectPrompt: ({ prompt, context }) =&gt; promptWithSelectedSkills(prompt, context),
+ projectInput: ({ input }) =&gt; withSelectedSkillGuidance(input),
+ bindRun: ({ runId, binding }) =&gt; { durableRunBindings.set(runId, binding); },
+ runBinding: ({ runId }) =&gt; durableRunBindings.get(runId),
+ followRun: ({ runId, handlers, signal }) =&gt; { followDurableRun({ runId, handlers, signal, binding: durableRunBindings.get(runId), ports: browserDurableSubscriptionPorts({}, {}) }, {}); },
+ acceptRun: ({ body, signal, requestSignal, messageId, conversationId }) =&gt; withAcceptanceCancellation({ signal,
+  start: () =&gt; startQueuedDaemonRun({ body, signal: requestSignal, ports: browserQueuedStartPorts({}, {}) }, {}),
+  cancel: async () =&gt; { await fetch(RUNS_URL + "/pending/cancel", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messageId, conversationId }) }); },
+ }, {}),
+ agUi: agUiRunClient,
+} }, {});
+&nbsp;
+export interface CreateTovuAssistantTransportOptions {
+  /**
+   * Read fresh on every `startRun` call, never captured once — matching `AssistantDock.tsx`'s own
+   * `runContext` convention (see that file's doc on why `frontendBindToken` is read the same way):
+   * the operator can flip the runtime picker's mode mid-session, and a captured value would keep
+   * routing every later turn through whichever mode was selected when the transport was first
+   * built (`AssistantDock.tsx` memoizes the transport once, for the reason its own comment gives —
+   * rebuilding it would drop in-flight runs).
+   */
+  getExecutionConfig?: () =&gt; ExecutionConfig;
+  /**
+   * ADR-059's AG-UI canary toggle — deliberately NOT a value on {@link ExecutionConfig}: that type
+   * is `@jini-ai/ui`'s own closed `'local-cli' | 'byok'` union, a separate repo/package, and
+   * extending it would mean a cross-repo edit this ADR explicitly avoids (Decision 1: "a zero-touch
+   * addition to Jini"). Read fresh on every `startRun` call, same "never captured" convention
+   * {@link getExecutionConfig} already establishes, for the same reason: an operator can flip this
+   * mid-session without rebuilding the memoized transport.
+   */
+  getAgUiEnabled?: () =&gt; boolean;
+  /**
+   * Agent ids whose own CLI/ACP session already carries multi-turn conversation memory across
+   * spawns — `@jini-ai/agent-runtime`'s `resumesSessionViaCli`/`resumesSessionViaAcpLoad`, projected
+   * client-safe as `AssistantAgentSummary.carriesOwnMemory` (`assistant/agents.ts`, Tovu server-side).
+   * {@link runPrompt}'s own doc has the full "used to send only the newest message" background; this
+   * option is the inverse regression it introduced for exactly these agents — see `startRun`'s Local
+   * CLI branch below, which resends the doc's own contract instead of the full transcript ONLY for an
+   * agentId this set contains: "the caller trusts this adapter's CLI to carry its own multi-turn
+   * conversation memory... and should skip resending the rendered transcript on follow-up turns"
+   * (`types.ts`). Resending it anyway would duplicate everything the daemon's own `--resume`/
+   * `session/load` already restores (`agent-session-resume.ts`).
+   *
+   * Read fresh on every `startRun` call, same "never captured" convention {@link getExecutionConfig}/
+   * {@link getAgUiEnabled} already establish: the admin's own `/api/agents` probe resolves
+   * asynchronously and can still be in flight when this transport is first built, and an operator can
+   * switch the Local CLI agent pick mid-session.
+   *
+   * Omitted, or an agentId absent from the returned set, keeps today's behavior — the full transcript
+   * is sent. That is the SAFE default for a def this option's source has not resolved as resume-capable
+   * yet: sending redundant history to a resume-capable def costs extra tokens, but withholding history
+   * from a stateless def would silently erase its memory — the two failure directions are not
+   * symmetric, so "unknown" must resolve to "send everything," not to "send only the latest message."
+   */
+  getResumeCapableAgentIds?: () =&gt; ReadonlySet&lt;string&gt;;
+  /**
+   * This pane's conversation id, adopting one if none is active yet —
+   * `useAssistantChats.ensureConversationId` (`hooks/use-assistant-chats.hooks.ts`), wired through
+   * `AssistantDock`'s `useAssistantTransport`. Awaited by `startRun` ONLY when `input.context` names
+   * no conversation, which in practice means the first turn of a chat.
+   *
+   * Why the transport has to be the one to ask: the admin adopts a conversation lazily, from the
+   * first message delta — and `@jini-ai/chat`'s `useChatPane.sendPrompt` freezes `runContext(...)`
+   * into `input.context` BEFORE calling `conversation.sendMessage(...)`, the very call that produces
+   * that delta. So on turn 1 there is no id to capture yet, and `runContext` (synchronous by
+   * contract) has no way to wait for one. `startRun` is the last point in the chain that can still
+   * `await`, which makes it the only place the run can acquire the identity its agent-CLI session id
+   * gets filed under. Without it, `agent-daemon-server.ts`'s `onStarted` skipped its entire
+   * session-capture subscription for turn 1, and turn 2 — sent only the bare latest user message,
+   * trusting a resume that had nothing stored — answered with none of the conversation.
+   *
+   * Contract: resolves `null` rather than rejecting when creation fails. `startRun` treats that as
+   * "send the turn anyway, with no conversationId" — one run with no resumable session is a far
+   * smaller loss than a run that never happens.
+   */
+  ensureConversationId?: () =&gt; Promise&lt;string | null&gt;;
+  /**
+   * Writes one user message to durable storage — `useAssistantChats.persistUserTurn`
+   * (`hooks/use-assistant-chats.hooks.ts`), wired through `AssistantDock`'s `useAssistantTransport`.
+   * Awaited by `startRun` on the Local CLI path before `POST /api/runs`, including a delta's pending
+   * PUT. Acceptance persists the same message with its stub if the browser write fails. See
+   * {@link persistUserTurnBeforeDispatch} for the defect and the idempotency contract.
+   *
+   * Optional for transports without the dock's persistence hook; acceptance still receives the
+   * exact user message, and the delta-driven `flush` can write the same ID afterward.
+   * Its rejection is swallowed at the call site rather than failing the turn.
+   */
+  persistUserTurn?: (conversationId: string, message: ChatMessage) =&gt; Promise&lt;void&gt;;
+}
+&nbsp;
+/** Track all execution modes through one host activity owner; dispatch behavior stays in Jini.
+ * The first options object is retained for existing dock callers; the second injects adapter ports.
+ */
+export function createTovuAssistantTransport(options: CreateTovuAssistantTransportOptions = {}, {
+ createTransport = client.createAssistantTransport, activity = adminStreamActivity,
+}: { createTransport?: typeof client.createAssistantTransport; activity?: StreamActivity } = {}) {
+ return trackTransportActivity({ activity, transport: createTransport({ options: jiniHostOptions(options) }, {}) }, {});
+}
+&nbsp;
+type JiniHostOptions = NonNullable&lt;Parameters&lt;typeof client.createAssistantTransport&gt;[0]["options"]&gt;;
+&nbsp;
+/**
+ * Adapts the dock's host callbacks to Jini's port shape. Jini calls each port as `port({}, {})`;
+ * every wrapper re-reads the option on each call and invokes it with exactly the arguments its own
+ * signature declares, so a callback with optional parameters never receives Jini's port objects.
+ * @param options The dock's callbacks; absent ones stay `undefined` so Jini keeps its defaults.
+ * @returns Jini host options. No side effects.
+ */
+function jiniHostOptions(options: CreateTovuAssistantTransportOptions): JiniHostOptions {
+ return {
+  getExecutionConfig: options.getExecutionConfig &amp;&amp; (() =&gt; options.getExecutionConfig!()),
+  getAgUiEnabled: options.getAgUiEnabled &amp;&amp; (() =&gt; options.getAgUiEnabled!()),
+  getResumeCapableAgentIds: options.getResumeCapableAgentIds &amp;&amp; (() =&gt; options.getResumeCapableAgentIds!()),
+  ensureConversationId: options.ensureConversationId &amp;&amp; (() =&gt; options.ensureConversationId!()),
+  persistUserTurn: options.persistUserTurn &amp;&amp; (({ conversationId, message }) =&gt; options.persistUserTurn!(conversationId, message)),
+ };
+}
+&nbsp;
+/** Provider dispatch receives an augmented copy; persistence/title derivation sees the original. */
+function withSelectedSkillGuidance(input: StartRunInput): StartRunInput {
+  // Jini refuses a turn with no user message before projecting, so the newest user message exists.
+  const userIndex = input.history.map((message) =&gt; message.role).lastIndexOf("user");
+  return { ...input, history: input.history.map((message, index) =&gt; index === userIndex ? { ...message, content: promptWithSelectedSkills(message.content, input.context) } : message) };
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../sorter.js"></script>
+        <script src="../../../block-navigation.js"></script>
+    </body>
+</html>
+    

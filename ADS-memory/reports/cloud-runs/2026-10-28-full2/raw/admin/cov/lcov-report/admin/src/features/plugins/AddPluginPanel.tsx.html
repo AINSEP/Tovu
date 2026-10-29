@@ -1,0 +1,412 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/plugins/AddPluginPanel.tsx</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">admin/src/features/plugins</a> AddPluginPanel.tsx</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>6/6</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>14/14</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>3/3</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>6/6</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">128x</span>
+<span class="cline-any cline-yes">128x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { agentHandle } from "@jini-ai/agentic";
+&nbsp;
+import { InstallTabAdvanced, InstallTabCard, InstallTabFieldRow, InstallTabOption, ZipDropZone } from "../../components/InstallTabCard/InstallTabCard";
+import { UploadIcon } from "./agent-plugins-visuals";
+import type { PluginInstallController } from "./hooks/use-plugin-install.hooks";
+&nbsp;
+/**
+ * The Plugins "Add a plugin" tab, on the shared `InstallTabCard` (owner, 2026-10-06 — replaces the
+ * header "Install plugin" popup, whose raw file input and cramped layout "looks awful"). One `.zip`
+ * or a picked folder (zipped in the browser), or — under "Advanced" — a folder path on the server,
+ * then the replace option and Preview: the trust review must be seen before Install appears. The
+ * server path is tucked away because it was a bare path with no button and read as broken (owner,
+ * 2026-10-06). All state, async work and consent invalidation live in `use-plugin-install.hooks.ts`.
+ *
+ * Only rendered where the server allows local installs (`installSources`): elsewhere `Plugins.tsx`
+ * greys the tab out with a "Soon" tag instead of offering fields that would only be refused.
+ */
+export function AddPluginPanel({ controller: c }: { controller: PluginInstallController }) {
+  const { t } = c;
+  return (
+    &lt;InstallTabCard titleId="plugins-add-title" title={t("Add a plugin")} lede={t("It stays off in every workspace until you turn it on.")}&gt;
+      &lt;InstallTabOption heading={t("Upload a .zip or a folder")}&gt;
+        &lt;ZipDropZone
+          dropProps={agentHandle({ handle: "plugins-install-dropzone" }, { role: "region", label: t("Drop a .zip here") })}
+          fileProps={agentHandle({ handle: "plugins-install-zip-input" }, { role: "field", label: t("Upload .zip (max 32 MiB)") })}
+          drop={c.drop}
+          glyph={&lt;UploadIcon size={24} /&gt;}
+          title={c.zipFile ? c.zipFile.name : t("Drop a .zip here")}
+          hint={c.zipFile ? c.zipSizeLabel : t("A .zip or a plugin folder, up to 32 MiB.")}
+          busy={c.busy}
+          chooseLabel={t("Choose a file")}
+          onChoose={c.onChooseZip}
+          inputRef={c.zipInputRef}
+          inputLabel={t("Upload .zip (max 32 MiB)")}
+          onFileChange={c.onZipChange}
+          chooseProps={agentHandle({ handle: "plugins-install-zip" }, { role: "button", label: "Choose a plugin .zip" })}
+          folder={{
+            inputProps: agentHandle({ handle: "plugins-install-folder-input" }, { role: "field", label: t("Choose a plugin folder") }),
+            label: t("Choose a folder"),
+            inputLabel: t("Choose a plugin folder"),
+            onChoose: c.folderUpload.onChoose,
+            inputRef: c.folderUpload.inputRef,
+            onFilesChange: c.folderUpload.onChange,
+            chooseProps: agentHandle({ handle: "plugins-install-folder-upload" }, { role: "button", label: "Choose a plugin folder to upload" }),
+          }}
+        /&gt;
+        &lt;InstallTabAdvanced summaryProps={agentHandle({ handle: "plugins-install-advanced" }, { role: "button", label: t("Advanced: install from a path on this server") })} summary={t("Advanced: install from a path on this server")} hint={t("The full path of a plugin folder on the computer running Tovu.")}&gt;
+          &lt;InstallTabFieldRow
+            inputId="plugins-install-folder"
+            label={t("Folder on this server")}
+            value={c.folder}
+            disabled={c.busy}
+            onChange={c.onFolderChange}
+            placeholder="/path/to/plugin"
+            onSubmit={c.onSubmitFolder}
+            inputProps={agentHandle({ handle: "plugins-install-folder" }, { role: "field", label: t("Folder on this server") })}
+          /&gt;
+        &lt;/InstallTabAdvanced&gt;
+      &lt;/InstallTabOption&gt;
+      &lt;InstallTabOption&gt;
+        &lt;label className="install-tab-check"&gt;
+          &lt;input type="checkbox" checked={c.replace} disabled={c.busy} onChange={c.onReplaceChange} {...agentHandle({ handle: "plugins-install-replace" }, { role: "field", label: t("Replace existing version") })} /&gt;
+          {t("Replace existing version")}
+        &lt;/label&gt;
+        {c.previewDisplay ? &lt;PluginInstallPreviewDetails controller={c} /&gt; : null}
+        {c.error ? &lt;p className="install-tab-alert" role="alert"&gt;{c.error}&lt;/p&gt; : null}
+        {c.installedMessage ? &lt;p className="install-tab-success" role="status"&gt;{c.installedMessage}&lt;/p&gt; : null}
+        &lt;div className="install-tab-actions"&gt;
+          {c.preview ? (
+            &lt;&gt;
+              &lt;button type="button" className="btn-secondary" disabled={c.busy} onClick={c.cancelReview} {...agentHandle({ handle: "plugins-install-cancel" }, { role: "button", label: t("Cancel") })}&gt;{t("Cancel")}&lt;/button&gt;
+              &lt;button type="button" className="btn-primary" disabled={c.busy} onClick={c.install} {...agentHandle({ handle: "plugins-install-confirm" }, { role: "button", label: t("Install (stays off)") })}&gt;{t("Install (stays off)")}&lt;/button&gt;
+            &lt;/&gt;
+          ) : (
+            &lt;button type="button" className="btn-primary" disabled={c.reviewDisabled} onClick={c.review} {...agentHandle({ handle: "plugins-install-preview" }, { role: "button", label: t("Preview plugin") })}&gt;{t("Preview plugin")}&lt;/button&gt;
+          )}
+        &lt;/div&gt;
+      &lt;/InstallTabOption&gt;
+    &lt;/InstallTabCard&gt;
+  );
+}
+&nbsp;
+/** The trust review shown after Preview: what the package is, what it may do, and any clashes. */
+function PluginInstallPreviewDetails({ controller: c }: { controller: PluginInstallController }) {
+  const { t } = c;
+  const d = c.previewDisplay!;
+  return (
+    &lt;div className="install-tab-review" aria-live="polite"&gt;
+      &lt;h3 className="install-tab-option-heading"&gt;{d.title}&lt;/h3&gt;
+      &lt;p&gt;{t("Version")}: {d.version}&lt;/p&gt;
+      &lt;p&gt;{t("Tier")}: {d.tier} · {t("Local plugin · unverified publisher")}&lt;/p&gt;
+      &lt;p&gt;{t("Capabilities")}: {d.capabilities}&lt;/p&gt;
+      &lt;p&gt;{t("Hooks")}: {d.hooks}&lt;/p&gt;
+      &lt;p&gt;{t("Content types")}: {d.contentTypes}&lt;/p&gt;
+      &lt;p&gt;&lt;strong&gt;{d.codeNotice}&lt;/strong&gt;&lt;/p&gt;
+      &lt;p&gt;{t("It stays off in every workspace until you turn it on.")}&lt;/p&gt;
+      {d.conflicts ? (
+        &lt;div className="plugin-errors"&gt;
+          &lt;span className="save-error"&gt;{d.conflicts.heading}&lt;/span&gt;
+          &lt;ul&gt;
+            {d.conflicts.lines.map((line) =&gt; (
+              &lt;li key={line}&gt;{line}&lt;/li&gt;
+            ))}
+          &lt;/ul&gt;
+        &lt;/div&gt;
+      ) : null}
+    &lt;/div&gt;
+  );
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

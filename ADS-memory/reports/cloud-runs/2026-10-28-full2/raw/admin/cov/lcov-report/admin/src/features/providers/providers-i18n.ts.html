@@ -1,0 +1,1180 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/providers/providers-i18n.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">admin/src/features/providers</a> providers-i18n.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>2/2</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>2/2</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a>
+<a name='L323'></a><a href='#L323'>323</a>
+<a name='L324'></a><a href='#L324'>324</a>
+<a name='L325'></a><a href='#L325'>325</a>
+<a name='L326'></a><a href='#L326'>326</a>
+<a name='L327'></a><a href='#L327'>327</a>
+<a name='L328'></a><a href='#L328'>328</a>
+<a name='L329'></a><a href='#L329'>329</a>
+<a name='L330'></a><a href='#L330'>330</a>
+<a name='L331'></a><a href='#L331'>331</a>
+<a name='L332'></a><a href='#L332'>332</a>
+<a name='L333'></a><a href='#L333'>333</a>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a>
+<a name='L336'></a><a href='#L336'>336</a>
+<a name='L337'></a><a href='#L337'>337</a>
+<a name='L338'></a><a href='#L338'>338</a>
+<a name='L339'></a><a href='#L339'>339</a>
+<a name='L340'></a><a href='#L340'>340</a>
+<a name='L341'></a><a href='#L341'>341</a>
+<a name='L342'></a><a href='#L342'>342</a>
+<a name='L343'></a><a href='#L343'>343</a>
+<a name='L344'></a><a href='#L344'>344</a>
+<a name='L345'></a><a href='#L345'>345</a>
+<a name='L346'></a><a href='#L346'>346</a>
+<a name='L347'></a><a href='#L347'>347</a>
+<a name='L348'></a><a href='#L348'>348</a>
+<a name='L349'></a><a href='#L349'>349</a>
+<a name='L350'></a><a href='#L350'>350</a>
+<a name='L351'></a><a href='#L351'>351</a>
+<a name='L352'></a><a href='#L352'>352</a>
+<a name='L353'></a><a href='#L353'>353</a>
+<a name='L354'></a><a href='#L354'>354</a>
+<a name='L355'></a><a href='#L355'>355</a>
+<a name='L356'></a><a href='#L356'>356</a>
+<a name='L357'></a><a href='#L357'>357</a>
+<a name='L358'></a><a href='#L358'>358</a>
+<a name='L359'></a><a href='#L359'>359</a>
+<a name='L360'></a><a href='#L360'>360</a>
+<a name='L361'></a><a href='#L361'>361</a>
+<a name='L362'></a><a href='#L362'>362</a>
+<a name='L363'></a><a href='#L363'>363</a>
+<a name='L364'></a><a href='#L364'>364</a>
+<a name='L365'></a><a href='#L365'>365</a>
+<a name='L366'></a><a href='#L366'>366</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { COMMON_I18N } from "../../lib/i18n-common";
+/**
+ * @file Translations for the Integrations page (`features/providers/Providers.tsx`, route
+ * `/admin/addons/integrations`) — this feature's own dictionary rather than the shared `lib/admin-nav-i18n.ts`
+ * one, the same per-feature convention `integrations-i18n.tsx` and `plugins-i18n.ts` follow, so
+ * parallel translation passes over different admin sections cannot collide on one file.
+ *
+ * `Integrations` and `"Add-Ons"` here are the SAME strings the nav row and group heading use — they
+ * were lifted from `lib/admin-nav-i18n.ts` rather than retyped, so the page kicker/title can never
+ * disagree with the group label and row label an operator just clicked. `Providers` and `Media`
+ * (plus their own description string below) are unused leftovers from before the 2026-09-10 second
+ * pass — kept rather than deleted (harmless, reversible) since `Providers.tsx` no longer renders
+ * either; see `panels.tsx`'s own comment on the `providers` panel for the rename history.
+ *
+ * Scope note: the TAB BODIES are not translated from here. `ExternalMcpSettingsPanel` and
+ * `IntegrationsTab` both resolve their own copy through `@jini-ai/ui`'s `useT()`, which reads the
+ * `I18nProvider` mounted in `Providers.tsx` — see that file's own comment on why that provider is
+ * load-bearing and not decoration. The Webhooks tab body (`Integrations`) and the "MCP Server"/
+ * "Webhooks" tab LABELS both read from `features/integrations/integrations-i18n.tsx` instead —
+ * carried over unchanged from `DeveloperApi.tsx`, not duplicated here.
+ */
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+&nbsp;
+export const PROVIDERS_DICT: Record&lt;string, Record&lt;string, string&gt;&gt; = {
+  es: {
+    "Always allow": "Permitir siempre", "These tools run without asking. Revoke one and it asks again.": "Estas herramientas se ejecutan sin preguntar. Revoca una y volverá a preguntar.", "Revoke": "Revocar", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Nada está en Permitir siempre. Elígelo en la tarjeta de aprobación de una herramienta en el chat.", "Loading…": "Cargando…", "Couldn't load this list.": "No se pudo cargar esta lista.", "Couldn't revoke. Try again.": "No se pudo revocar. Inténtalo de nuevo.",
+    "Saved — restart Tovu to connect": "Guardado — reinicia Tovu para conectar", "Changes apply when Tovu restarts": "Los cambios se aplican al reiniciar Tovu", "Coming soon": "Próximamente", "Nothing below is connected to anything yet.": "Aún no hay nada conectado abajo.", "Webhooks can't fire yet — nothing here is wired up.": "Los webhooks aún no pueden activarse; aquí no hay nada conectado.",
+    Integrations: "Integraciones",
+    "Add-Ons": "Complementos",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "Conexiones externas en ambas direcciones — servidores de herramientas MCP externos, el propio servidor MCP de esta instalación y webhooks salientes.",
+    Providers: "Proveedores",
+    Media: "Multimedia",
+    "External MCP": "MCP externo",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "Servicios externos a los que se conecta este sitio: generación de multimedia, cuentas de terceros y servidores de herramientas MCP externos.",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  id: {
+    "Always allow": "Selalu izinkan", "These tools run without asking. Revoke one and it asks again.": "Alat-alat ini berjalan tanpa bertanya. Cabut salah satunya dan alat itu akan bertanya lagi.", "Revoke": "Cabut", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Belum ada yang diatur ke Selalu izinkan. Pilih di kartu persetujuan alat di obrolan.", "Loading…": "Memuat…", "Couldn't load this list.": "Tidak dapat memuat daftar ini.", "Couldn't revoke. Try again.": "Tidak dapat mencabut. Coba lagi.",
+    "Saved — restart Tovu to connect": "Tersimpan — mulai ulang Tovu untuk terhubung", "Changes apply when Tovu restarts": "Perubahan berlaku saat Tovu dimulai ulang", "Coming soon": "Segera hadir", "Nothing below is connected to anything yet.": "Belum ada apa pun di bawah yang terhubung.", "Webhooks can't fire yet — nothing here is wired up.": "Webhook belum dapat berjalan — belum ada yang terhubung di sini.",
+    Integrations: "Integrasi",
+    "Add-Ons": "Pengaya",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "Koneksi eksternal dalam dua arah — server alat MCP eksternal, server MCP milik instalasi ini sendiri, dan webhook keluar.",
+    Providers: "Penyedia",
+    Media: "Media",
+    "External MCP": "MCP eksternal",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "Layanan luar yang terhubung dengan situs ini — pembuatan media, akun pihak ketiga, dan server alat MCP eksternal.",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  de: {
+    "Always allow": "Immer erlauben", "These tools run without asking. Revoke one and it asks again.": "Diese Tools laufen ohne Nachfrage. Widerrufen Sie eines, und es fragt wieder.", "Revoke": "Widerrufen", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Nichts ist auf Immer erlauben gesetzt. Wählen Sie es auf der Freigabekarte eines Tools im Chat.", "Loading…": "Wird geladen…", "Couldn't load this list.": "Diese Liste konnte nicht geladen werden.", "Couldn't revoke. Try again.": "Widerruf fehlgeschlagen. Bitte erneut versuchen.",
+    "Saved — restart Tovu to connect": "Gespeichert — starten Sie Tovu neu, um eine Verbindung herzustellen", "Changes apply when Tovu restarts": "Änderungen werden beim Neustart von Tovu wirksam", "Coming soon": "Demnächst", "Nothing below is connected to anything yet.": "Unten ist noch nichts verbunden.", "Webhooks can't fire yet — nothing here is wired up.": "Webhooks können noch nicht ausgelöst werden — hier ist noch nichts verbunden.",
+    Integrations: "Integrationen",
+    "Add-Ons": "Add-ons",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "Externe Verbindungen in beide Richtungen — externe MCP-Tool-Server, der eigene MCP-Server dieser Installation und ausgehende Webhooks.",
+    Providers: "Anbieter",
+    Media: "Medien",
+    "External MCP": "Externes MCP",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "Externe Dienste, mit denen diese Website verbunden ist – Medienerzeugung, Drittanbieterkonten und externe MCP-Tool-Server.",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  "zh-CN": {
+    "Always allow": "始终允许", "These tools run without asking. Revoke one and it asks again.": "这些工具无需询问即可运行。撤销其中一个，它会再次询问。", "Revoke": "撤销", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "尚无设为始终允许的工具。请在聊天中工具的批准卡片上选择。", "Loading…": "加载中…", "Couldn't load this list.": "无法加载此列表。", "Couldn't revoke. Try again.": "撤销失败，请重试。",
+    "Saved — restart Tovu to connect": "已保存 — 重启 Tovu 以连接", "Changes apply when Tovu restarts": "重启 Tovu 后将应用更改", "Coming soon": "即将推出", "Nothing below is connected to anything yet.": "下方尚未连接任何内容。", "Webhooks can't fire yet — nothing here is wired up.": "Webhook 还无法触发 — 此处尚未连接任何内容。",
+    Integrations: "集成",
+    "Add-Ons": "附加组件",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "双向的外部连接 — 外部 MCP 工具服务器、本安装自身的 MCP 服务器，以及出站 Webhook。",
+    Providers: "服务商",
+    Media: "媒体",
+    "External MCP": "外部 MCP",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "本站连接的外部服务 — 媒体生成、第三方账户，以及外部 MCP 工具服务器。",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  "zh-TW": {
+    "Always allow": "一律允許", "These tools run without asking. Revoke one and it asks again.": "這些工具無需詢問即可執行。撤銷其中一個，它會再次詢問。", "Revoke": "撤銷", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "尚無設為一律允許的工具。請在聊天中工具的核准卡片上選擇。", "Loading…": "載入中…", "Couldn't load this list.": "無法載入此清單。", "Couldn't revoke. Try again.": "撤銷失敗，請再試一次。",
+    "Saved — restart Tovu to connect": "已儲存 — 重新啟動 Tovu 以連線", "Changes apply when Tovu restarts": "重新啟動 Tovu 時會套用變更", "Coming soon": "即將推出", "Nothing below is connected to anything yet.": "下方尚未連線任何內容。", "Webhooks can't fire yet — nothing here is wired up.": "Webhook 尚無法觸發 — 此處尚未連線任何內容。",
+    Integrations: "整合",
+    "Add-Ons": "附加元件",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "雙向的外部連線 — 外部 MCP 工具伺服器、本安裝自身的 MCP 伺服器，以及出站 Webhook。",
+    Providers: "服務商",
+    Media: "媒體",
+    "External MCP": "外部 MCP",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "本站連接的外部服務 — 媒體生成、第三方帳戶，以及外部 MCP 工具伺服器。",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  "pt-BR": {
+    "Always allow": "Sempre permitir", "These tools run without asking. Revoke one and it asks again.": "Estas ferramentas rodam sem perguntar. Revogue uma e ela volta a perguntar.", "Revoke": "Revogar", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Nada está em Sempre permitir. Escolha no cartão de aprovação de uma ferramenta no chat.", "Loading…": "Carregando…", "Couldn't load this list.": "Não foi possível carregar esta lista.", "Couldn't revoke. Try again.": "Não foi possível revogar. Tente novamente.",
+    "Saved — restart Tovu to connect": "Salvo — reinicie o Tovu para conectar", "Changes apply when Tovu restarts": "As alterações são aplicadas quando o Tovu reinicia", "Coming soon": "Em breve", "Nothing below is connected to anything yet.": "Nada abaixo está conectado a nada ainda.", "Webhooks can't fire yet — nothing here is wired up.": "Os webhooks ainda não podem disparar — nada aqui está conectado.",
+    Integrations: "Integrações",
+    "Add-Ons": "Complementos",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "Conexões externas em ambas as direções — servidores de ferramentas MCP externos, o próprio servidor MCP desta instalação e webhooks de saída.",
+    Providers: "Provedores",
+    Media: "Mídia",
+    "External MCP": "MCP externo",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "Serviços externos aos quais este site se conecta — geração de mídia, contas de terceiros e servidores de ferramentas MCP externos.",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  ru: {
+    "Always allow": "Всегда разрешать", "These tools run without asking. Revoke one and it asks again.": "Эти инструменты работают без запроса. Отзовите один — и он снова будет спрашивать.", "Revoke": "Отозвать", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Нет инструментов с «Всегда разрешать». Выберите это на карточке подтверждения инструмента в чате.", "Loading…": "Загрузка…", "Couldn't load this list.": "Не удалось загрузить список.", "Couldn't revoke. Try again.": "Не удалось отозвать. Попробуйте ещё раз.",
+    "Saved — restart Tovu to connect": "Сохранено — перезапустите Tovu для подключения", "Changes apply when Tovu restarts": "Изменения применятся после перезапуска Tovu", "Coming soon": "Скоро", "Nothing below is connected to anything yet.": "Ниже пока ничего не подключено.", "Webhooks can't fire yet — nothing here is wired up.": "Вебхуки пока не могут срабатывать — здесь ничего не подключено.",
+    Integrations: "Интеграции",
+    "Add-Ons": "Дополнения",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "Внешние подключения в обоих направлениях — внешние MCP-серверы инструментов, собственный MCP-сервер этой установки и исходящие вебхуки.",
+    Providers: "Провайдеры",
+    Media: "Медиа",
+    "External MCP": "Внешний MCP",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "Внешние сервисы, к которым подключён этот сайт — генерация медиа, сторонние аккаунты и внешние MCP-серверы инструментов.",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  fa: {
+    "Always allow": "همیشه مجاز", "These tools run without asking. Revoke one and it asks again.": "این ابزارها بدون پرسش اجرا می‌شوند. یکی را لغو کنید تا دوباره بپرسد.", "Revoke": "لغو", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "هیچ ابزاری روی «همیشه مجاز» نیست. آن را در کارت تأیید ابزار در گفتگو انتخاب کنید.", "Loading…": "در حال بارگذاری…", "Couldn't load this list.": "بارگذاری این فهرست ممکن نشد.", "Couldn't revoke. Try again.": "لغو ممکن نشد. دوباره تلاش کنید.",
+    "Saved — restart Tovu to connect": "ذخیره شد — برای اتصال Tovu را راه‌اندازی مجدد کنید", "Changes apply when Tovu restarts": "تغییرات با راه‌اندازی مجدد Tovu اعمال می‌شوند", "Coming soon": "به‌زودی", "Nothing below is connected to anything yet.": "هنوز چیزی در پایین به چیزی متصل نیست.", "Webhooks can't fire yet — nothing here is wired up.": "وب‌هوک‌ها هنوز نمی‌توانند اجرا شوند — چیزی در اینجا متصل نیست.",
+    Integrations: "یکپارچه‌سازی‌ها",
+    "Add-Ons": "افزودنی‌ها",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "اتصالات بیرونی در هر دو جهت — سرورهای ابزار MCP خارجی، سرور MCP خود این نصب، و وب‌هوک‌های خروجی.",
+    Providers: "ارائه‌دهندگان",
+    Media: "رسانه",
+    "External MCP": "MCP خارجی",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "سرویس‌های خارجی که این سایت به آن‌ها متصل می‌شود — تولید رسانه، حساب‌های شخص ثالث و سرورهای ابزار MCP خارجی.",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  ar: {
+    "Always allow": "السماح دائمًا", "These tools run without asking. Revoke one and it asks again.": "تعمل هذه الأدوات دون سؤال. ألغِ إحداها وستسأل مجددًا.", "Revoke": "إلغاء", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "لا شيء مضبوط على «السماح دائمًا». اختره من بطاقة الموافقة على الأداة في الدردشة.", "Loading…": "جارٍ التحميل…", "Couldn't load this list.": "تعذّر تحميل هذه القائمة.", "Couldn't revoke. Try again.": "تعذّر الإلغاء. حاول مرة أخرى.",
+    "Saved — restart Tovu to connect": "تم الحفظ — أعد تشغيل Tovu للاتصال", "Changes apply when Tovu restarts": "تُطبّق التغييرات عند إعادة تشغيل Tovu", "Coming soon": "قريبًا", "Nothing below is connected to anything yet.": "لا يوجد شيء أدناه متصل بأي شيء بعد.", "Webhooks can't fire yet — nothing here is wired up.": "لا يمكن لخطافات الويب العمل بعد — لا شيء هنا موصول.",
+    Integrations: "عمليات التكامل",
+    "Add-Ons": "الوظائف الإضافية",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "اتصالات خارجية في كلا الاتجاهين — خوادم أدوات MCP الخارجية، وخادم MCP الخاص بهذا التثبيت، وWebhooks الصادرة.",
+    Providers: "المزودون",
+    Media: "الوسائط",
+    "External MCP": "MCP خارجي",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "الخدمات الخارجية التي يتصل بها هذا الموقع — توليد الوسائط، وحسابات الأطراف الثالثة، وخوادم أدوات MCP الخارجية.",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  ja: {
+    "Always allow": "常に許可", "These tools run without asking. Revoke one and it asks again.": "これらのツールは確認なしで実行されます。取り消すと再び確認します。", "Revoke": "取り消す", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "「常に許可」に設定されたものはありません。チャットでツールの承認カードから選べます。", "Loading…": "読み込み中…", "Couldn't load this list.": "この一覧を読み込めませんでした。", "Couldn't revoke. Try again.": "取り消せませんでした。もう一度お試しください。",
+    "Saved — restart Tovu to connect": "保存しました — 接続するには Tovu を再起動してください", "Changes apply when Tovu restarts": "Tovu の再起動時に変更が適用されます", "Coming soon": "近日公開", "Nothing below is connected to anything yet.": "下の項目はまだ何にも接続されていません。", "Webhooks can't fire yet — nothing here is wired up.": "Webhook はまだ発火できません — ここでは何も接続されていません。",
+    Integrations: "連携",
+    "Add-Ons": "アドオン",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "双方向の外部接続 — 外部 MCP ツールサーバー、このインストール自身の MCP サーバー、送信 Webhook。",
+    Providers: "プロバイダー",
+    Media: "メディア",
+    "External MCP": "外部 MCP",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "このサイトが接続する外部サービス — メディア生成、サードパーティのアカウント、外部 MCP ツールサーバー。",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  ko: {
+    "Always allow": "항상 허용", "These tools run without asking. Revoke one and it asks again.": "이 도구들은 묻지 않고 실행됩니다. 하나를 취소하면 다시 묻습니다.", "Revoke": "취소", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "항상 허용으로 설정된 항목이 없습니다. 채팅에서 도구의 승인 카드에서 선택하세요.", "Loading…": "불러오는 중…", "Couldn't load this list.": "이 목록을 불러올 수 없습니다.", "Couldn't revoke. Try again.": "취소하지 못했습니다. 다시 시도하세요.",
+    "Saved — restart Tovu to connect": "저장됨 — 연결하려면 Tovu를 다시 시작하세요", "Changes apply when Tovu restarts": "Tovu를 다시 시작하면 변경 사항이 적용됩니다", "Coming soon": "곧 제공", "Nothing below is connected to anything yet.": "아래 항목은 아직 아무것에도 연결되어 있지 않습니다.", "Webhooks can't fire yet — nothing here is wired up.": "웹훅은 아직 실행할 수 없습니다 — 여기에는 연결된 항목이 없습니다.",
+    Integrations: "통합",
+    "Add-Ons": "부가 기능",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "양방향 외부 연결 — 외부 MCP 도구 서버, 이 설치 자체의 MCP 서버, 발신 웹훅.",
+    Providers: "공급자",
+    Media: "미디어",
+    "External MCP": "외부 MCP",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "이 사이트가 연결하는 외부 서비스 — 미디어 생성, 서드파티 계정, 외부 MCP 도구 서버.",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  pl: {
+    "Always allow": "Zawsze zezwalaj", "These tools run without asking. Revoke one and it asks again.": "Te narzędzia działają bez pytania. Cofnij jedno, a znów zapyta.", "Revoke": "Cofnij", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Nic nie ma ustawienia Zawsze zezwalaj. Wybierz je na karcie zatwierdzenia narzędzia w czacie.", "Loading…": "Wczytywanie…", "Couldn't load this list.": "Nie udało się wczytać tej listy.", "Couldn't revoke. Try again.": "Nie udało się cofnąć. Spróbuj ponownie.",
+    "Saved — restart Tovu to connect": "Zapisano — uruchom ponownie Tovu, aby się połączyć", "Changes apply when Tovu restarts": "Zmiany zostaną zastosowane po ponownym uruchomieniu Tovu", "Coming soon": "Wkrótce", "Nothing below is connected to anything yet.": "Nic poniżej nie jest jeszcze podłączone.", "Webhooks can't fire yet — nothing here is wired up.": "Webhooki nie mogą jeszcze działać — nic tutaj nie jest podłączone.",
+    Integrations: "Integracje",
+    "Add-Ons": "Dodatki",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "Zewnętrzne połączenia w obu kierunkach — zewnętrzne serwery narzędzi MCP, własny serwer MCP tej instalacji oraz wychodzące webhooki.",
+    Providers: "Dostawcy",
+    Media: "Media",
+    "External MCP": "Zewnętrzny MCP",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "Zewnętrzne usługi, z którymi łączy się ta witryna — generowanie mediów, konta zewnętrzne i zewnętrzne serwery narzędzi MCP.",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  hu: {
+    "Always allow": "Mindig engedélyez", "These tools run without asking. Revoke one and it asks again.": "Ezek az eszközök kérdés nélkül futnak. Vonj vissza egyet, és újra kérdezni fog.", "Revoke": "Visszavonás", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Semmi sincs Mindig engedélyez állapotban. Válaszd ki egy eszköz jóváhagyási kártyáján a csevegésben.", "Loading…": "Betöltés…", "Couldn't load this list.": "Nem sikerült betölteni a listát.", "Couldn't revoke. Try again.": "Nem sikerült visszavonni. Próbáld újra.",
+    "Saved — restart Tovu to connect": "Mentve — a csatlakozáshoz indítsa újra a Tovut", "Changes apply when Tovu restarts": "A módosítások a Tovu újraindításakor lépnek életbe", "Coming soon": "Hamarosan", "Nothing below is connected to anything yet.": "Alább még semmi sincs semmihez csatlakoztatva.", "Webhooks can't fire yet — nothing here is wired up.": "A webhookok még nem indíthatók el — itt még semmi sincs bekötve.",
+    Integrations: "Integrációk",
+    "Add-Ons": "Kiegészítők",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "Külső kapcsolatok mindkét irányban — külső MCP-eszközkiszolgálók, a telepítés saját MCP-kiszolgálója és kimenő webhookok.",
+    Providers: "Szolgáltatók",
+    Media: "Médiatár",
+    "External MCP": "Külső MCP",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "Külső szolgáltatások, amelyekhez ez a webhely csatlakozik – médiagenerálás, harmadik féltől származó fiókok és külső MCP-eszközkiszolgálók.",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  fr: {
+    "Always allow": "Toujours autoriser", "These tools run without asking. Revoke one and it asks again.": "Ces outils s'exécutent sans demander. Révoquez-en un et il redemandera.", "Revoke": "Révoquer", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Rien n'est en Toujours autoriser. Choisissez-le sur la carte d'approbation d'un outil dans le chat.", "Loading…": "Chargement…", "Couldn't load this list.": "Impossible de charger cette liste.", "Couldn't revoke. Try again.": "Impossible de révoquer. Réessayez.",
+    "Saved — restart Tovu to connect": "Enregistré — redémarrez Tovu pour vous connecter", "Changes apply when Tovu restarts": "Les modifications s’appliquent au redémarrage de Tovu", "Coming soon": "Bientôt disponible", "Nothing below is connected to anything yet.": "Rien ci-dessous n’est encore connecté.", "Webhooks can't fire yet — nothing here is wired up.": "Les webhooks ne peuvent pas encore se déclencher — rien n’est connecté ici.",
+    Integrations: "Intégrations",
+    "Add-Ons": "Modules complémentaires",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "Connexions externes dans les deux sens — serveurs d'outils MCP externes, le propre serveur MCP de cette installation et les webhooks sortants.",
+    Providers: "Fournisseurs",
+    Media: "Médias",
+    "External MCP": "MCP externe",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "Services externes auxquels ce site se connecte — génération de médias, comptes tiers et serveurs d'outils MCP externes.",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  uk: {
+    "Always allow": "Завжди дозволяти", "These tools run without asking. Revoke one and it asks again.": "Ці інструменти працюють без запиту. Відкличте один — і він знову питатиме.", "Revoke": "Відкликати", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Немає інструментів із «Завжди дозволяти». Виберіть це на картці підтвердження інструмента в чаті.", "Loading…": "Завантаження…", "Couldn't load this list.": "Не вдалося завантажити список.", "Couldn't revoke. Try again.": "Не вдалося відкликати. Спробуйте ще раз.",
+    "Saved — restart Tovu to connect": "Збережено — перезапустіть Tovu для підключення", "Changes apply when Tovu restarts": "Зміни буде застосовано після перезапуску Tovu", "Coming soon": "Незабаром", "Nothing below is connected to anything yet.": "Нижче ще нічого не підключено.", "Webhooks can't fire yet — nothing here is wired up.": "Вебхуки ще не можуть спрацьовувати — тут нічого не підключено.",
+    Integrations: "Інтеграції",
+    "Add-Ons": "Додатки",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "Зовнішні з'єднання в обох напрямках — зовнішні MCP-сервери інструментів, власний MCP-сервер цієї інсталяції та вихідні вебхуки.",
+    Providers: "Провайдери",
+    Media: "Медіа",
+    "External MCP": "Зовнішній MCP",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "Зовнішні сервіси, до яких підключається цей сайт — генерація медіа, сторонні акаунти та зовнішні MCP-сервери інструментів.",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  tr: {
+    "Always allow": "Her zaman izin ver", "These tools run without asking. Revoke one and it asks again.": "Bu araçlar sormadan çalışır. Birini iptal edersen yeniden sorar.", "Revoke": "İptal et", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Her zaman izin ver olarak ayarlı bir şey yok. Sohbette bir aracın onay kartından seçebilirsin.", "Loading…": "Yükleniyor…", "Couldn't load this list.": "Bu liste yüklenemedi.", "Couldn't revoke. Try again.": "İptal edilemedi. Tekrar dene.",
+    "Saved — restart Tovu to connect": "Kaydedildi — bağlanmak için Tovu'yu yeniden başlatın", "Changes apply when Tovu restarts": "Değişiklikler Tovu yeniden başlatıldığında uygulanır", "Coming soon": "Yakında", "Nothing below is connected to anything yet.": "Aşağıda henüz hiçbir şey bağlı değil.", "Webhooks can't fire yet — nothing here is wired up.": "Webhook'lar henüz tetiklenemez — burada hiçbir şey bağlı değil.",
+    Integrations: "Entegrasyonlar",
+    "Add-Ons": "Uzantılar",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "Her iki yönde de dış bağlantılar — harici MCP araç sunucuları, bu kurulumun kendi MCP sunucusu ve giden webhook'lar.",
+    Providers: "Sağlayıcılar",
+    Media: "Medya",
+    "External MCP": "Harici MCP",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "Bu sitenin bağlandığı dış hizmetler — medya üretimi, üçüncü taraf hesapları ve harici MCP araç sunucuları.",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  th: {
+    "Always allow": "อนุญาตเสมอ", "These tools run without asking. Revoke one and it asks again.": "เครื่องมือเหล่านี้ทำงานโดยไม่ถาม เพิกถอนรายการใดแล้วจะถามอีกครั้ง", "Revoke": "เพิกถอน", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "ยังไม่มีรายการที่ตั้งเป็นอนุญาตเสมอ เลือกได้จากการ์ดอนุมัติของเครื่องมือในแชท", "Loading…": "กำลังโหลด…", "Couldn't load this list.": "โหลดรายการนี้ไม่ได้", "Couldn't revoke. Try again.": "เพิกถอนไม่สำเร็จ ลองอีกครั้ง",
+    "Saved — restart Tovu to connect": "บันทึกแล้ว — รีสตาร์ท Tovu เพื่อเชื่อมต่อ", "Changes apply when Tovu restarts": "การเปลี่ยนแปลงจะมีผลเมื่อ Tovu รีสตาร์ท", "Coming soon": "เร็วๆ นี้", "Nothing below is connected to anything yet.": "ด้านล่างยังไม่มีสิ่งใดเชื่อมต่ออยู่", "Webhooks can't fire yet — nothing here is wired up.": "เว็บฮุกยังทำงานไม่ได้ — ที่นี่ยังไม่มีอะไรเชื่อมต่ออยู่",
+    Integrations: "การผสานการทำงาน",
+    "Add-Ons": "ส่วนเสริม",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "การเชื่อมต่อภายนอกทั้งสองทิศทาง — เซิร์ฟเวอร์เครื่องมือ MCP ภายนอก เซิร์ฟเวอร์ MCP ของการติดตั้งนี้เอง และเว็บฮุคขาออก",
+    Providers: "ผู้ให้บริการ",
+    Media: "สื่อ",
+    "External MCP": "MCP ภายนอก",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "บริการภายนอกที่ไซต์นี้เชื่อมต่อ — การสร้างสื่อ บัญชีบุคคลที่สาม และเซิร์ฟเวอร์เครื่องมือ MCP ภายนอก",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  it: {
+    "Always allow": "Consenti sempre", "These tools run without asking. Revoke one and it asks again.": "Questi strumenti vengono eseguiti senza chiedere. Revocane uno e tornerà a chiedere.", "Revoke": "Revoca", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "Niente è impostato su Consenti sempre. Sceglilo sulla scheda di approvazione di uno strumento in chat.", "Loading…": "Caricamento…", "Couldn't load this list.": "Impossibile caricare questo elenco.", "Couldn't revoke. Try again.": "Impossibile revocare. Riprova.",
+    "Saved — restart Tovu to connect": "Salvato — riavvia Tovu per connetterti", "Changes apply when Tovu restarts": "Le modifiche vengono applicate al riavvio di Tovu", "Coming soon": "Prossimamente", "Nothing below is connected to anything yet.": "Nulla qui sotto è ancora connesso.", "Webhooks can't fire yet — nothing here is wired up.": "I webhook non possono ancora attivarsi — qui non è collegato nulla.",
+    Integrations: "Integrazioni",
+    "Add-Ons": "Componenti aggiuntivi",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "Connessioni esterne in entrambe le direzioni — server di strumenti MCP esterni, il server MCP proprio di questa installazione e i webhook in uscita.",
+    Providers: "Provider",
+    Media: "Media",
+    "External MCP": "MCP esterno",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "Servizi esterni a cui questo sito si connette: generazione di media, account di terze parti e server di strumenti MCP esterni.",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  hi: {
+    "Always allow": "हमेशा अनुमति दें", "These tools run without asking. Revoke one and it asks again.": "ये टूल बिना पूछे चलते हैं। किसी एक को रद्द करें, वह फिर से पूछेगा।", "Revoke": "रद्द करें", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "कुछ भी हमेशा अनुमति दें पर सेट नहीं है। इसे चैट में किसी टूल के अनुमोदन कार्ड पर चुनें।", "Loading…": "लोड हो रहा है…", "Couldn't load this list.": "यह सूची लोड नहीं हो सकी।", "Couldn't revoke. Try again.": "रद्द नहीं हो सका। फिर से कोशिश करें।",
+    "Saved — restart Tovu to connect": "सहेजा गया — कनेक्ट करने के लिए Tovu को पुनः प्रारंभ करें", "Changes apply when Tovu restarts": "Tovu के पुनः प्रारंभ होने पर बदलाव लागू होंगे", "Coming soon": "जल्द आ रहा है", "Nothing below is connected to anything yet.": "नीचे अभी कुछ भी कनेक्ट नहीं है।", "Webhooks can't fire yet — nothing here is wired up.": "वेबहुक अभी चल नहीं सकते — यहां कुछ भी जुड़ा नहीं है।",
+    Integrations: "इंटीग्रेशन",
+    "Add-Ons": "ऐड-ऑन",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "दोनों दिशाओं में बाहरी कनेक्शन — बाहरी MCP टूल सर्वर, इस इंस्टॉलेशन का अपना MCP सर्वर, और आउटबाउंड वेबहुक।",
+    Providers: "प्रदाता",
+    Media: "मीडिया",
+    "External MCP": "बाहरी MCP",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "बाहरी सेवाएँ जिनसे यह साइट जुड़ती है — मीडिया जनरेशन, थर्ड-पार्टी खाते, और बाहरी MCP टूल सर्वर।",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  ur: {
+    "Always allow": "ہمیشہ اجازت دیں", "These tools run without asking. Revoke one and it asks again.": "یہ ٹولز پوچھے بغیر چلتے ہیں۔ کسی ایک کو منسوخ کریں تو وہ دوبارہ پوچھے گا۔", "Revoke": "منسوخ کریں", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "کچھ بھی ہمیشہ اجازت دیں پر سیٹ نہیں ہے۔ اسے چیٹ میں کسی ٹول کے منظوری کارڈ پر منتخب کریں۔", "Loading…": "لوڈ ہو رہا ہے…", "Couldn't load this list.": "یہ فہرست لوڈ نہیں ہو سکی۔", "Couldn't revoke. Try again.": "منسوخ نہیں ہو سکا۔ دوبارہ کوشش کریں۔",
+    "Saved — restart Tovu to connect": "محفوظ ہوگیا — جڑنے کے لیے Tovu دوبارہ شروع کریں", "Changes apply when Tovu restarts": "Tovu دوبارہ شروع ہونے پر تبدیلیاں لاگو ہوں گی", "Coming soon": "جلد آرہا ہے", "Nothing below is connected to anything yet.": "نیچے ابھی کچھ بھی کسی چیز سے منسلک نہیں ہے۔", "Webhooks can't fire yet — nothing here is wired up.": "ویب ہکس ابھی چل نہیں سکتے — یہاں کچھ بھی منسلک نہیں ہے۔",
+    Integrations: "انٹیگریشنز",
+    "Add-Ons": "ایڈ آنز",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "دونوں سمتوں میں بیرونی رابطے — بیرونی MCP ٹول سرورز، اس انسٹالیشن کا اپنا MCP سرور، اور آؤٹ باؤنڈ ویب ہکس۔",
+    Providers: "فراہم کنندگان",
+    Media: "میڈیا",
+    "External MCP": "بیرونی MCP",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "بیرونی سروسز جن سے یہ سائٹ جڑتی ہے — میڈیا جنریشن، تھرڈ پارٹی اکاؤنٹس، اور بیرونی MCP ٹول سرورز۔",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+  bn: {
+    "Always allow": "সবসময় অনুমতি দিন", "These tools run without asking. Revoke one and it asks again.": "এই টুলগুলো জিজ্ঞেস না করেই চলে। একটি প্রত্যাহার করলে সেটি আবার জিজ্ঞেস করবে।", "Revoke": "প্রত্যাহার", "Nothing is set to Always allow. Pick it on a tool's approval card in chat.": "কিছুই সবসময় অনুমতি দিন-এ সেট নেই। চ্যাটে কোনো টুলের অনুমোদন কার্ডে এটি বেছে নিন।", "Loading…": "লোড হচ্ছে…", "Couldn't load this list.": "এই তালিকা লোড করা যায়নি।", "Couldn't revoke. Try again.": "প্রত্যাহার করা যায়নি। আবার চেষ্টা করুন।",
+    "Saved — restart Tovu to connect": "সংরক্ষিত — সংযোগ করতে Tovu পুনরায় চালু করুন", "Changes apply when Tovu restarts": "Tovu পুনরায় চালু হলে পরিবর্তনগুলি প্রয়োগ হবে", "Coming soon": "শীঘ্রই আসছে", "Nothing below is connected to anything yet.": "নিচে এখনও কিছুই সংযুক্ত নেই।", "Webhooks can't fire yet — nothing here is wired up.": "ওয়েবহুক এখনও চালু হতে পারে না — এখানে কিছুই সংযুক্ত নেই।",
+    Integrations: "ইন্টিগ্রেশন",
+    "Add-Ons": "অ্যাড-অন",
+    "Outside connections in both directions — external MCP tool servers, this install's own MCP server, and outbound webhooks.":
+      "উভয় দিকে বাহ্যিক সংযোগ — বাহ্যিক MCP টুল সার্ভার, এই ইনস্টলেশনের নিজস্ব MCP সার্ভার এবং আউটবাউন্ড ওয়েবহুক।",
+    Providers: "প্রদানকারী",
+    Media: "মিডিয়া",
+    "External MCP": "বাহ্যিক MCP",
+    "Outside services this site connects to — media generation, third-party accounts, and external MCP tool servers.":
+      "বাহ্যিক পরিষেবা যেগুলির সঙ্গে এই সাইট যুক্ত হয় — মিডিয়া জেনারেশন, তৃতীয় পক্ষের অ্যাকাউন্ট, এবং বাহ্যিক MCP টুল সার্ভার।",
+&nbsp;
+&nbsp;
+&nbsp;
+  },
+};
+&nbsp;
+/** Same two-step fallback every other `t()` in this app uses: translated value, else the English
+ *  source string itself — never a raw dictionary-miss placeholder. */
+export const t = createDictionaryTranslator({ featureDictionary: PROVIDERS_DICT }, { commonDictionary: COMMON_I18N });
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

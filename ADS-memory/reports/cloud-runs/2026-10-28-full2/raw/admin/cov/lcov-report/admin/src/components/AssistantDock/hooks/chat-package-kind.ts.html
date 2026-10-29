@@ -1,0 +1,415 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/components/AssistantDock/hooks/chat-package-kind.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../../index.html">All files</a> / <a href="index.html">admin/src/components/AssistantDock/hooks</a> chat-package-kind.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>83/83</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>69/69</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>14/14</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>60/60</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">44x</span>
+<span class="cline-any cline-yes">44x</span>
+<span class="cline-any cline-yes">44x</span>
+<span class="cline-any cline-yes">44x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">44x</span>
+<span class="cline-any cline-yes">44x</span>
+<span class="cline-any cline-yes">44x</span>
+<span class="cline-any cline-yes">44x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-yes">238x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-yes">29x</span>
+<span class="cline-any cline-yes">29x</span>
+<span class="cline-any cline-yes">27x</span>
+<span class="cline-any cline-yes">27x</span>
+<span class="cline-any cline-yes">27x</span>
+<span class="cline-any cline-yes">23x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">29x</span>
+<span class="cline-any cline-yes">27x</span>
+<span class="cline-any cline-yes">27x</span>
+<span class="cline-any cline-yes">27x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">23x</span>
+<span class="cline-any cline-yes">23x</span>
+<span class="cline-any cline-yes">23x</span>
+<span class="cline-any cline-yes">29x</span>
+<span class="cline-any cline-yes">29x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-yes">26x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">20x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">35x</span>
+<span class="cline-any cline-yes">35x</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-yes">23x</span>
+<span class="cline-any cline-yes">23x</span>
+<span class="cline-any cline-yes">23x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">64x</span>
+<span class="cline-any cline-yes">51x</span>
+<span class="cline-any cline-yes">35x</span>
+<span class="cline-any cline-yes">35x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-yes">34x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">19x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">type ChatPackageKind = "skill" | "site-plugin" | "agent-plugin" | "attachment";
+type CentralDirectory = { count: number; offset: number; size: number };
+&nbsp;
+const END_RECORD_SIGNATURE = 0x06054b50;
+const CENTRAL_HEADER_SIGNATURE = 0x02014b50;
+const END_RECORD_SIZE = 22;
+const CENTRAL_HEADER_SIZE = 46;
+/** End record plus the largest possible ZIP comment. */
+const END_RECORD_SEARCH_BYTES = 65557;
+const MAX_ENTRIES = 4096;
+const MAX_DIRECTORY_BYTES = 1024 * 1024;
+const PACKAGE_MARKER = /^(?:[^/]+\/)?(?:SKILL\.md|(?:jini|tovu)\.plugin\.json|plugin\.json)$/;
+&nbsp;
+/** Scans backwards for the end record whose comment length reaches exactly the end of the file; -1 when none does. */
+function findEndRecord({ tail }: { tail: Uint8Array }): number {
+  const view = new DataView(tail.buffer);
+  for (let eocd = tail.length - END_RECORD_SIZE; eocd &gt;= 0; eocd--) {
+    if (view.getUint32(eocd, true) === END_RECORD_SIGNATURE &amp;&amp; eocd + END_RECORD_SIZE + view.getUint16(eocd + 20, true) === tail.length) return eocd;
+  }
+  return -1;
+}
+&nbsp;
+/** Locates a single-disk, bounded, self-consistent central directory; null keeps the file an attachment. */
+function readCentralDirectory({ tail, tailStart }: { tail: Uint8Array; tailStart: number }): CentralDirectory | null {
+  const eocd = findEndRecord({ tail });
+  if (eocd &lt; 0) return null;
+  const end = new DataView(tail.buffer);
+  if (end.getUint16(eocd + 4, true) !== 0 || end.getUint16(eocd + 6, true) !== 0) return null;
+  const count = end.getUint16(eocd + 10, true);
+  const size = end.getUint32(eocd + 12, true), offset = end.getUint32(eocd + 16, true);
+  if (count &gt; MAX_ENTRIES || count !== end.getUint16(eocd + 8, true) || size &gt; MAX_DIRECTORY_BYTES || offset + size !== tailStart + eocd) return null;
+  return { count, offset, size };
+}
+&nbsp;
+/** Reads one central header's normalized name and the next header's offset; null when the header is malformed. */
+function readEntry({ bytes, view, cursor }: { bytes: Uint8Array; view: DataView; cursor: number }): { name: string; next: number } | null {
+  if (cursor + CENTRAL_HEADER_SIZE &gt; bytes.length || view.getUint32(cursor, true) !== CENTRAL_HEADER_SIGNATURE) return null;
+  const length = view.getUint16(cursor + 28, true);
+  const next = cursor + CENTRAL_HEADER_SIZE + length + view.getUint16(cursor + 30, true) + view.getUint16(cursor + 32, true);
+  if (next &gt; bytes.length) return null;
+  const name = new TextDecoder().decode(bytes.subarray(cursor + CENTRAL_HEADER_SIZE, cursor + CENTRAL_HEADER_SIZE + length)).replaceAll("\\", "/").replace(/^\.\//, "");
+  return { name, next };
+}
+&nbsp;
+/** Collects package marker filenames at the archive root or one folder deep; null when the directory is not exactly `count` headers. */
+function readPackageMarkers({ bytes, count }: { bytes: Uint8Array; count: number }): Set&lt;string&gt; | null {
+  const view = new DataView(bytes.buffer), names = new Set&lt;string&gt;();
+  let cursor = 0;
+  for (let i = 0; i &lt; count; i++) {
+    const entry = readEntry({ bytes, view, cursor });
+    if (!entry) return null;
+    if (PACKAGE_MARKER.test(entry.name) &amp;&amp; !entry.name.startsWith("__MACOSX/")) names.add(entry.name.split("/").at(-1)!);
+    cursor = entry.next;
+  }
+  return cursor === bytes.length ? names : null;
+}
+&nbsp;
+function kindFromMarkers({ names }: { names: Set&lt;string&gt; }): ChatPackageKind {
+  // A plugin may bundle skills. Its manifest takes precedence so it can reach the assistant.
+  if (names.has("jini.plugin.json") || names.has("tovu.plugin.json")) return "site-plugin"; // tovu.plugin.json: legacy alias
+  if (names.has("plugin.json")) return "agent-plugin";
+  return names.has("SKILL.md") ? "skill" : "attachment";
+}
+&nbsp;
+async function zipPackageKind({ file }: { file: File }): Promise&lt;ChatPackageKind&gt; {
+  const tailStart = Math.max(0, file.size - END_RECORD_SEARCH_BYTES);
+  const tail = new Uint8Array(await file.slice(tailStart).arrayBuffer());
+  const directory = readCentralDirectory({ tail, tailStart });
+  if (!directory) return "attachment";
+  const bytes = new Uint8Array(await file.slice(directory.offset, directory.offset + directory.size).arrayBuffer());
+  const names = readPackageMarkers({ bytes, count: directory.count });
+  return names ? kindFromMarkers({ names }) : "attachment";
+}
+&nbsp;
+/** ZIP names are a routing hint, never install validation. Read only the bounded central directory:
+ * deflated payloads need no decompression, and malformed/ZIP64 archives remain ordinary attachments.
+ * Generic ZIP name inspection is tracked for Jini extraction (Jini is read-only in this dispatch).
+ */
+export async function chatPackageKind(
+  { file }: { file: File },
+  _optional: Record&lt;string, never&gt; = {},
+): Promise&lt;ChatPackageKind&gt; {
+  if (file.name === "SKILL.md") return "skill";
+  if (!file.name.toLowerCase().endsWith(".zip")) return "attachment";
+  try {
+    return await zipPackageKind({ file });
+  } catch {
+    return "attachment";
+  }
+}
+&nbsp;
+/** Jini annotates expanded browser folders with relativePath. Keep a skill's companion files
+ * together, but let a plugin manifest at that folder root override all its bundled SKILL.md files. */
+export async function partitionChatPackages(
+  { files }: { files: readonly File[] },
+  _optional: Record&lt;string, never&gt; = {},
+): Promise&lt;{ skills: File[]; attachments: File[] }&gt; {
+  const paths = files.map(file =&gt; ((file as File &amp; { relativePath?: string }).relativePath || file.webkitRelativePath || "").replaceAll("\\", "/"));
+  const roots = paths.map(value =&gt; value.includes("/") ? value.slice(0, value.indexOf("/") + 1) : "");
+  const pluginRoots = new Set(roots.filter((root, index) =&gt; root &amp;&amp; (paths[index] === `${root}plugin.json` || paths[index] === `${root}jini.plugin.json` || paths[index] === `${root}tovu.plugin.json`))); // tovu.plugin.json: legacy alias
+  const skillRoots = new Set(roots.filter((root, index) =&gt; root &amp;&amp; files[index]!.name === "SKILL.md" &amp;&amp; !pluginRoots.has(root)));
+  const kinds = await Promise.all(files.map(file =&gt; chatPackageKind({ file })));
+  const skills: File[] = [], attachments: File[] = [];
+  files.forEach((file, index) =&gt; {
+    const root = roots[index]!;
+    const isSkill = root &amp;&amp; pluginRoots.has(root) ? false : (root &amp;&amp; skillRoots.has(root)) || kinds[index] === "skill";
+    (isSkill ? skills : attachments).push(file);
+  });
+  return { skills, attachments };
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../../sorter.js"></script>
+        <script src="../../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

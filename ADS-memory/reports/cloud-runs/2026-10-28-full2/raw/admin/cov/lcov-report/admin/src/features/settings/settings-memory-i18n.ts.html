@@ -1,0 +1,2692 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/settings/settings-memory-i18n.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">admin/src/features/settings</a> settings-memory-i18n.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>5/5</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>2/2</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>4/4</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a>
+<a name='L323'></a><a href='#L323'>323</a>
+<a name='L324'></a><a href='#L324'>324</a>
+<a name='L325'></a><a href='#L325'>325</a>
+<a name='L326'></a><a href='#L326'>326</a>
+<a name='L327'></a><a href='#L327'>327</a>
+<a name='L328'></a><a href='#L328'>328</a>
+<a name='L329'></a><a href='#L329'>329</a>
+<a name='L330'></a><a href='#L330'>330</a>
+<a name='L331'></a><a href='#L331'>331</a>
+<a name='L332'></a><a href='#L332'>332</a>
+<a name='L333'></a><a href='#L333'>333</a>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a>
+<a name='L336'></a><a href='#L336'>336</a>
+<a name='L337'></a><a href='#L337'>337</a>
+<a name='L338'></a><a href='#L338'>338</a>
+<a name='L339'></a><a href='#L339'>339</a>
+<a name='L340'></a><a href='#L340'>340</a>
+<a name='L341'></a><a href='#L341'>341</a>
+<a name='L342'></a><a href='#L342'>342</a>
+<a name='L343'></a><a href='#L343'>343</a>
+<a name='L344'></a><a href='#L344'>344</a>
+<a name='L345'></a><a href='#L345'>345</a>
+<a name='L346'></a><a href='#L346'>346</a>
+<a name='L347'></a><a href='#L347'>347</a>
+<a name='L348'></a><a href='#L348'>348</a>
+<a name='L349'></a><a href='#L349'>349</a>
+<a name='L350'></a><a href='#L350'>350</a>
+<a name='L351'></a><a href='#L351'>351</a>
+<a name='L352'></a><a href='#L352'>352</a>
+<a name='L353'></a><a href='#L353'>353</a>
+<a name='L354'></a><a href='#L354'>354</a>
+<a name='L355'></a><a href='#L355'>355</a>
+<a name='L356'></a><a href='#L356'>356</a>
+<a name='L357'></a><a href='#L357'>357</a>
+<a name='L358'></a><a href='#L358'>358</a>
+<a name='L359'></a><a href='#L359'>359</a>
+<a name='L360'></a><a href='#L360'>360</a>
+<a name='L361'></a><a href='#L361'>361</a>
+<a name='L362'></a><a href='#L362'>362</a>
+<a name='L363'></a><a href='#L363'>363</a>
+<a name='L364'></a><a href='#L364'>364</a>
+<a name='L365'></a><a href='#L365'>365</a>
+<a name='L366'></a><a href='#L366'>366</a>
+<a name='L367'></a><a href='#L367'>367</a>
+<a name='L368'></a><a href='#L368'>368</a>
+<a name='L369'></a><a href='#L369'>369</a>
+<a name='L370'></a><a href='#L370'>370</a>
+<a name='L371'></a><a href='#L371'>371</a>
+<a name='L372'></a><a href='#L372'>372</a>
+<a name='L373'></a><a href='#L373'>373</a>
+<a name='L374'></a><a href='#L374'>374</a>
+<a name='L375'></a><a href='#L375'>375</a>
+<a name='L376'></a><a href='#L376'>376</a>
+<a name='L377'></a><a href='#L377'>377</a>
+<a name='L378'></a><a href='#L378'>378</a>
+<a name='L379'></a><a href='#L379'>379</a>
+<a name='L380'></a><a href='#L380'>380</a>
+<a name='L381'></a><a href='#L381'>381</a>
+<a name='L382'></a><a href='#L382'>382</a>
+<a name='L383'></a><a href='#L383'>383</a>
+<a name='L384'></a><a href='#L384'>384</a>
+<a name='L385'></a><a href='#L385'>385</a>
+<a name='L386'></a><a href='#L386'>386</a>
+<a name='L387'></a><a href='#L387'>387</a>
+<a name='L388'></a><a href='#L388'>388</a>
+<a name='L389'></a><a href='#L389'>389</a>
+<a name='L390'></a><a href='#L390'>390</a>
+<a name='L391'></a><a href='#L391'>391</a>
+<a name='L392'></a><a href='#L392'>392</a>
+<a name='L393'></a><a href='#L393'>393</a>
+<a name='L394'></a><a href='#L394'>394</a>
+<a name='L395'></a><a href='#L395'>395</a>
+<a name='L396'></a><a href='#L396'>396</a>
+<a name='L397'></a><a href='#L397'>397</a>
+<a name='L398'></a><a href='#L398'>398</a>
+<a name='L399'></a><a href='#L399'>399</a>
+<a name='L400'></a><a href='#L400'>400</a>
+<a name='L401'></a><a href='#L401'>401</a>
+<a name='L402'></a><a href='#L402'>402</a>
+<a name='L403'></a><a href='#L403'>403</a>
+<a name='L404'></a><a href='#L404'>404</a>
+<a name='L405'></a><a href='#L405'>405</a>
+<a name='L406'></a><a href='#L406'>406</a>
+<a name='L407'></a><a href='#L407'>407</a>
+<a name='L408'></a><a href='#L408'>408</a>
+<a name='L409'></a><a href='#L409'>409</a>
+<a name='L410'></a><a href='#L410'>410</a>
+<a name='L411'></a><a href='#L411'>411</a>
+<a name='L412'></a><a href='#L412'>412</a>
+<a name='L413'></a><a href='#L413'>413</a>
+<a name='L414'></a><a href='#L414'>414</a>
+<a name='L415'></a><a href='#L415'>415</a>
+<a name='L416'></a><a href='#L416'>416</a>
+<a name='L417'></a><a href='#L417'>417</a>
+<a name='L418'></a><a href='#L418'>418</a>
+<a name='L419'></a><a href='#L419'>419</a>
+<a name='L420'></a><a href='#L420'>420</a>
+<a name='L421'></a><a href='#L421'>421</a>
+<a name='L422'></a><a href='#L422'>422</a>
+<a name='L423'></a><a href='#L423'>423</a>
+<a name='L424'></a><a href='#L424'>424</a>
+<a name='L425'></a><a href='#L425'>425</a>
+<a name='L426'></a><a href='#L426'>426</a>
+<a name='L427'></a><a href='#L427'>427</a>
+<a name='L428'></a><a href='#L428'>428</a>
+<a name='L429'></a><a href='#L429'>429</a>
+<a name='L430'></a><a href='#L430'>430</a>
+<a name='L431'></a><a href='#L431'>431</a>
+<a name='L432'></a><a href='#L432'>432</a>
+<a name='L433'></a><a href='#L433'>433</a>
+<a name='L434'></a><a href='#L434'>434</a>
+<a name='L435'></a><a href='#L435'>435</a>
+<a name='L436'></a><a href='#L436'>436</a>
+<a name='L437'></a><a href='#L437'>437</a>
+<a name='L438'></a><a href='#L438'>438</a>
+<a name='L439'></a><a href='#L439'>439</a>
+<a name='L440'></a><a href='#L440'>440</a>
+<a name='L441'></a><a href='#L441'>441</a>
+<a name='L442'></a><a href='#L442'>442</a>
+<a name='L443'></a><a href='#L443'>443</a>
+<a name='L444'></a><a href='#L444'>444</a>
+<a name='L445'></a><a href='#L445'>445</a>
+<a name='L446'></a><a href='#L446'>446</a>
+<a name='L447'></a><a href='#L447'>447</a>
+<a name='L448'></a><a href='#L448'>448</a>
+<a name='L449'></a><a href='#L449'>449</a>
+<a name='L450'></a><a href='#L450'>450</a>
+<a name='L451'></a><a href='#L451'>451</a>
+<a name='L452'></a><a href='#L452'>452</a>
+<a name='L453'></a><a href='#L453'>453</a>
+<a name='L454'></a><a href='#L454'>454</a>
+<a name='L455'></a><a href='#L455'>455</a>
+<a name='L456'></a><a href='#L456'>456</a>
+<a name='L457'></a><a href='#L457'>457</a>
+<a name='L458'></a><a href='#L458'>458</a>
+<a name='L459'></a><a href='#L459'>459</a>
+<a name='L460'></a><a href='#L460'>460</a>
+<a name='L461'></a><a href='#L461'>461</a>
+<a name='L462'></a><a href='#L462'>462</a>
+<a name='L463'></a><a href='#L463'>463</a>
+<a name='L464'></a><a href='#L464'>464</a>
+<a name='L465'></a><a href='#L465'>465</a>
+<a name='L466'></a><a href='#L466'>466</a>
+<a name='L467'></a><a href='#L467'>467</a>
+<a name='L468'></a><a href='#L468'>468</a>
+<a name='L469'></a><a href='#L469'>469</a>
+<a name='L470'></a><a href='#L470'>470</a>
+<a name='L471'></a><a href='#L471'>471</a>
+<a name='L472'></a><a href='#L472'>472</a>
+<a name='L473'></a><a href='#L473'>473</a>
+<a name='L474'></a><a href='#L474'>474</a>
+<a name='L475'></a><a href='#L475'>475</a>
+<a name='L476'></a><a href='#L476'>476</a>
+<a name='L477'></a><a href='#L477'>477</a>
+<a name='L478'></a><a href='#L478'>478</a>
+<a name='L479'></a><a href='#L479'>479</a>
+<a name='L480'></a><a href='#L480'>480</a>
+<a name='L481'></a><a href='#L481'>481</a>
+<a name='L482'></a><a href='#L482'>482</a>
+<a name='L483'></a><a href='#L483'>483</a>
+<a name='L484'></a><a href='#L484'>484</a>
+<a name='L485'></a><a href='#L485'>485</a>
+<a name='L486'></a><a href='#L486'>486</a>
+<a name='L487'></a><a href='#L487'>487</a>
+<a name='L488'></a><a href='#L488'>488</a>
+<a name='L489'></a><a href='#L489'>489</a>
+<a name='L490'></a><a href='#L490'>490</a>
+<a name='L491'></a><a href='#L491'>491</a>
+<a name='L492'></a><a href='#L492'>492</a>
+<a name='L493'></a><a href='#L493'>493</a>
+<a name='L494'></a><a href='#L494'>494</a>
+<a name='L495'></a><a href='#L495'>495</a>
+<a name='L496'></a><a href='#L496'>496</a>
+<a name='L497'></a><a href='#L497'>497</a>
+<a name='L498'></a><a href='#L498'>498</a>
+<a name='L499'></a><a href='#L499'>499</a>
+<a name='L500'></a><a href='#L500'>500</a>
+<a name='L501'></a><a href='#L501'>501</a>
+<a name='L502'></a><a href='#L502'>502</a>
+<a name='L503'></a><a href='#L503'>503</a>
+<a name='L504'></a><a href='#L504'>504</a>
+<a name='L505'></a><a href='#L505'>505</a>
+<a name='L506'></a><a href='#L506'>506</a>
+<a name='L507'></a><a href='#L507'>507</a>
+<a name='L508'></a><a href='#L508'>508</a>
+<a name='L509'></a><a href='#L509'>509</a>
+<a name='L510'></a><a href='#L510'>510</a>
+<a name='L511'></a><a href='#L511'>511</a>
+<a name='L512'></a><a href='#L512'>512</a>
+<a name='L513'></a><a href='#L513'>513</a>
+<a name='L514'></a><a href='#L514'>514</a>
+<a name='L515'></a><a href='#L515'>515</a>
+<a name='L516'></a><a href='#L516'>516</a>
+<a name='L517'></a><a href='#L517'>517</a>
+<a name='L518'></a><a href='#L518'>518</a>
+<a name='L519'></a><a href='#L519'>519</a>
+<a name='L520'></a><a href='#L520'>520</a>
+<a name='L521'></a><a href='#L521'>521</a>
+<a name='L522'></a><a href='#L522'>522</a>
+<a name='L523'></a><a href='#L523'>523</a>
+<a name='L524'></a><a href='#L524'>524</a>
+<a name='L525'></a><a href='#L525'>525</a>
+<a name='L526'></a><a href='#L526'>526</a>
+<a name='L527'></a><a href='#L527'>527</a>
+<a name='L528'></a><a href='#L528'>528</a>
+<a name='L529'></a><a href='#L529'>529</a>
+<a name='L530'></a><a href='#L530'>530</a>
+<a name='L531'></a><a href='#L531'>531</a>
+<a name='L532'></a><a href='#L532'>532</a>
+<a name='L533'></a><a href='#L533'>533</a>
+<a name='L534'></a><a href='#L534'>534</a>
+<a name='L535'></a><a href='#L535'>535</a>
+<a name='L536'></a><a href='#L536'>536</a>
+<a name='L537'></a><a href='#L537'>537</a>
+<a name='L538'></a><a href='#L538'>538</a>
+<a name='L539'></a><a href='#L539'>539</a>
+<a name='L540'></a><a href='#L540'>540</a>
+<a name='L541'></a><a href='#L541'>541</a>
+<a name='L542'></a><a href='#L542'>542</a>
+<a name='L543'></a><a href='#L543'>543</a>
+<a name='L544'></a><a href='#L544'>544</a>
+<a name='L545'></a><a href='#L545'>545</a>
+<a name='L546'></a><a href='#L546'>546</a>
+<a name='L547'></a><a href='#L547'>547</a>
+<a name='L548'></a><a href='#L548'>548</a>
+<a name='L549'></a><a href='#L549'>549</a>
+<a name='L550'></a><a href='#L550'>550</a>
+<a name='L551'></a><a href='#L551'>551</a>
+<a name='L552'></a><a href='#L552'>552</a>
+<a name='L553'></a><a href='#L553'>553</a>
+<a name='L554'></a><a href='#L554'>554</a>
+<a name='L555'></a><a href='#L555'>555</a>
+<a name='L556'></a><a href='#L556'>556</a>
+<a name='L557'></a><a href='#L557'>557</a>
+<a name='L558'></a><a href='#L558'>558</a>
+<a name='L559'></a><a href='#L559'>559</a>
+<a name='L560'></a><a href='#L560'>560</a>
+<a name='L561'></a><a href='#L561'>561</a>
+<a name='L562'></a><a href='#L562'>562</a>
+<a name='L563'></a><a href='#L563'>563</a>
+<a name='L564'></a><a href='#L564'>564</a>
+<a name='L565'></a><a href='#L565'>565</a>
+<a name='L566'></a><a href='#L566'>566</a>
+<a name='L567'></a><a href='#L567'>567</a>
+<a name='L568'></a><a href='#L568'>568</a>
+<a name='L569'></a><a href='#L569'>569</a>
+<a name='L570'></a><a href='#L570'>570</a>
+<a name='L571'></a><a href='#L571'>571</a>
+<a name='L572'></a><a href='#L572'>572</a>
+<a name='L573'></a><a href='#L573'>573</a>
+<a name='L574'></a><a href='#L574'>574</a>
+<a name='L575'></a><a href='#L575'>575</a>
+<a name='L576'></a><a href='#L576'>576</a>
+<a name='L577'></a><a href='#L577'>577</a>
+<a name='L578'></a><a href='#L578'>578</a>
+<a name='L579'></a><a href='#L579'>579</a>
+<a name='L580'></a><a href='#L580'>580</a>
+<a name='L581'></a><a href='#L581'>581</a>
+<a name='L582'></a><a href='#L582'>582</a>
+<a name='L583'></a><a href='#L583'>583</a>
+<a name='L584'></a><a href='#L584'>584</a>
+<a name='L585'></a><a href='#L585'>585</a>
+<a name='L586'></a><a href='#L586'>586</a>
+<a name='L587'></a><a href='#L587'>587</a>
+<a name='L588'></a><a href='#L588'>588</a>
+<a name='L589'></a><a href='#L589'>589</a>
+<a name='L590'></a><a href='#L590'>590</a>
+<a name='L591'></a><a href='#L591'>591</a>
+<a name='L592'></a><a href='#L592'>592</a>
+<a name='L593'></a><a href='#L593'>593</a>
+<a name='L594'></a><a href='#L594'>594</a>
+<a name='L595'></a><a href='#L595'>595</a>
+<a name='L596'></a><a href='#L596'>596</a>
+<a name='L597'></a><a href='#L597'>597</a>
+<a name='L598'></a><a href='#L598'>598</a>
+<a name='L599'></a><a href='#L599'>599</a>
+<a name='L600'></a><a href='#L600'>600</a>
+<a name='L601'></a><a href='#L601'>601</a>
+<a name='L602'></a><a href='#L602'>602</a>
+<a name='L603'></a><a href='#L603'>603</a>
+<a name='L604'></a><a href='#L604'>604</a>
+<a name='L605'></a><a href='#L605'>605</a>
+<a name='L606'></a><a href='#L606'>606</a>
+<a name='L607'></a><a href='#L607'>607</a>
+<a name='L608'></a><a href='#L608'>608</a>
+<a name='L609'></a><a href='#L609'>609</a>
+<a name='L610'></a><a href='#L610'>610</a>
+<a name='L611'></a><a href='#L611'>611</a>
+<a name='L612'></a><a href='#L612'>612</a>
+<a name='L613'></a><a href='#L613'>613</a>
+<a name='L614'></a><a href='#L614'>614</a>
+<a name='L615'></a><a href='#L615'>615</a>
+<a name='L616'></a><a href='#L616'>616</a>
+<a name='L617'></a><a href='#L617'>617</a>
+<a name='L618'></a><a href='#L618'>618</a>
+<a name='L619'></a><a href='#L619'>619</a>
+<a name='L620'></a><a href='#L620'>620</a>
+<a name='L621'></a><a href='#L621'>621</a>
+<a name='L622'></a><a href='#L622'>622</a>
+<a name='L623'></a><a href='#L623'>623</a>
+<a name='L624'></a><a href='#L624'>624</a>
+<a name='L625'></a><a href='#L625'>625</a>
+<a name='L626'></a><a href='#L626'>626</a>
+<a name='L627'></a><a href='#L627'>627</a>
+<a name='L628'></a><a href='#L628'>628</a>
+<a name='L629'></a><a href='#L629'>629</a>
+<a name='L630'></a><a href='#L630'>630</a>
+<a name='L631'></a><a href='#L631'>631</a>
+<a name='L632'></a><a href='#L632'>632</a>
+<a name='L633'></a><a href='#L633'>633</a>
+<a name='L634'></a><a href='#L634'>634</a>
+<a name='L635'></a><a href='#L635'>635</a>
+<a name='L636'></a><a href='#L636'>636</a>
+<a name='L637'></a><a href='#L637'>637</a>
+<a name='L638'></a><a href='#L638'>638</a>
+<a name='L639'></a><a href='#L639'>639</a>
+<a name='L640'></a><a href='#L640'>640</a>
+<a name='L641'></a><a href='#L641'>641</a>
+<a name='L642'></a><a href='#L642'>642</a>
+<a name='L643'></a><a href='#L643'>643</a>
+<a name='L644'></a><a href='#L644'>644</a>
+<a name='L645'></a><a href='#L645'>645</a>
+<a name='L646'></a><a href='#L646'>646</a>
+<a name='L647'></a><a href='#L647'>647</a>
+<a name='L648'></a><a href='#L648'>648</a>
+<a name='L649'></a><a href='#L649'>649</a>
+<a name='L650'></a><a href='#L650'>650</a>
+<a name='L651'></a><a href='#L651'>651</a>
+<a name='L652'></a><a href='#L652'>652</a>
+<a name='L653'></a><a href='#L653'>653</a>
+<a name='L654'></a><a href='#L654'>654</a>
+<a name='L655'></a><a href='#L655'>655</a>
+<a name='L656'></a><a href='#L656'>656</a>
+<a name='L657'></a><a href='#L657'>657</a>
+<a name='L658'></a><a href='#L658'>658</a>
+<a name='L659'></a><a href='#L659'>659</a>
+<a name='L660'></a><a href='#L660'>660</a>
+<a name='L661'></a><a href='#L661'>661</a>
+<a name='L662'></a><a href='#L662'>662</a>
+<a name='L663'></a><a href='#L663'>663</a>
+<a name='L664'></a><a href='#L664'>664</a>
+<a name='L665'></a><a href='#L665'>665</a>
+<a name='L666'></a><a href='#L666'>666</a>
+<a name='L667'></a><a href='#L667'>667</a>
+<a name='L668'></a><a href='#L668'>668</a>
+<a name='L669'></a><a href='#L669'>669</a>
+<a name='L670'></a><a href='#L670'>670</a>
+<a name='L671'></a><a href='#L671'>671</a>
+<a name='L672'></a><a href='#L672'>672</a>
+<a name='L673'></a><a href='#L673'>673</a>
+<a name='L674'></a><a href='#L674'>674</a>
+<a name='L675'></a><a href='#L675'>675</a>
+<a name='L676'></a><a href='#L676'>676</a>
+<a name='L677'></a><a href='#L677'>677</a>
+<a name='L678'></a><a href='#L678'>678</a>
+<a name='L679'></a><a href='#L679'>679</a>
+<a name='L680'></a><a href='#L680'>680</a>
+<a name='L681'></a><a href='#L681'>681</a>
+<a name='L682'></a><a href='#L682'>682</a>
+<a name='L683'></a><a href='#L683'>683</a>
+<a name='L684'></a><a href='#L684'>684</a>
+<a name='L685'></a><a href='#L685'>685</a>
+<a name='L686'></a><a href='#L686'>686</a>
+<a name='L687'></a><a href='#L687'>687</a>
+<a name='L688'></a><a href='#L688'>688</a>
+<a name='L689'></a><a href='#L689'>689</a>
+<a name='L690'></a><a href='#L690'>690</a>
+<a name='L691'></a><a href='#L691'>691</a>
+<a name='L692'></a><a href='#L692'>692</a>
+<a name='L693'></a><a href='#L693'>693</a>
+<a name='L694'></a><a href='#L694'>694</a>
+<a name='L695'></a><a href='#L695'>695</a>
+<a name='L696'></a><a href='#L696'>696</a>
+<a name='L697'></a><a href='#L697'>697</a>
+<a name='L698'></a><a href='#L698'>698</a>
+<a name='L699'></a><a href='#L699'>699</a>
+<a name='L700'></a><a href='#L700'>700</a>
+<a name='L701'></a><a href='#L701'>701</a>
+<a name='L702'></a><a href='#L702'>702</a>
+<a name='L703'></a><a href='#L703'>703</a>
+<a name='L704'></a><a href='#L704'>704</a>
+<a name='L705'></a><a href='#L705'>705</a>
+<a name='L706'></a><a href='#L706'>706</a>
+<a name='L707'></a><a href='#L707'>707</a>
+<a name='L708'></a><a href='#L708'>708</a>
+<a name='L709'></a><a href='#L709'>709</a>
+<a name='L710'></a><a href='#L710'>710</a>
+<a name='L711'></a><a href='#L711'>711</a>
+<a name='L712'></a><a href='#L712'>712</a>
+<a name='L713'></a><a href='#L713'>713</a>
+<a name='L714'></a><a href='#L714'>714</a>
+<a name='L715'></a><a href='#L715'>715</a>
+<a name='L716'></a><a href='#L716'>716</a>
+<a name='L717'></a><a href='#L717'>717</a>
+<a name='L718'></a><a href='#L718'>718</a>
+<a name='L719'></a><a href='#L719'>719</a>
+<a name='L720'></a><a href='#L720'>720</a>
+<a name='L721'></a><a href='#L721'>721</a>
+<a name='L722'></a><a href='#L722'>722</a>
+<a name='L723'></a><a href='#L723'>723</a>
+<a name='L724'></a><a href='#L724'>724</a>
+<a name='L725'></a><a href='#L725'>725</a>
+<a name='L726'></a><a href='#L726'>726</a>
+<a name='L727'></a><a href='#L727'>727</a>
+<a name='L728'></a><a href='#L728'>728</a>
+<a name='L729'></a><a href='#L729'>729</a>
+<a name='L730'></a><a href='#L730'>730</a>
+<a name='L731'></a><a href='#L731'>731</a>
+<a name='L732'></a><a href='#L732'>732</a>
+<a name='L733'></a><a href='#L733'>733</a>
+<a name='L734'></a><a href='#L734'>734</a>
+<a name='L735'></a><a href='#L735'>735</a>
+<a name='L736'></a><a href='#L736'>736</a>
+<a name='L737'></a><a href='#L737'>737</a>
+<a name='L738'></a><a href='#L738'>738</a>
+<a name='L739'></a><a href='#L739'>739</a>
+<a name='L740'></a><a href='#L740'>740</a>
+<a name='L741'></a><a href='#L741'>741</a>
+<a name='L742'></a><a href='#L742'>742</a>
+<a name='L743'></a><a href='#L743'>743</a>
+<a name='L744'></a><a href='#L744'>744</a>
+<a name='L745'></a><a href='#L745'>745</a>
+<a name='L746'></a><a href='#L746'>746</a>
+<a name='L747'></a><a href='#L747'>747</a>
+<a name='L748'></a><a href='#L748'>748</a>
+<a name='L749'></a><a href='#L749'>749</a>
+<a name='L750'></a><a href='#L750'>750</a>
+<a name='L751'></a><a href='#L751'>751</a>
+<a name='L752'></a><a href='#L752'>752</a>
+<a name='L753'></a><a href='#L753'>753</a>
+<a name='L754'></a><a href='#L754'>754</a>
+<a name='L755'></a><a href='#L755'>755</a>
+<a name='L756'></a><a href='#L756'>756</a>
+<a name='L757'></a><a href='#L757'>757</a>
+<a name='L758'></a><a href='#L758'>758</a>
+<a name='L759'></a><a href='#L759'>759</a>
+<a name='L760'></a><a href='#L760'>760</a>
+<a name='L761'></a><a href='#L761'>761</a>
+<a name='L762'></a><a href='#L762'>762</a>
+<a name='L763'></a><a href='#L763'>763</a>
+<a name='L764'></a><a href='#L764'>764</a>
+<a name='L765'></a><a href='#L765'>765</a>
+<a name='L766'></a><a href='#L766'>766</a>
+<a name='L767'></a><a href='#L767'>767</a>
+<a name='L768'></a><a href='#L768'>768</a>
+<a name='L769'></a><a href='#L769'>769</a>
+<a name='L770'></a><a href='#L770'>770</a>
+<a name='L771'></a><a href='#L771'>771</a>
+<a name='L772'></a><a href='#L772'>772</a>
+<a name='L773'></a><a href='#L773'>773</a>
+<a name='L774'></a><a href='#L774'>774</a>
+<a name='L775'></a><a href='#L775'>775</a>
+<a name='L776'></a><a href='#L776'>776</a>
+<a name='L777'></a><a href='#L777'>777</a>
+<a name='L778'></a><a href='#L778'>778</a>
+<a name='L779'></a><a href='#L779'>779</a>
+<a name='L780'></a><a href='#L780'>780</a>
+<a name='L781'></a><a href='#L781'>781</a>
+<a name='L782'></a><a href='#L782'>782</a>
+<a name='L783'></a><a href='#L783'>783</a>
+<a name='L784'></a><a href='#L784'>784</a>
+<a name='L785'></a><a href='#L785'>785</a>
+<a name='L786'></a><a href='#L786'>786</a>
+<a name='L787'></a><a href='#L787'>787</a>
+<a name='L788'></a><a href='#L788'>788</a>
+<a name='L789'></a><a href='#L789'>789</a>
+<a name='L790'></a><a href='#L790'>790</a>
+<a name='L791'></a><a href='#L791'>791</a>
+<a name='L792'></a><a href='#L792'>792</a>
+<a name='L793'></a><a href='#L793'>793</a>
+<a name='L794'></a><a href='#L794'>794</a>
+<a name='L795'></a><a href='#L795'>795</a>
+<a name='L796'></a><a href='#L796'>796</a>
+<a name='L797'></a><a href='#L797'>797</a>
+<a name='L798'></a><a href='#L798'>798</a>
+<a name='L799'></a><a href='#L799'>799</a>
+<a name='L800'></a><a href='#L800'>800</a>
+<a name='L801'></a><a href='#L801'>801</a>
+<a name='L802'></a><a href='#L802'>802</a>
+<a name='L803'></a><a href='#L803'>803</a>
+<a name='L804'></a><a href='#L804'>804</a>
+<a name='L805'></a><a href='#L805'>805</a>
+<a name='L806'></a><a href='#L806'>806</a>
+<a name='L807'></a><a href='#L807'>807</a>
+<a name='L808'></a><a href='#L808'>808</a>
+<a name='L809'></a><a href='#L809'>809</a>
+<a name='L810'></a><a href='#L810'>810</a>
+<a name='L811'></a><a href='#L811'>811</a>
+<a name='L812'></a><a href='#L812'>812</a>
+<a name='L813'></a><a href='#L813'>813</a>
+<a name='L814'></a><a href='#L814'>814</a>
+<a name='L815'></a><a href='#L815'>815</a>
+<a name='L816'></a><a href='#L816'>816</a>
+<a name='L817'></a><a href='#L817'>817</a>
+<a name='L818'></a><a href='#L818'>818</a>
+<a name='L819'></a><a href='#L819'>819</a>
+<a name='L820'></a><a href='#L820'>820</a>
+<a name='L821'></a><a href='#L821'>821</a>
+<a name='L822'></a><a href='#L822'>822</a>
+<a name='L823'></a><a href='#L823'>823</a>
+<a name='L824'></a><a href='#L824'>824</a>
+<a name='L825'></a><a href='#L825'>825</a>
+<a name='L826'></a><a href='#L826'>826</a>
+<a name='L827'></a><a href='#L827'>827</a>
+<a name='L828'></a><a href='#L828'>828</a>
+<a name='L829'></a><a href='#L829'>829</a>
+<a name='L830'></a><a href='#L830'>830</a>
+<a name='L831'></a><a href='#L831'>831</a>
+<a name='L832'></a><a href='#L832'>832</a>
+<a name='L833'></a><a href='#L833'>833</a>
+<a name='L834'></a><a href='#L834'>834</a>
+<a name='L835'></a><a href='#L835'>835</a>
+<a name='L836'></a><a href='#L836'>836</a>
+<a name='L837'></a><a href='#L837'>837</a>
+<a name='L838'></a><a href='#L838'>838</a>
+<a name='L839'></a><a href='#L839'>839</a>
+<a name='L840'></a><a href='#L840'>840</a>
+<a name='L841'></a><a href='#L841'>841</a>
+<a name='L842'></a><a href='#L842'>842</a>
+<a name='L843'></a><a href='#L843'>843</a>
+<a name='L844'></a><a href='#L844'>844</a>
+<a name='L845'></a><a href='#L845'>845</a>
+<a name='L846'></a><a href='#L846'>846</a>
+<a name='L847'></a><a href='#L847'>847</a>
+<a name='L848'></a><a href='#L848'>848</a>
+<a name='L849'></a><a href='#L849'>849</a>
+<a name='L850'></a><a href='#L850'>850</a>
+<a name='L851'></a><a href='#L851'>851</a>
+<a name='L852'></a><a href='#L852'>852</a>
+<a name='L853'></a><a href='#L853'>853</a>
+<a name='L854'></a><a href='#L854'>854</a>
+<a name='L855'></a><a href='#L855'>855</a>
+<a name='L856'></a><a href='#L856'>856</a>
+<a name='L857'></a><a href='#L857'>857</a>
+<a name='L858'></a><a href='#L858'>858</a>
+<a name='L859'></a><a href='#L859'>859</a>
+<a name='L860'></a><a href='#L860'>860</a>
+<a name='L861'></a><a href='#L861'>861</a>
+<a name='L862'></a><a href='#L862'>862</a>
+<a name='L863'></a><a href='#L863'>863</a>
+<a name='L864'></a><a href='#L864'>864</a>
+<a name='L865'></a><a href='#L865'>865</a>
+<a name='L866'></a><a href='#L866'>866</a>
+<a name='L867'></a><a href='#L867'>867</a>
+<a name='L868'></a><a href='#L868'>868</a>
+<a name='L869'></a><a href='#L869'>869</a>
+<a name='L870'></a><a href='#L870'>870</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">46x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">46x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">46x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2304x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { COMMON_I18N } from "../../lib/i18n-common";
+/**
+ * @file Settings -&gt; Memory tab: the copy `@jini-ai/ui`'s `MemorySettingsPanel` renders (the header
+ * card, the "Memories | How it works" switch, `MemoryList`'s empty state, `MemoryHowPanel` and
+ * `MemoryHooksPanel`), in all 21 non-English locales.
+ *
+ * Those components translate through `@jini-ai/ui`'s own `useT()`, which reads the nearest
+ * `I18nProvider`. The provider `SettingsUi.tsx` mounts carries `SETTINGS_DIALOG_DICTIONARIES`, and
+ * neither that dictionary nor `@jini-ai/core/settings`' has the memory panel's keys, so the whole
+ * panel rendered English in every locale. `SettingsUi.tsx` now wraps the panel in a nested
+ * `I18nProvider` fed by {@link memoryPanelDictionaries} — the package's existing host-dictionary
+ * mechanism, no change to `@jini-ai/ui`. Keys are the package's literal English strings; English
+ * itself needs no block (a miss renders the key).
+ */
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+&nbsp;
+const SETTINGS_MEMORY_DICT: Record&lt;string, Record&lt;string, string&gt;&gt; = {
+  es: {
+    "Memory": "Memoria",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "Controla si los datos, preferencias y contexto de proyecto guardados se reutilizan en chats futuros.",
+    "Memory view": "Vista de memoria",
+    "Memories": "Memorias",
+    "How it works": "Cómo funciona",
+    "Add memory": "Añadir memoria",
+    "Advanced": "Avanzado",
+    "On": "Activado",
+    "Off": "Desactivado",
+    "Enable memory": "Activar memoria",
+    "Saved memory": "Memoria guardada",
+    "Saved facts, preferences, and project context available to future chats.": "Datos, preferencias y contexto de proyecto guardados, disponibles para chats futuros.",
+    "saved": "guardadas",
+    "All": "Todo",
+    "Clear extraction history": "Borrar historial de extracción",
+    "Clear": "Borrar",
+    "Refresh": "Actualizar",
+    "Refreshing": "Actualizando",
+    "No saved memories yet": "Aún no hay memorias guardadas",
+    "Tell the assistant a fact in chat — e.g.": "Cuéntale un dato al asistente en el chat — p. ej.",
+    "I prefer dark mode": "Prefiero el modo oscuro",
+    "— and it will be saved here automatically.": "— y se guardará aquí automáticamente.",
+    "Onboarding": "Incorporación",
+    "Brand context": "Contexto de marca",
+    "Chat signals": "Señales del chat",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "La memoria se recopila automáticamente a partir de la configuración del perfil, la extracción de proyectos y marca, las apps conectadas y los datos útiles aprendidos en los chats. La lista guardada de abajo es donde se revisa; todo lo demás funciona en segundo plano salvo que abras Añadir o Avanzado.",
+    "Memory hooks": "Ganchos de memoria",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "Ajusta cómo se captura y se usa la memoria sin desactivarla por completo.",
+    "Profile injection": "Inyección del perfil",
+    "Include your saved profile in the prompt.": "Incluye tu perfil guardado en el prompt.",
+    "Query rewrite": "Reescritura de la consulta",
+    "Expand short requests into a fuller task brief first.": "Primero amplía las solicitudes breves en un resumen de tarea más completo.",
+    "Self-verify": "Autoverificación",
+    "Check responses against saved rules and report a scorecard.": "Comprueba las respuestas con las reglas guardadas e informa con una puntuación.",
+    "Chat extraction": "Extracción del chat",
+    "Learn new facts and preferences from chat turns.": "Aprende nuevos datos y preferencias de los turnos del chat.",
+  },
+  id: {
+    "Memory": "Memori",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "Atur apakah fakta, preferensi, dan konteks proyek yang tersimpan digunakan kembali di chat berikutnya.",
+    "Memory view": "Tampilan memori",
+    "Memories": "Memori",
+    "How it works": "Cara kerjanya",
+    "Add memory": "Tambah memori",
+    "Advanced": "Lanjutan",
+    "On": "Aktif",
+    "Off": "Nonaktif",
+    "Enable memory": "Aktifkan memori",
+    "Saved memory": "Memori tersimpan",
+    "Saved facts, preferences, and project context available to future chats.": "Fakta, preferensi, dan konteks proyek tersimpan yang tersedia untuk chat berikutnya.",
+    "saved": "tersimpan",
+    "All": "Semua",
+    "Clear extraction history": "Hapus riwayat ekstraksi",
+    "Clear": "Hapus",
+    "Refresh": "Muat ulang",
+    "Refreshing": "Memuat ulang",
+    "No saved memories yet": "Belum ada memori tersimpan",
+    "Tell the assistant a fact in chat — e.g.": "Beri tahu asisten sebuah fakta di chat — mis.",
+    "I prefer dark mode": "Saya lebih suka mode gelap",
+    "— and it will be saved here automatically.": "— dan fakta itu akan tersimpan di sini secara otomatis.",
+    "Onboarding": "Orientasi",
+    "Brand context": "Konteks merek",
+    "Chat signals": "Sinyal chat",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "Memori dikumpulkan secara otomatis dari pengaturan profil, ekstraksi proyek dan merek, aplikasi yang terhubung, serta fakta berguna yang dipelajari selama chat. Daftar tersimpan di bawah adalah tempat meninjaunya; selebihnya berjalan diam-diam kecuali Anda membuka Tambah atau Lanjutan.",
+    "Memory hooks": "Hook memori",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "Sesuaikan cara memori ditangkap dan digunakan tanpa mematikannya sepenuhnya.",
+    "Profile injection": "Injeksi profil",
+    "Include your saved profile in the prompt.": "Sertakan profil tersimpan Anda di prompt.",
+    "Query rewrite": "Penulisan ulang kueri",
+    "Expand short requests into a fuller task brief first.": "Kembangkan permintaan singkat menjadi ringkasan tugas yang lebih lengkap terlebih dahulu.",
+    "Self-verify": "Verifikasi mandiri",
+    "Check responses against saved rules and report a scorecard.": "Periksa respons terhadap aturan tersimpan dan laporkan kartu skor.",
+    "Chat extraction": "Ekstraksi chat",
+    "Learn new facts and preferences from chat turns.": "Pelajari fakta dan preferensi baru dari giliran chat.",
+  },
+  de: {
+    "Memory": "Gedächtnis",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "Legen Sie fest, ob gespeicherte Fakten, Vorlieben und Projektkontext in künftigen Chats wiederverwendet werden.",
+    "Memory view": "Gedächtnisansicht",
+    "Memories": "Erinnerungen",
+    "How it works": "So funktioniert es",
+    "Add memory": "Erinnerung hinzufügen",
+    "Advanced": "Erweitert",
+    "On": "Ein",
+    "Off": "Aus",
+    "Enable memory": "Gedächtnis aktivieren",
+    "Saved memory": "Gespeichertes Gedächtnis",
+    "Saved facts, preferences, and project context available to future chats.": "Gespeicherte Fakten, Vorlieben und Projektkontext, die künftigen Chats zur Verfügung stehen.",
+    "saved": "gespeichert",
+    "All": "Alle",
+    "Clear extraction history": "Extraktionsverlauf löschen",
+    "Clear": "Löschen",
+    "Refresh": "Aktualisieren",
+    "Refreshing": "Wird aktualisiert",
+    "No saved memories yet": "Noch keine gespeicherten Erinnerungen",
+    "Tell the assistant a fact in chat — e.g.": "Nennen Sie dem Assistenten im Chat eine Tatsache — z. B.",
+    "I prefer dark mode": "Ich bevorzuge den Dunkelmodus",
+    "— and it will be saved here automatically.": "— und sie wird hier automatisch gespeichert.",
+    "Onboarding": "Onboarding",
+    "Brand context": "Markenkontext",
+    "Chat signals": "Chat-Signale",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "Das Gedächtnis wird automatisch aus der Profileinrichtung, der Projekt- und Markenextraktion, verbundenen Apps und nützlichen, in Chats gelernten Fakten zusammengetragen. Die gespeicherte Liste unten dient zur Überprüfung; alles andere läuft unauffällig im Hintergrund, solange Sie nicht „Hinzufügen“ oder „Erweitert“ öffnen.",
+    "Memory hooks": "Gedächtnis-Hooks",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "Passen Sie an, wie das Gedächtnis erfasst und genutzt wird, ohne es ganz abzuschalten.",
+    "Profile injection": "Profil einbinden",
+    "Include your saved profile in the prompt.": "Ihr gespeichertes Profil in den Prompt aufnehmen.",
+    "Query rewrite": "Anfrage umschreiben",
+    "Expand short requests into a fuller task brief first.": "Kurze Anfragen zuerst zu einem ausführlicheren Aufgabenbriefing erweitern.",
+    "Self-verify": "Selbstprüfung",
+    "Check responses against saved rules and report a scorecard.": "Antworten anhand gespeicherter Regeln prüfen und eine Bewertung ausgeben.",
+    "Chat extraction": "Chat-Extraktion",
+    "Learn new facts and preferences from chat turns.": "Neue Fakten und Vorlieben aus Chat-Beiträgen lernen.",
+  },
+  "zh-CN": {
+    "Memory": "记忆",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "控制已保存的事实、偏好和项目上下文是否在今后的对话中重复使用。",
+    "Memory view": "记忆视图",
+    "Memories": "记忆",
+    "How it works": "工作原理",
+    "Add memory": "添加记忆",
+    "Advanced": "高级",
+    "On": "开",
+    "Off": "关",
+    "Enable memory": "启用记忆",
+    "Saved memory": "已保存的记忆",
+    "Saved facts, preferences, and project context available to future chats.": "可供今后对话使用的已保存事实、偏好和项目上下文。",
+    "saved": "条已保存",
+    "All": "全部",
+    "Clear extraction history": "清除提取历史",
+    "Clear": "清除",
+    "Refresh": "刷新",
+    "Refreshing": "正在刷新",
+    "No saved memories yet": "还没有已保存的记忆",
+    "Tell the assistant a fact in chat — e.g.": "在对话中告诉助手一个事实——例如",
+    "I prefer dark mode": "我更喜欢深色模式",
+    "— and it will be saved here automatically.": "——它会自动保存在这里。",
+    "Onboarding": "新手引导",
+    "Brand context": "品牌上下文",
+    "Chat signals": "对话信号",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "记忆会自动从个人资料设置、项目和品牌提取、已连接的应用以及对话中学到的有用事实中收集。下方的已保存列表用于审阅；除非你打开“添加”或“高级”，其他部分都在后台静默运行。",
+    "Memory hooks": "记忆钩子",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "在不完全关闭记忆的情况下，微调记忆的捕获和使用方式。",
+    "Profile injection": "注入个人资料",
+    "Include your saved profile in the prompt.": "在提示词中包含你已保存的个人资料。",
+    "Query rewrite": "查询改写",
+    "Expand short requests into a fuller task brief first.": "先把简短的请求扩展为更完整的任务说明。",
+    "Self-verify": "自我验证",
+    "Check responses against saved rules and report a scorecard.": "根据已保存的规则检查回复并给出评分表。",
+    "Chat extraction": "对话提取",
+    "Learn new facts and preferences from chat turns.": "从对话轮次中学习新的事实和偏好。",
+  },
+  "zh-TW": {
+    "Memory": "記憶",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "控制已儲存的事實、偏好和專案脈絡是否在日後的對話中重複使用。",
+    "Memory view": "記憶檢視",
+    "Memories": "記憶",
+    "How it works": "運作方式",
+    "Add memory": "新增記憶",
+    "Advanced": "進階",
+    "On": "開",
+    "Off": "關",
+    "Enable memory": "啟用記憶",
+    "Saved memory": "已儲存的記憶",
+    "Saved facts, preferences, and project context available to future chats.": "可供日後對話使用的已儲存事實、偏好和專案脈絡。",
+    "saved": "筆已儲存",
+    "All": "全部",
+    "Clear extraction history": "清除擷取記錄",
+    "Clear": "清除",
+    "Refresh": "重新整理",
+    "Refreshing": "正在重新整理",
+    "No saved memories yet": "尚無已儲存的記憶",
+    "Tell the assistant a fact in chat — e.g.": "在對話中告訴助理一個事實——例如",
+    "I prefer dark mode": "我偏好深色模式",
+    "— and it will be saved here automatically.": "——它會自動儲存在這裡。",
+    "Onboarding": "新手導覽",
+    "Brand context": "品牌脈絡",
+    "Chat signals": "對話訊號",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "記憶會自動從個人檔案設定、專案和品牌擷取、已連結的應用程式，以及對話中學到的實用事實中收集。下方的已儲存清單用於檢閱；除非你開啟「新增」或「進階」，其他部分都在背景靜默運作。",
+    "Memory hooks": "記憶掛鉤",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "在不完全關閉記憶的情況下，微調記憶的擷取與使用方式。",
+    "Profile injection": "注入個人檔案",
+    "Include your saved profile in the prompt.": "在提示詞中納入你已儲存的個人檔案。",
+    "Query rewrite": "查詢改寫",
+    "Expand short requests into a fuller task brief first.": "先將簡短的請求擴充為更完整的任務說明。",
+    "Self-verify": "自我驗證",
+    "Check responses against saved rules and report a scorecard.": "依據已儲存的規則檢查回覆並提供評分表。",
+    "Chat extraction": "對話擷取",
+    "Learn new facts and preferences from chat turns.": "從對話回合中學習新的事實和偏好。",
+  },
+  "pt-BR": {
+    "Memory": "Memória",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "Controle se fatos, preferências e contexto de projeto salvos são reutilizados em conversas futuras.",
+    "Memory view": "Visualização da memória",
+    "Memories": "Memórias",
+    "How it works": "Como funciona",
+    "Add memory": "Adicionar memória",
+    "Advanced": "Avançado",
+    "On": "Ativado",
+    "Off": "Desativado",
+    "Enable memory": "Ativar memória",
+    "Saved memory": "Memória salva",
+    "Saved facts, preferences, and project context available to future chats.": "Fatos, preferências e contexto de projeto salvos, disponíveis para conversas futuras.",
+    "saved": "salvas",
+    "All": "Todas",
+    "Clear extraction history": "Limpar histórico de extração",
+    "Clear": "Limpar",
+    "Refresh": "Atualizar",
+    "Refreshing": "Atualizando",
+    "No saved memories yet": "Nenhuma memória salva ainda",
+    "Tell the assistant a fact in chat — e.g.": "Conte um fato ao assistente no chat — por ex.",
+    "I prefer dark mode": "Prefiro o modo escuro",
+    "— and it will be saved here automatically.": "— e ele será salvo aqui automaticamente.",
+    "Onboarding": "Integração",
+    "Brand context": "Contexto da marca",
+    "Chat signals": "Sinais do chat",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "A memória é reunida automaticamente a partir da configuração do perfil, da extração de projetos e marca, dos apps conectados e de fatos úteis aprendidos durante as conversas. A lista salva abaixo é onde você revisa; todo o resto fica em segundo plano, a menos que você abra Adicionar ou Avançado.",
+    "Memory hooks": "Ganchos de memória",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "Ajuste como a memória é capturada e usada sem desativá-la totalmente.",
+    "Profile injection": "Injeção do perfil",
+    "Include your saved profile in the prompt.": "Inclui seu perfil salvo no prompt.",
+    "Query rewrite": "Reescrita da consulta",
+    "Expand short requests into a fuller task brief first.": "Primeiro expande pedidos curtos em um briefing de tarefa mais completo.",
+    "Self-verify": "Autoverificação",
+    "Check responses against saved rules and report a scorecard.": "Verifica as respostas em relação às regras salvas e apresenta uma avaliação.",
+    "Chat extraction": "Extração do chat",
+    "Learn new facts and preferences from chat turns.": "Aprende novos fatos e preferências a partir das mensagens do chat.",
+  },
+  ru: {
+    "Memory": "Память",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "Определяет, будут ли сохранённые факты, предпочтения и контекст проекта использоваться в будущих чатах.",
+    "Memory view": "Вид памяти",
+    "Memories": "Воспоминания",
+    "How it works": "Как это работает",
+    "Add memory": "Добавить запись",
+    "Advanced": "Дополнительно",
+    "On": "Вкл.",
+    "Off": "Выкл.",
+    "Enable memory": "Включить память",
+    "Saved memory": "Сохранённая память",
+    "Saved facts, preferences, and project context available to future chats.": "Сохранённые факты, предпочтения и контекст проекта, доступные в будущих чатах.",
+    "saved": "сохранено",
+    "All": "Все",
+    "Clear extraction history": "Очистить историю извлечения",
+    "Clear": "Очистить",
+    "Refresh": "Обновить",
+    "Refreshing": "Обновление",
+    "No saved memories yet": "Сохранённых записей пока нет",
+    "Tell the assistant a fact in chat — e.g.": "Сообщите ассистенту факт в чате — например,",
+    "I prefer dark mode": "Я предпочитаю тёмную тему",
+    "— and it will be saved here automatically.": "— и он будет сохранён здесь автоматически.",
+    "Onboarding": "Начальная настройка",
+    "Brand context": "Контекст бренда",
+    "Chat signals": "Сигналы из чата",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "Память собирается автоматически из настройки профиля, извлечения данных о проекте и бренде, подключённых приложений и полезных фактов, полученных в чатах. Сохранённый список ниже служит для проверки; всё остальное работает незаметно, пока вы не откроете «Добавить» или «Дополнительно».",
+    "Memory hooks": "Хуки памяти",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "Тонкая настройка того, как память собирается и используется, без её полного отключения.",
+    "Profile injection": "Подстановка профиля",
+    "Include your saved profile in the prompt.": "Включать ваш сохранённый профиль в промпт.",
+    "Query rewrite": "Переформулировка запроса",
+    "Expand short requests into a fuller task brief first.": "Сначала разворачивать короткие запросы в более полное описание задачи.",
+    "Self-verify": "Самопроверка",
+    "Check responses against saved rules and report a scorecard.": "Проверять ответы по сохранённым правилам и выдавать оценочную таблицу.",
+    "Chat extraction": "Извлечение из чата",
+    "Learn new facts and preferences from chat turns.": "Узнавать новые факты и предпочтения из реплик в чате.",
+  },
+  fa: {
+    "Memory": "حافظه",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "تعیین کنید که آیا واقعیت‌ها، ترجیحات و زمینهٔ پروژهٔ ذخیره‌شده در گفتگوهای آینده دوباره استفاده شوند یا نه.",
+    "Memory view": "نمای حافظه",
+    "Memories": "خاطره‌ها",
+    "How it works": "نحوهٔ کار",
+    "Add memory": "افزودن خاطره",
+    "Advanced": "پیشرفته",
+    "On": "روشن",
+    "Off": "خاموش",
+    "Enable memory": "فعال‌سازی حافظه",
+    "Saved memory": "حافظهٔ ذخیره‌شده",
+    "Saved facts, preferences, and project context available to future chats.": "واقعیت‌ها، ترجیحات و زمینهٔ پروژهٔ ذخیره‌شده که در گفتگوهای آینده در دسترس هستند.",
+    "saved": "ذخیره‌شده",
+    "All": "همه",
+    "Clear extraction history": "پاک کردن سابقهٔ استخراج",
+    "Clear": "پاک کردن",
+    "Refresh": "تازه‌سازی",
+    "Refreshing": "در حال تازه‌سازی",
+    "No saved memories yet": "هنوز خاطره‌ای ذخیره نشده است",
+    "Tell the assistant a fact in chat — e.g.": "یک واقعیت را در گفتگو به دستیار بگویید — مثلاً",
+    "I prefer dark mode": "حالت تیره را ترجیح می‌دهم",
+    "— and it will be saved here automatically.": "— و به‌طور خودکار اینجا ذخیره می‌شود.",
+    "Onboarding": "راه‌اندازی اولیه",
+    "Brand context": "زمینهٔ برند",
+    "Chat signals": "نشانه‌های گفتگو",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "حافظه به‌طور خودکار از تنظیم نمایه، استخراج پروژه و برند، برنامه‌های متصل و واقعیت‌های مفیدی که در گفتگوها آموخته می‌شود جمع‌آوری می‌شود. فهرست ذخیره‌شدهٔ زیر محل بازبینی است؛ بقیه بی‌صدا در پس‌زمینه کار می‌کند مگر اینکه «افزودن» یا «پیشرفته» را باز کنید.",
+    "Memory hooks": "قلاب‌های حافظه",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "نحوهٔ ثبت و استفادهٔ حافظه را بدون خاموش کردن کامل آن تنظیم کنید.",
+    "Profile injection": "تزریق نمایه",
+    "Include your saved profile in the prompt.": "نمایهٔ ذخیره‌شدهٔ شما را در پرامپت قرار می‌دهد.",
+    "Query rewrite": "بازنویسی درخواست",
+    "Expand short requests into a fuller task brief first.": "ابتدا درخواست‌های کوتاه را به شرح کامل‌تری از کار گسترش می‌دهد.",
+    "Self-verify": "خودبررسی",
+    "Check responses against saved rules and report a scorecard.": "پاسخ‌ها را با قوانین ذخیره‌شده مقایسه می‌کند و کارنامه‌ای گزارش می‌دهد.",
+    "Chat extraction": "استخراج از گفتگو",
+    "Learn new facts and preferences from chat turns.": "واقعیت‌ها و ترجیحات جدید را از نوبت‌های گفتگو یاد می‌گیرد.",
+  },
+  ar: {
+    "Memory": "الذاكرة",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "تحكّم في ما إذا كانت الحقائق والتفضيلات وسياق المشروع المحفوظة تُستخدم مجددًا في المحادثات المستقبلية.",
+    "Memory view": "عرض الذاكرة",
+    "Memories": "الذكريات",
+    "How it works": "كيف تعمل",
+    "Add memory": "إضافة ذكرى",
+    "Advanced": "متقدم",
+    "On": "تشغيل",
+    "Off": "إيقاف",
+    "Enable memory": "تفعيل الذاكرة",
+    "Saved memory": "الذاكرة المحفوظة",
+    "Saved facts, preferences, and project context available to future chats.": "الحقائق والتفضيلات وسياق المشروع المحفوظة والمتاحة للمحادثات المستقبلية.",
+    "saved": "محفوظة",
+    "All": "الكل",
+    "Clear extraction history": "مسح سجل الاستخراج",
+    "Clear": "مسح",
+    "Refresh": "تحديث",
+    "Refreshing": "جارٍ التحديث",
+    "No saved memories yet": "لا توجد ذكريات محفوظة بعد",
+    "Tell the assistant a fact in chat — e.g.": "أخبر المساعد بحقيقة في المحادثة — مثلًا",
+    "I prefer dark mode": "أفضّل الوضع الداكن",
+    "— and it will be saved here automatically.": "— وستُحفظ هنا تلقائيًا.",
+    "Onboarding": "الإعداد الأولي",
+    "Brand context": "سياق العلامة التجارية",
+    "Chat signals": "إشارات المحادثة",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "تُجمع الذاكرة تلقائيًا من إعداد الملف الشخصي، واستخراج بيانات المشروع والعلامة التجارية، والتطبيقات المتصلة، والحقائق المفيدة المستفادة أثناء المحادثات. القائمة المحفوظة أدناه هي مكان المراجعة؛ وكل ما عداها يعمل بهدوء ما لم تفتح «إضافة» أو «متقدم».",
+    "Memory hooks": "خطافات الذاكرة",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "اضبط كيفية التقاط الذاكرة واستخدامها دون إيقافها بالكامل.",
+    "Profile injection": "إدراج الملف الشخصي",
+    "Include your saved profile in the prompt.": "يضمّن ملفك الشخصي المحفوظ في الموجّه.",
+    "Query rewrite": "إعادة صياغة الطلب",
+    "Expand short requests into a fuller task brief first.": "يوسّع الطلبات القصيرة أولًا إلى وصف أكمل للمهمة.",
+    "Self-verify": "التحقق الذاتي",
+    "Check responses against saved rules and report a scorecard.": "يفحص الردود وفق القواعد المحفوظة ويعرض بطاقة تقييم.",
+    "Chat extraction": "الاستخراج من المحادثة",
+    "Learn new facts and preferences from chat turns.": "يتعلّم حقائق وتفضيلات جديدة من رسائل المحادثة.",
+  },
+  ja: {
+    "Memory": "メモリー",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "保存された事実・好み・プロジェクトのコンテキストを今後のチャットで再利用するかどうかを設定します。",
+    "Memory view": "メモリー表示",
+    "Memories": "メモリー一覧",
+    "How it works": "仕組み",
+    "Add memory": "メモリーを追加",
+    "Advanced": "詳細設定",
+    "On": "オン",
+    "Off": "オフ",
+    "Enable memory": "メモリーを有効にする",
+    "Saved memory": "保存済みメモリー",
+    "Saved facts, preferences, and project context available to future chats.": "今後のチャットで利用できる、保存済みの事実・好み・プロジェクトのコンテキストです。",
+    "saved": "件保存済み",
+    "All": "すべて",
+    "Clear extraction history": "抽出履歴を消去",
+    "Clear": "消去",
+    "Refresh": "更新",
+    "Refreshing": "更新中",
+    "No saved memories yet": "保存済みのメモリーはまだありません",
+    "Tell the assistant a fact in chat — e.g.": "チャットでアシスタントに事実を伝えてください — 例:",
+    "I prefer dark mode": "ダークモードが好きです",
+    "— and it will be saved here automatically.": "— すると、ここに自動的に保存されます。",
+    "Onboarding": "オンボーディング",
+    "Brand context": "ブランドのコンテキスト",
+    "Chat signals": "チャットのシグナル",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "メモリーは、プロフィール設定、プロジェクトとブランドの抽出、接続済みアプリ、チャット中に得られた有用な事実から自動的に収集されます。下の保存済みリストで内容を確認できます。「追加」や「詳細設定」を開かない限り、それ以外は目立たずに動作します。",
+    "Memory hooks": "メモリーフック",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "メモリーを完全にオフにせず、記録と利用の方法を細かく調整します。",
+    "Profile injection": "プロフィールの挿入",
+    "Include your saved profile in the prompt.": "保存済みのプロフィールをプロンプトに含めます。",
+    "Query rewrite": "クエリの書き換え",
+    "Expand short requests into a fuller task brief first.": "短い依頼を、まずより詳しいタスク説明に展開します。",
+    "Self-verify": "セルフ検証",
+    "Check responses against saved rules and report a scorecard.": "保存済みのルールに照らして応答を確認し、評価表を報告します。",
+    "Chat extraction": "チャットからの抽出",
+    "Learn new facts and preferences from chat turns.": "チャットのやり取りから新しい事実や好みを学習します。",
+  },
+  ko: {
+    "Memory": "메모리",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "저장된 사실, 선호 사항, 프로젝트 맥락을 이후 채팅에서 다시 사용할지 설정합니다.",
+    "Memory view": "메모리 보기",
+    "Memories": "메모리 목록",
+    "How it works": "작동 방식",
+    "Add memory": "메모리 추가",
+    "Advanced": "고급",
+    "On": "켜기",
+    "Off": "끄기",
+    "Enable memory": "메모리 사용",
+    "Saved memory": "저장된 메모리",
+    "Saved facts, preferences, and project context available to future chats.": "이후 채팅에서 사용할 수 있는 저장된 사실, 선호 사항, 프로젝트 맥락입니다.",
+    "saved": "개 저장됨",
+    "All": "전체",
+    "Clear extraction history": "추출 기록 지우기",
+    "Clear": "지우기",
+    "Refresh": "새로 고침",
+    "Refreshing": "새로 고치는 중",
+    "No saved memories yet": "아직 저장된 메모리가 없습니다",
+    "Tell the assistant a fact in chat — e.g.": "채팅에서 어시스턴트에게 사실을 알려 주세요 — 예:",
+    "I prefer dark mode": "저는 다크 모드를 선호해요",
+    "— and it will be saved here automatically.": "— 그러면 여기에 자동으로 저장됩니다.",
+    "Onboarding": "온보딩",
+    "Brand context": "브랜드 맥락",
+    "Chat signals": "채팅 신호",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "메모리는 프로필 설정, 프로젝트 및 브랜드 추출, 연결된 앱, 채팅 중 알게 된 유용한 사실에서 자동으로 수집됩니다. 아래 저장된 목록에서 검토할 수 있으며, 추가나 고급을 열지 않는 한 나머지는 조용히 동작합니다.",
+    "Memory hooks": "메모리 훅",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "메모리를 완전히 끄지 않고 수집 및 사용 방식을 세밀하게 조정합니다.",
+    "Profile injection": "프로필 삽입",
+    "Include your saved profile in the prompt.": "저장된 프로필을 프롬프트에 포함합니다.",
+    "Query rewrite": "쿼리 재작성",
+    "Expand short requests into a fuller task brief first.": "짧은 요청을 먼저 더 자세한 작업 설명으로 확장합니다.",
+    "Self-verify": "자체 검증",
+    "Check responses against saved rules and report a scorecard.": "저장된 규칙에 따라 응답을 확인하고 평가표를 보고합니다.",
+    "Chat extraction": "채팅 추출",
+    "Learn new facts and preferences from chat turns.": "채팅 대화에서 새로운 사실과 선호 사항을 학습합니다.",
+  },
+  pl: {
+    "Memory": "Pamięć",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "Określ, czy zapisane fakty, preferencje i kontekst projektu mają być ponownie używane w przyszłych czatach.",
+    "Memory view": "Widok pamięci",
+    "Memories": "Wspomnienia",
+    "How it works": "Jak to działa",
+    "Add memory": "Dodaj wspomnienie",
+    "Advanced": "Zaawansowane",
+    "On": "Wł.",
+    "Off": "Wył.",
+    "Enable memory": "Włącz pamięć",
+    "Saved memory": "Zapisana pamięć",
+    "Saved facts, preferences, and project context available to future chats.": "Zapisane fakty, preferencje i kontekst projektu dostępne w przyszłych czatach.",
+    "saved": "zapisanych",
+    "All": "Wszystkie",
+    "Clear extraction history": "Wyczyść historię wyodrębniania",
+    "Clear": "Wyczyść",
+    "Refresh": "Odśwież",
+    "Refreshing": "Odświeżanie",
+    "No saved memories yet": "Brak zapisanych wspomnień",
+    "Tell the assistant a fact in chat — e.g.": "Przekaż asystentowi fakt na czacie — np.",
+    "I prefer dark mode": "Wolę tryb ciemny",
+    "— and it will be saved here automatically.": "— a zostanie on tu automatycznie zapisany.",
+    "Onboarding": "Wdrożenie",
+    "Brand context": "Kontekst marki",
+    "Chat signals": "Sygnały z czatu",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "Pamięć jest gromadzona automatycznie z konfiguracji profilu, wyodrębniania danych projektu i marki, połączonych aplikacji oraz przydatnych faktów poznanych podczas czatów. Zapisana lista poniżej służy do przeglądu; reszta działa po cichu, dopóki nie otworzysz opcji Dodaj lub Zaawansowane.",
+    "Memory hooks": "Haki pamięci",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "Dostosuj sposób zapisywania i używania pamięci bez całkowitego jej wyłączania.",
+    "Profile injection": "Wstawianie profilu",
+    "Include your saved profile in the prompt.": "Dołącza zapisany profil do promptu.",
+    "Query rewrite": "Przeredagowanie zapytania",
+    "Expand short requests into a fuller task brief first.": "Najpierw rozwija krótkie prośby w pełniejszy opis zadania.",
+    "Self-verify": "Samoweryfikacja",
+    "Check responses against saved rules and report a scorecard.": "Sprawdza odpowiedzi względem zapisanych reguł i przedstawia ocenę.",
+    "Chat extraction": "Wyodrębnianie z czatu",
+    "Learn new facts and preferences from chat turns.": "Uczy się nowych faktów i preferencji z wypowiedzi na czacie.",
+  },
+  hu: {
+    "Memory": "Memória",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "Szabályozza, hogy a mentett tények, preferenciák és projektkörnyezet újra felhasználásra kerüljenek-e a jövőbeli csevegésekben.",
+    "Memory view": "Memórianézet",
+    "Memories": "Emlékek",
+    "How it works": "Hogyan működik",
+    "Add memory": "Emlék hozzáadása",
+    "Advanced": "Speciális",
+    "On": "Be",
+    "Off": "Ki",
+    "Enable memory": "Memória engedélyezése",
+    "Saved memory": "Mentett memória",
+    "Saved facts, preferences, and project context available to future chats.": "Mentett tények, preferenciák és projektkörnyezet, amelyek a jövőbeli csevegésekben elérhetők.",
+    "saved": "mentve",
+    "All": "Összes",
+    "Clear extraction history": "Kinyerési előzmények törlése",
+    "Clear": "Törlés",
+    "Refresh": "Frissítés",
+    "Refreshing": "Frissítés folyamatban",
+    "No saved memories yet": "Még nincsenek mentett emlékek",
+    "Tell the assistant a fact in chat — e.g.": "Mondjon el egy tényt az asszisztensnek a csevegésben — pl.",
+    "I prefer dark mode": "A sötét módot részesítem előnyben",
+    "— and it will be saved here automatically.": "— és az automatikusan ide kerül.",
+    "Onboarding": "Bevezetés",
+    "Brand context": "Márkakörnyezet",
+    "Chat signals": "Csevegési jelek",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "A memória automatikusan gyűlik a profilbeállításból, a projekt- és márkaadatok kinyeréséből, a csatlakoztatott alkalmazásokból és a csevegések során megismert hasznos tényekből. Az alábbi mentett lista szolgál az áttekintésre; minden más csendben fut, hacsak meg nem nyitja a Hozzáadás vagy a Speciális lehetőséget.",
+    "Memory hooks": "Memóriahorgok",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "Finomhangolja a memória rögzítését és használatát anélkül, hogy teljesen kikapcsolná.",
+    "Profile injection": "Profil beillesztése",
+    "Include your saved profile in the prompt.": "A mentett profil belefoglalása a promptba.",
+    "Query rewrite": "Kérés átfogalmazása",
+    "Expand short requests into a fuller task brief first.": "A rövid kérések előbb részletesebb feladatleírássá bővítése.",
+    "Self-verify": "Önellenőrzés",
+    "Check responses against saved rules and report a scorecard.": "A válaszok ellenőrzése a mentett szabályok alapján, értékelőlappal.",
+    "Chat extraction": "Kinyerés a csevegésből",
+    "Learn new facts and preferences from chat turns.": "Új tények és preferenciák tanulása a csevegési üzenetekből.",
+  },
+  fr: {
+    "Memory": "Mémoire",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "Choisissez si les faits, préférences et contexte de projet enregistrés sont réutilisés dans les futures discussions.",
+    "Memory view": "Vue de la mémoire",
+    "Memories": "Souvenirs",
+    "How it works": "Fonctionnement",
+    "Add memory": "Ajouter un souvenir",
+    "Advanced": "Avancé",
+    "On": "Activé",
+    "Off": "Désactivé",
+    "Enable memory": "Activer la mémoire",
+    "Saved memory": "Mémoire enregistrée",
+    "Saved facts, preferences, and project context available to future chats.": "Faits, préférences et contexte de projet enregistrés, disponibles pour les futures discussions.",
+    "saved": "enregistrés",
+    "All": "Tout",
+    "Clear extraction history": "Effacer l’historique d’extraction",
+    "Clear": "Effacer",
+    "Refresh": "Actualiser",
+    "Refreshing": "Actualisation",
+    "No saved memories yet": "Aucun souvenir enregistré pour l’instant",
+    "Tell the assistant a fact in chat — e.g.": "Indiquez un fait à l’assistant dans la discussion — p. ex.",
+    "I prefer dark mode": "Je préfère le mode sombre",
+    "— and it will be saved here automatically.": "— et il sera enregistré ici automatiquement.",
+    "Onboarding": "Prise en main",
+    "Brand context": "Contexte de marque",
+    "Chat signals": "Signaux de discussion",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "La mémoire est collectée automatiquement à partir de la configuration du profil, de l’extraction du projet et de la marque, des applications connectées et des faits utiles appris pendant les discussions. La liste enregistrée ci-dessous sert à la vérification ; tout le reste fonctionne discrètement, sauf si vous ouvrez Ajouter ou Avancé.",
+    "Memory hooks": "Crochets de mémoire",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "Ajustez la façon dont la mémoire est capturée et utilisée sans la désactiver complètement.",
+    "Profile injection": "Injection du profil",
+    "Include your saved profile in the prompt.": "Inclut votre profil enregistré dans le prompt.",
+    "Query rewrite": "Reformulation de la requête",
+    "Expand short requests into a fuller task brief first.": "Développe d’abord les demandes courtes en un brief de tâche plus complet.",
+    "Self-verify": "Auto-vérification",
+    "Check responses against saved rules and report a scorecard.": "Vérifie les réponses par rapport aux règles enregistrées et fournit une grille d’évaluation.",
+    "Chat extraction": "Extraction de la discussion",
+    "Learn new facts and preferences from chat turns.": "Apprend de nouveaux faits et préférences à partir des messages de la discussion.",
+  },
+  uk: {
+    "Memory": "Пам'ять",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "Визначає, чи використовуватимуться збережені факти, вподобання та контекст проєкту в майбутніх чатах.",
+    "Memory view": "Вигляд пам'яті",
+    "Memories": "Спогади",
+    "How it works": "Як це працює",
+    "Add memory": "Додати спогад",
+    "Advanced": "Додатково",
+    "On": "Увімк.",
+    "Off": "Вимк.",
+    "Enable memory": "Увімкнути пам'ять",
+    "Saved memory": "Збережена пам'ять",
+    "Saved facts, preferences, and project context available to future chats.": "Збережені факти, вподобання та контекст проєкту, доступні в майбутніх чатах.",
+    "saved": "збережено",
+    "All": "Усі",
+    "Clear extraction history": "Очистити історію видобування",
+    "Clear": "Очистити",
+    "Refresh": "Оновити",
+    "Refreshing": "Оновлення",
+    "No saved memories yet": "Збережених спогадів ще немає",
+    "Tell the assistant a fact in chat — e.g.": "Повідомте асистенту факт у чаті — наприклад,",
+    "I prefer dark mode": "Я віддаю перевагу темній темі",
+    "— and it will be saved here automatically.": "— і його буде автоматично збережено тут.",
+    "Onboarding": "Початкове налаштування",
+    "Brand context": "Контекст бренду",
+    "Chat signals": "Сигнали з чату",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "Пам'ять збирається автоматично з налаштування профілю, видобування даних про проєкт і бренд, підключених застосунків і корисних фактів, отриманих під час чатів. Збережений список нижче призначений для перегляду; усе інше працює непомітно, доки ви не відкриєте «Додати» або «Додатково».",
+    "Memory hooks": "Хуки пам'яті",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "Точно налаштуйте, як пам'ять збирається й використовується, не вимикаючи її повністю.",
+    "Profile injection": "Підстановка профілю",
+    "Include your saved profile in the prompt.": "Додавати ваш збережений профіль до промпту.",
+    "Query rewrite": "Переформулювання запиту",
+    "Expand short requests into a fuller task brief first.": "Спершу розгортати короткі запити в повніший опис завдання.",
+    "Self-verify": "Самоперевірка",
+    "Check responses against saved rules and report a scorecard.": "Перевіряти відповіді за збереженими правилами й надавати оцінювальну таблицю.",
+    "Chat extraction": "Видобування з чату",
+    "Learn new facts and preferences from chat turns.": "Дізнаватися нові факти й вподобання з реплік у чаті.",
+  },
+  tr: {
+    "Memory": "Bellek",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "Kaydedilen bilgilerin, tercihlerin ve proje bağlamının gelecekteki sohbetlerde yeniden kullanılıp kullanılmayacağını belirleyin.",
+    "Memory view": "Bellek görünümü",
+    "Memories": "Anılar",
+    "How it works": "Nasıl çalışır",
+    "Add memory": "Anı ekle",
+    "Advanced": "Gelişmiş",
+    "On": "Açık",
+    "Off": "Kapalı",
+    "Enable memory": "Belleği etkinleştir",
+    "Saved memory": "Kaydedilen bellek",
+    "Saved facts, preferences, and project context available to future chats.": "Gelecekteki sohbetlerde kullanılabilecek kaydedilmiş bilgiler, tercihler ve proje bağlamı.",
+    "saved": "kaydedildi",
+    "All": "Tümü",
+    "Clear extraction history": "Çıkarma geçmişini temizle",
+    "Clear": "Temizle",
+    "Refresh": "Yenile",
+    "Refreshing": "Yenileniyor",
+    "No saved memories yet": "Henüz kaydedilmiş anı yok",
+    "Tell the assistant a fact in chat — e.g.": "Sohbette asistana bir bilgi söyleyin — ör.",
+    "I prefer dark mode": "Karanlık modu tercih ederim",
+    "— and it will be saved here automatically.": "— ve bu bilgi otomatik olarak buraya kaydedilir.",
+    "Onboarding": "İlk kurulum",
+    "Brand context": "Marka bağlamı",
+    "Chat signals": "Sohbet sinyalleri",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "Bellek; profil kurulumundan, proje ve marka çıkarımından, bağlı uygulamalardan ve sohbetlerde öğrenilen faydalı bilgilerden otomatik olarak toplanır. Aşağıdaki kayıtlı liste inceleme alanıdır; Ekle veya Gelişmiş'i açmadığınız sürece geri kalan her şey sessizce çalışır.",
+    "Memory hooks": "Bellek kancaları",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "Belleği tamamen kapatmadan nasıl yakalandığını ve kullanıldığını ince ayarlayın.",
+    "Profile injection": "Profil ekleme",
+    "Include your saved profile in the prompt.": "Kaydedilmiş profilinizi isteme dahil eder.",
+    "Query rewrite": "Sorguyu yeniden yazma",
+    "Expand short requests into a fuller task brief first.": "Kısa istekleri önce daha kapsamlı bir görev özetine genişletir.",
+    "Self-verify": "Kendini doğrulama",
+    "Check responses against saved rules and report a scorecard.": "Yanıtları kaydedilmiş kurallara göre kontrol eder ve bir puan kartı sunar.",
+    "Chat extraction": "Sohbetten çıkarım",
+    "Learn new facts and preferences from chat turns.": "Sohbet mesajlarından yeni bilgiler ve tercihler öğrenir.",
+  },
+  th: {
+    "Memory": "หน่วยความจำ",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "ควบคุมว่าจะนำข้อเท็จจริง ความชอบ และบริบทของโปรเจกต์ที่บันทึกไว้กลับมาใช้ในแชตครั้งถัดไปหรือไม่",
+    "Memory view": "มุมมองหน่วยความจำ",
+    "Memories": "ความทรงจำ",
+    "How it works": "วิธีการทำงาน",
+    "Add memory": "เพิ่มความทรงจำ",
+    "Advanced": "ขั้นสูง",
+    "On": "เปิด",
+    "Off": "ปิด",
+    "Enable memory": "เปิดใช้หน่วยความจำ",
+    "Saved memory": "หน่วยความจำที่บันทึกไว้",
+    "Saved facts, preferences, and project context available to future chats.": "ข้อเท็จจริง ความชอบ และบริบทของโปรเจกต์ที่บันทึกไว้ ซึ่งพร้อมใช้ในแชตครั้งถัดไป",
+    "saved": "รายการที่บันทึก",
+    "All": "ทั้งหมด",
+    "Clear extraction history": "ล้างประวัติการดึงข้อมูล",
+    "Clear": "ล้าง",
+    "Refresh": "รีเฟรช",
+    "Refreshing": "กำลังรีเฟรช",
+    "No saved memories yet": "ยังไม่มีความทรงจำที่บันทึกไว้",
+    "Tell the assistant a fact in chat — e.g.": "บอกข้อเท็จจริงกับผู้ช่วยในแชต — เช่น",
+    "I prefer dark mode": "ฉันชอบโหมดมืด",
+    "— and it will be saved here automatically.": "— แล้วระบบจะบันทึกไว้ที่นี่โดยอัตโนมัติ",
+    "Onboarding": "การเริ่มต้นใช้งาน",
+    "Brand context": "บริบทของแบรนด์",
+    "Chat signals": "สัญญาณจากแชต",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "หน่วยความจำจะถูกรวบรวมโดยอัตโนมัติจากการตั้งค่าโปรไฟล์ การดึงข้อมูลโปรเจกต์และแบรนด์ แอปที่เชื่อมต่อ และข้อเท็จจริงที่เป็นประโยชน์ซึ่งเรียนรู้ระหว่างแชต รายการที่บันทึกด้านล่างใช้สำหรับตรวจทาน ส่วนอื่นทั้งหมดจะทำงานเงียบ ๆ เว้นแต่คุณจะเปิด เพิ่ม หรือ ขั้นสูง",
+    "Memory hooks": "ฮุกหน่วยความจำ",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "ปรับแต่งวิธีเก็บและใช้หน่วยความจำโดยไม่ต้องปิดทั้งหมด",
+    "Profile injection": "แทรกโปรไฟล์",
+    "Include your saved profile in the prompt.": "รวมโปรไฟล์ที่บันทึกไว้ของคุณไว้ในพรอมต์",
+    "Query rewrite": "เขียนคำขอใหม่",
+    "Expand short requests into a fuller task brief first.": "ขยายคำขอสั้น ๆ ให้เป็นคำอธิบายงานที่สมบูรณ์ขึ้นก่อน",
+    "Self-verify": "ตรวจสอบตนเอง",
+    "Check responses against saved rules and report a scorecard.": "ตรวจคำตอบเทียบกับกฎที่บันทึกไว้และรายงานผลเป็นตารางคะแนน",
+    "Chat extraction": "ดึงข้อมูลจากแชต",
+    "Learn new facts and preferences from chat turns.": "เรียนรู้ข้อเท็จจริงและความชอบใหม่จากข้อความในแชต",
+  },
+  it: {
+    "Memory": "Memoria",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "Scegli se riutilizzare nelle chat future i fatti, le preferenze e il contesto di progetto salvati.",
+    "Memory view": "Vista memoria",
+    "Memories": "Ricordi",
+    "How it works": "Come funziona",
+    "Add memory": "Aggiungi ricordo",
+    "Advanced": "Avanzate",
+    "On": "Attivo",
+    "Off": "Disattivo",
+    "Enable memory": "Attiva memoria",
+    "Saved memory": "Memoria salvata",
+    "Saved facts, preferences, and project context available to future chats.": "Fatti, preferenze e contesto di progetto salvati, disponibili per le chat future.",
+    "saved": "salvati",
+    "All": "Tutti",
+    "Clear extraction history": "Cancella cronologia di estrazione",
+    "Clear": "Cancella",
+    "Refresh": "Aggiorna",
+    "Refreshing": "Aggiornamento in corso",
+    "No saved memories yet": "Nessun ricordo salvato",
+    "Tell the assistant a fact in chat — e.g.": "Comunica un fatto all’assistente in chat — ad es.",
+    "I prefer dark mode": "Preferisco la modalità scura",
+    "— and it will be saved here automatically.": "— e verrà salvato qui automaticamente.",
+    "Onboarding": "Onboarding",
+    "Brand context": "Contesto del brand",
+    "Chat signals": "Segnali della chat",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "La memoria viene raccolta automaticamente dalla configurazione del profilo, dall’estrazione di progetto e brand, dalle app collegate e dai fatti utili appresi durante le chat. L’elenco salvato qui sotto serve per la revisione; tutto il resto resta in secondo piano, a meno che tu non apra Aggiungi o Avanzate.",
+    "Memory hooks": "Hook di memoria",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "Regola come la memoria viene acquisita e usata, senza disattivarla del tutto.",
+    "Profile injection": "Inserimento del profilo",
+    "Include your saved profile in the prompt.": "Include il tuo profilo salvato nel prompt.",
+    "Query rewrite": "Riformulazione della richiesta",
+    "Expand short requests into a fuller task brief first.": "Espande prima le richieste brevi in una descrizione dell’attività più completa.",
+    "Self-verify": "Autoverifica",
+    "Check responses against saved rules and report a scorecard.": "Controlla le risposte rispetto alle regole salvate e fornisce una scheda di valutazione.",
+    "Chat extraction": "Estrazione dalla chat",
+    "Learn new facts and preferences from chat turns.": "Apprende nuovi fatti e preferenze dai messaggi della chat.",
+  },
+  hi: {
+    "Memory": "मेमोरी",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "तय करें कि सहेजे गए तथ्य, प्राथमिकताएँ और प्रोजेक्ट संदर्भ आगे की चैट में दोबारा इस्तेमाल हों या नहीं।",
+    "Memory view": "मेमोरी दृश्य",
+    "Memories": "स्मृतियाँ",
+    "How it works": "यह कैसे काम करता है",
+    "Add memory": "स्मृति जोड़ें",
+    "Advanced": "उन्नत",
+    "On": "चालू",
+    "Off": "बंद",
+    "Enable memory": "मेमोरी सक्षम करें",
+    "Saved memory": "सहेजी गई मेमोरी",
+    "Saved facts, preferences, and project context available to future chats.": "सहेजे गए तथ्य, प्राथमिकताएँ और प्रोजेक्ट संदर्भ, जो आगे की चैट में उपलब्ध रहते हैं।",
+    "saved": "सहेजी गईं",
+    "All": "सभी",
+    "Clear extraction history": "निष्कर्षण इतिहास साफ़ करें",
+    "Clear": "साफ़ करें",
+    "Refresh": "रीफ़्रेश करें",
+    "Refreshing": "रीफ़्रेश हो रहा है",
+    "No saved memories yet": "अभी तक कोई सहेजी गई स्मृति नहीं",
+    "Tell the assistant a fact in chat — e.g.": "चैट में असिस्टेंट को कोई तथ्य बताएँ — जैसे",
+    "I prefer dark mode": "मुझे डार्क मोड पसंद है",
+    "— and it will be saved here automatically.": "— और वह यहाँ अपने आप सहेज लिया जाएगा।",
+    "Onboarding": "ऑनबोर्डिंग",
+    "Brand context": "ब्रांड संदर्भ",
+    "Chat signals": "चैट संकेत",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "मेमोरी प्रोफ़ाइल सेटअप, प्रोजेक्ट और ब्रांड निष्कर्षण, जुड़े हुए ऐप्स और चैट के दौरान सीखे गए उपयोगी तथ्यों से अपने आप इकट्ठा होती है। नीचे दी गई सहेजी गई सूची समीक्षा के लिए है; बाकी सब चुपचाप चलता रहता है, जब तक आप जोड़ें या उन्नत नहीं खोलते।",
+    "Memory hooks": "मेमोरी हुक",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "मेमोरी को पूरी तरह बंद किए बिना यह तय करें कि वह कैसे दर्ज और इस्तेमाल होती है।",
+    "Profile injection": "प्रोफ़ाइल जोड़ना",
+    "Include your saved profile in the prompt.": "आपकी सहेजी गई प्रोफ़ाइल को प्रॉम्प्ट में शामिल करता है।",
+    "Query rewrite": "क्वेरी को दोबारा लिखना",
+    "Expand short requests into a fuller task brief first.": "छोटे अनुरोधों को पहले एक विस्तृत कार्य विवरण में बदलता है।",
+    "Self-verify": "स्व-सत्यापन",
+    "Check responses against saved rules and report a scorecard.": "सहेजे गए नियमों के आधार पर जवाबों की जाँच करता है और स्कोरकार्ड देता है।",
+    "Chat extraction": "चैट से निष्कर्षण",
+    "Learn new facts and preferences from chat turns.": "चैट संदेशों से नए तथ्य और प्राथमिकताएँ सीखता है।",
+  },
+  ur: {
+    "Memory": "میموری",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "طے کریں کہ محفوظ کیے گئے حقائق، ترجیحات اور پروجیکٹ کا سیاق و سباق آئندہ چیٹس میں دوبارہ استعمال ہوں یا نہیں۔",
+    "Memory view": "میموری کا منظر",
+    "Memories": "یادیں",
+    "How it works": "یہ کیسے کام کرتا ہے",
+    "Add memory": "یاد شامل کریں",
+    "Advanced": "جدید",
+    "On": "آن",
+    "Off": "آف",
+    "Enable memory": "میموری فعال کریں",
+    "Saved memory": "محفوظ شدہ میموری",
+    "Saved facts, preferences, and project context available to future chats.": "محفوظ کیے گئے حقائق، ترجیحات اور پروجیکٹ کا سیاق و سباق جو آئندہ چیٹس میں دستیاب ہیں۔",
+    "saved": "محفوظ",
+    "All": "سب",
+    "Clear extraction history": "اخذ کی تاریخ صاف کریں",
+    "Clear": "صاف کریں",
+    "Refresh": "ریفریش کریں",
+    "Refreshing": "ریفریش ہو رہا ہے",
+    "No saved memories yet": "ابھی تک کوئی محفوظ یاد نہیں",
+    "Tell the assistant a fact in chat — e.g.": "چیٹ میں اسسٹنٹ کو کوئی حقیقت بتائیں — مثلاً",
+    "I prefer dark mode": "مجھے ڈارک موڈ پسند ہے",
+    "— and it will be saved here automatically.": "— اور یہ یہاں خودبخود محفوظ ہو جائے گی۔",
+    "Onboarding": "آن بورڈنگ",
+    "Brand context": "برانڈ کا سیاق و سباق",
+    "Chat signals": "چیٹ کے اشارے",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "میموری خودبخود پروفائل سیٹ اپ، پروجیکٹ اور برانڈ کے اخذ، منسلک ایپس اور چیٹس کے دوران سیکھے گئے مفید حقائق سے جمع ہوتی ہے۔ نیچے دی گئی محفوظ فہرست جائزے کے لیے ہے؛ باقی سب خاموشی سے چلتا رہتا ہے جب تک آپ شامل کریں یا جدید نہ کھولیں۔",
+    "Memory hooks": "میموری ہکس",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "میموری کو مکمل طور پر بند کیے بغیر اس کے محفوظ ہونے اور استعمال کے طریقے کو بہتر بنائیں۔",
+    "Profile injection": "پروفائل شامل کرنا",
+    "Include your saved profile in the prompt.": "آپ کی محفوظ پروفائل کو پرامپٹ میں شامل کرتا ہے۔",
+    "Query rewrite": "سوال دوبارہ لکھنا",
+    "Expand short requests into a fuller task brief first.": "مختصر درخواستوں کو پہلے ایک مکمل کام کی تفصیل میں پھیلاتا ہے۔",
+    "Self-verify": "خود تصدیق",
+    "Check responses against saved rules and report a scorecard.": "محفوظ قواعد کے مطابق جوابات جانچتا ہے اور اسکور کارڈ پیش کرتا ہے۔",
+    "Chat extraction": "چیٹ سے اخذ",
+    "Learn new facts and preferences from chat turns.": "چیٹ کے پیغامات سے نئے حقائق اور ترجیحات سیکھتا ہے۔",
+  },
+  bn: {
+    "Memory": "মেমরি",
+    "Control whether saved facts, preferences, and project context are reused in future chats.": "সংরক্ষিত তথ্য, পছন্দ এবং প্রজেক্টের প্রসঙ্গ ভবিষ্যতের চ্যাটে আবার ব্যবহার হবে কি না তা নিয়ন্ত্রণ করুন।",
+    "Memory view": "মেমরি ভিউ",
+    "Memories": "স্মৃতি",
+    "How it works": "কীভাবে কাজ করে",
+    "Add memory": "স্মৃতি যোগ করুন",
+    "Advanced": "উন্নত",
+    "On": "চালু",
+    "Off": "বন্ধ",
+    "Enable memory": "মেমরি চালু করুন",
+    "Saved memory": "সংরক্ষিত মেমরি",
+    "Saved facts, preferences, and project context available to future chats.": "ভবিষ্যতের চ্যাটে ব্যবহারযোগ্য সংরক্ষিত তথ্য, পছন্দ এবং প্রজেক্টের প্রসঙ্গ।",
+    "saved": "সংরক্ষিত",
+    "All": "সব",
+    "Clear extraction history": "নিষ্কাশনের ইতিহাস মুছুন",
+    "Clear": "মুছুন",
+    "Refresh": "রিফ্রেশ করুন",
+    "Refreshing": "রিফ্রেশ হচ্ছে",
+    "No saved memories yet": "এখনও কোনো সংরক্ষিত স্মৃতি নেই",
+    "Tell the assistant a fact in chat — e.g.": "চ্যাটে সহকারীকে একটি তথ্য জানান — যেমন",
+    "I prefer dark mode": "আমি ডার্ক মোড পছন্দ করি",
+    "— and it will be saved here automatically.": "— এবং এটি এখানে স্বয়ংক্রিয়ভাবে সংরক্ষিত হবে।",
+    "Onboarding": "অনবোর্ডিং",
+    "Brand context": "ব্র্যান্ডের প্রসঙ্গ",
+    "Chat signals": "চ্যাটের সংকেত",
+    "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.": "প্রোফাইল সেটআপ, প্রজেক্ট ও ব্র্যান্ড নিষ্কাশন, সংযুক্ত অ্যাপ এবং চ্যাটের সময় শেখা দরকারি তথ্য থেকে মেমরি স্বয়ংক্রিয়ভাবে সংগ্রহ করা হয়। নিচের সংরক্ষিত তালিকাটি পর্যালোচনার জন্য; আপনি যোগ করুন বা উন্নত না খুললে বাকি সবকিছু নীরবে চলে।",
+    "Memory hooks": "মেমরি হুক",
+    "Fine-tune how memory is captured and used, without turning it off entirely.": "মেমরি পুরোপুরি বন্ধ না করে এটি কীভাবে সংগ্রহ ও ব্যবহার হয় তা সূক্ষ্মভাবে ঠিক করুন।",
+    "Profile injection": "প্রোফাইল যুক্ত করা",
+    "Include your saved profile in the prompt.": "আপনার সংরক্ষিত প্রোফাইল প্রম্পটে অন্তর্ভুক্ত করে।",
+    "Query rewrite": "কোয়েরি পুনর্লিখন",
+    "Expand short requests into a fuller task brief first.": "ছোট অনুরোধগুলোকে প্রথমে আরও পূর্ণাঙ্গ কাজের বিবরণে রূপান্তর করে।",
+    "Self-verify": "স্ব-যাচাই",
+    "Check responses against saved rules and report a scorecard.": "সংরক্ষিত নিয়মের সঙ্গে উত্তর মিলিয়ে দেখে এবং একটি স্কোরকার্ড দেয়।",
+    "Chat extraction": "চ্যাট থেকে নিষ্কাশন",
+    "Learn new facts and preferences from chat turns.": "চ্যাটের বার্তা থেকে নতুন তথ্য ও পছন্দ শেখে।",
+  },
+};
+&nbsp;
+export const t = createDictionaryTranslator({ featureDictionary: SETTINGS_MEMORY_DICT }, { commonDictionary: COMMON_I18N });
+&nbsp;
+/** Every `t()` key the mounted memory panel renders, as the package spells it. */
+const MEMORY_PANEL_KEYS: readonly string[] = [
+  "Memory",
+  "Control whether saved facts, preferences, and project context are reused in future chats.",
+  "Memory view",
+  "Memories",
+  "How it works",
+  "Add memory",
+  "Advanced",
+  "On",
+  "Off",
+  "Enable memory",
+  "Saved memory",
+  "Saved facts, preferences, and project context available to future chats.",
+  "saved",
+  "All",
+  "Clear extraction history",
+  "Clear",
+  "Refresh",
+  "Refreshing",
+  "No saved memories yet",
+  "Tell the assistant a fact in chat — e.g.",
+  "I prefer dark mode",
+  "— and it will be saved here automatically.",
+  "Onboarding",
+  "Brand context",
+  "Chat signals",
+  "Memory is gathered automatically from profile setup, project and brand extraction, connected apps, and useful facts learned during chats. The saved list below is the review surface; everything else stays quiet unless you open Add or Advanced.",
+  "Memory hooks",
+  "Fine-tune how memory is captured and used, without turning it off entirely.",
+  "Profile injection",
+  "Include your saved profile in the prompt.",
+  "Query rewrite",
+  "Expand short requests into a fuller task brief first.",
+  "Self-verify",
+  "Check responses against saved rules and report a scorecard.",
+  "Chat extraction",
+  "Learn new facts and preferences from chat turns.",
+];
+&nbsp;
+/**
+ * `I18nProvider`-ready dictionaries for the memory panel in `locale`: one entry, the active locale,
+ * each key resolved through {@link t} (so a key this file lacks still reaches `COMMON_I18N`, then
+ * English). Pass `locale` as the provider's `initialLocale` too.
+ *
+ * @complexity O(k) in the key count.
+ */
+export function memoryPanelDictionaries(locale: string): Record&lt;string, Record&lt;string, string&gt;&gt; {
+  return { [locale]: Object.fromEntries(MEMORY_PANEL_KEYS.map((key) =&gt; [key, t({ locale: locale, key: key })])) };
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

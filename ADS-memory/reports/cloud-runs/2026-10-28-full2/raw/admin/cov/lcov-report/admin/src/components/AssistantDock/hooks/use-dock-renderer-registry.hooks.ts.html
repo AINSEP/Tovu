@@ -1,0 +1,655 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/components/AssistantDock/hooks/use-dock-renderer-registry.hooks.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../../index.html">All files</a> / <a href="index.html">admin/src/components/AssistantDock/hooks</a> use-dock-renderer-registry.hooks.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>19/19</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>11/11</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>16/16</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">27x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">27x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">27x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">349x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">865x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">742x</span>
+<span class="cline-any cline-yes">175x</span>
+<span class="cline-any cline-yes">175x</span>
+<span class="cline-any cline-yes">175x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">742x</span>
+<span class="cline-any cline-yes">742x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { createElement, useLayoutEffect, useState } from "react";
+import {
+  createExtEventRendererRegistry,
+  createMcpUiToolCaller,
+  MCP_UI_EXT_EVENT_NAME,
+  mcpUiSurfaceSlotKey,
+  MidRunUserMessage,
+  MID_RUN_USER_MESSAGE_EXT_EVENT_NAME,
+  midRunUserMessageSlotKey,
+  type ExtEventRendererRegistry,
+} from "@jini-ai/chat/react";
+import { createA2uiActionPoster } from "../../../lib/a2ui-action-poster";
+import { AgentFailureCard } from "../AgentFailureCard";
+import { AGENT_FAILURE_EVENT } from "../agent-failure";
+import { OverflowAwareMcpUiSurfaceCard } from "../OverflowAwareMcpUiSurfaceCard";
+import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
+import { SlowRunNoticeCard } from "../SlowRunNoticeCard";
+import { buildAssistantMcpUiSandboxProxyUrl, openMcpUiLink } from "./AssistantDock.hooks";
+&nbsp;
+/**
+ * Wires the MCP-UI dialog's confirmed click back to Tovu's own redemption endpoint (ADR-053
+ * Decision 3).
+ *
+ * `onToolCall: createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/api/admin/v1/mcp-ui/tool-calls" })` is what
+ * completes the confirmation loop: when a human clicks "Delete" in the rendered dialog, the View
+ * posts a `tools/call`, and this relays it (same-origin, session cookie) to Tovu's own
+ * admin-session-authenticated proxy (`src/server/modules/assistant.ts`), which forwards it to the
+ * daemon-side redemption route (`src/assistant/mcp-ui-tool-calls-route.ts`) — the one place that
+ * actually holds the `content_post_delete` handler and its held-open surface exchange. `path` is
+ * required rather than the library's own bare-daemon default (`/api/mcp-ui/tool-calls`): Tovu mounts
+ * this behind the admin-session-gated `/api/admin/v1` prefix, exactly the case
+ * `CreateMcpUiToolCallerOptions.path`'s own doc calls out ("hosts mounting the redemption route
+ * inside an already-authenticated admin API will need this"). With `onToolCall` wired, the dialog no
+ * longer refuses every tool call — a real confirmed click now redeems the token and completes the
+ * delete.
+ *
+ * The other half of the contract lives in `../../../lib/assistant-transport.ts`'s `case "mcp-ui"`,
+ * which unwraps the wire envelope to the bare `EmbeddedResource` this renderer's `parseUIResource`
+ * requires. All three pieces are needed; any one missing renders an empty frame or a dialog that
+ * cannot complete its action.
+ *
+ * Module scope, and returned from the hook, because it has a second caller: `AssistantDock.tsx`'s
+ * `resolveComposerHostBinding` reuses the exact same allowlisted, session-cookie route for a
+ * composer capability's `'allowlisted-tool-call'` binding (debate 2, "Composer slash commands" —
+ * that binding is real infrastructure, unwired to any capability in the bundled catalog today,
+ * since nothing is on `MCP_UI_REDEEMABLE_TOOL_IDS`'s allowlist for that purpose; see
+ * `composer-capabilities.ts`'s module doc). One instance, one endpoint, one allowlist gate — never a
+ * second POST path to the same route.
+ */
+const mcpUiToolCaller = createMcpUiToolCaller({ baseUrl: "", fetch }, { path: "/api/admin/v1/mcp-ui/tool-calls" });
+/**
+ * Computed once, module scope — same posture as `mcpUiToolCaller` above, and for the same reason:
+ * the MCP-UI render function below is re-invoked by `@jini-ai/chat/react` on every transcript
+ * render of an active `mcp-ui` event, not just once at registration. Building this URL inline there
+ * (as it used to be) minted a fresh `new URL(...)` object every such call — same string value, new
+ * identity — which flows straight through `OverflowAwareMcpUiSurfaceCard` -&gt; `McpUiSurfaceCard` -&gt;
+ * `McpUiHost` into Jini's `useMcpUiHost`, where `rendererProps = useMemo(..., [html,
+ * sandboxProxyUrl, ...])` (`useMcpUiHost.ts`) treats a changed `sandboxProxyUrl` identity as a
+ * reason to recompute even when `html` (the real View content) hasn't changed — silently defeating
+ * that memo on every re-render (2026-09-05 Gemini audit finding 33, confirmed by tracing into
+ * `useMcpUiHost.ts`). `globalThis.location.origin` does not change for the life of this tab, so
+ * hoisting to a plain module-scope constant is exact, not an approximation.
+ */
+const assistantMcpUiSandboxProxyUrl = buildAssistantMcpUiSandboxProxyUrl(globalThis.location.origin);
+/** The A2UI agent-action relay; see the `"a2ui"` registration below. Module scope like the two above. */
+const postA2uiAction = createA2uiActionPoster("", { path: "/api/admin/v1/a2ui/actions" });
+&nbsp;
+/**
+ * Registers the dock's cards on `registry` and returns one disposer for all of them. Each disposer
+ * removes only its own entry (Jini compares the registration, not the callback), so a stale cleanup
+ * never erases a newer registration of the same name.
+ */
+function registerDockRenderers({ registry }: { registry: ExtEventRendererRegistry }): () =&gt; void {
+  const unregister = [
+    /**
+     * Registered via the low-level `register` (not Jini's own `registerMcpUiSurfaceRenderer`
+     * convenience call, which would bind `McpUiSurfaceCard` itself with no seam to wrap it) so this
+     * dock can render `OverflowAwareMcpUiSurfaceCard` instead — the "Show in modal" affordance
+     * (chat-overflow fix, 2026-08-30) around the same real `McpUiSurfaceCard`, same props, same
+     * behavior otherwise. Exactly the shape the `"a2ui"` registration below already uses for
+     * `RoutedA2uiSurfaceCard`.
+     *
+     * Deliberately NOT passing `maxHeight` here — tried 480px first and reverted it after a live
+     * measurement caught a real regression it caused. `McpUiHost` sets `iframe.style.height` to
+     * `min(reported, maxHeight)`, but the surface's own document (`document.ts`'s `SURFACE_BASE_CSS`)
+     * has no `overflow` rule on `body`/`html` — so when a cap forces the frame SHORTER than the
+     * surface's real content, that content does not get clipped or internally scrolled, it visibly
+     * overflows the iframe's own box into the host page. Measured live (2026-08-16): capping at 480px
+     * against a ~559-580px-tall confirmation pushed its buttons back into the composer's covered zone
+     * by rendering them outside the (too-short) iframe entirely — the same failure this whole fix
+     * exists to prevent, just from a different cause. That is a latent defect in `McpUiHost`/
+     * `document.ts` shared by every consumer of the package (nothing before this dock had passed a cap
+     * below ~720px worth of real content to notice it), not something to paper over with a Tovu-only
+     * number; it needs its own careful fix to the auto-resize protocol, not a rushed one here.
+     *
+     * The library default (`DEFAULT_MAX_HEIGHT`, 720px) stays in effect and is untouched — it is
+     * already comfortably above every surface this dock has rendered, and reachability no longer
+     * depends on a tight cap at all: `MessageList`'s resize-aware sticky-scroll fix keeps a surface's
+     * action buttons reachable by scrolling regardless of its real height, and
+     * `useChatPaneControlsHeight`'s live-measured padding reservation keeps the transcript's true
+     * bottom clear of the composer overlay. A future host that genuinely needs a tighter ceiling can
+     * still pass `maxHeight` — the prop stays tested and supported — but should do so only once
+     * `document.ts` gives a capped surface its own internal scrollbar to overflow into.
+     */
+    registry.register({ name: MCP_UI_EXT_EVENT_NAME, renderer: (props) =&gt; createElement(OverflowAwareMcpUiSurfaceCard, {
+      ...props,
+      onToolCall: mcpUiToolCaller,
+      // Generic across every plugin's rendered card, not Supabase-specific (S-G1b) — see
+      // `openMcpUiLink`'s own doc (`AssistantDock.hooks.tsx`) for the `https:`-only allowlist and why
+      // omitting this makes `useMcpUiHost` refuse every `ui/open-link` request instead.
+      onOpenLink: openMcpUiLink,
+      // A same-document `data:` URL, not a route on this admin app's own origin — see
+      // `buildAssistantMcpUiSandboxProxyUrl`'s own doc (`AssistantDock.hooks.tsx`) for why: a
+      // same-origin route would hand any third-party MCP server's HTML this admin origin's full
+      // authority, because `@mcp-ui/client`'s `AppFrame` hardcodes `allow-same-origin` on the iframe
+      // it creates.
+      sandboxProxyUrl: assistantMcpUiSandboxProxyUrl,
+    }) }, {
+      // One transcript slot per `ui://` URI, so a run's second card (a second choice, a Connect card
+      // after a choice) renders where it arrived instead of inside the first card's slot, far above the
+      // tool row that is waiting on it (stuck-chat investigation, 2026-09-27).
+      slotKey: mcpUiSurfaceSlotKey,
+    }),
+    /**
+     * A2UI's counterpart to the MCP-UI wiring above — same "one line completes the loop" shape.
+     * `@jini-ai/chat/react`'s `A2uiSurfaceCard` renders any run event `assistant-transport.ts`'s
+     * `case "a2ui"` unwraps to a bare `AgentToRendererMessage`; when a rendered `Button`'s action is
+     * agent-directed (as opposed to a `local` client-side function call, which the card already
+     * resolves and displays itself), `onAgentAction` is what gives that action somewhere real to go —
+     * `createA2uiActionPoster` posts it to `a2ui-actions-route.ts` (proxied, same as every other
+     * assistant route), which delivers it into the held-open exchange `assistant_demo_a2ui` (or any
+     * future A2UI-opening tool) is waiting on.
+     *
+     * Without this line, `A2uiSurfaceCard` still renders correctly but falls back to its own honest
+     * "this host has not wired up a live agent-action relay yet" notice on every agent-directed click
+     * (see that component's own module doc) — exactly the gap `examples/reference-web/src/A2uiLab.tsx`
+     * leaves open deliberately, because a demo fixture has no real backend to relay to. Tovu does now.
+     *
+     * Registered against `RoutedA2uiSurfaceCard`, not `A2uiSurfaceCard` directly — the Studio
+     * Playground "whiteboard" feature: when `/admin/playground` is the active page, that wrapper
+     * portals the exact same card onto the Playground canvas instead of rendering it inline in the
+     * transcript. Every other page is unaffected — no target registered there, so the wrapper falls
+     * straight through to `A2uiSurfaceCard` unchanged. See `RoutedA2uiSurfaceCard.tsx`'s own doc for
+     * the full routing decision and `lib/playground-render-target-bus.ts` for the seam it reads.
+     */
+    registry.register({ name: "a2ui", renderer: (props) =&gt; createElement(RoutedA2uiSurfaceCard, { ...props, onAgentAction: postA2uiAction }) }),
+    // The wall-clock "still working" notice (`@jini-ai/daemon`'s `run-lifecycle.ts` slow-run
+    // watchdog) — see `SlowRunNoticeCard.tsx`'s own doc for the full "why `ext` instead of the
+    // existing (unrendered) `'status'` kind" reasoning.
+    registry.register({ name: "slow_running", renderer: (props) =&gt; createElement(SlowRunNoticeCard, props) }),
+    registry.register({ name: AGENT_FAILURE_EVENT, renderer: (props) =&gt; createElement(AgentFailureCard, props) }),
+    // What the operator sent mid-run, drawn as their own transcript row where the agent
+    // got it. Jini's `registerMidRunUserMessageRenderer` only targets the global registry, so this
+    // repeats its two lines (component + slot key) against the owned one.
+    registry.register({ name: MID_RUN_USER_MESSAGE_EXT_EVENT_NAME, renderer: (props) =&gt; createElement(MidRunUserMessage, {
+      events: props.events, runStreaming: props.runStreaming, transcriptRow: props.transcriptRow === true,
+    }) }, { slotKey: midRunUserMessageSlotKey }),
+  ];
+  return () =&gt; { unregister.forEach(dispose =&gt; dispose()); };
+}
+&nbsp;
+export interface DockRendererBinding {
+  /** Bind via `JiniChatProvider`'s `extEventRendererRegistry`. */
+  registry: ExtEventRendererRegistry;
+  /** The one MCP-UI redemption caller; see its module-scope doc. */
+  mcpUiToolCaller: ReturnType&lt;typeof createMcpUiToolCaller&gt;;
+}
+&nbsp;
+/**
+ * The dock's own ext-event renderer registry. These cards used to be registered on
+ * `@jini-ai/chat`'s global registry at module import, so every `ChatPane` on the page rendered
+ * them; an owned registry keeps them to this dock and leaves the globals to other chat trees.
+ *
+ * The registry is populated as it is created, so the transcript's very first render finds every
+ * card, exactly as with the old import-time registration (a `MessageRow` is memoized and would not
+ * re-render to pick up a registration that landed after it). `useState`, not `useMemo`, because
+ * Fast Refresh keeps state but re-runs memos: a new registry mid-session would hand the provider a
+ * different instance under a live transcript. The layout effect owns the cleanup handles:
+ * unmount removes the cards, and StrictMode's effect replay or a Fast Refresh re-registers right
+ * after its own cleanup (last writer wins, so the creation-time entries are simply replaced).
+ */
+export function useDockRendererRegistry(): DockRendererBinding {
+  const [registry] = useState(() =&gt; {
+    const owned = createExtEventRendererRegistry({});
+    registerDockRenderers({ registry: owned });
+    return owned;
+  });
+  useLayoutEffect(() =&gt; registerDockRenderers({ registry }), [registry]);
+  return { registry, mcpUiToolCaller };
+}
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../../sorter.js"></script>
+        <script src="../../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

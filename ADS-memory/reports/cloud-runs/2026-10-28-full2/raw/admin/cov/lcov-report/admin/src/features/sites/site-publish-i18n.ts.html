@@ -1,0 +1,184 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/sites/site-publish-i18n.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">admin/src/features/sites</a> site-publish-i18n.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>2/2</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>2/2</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">52x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">52x</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
+ * @file Copy for the Sites Export tab's Publish button and its list of past destinations (owner,
+ * 2026-10-18), every locale `sites-i18n.ts` carries. Merged into `SITES_DICT` there, like
+ * `SITE_TRANSFER_DICT`. Relative times ("3 days ago") come from `Intl.RelativeTimeFormat`.
+ */
+import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+import { COMMON_I18N } from "../../lib/i18n-common";
+&nbsp;
+export const SITE_PUBLISH_DICT: Record&lt;string, Record&lt;string, string&gt;&gt; = {
+  "ar": { "Publish": "نشر", "Publish destinations": "وجهات النشر", "Publish again to": "إعادة النشر إلى", "Loading destinations…": "جارٍ تحميل الوجهات…", "Could not load publish destinations.": "تعذّر تحميل وجهات النشر.", "Nothing published yet. Publish once from Deployment, then publish again from here.": "لم يُنشر شيء بعد. انشر مرة من النشر والاستضافة، ثم أعد النشر من هنا.", "Set up publishing": "إعداد النشر", "Last published {when}": "آخر نشر {when}", "Deploy started, not confirmed": "بدأ النشر، ولم يُؤكَّد", "Connect {name}": "ربط {name}", "Connect": "ربط", "Publish to {name}": "النشر إلى {name}", "Publishing…": "جارٍ النشر…", "Already up to date.": "محدَّث بالفعل.", "Published:": "تم النشر:", "{count} skipped: changed on the live site.": "تم تخطي {count}: تغيّرت على الموقع المباشر.", "Review in Publish": "مراجعة في النشر", "Static site": "موقع ثابت", "Tovu site": "موقع Tovu", "Deploy": "نشر وتشغيل", "Publishing was refused.": "رُفض النشر.", "Could not publish.": "تعذّر النشر." },
+  "bn": { "Publish": "প্রকাশ করুন", "Publish destinations": "প্রকাশের গন্তব্য", "Publish again to": "আবার প্রকাশ করুন", "Loading destinations…": "গন্তব্য লোড হচ্ছে…", "Could not load publish destinations.": "প্রকাশের গন্তব্য লোড করা যায়নি।", "Nothing published yet. Publish once from Deployment, then publish again from here.": "এখনও কিছু প্রকাশিত হয়নি। ডিপ্লয়মেন্ট থেকে একবার প্রকাশ করুন, তারপর এখান থেকে আবার প্রকাশ করুন।", "Set up publishing": "প্রকাশ সেট আপ করুন", "Last published {when}": "শেষ প্রকাশ {when}", "Deploy started, not confirmed": "ডিপ্লয় শুরু হয়েছে, নিশ্চিত নয়", "Connect {name}": "{name} সংযুক্ত করুন", "Connect": "সংযুক্ত করুন", "Publish to {name}": "{name}-এ প্রকাশ করুন", "Publishing…": "প্রকাশ হচ্ছে…", "Already up to date.": "ইতিমধ্যে হালনাগাদ।", "Published:": "প্রকাশিত:", "{count} skipped: changed on the live site.": "{count}টি বাদ গেছে: লাইভ সাইটে পরিবর্তিত।", "Review in Publish": "প্রকাশে পর্যালোচনা করুন", "Static site": "স্ট্যাটিক সাইট", "Tovu site": "Tovu সাইট", "Deploy": "ডিপ্লয়", "Publishing was refused.": "প্রকাশ প্রত্যাখ্যাত হয়েছে।", "Could not publish.": "প্রকাশ করা যায়নি।" },
+  "de": { "Publish": "Veröffentlichen", "Publish destinations": "Veröffentlichungsziele", "Publish again to": "Erneut veröffentlichen auf", "Loading destinations…": "Ziele werden geladen…", "Could not load publish destinations.": "Veröffentlichungsziele konnten nicht geladen werden.", "Nothing published yet. Publish once from Deployment, then publish again from here.": "Noch nichts veröffentlicht. Einmal über Bereitstellung veröffentlichen, dann hier erneut.", "Set up publishing": "Veröffentlichung einrichten", "Last published {when}": "Zuletzt veröffentlicht {when}", "Deploy started, not confirmed": "Bereitstellung gestartet, nicht bestätigt", "Connect {name}": "{name} verbinden", "Connect": "Verbinden", "Publish to {name}": "Auf {name} veröffentlichen", "Publishing…": "Wird veröffentlicht…", "Already up to date.": "Bereits aktuell.", "Published:": "Veröffentlicht:", "{count} skipped: changed on the live site.": "{count} übersprungen: auf der Live-Website geändert.", "Review in Publish": "In Veröffentlichen prüfen", "Static site": "Statische Website", "Tovu site": "Tovu-Website", "Deploy": "Bereitstellung", "Publishing was refused.": "Veröffentlichung wurde abgelehnt.", "Could not publish.": "Veröffentlichung fehlgeschlagen." },
+  "es": { "Publish": "Publicar", "Publish destinations": "Destinos de publicación", "Publish again to": "Volver a publicar en", "Loading destinations…": "Cargando destinos…", "Could not load publish destinations.": "No se pudieron cargar los destinos de publicación.", "Nothing published yet. Publish once from Deployment, then publish again from here.": "Aún no se ha publicado nada. Publica una vez desde Despliegue y luego vuelve a publicar desde aquí.", "Set up publishing": "Configurar publicación", "Last published {when}": "Última publicación {when}", "Deploy started, not confirmed": "Despliegue iniciado, sin confirmar", "Connect {name}": "Conectar {name}", "Connect": "Conectar", "Publish to {name}": "Publicar en {name}", "Publishing…": "Publicando…", "Already up to date.": "Ya está al día.", "Published:": "Publicado:", "{count} skipped: changed on the live site.": "{count} omitidos: cambiaron en el sitio en vivo.", "Review in Publish": "Revisar en Publicar", "Static site": "Sitio estático", "Tovu site": "Sitio Tovu", "Deploy": "Despliegue", "Publishing was refused.": "Se rechazó la publicación.", "Could not publish.": "No se pudo publicar." },
+  "fa": { "Publish": "انتشار", "Publish destinations": "مقصدهای انتشار", "Publish again to": "انتشار دوباره در", "Loading destinations…": "در حال بارگیری مقصدها…", "Could not load publish destinations.": "بارگیری مقصدهای انتشار ممکن نشد.", "Nothing published yet. Publish once from Deployment, then publish again from here.": "هنوز چیزی منتشر نشده است. یک بار از استقرار منتشر کنید، سپس از اینجا دوباره منتشر کنید.", "Set up publishing": "راه‌اندازی انتشار", "Last published {when}": "آخرین انتشار {when}", "Deploy started, not confirmed": "استقرار آغاز شد، تأیید نشده", "Connect {name}": "اتصال {name}", "Connect": "اتصال", "Publish to {name}": "انتشار در {name}", "Publishing…": "در حال انتشار…", "Already up to date.": "از قبل به‌روز است.", "Published:": "منتشر شد:", "{count} skipped: changed on the live site.": "{count} مورد رد شد: در سایت زنده تغییر کرده است.", "Review in Publish": "بازبینی در انتشار", "Static site": "سایت ایستا", "Tovu site": "سایت Tovu", "Deploy": "استقرار", "Publishing was refused.": "انتشار رد شد.", "Could not publish.": "انتشار ممکن نشد." },
+  "fr": { "Publish": "Publier", "Publish destinations": "Destinations de publication", "Publish again to": "Republier sur", "Loading destinations…": "Chargement des destinations…", "Could not load publish destinations.": "Impossible de charger les destinations de publication.", "Nothing published yet. Publish once from Deployment, then publish again from here.": "Rien n'a encore été publié. Publiez une fois depuis Déploiement, puis republiez d'ici.", "Set up publishing": "Configurer la publication", "Last published {when}": "Dernière publication {when}", "Deploy started, not confirmed": "Déploiement lancé, non confirmé", "Connect {name}": "Connecter {name}", "Connect": "Connecter", "Publish to {name}": "Publier sur {name}", "Publishing…": "Publication…", "Already up to date.": "Déjà à jour.", "Published:": "Publié :", "{count} skipped: changed on the live site.": "{count} ignorés : modifiés sur le site en ligne.", "Review in Publish": "Vérifier dans Publier", "Static site": "Site statique", "Tovu site": "Site Tovu", "Deploy": "Déploiement", "Publishing was refused.": "La publication a été refusée.", "Could not publish.": "Impossible de publier." },
+  "hi": { "Publish": "प्रकाशित करें", "Publish destinations": "प्रकाशन गंतव्य", "Publish again to": "फिर से प्रकाशित करें", "Loading destinations…": "गंतव्य लोड हो रहे हैं…", "Could not load publish destinations.": "प्रकाशन गंतव्य लोड नहीं हो सके।", "Nothing published yet. Publish once from Deployment, then publish again from here.": "अभी तक कुछ प्रकाशित नहीं हुआ। एक बार डिप्लॉयमेंट से प्रकाशित करें, फिर यहाँ से दोबारा प्रकाशित करें।", "Set up publishing": "प्रकाशन सेट करें", "Last published {when}": "अंतिम प्रकाशन {when}", "Deploy started, not confirmed": "डिप्लॉय शुरू हुआ, पुष्टि नहीं हुई", "Connect {name}": "{name} कनेक्ट करें", "Connect": "कनेक्ट करें", "Publish to {name}": "{name} पर प्रकाशित करें", "Publishing…": "प्रकाशित हो रहा है…", "Already up to date.": "पहले से अद्यतन है।", "Published:": "प्रकाशित:", "{count} skipped: changed on the live site.": "{count} छोड़े गए: लाइव साइट पर बदले गए।", "Review in Publish": "प्रकाशन में समीक्षा करें", "Static site": "स्टैटिक साइट", "Tovu site": "Tovu साइट", "Deploy": "डिप्लॉय", "Publishing was refused.": "प्रकाशन अस्वीकार किया गया।", "Could not publish.": "प्रकाशित नहीं हो सका।" },
+  "hu": { "Publish": "Közzététel", "Publish destinations": "Közzétételi célok", "Publish again to": "Újra közzététel ide", "Loading destinations…": "Célok betöltése…", "Could not load publish destinations.": "A közzétételi célok nem tölthetők be.", "Nothing published yet. Publish once from Deployment, then publish again from here.": "Még nincs közzétéve semmi. Tedd közzé egyszer a Telepítés oldalon, utána innen újra.", "Set up publishing": "Közzététel beállítása", "Last published {when}": "Utoljára közzétéve {when}", "Deploy started, not confirmed": "Telepítés elindult, nincs megerősítve", "Connect {name}": "{name} csatlakoztatása", "Connect": "Csatlakoztatás", "Publish to {name}": "Közzététel ide: {name}", "Publishing…": "Közzététel…", "Already up to date.": "Már naprakész.", "Published:": "Közzétéve:", "{count} skipped: changed on the live site.": "{count} kihagyva: megváltozott az élő oldalon.", "Review in Publish": "Áttekintés a Közzétételben", "Static site": "Statikus oldal", "Tovu site": "Tovu-oldal", "Deploy": "Telepítés", "Publishing was refused.": "A közzétételt elutasították.", "Could not publish.": "A közzététel nem sikerült." },
+  "id": { "Publish": "Terbitkan", "Publish destinations": "Tujuan penerbitan", "Publish again to": "Terbitkan lagi ke", "Loading destinations…": "Memuat tujuan…", "Could not load publish destinations.": "Tidak dapat memuat tujuan penerbitan.", "Nothing published yet. Publish once from Deployment, then publish again from here.": "Belum ada yang diterbitkan. Terbitkan sekali dari Deployment, lalu terbitkan lagi dari sini.", "Set up publishing": "Siapkan penerbitan", "Last published {when}": "Terakhir diterbitkan {when}", "Deploy started, not confirmed": "Deploy dimulai, belum dikonfirmasi", "Connect {name}": "Hubungkan {name}", "Connect": "Hubungkan", "Publish to {name}": "Terbitkan ke {name}", "Publishing…": "Menerbitkan…", "Already up to date.": "Sudah terbaru.", "Published:": "Diterbitkan:", "{count} skipped: changed on the live site.": "{count} dilewati: berubah di situs live.", "Review in Publish": "Tinjau di Terbitkan", "Static site": "Situs statis", "Tovu site": "Situs Tovu", "Deploy": "Terapkan", "Publishing was refused.": "Penerbitan ditolak.", "Could not publish.": "Tidak dapat menerbitkan." },
+  "it": { "Publish": "Pubblica", "Publish destinations": "Destinazioni di pubblicazione", "Publish again to": "Ripubblica su", "Loading destinations…": "Caricamento destinazioni…", "Could not load publish destinations.": "Impossibile caricare le destinazioni di pubblicazione.", "Nothing published yet. Publish once from Deployment, then publish again from here.": "Non è stato ancora pubblicato nulla. Pubblica una volta da Distribuzione, poi ripubblica da qui.", "Set up publishing": "Configura la pubblicazione", "Last published {when}": "Ultima pubblicazione {when}", "Deploy started, not confirmed": "Distribuzione avviata, non confermata", "Connect {name}": "Connetti {name}", "Connect": "Connetti", "Publish to {name}": "Pubblica su {name}", "Publishing…": "Pubblicazione…", "Already up to date.": "Già aggiornato.", "Published:": "Pubblicato:", "{count} skipped: changed on the live site.": "{count} saltati: modificati sul sito live.", "Review in Publish": "Rivedi in Pubblica", "Static site": "Sito statico", "Tovu site": "Sito Tovu", "Deploy": "Distribuzione", "Publishing was refused.": "La pubblicazione è stata rifiutata.", "Could not publish.": "Impossibile pubblicare." },
+  "ja": { "Publish": "公開", "Publish destinations": "公開先", "Publish again to": "再公開先", "Loading destinations…": "公開先を読み込み中…", "Could not load publish destinations.": "公開先を読み込めませんでした。", "Nothing published yet. Publish once from Deployment, then publish again from here.": "まだ何も公開されていません。デプロイから一度公開すると、ここから再公開できます。", "Set up publishing": "公開を設定", "Last published {when}": "最終公開 {when}", "Deploy started, not confirmed": "デプロイ開始、未確認", "Connect {name}": "{name} を接続", "Connect": "接続", "Publish to {name}": "{name} に公開", "Publishing…": "公開中…", "Already up to date.": "すでに最新です。", "Published:": "公開しました:", "{count} skipped: changed on the live site.": "{count} 件をスキップ: 公開サイトで変更されています。", "Review in Publish": "公開画面で確認", "Static site": "静的サイト", "Tovu site": "Tovu サイト", "Deploy": "デプロイ", "Publishing was refused.": "公開が拒否されました。", "Could not publish.": "公開できませんでした。" },
+  "ko": { "Publish": "게시", "Publish destinations": "게시 대상", "Publish again to": "다시 게시할 곳", "Loading destinations…": "대상을 불러오는 중…", "Could not load publish destinations.": "게시 대상을 불러올 수 없습니다.", "Nothing published yet. Publish once from Deployment, then publish again from here.": "아직 게시된 항목이 없습니다. 배포에서 한 번 게시한 후 여기서 다시 게시하세요.", "Set up publishing": "게시 설정", "Last published {when}": "마지막 게시 {when}", "Deploy started, not confirmed": "배포 시작됨, 확인되지 않음", "Connect {name}": "{name} 연결", "Connect": "연결", "Publish to {name}": "{name}에 게시", "Publishing…": "게시 중…", "Already up to date.": "이미 최신 상태입니다.", "Published:": "게시됨:", "{count} skipped: changed on the live site.": "{count}개 건너뜀: 라이브 사이트에서 변경됨.", "Review in Publish": "게시에서 검토", "Static site": "정적 사이트", "Tovu site": "Tovu 사이트", "Deploy": "배포", "Publishing was refused.": "게시가 거부되었습니다.", "Could not publish.": "게시할 수 없습니다." },
+  "pl": { "Publish": "Opublikuj", "Publish destinations": "Miejsca publikacji", "Publish again to": "Opublikuj ponownie w", "Loading destinations…": "Wczytywanie miejsc…", "Could not load publish destinations.": "Nie udało się wczytać miejsc publikacji.", "Nothing published yet. Publish once from Deployment, then publish again from here.": "Nic jeszcze nie opublikowano. Opublikuj raz z Wdrożenia, a potem ponownie stąd.", "Set up publishing": "Skonfiguruj publikowanie", "Last published {when}": "Ostatnio opublikowano {when}", "Deploy started, not confirmed": "Wdrożenie rozpoczęte, niepotwierdzone", "Connect {name}": "Połącz {name}", "Connect": "Połącz", "Publish to {name}": "Opublikuj w {name}", "Publishing…": "Publikowanie…", "Already up to date.": "Już aktualne.", "Published:": "Opublikowano:", "{count} skipped: changed on the live site.": "Pominięto {count}: zmienione w witrynie na żywo.", "Review in Publish": "Przejrzyj w Publikuj", "Static site": "Witryna statyczna", "Tovu site": "Witryna Tovu", "Deploy": "Wdrożenie", "Publishing was refused.": "Publikacja została odrzucona.", "Could not publish.": "Nie udało się opublikować." },
+  "pt-BR": { "Publish": "Publicar", "Publish destinations": "Destinos de publicação", "Publish again to": "Publicar novamente em", "Loading destinations…": "Carregando destinos…", "Could not load publish destinations.": "Não foi possível carregar os destinos de publicação.", "Nothing published yet. Publish once from Deployment, then publish again from here.": "Nada publicado ainda. Publique uma vez em Implantação e depois publique novamente daqui.", "Set up publishing": "Configurar publicação", "Last published {when}": "Última publicação {when}", "Deploy started, not confirmed": "Implantação iniciada, não confirmada", "Connect {name}": "Conectar {name}", "Connect": "Conectar", "Publish to {name}": "Publicar em {name}", "Publishing…": "Publicando…", "Already up to date.": "Já está atualizado.", "Published:": "Publicado:", "{count} skipped: changed on the live site.": "{count} ignorados: alterados no site ao vivo.", "Review in Publish": "Revisar em Publicar", "Static site": "Site estático", "Tovu site": "Site Tovu", "Deploy": "Implantação", "Publishing was refused.": "A publicação foi recusada.", "Could not publish.": "Não foi possível publicar." },
+  "ru": { "Publish": "Опубликовать", "Publish destinations": "Места публикации", "Publish again to": "Опубликовать снова в", "Loading destinations…": "Загрузка мест публикации…", "Could not load publish destinations.": "Не удалось загрузить места публикации.", "Nothing published yet. Publish once from Deployment, then publish again from here.": "Пока ничего не опубликовано. Опубликуйте один раз в разделе «Развёртывание», затем публикуйте отсюда.", "Set up publishing": "Настроить публикацию", "Last published {when}": "Последняя публикация {when}", "Deploy started, not confirmed": "Развёртывание начато, не подтверждено", "Connect {name}": "Подключить {name}", "Connect": "Подключить", "Publish to {name}": "Опубликовать в {name}", "Publishing…": "Публикация…", "Already up to date.": "Уже актуально.", "Published:": "Опубликовано:", "{count} skipped: changed on the live site.": "Пропущено {count}: изменено на рабочем сайте.", "Review in Publish": "Проверить в «Опубликовать»", "Static site": "Статический сайт", "Tovu site": "Сайт Tovu", "Deploy": "Развёртывание", "Publishing was refused.": "Публикация отклонена.", "Could not publish.": "Не удалось опубликовать." },
+  "th": { "Publish": "เผยแพร่", "Publish destinations": "ปลายทางการเผยแพร่", "Publish again to": "เผยแพร่อีกครั้งไปที่", "Loading destinations…": "กำลังโหลดปลายทาง…", "Could not load publish destinations.": "โหลดปลายทางการเผยแพร่ไม่ได้", "Nothing published yet. Publish once from Deployment, then publish again from here.": "ยังไม่มีการเผยแพร่ เผยแพร่หนึ่งครั้งจากการปรับใช้ แล้วเผยแพร่อีกครั้งจากที่นี่", "Set up publishing": "ตั้งค่าการเผยแพร่", "Last published {when}": "เผยแพร่ล่าสุด {when}", "Deploy started, not confirmed": "เริ่มการปรับใช้แล้ว ยังไม่ยืนยัน", "Connect {name}": "เชื่อมต่อ {name}", "Connect": "เชื่อมต่อ", "Publish to {name}": "เผยแพร่ไปที่ {name}", "Publishing…": "กำลังเผยแพร่…", "Already up to date.": "เป็นปัจจุบันแล้ว", "Published:": "เผยแพร่แล้ว:", "{count} skipped: changed on the live site.": "ข้าม {count} รายการ: มีการเปลี่ยนแปลงบนเว็บไซต์จริง", "Review in Publish": "ตรวจสอบในการเผยแพร่", "Static site": "เว็บไซต์แบบสแตติก", "Tovu site": "เว็บไซต์ Tovu", "Deploy": "การปรับใช้", "Publishing was refused.": "การเผยแพร่ถูกปฏิเสธ", "Could not publish.": "เผยแพร่ไม่ได้" },
+  "tr": { "Publish": "Yayınla", "Publish destinations": "Yayın hedefleri", "Publish again to": "Yeniden yayınla", "Loading destinations…": "Hedefler yükleniyor…", "Could not load publish destinations.": "Yayın hedefleri yüklenemedi.", "Nothing published yet. Publish once from Deployment, then publish again from here.": "Henüz bir şey yayınlanmadı. Dağıtım'dan bir kez yayınlayın, sonra buradan yeniden yayınlayın.", "Set up publishing": "Yayınlamayı ayarla", "Last published {when}": "Son yayın {when}", "Deploy started, not confirmed": "Dağıtım başladı, onaylanmadı", "Connect {name}": "{name} bağlan", "Connect": "Bağlan", "Publish to {name}": "{name} hedefine yayınla", "Publishing…": "Yayınlanıyor…", "Already up to date.": "Zaten güncel.", "Published:": "Yayınlandı:", "{count} skipped: changed on the live site.": "{count} atlandı: canlı sitede değişti.", "Review in Publish": "Yayınla'da incele", "Static site": "Statik site", "Tovu site": "Tovu sitesi", "Deploy": "Dağıtım", "Publishing was refused.": "Yayın reddedildi.", "Could not publish.": "Yayınlanamadı." },
+  "uk": { "Publish": "Опублікувати", "Publish destinations": "Місця публікації", "Publish again to": "Опублікувати знову в", "Loading destinations…": "Завантаження місць публікації…", "Could not load publish destinations.": "Не вдалося завантажити місця публікації.", "Nothing published yet. Publish once from Deployment, then publish again from here.": "Ще нічого не опубліковано. Опублікуйте один раз у розділі «Розгортання», потім публікуйте звідси.", "Set up publishing": "Налаштувати публікацію", "Last published {when}": "Остання публікація {when}", "Deploy started, not confirmed": "Розгортання почато, не підтверджено", "Connect {name}": "Під’єднати {name}", "Connect": "Під’єднати", "Publish to {name}": "Опублікувати в {name}", "Publishing…": "Публікація…", "Already up to date.": "Уже актуально.", "Published:": "Опубліковано:", "{count} skipped: changed on the live site.": "Пропущено {count}: змінено на робочому сайті.", "Review in Publish": "Переглянути в «Опублікувати»", "Static site": "Статичний сайт", "Tovu site": "Сайт Tovu", "Deploy": "Розгортання", "Publishing was refused.": "Публікацію відхилено.", "Could not publish.": "Не вдалося опублікувати." },
+  "ur": { "Publish": "شائع کریں", "Publish destinations": "اشاعت کی منزلیں", "Publish again to": "دوبارہ شائع کریں", "Loading destinations…": "منزلیں لوڈ ہو رہی ہیں…", "Could not load publish destinations.": "اشاعت کی منزلیں لوڈ نہیں ہو سکیں۔", "Nothing published yet. Publish once from Deployment, then publish again from here.": "ابھی تک کچھ شائع نہیں ہوا۔ ڈیپلائمنٹ سے ایک بار شائع کریں، پھر یہاں سے دوبارہ شائع کریں۔", "Set up publishing": "اشاعت ترتیب دیں", "Last published {when}": "آخری اشاعت {when}", "Deploy started, not confirmed": "ڈیپلائے شروع ہوا، تصدیق نہیں ہوئی", "Connect {name}": "{name} منسلک کریں", "Connect": "منسلک کریں", "Publish to {name}": "{name} پر شائع کریں", "Publishing…": "شائع ہو رہا ہے…", "Already up to date.": "پہلے سے تازہ ترین ہے۔", "Published:": "شائع ہو گیا:", "{count} skipped: changed on the live site.": "{count} چھوڑ دیے گئے: لائیو سائٹ پر تبدیل ہوئے۔", "Review in Publish": "اشاعت میں جائزہ لیں", "Static site": "سٹیٹک سائٹ", "Tovu site": "Tovu سائٹ", "Deploy": "ڈیپلائے", "Publishing was refused.": "اشاعت مسترد کر دی گئی۔", "Could not publish.": "شائع نہیں ہو سکا۔" },
+  "zh-CN": { "Publish": "发布", "Publish destinations": "发布目标", "Publish again to": "重新发布到", "Loading destinations…": "正在加载发布目标…", "Could not load publish destinations.": "无法加载发布目标。", "Nothing published yet. Publish once from Deployment, then publish again from here.": "尚未发布任何内容。请先在部署中发布一次，之后可在此处再次发布。", "Set up publishing": "设置发布", "Last published {when}": "上次发布于 {when}", "Deploy started, not confirmed": "部署已开始，尚未确认", "Connect {name}": "连接 {name}", "Connect": "连接", "Publish to {name}": "发布到 {name}", "Publishing…": "正在发布…", "Already up to date.": "已是最新。", "Published:": "已发布：", "{count} skipped: changed on the live site.": "已跳过 {count} 项：在线网站上已更改。", "Review in Publish": "在发布中查看", "Static site": "静态网站", "Tovu site": "Tovu 网站", "Deploy": "部署", "Publishing was refused.": "发布被拒绝。", "Could not publish.": "无法发布。" },
+  "zh-TW": { "Publish": "發佈", "Publish destinations": "發佈目標", "Publish again to": "重新發佈到", "Loading destinations…": "正在載入發佈目標…", "Could not load publish destinations.": "無法載入發佈目標。", "Nothing published yet. Publish once from Deployment, then publish again from here.": "尚未發佈任何內容。請先在部署中發佈一次，之後可在此處再次發佈。", "Set up publishing": "設定發佈", "Last published {when}": "上次發佈於 {when}", "Deploy started, not confirmed": "部署已開始，尚未確認", "Connect {name}": "連接 {name}", "Connect": "連接", "Publish to {name}": "發佈到 {name}", "Publishing…": "正在發佈…", "Already up to date.": "已是最新。", "Published:": "已發佈：", "{count} skipped: changed on the live site.": "已略過 {count} 項：線上網站已變更。", "Review in Publish": "在發佈中檢視", "Static site": "靜態網站", "Tovu site": "Tovu 網站", "Deploy": "部署", "Publishing was refused.": "發佈遭拒。", "Could not publish.": "無法發佈。" },
+};
+&nbsp;
+export const t = createDictionaryTranslator({ featureDictionary: SITE_PUBLISH_DICT }, { commonDictionary: COMMON_I18N });
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    

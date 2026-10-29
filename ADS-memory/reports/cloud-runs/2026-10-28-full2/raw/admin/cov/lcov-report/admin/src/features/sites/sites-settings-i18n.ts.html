@@ -1,0 +1,1744 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for admin/src/features/sites/sites-settings-i18n.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../../prettify.css" />
+    <link rel="stylesheet" href="../../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../../index.html">All files</a> / <a href="index.html">admin/src/features/sites</a> sites-settings-i18n.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>2/2</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>2/2</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a>
+<a name='L323'></a><a href='#L323'>323</a>
+<a name='L324'></a><a href='#L324'>324</a>
+<a name='L325'></a><a href='#L325'>325</a>
+<a name='L326'></a><a href='#L326'>326</a>
+<a name='L327'></a><a href='#L327'>327</a>
+<a name='L328'></a><a href='#L328'>328</a>
+<a name='L329'></a><a href='#L329'>329</a>
+<a name='L330'></a><a href='#L330'>330</a>
+<a name='L331'></a><a href='#L331'>331</a>
+<a name='L332'></a><a href='#L332'>332</a>
+<a name='L333'></a><a href='#L333'>333</a>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a>
+<a name='L336'></a><a href='#L336'>336</a>
+<a name='L337'></a><a href='#L337'>337</a>
+<a name='L338'></a><a href='#L338'>338</a>
+<a name='L339'></a><a href='#L339'>339</a>
+<a name='L340'></a><a href='#L340'>340</a>
+<a name='L341'></a><a href='#L341'>341</a>
+<a name='L342'></a><a href='#L342'>342</a>
+<a name='L343'></a><a href='#L343'>343</a>
+<a name='L344'></a><a href='#L344'>344</a>
+<a name='L345'></a><a href='#L345'>345</a>
+<a name='L346'></a><a href='#L346'>346</a>
+<a name='L347'></a><a href='#L347'>347</a>
+<a name='L348'></a><a href='#L348'>348</a>
+<a name='L349'></a><a href='#L349'>349</a>
+<a name='L350'></a><a href='#L350'>350</a>
+<a name='L351'></a><a href='#L351'>351</a>
+<a name='L352'></a><a href='#L352'>352</a>
+<a name='L353'></a><a href='#L353'>353</a>
+<a name='L354'></a><a href='#L354'>354</a>
+<a name='L355'></a><a href='#L355'>355</a>
+<a name='L356'></a><a href='#L356'>356</a>
+<a name='L357'></a><a href='#L357'>357</a>
+<a name='L358'></a><a href='#L358'>358</a>
+<a name='L359'></a><a href='#L359'>359</a>
+<a name='L360'></a><a href='#L360'>360</a>
+<a name='L361'></a><a href='#L361'>361</a>
+<a name='L362'></a><a href='#L362'>362</a>
+<a name='L363'></a><a href='#L363'>363</a>
+<a name='L364'></a><a href='#L364'>364</a>
+<a name='L365'></a><a href='#L365'>365</a>
+<a name='L366'></a><a href='#L366'>366</a>
+<a name='L367'></a><a href='#L367'>367</a>
+<a name='L368'></a><a href='#L368'>368</a>
+<a name='L369'></a><a href='#L369'>369</a>
+<a name='L370'></a><a href='#L370'>370</a>
+<a name='L371'></a><a href='#L371'>371</a>
+<a name='L372'></a><a href='#L372'>372</a>
+<a name='L373'></a><a href='#L373'>373</a>
+<a name='L374'></a><a href='#L374'>374</a>
+<a name='L375'></a><a href='#L375'>375</a>
+<a name='L376'></a><a href='#L376'>376</a>
+<a name='L377'></a><a href='#L377'>377</a>
+<a name='L378'></a><a href='#L378'>378</a>
+<a name='L379'></a><a href='#L379'>379</a>
+<a name='L380'></a><a href='#L380'>380</a>
+<a name='L381'></a><a href='#L381'>381</a>
+<a name='L382'></a><a href='#L382'>382</a>
+<a name='L383'></a><a href='#L383'>383</a>
+<a name='L384'></a><a href='#L384'>384</a>
+<a name='L385'></a><a href='#L385'>385</a>
+<a name='L386'></a><a href='#L386'>386</a>
+<a name='L387'></a><a href='#L387'>387</a>
+<a name='L388'></a><a href='#L388'>388</a>
+<a name='L389'></a><a href='#L389'>389</a>
+<a name='L390'></a><a href='#L390'>390</a>
+<a name='L391'></a><a href='#L391'>391</a>
+<a name='L392'></a><a href='#L392'>392</a>
+<a name='L393'></a><a href='#L393'>393</a>
+<a name='L394'></a><a href='#L394'>394</a>
+<a name='L395'></a><a href='#L395'>395</a>
+<a name='L396'></a><a href='#L396'>396</a>
+<a name='L397'></a><a href='#L397'>397</a>
+<a name='L398'></a><a href='#L398'>398</a>
+<a name='L399'></a><a href='#L399'>399</a>
+<a name='L400'></a><a href='#L400'>400</a>
+<a name='L401'></a><a href='#L401'>401</a>
+<a name='L402'></a><a href='#L402'>402</a>
+<a name='L403'></a><a href='#L403'>403</a>
+<a name='L404'></a><a href='#L404'>404</a>
+<a name='L405'></a><a href='#L405'>405</a>
+<a name='L406'></a><a href='#L406'>406</a>
+<a name='L407'></a><a href='#L407'>407</a>
+<a name='L408'></a><a href='#L408'>408</a>
+<a name='L409'></a><a href='#L409'>409</a>
+<a name='L410'></a><a href='#L410'>410</a>
+<a name='L411'></a><a href='#L411'>411</a>
+<a name='L412'></a><a href='#L412'>412</a>
+<a name='L413'></a><a href='#L413'>413</a>
+<a name='L414'></a><a href='#L414'>414</a>
+<a name='L415'></a><a href='#L415'>415</a>
+<a name='L416'></a><a href='#L416'>416</a>
+<a name='L417'></a><a href='#L417'>417</a>
+<a name='L418'></a><a href='#L418'>418</a>
+<a name='L419'></a><a href='#L419'>419</a>
+<a name='L420'></a><a href='#L420'>420</a>
+<a name='L421'></a><a href='#L421'>421</a>
+<a name='L422'></a><a href='#L422'>422</a>
+<a name='L423'></a><a href='#L423'>423</a>
+<a name='L424'></a><a href='#L424'>424</a>
+<a name='L425'></a><a href='#L425'>425</a>
+<a name='L426'></a><a href='#L426'>426</a>
+<a name='L427'></a><a href='#L427'>427</a>
+<a name='L428'></a><a href='#L428'>428</a>
+<a name='L429'></a><a href='#L429'>429</a>
+<a name='L430'></a><a href='#L430'>430</a>
+<a name='L431'></a><a href='#L431'>431</a>
+<a name='L432'></a><a href='#L432'>432</a>
+<a name='L433'></a><a href='#L433'>433</a>
+<a name='L434'></a><a href='#L434'>434</a>
+<a name='L435'></a><a href='#L435'>435</a>
+<a name='L436'></a><a href='#L436'>436</a>
+<a name='L437'></a><a href='#L437'>437</a>
+<a name='L438'></a><a href='#L438'>438</a>
+<a name='L439'></a><a href='#L439'>439</a>
+<a name='L440'></a><a href='#L440'>440</a>
+<a name='L441'></a><a href='#L441'>441</a>
+<a name='L442'></a><a href='#L442'>442</a>
+<a name='L443'></a><a href='#L443'>443</a>
+<a name='L444'></a><a href='#L444'>444</a>
+<a name='L445'></a><a href='#L445'>445</a>
+<a name='L446'></a><a href='#L446'>446</a>
+<a name='L447'></a><a href='#L447'>447</a>
+<a name='L448'></a><a href='#L448'>448</a>
+<a name='L449'></a><a href='#L449'>449</a>
+<a name='L450'></a><a href='#L450'>450</a>
+<a name='L451'></a><a href='#L451'>451</a>
+<a name='L452'></a><a href='#L452'>452</a>
+<a name='L453'></a><a href='#L453'>453</a>
+<a name='L454'></a><a href='#L454'>454</a>
+<a name='L455'></a><a href='#L455'>455</a>
+<a name='L456'></a><a href='#L456'>456</a>
+<a name='L457'></a><a href='#L457'>457</a>
+<a name='L458'></a><a href='#L458'>458</a>
+<a name='L459'></a><a href='#L459'>459</a>
+<a name='L460'></a><a href='#L460'>460</a>
+<a name='L461'></a><a href='#L461'>461</a>
+<a name='L462'></a><a href='#L462'>462</a>
+<a name='L463'></a><a href='#L463'>463</a>
+<a name='L464'></a><a href='#L464'>464</a>
+<a name='L465'></a><a href='#L465'>465</a>
+<a name='L466'></a><a href='#L466'>466</a>
+<a name='L467'></a><a href='#L467'>467</a>
+<a name='L468'></a><a href='#L468'>468</a>
+<a name='L469'></a><a href='#L469'>469</a>
+<a name='L470'></a><a href='#L470'>470</a>
+<a name='L471'></a><a href='#L471'>471</a>
+<a name='L472'></a><a href='#L472'>472</a>
+<a name='L473'></a><a href='#L473'>473</a>
+<a name='L474'></a><a href='#L474'>474</a>
+<a name='L475'></a><a href='#L475'>475</a>
+<a name='L476'></a><a href='#L476'>476</a>
+<a name='L477'></a><a href='#L477'>477</a>
+<a name='L478'></a><a href='#L478'>478</a>
+<a name='L479'></a><a href='#L479'>479</a>
+<a name='L480'></a><a href='#L480'>480</a>
+<a name='L481'></a><a href='#L481'>481</a>
+<a name='L482'></a><a href='#L482'>482</a>
+<a name='L483'></a><a href='#L483'>483</a>
+<a name='L484'></a><a href='#L484'>484</a>
+<a name='L485'></a><a href='#L485'>485</a>
+<a name='L486'></a><a href='#L486'>486</a>
+<a name='L487'></a><a href='#L487'>487</a>
+<a name='L488'></a><a href='#L488'>488</a>
+<a name='L489'></a><a href='#L489'>489</a>
+<a name='L490'></a><a href='#L490'>490</a>
+<a name='L491'></a><a href='#L491'>491</a>
+<a name='L492'></a><a href='#L492'>492</a>
+<a name='L493'></a><a href='#L493'>493</a>
+<a name='L494'></a><a href='#L494'>494</a>
+<a name='L495'></a><a href='#L495'>495</a>
+<a name='L496'></a><a href='#L496'>496</a>
+<a name='L497'></a><a href='#L497'>497</a>
+<a name='L498'></a><a href='#L498'>498</a>
+<a name='L499'></a><a href='#L499'>499</a>
+<a name='L500'></a><a href='#L500'>500</a>
+<a name='L501'></a><a href='#L501'>501</a>
+<a name='L502'></a><a href='#L502'>502</a>
+<a name='L503'></a><a href='#L503'>503</a>
+<a name='L504'></a><a href='#L504'>504</a>
+<a name='L505'></a><a href='#L505'>505</a>
+<a name='L506'></a><a href='#L506'>506</a>
+<a name='L507'></a><a href='#L507'>507</a>
+<a name='L508'></a><a href='#L508'>508</a>
+<a name='L509'></a><a href='#L509'>509</a>
+<a name='L510'></a><a href='#L510'>510</a>
+<a name='L511'></a><a href='#L511'>511</a>
+<a name='L512'></a><a href='#L512'>512</a>
+<a name='L513'></a><a href='#L513'>513</a>
+<a name='L514'></a><a href='#L514'>514</a>
+<a name='L515'></a><a href='#L515'>515</a>
+<a name='L516'></a><a href='#L516'>516</a>
+<a name='L517'></a><a href='#L517'>517</a>
+<a name='L518'></a><a href='#L518'>518</a>
+<a name='L519'></a><a href='#L519'>519</a>
+<a name='L520'></a><a href='#L520'>520</a>
+<a name='L521'></a><a href='#L521'>521</a>
+<a name='L522'></a><a href='#L522'>522</a>
+<a name='L523'></a><a href='#L523'>523</a>
+<a name='L524'></a><a href='#L524'>524</a>
+<a name='L525'></a><a href='#L525'>525</a>
+<a name='L526'></a><a href='#L526'>526</a>
+<a name='L527'></a><a href='#L527'>527</a>
+<a name='L528'></a><a href='#L528'>528</a>
+<a name='L529'></a><a href='#L529'>529</a>
+<a name='L530'></a><a href='#L530'>530</a>
+<a name='L531'></a><a href='#L531'>531</a>
+<a name='L532'></a><a href='#L532'>532</a>
+<a name='L533'></a><a href='#L533'>533</a>
+<a name='L534'></a><a href='#L534'>534</a>
+<a name='L535'></a><a href='#L535'>535</a>
+<a name='L536'></a><a href='#L536'>536</a>
+<a name='L537'></a><a href='#L537'>537</a>
+<a name='L538'></a><a href='#L538'>538</a>
+<a name='L539'></a><a href='#L539'>539</a>
+<a name='L540'></a><a href='#L540'>540</a>
+<a name='L541'></a><a href='#L541'>541</a>
+<a name='L542'></a><a href='#L542'>542</a>
+<a name='L543'></a><a href='#L543'>543</a>
+<a name='L544'></a><a href='#L544'>544</a>
+<a name='L545'></a><a href='#L545'>545</a>
+<a name='L546'></a><a href='#L546'>546</a>
+<a name='L547'></a><a href='#L547'>547</a>
+<a name='L548'></a><a href='#L548'>548</a>
+<a name='L549'></a><a href='#L549'>549</a>
+<a name='L550'></a><a href='#L550'>550</a>
+<a name='L551'></a><a href='#L551'>551</a>
+<a name='L552'></a><a href='#L552'>552</a>
+<a name='L553'></a><a href='#L553'>553</a>
+<a name='L554'></a><a href='#L554'>554</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">52x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">52x</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
+&nbsp;
+/** Settings copy merges into the existing Sites translator; paths and app names remain data. */
+export const SITES_SETTINGS_DICT: Record&lt;string, Record&lt;string, string&gt;&gt; = {
+  "pt-BR": {
+    "Sites settings": "Configurações dos sites",
+    "Store databases in app-data": "Armazenar bancos de dados nos dados do aplicativo",
+    "Use {path}": "Usar {path}",
+    "New websites folder": "Pasta para novos sites",
+    "Extra sites folders": "Pastas adicionais de sites",
+    "New sites are created in this folder. Existing site folders stay where they are.": "Novos sites são criados nesta pasta. As pastas dos sites existentes permanecem onde estão.",
+    "Sites inside these folders are listed here too.": "Os sites dentro destas pastas também aparecem aqui.",
+    "About {name}": "Sobre {name}",
+    "No extra folders.": "Nenhuma pasta adicional.",
+    "Extra folder {number}": "Pasta adicional {number}",
+    "Remove folder {number}": "Remover pasta {number}",
+    "Add folder": "Adicionar pasta",
+    "Opens by default": "Abre por padrão",
+    "Database location": "Local do banco de dados",
+    "Inside each site (data.nosync)": "Dentro de cada site (data.nosync)",
+    "OS app-data": "Dados do aplicativo no sistema operacional",
+    "{name} overrides this setting.": "{name} substitui esta configuração.",
+    "Existing databases keep their location. Stop the site before moving databases.": "Os bancos de dados existentes mantêm seu local. Pare o site antes de mover os bancos de dados.",
+    "App-data site folders are not self-contained. Transfer their databases too.": "As pastas dos sites que usam dados do aplicativo não são autossuficientes. Transfira também seus bancos de dados.",
+    "Saved in {path}": "Salvo em {path}",
+    "Running in {app} (port {port})": "Em execução no {app} (porta {port})",
+    "Running in {app} (starting)": "Em execução no {app} (iniciando)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} sincroniza esta pasta. Novos bancos de dados usam dados do aplicativo por segurança.",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} sincroniza esta pasta. Armazene os bancos de dados nos dados do aplicativo para evitar corrupção.",
+  },
+  "de": {
+    "Sites settings": "Website-Einstellungen",
+    "Store databases in app-data": "Datenbanken in App-Daten speichern",
+    "Use {path}": "{path} verwenden",
+    "New websites folder": "Ordner für neue Websites",
+    "Extra sites folders": "Weitere Website-Ordner",
+    "New sites are created in this folder. Existing site folders stay where they are.": "Neue Websites werden in diesem Ordner erstellt. Bestehende Website-Ordner bleiben, wo sie sind.",
+    "Sites inside these folders are listed here too.": "Websites in diesen Ordnern werden hier ebenfalls aufgeführt.",
+    "About {name}": "Über {name}",
+    "No extra folders.": "Keine weiteren Ordner.",
+    "Extra folder {number}": "Weiterer Ordner {number}",
+    "Remove folder {number}": "Ordner {number} entfernen",
+    "Add folder": "Ordner hinzufügen",
+    "Opens by default": "Wird standardmäßig geöffnet",
+    "Database location": "Datenbank-Speicherort",
+    "Inside each site (data.nosync)": "In jeder Website (data.nosync)",
+    "OS app-data": "App-Daten des Betriebssystems",
+    "{name} overrides this setting.": "{name} überschreibt diese Einstellung.",
+    "Existing databases keep their location. Stop the site before moving databases.": "Bestehende Datenbanken bleiben am bisherigen Ort. Stoppen Sie die Website vor dem Verschieben.",
+    "App-data site folders are not self-contained. Transfer their databases too.": "Website-Ordner mit App-Daten sind nicht eigenständig. Übertragen Sie auch ihre Datenbanken.",
+    "Saved in {path}": "Gespeichert in {path}",
+    "Running in {app} (port {port})": "Läuft in {app} (Port {port})",
+    "Running in {app} (starting)": "Läuft in {app} (startet)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} synchronisiert diesen Ordner. Neue Datenbanken verwenden zur Sicherheit App-Daten.",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} synchronisiert diesen Ordner. Speichern Sie Datenbanken in App-Daten, um Schäden zu vermeiden."
+  },
+  "fr": {
+    "Sites settings": "Paramètres des sites",
+    "Store databases in app-data": "Stocker les bases dans les données de l’application",
+    "Use {path}": "Utiliser {path}",
+    "New websites folder": "Dossier des nouveaux sites",
+    "Extra sites folders": "Dossiers supplémentaires",
+    "New sites are created in this folder. Existing site folders stay where they are.": "Les nouveaux sites sont créés dans ce dossier. Les dossiers de sites existants ne bougent pas.",
+    "Sites inside these folders are listed here too.": "Les sites de ces dossiers sont aussi listés ici.",
+    "About {name}": "À propos : {name}",
+    "No extra folders.": "Aucun dossier supplémentaire.",
+    "Extra folder {number}": "Dossier supplémentaire {number}",
+    "Remove folder {number}": "Retirer le dossier {number}",
+    "Add folder": "Ajouter un dossier",
+    "Opens by default": "S’ouvre par défaut",
+    "Database location": "Emplacement des bases",
+    "Inside each site (data.nosync)": "Dans chaque site (data.nosync)",
+    "OS app-data": "Données d’application du système",
+    "{name} overrides this setting.": "{name} remplace ce paramètre.",
+    "Existing databases keep their location. Stop the site before moving databases.": "Les bases existantes gardent leur emplacement. Arrêtez le site avant de les déplacer.",
+    "App-data site folders are not self-contained. Transfer their databases too.": "Les dossiers utilisant les données d’application ne sont pas autonomes. Transférez aussi leurs bases.",
+    "Saved in {path}": "Enregistré dans {path}",
+    "Running in {app} (port {port})": "En cours dans {app} (port {port})",
+    "Running in {app} (starting)": "En cours dans {app} (démarrage)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} synchronise ce dossier. Les nouvelles bases utilisent les données d’application par sécurité.",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} synchronise ce dossier. Stockez les bases dans les données d’application pour éviter leur corruption."
+  },
+  "es": {
+    "Sites settings": "Configuración de sitios",
+    "Store databases in app-data": "Guardar bases en datos de la aplicación",
+    "Use {path}": "Usar {path}",
+    "New websites folder": "Carpeta de nuevos sitios",
+    "Extra sites folders": "Carpetas adicionales",
+    "New sites are created in this folder. Existing site folders stay where they are.": "Los sitios nuevos se crean en esta carpeta. Las carpetas de sitios existentes no se mueven.",
+    "Sites inside these folders are listed here too.": "Los sitios de estas carpetas también aparecen aquí.",
+    "About {name}": "Acerca de {name}",
+    "No extra folders.": "No hay carpetas adicionales.",
+    "Extra folder {number}": "Carpeta adicional {number}",
+    "Remove folder {number}": "Quitar carpeta {number}",
+    "Add folder": "Añadir carpeta",
+    "Opens by default": "Se abre por defecto",
+    "Database location": "Ubicación de bases",
+    "Inside each site (data.nosync)": "Dentro de cada sitio (data.nosync)",
+    "OS app-data": "Datos de aplicación del sistema",
+    "{name} overrides this setting.": "{name} reemplaza esta configuración.",
+    "Existing databases keep their location. Stop the site before moving databases.": "Las bases existentes conservan su ubicación. Detén el sitio antes de moverlas.",
+    "App-data site folders are not self-contained. Transfer their databases too.": "Las carpetas con datos de aplicación no son autónomas. Transfiere también sus bases.",
+    "Saved in {path}": "Guardado en {path}",
+    "Running in {app} (port {port})": "Ejecutándose en {app} (puerto {port})",
+    "Running in {app} (starting)": "Ejecutándose en {app} (iniciando)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} sincroniza esta carpeta. Las bases nuevas usan datos de aplicación por seguridad.",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} sincroniza esta carpeta. Guarda las bases en datos de aplicación para evitar daños."
+  },
+  "it": {
+    "Sites settings": "Impostazioni dei siti",
+    "Store databases in app-data": "Salva i database nei dati dell’app",
+    "Use {path}": "Usa {path}",
+    "New websites folder": "Cartella dei nuovi siti",
+    "Extra sites folders": "Cartelle aggiuntive",
+    "New sites are created in this folder. Existing site folders stay where they are.": "I nuovi siti vengono creati in questa cartella. Le cartelle dei siti esistenti restano dove sono.",
+    "Sites inside these folders are listed here too.": "Anche i siti in queste cartelle sono elencati qui.",
+    "About {name}": "Informazioni su {name}",
+    "No extra folders.": "Nessuna cartella aggiuntiva.",
+    "Extra folder {number}": "Cartella aggiuntiva {number}",
+    "Remove folder {number}": "Rimuovi cartella {number}",
+    "Add folder": "Aggiungi cartella",
+    "Opens by default": "Si apre per impostazione predefinita",
+    "Database location": "Posizione dei database",
+    "Inside each site (data.nosync)": "Dentro ogni sito (data.nosync)",
+    "OS app-data": "Dati app del sistema",
+    "{name} overrides this setting.": "{name} sostituisce questa impostazione.",
+    "Existing databases keep their location. Stop the site before moving databases.": "I database esistenti mantengono la posizione. Ferma il sito prima di spostarli.",
+    "App-data site folders are not self-contained. Transfer their databases too.": "Le cartelle con dati app non sono autonome. Trasferisci anche i database.",
+    "Saved in {path}": "Salvato in {path}",
+    "Running in {app} (port {port})": "In esecuzione in {app} (porta {port})",
+    "Running in {app} (starting)": "In esecuzione in {app} (avvio)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} sincronizza questa cartella. I nuovi database usano i dati app per sicurezza.",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} sincronizza questa cartella. Salva i database nei dati app per evitare danni."
+  },
+  "hu": {
+    "Sites settings": "Webhelyek beállításai",
+    "Store databases in app-data": "Adatbázisok tárolása az alkalmazásadatokban",
+    "Use {path}": "{path} használata",
+    "New websites folder": "Új webhelyek mappája",
+    "Extra sites folders": "További mappák",
+    "New sites are created in this folder. Existing site folders stay where they are.": "Az új webhelyek ebben a mappában jönnek létre. A meglévő webhelymappák a helyükön maradnak.",
+    "Sites inside these folders are listed here too.": "Az ezekben a mappákban lévő webhelyek is itt jelennek meg.",
+    "About {name}": "Névjegy: {name}",
+    "No extra folders.": "Nincs további mappa.",
+    "Extra folder {number}": "{number}. további mappa",
+    "Remove folder {number}": "{number}. mappa eltávolítása",
+    "Add folder": "Mappa hozzáadása",
+    "Opens by default": "Alapértelmezés szerint ez nyílik meg",
+    "Database location": "Adatbázis helye",
+    "Inside each site (data.nosync)": "Minden webhelyen belül (data.nosync)",
+    "OS app-data": "Rendszer alkalmazásadatai",
+    "{name} overrides this setting.": "{name} felülírja ezt a beállítást.",
+    "Existing databases keep their location. Stop the site before moving databases.": "A meglévő adatbázisok helye megmarad. Áthelyezés előtt állítsa le a webhelyet.",
+    "App-data site folders are not self-contained. Transfer their databases too.": "Az alkalmazásadatokat használó mappák nem önállóak. Az adatbázisokat is vigye át.",
+    "Saved in {path}": "Mentve itt: {path}",
+    "Running in {app} (port {port})": "Fut itt: {app} (port: {port})",
+    "Running in {app} (starting)": "Fut itt: {app} (indul)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} szinkronizálja ezt a mappát. Az új adatbázisok biztonságból alkalmazásadatokat használnak.",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} szinkronizálja ezt a mappát. A sérülés elkerüléséhez tárolja az adatbázisokat az alkalmazásadatokban."
+  },
+  "pl": {
+    "Sites settings": "Ustawienia witryn",
+    "Store databases in app-data": "Przechowuj bazy w danych aplikacji",
+    "Use {path}": "Użyj {path}",
+    "New websites folder": "Folder nowych witryn",
+    "Extra sites folders": "Dodatkowe foldery",
+    "New sites are created in this folder. Existing site folders stay where they are.": "Nowe witryny są tworzone w tym folderze. Istniejące foldery witryn pozostają na miejscu.",
+    "Sites inside these folders are listed here too.": "Witryny z tych folderów też są tu wyświetlane.",
+    "About {name}": "Informacje: {name}",
+    "No extra folders.": "Brak dodatkowych folderów.",
+    "Extra folder {number}": "Dodatkowy folder {number}",
+    "Remove folder {number}": "Usuń folder {number}",
+    "Add folder": "Dodaj folder",
+    "Opens by default": "Otwiera się domyślnie",
+    "Database location": "Lokalizacja baz danych",
+    "Inside each site (data.nosync)": "W każdej witrynie (data.nosync)",
+    "OS app-data": "Dane aplikacji systemu",
+    "{name} overrides this setting.": "{name} zastępuje to ustawienie.",
+    "Existing databases keep their location. Stop the site before moving databases.": "Istniejące bazy zachowują lokalizację. Zatrzymaj witrynę przed ich przeniesieniem.",
+    "App-data site folders are not self-contained. Transfer their databases too.": "Foldery korzystające z danych aplikacji nie są samodzielne. Przenieś także ich bazy.",
+    "Saved in {path}": "Zapisano w {path}",
+    "Running in {app} (port {port})": "Uruchomiono w {app} (port {port})",
+    "Running in {app} (starting)": "Uruchomiono w {app} (uruchamianie)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} synchronizuje ten folder. Nowe bazy używają danych aplikacji dla bezpieczeństwa.",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} synchronizuje ten folder. Przechowuj bazy w danych aplikacji, aby uniknąć uszkodzeń."
+  },
+  "ru": {
+    "Sites settings": "Настройки сайтов",
+    "Store databases in app-data": "Хранить базы в данных приложения",
+    "Use {path}": "Использовать {path}",
+    "New websites folder": "Папка новых сайтов",
+    "Extra sites folders": "Дополнительные папки",
+    "New sites are created in this folder. Existing site folders stay where they are.": "Новые сайты создаются в этой папке. Существующие папки сайтов остаются на месте.",
+    "Sites inside these folders are listed here too.": "Сайты из этих папок тоже показываются здесь.",
+    "About {name}": "О поле «{name}»",
+    "No extra folders.": "Дополнительных папок нет.",
+    "Extra folder {number}": "Дополнительная папка {number}",
+    "Remove folder {number}": "Удалить папку {number}",
+    "Add folder": "Добавить папку",
+    "Opens by default": "Открывается по умолчанию",
+    "Database location": "Расположение баз данных",
+    "Inside each site (data.nosync)": "Внутри каждого сайта (data.nosync)",
+    "OS app-data": "Данные приложения ОС",
+    "{name} overrides this setting.": "{name} переопределяет эту настройку.",
+    "Existing databases keep their location. Stop the site before moving databases.": "Существующие базы сохраняют расположение. Остановите сайт перед переносом баз.",
+    "App-data site folders are not self-contained. Transfer their databases too.": "Папки с данными приложения не автономны. Перенесите также их базы.",
+    "Saved in {path}": "Сохранено в {path}",
+    "Running in {app} (port {port})": "Работает в {app} (порт {port})",
+    "Running in {app} (starting)": "Работает в {app} (запуск)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} синхронизирует эту папку. Новые базы используют данные приложения для безопасности.",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} синхронизирует эту папку. Храните базы в данных приложения во избежание повреждений."
+  },
+  "uk": {
+    "Sites settings": "Налаштування сайтів",
+    "Store databases in app-data": "Зберігати бази в даних застосунку",
+    "Use {path}": "Використати {path}",
+    "New websites folder": "Папка нових сайтів",
+    "Extra sites folders": "Додаткові папки",
+    "New sites are created in this folder. Existing site folders stay where they are.": "Нові сайти створюються в цій папці. Наявні папки сайтів залишаються на місці.",
+    "Sites inside these folders are listed here too.": "Сайти з цих папок теж показуються тут.",
+    "About {name}": "Про поле «{name}»",
+    "No extra folders.": "Додаткових папок немає.",
+    "Extra folder {number}": "Додаткова папка {number}",
+    "Remove folder {number}": "Видалити папку {number}",
+    "Add folder": "Додати папку",
+    "Opens by default": "Відкривається за замовчуванням",
+    "Database location": "Розташування баз даних",
+    "Inside each site (data.nosync)": "У кожному сайті (data.nosync)",
+    "OS app-data": "Дані застосунку ОС",
+    "{name} overrides this setting.": "{name} перевизначає це налаштування.",
+    "Existing databases keep their location. Stop the site before moving databases.": "Наявні бази зберігають розташування. Зупиніть сайт перед перенесенням баз.",
+    "App-data site folders are not self-contained. Transfer their databases too.": "Папки з даними застосунку не автономні. Перенесіть також їхні бази.",
+    "Saved in {path}": "Збережено в {path}",
+    "Running in {app} (port {port})": "Працює в {app} (порт {port})",
+    "Running in {app} (starting)": "Працює в {app} (запуск)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} синхронізує цю папку. Нові бази використовують дані застосунку для безпеки.",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} синхронізує цю папку. Зберігайте бази в даних застосунку, щоб уникнути пошкоджень."
+  },
+  "ja": {
+    "Sites settings": "サイト設定",
+    "Store databases in app-data": "データベースをアプリデータに保存",
+    "Use {path}": "{path} を使用",
+    "New websites folder": "新しいサイトのフォルダー",
+    "Extra sites folders": "追加フォルダー",
+    "New sites are created in this folder. Existing site folders stay where they are.": "新しいサイトはこのフォルダーに作成されます。既存のサイトフォルダーは移動しません。",
+    "Sites inside these folders are listed here too.": "これらのフォルダー内のサイトもここに表示されます。",
+    "About {name}": "{name}について",
+    "No extra folders.": "追加フォルダーはありません。",
+    "Extra folder {number}": "追加フォルダー {number}",
+    "Remove folder {number}": "フォルダー {number} を削除",
+    "Add folder": "フォルダーを追加",
+    "Opens by default": "既定で開きます",
+    "Database location": "データベースの場所",
+    "Inside each site (data.nosync)": "各サイト内 (data.nosync)",
+    "OS app-data": "OSのアプリデータ",
+    "{name} overrides this setting.": "{name} がこの設定を上書きします。",
+    "Existing databases keep their location. Stop the site before moving databases.": "既存のデータベースの場所は変わりません。移動前にサイトを停止してください。",
+    "App-data site folders are not self-contained. Transfer their databases too.": "アプリデータを使うサイトフォルダーだけでは不完全です。データベースも転送してください。",
+    "Saved in {path}": "保存先: {path}",
+    "Running in {app} (port {port})": "{app} で実行中（ポート {port}）",
+    "Running in {app} (starting)": "{app} で実行中（起動中）",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} がこのフォルダーを同期します。安全のため新しいデータベースはアプリデータを使用します。",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} がこのフォルダーを同期します。破損を防ぐためデータベースをアプリデータに保存してください。"
+  },
+  "ko": {
+    "Sites settings": "사이트 설정",
+    "Store databases in app-data": "데이터베이스를 앱 데이터에 저장",
+    "Use {path}": "{path} 사용",
+    "New websites folder": "새 사이트 폴더",
+    "Extra sites folders": "추가 폴더",
+    "New sites are created in this folder. Existing site folders stay where they are.": "새 사이트는 이 폴더에 만들어집니다. 기존 사이트 폴더는 그대로 유지됩니다.",
+    "Sites inside these folders are listed here too.": "이 폴더에 있는 사이트도 여기에 표시됩니다.",
+    "About {name}": "{name} 정보",
+    "No extra folders.": "추가 폴더가 없습니다.",
+    "Extra folder {number}": "추가 폴더 {number}",
+    "Remove folder {number}": "폴더 {number} 제거",
+    "Add folder": "폴더 추가",
+    "Opens by default": "기본으로 열림",
+    "Database location": "데이터베이스 위치",
+    "Inside each site (data.nosync)": "각 사이트 내부 (data.nosync)",
+    "OS app-data": "OS 앱 데이터",
+    "{name} overrides this setting.": "{name}이 이 설정을 재정의합니다.",
+    "Existing databases keep their location. Stop the site before moving databases.": "기존 데이터베이스 위치는 유지됩니다. 이동 전에 사이트를 중지하세요.",
+    "App-data site folders are not self-contained. Transfer their databases too.": "앱 데이터를 쓰는 사이트 폴더만으로는 완전하지 않습니다. 데이터베이스도 전송하세요.",
+    "Saved in {path}": "{path}에 저장됨",
+    "Running in {app} (port {port})": "{app}에서 실행 중 (포트 {port})",
+    "Running in {app} (starting)": "{app}에서 실행 중 (시작 중)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider}가 이 폴더를 동기화합니다. 새 데이터베이스는 안전을 위해 앱 데이터를 사용합니다.",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider}가 이 폴더를 동기화합니다. 손상 방지를 위해 데이터베이스를 앱 데이터에 저장하세요."
+  },
+  "zh-CN": {
+    "Sites settings": "网站设置",
+    "Store databases in app-data": "将数据库存储在应用数据中",
+    "Use {path}": "使用 {path}",
+    "New websites folder": "新网站文件夹",
+    "Extra sites folders": "额外文件夹",
+    "New sites are created in this folder. Existing site folders stay where they are.": "新网站会创建在此文件夹中。现有网站文件夹保持原位。",
+    "Sites inside these folders are listed here too.": "这些文件夹中的网站也会列在这里。",
+    "About {name}": "关于{name}",
+    "No extra folders.": "没有额外文件夹。",
+    "Extra folder {number}": "额外文件夹 {number}",
+    "Remove folder {number}": "移除文件夹 {number}",
+    "Add folder": "添加文件夹",
+    "Opens by default": "默认打开",
+    "Database location": "数据库位置",
+    "Inside each site (data.nosync)": "每个网站内部 (data.nosync)",
+    "OS app-data": "操作系统应用数据",
+    "{name} overrides this setting.": "{name} 会覆盖此设置。",
+    "Existing databases keep their location. Stop the site before moving databases.": "现有数据库保留原位置。移动数据库前请停止网站。",
+    "App-data site folders are not self-contained. Transfer their databases too.": "使用应用数据的网站文件夹并不独立完整。请同时传输其数据库。",
+    "Saved in {path}": "保存在 {path}",
+    "Running in {app} (port {port})": "在 {app} 中运行（端口 {port}）",
+    "Running in {app} (starting)": "在 {app} 中运行（启动中）",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} 同步此文件夹。新数据库使用应用数据以保证安全。",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} 同步此文件夹。请将数据库存储在应用数据中以防损坏。"
+  },
+  "zh-TW": {
+    "Sites settings": "網站設定",
+    "Store databases in app-data": "將資料庫儲存在應用程式資料中",
+    "Use {path}": "使用 {path}",
+    "New websites folder": "新網站資料夾",
+    "Extra sites folders": "額外資料夾",
+    "New sites are created in this folder. Existing site folders stay where they are.": "新網站會建立在此資料夾中。現有網站資料夾維持原位。",
+    "Sites inside these folders are listed here too.": "這些資料夾中的網站也會列在這裡。",
+    "About {name}": "關於{name}",
+    "No extra folders.": "沒有額外資料夾。",
+    "Extra folder {number}": "額外資料夾 {number}",
+    "Remove folder {number}": "移除資料夾 {number}",
+    "Add folder": "新增資料夾",
+    "Opens by default": "預設開啟",
+    "Database location": "資料庫位置",
+    "Inside each site (data.nosync)": "每個網站內部 (data.nosync)",
+    "OS app-data": "作業系統應用程式資料",
+    "{name} overrides this setting.": "{name} 會覆寫此設定。",
+    "Existing databases keep their location. Stop the site before moving databases.": "現有資料庫保留原位置。移動資料庫前請停止網站。",
+    "App-data site folders are not self-contained. Transfer their databases too.": "使用應用程式資料的網站資料夾並非獨立完整。請同時傳輸其資料庫。",
+    "Saved in {path}": "儲存在 {path}",
+    "Running in {app} (port {port})": "在 {app} 中執行（連接埠 {port}）",
+    "Running in {app} (starting)": "在 {app} 中執行（啟動中）",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} 同步此資料夾。新資料庫使用應用程式資料以確保安全。",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} 同步此資料夾。請將資料庫儲存在應用程式資料中以防損壞。"
+  },
+  "id": {
+    "Sites settings": "Pengaturan situs",
+    "Store databases in app-data": "Simpan basis data di data aplikasi",
+    "Use {path}": "Gunakan {path}",
+    "New websites folder": "Folder situs baru",
+    "Extra sites folders": "Folder tambahan",
+    "New sites are created in this folder. Existing site folders stay where they are.": "Situs baru dibuat di folder ini. Folder situs yang sudah ada tetap di tempatnya.",
+    "Sites inside these folders are listed here too.": "Situs di folder ini juga tercantum di sini.",
+    "About {name}": "Tentang {name}",
+    "No extra folders.": "Tidak ada folder tambahan.",
+    "Extra folder {number}": "Folder tambahan {number}",
+    "Remove folder {number}": "Hapus folder {number}",
+    "Add folder": "Tambah folder",
+    "Opens by default": "Dibuka secara default",
+    "Database location": "Lokasi basis data",
+    "Inside each site (data.nosync)": "Di dalam setiap situs (data.nosync)",
+    "OS app-data": "Data aplikasi OS",
+    "{name} overrides this setting.": "{name} menimpa pengaturan ini.",
+    "Existing databases keep their location. Stop the site before moving databases.": "Basis data yang ada tetap di lokasinya. Hentikan situs sebelum memindahkan basis data.",
+    "App-data site folders are not self-contained. Transfer their databases too.": "Folder situs yang memakai data aplikasi tidak mandiri. Transfer juga basis datanya.",
+    "Saved in {path}": "Disimpan di {path}",
+    "Running in {app} (port {port})": "Berjalan di {app} (port {port})",
+    "Running in {app} (starting)": "Berjalan di {app} (memulai)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} menyinkronkan folder ini. Basis data baru memakai data aplikasi demi keamanan.",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} menyinkronkan folder ini. Simpan basis data di data aplikasi untuk mencegah kerusakan."
+  },
+  "ar": {
+    "Sites settings": "إعدادات المواقع",
+    "Store databases in app-data": "حفظ قواعد البيانات في بيانات التطبيق",
+    "Use {path}": "استخدام {path}",
+    "New websites folder": "مجلد المواقع الجديدة",
+    "Extra sites folders": "مجلدات إضافية",
+    "New sites are created in this folder. Existing site folders stay where they are.": "تُنشأ المواقع الجديدة في هذا المجلد. تبقى مجلدات المواقع الحالية في مكانها.",
+    "Sites inside these folders are listed here too.": "تُدرج هنا أيضًا المواقع الموجودة في هذه المجلدات.",
+    "About {name}": "حول {name}",
+    "No extra folders.": "لا توجد مجلدات إضافية.",
+    "Extra folder {number}": "مجلد إضافي {number}",
+    "Remove folder {number}": "إزالة المجلد {number}",
+    "Add folder": "إضافة مجلد",
+    "Opens by default": "يُفتح افتراضيًا",
+    "Database location": "موقع قواعد البيانات",
+    "Inside each site (data.nosync)": "داخل كل موقع (data.nosync)",
+    "OS app-data": "بيانات التطبيق في النظام",
+    "{name} overrides this setting.": "{name} يتجاوز هذا الإعداد.",
+    "Existing databases keep their location. Stop the site before moving databases.": "تبقى قواعد البيانات الحالية في موقعها. أوقف الموقع قبل نقل قواعد البيانات.",
+    "App-data site folders are not self-contained. Transfer their databases too.": "مجلدات المواقع التي تستخدم بيانات التطبيق ليست مكتملة وحدها. انقل قواعد بياناتها أيضًا.",
+    "Saved in {path}": "محفوظ في {path}",
+    "Running in {app} (port {port})": "يعمل في {app} (المنفذ {port})",
+    "Running in {app} (starting)": "يعمل في {app} (بدء التشغيل)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "يقوم {provider} بمزامنة هذا المجلد. تستخدم قواعد البيانات الجديدة بيانات التطبيق للأمان.",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "يقوم {provider} بمزامنة هذا المجلد. احفظ قواعد البيانات في بيانات التطبيق لمنع تلفها."
+  },
+  "fa": {
+    "Sites settings": "تنظیمات سایت‌ها",
+    "Store databases in app-data": "ذخیره پایگاه‌ها در داده‌های برنامه",
+    "Use {path}": "استفاده از {path}",
+    "New websites folder": "پوشه سایت‌های جدید",
+    "Extra sites folders": "پوشه‌های اضافی",
+    "New sites are created in this folder. Existing site folders stay where they are.": "سایت‌های جدید در این پوشه ساخته می‌شوند. پوشه‌های سایت موجود سر جای خود می‌مانند.",
+    "Sites inside these folders are listed here too.": "سایت‌های داخل این پوشه‌ها هم اینجا فهرست می‌شوند.",
+    "About {name}": "درباره {name}",
+    "No extra folders.": "پوشه اضافی وجود ندارد.",
+    "Extra folder {number}": "پوشه اضافی {number}",
+    "Remove folder {number}": "حذف پوشه {number}",
+    "Add folder": "افزودن پوشه",
+    "Opens by default": "به‌طور پیش‌فرض باز می‌شود",
+    "Database location": "محل پایگاه داده",
+    "Inside each site (data.nosync)": "داخل هر سایت (data.nosync)",
+    "OS app-data": "داده‌های برنامه سیستم‌عامل",
+    "{name} overrides this setting.": "{name} این تنظیم را بازنویسی می‌کند.",
+    "Existing databases keep their location. Stop the site before moving databases.": "پایگاه‌های موجود در محل خود می‌مانند. پیش از انتقال، سایت را متوقف کنید.",
+    "App-data site folders are not self-contained. Transfer their databases too.": "پوشه‌های سایت با داده‌های برنامه مستقل نیستند. پایگاه‌های آن‌ها را نیز انتقال دهید.",
+    "Saved in {path}": "ذخیره‌شده در {path}",
+    "Running in {app} (port {port})": "در حال اجرا در {app} (درگاه {port})",
+    "Running in {app} (starting)": "در حال اجرا در {app} (راه‌اندازی)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} این پوشه را همگام می‌کند. پایگاه‌های جدید برای ایمنی از داده‌های برنامه استفاده می‌کنند.",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} این پوشه را همگام می‌کند. برای جلوگیری از خرابی، پایگاه‌ها را در داده‌های برنامه ذخیره کنید."
+  },
+  "hi": {
+    "Sites settings": "साइट सेटिंग्स",
+    "Store databases in app-data": "डेटाबेस ऐप डेटा में रखें",
+    "Use {path}": "{path} का उपयोग करें",
+    "New websites folder": "नई साइटों का फ़ोल्डर",
+    "Extra sites folders": "अतिरिक्त फ़ोल्डर",
+    "New sites are created in this folder. Existing site folders stay where they are.": "नई साइटें इसी फ़ोल्डर में बनती हैं। मौजूदा साइट फ़ोल्डर अपनी जगह पर रहते हैं।",
+    "Sites inside these folders are listed here too.": "इन फ़ोल्डरों की साइटें भी यहाँ दिखती हैं।",
+    "About {name}": "{name} के बारे में",
+    "No extra folders.": "कोई अतिरिक्त फ़ोल्डर नहीं।",
+    "Extra folder {number}": "अतिरिक्त फ़ोल्डर {number}",
+    "Remove folder {number}": "फ़ोल्डर {number} हटाएँ",
+    "Add folder": "फ़ोल्डर जोड़ें",
+    "Opens by default": "डिफ़ॉल्ट रूप से खुलती है",
+    "Database location": "डेटाबेस का स्थान",
+    "Inside each site (data.nosync)": "हर साइट के अंदर (data.nosync)",
+    "OS app-data": "OS ऐप डेटा",
+    "{name} overrides this setting.": "{name} इस सेटिंग को बदल देता है।",
+    "Existing databases keep their location. Stop the site before moving databases.": "मौजूदा डेटाबेस अपने स्थान पर रहते हैं। उन्हें ले जाने से पहले साइट रोकें।",
+    "App-data site folders are not self-contained. Transfer their databases too.": "ऐप डेटा वाली साइट फ़ोल्डर अपने आप में पूर्ण नहीं हैं। उनके डेटाबेस भी स्थानांतरित करें।",
+    "Saved in {path}": "{path} में सहेजा गया",
+    "Running in {app} (port {port})": "{app} में चल रहा है (पोर्ट {port})",
+    "Running in {app} (starting)": "{app} में चल रहा है (शुरू हो रहा है)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} इस फ़ोल्डर को सिंक करता है। सुरक्षा के लिए नए डेटाबेस ऐप डेटा उपयोग करते हैं।",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} इस फ़ोल्डर को सिंक करता है। क्षति रोकने के लिए डेटाबेस ऐप डेटा में रखें।"
+  },
+  "bn": {
+    "Sites settings": "সাইট সেটিংস",
+    "Store databases in app-data": "ডেটাবেস অ্যাপ ডেটায় রাখুন",
+    "Use {path}": "{path} ব্যবহার করুন",
+    "New websites folder": "নতুন সাইটের ফোল্ডার",
+    "Extra sites folders": "অতিরিক্ত ফোল্ডার",
+    "New sites are created in this folder. Existing site folders stay where they are.": "নতুন সাইট এই ফোল্ডারে তৈরি হয়। বিদ্যমান সাইট ফোল্ডার যেখানে আছে সেখানেই থাকে।",
+    "Sites inside these folders are listed here too.": "এই ফোল্ডারগুলোর সাইটও এখানে দেখানো হয়।",
+    "About {name}": "{name} সম্পর্কে",
+    "No extra folders.": "কোনো অতিরিক্ত ফোল্ডার নেই।",
+    "Extra folder {number}": "অতিরিক্ত ফোল্ডার {number}",
+    "Remove folder {number}": "ফোল্ডার {number} সরান",
+    "Add folder": "ফোল্ডার যোগ করুন",
+    "Opens by default": "ডিফল্টভাবে খোলে",
+    "Database location": "ডেটাবেসের অবস্থান",
+    "Inside each site (data.nosync)": "প্রতিটি সাইটের ভেতরে (data.nosync)",
+    "OS app-data": "OS অ্যাপ ডেটা",
+    "{name} overrides this setting.": "{name} এই সেটিং বদলে দেয়।",
+    "Existing databases keep their location. Stop the site before moving databases.": "বর্তমান ডেটাবেসের অবস্থান থাকে। সরানোর আগে সাইট থামান।",
+    "App-data site folders are not self-contained. Transfer their databases too.": "অ্যাপ ডেটা ব্যবহারকারী সাইট ফোল্ডার স্বয়ংসম্পূর্ণ নয়। তাদের ডেটাবেসও স্থানান্তর করুন।",
+    "Saved in {path}": "{path}-এ সংরক্ষিত",
+    "Running in {app} (port {port})": "{app}-এ চলছে (পোর্ট {port})",
+    "Running in {app} (starting)": "{app}-এ চলছে (শুরু হচ্ছে)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} এই ফোল্ডার সিঙ্ক করে। নিরাপত্তার জন্য নতুন ডেটাবেস অ্যাপ ডেটা ব্যবহার করে।",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} এই ফোল্ডার সিঙ্ক করে। ক্ষতি এড়াতে ডেটাবেস অ্যাপ ডেটায় রাখুন।"
+  },
+  "ur": {
+    "Sites settings": "سائٹ کی ترتیبات",
+    "Store databases in app-data": "ڈیٹابیس ایپ ڈیٹا میں رکھیں",
+    "Use {path}": "{path} استعمال کریں",
+    "New websites folder": "نئی سائٹس کا فولڈر",
+    "Extra sites folders": "اضافی فولڈرز",
+    "New sites are created in this folder. Existing site folders stay where they are.": "نئی سائٹس اسی فولڈر میں بنتی ہیں۔ موجودہ سائٹ فولڈرز اپنی جگہ رہتے ہیں۔",
+    "Sites inside these folders are listed here too.": "ان فولڈرز کی سائٹس بھی یہاں دکھائی جاتی ہیں۔",
+    "About {name}": "{name} کے بارے میں",
+    "No extra folders.": "کوئی اضافی فولڈر نہیں۔",
+    "Extra folder {number}": "اضافی فولڈر {number}",
+    "Remove folder {number}": "فولڈر {number} ہٹائیں",
+    "Add folder": "فولڈر شامل کریں",
+    "Opens by default": "بطورِ طے شدہ کھلتی ہے",
+    "Database location": "ڈیٹابیس کا مقام",
+    "Inside each site (data.nosync)": "ہر سائٹ کے اندر (data.nosync)",
+    "OS app-data": "OS ایپ ڈیٹا",
+    "{name} overrides this setting.": "{name} اس ترتیب کو بدل دیتا ہے۔",
+    "Existing databases keep their location. Stop the site before moving databases.": "موجودہ ڈیٹابیس اپنے مقام پر رہتے ہیں۔ منتقل کرنے سے پہلے سائٹ روکیں۔",
+    "App-data site folders are not self-contained. Transfer their databases too.": "ایپ ڈیٹا والے سائٹ فولڈرز خود مکمل نہیں ہیں۔ ان کے ڈیٹابیس بھی منتقل کریں۔",
+    "Saved in {path}": "{path} میں محفوظ",
+    "Running in {app} (port {port})": "{app} میں چل رہا ہے (پورٹ {port})",
+    "Running in {app} (starting)": "{app} میں چل رہا ہے (شروع ہو رہا ہے)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} اس فولڈر کو سنک کرتا ہے۔ حفاظت کے لیے نئے ڈیٹابیس ایپ ڈیٹا استعمال کرتے ہیں۔",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} اس فولڈر کو سنک کرتا ہے۔ خرابی روکنے کے لیے ڈیٹابیس ایپ ڈیٹا میں رکھیں۔"
+  },
+  "th": {
+    "Sites settings": "การตั้งค่าเว็บไซต์",
+    "Store databases in app-data": "เก็บฐานข้อมูลในข้อมูลแอป",
+    "Use {path}": "ใช้ {path}",
+    "New websites folder": "โฟลเดอร์เว็บไซต์ใหม่",
+    "Extra sites folders": "โฟลเดอร์เพิ่มเติม",
+    "New sites are created in this folder. Existing site folders stay where they are.": "ไซต์ใหม่จะถูกสร้างในโฟลเดอร์นี้ โฟลเดอร์ไซต์ที่มีอยู่จะอยู่ที่เดิม",
+    "Sites inside these folders are listed here too.": "ไซต์ในโฟลเดอร์เหล่านี้จะแสดงที่นี่ด้วย",
+    "About {name}": "เกี่ยวกับ{name}",
+    "No extra folders.": "ไม่มีโฟลเดอร์เพิ่มเติม",
+    "Extra folder {number}": "โฟลเดอร์เพิ่มเติม {number}",
+    "Remove folder {number}": "นำโฟลเดอร์ {number} ออก",
+    "Add folder": "เพิ่มโฟลเดอร์",
+    "Opens by default": "เปิดเป็นค่าเริ่มต้น",
+    "Database location": "ตำแหน่งฐานข้อมูล",
+    "Inside each site (data.nosync)": "ภายในแต่ละเว็บไซต์ (data.nosync)",
+    "OS app-data": "ข้อมูลแอปของระบบ",
+    "{name} overrides this setting.": "{name} แทนที่การตั้งค่านี้",
+    "Existing databases keep their location. Stop the site before moving databases.": "ฐานข้อมูลเดิมยังอยู่ที่เดิม หยุดเว็บไซต์ก่อนย้ายฐานข้อมูล",
+    "App-data site folders are not self-contained. Transfer their databases too.": "โฟลเดอร์ที่ใช้ข้อมูลแอปไม่ครบถ้วนในตัวเอง โปรดย้ายฐานข้อมูลด้วย",
+    "Saved in {path}": "บันทึกใน {path}",
+    "Running in {app} (port {port})": "ทำงานใน {app} (พอร์ต {port})",
+    "Running in {app} (starting)": "ทำงานใน {app} (กำลังเริ่ม)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} ซิงค์โฟลเดอร์นี้ ฐานข้อมูลใหม่ใช้ข้อมูลแอปเพื่อความปลอดภัย",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} ซิงค์โฟลเดอร์นี้ เก็บฐานข้อมูลในข้อมูลแอปเพื่อป้องกันความเสียหาย"
+  },
+  "tr": {
+    "Sites settings": "Site ayarları",
+    "Store databases in app-data": "Veritabanlarını uygulama verilerinde sakla",
+    "Use {path}": "{path} kullan",
+    "New websites folder": "Yeni sitelerin klasörü",
+    "Extra sites folders": "Ek klasörler",
+    "New sites are created in this folder. Existing site folders stay where they are.": "Yeni siteler bu klasörde oluşturulur. Mevcut site klasörleri yerinde kalır.",
+    "Sites inside these folders are listed here too.": "Bu klasörlerdeki siteler de burada listelenir.",
+    "About {name}": "{name} hakkında",
+    "No extra folders.": "Ek klasör yok.",
+    "Extra folder {number}": "Ek klasör {number}",
+    "Remove folder {number}": "Klasör {number} kaldır",
+    "Add folder": "Klasör ekle",
+    "Opens by default": "Varsayılan olarak açılır",
+    "Database location": "Veritabanı konumu",
+    "Inside each site (data.nosync)": "Her sitenin içinde (data.nosync)",
+    "OS app-data": "İşletim sistemi uygulama verileri",
+    "{name} overrides this setting.": "{name} bu ayarı geçersiz kılar.",
+    "Existing databases keep their location. Stop the site before moving databases.": "Mevcut veritabanlarının konumu korunur. Taşımadan önce siteyi durdurun.",
+    "App-data site folders are not self-contained. Transfer their databases too.": "Uygulama verilerini kullanan site klasörleri tek başına yeterli değildir. Veritabanlarını da aktarın.",
+    "Saved in {path}": "{path} içinde kaydedildi",
+    "Running in {app} (port {port})": "{app} içinde çalışıyor (bağlantı noktası {port})",
+    "Running in {app} (starting)": "{app} içinde çalışıyor (başlıyor)",
+    "{provider} syncs this folder. New databases use app-data for safety.": "{provider} bu klasörü eşitler. Yeni veritabanları güvenlik için uygulama verilerini kullanır.",
+    "{provider} syncs this folder. Store databases in app-data to prevent corruption.": "{provider} bu klasörü eşitler. Bozulmayı önlemek için veritabanlarını uygulama verilerinde saklayın."
+  }
+};
+&nbsp;
+export const t = createDictionaryTranslator({ featureDictionary: SITES_SETTINGS_DICT });
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-10-29T00:19:40.163Z
+            </div>
+        <script src="../../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../../sorter.js"></script>
+        <script src="../../../../block-navigation.js"></script>
+    </body>
+</html>
+    
