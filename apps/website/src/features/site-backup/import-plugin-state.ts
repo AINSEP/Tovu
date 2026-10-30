@@ -2,8 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import type { AgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { defaultBundledSourceRoot } from "#src/features/agent-plugins/supersession";
-import { readTemplate } from "#src/platform/site-dir/index";
+import { resolveProductRoot, readTemplate } from "#src/platform/site-dir/index";
 import { writeExclusive } from "./import-restore-placement.js";
 import type { ArchivePlugin } from "./archive-manifest.js";
 
@@ -27,9 +26,9 @@ export interface ImportedExtensionState {
 export async function restoreImportedPluginState(required: { root: string; dir: string; layout: AgentPluginLayout; state: ImportedExtensionState; files: readonly string[] }, optional: { sourceRoot?: string } = {}): Promise<ReadonlySet<string>> {
   if (!required.state.plugins.some(plugin => plugin.kind === "agent")) return new Set();
   const { layout } = required;
-  const lifecycle = createTovuAgentPluginLifecycle({ layout });
   const workspaceId = readTemplate({ templateId: "starter" }).seed.workspace.id;
-  const sourceRoot = optional.sourceRoot ?? defaultBundledSourceRoot({ env: process.env });
+  const sourceRoot = optional.sourceRoot ?? process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
+  const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: sourceRoot });
   await lifecycle.seedBundledAgentPlugins({ layout, workspaceId, sourceRoot });
   const workspace = layout.forWorkspace(workspaceId);
   const installed = await lifecycle.listInstalledPlugins(workspace.root);

@@ -1,6 +1,8 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext, deferredTestAgentPluginLayout } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
+import { resolveSiteRoot } from "../../../../platform/site-dir/index.js";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, readdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -39,7 +41,7 @@ const realFsp = await import("node:fs/promises");
 let behavior: typeof realFsp.open = realFsp.open;
 const { createTovuAgentPluginLifecycle, installAgentPlugin } = await import("../../lifecycle.js");
 // The real uninstall owner stages and restores disk trees; only lock acquisition is faulted.
-const lifecycle = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, {
+const lifecycle = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, { bundledSourceRoot: bundledAgentPluginsDir(),
   filesystem: { ...realFsp, open: (...args) => behavior(...args) },
 });
 const { resolveAgentPluginLayout } = await import("#src/features/agent-plugins/layout");
@@ -94,7 +96,7 @@ async function installReal(workspaceId: string, pluginId: string, archiveSeed: s
   const archive = new Uint8Array(Buffer.from(archiveSeed));
   const digest = createHash("sha256").update(archive).digest("hex");
   const entries: AgentPluginArchiveEntry[] = [fileEntry("plugin.json", manifest), fileEntry(`skills/${pluginId}/SKILL.md`, `# ${pluginId}\n`)];
-  return installAgentPlugin({ archive, expectedSha256: digest, archiveReader: reader(entries), layout: resolveAgentPluginLayout(), workspaceId });
+  return installAgentPlugin({ archive, expectedSha256: digest, archiveReader: reader(entries), layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId });
 }
 
 /** Every call picks the Agent Plugin branch of `plugins_uninstall`; `family` is required. */
@@ -113,6 +115,8 @@ function fakeDeps(): { deps: AgentPluginUninstallToolDeps } {
   return {
     deps: testSiteLayoutContext({
       workspaceId: WORKSPACE_A,
+      agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
+      preferences: { locale: async () => "en" },
       authorize: async () => ({ allowed: true, reason: "matched" }),
       uninstallAgentPlugin: lifecycle.uninstallAgentPlugin,
     }),
@@ -219,7 +223,7 @@ test("t91 R2: a lock already busy before the call still raises the confirmation 
 test("t91 R2: a lock that goes busy while the dialog is open removes nothing on confirm, and the package survives", async () => {
   await withAgentPluginsDir(async () => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-busy-confirm");
-    const workspaceLayout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A);
+    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A);
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "operator-plugin", enabled: true, actor: "op-1" });
     const packageBefore = await snapshotTree(installed.packageRoot);
     const activationsPath = path.join(workspaceLayout.root, "activations.json");
@@ -252,7 +256,7 @@ test("t91 R2: a lock that goes busy while the dialog is open removes nothing on 
 test("Layout B: a busy per-plugin state lock on confirm is a not-removed RESULT (plugin-busy), never an opaque thrown error, and the package survives", async () => {
   await withAgentPluginsDir(async () => {
     const installed = await installReal(WORKSPACE_A, "operator-plugin", "archive-busy-state-lock");
-    const workspaceLayout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A);
+    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A);
     const pluginPackagesDir = workspaceLayout.pluginPackagesDir({ pluginId: "operator-plugin" });
     const packageBefore = await snapshotTree(installed.packageRoot);
     try {

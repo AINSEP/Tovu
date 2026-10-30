@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { installLegacyRevision } from '../fixtures/install-legacy-revision.js';
 
@@ -68,7 +69,7 @@ function manifest(name: string, version = "1.1.0"): string {
 
 async function freshLayout() {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-resolve-agent-plugin-refs-test-"));
-  const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
+  const instanceLayout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
   return { cwd, layout: instanceLayout.forWorkspace(WORKSPACE_ID) };
 }
 
@@ -91,7 +92,7 @@ async function installRealPackage(
     archive,
     expectedSha256: digest,
     archiveReader: reader(entries),
-    layout: resolveAgentPluginLayout({ cwd, env: {} }),
+    layout: resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} }),
     workspaceId: WORKSPACE_ID,
   });
 }
@@ -156,7 +157,7 @@ test("lists readable supporting files relative to the skill and never exposes an
       archive,
       expectedSha256: digest,
       archiveReader: reader(entries),
-      layout: resolveAgentPluginLayout({ cwd, env: {} }),
+      layout: resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} }),
       workspaceId: WORKSPACE_ID,
     });
 
@@ -325,7 +326,7 @@ test("frames the file inventory as instructions to follow, never as an optional 
       archive,
       expectedSha256: createHash("sha256").update(archive).digest("hex"),
       archiveReader: reader(entries),
-      layout: resolveAgentPluginLayout({ cwd, env: {} }),
+      layout: resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} }),
       workspaceId: WORKSPACE_ID,
     });
 
@@ -465,7 +466,7 @@ test("pointer mode fails closed with the same reason as inject when the eponymou
       archive,
       expectedSha256: createHash("sha256").update(archive).digest("hex"),
       archiveReader: reader(entries),
-      layout: resolveAgentPluginLayout({ cwd, env: {} }),
+      layout: resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} }),
       workspaceId: WORKSPACE_ID,
     });
 

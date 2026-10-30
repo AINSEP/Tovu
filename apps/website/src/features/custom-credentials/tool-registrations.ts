@@ -1,6 +1,6 @@
 import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 import { probeCredentialConnection } from "./credentialed-request.js";
-import type { PluginCredentialCard } from "./plugin-credential-card.js";
+import type { PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 import { invalidatePublishCredentialCompatibility } from "../deployments/publish-credentials/index.js";
 import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
 import type { DeployTargetRegistry } from "../deployments/contracts.js";
@@ -55,7 +55,8 @@ import {
   type MakeCredentialedRequestInput,
 } from "./credentialed-request.js";
 import { cleanCardToken } from "./card-token.js";
-import { applyPluginCredentialCard, loadPluginCredentialCardsSafely, findPluginCredentialCard, buildPluginCredentialForm, readPluginCredentialValues, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
+import { applyPluginCredentialCard, buildPluginCredentialForm } from "../../contracts/core/plugin-credential-card.js";
+import { loadPluginCredentialCardsSafely, findPluginCredentialCard, readPluginCredentialValues, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
 import { buildCreateForm, buildCreateOutcome, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
 import { setTokenForm, setTokenOutcome } from "./custom-credential-set-token-ui.js";
 import { describeDeleteRequestApproval, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";

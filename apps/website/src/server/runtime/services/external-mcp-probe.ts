@@ -1,17 +1,11 @@
 import { credentialText } from '../../../contracts/core/credential-copy.js';
 /** Shared saved-server probe used by the admin route and assistant tools. Never spawns local commands or invokes remote tools. */
-import {
-  connectMcpHttpSession,
-  createFetchMcpHttpExchange,
-  ExternalMcpReauthRequiredError,
-  externalMcpSettingsDeepLink,
-  readEnabledExternalMcpConfigs,
-  resolveExternalMcpAuthMode,
-  resolveExternalMcpOAuthStatus,
-  toResolvedFederatedConnections,
-  type ExternalMcpOAuthService,
-  type ExternalMcpServerRecord,
-} from "#src/assistant/index";
+import { connectMcpHttpSession, createFetchMcpHttpExchange } from "../../../assistant/index.js";
+import { ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "../../../features/external-mcp/external-mcp-oauth.js";
+import { readEnabledExternalMcpConfigs, toResolvedFederatedConnections } from "../../../features/external-mcp/external-mcp-store.js";
+import { resolveExternalMcpOAuthStatus } from "../../../contracts/core/external-mcp-auth.js";
+import { resolveExternalMcpAuthMode } from "../../../contracts/core/external-mcp-auth.js";
+import { type ExternalMcpOAuthService, type ExternalMcpServerRecord } from "../../../features/external-mcp/contracts.js";
 import type { FederatedMcpConnectionConfig, McpHttpLaunchSpec, McpSessionPort } from "@jini-ai/mcp/federation";
 import { McpAuthFailedError, McpProtocolError, describeRemoteToolSurface } from "@jini-ai/mcp/federation";
 import type { ExternalMcpToolDeps } from "#src/features/external-mcp/deps";

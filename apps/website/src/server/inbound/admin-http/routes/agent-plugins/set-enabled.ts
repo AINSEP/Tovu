@@ -146,7 +146,7 @@ async function provisionAgentPluginMcpServersBestEffort(
   try {
     const servers = await resolveAgentPluginMcpServers({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, pluginId: input.pluginId });
     const result = await provisionAgentPluginMcpServers(
-      { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
+      deps.mcp,
       { workspaceId: deps.workspaceId, pluginId: input.pluginId, servers, principalId: input.principalId },
     );
     for (const failure of result.failed) {

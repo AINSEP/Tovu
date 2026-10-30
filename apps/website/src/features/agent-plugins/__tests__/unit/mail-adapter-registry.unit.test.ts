@@ -1,3 +1,5 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -73,7 +75,7 @@ async function installPackage(pluginId: string, files: Readonly<Record<string, s
         yield* entries;
       },
     },
-    layout: resolveAgentPluginLayout(),
+    layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
     workspaceId: WORKSPACE_ID,
   });
   return installed.archiveDigest;
@@ -84,7 +86,7 @@ async function withWorkspace<T>(fn: (workspaceRoot: string) => Promise<T>): Prom
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    return await fn(resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID).root);
+    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).root);
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
@@ -102,7 +104,7 @@ test("lists an adapter from an enabled, Tovu-bundled plugin and builds a working
     const digest = await installPackage("fixture-mail", FIXTURE_FILES);
     await markBundled(workspaceRoot, "fixture-mail", digest);
 
-    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
+    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
 
     assert.deepEqual(registry.refusals, []);
     assert.deepEqual(
@@ -123,7 +125,7 @@ test("refuses a plugin whose installed digest is not the one Tovu shipped", asyn
     const digest = await installPackage("fixture-mail", FIXTURE_FILES);
     await setAgentPluginActivation({ workspaceRoot, pluginId: "fixture-mail", enabled: true, actor: "test" }, { origin: "operator-installed" });
 
-    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
+    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
 
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, [
@@ -137,7 +139,7 @@ test("a disabled bundled plugin contributes nothing and is not an error", async 
     const digest = await installPackage("fixture-mail", FIXTURE_FILES);
     await markBundled(workspaceRoot, "fixture-mail", digest, false);
 
-    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
+    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
 
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, []);
@@ -155,7 +157,7 @@ test("a module without create() is refused, and a module path escaping the plugi
     });
     await markBundled(workspaceRoot, "fixture-mail", digest);
 
-    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
+    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
 
     assert.deepEqual(registry.list(), []);
     assert.deepEqual(registry.refusals, [
@@ -184,7 +186,7 @@ test("throwing modules and malformed descriptors are refused while healthy mail 
       const digest = await installPackage(pluginId, files);
       await markBundled(workspaceRoot, pluginId, digest);
     }
-    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
+    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
     assert.deepEqual(registry.refusals, [
       "mail adapters from 'malformed-mail' were not loaded: tovu-mail-adapters.json is invalid: not valid JSON",
       "mail adapter 'fixture-mail' from 'throwing-mail' was not loaded: fixture import failed",

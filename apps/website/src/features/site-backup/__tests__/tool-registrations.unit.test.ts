@@ -147,7 +147,7 @@ function makeSite(t: TestContext): { parent: string; root: string; sources: Site
       siteDir: root,
       mediaUploadsDir: path.join(root, "uploads"),
       themesDir: path.join(root, "themes"),
-      agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }),
+      agentPlugins: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }),
       skillsDir: path.join(root, "skills"),
       tovuVersion: "0.1.0",
     },

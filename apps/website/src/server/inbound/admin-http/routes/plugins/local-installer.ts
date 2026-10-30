@@ -1,3 +1,4 @@
+import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import type { PluginInstallerPort } from "@jini-ai/plugins/host/node";
 import { sitePluginLocalInstallEnabled } from "#src/features/plugin-runtime/install";
 import type { PluginsRouteDeps } from "./deps.js";
@@ -12,6 +13,6 @@ export type LocalInstallerDeps = Pick<PluginsRouteDeps, "pluginSourcePolicy" | "
  * install sources on `undefined`.
  */
 export function localPluginInstaller(deps: LocalInstallerDeps): PluginInstallerPort | undefined {
-  const enabled = deps.pluginSourcePolicy?.localInstallEnabled({}, {}) ?? sitePluginLocalInstallEnabled({ env: process.env });
+  const enabled = deps.pluginSourcePolicy?.localInstallEnabled({}, {}) ?? sitePluginLocalInstallEnabled({ env: process.env, hostSignals: resolveHostSignals({ env: process.env }) });
   return enabled ? deps.pluginInstaller : undefined;
 }

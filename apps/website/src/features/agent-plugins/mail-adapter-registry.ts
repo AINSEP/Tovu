@@ -4,7 +4,7 @@ import { PROVIDER_ID_PATTERN } from "@jini-ai/core/provider-registry";
 import { contributeProviders, type LoadedProviderContribution } from "@jini-ai/agent-plugins/lifecycle";
 import type { MailAdapterCreateContext as JiniCreateContext, MailProviderModule, MailProviderRegistry } from "@jini-ai/platform/mail";
 import type { MailAdapterCreateContext, MailAdapterModule } from "#src/platform/mail/index";
-import { toJiniMailer } from "#src/platform/mail/index";
+import { toJiniMailer } from "#src/platform/mail/purpose-scoped-mailer";
 import type { MailProviderSetup } from "#src/platform/mail/index";
 
 import { bundledContributionSources } from "./bundled-contribution-sources.js";

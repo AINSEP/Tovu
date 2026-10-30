@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import assert from "node:assert/strict";
@@ -89,8 +90,8 @@ for (const { pluginId, packageRoot } of bundledContributionSources({ sourceRoot:
     const { setAgentPluginActivation } = (await import("../../../agent-plugins/activation-effects.js")).agentPluginActivations;
     const { loadDeployOpsRegistry } = await import("../registry.js");
     const root = await mkdtemp(path.join(tmpdir(), "t01-ops-installed-"));
-    const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: root } });
-    const lifecycle = createTovuAgentPluginLifecycle({ layout });
+    const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: root } });
+    const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
     try {
       const parsed = parseDeployOpsFile(await readFile(path.join(packageRoot, "tovu-deploy-ops.json"), "utf8"));
       assert.equal(parsed.ok, true);
@@ -138,8 +139,8 @@ test("a digest-trusted package outside the ops owners cannot become a parallel o
     await writeFile(path.join(source, "plugin.json"), '{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"example-pages","version":"1.0.0"}');
     await writeFile(path.join(source, "tovu-deploy-ops.json"), JSON.stringify({ schemaVersion: 1, platforms: [{ id: "example-actions", label: "Example Actions", module: "ops.mjs", hosts: ["api.example.com"] }] }));
     await writeFile(path.join(source, "ops.mjs"), "export default { status() {}, logs() {} };\n");
-    const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "state") } });
-    const lifecycle = createTovuAgentPluginLifecycle({ layout });
+    const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "state") } });
+    const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
     const packed = await lifecycle.packAgentPluginDirectory(source);
     const installed = await lifecycle.installAgentPlugin({ layout, workspaceId: "ws", archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader() });
     const workspaceRoot = layout.forWorkspace("ws").root;

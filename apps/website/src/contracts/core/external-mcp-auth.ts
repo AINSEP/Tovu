@@ -1,11 +1,11 @@
-import type { SealedSecret } from "#src/features/webhooks/index";
+import type { SealedSecret } from "@jini-ai/platform/secrets";
 
 /**
- * @file The external-MCP domain's auth-mode readers, moved here from `assistant/external-mcp-store.ts`
+ * @file The external-MCP domain's auth-mode readers, moved here from `features/external-mcp/external-mcp-store.ts`
  * (2026-10-03, owner decision C) so `features/agent-plugins/{connect-tool,federate-mcp}.ts` can read a
  * row's credential mode without value-importing from `src/assistant/` — the edge
  * `assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts` forbids. The store
- * imports these and re-exports them, so every existing `#src/assistant/index` importer is unchanged.
+ * and its consumers import this shared leaf directly, preserving a single vocabulary owner.
  *
  * Parameters are declared STRUCTURALLY (the two fields each reader touches) rather than as
  * `Pick<ExternalMcpServerRecord, ...>`: the record type lives in the store, which imports THIS file,
@@ -19,7 +19,7 @@ import type { SealedSecret } from "#src/features/webhooks/index";
  * - `static_env` — the operator pasted a `KEY=VALUE` block. What this store has always done, and
  *   the default for every row that predates this field.
  * - `oauth` — Tovu holds a token it obtained itself and must keep alive. See
- *   `assistant/external-mcp-oauth.ts`.
+ *   `features/external-mcp/external-mcp-oauth.ts`.
  */
 export const EXTERNAL_MCP_AUTH_MODES = ["none", "static_env", "oauth"] as const;
 export type ExternalMcpAuthMode = (typeof EXTERNAL_MCP_AUTH_MODES)[number];
@@ -43,7 +43,7 @@ export function resolveExternalMcpAuthMode(record: { authMode: string }): Extern
  * Whether a row holds a `static_env` access token — answered from plaintext columns, never by unsealing.
  *
  * Truthful because a `static_env` row's sealed OAuth blob only ever holds that token: leaving `oauth`
- * clears the client secret and token set (`assistant/external-mcp-store.ts`'s `resolveSealedOAuthBlob`),
+ * clears the client secret and token set (`features/external-mcp/external-mcp-store.ts`'s `resolveSealedOAuthBlob`),
  * and entering `oauth` never carries this token forward (`openExternalMcpOAuthPayload`'s callers
  * rebuild the payload from `clientSecret`/`tokens` alone).
  *
@@ -51,4 +51,27 @@ export function resolveExternalMcpAuthMode(record: { authMode: string }): Extern
  */
 export function externalMcpRecordHasStaticAccessToken(record: { authMode: string; sealedOAuth: SealedSecret | null }): boolean {
   return resolveExternalMcpAuthMode(record) === "static_env" && Boolean(record.sealedOAuth);
+}
+
+/**
+ * The runtime lifecycle of an OAuth-backed connection.
+ *
+ * `needs_reauth` is the state that earns its place here. It is deliberately NOT the boot-time "skip
+ * this row and report why" path {@link readEnabledExternalMcpConfigs} already uses for a sealed blob
+ * that will not decrypt: that is a STORAGE failure, nothing the operator types can fix it, and it is
+ * discovered while the daemon starts. `needs_reauth` is an expected RUNTIME lifecycle state — a
+ * token expired or was revoked while everything was working — it is exactly operator-actionable, and
+ * it must be visible in the admin tab rather than buried in a boot log nobody is reading at the time.
+ */
+export const EXTERNAL_MCP_OAUTH_STATUSES = ["disconnected", "pending", "connected", "needs_reauth"] as const;
+
+export type ExternalMcpOAuthStatus = (typeof EXTERNAL_MCP_OAUTH_STATUSES)[number];
+
+/** A row's OAuth status, defaulting an absent or unrecognized value to `disconnected` — the safe
+ *  direction, since it is the state in which no token is used and the operator is prompted. */
+export function resolveExternalMcpOAuthStatus(record: { oauthStatus: string | null }): ExternalMcpOAuthStatus {
+  const status = record.oauthStatus;
+  return status !== null && EXTERNAL_MCP_OAUTH_STATUSES.includes(status as ExternalMcpOAuthStatus)
+    ? (status as ExternalMcpOAuthStatus)
+    : "disconnected";
 }

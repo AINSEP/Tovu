@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { Express, Request, Response } from "express";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { saveExternalMcpServer } from "#src/assistant/external-mcp-store";
+import { saveExternalMcpServer } from "../../../../../../features/external-mcp/external-mcp-store.js";
 import { registerAdminExternalMcpListRoute } from "../list.js";
 import { registerAdminExternalMcpDeleteRoute } from "../delete.js";
 

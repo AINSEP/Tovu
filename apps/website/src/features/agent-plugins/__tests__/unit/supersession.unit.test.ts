@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
+import { resolveProductRoot } from "../../../../platform/site-dir/index.js";
+
 import {
-  createBundledSourceManifestReader, defaultBundledSourceRoot, parseSupersedes, readSupersessions,
+  createBundledSourceManifestReader, parseSupersedes, readSupersessions,
   supersededDescriptorRefusal, supersededPackageRefusal, type PluginSupersession,
 } from "../../supersession.js";
 
@@ -64,14 +66,19 @@ test("refusal lines name the package or descriptor, the label and the trusted su
   assert.equal(supersededDescriptorRefusal({ supersessions, pluginId: "a", descriptor: "d" }), undefined);
 });
 
-test("the bundled source root honours the override and otherwise is the product's content/agent-plugins", () => {
-  assert.equal(defaultBundledSourceRoot({ env: { TOVU_BUNDLED_AGENT_PLUGINS_DIR: "/custom" } }), "/custom");
-  assert.match(defaultBundledSourceRoot({ env: {} }), /[\\/]content[\\/]agent-plugins$/);
+test("the bundled source reader propagates a missing supplied root without discovering another", async () => {
+  const failure = new Error("missing supplied root");
+  const paths: string[] = [];
+  const reader = createBundledSourceManifestReader({ bundledSourceRoot: "/missing" }, {
+    readText: async file => { paths.push(file); throw failure; },
+  });
+  await assert.rejects(reader({ pluginId: "example" }), error => error === failure);
+  assert.deepEqual(paths, [path.join("/missing", "example", "plugin.json")]);
 });
 
 test("the bundled source reader reads <root>/<id>/plugin.json and refuses ids that are not one path segment", async () => {
   const paths: string[] = [];
-  const reader = createBundledSourceManifestReader({ sourceRoot: () => "/root" }, { readText: async filePath => { paths.push(filePath); return "{}"; } });
+  const reader = createBundledSourceManifestReader({ bundledSourceRoot: "/root" }, { readText: async filePath => { paths.push(filePath); return "{}"; } });
   assert.equal(await reader({ pluginId: "ok" }), "{}");
   assert.deepEqual(paths, [path.join("/root", "ok", "plugin.json")]);
   for (const pluginId of ["", ".", "..", "a/b"]) {
@@ -81,7 +88,7 @@ test("the bundled source reader reads <root>/<id>/plugin.json and refuses ids th
 });
 
 test("the shipped cloudflare manifest declares exactly the supersession core used to hard-code", async () => {
-  const reader = createBundledSourceManifestReader({ sourceRoot: () => defaultBundledSourceRoot({ env: {} }) });
+  const reader = createBundledSourceManifestReader({ bundledSourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") });
   const supersessions = await readSupersessions({ verdicts: [{ trusted: { pluginId: "cloudflare", packageRoot: "/unused" } }],
     manifests: { readInstalled: () => Promise.reject(new Error("an old install predates the declaration")), readBundledSource: reader } });
   assert.equal(supersededPackageRefusal({ supersessions, pluginId: "cloudflare-pages" }), "contributions from 'cloudflare-pages' were superseded by trusted 'cloudflare'");

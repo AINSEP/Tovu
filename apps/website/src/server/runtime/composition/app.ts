@@ -1,4 +1,5 @@
-import * as externalMcpStore from "#src/assistant/index";
+import { notifyExternalMcpRosterChanged } from "../../../assistant/external-mcp-roster-change.js";
+import { composeAgentPluginMcp, composeAgentPluginPreferences, composePluginProviderFaces } from "./agent-plugin-service-ports.js";
 import { sanitizeShareDatabase } from "./site-portability.js";
 import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { createSite } from "./site-dir.js";
@@ -28,7 +29,8 @@ import { composeAgentPluginConnections, resolveApiConnectionRuntime } from "./ag
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
-import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, SYSTEM_CONTENT_TYPES } from "#src/features/entries/public-list";
+import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout } from "../../../features/entries/public-list.js";
+import { SYSTEM_CONTENT_TYPES } from "../../../contracts/core/system-content-types.js";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
@@ -108,18 +110,8 @@ import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
 // 2026-09-05 (fix-cycle) — used to be a lazy `require()` here; see `runExportSite`'s doc below for
 // why a plain static import is now correct.
 import { exportSite } from "#src/features/site-export/index";
-import {
-  createInMemoryChatHistory,
-  createInMemoryAgentSessionStore,
-  InMemorySiteAssistantCredentialRepo,
-  InMemoryAdminExecutionCredentialRepo,
-  InMemoryExternalMcpServerRepo,
-  InMemoryExternalMcpToolApprovalRepo,
-  createInMemoryConversationToolApprovalStore,
-  ensurePublicAssistantSettingDefinitions,
-  ensureExecutionSettingDefinitions,
-  onExternalMcpRosterChanged,
-} from "#src/assistant/index";
+import { createInMemoryChatHistory, createInMemoryAgentSessionStore, InMemorySiteAssistantCredentialRepo, InMemoryAdminExecutionCredentialRepo, InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore, ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions, onExternalMcpRosterChanged } from "../../../assistant/index.js";
+import { InMemoryExternalMcpServerRepo } from "../../../features/external-mcp/external-mcp-store.memory.js";
 import { triggerFederationReload } from "#src/server/runtime/composition/modules/assistant-daemon-client";
 // Deep-imported rather than routed through the barrel above: `assistant/index.ts`'s Section D
 // ("Admin Daemon Proxy / Process Composition") is documented as consumed by the DAEMON's own proxy
@@ -149,7 +141,7 @@ import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/life
 import { createDeferredAgentPluginUpdateEffects } from "#src/features/agent-plugins/update-effects";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
-import { builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir } from "./site-paths.js";
+import { bundledAgentPluginsDir, builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir } from "./site-paths.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
 import { describeSiteBinding, resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot } from "#src/platform/site-dir/index";
 import {
@@ -236,7 +228,7 @@ import { ensureFormDestinationSetting } from "#src/features/settings/form-destin
 import { createSiteConsentReadiness } from "#src/features/consent/settings";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
-import { createDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
+import { createDeclaredContentTypePorts } from "./declared-content-types.js";
 import { deferDeclaredContentTypePorts } from "@jini-ai/plugins/host";
 import { forgetPluginActivations, type RemovePluginFn } from "@jini-ai/plugins/host";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
@@ -319,7 +311,8 @@ import { createWorkspaceModule } from "./modules/workspace.js";
 import { createIntegrationsModule } from "./modules/integrations.js";
 import { createIntegrationsAdminModule } from "./modules/integrations-admin.js";
 import { createExternalMcpModule } from "./modules/external-mcp.js";
-import { createDeviceAuthorizationStore, createExternalMcpOAuthService, resolvePublicAssistantAvailability } from "#src/assistant/index";
+import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../../features/external-mcp/external-mcp-oauth.js";
+import { resolvePublicAssistantAvailability } from "../../../assistant/index.js";
 import { createMediaModule } from "./modules/media.js";
 import { createTaxonomyModule } from "./modules/taxonomy.js";
 import { createTrashModule } from "./modules/trash.js";
@@ -1117,6 +1110,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const siteBinding = describeSiteBinding();
   const agentPluginLayout = resolveAgentPluginLayout({ siteDir: siteBinding.dir });
   const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {
+    bundledSourceRoot: bundledAgentPluginsDir(),
     identityAdmission: ({ id, localId, run }) => routeDeps.pluginHost!.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run }),
     // Boot recovery re-provisions a restored revision's MCP servers through the same store; read
     // lazily because that store is composed below.
@@ -1267,7 +1261,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo(),
     externalMcpServerRepo,
-    externalMcpStore, notifyRosterChanged: externalMcpStore.notifyExternalMcpRosterChanged,
+    bundledSourceRoot: bundledAgentPluginsDir(),
+    mcp: composeAgentPluginMcp({ repo: externalMcpServerRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock }),
+    preferences: composeAgentPluginPreferences({ settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals }, read: getEffective, write: (required, optional) => routeDeps.set(required, optional) }),
+    providerFaces: composePluginProviderFaces({ workspaceRoot: () => agentPluginLayout.forWorkspace(seededWorkspace.id).root }),
+    notifyRosterChanged: notifyExternalMcpRosterChanged,
     builtInExternalMcpServerIds: readBuiltInExternalMcpServerIds({ env: process.env }),
     externalMcpToolApprovalRepo: new InMemoryExternalMcpToolApprovalRepo(),
     /**
@@ -1286,7 +1284,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       keyring: siteAssistantSecretKeyring,
       clock,
       devices: externalMcpOAuthDevices,
-      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId: seededWorkspace.id, repo: externalMcpServerRepo, clock, notifyRosterChanged: externalMcpStore.notifyExternalMcpRosterChanged }),
+      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId: seededWorkspace.id, repo: externalMcpServerRepo, clock, notifyRosterChanged: notifyExternalMcpRosterChanged }),
     }),
     externalMcpOAuthDevices,
     derivedPublicOrigin,

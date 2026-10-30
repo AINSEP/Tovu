@@ -1,31 +1,17 @@
-import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { randomUUID } from "node:crypto";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
 import { deleteExternalMcpVaultEnvelope, externalMcpVaultEnvelope, externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import type { KeyringPort } from "../../features/webhooks/index.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import type { KeyringPort } from "../../webhooks/index.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import {
-  ExternalMcpSecretStoreUnconfiguredError,
-  ExternalMcpValidationError,
-  deleteExternalMcpServer,
-  externalMcpAdmissionRevision,
-  listExternalMcpServerViews,
-  openExternalMcpOAuthPayload,
-  parseAllowedToolNames,
-  parseArgs,
-  parseEnvBlock,
-  parseWriteAllowedToolNames,
-  readEnabledExternalMcpConfigs,
-  saveExternalMcpServer,
-  toResolvedFederatedConnections,
-} from "../external-mcp-store.js";
+import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, deleteExternalMcpServer, externalMcpAdmissionRevision, listExternalMcpServerViews, openExternalMcpOAuthPayload, parseAllowedToolNames, parseArgs, parseEnvBlock, parseWriteAllowedToolNames, readEnabledExternalMcpConfigs, saveExternalMcpServer, toResolvedFederatedConnections } from "../external-mcp-store.js";
 import { FEDERATED_CONNECTION_DEFAULTS, admitRemoteTools, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
-import type { ExternalMcpServerConfig, ExternalMcpServerRecord, SaveExternalMcpOAuthInput } from "../external-mcp-store.js";
+import type { ExternalMcpServerConfig, ExternalMcpServerRecord, SaveExternalMcpOAuthInput } from "../contracts.js";
 
 /**
  * @file `external-mcp-store.ts` — the operator-editable roster behind Settings → External MCP.

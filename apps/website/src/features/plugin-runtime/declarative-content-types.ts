@@ -34,8 +34,8 @@ import {
   type ContentTypeFieldDef,
   type ContentTypeFieldKind,
   type ContentTypeRecord,
-} from "#src/features/content-types/index";
-import { SYSTEM_CONTENT_TYPES } from "#src/features/entries/contracts";
+} from "@jini-ai/cms/content-types";
+import { SYSTEM_CONTENT_TYPES } from "../../contracts/core/system-content-types.js";
 
 import { PluginInvalidError } from "@jini-ai/plugins/host";
 import type { PluginManifest, PluginValidationError } from "@jini-ai/plugins/host";

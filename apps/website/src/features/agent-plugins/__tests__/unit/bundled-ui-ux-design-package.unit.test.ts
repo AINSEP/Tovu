@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import assert from "node:assert/strict";
 import { cp, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -29,8 +30,8 @@ for (const initial of ["new site", "untouched disabled seed", "operator disabled
   test(`ui-ux-design seeds correctly for ${initial}`, async (t) => {
     const siteDir = await mkdtemp(path.join(tmpdir(), "tovu-design-seed-"));
     t.after(() => forceRemove(siteDir));
-    const layout = resolveAgentPluginLayout({ siteDir, env: {} });
-    const lifecycle = createTovuAgentPluginLifecycle({ layout });
+    const layout = resolveAgentPluginLayout({ siteDir: siteDir }, { env: {} });
+    const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
     const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
     if (initial === "untouched disabled seed") {
       await lifecycle.recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: PLUGIN_ID });
@@ -69,8 +70,8 @@ for (const initial of ["new site", "untouched disabled seed", "operator disabled
 test("ui-ux-design seeding supersedes a manual install with different version/digest and stays singular across boots", async (t) => {
   const siteDir = await mkdtemp(path.join(tmpdir(), "tovu-design-manual-"));
   t.after(() => forceRemove(siteDir));
-  const layout = resolveAgentPluginLayout({ siteDir, env: {} });
-  const lifecycle = createTovuAgentPluginLifecycle({ layout });
+  const layout = resolveAgentPluginLayout({ siteDir: siteDir }, { env: {} });
+  const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
   const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
   const manualSource = path.join(siteDir, "manual-source");
   await cp(path.join(CONTENT_ROOT, PLUGIN_ID), manualSource, { recursive: true });

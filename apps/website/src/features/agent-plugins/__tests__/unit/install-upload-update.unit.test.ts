@@ -1,3 +1,5 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -44,7 +46,7 @@ async function withLayout<T>(fn: (layout: Layout) => Promise<T>): Promise<T> {
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    return await fn(resolveAgentPluginLayout());
+    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }));
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
@@ -251,7 +253,7 @@ test("replace (preview): a newer version previews with the version it upgrades f
 test("boot recovery: Tovu's lifecycle binding exposes the owner's update reconciliation, a no-op with nothing to recover", async () => {
   await withLayout(async (layout) => {
     await installFirst(layout, await packageZip("1.0.0"));
-    const lifecycle = createTovuAgentPluginLifecycle({ layout });
+    const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
     await lifecycle.reconcileAgentPluginUpdates({ workspaceId: WORKSPACE });
     assert.equal((await liveDigests(layout)).length, 1);
   });

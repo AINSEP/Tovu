@@ -8,8 +8,8 @@ import {
   buildExternalMcpFederationDeps,
   createStoredExternalMcpConnectionSource,
 } from "../external-mcp-connection-source.js";
-import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "../external-mcp-store.js";
-import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
+import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "../../features/external-mcp/contracts.js";
+import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";

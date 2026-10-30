@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { agentPluginActivations } from "../../activation-effects.js";
 
 import assert from "node:assert/strict";
@@ -25,7 +26,7 @@ test("unreadable activation state refuses carry and seeding without writing succ
   const { createTovuAgentPluginLifecycle } = await import("../../lifecycle.js");
   const { resolveAgentPluginLayout } = await import("../../layout.js");
   await withWorkspaceRoot(async root => {
-    const layout = resolveAgentPluginLayout({ siteDir: root, env: {} });
+    const layout = resolveAgentPluginLayout({ siteDir: root }, { env: {} });
     const workspaceRoot = layout.forWorkspace("ws").root;
     const { mkdir } = await import("node:fs/promises");
     await mkdir(workspaceRoot, { recursive: true });
@@ -33,7 +34,7 @@ test("unreadable activation state refuses carry and seeding without writing succ
     await writeFile(file, "{");
     await assert.rejects(carryCloudflareActivation({ workspaceRoot, activations: agentPluginActivations }));
     assert.equal(await readFile(file, "utf8"), "{");
-    const seeded = await createTovuAgentPluginLifecycle({ layout }).seedBundledAgentPlugins({ layout, workspaceId: "ws", sourceRoot: path.resolve("content/agent-plugins") });
+    const seeded = await createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() }).seedBundledAgentPlugins({ layout, workspaceId: "ws", sourceRoot: path.resolve("content/agent-plugins") });
     assert.ok(seeded.outcomes.length > 0);
     assert.equal(seeded.outcomes.every(outcome => outcome.status === "failed"), true);
     assert.deepEqual(seeded.retirements, []);

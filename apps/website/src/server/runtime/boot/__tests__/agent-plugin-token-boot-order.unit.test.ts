@@ -1,12 +1,13 @@
-import * as externalMcpStore from "#src/assistant/mcp-services";
+import { composeAgentPluginMcp } from "../../composition/agent-plugin-service-ports.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { InMemoryExternalMcpServerRepo, saveExternalMcpServer } from "#src/assistant/index";
-import { openExternalMcpOAuthPayload } from "#src/assistant/external-mcp-store";
+import { InMemoryExternalMcpServerRepo } from "../../../../features/external-mcp/external-mcp-store.memory.js";
+import { saveExternalMcpServer } from "../../../../features/external-mcp/external-mcp-store.js";
+import { openExternalMcpOAuthPayload } from "../../../../features/external-mcp/external-mcp-store.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import type { McpServerConfig } from "#src/features/agent-plugins/mcp-metadata";
@@ -81,7 +82,8 @@ test("default boot adapters preserve a failed onboarding token over a conflictin
   fs.writeFileSync(pendingFile, JSON.stringify({ version: 1, tokens: { supabase: sealed } }));
   let failImport = true;
   const realDeps = {
-    workspaceId: "ws-boot-token", clock, externalMcpServerRepo: repo, externalMcpStore,
+    workspaceId: "ws-boot-token", clock, externalMcpServerRepo: repo, mcp: composeAgentPluginMcp({ repo, sealer, keyring, clock }),
+    notifyRosterChanged: async () => {},
     siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring,
     resolveInstalledPlugin: async () => {
       if (failImport) { failImport = false; throw new Error("transient plugin read failure"); }

@@ -3,16 +3,9 @@ import test from "node:test";
 
 import { InMemoryVaultRepo, VaultError, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
 
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import {
-  deleteExternalMcpVaultEnvelope,
-  externalMcpVaultEnvelope,
-  externalMcpVaultRecord,
-  openExternalMcpVaultPayload,
-  persistExternalMcpVaultEnvelope,
-  sealExternalMcpVaultPayload,
-} from "../external-mcp-vault.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { deleteExternalMcpVaultEnvelope, externalMcpVaultEnvelope, externalMcpVaultRecord, openExternalMcpVaultPayload, persistExternalMcpVaultEnvelope, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 
 /**
  * @file The External MCP vault envelope: a sealed payload carries its vault context in memory only,

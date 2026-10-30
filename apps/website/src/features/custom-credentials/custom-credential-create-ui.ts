@@ -2,7 +2,7 @@ import { suggestCredentialWorksFor } from "@jini-ai/platform/secrets/credential-
 import type { SurfaceOutcomeSpec } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
 
-import { CUSTOM_CREDENTIAL_CATEGORIES } from "./types.js";
+import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../contracts/core/custom-credential-categories.js";
 
 /**
  * @file The MCP-UI surfaces `tool-registrations.ts` raises for `custom_credential_create`

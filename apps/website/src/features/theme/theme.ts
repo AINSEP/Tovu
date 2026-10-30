@@ -1,5 +1,6 @@
-import { DEFAULT_THEME_SLOTS, type ThemeSlotDescriptor, type TemplateNode, type ThemeManifest, type ThemeBuildInfo, type ThemeTier } from "./render-contract.js";
-export type { ThemeSlotDescriptor, TemplateNode, ThemeManifest, ThemeBuildInfo, ThemeTier } from "./render-contract.js";
+import { DEFAULT_THEME_SLOTS, type ThemeSlotDescriptor } from "../../contracts/core/theme-slots.js";
+import { type TemplateNode, type ThemeManifest, type ThemeBuildInfo, type ThemeTier } from "./render-contract.js";
+export type { TemplateNode, ThemeManifest, ThemeBuildInfo, ThemeTier } from "./render-contract.js";
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -33,7 +34,7 @@ import { parseTemplateFor } from "./template-applicability.js";
 
 const THEME_TIERS: readonly ThemeTier[] = ["declarative", "templated", "handlebars", "static", "code"];
 
-export { DEFAULT_THEME_SLOTS } from "./render-contract.js";
+
 
 /** Design tokens: CSS custom-property name → value (emitted into `:root`). */
 export type ThemeTokens = Record<string, string>;

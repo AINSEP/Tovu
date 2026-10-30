@@ -1,9 +1,10 @@
 import type { ToolExecutionOptions } from "@jini-ai/core";
-import { loadPluginCredentialCardsSafely, type PluginCredentialCard } from "./plugin-credential-card.js";
+import { loadPluginCredentialCardsSafely } from "./plugin-credential-card.js";
+import { type PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from '@jini-ai/core';
 import { CREDENTIAL_SAVE_TOOL_ID } from '../../contracts/headless/index.js';
-import { CUSTOM_CREDENTIAL_CATEGORIES } from './types.js';
+import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../contracts/core/custom-credential-categories.js";
 
 /** Tovu credential kinds delegate to the existing domain authorization and sealed-store owners.
  * Jini owns the secret-card lifecycle; this module only routes non-secret model metadata.

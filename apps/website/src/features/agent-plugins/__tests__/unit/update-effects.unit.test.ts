@@ -13,8 +13,8 @@ import { AGENT_PLUGIN_RECOVERY_ACTOR, createAgentPluginUpdateEffects, createDefe
  */
 
 const notified: string[] = [];
-const deps = { workspaceId: "ws-1", agentPluginLayout: { marker: "layout" }, externalMcpServerRepo: { marker: "repo" }, siteAssistantSecretSealer: { marker: "sealer" },
-  siteAssistantSecretKeyring: { marker: "keyring" }, clock: { marker: "clock" }, notifyExternalMcpRosterChanged: async () => { notified.push("notify"); } } as unknown as UpdateMcpDeps;
+const deps = { workspaceId: "ws-1", agentPluginLayout: { marker: "layout" }, mcp: { repo: { marker: "repo" }, saveServer: async () => { throw new Error("not called by recorder"); } },
+  notifyExternalMcpRosterChanged: async () => { notified.push("notify"); } } as unknown as UpdateMcpDeps;
 const installed = { pluginId: "notes" } as Parameters<ReturnType<typeof createAgentPluginUpdateEffects>["provision"]>[0]["installed"];
 
 function recorder(failed: string[] = []) {
@@ -36,7 +36,7 @@ test("provision resolves the candidate's servers and provisions them as the acto
   await effects.notifyRosterChanged({ workspaceId: "ws-1" });
   assert.deepEqual(r.calls, [
     ["resolve", { agentPluginLayout: deps.agentPluginLayout, workspaceId: "ws-1", pluginId: "notes" }],
-    ["provision", { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
+    ["provision", deps.mcp,
       { workspaceId: "ws-1", pluginId: "notes", servers: { remote: { url: "https://mcp.example" } }, principalId: "owner" }],
   ]);
   // The roster reload goes through the host's bound port, never a value import of the assistant.
@@ -77,7 +77,7 @@ test("the deferred boot port's provision and roster reload go through the real e
 
 test("requireUpdateMcpDeps passes exactly the bound deps through, and refuses a host missing any of them as a wiring fault", () => {
   assert.deepEqual(requireUpdateMcpDeps({ deps }), deps);
-  for (const key of ["clock", "externalMcpServerRepo", "siteAssistantSecretSealer", "siteAssistantSecretKeyring", "notifyExternalMcpRosterChanged"] as const) {
+  for (const key of ["mcp", "notifyExternalMcpRosterChanged"] as const) {
     const { [key]: _missing, ...partial } = deps;
     assert.throws(() => requireUpdateMcpDeps({ deps: partial }), /did not bind its MCP provisioning/, key);
   }
@@ -87,4 +87,9 @@ test("the deferred boot port surfaces a host without the roster port as a failed
   const { notifyExternalMcpRosterChanged: _unbound, ...partial } = deps;
   const port = createDeferredAgentPluginUpdateEffects({ resolveDeps: () => partial });
   await assert.rejects(port.provision({ workspaceId: "ws-1", installed }), /did not bind its MCP provisioning/);
+});
+
+test("update provisioning refuses a port missing its repository or persistence operation", () => {
+  assert.throws(() => requireUpdateMcpDeps({ deps: { ...deps, mcp: { ...deps.mcp, repo: undefined } } as unknown as UpdateMcpDeps }), /did not bind its MCP provisioning/);
+  assert.throws(() => requireUpdateMcpDeps({ deps: { ...deps, mcp: { ...deps.mcp, saveServer: undefined } } as unknown as UpdateMcpDeps }), /did not bind its MCP provisioning/);
 });

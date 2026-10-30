@@ -5,7 +5,6 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 
 import {
-  bundledAgentPluginsSourceRoot,
   describeNewSiteAgentPluginTokenRefusal,
   firstNewSiteAgentPluginTokenRefusal,
   listBundledAgentPluginServers,
@@ -100,27 +99,26 @@ test('a permission refusal stops onboarding without calling the token invalid', 
 });
 
 test("bundled plugins: read by manifest name; retired and manifest-less dirs are skipped; an absent root is empty", async () => {
-  const ids = (await listBundledAgentPluginServers(root)).map((p) => p.pluginId).sort();
+  const ids = (await listBundledAgentPluginServers({ bundledSourceRoot: root })).map((p) => p.pluginId).sort();
   assert.deepEqual(ids, ["plain", "supabase"]);
-  assert.deepEqual(await listBundledAgentPluginServers(path.join(root, "missing")), []);
-  assert.ok(await resolveBundledAgentPlugin(root)("supabase"));
-  assert.equal(await resolveBundledAgentPlugin(root)("nope"), null);
+  assert.deepEqual(await listBundledAgentPluginServers({ bundledSourceRoot: path.join(root, "missing") }), []);
+  assert.ok(await resolveBundledAgentPlugin({ bundledSourceRoot: root })("supabase"));
+  assert.equal(await resolveBundledAgentPlugin({ bundledSourceRoot: root })("nope"), null);
 });
 
 test("the token sign-in list over bundled plugins offers only plugins that declare tovuTokenAuth", async () => {
-  const plugins = await listTokenSignInPlugins("new-site", () => listBundledAgentPluginServers(root));
+  const plugins = await listTokenSignInPlugins("new-site", () => listBundledAgentPluginServers({ bundledSourceRoot: root }));
   assert.deepEqual(plugins, [{ pluginId: "supabase", displayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" }]);
 });
 
-test("the bundled source root is the env override when set, else <product>/content/agent-plugins", () => {
-  assert.equal(bundledAgentPluginsSourceRoot({ env: { TOVU_BUNDLED_AGENT_PLUGINS_DIR: "/opt/bundled" }, productRoot: () => "/unused" }), "/opt/bundled");
-  assert.equal(bundledAgentPluginsSourceRoot({ env: {}, productRoot: () => "/srv/tovu" }), path.join("/srv/tovu", "content", "agent-plugins"));
-  const fromProcess = process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR;
-  assert.equal(bundledAgentPluginsSourceRoot(), bundledAgentPluginsSourceRoot({ env: { TOVU_BUNDLED_AGENT_PLUGINS_DIR: fromProcess } }));
+test("a missing supplied bundled root never falls back to the shipped plugins", async () => {
+  const paths = { bundledSourceRoot: path.join(root, "missing") };
+  assert.deepEqual(await listNewSiteAgentPluginTokenSignInPlugins(paths), []);
+  assert.equal(await resolveBundledAgentPlugin(paths)("supabase"), null);
 });
 
 test("the new-site sign-in list reads the given bundled root", async () => {
-  assert.deepEqual(await listNewSiteAgentPluginTokenSignInPlugins(root), await listTokenSignInPlugins("new-site", () => listBundledAgentPluginServers(root)));
+  assert.deepEqual(await listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: root }), await listTokenSignInPlugins("new-site", () => listBundledAgentPluginServers({ bundledSourceRoot: root })));
 });
 
 test("a bundled dir whose manifest name is not a valid plugin id is skipped", async (t) => {
@@ -130,5 +128,5 @@ test("a bundled dir whose manifest name is not a valid plugin id is skipped", as
   fs.writeFileSync(path.join(badRoot, "bad", "plugin.json"), JSON.stringify({ name: "Not A Valid Id" }));
   fs.mkdirSync(path.join(badRoot, "numeric"));
   fs.writeFileSync(path.join(badRoot, "numeric", "plugin.json"), JSON.stringify({ name: 7 }));
-  assert.deepEqual(await listBundledAgentPluginServers(badRoot), []);
+  assert.deepEqual(await listBundledAgentPluginServers({ bundledSourceRoot: badRoot }), []);
 });

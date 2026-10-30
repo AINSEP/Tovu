@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../activation-effects.js";
@@ -59,7 +60,7 @@ async function withSeededWorkspace<T>(fn: (context: { readonly workspaceRoot: st
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    const layout = resolveAgentPluginLayout();
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
     const result = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: BUNDLED_SOURCE_ROOT });
 
     const failures = result.outcomes.filter((outcome) => outcome.status === "failed");
@@ -75,7 +76,7 @@ async function withSeededWorkspace<T>(fn: (context: { readonly workspaceRoot: st
 
 test("higgsfield-media seeds from the real bundled tree and is recorded INACTIVE, like every bundled plugin", async () => {
   await withSeededWorkspace(async ({ workspaceRoot }) => {
-    const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
     const installed = await listInstalledPlugins(layout.root);
 
     const seeded = installed.find((plugin) => plugin.pluginId === PLUGIN_ID);
@@ -96,7 +97,7 @@ test("enabling it injects the REAL SKILL.md, carrying every claim an agent canno
   await withSeededWorkspace(async ({ workspaceRoot }) => {
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "test:operator" });
 
-    const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
     const injected = await resolveAgentPluginRefs([PLUGIN_ID], layout);
     assert.equal(injected.ok, true, "an enabled plugin must resolve for run-start injection");
     assert.ok(injected.ok);
@@ -128,7 +129,7 @@ test("disabling it again withholds the SKILL.md entirely", async () => {
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "test:operator" });
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: false, actor: "test:operator" });
 
-    const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
     const injected = await resolveAgentPluginRefs([PLUGIN_ID], layout);
 
     assert.equal(injected.ok, false, "a disabled plugin must not inject");

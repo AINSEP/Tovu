@@ -1,4 +1,4 @@
-import type { HttpClientPort } from "../../platform/http/index.js";
+import type { PluginCredentialsPort } from "./service-ports.js";
 
 import { probeToken } from "./access-token-tool.js";
 import { titleCaseFromPluginId, type ResolvedAgentPluginForConnect } from "./connect-tool.js";
@@ -56,7 +56,7 @@ export type TokenCheckOutcome = "ok" | "invalid" | "refused" | "unavailable" | "
 export async function checkAgentPluginAccessToken(
   deps: {
     readonly workspaceId: string;
-    readonly httpClient: HttpClientPort;
+    readonly credentials: Pick<PluginCredentialsPort, "probe">;
     readonly resolveInstalledPlugin: (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null>;
   },
   input: { readonly pluginId: string; readonly token: string },
@@ -70,5 +70,5 @@ export async function checkAgentPluginAccessToken(
   }
   const auth = plugin ? soleTokenAuth(plugin.servers) : null;
   if (!auth) return "unsupported";
-  return probeToken({ probeUrl: auth.probeUrl, token: input.token }, { httpClient: deps.httpClient });
+  return probeToken({ probeUrl: auth.probeUrl, token: input.token, credentials: deps.credentials });
 }

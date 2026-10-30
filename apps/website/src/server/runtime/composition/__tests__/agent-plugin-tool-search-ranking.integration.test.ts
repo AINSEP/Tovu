@@ -1,4 +1,5 @@
-import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
+import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy.js";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
@@ -13,10 +14,10 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 
-import { forceRemove } from "../fixtures/force-remove.js";
-import { resolveAgentPluginLayout } from "../../layout.js";
-import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../lifecycle.js";
-import { registerInstalledAgentPluginTools } from "../../tool-registrations.js";
+import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove.js";
+import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "#src/features/agent-plugins/lifecycle.js";
+import { registerInstalledAgentPluginTools } from "#src/features/agent-plugins/tool-registrations.js";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
@@ -151,7 +152,7 @@ async function installRealUiUxDesignPlugin(workspaceId: string) {
   }
   const archive = new Uint8Array(Buffer.from("archive-real-ui-ux-design-pilot"));
   const digest = createHash("sha256").update(archive).digest("hex");
-  return installAgentPlugin({ archive, expectedSha256: digest, archiveReader: reader(entries), layout: resolveAgentPluginLayout(), workspaceId });
+  return installAgentPlugin({ archive, expectedSha256: digest, archiveReader: reader(entries), layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId });
 }
 
 /** Builds the real production surface, WITHOUT the plugin tool — the "before" side of the
@@ -247,7 +248,7 @@ test("CRUX: realistic operator queries against the full real catalog (~150 nativ
 test("owner 2026-10-09: search_tools finds author keywords and provides absent from skill prose", async () => {
   await withAgentPluginsDir(async () => {
     const workspaceId = "pid-search";
-    const layout = resolveAgentPluginLayout();
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
     const value = {
       $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "directory-bridge", version: "1.0.0",
       keywords: ["pidkeyword"], extensions: { tovu: { id: "tovu/directory-bridge", provides: ["source-control"] } },

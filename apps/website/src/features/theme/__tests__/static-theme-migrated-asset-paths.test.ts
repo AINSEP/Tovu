@@ -4,7 +4,8 @@ import path from "node:path";
 import test from "node:test";
 import { parse, type DefaultTreeAdapterMap } from "parse5";
 
-import { expandPartials, renderStaticPage } from "../static-render.js";
+import { expandPartials } from "../../../contracts/core/expand-partials.js";
+import { renderStaticPage } from "../static-render.js";
 import { loadTheme } from "../theme.js";
 
 /**

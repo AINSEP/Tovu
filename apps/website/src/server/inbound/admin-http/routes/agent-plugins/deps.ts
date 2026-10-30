@@ -39,6 +39,7 @@ export interface AgentPluginsRouteDeps {
   agentPluginLayout: RouteDeps["agentPluginLayout"];
   authorize: AuthorizeFn;
   clock: RouteDeps["clock"];
+  mcp: RouteDeps["mcp"];
   externalMcpServerRepo: RouteDeps["externalMcpServerRepo"];
   siteAssistantSecretSealer: RouteDeps["siteAssistantSecretSealer"];
   siteAssistantSecretKeyring: RouteDeps["siteAssistantSecretKeyring"];

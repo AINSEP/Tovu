@@ -1,10 +1,11 @@
+import { notifyExternalMcpRosterChanged } from "../../../assistant/external-mcp-roster-change.js";
 import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
-import * as externalMcpStore from "#src/assistant/index";
+import { composeAgentPluginMcp, composeAgentPluginPreferences, composePluginProviderFaces } from "./agent-plugin-service-ports.js";
 import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { protectProjectKeyDeletes } from "#src/features/project-keys/protected-vault";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { siteProviderRevisions, watchProviderRevisions } from "./provider-revision-watch.js";
-import { defaultBundledSourceRoot } from "#src/features/agent-plugins/supersession";
+
 import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
 import { createReadyLoginProviderList } from "#src/features/member-login/ready-providers";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
@@ -59,7 +60,8 @@ import { resolveSiteDatabasePaths, resolveSiteDirForDatabase } from "#src/platfo
 import { createTovuPluginHost } from "./plugin-host.js";
 import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
-import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, SYSTEM_CONTENT_TYPES } from "#src/features/entries/public-list";
+import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout } from "../../../features/entries/public-list.js";
+import { SYSTEM_CONTENT_TYPES } from "../../../contracts/core/system-content-types.js";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
@@ -241,7 +243,7 @@ import { SealedDatabaseDestinationStore } from "#src/features/database-transfer/
 import { DatabaseDestinationRepo } from "#src/features/database-transfer/destination-repo";
 import { SqliteAdminExecutionCredentialRepo } from "#src/assistant/execution-credential-repo.sqlite";
 import { SqliteMediaProviderCredentialRepo } from "#src/features/media/media-provider-credential-repo.sqlite";
-import { SqliteExternalMcpServerRepo } from "#src/assistant/external-mcp-repo.sqlite";
+import { SqliteExternalMcpServerRepo } from "../../../features/external-mcp/external-mcp-repo.sqlite.js";
 import { SqliteExternalMcpToolApprovalRepo } from "#src/platform/db/sqlite/external-mcp-tool-approval-repo.sqlite";
 import { createSqliteConversationToolApprovalStore } from "#src/assistant/persistence/conversation-tool-approval-store";
 import {
@@ -299,7 +301,7 @@ import { ensureFormDestinationSetting } from "#src/features/settings/form-destin
 import { createSiteConsentReadiness } from "#src/features/consent/settings";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
-import { createDeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-enable";
+import { createDeclaredContentTypePorts } from "./declared-content-types.js";
 import { deferDeclaredContentTypePorts } from "@jini-ai/plugins/host";
 import { forgetPluginActivations, type RemovePluginFn } from "@jini-ai/plugins/host";
 import { composePluginRuntime } from "./plugin-runtime.js";
@@ -370,10 +372,11 @@ import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contract
 import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
 import { resolveSitesHome } from "#src/platform/site-dir/sites-home";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
-import { createExternalMcpOAuthService, resolvePublicAssistantAvailability } from "#src/assistant/index";
+import { createExternalMcpOAuthService } from "../../../features/external-mcp/external-mcp-oauth.js";
+import { resolvePublicAssistantAvailability } from "../../../assistant/index.js";
 import { createSqliteDeviceAuthorizationStore } from "#src/platform/db/sqlite/oauth-pending-store.sqlite";
 
-import { assertContentDbFileName, builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir, siteDir, type SitePathResolverOptional } from "./site-paths.js";
+import { bundledAgentPluginsDir, assertContentDbFileName, builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir, siteDir, type SitePathResolverOptional } from "./site-paths.js";
 export { builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir, siteDir, type SitePathResolverOptional } from "./site-paths.js";
 
 // Historical cycle context; shared resolvers now live in site-paths.ts.
@@ -449,22 +452,7 @@ export function builtInSeedUploadsDir(siteName: string): string {
   return join(stockRoot, siteName, "uploads");
 }
 
-/**
- * Agent Plugins that ship WITH the product live in `content/agent-plugins/<pluginId>/`, copied to
- * `dist/content/agent-plugins/` at build time and resolved package-relative to this file — the exact
- * same shape as {@link builtInThemesDir} immediately above, including the product-root walk-up that
- * makes it land correctly in both the source and compiled layouts, and for the same reason (CR-R04:
- * a `process.cwd()`-relative path is wrong the moment the CLI is invoked from outside the checkout).
- *
- * Deliberately NOT `<site>/agent-plugins/`. That directory is `layout.ts`'s per-workspace INSTALL
- * root — gitignored site data (`sites/README.md`), populated by extraction, and frozen read-only
- * per digest. Product-shipped source cannot live there: it would not be tracked, would not ship in
- * a release, and would collide with the content-addressed tree the installer owns. Bundled source
- * is an INPUT to installation (`features/agent-plugins/seed-bundled.ts`), not a location within it.
- */
-export function bundledAgentPluginsDir(): string {
-  return process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? join(resolveProductRoot(), "content", "agent-plugins");
-}
+
 
 /**
  * `TOVU_PLUGINS_DIR` env, then `<site>/plugins` — the per-site root `discoverPlugins()`
@@ -1087,6 +1075,7 @@ async function composeSiteRouteDeps(
   const resolvedSiteBinding = resolveSiteBindingOverride(overrides);
   const agentPluginLayout = resolveAgentPluginLayout({ siteDir: resolvedSiteBinding.dir });
   const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {
+    bundledSourceRoot: bundledAgentPluginsDir(),
     productTracker: () => lifecycleTracker,
     identityAdmission: ({ id, localId, run }) => routeDeps.pluginHost!.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run }),
     // Boot recovery re-provisions a restored revision's MCP servers through the same store; read
@@ -2165,7 +2154,7 @@ async function composeSiteRouteDeps(
   }, {
     ensurePrivacyDefaults: () => ensureSiteConsentPrivacy({ deps: routeDepsBuilt }),
   });
-  const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: createReadyLoginProviderList({ sourceRoot: defaultBundledSourceRoot({ env: process.env }), loadContributions: agentPluginLifecycle.loadPluginContributions, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer } }) });
+  const pluginExports = createPluginExportRuntime({ workspaceId: workspaceId, source: createPluginExportSource({ lifecycle: agentPluginLifecycle }), listProviders: createReadyLoginProviderList({ sourceRoot: bundledAgentPluginsDir(), loadContributions: agentPluginLifecycle.loadPluginContributions, credentials: { repo: customCredentialSetRepo, sealer: siteAssistantSecretSealer } }) });
   const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {
     siteBackupSanitize: sanitizeShareDatabase,
     pluginExports,
@@ -2290,7 +2279,11 @@ async function composeSiteRouteDeps(
     // Same shared sealer/keyring again — one sealing capability across all three credential tables.
     mediaProviderCredentialRepo: new SqliteMediaProviderCredentialRepo(kernel),
     externalMcpServerRepo,
-    externalMcpStore, notifyRosterChanged: externalMcpStore.notifyExternalMcpRosterChanged,
+    bundledSourceRoot: bundledAgentPluginsDir(),
+    mcp: composeAgentPluginMcp({ repo: externalMcpServerRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock }),
+    preferences: composeAgentPluginPreferences({ settings: { repo: settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals }, read: getEffective, write: (required, optional) => routeDeps.set(required, optional) }),
+    providerFaces: composePluginProviderFaces({ workspaceRoot: () => agentPluginLayout.forWorkspace(workspaceId).root }),
+    notifyRosterChanged: notifyExternalMcpRosterChanged,
     builtInExternalMcpServerIds: readBuiltInExternalMcpServerIds({ env: process.env }),
     externalMcpToolApprovalRepo: new SqliteExternalMcpToolApprovalRepo(kernel),
     /**
@@ -2308,7 +2301,7 @@ async function composeSiteRouteDeps(
       keyring: siteAssistantSecretKeyring,
       clock,
       devices: externalMcpOAuthDevices,
-      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId, repo: externalMcpServerRepo, clock, notifyRosterChanged: externalMcpStore.notifyExternalMcpRosterChanged }),
+      onConnected: createApplyConnectDefaults({ agentPluginLayout, workspaceId, repo: externalMcpServerRepo, clock, notifyRosterChanged: notifyExternalMcpRosterChanged }),
     }),
     externalMcpOAuthDevices,
     // See `routes/types.ts`'s `derivedPublicOrigin` doc; computed above with the plugin connection seams.

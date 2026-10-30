@@ -1,20 +1,20 @@
 import { sql, type Selectable } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase, type SecretsVaultTable } from "@jini-ai/db/secrets-vault";
 import { VaultError, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
-import { externalMcpVaultEnvelope, persistExternalMcpVaultEnvelope, deleteExternalMcpVaultEnvelope } from "#src/assistant/external-mcp-vault";
-import type { StorageKernel } from "../platform/db/kernel/port.js";
+import { externalMcpVaultEnvelope, persistExternalMcpVaultEnvelope, deleteExternalMcpVaultEnvelope } from "./external-mcp-vault.js";
+import type { StorageKernel } from "../../platform/db/kernel/port.js";
 
 import type { UUID } from "@jini-ai/core/primitives";
 
-import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "#src/assistant/index";
-import type { ContentKernel } from "../platform/db/content-kernel.js";
-import type { ExternalMcpServersTable } from "../platform/db/content-database.generated.js";
-import { toBool } from "../platform/db/kernel/dialect.js";
+import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "./contracts.js";
+import type { ContentKernel } from "../../platform/db/content-kernel.js";
+import type { ExternalMcpServersTable } from "../../platform/db/content-database.generated.js";
+import { toBool } from "../../platform/db/kernel/dialect.js";
 
 /**
  * @file THE `ExternalMcpServerRepoPort` adapter: one Kysely query body for every dialect (storage
  * plan §4, ADR-066) — the ADR-006 rule-of-two "second adapter" half;
- * `assistant/external-mcp-store.memory.ts` is the first. `sqlite/external-mcp-repo.sqlite.ts` is
+ * `features/external-mcp/external-mcp-store.memory.ts` is the first. `sqlite/external-mcp-repo.sqlite.ts` is
  * the thin subclass the composition root builds from the content db handle.
  *
  * Secret envelopes live in Jini's vault, with two pointers on the server. Reads hydrate both

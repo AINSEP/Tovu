@@ -36,7 +36,7 @@ async function plannedTheme(required: { t: TestContext; relative: string }): Pro
   fs.utimesSync(target, 1_700_000_000, 1_700_000_000);
   const sources = { siteDir: root, themesDir: path.join(root, "themes"), mediaUploadsDir: null,
     skillsDir: path.join(root, "skills"), tovuVersion: "test",
-    agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }) };
+    agentPlugins: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }) };
   const collected = await collectSiteBackupFiles({ sources, include: { database: false, media: false, themes: true, plugins: false, settings: false } }, { profile: "share" });
   assert.equal(collected.files.length, 1);
   return collected.files[0]!;

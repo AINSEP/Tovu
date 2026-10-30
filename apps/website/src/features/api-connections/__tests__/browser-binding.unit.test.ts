@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
-import { API_CONNECTION_BINDING_COOKIE, browserBindingCookie, clearedBrowserBindingCookie, createSignInHandoffs, hostedSignInLink, isHostedSignInLinkPath, readBrowserBinding } from "../browser-binding.js";
+import { API_CONNECTION_BINDING_COOKIE, browserBindingCookie, clearedBrowserBindingCookie, createSignInHandoffs, hostedSignInLink, readBrowserBinding } from "../browser-binding.js";
+import { isHostedSignInLinkPath } from "../../../contracts/core/hosted-sign-in-links.js";
 
 const binding = "b".repeat(43);
 const draft = { actorId: "admin-1", authorizationUrl: "https://auth.acme.test/authorize", browserBinding: binding, expiresAt: "2030-01-01T00:10:00.000Z" };

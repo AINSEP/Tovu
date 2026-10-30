@@ -6,14 +6,10 @@ import type { SecretSealerPort } from "../features/webhooks/index.js";
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 import { createFederatedCallConfirmer, type FederatedApprovalDeps } from "./external-mcp-call-confirmation.js";
-import { createExternalMcpConnectionGate, type ExternalMcpOAuthService } from "./external-mcp-oauth.js";
-import {
-  readEnabledExternalMcpConfigs,
-  toResolvedFederatedConnections,
-  type ExternalMcpOAuthTokenResolverPort,
-  type ExternalMcpServerConfig,
-  type ExternalMcpServerRepoPort,
-} from "./external-mcp-store.js";
+import { createExternalMcpConnectionGate } from "../features/external-mcp/external-mcp-oauth.js";
+import { type ExternalMcpOAuthService } from "../features/external-mcp/contracts.js";
+import { readEnabledExternalMcpConfigs, toResolvedFederatedConnections } from "../features/external-mcp/external-mcp-store.js";
+import { type ExternalMcpOAuthTokenResolverPort, type ExternalMcpServerConfig, type ExternalMcpServerRepoPort } from "../features/external-mcp/contracts.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { McpAuthFailedError } from "@jini-ai/mcp/federation";
 import type { FederationDeps } from "./mcp-federation/registrations.js";

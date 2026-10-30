@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { mock } from "node:test";
 import { buildPluginMemoryRegistrations } from "../../memory-tools.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { forceRemove } from "../fixtures/force-remove.js";
@@ -17,13 +17,18 @@ test("L025b memory pairs pin scoped read/write schemas, validation and revocatio
   t.after(() => forceRemove(root));
   let callable = true;
   const owners: string[] = [];
-  const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: root } });
-  const registrations = buildPluginMemoryRegistrations({ withExtensionApprovalPolicy, workspaceId: "workspace-local", agentPluginLayout: layout,
+  const classify = mock.fn(withExtensionApprovalPolicy);
+  const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: root } });
+  const registrations = buildPluginMemoryRegistrations({ withExtensionApprovalPolicy: classify, workspaceId: "workspace-local", agentPluginLayout: layout,
     sources: [{ id: "agent_plugin_pinned", pluginId: "pinned", archiveDigest: "a".repeat(64) }],
     gate: { isCallable: async owner => { owners.push(owner.pluginId); return callable; } },
   });
   assert.equal(registrations.length, 2);
+  assert.deepEqual(classify.mock.calls.map(call => call.arguments[0].family), ["plugin-memory-read", "plugin-memory-write"]);
+  registrations.forEach((registration, index) => assert.equal(registration, classify.mock.calls[index]!.result));
   const [read, write] = registrations;
+  assert.deepEqual(read!.descriptor.metadata?.approval, { class: "read", confirmation: "direct" });
+  assert.deepEqual(write!.descriptor.metadata?.approval, { class: "edit", confirmation: "direct" });
   assert.deepEqual((read!.descriptor.inputSchema as { required: string[] }).required, []);
   assert.deepEqual((write!.descriptor.inputSchema as { required: string[] }).required, ["entryPath", "text"]);
   const ctx: ToolExecutionContext = { executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, signal: new AbortController().signal, input: {} };

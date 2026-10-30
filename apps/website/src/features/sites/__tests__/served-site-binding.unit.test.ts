@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitesWorkspace, type SitesWorkspace } from "../../../platform/site-dir/sites-home.js";
 import assert from "node:assert/strict";
@@ -87,6 +88,7 @@ function handlerFor(registrations: ToolRegistration[], id: string): ToolRegistra
 
 function duplicateDeps(fixture: ReturnType<typeof setupTrees>, calls: Array<{ sourceDir: string; targetDir: string }>): SitesToolDeps {
   return {
+    bundledSourceRoot: bundledAgentPluginsDir(),
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "test" }),
     isSiteSwitcherEnabled: () => true,

@@ -12,7 +12,7 @@ import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/runtime/composition/plugin-runtime";
 
 import { PluginInvalidError, setPluginEnabled } from "@jini-ai/plugins/host";
-import { createDeclaredContentTypePorts } from "../../declarative-enable.js";
+import { createDeclaredContentTypePorts } from "#src/server/runtime/composition/declared-content-types";
 import type { PluginManifest } from "@jini-ai/plugins/host";
 import { PluginConflictError } from "@jini-ai/plugins/host";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";

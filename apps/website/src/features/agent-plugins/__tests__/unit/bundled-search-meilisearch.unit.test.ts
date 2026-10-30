@@ -1,3 +1,5 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -75,7 +77,7 @@ async function withAgentPluginsDir<T>(fn: (layout: ReturnType<typeof resolveAgen
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    return await fn(resolveAgentPluginLayout());
+    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }));
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
@@ -90,7 +92,7 @@ test("seeded by the real seeder, meilisearch is SWITCHED OFF and contributes not
     const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
     assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins.meilisearch?.enabled, false, "no site content goes to a vendor before the owner opts in");
 
-    const loadContributions = createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions;
+    const loadContributions = createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions;
     const off = await loadSearchProviderContributions({ workspaceId: WORKSPACE_ID }, { loadContributions });
     assert.deepEqual(off.items, []);
 

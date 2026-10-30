@@ -18,7 +18,7 @@ import type { ServerModuleHandle } from "./types.js";
 import { randomBytes } from "node:crypto";
 import { resolveLoginCredentials } from "#src/features/member-login/index";
 import { SqlMemberExternalIdentityRepo } from "#src/features/members/index";
-import { defaultBundledSourceRoot } from "#src/features/agent-plugins/supersession";
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import { checkMemberWorkspace, toPublicMembersWriteServiceDeps } from "#src/server/inbound/public-http/routes/members/deps";
 import { registerMemberLoginProvidersRoute, registerMemberOidcStartRoute } from "#src/server/inbound/public-http/routes/members/oidc-start";
@@ -38,7 +38,7 @@ export function createMemberOidcRouteDeps(required: { admin: MembersRouteDeps; p
   const kernel = admin.contentKernel;
   if (!kernel || !members.origin) return undefined;
   const credentials = { repo: admin.customCredentialSetRepo, sealer: admin.siteAssistantSecretSealer };
-  const listProviders = createReadyLoginProviderList({ sourceRoot: defaultBundledSourceRoot({ env: process.env }),
+  const listProviders = createReadyLoginProviderList({ sourceRoot: bundledAgentPluginsDir(),
     loadContributions: admin.agentPluginLifecycle.loadPluginContributions, credentials });
   return { members, listProviders,
     protocol: { clock: members.clock, randomBytesFn: ({ byteLength }) => randomBytes(byteLength),

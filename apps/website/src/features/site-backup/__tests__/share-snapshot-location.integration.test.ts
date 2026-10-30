@@ -45,7 +45,7 @@ test("export snapshots the database into the injected private folder, never the 
   const snapshots: number[] = [];
   await prepareShareContent({
     dbOps: h.dbOps, snapshotRoot: h.snapshotRoot,
-    sources: { siteDir: h.siteDir, themesDir: path.join(h.siteDir, "themes"), skillsDir: path.join(h.siteDir, "skills"), mediaUploadsDir: null, agentPlugins: resolveAgentPluginLayout({ siteDir: h.siteDir, env: {} }), tovuVersion: "test" },
+    sources: { siteDir: h.siteDir, themesDir: path.join(h.siteDir, "themes"), skillsDir: path.join(h.siteDir, "skills"), mediaUploadsDir: null, agentPlugins: resolveAgentPluginLayout({ siteDir: h.siteDir }, { env: {} }), tovuVersion: "test" },
     sanitize: async ({ snapshot }) => { snapshots.push(snapshot.length); return { bytes: Buffer.from("projected"), media: [] }; },
     rewriteMedia: async ({ bytes }) => bytes, imageTransformer: { transform: async () => assert.fail("no media") },
     blobStore: { sizeOf: async () => assert.fail("no media"), get: async () => assert.fail("no media") },

@@ -6,7 +6,7 @@ import { withExtensionApprovalPolicy } from "../../../../../assistant/assistant-
  * artifact writer, and `dispose`. A recording approval owner stands in for `applyToolApprovalPolicy`.
  */
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { mock } from 'node:test';
 
 import { createToolRegistry, type ToolDescriptor, type ToolRegistration } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
@@ -25,6 +25,7 @@ function tool(name: string, effect: LoadedAgentPluginTool['descriptor']['effect'
 
 async function register(items: readonly LoadedAgentPluginTool[], options: { readonly refusals?: readonly string[]; readonly artifacts?: AgentPluginArtifactWriter; readonly loadContributions?: AgentPluginExecutableToolHost['loadContributions'] } = {}) {
   const registry = createToolRegistry({});
+  const classify = mock.fn(withExtensionApprovalPolicy);
   const wrapped: Array<{ registration: ToolRegistration; hasDisclose: boolean }> = [];
   const loads: Array<{ workspaceId: string; filename: string; orderByPluginId: boolean | undefined }> = [];
   const applyApproval: ApplyAgentPluginApproval = ({ registration }, { disclose }) => { wrapped.push({ registration, hasDisclose: typeof disclose === 'function' }); return registration; };
@@ -38,9 +39,9 @@ async function register(items: readonly LoadedAgentPluginTool[], options: { read
     apiOrigins: async () => ['https://api.acme.test'], issuedTokens: createIssuedTokenMemories(),
     ...(options.artifacts ? { artifacts: options.artifacts } : {}),
   };
-  const registered = await registerAgentPluginExecutableTools({ withExtensionApprovalPolicy, registry, workspaceId: WORKSPACE, host, isActive: async () => true, authorize: allowAll, applyApproval });
+  const registered = await registerAgentPluginExecutableTools({ withExtensionApprovalPolicy: classify, registry, workspaceId: WORKSPACE, host, isActive: async () => true, authorize: allowAll, applyApproval });
   const descriptor = (id: string): ToolDescriptor | undefined => registry.list({}).find((entry) => entry.id === id);
-  return { registry, registered, wrapped, loads, descriptor };
+  return { registry, registered, wrapped, loads, descriptor, classify };
 }
 
 test('the contributions are loaded once for the workspace, from the tools file, ordered by plugin id', async () => {
@@ -50,8 +51,13 @@ test('the contributions are loaded once for the workspace, from the tools file, 
 });
 
 test('a read tool runs directly: classified agent-plugin-read, never wrapped in the approval card, deadline kept', async () => {
-  const { wrapped, descriptor } = await register([tool('read_rows', 'read')]);
+  const { wrapped, descriptor, classify } = await register([tool('read_rows', 'read')]);
   const read = descriptor('p_acme_office__read_rows');
+  assert.equal(classify.mock.callCount(), 1);
+  const classification = classify.mock.calls[0]!;
+  assert.ok(classification.result);
+  assert.equal(classification.arguments[0].family, 'agent-plugin-read');
+  assert.equal(read, classification.result.descriptor);
   assert.deepEqual(read?.metadata?.approval, { class: 'read', confirmation: 'direct' });
   assert.equal(read?.timeoutMs, 30_000);
   assert.equal(read?.requiresConfirmation, undefined);
@@ -59,8 +65,11 @@ test('a read tool runs directly: classified agent-plugin-read, never wrapped in 
 });
 
 test('a write tool asks through the approval owner with a disclosure, as agent-plugin-write, with no executor deadline', async () => {
-  const { wrapped, descriptor } = await register([tool('append_rows', 'write')]);
+  const { wrapped, descriptor, classify } = await register([tool('append_rows', 'write')]);
   assert.equal(wrapped.length, 1);
+  assert.equal(classify.mock.callCount(), 1);
+  assert.equal(classify.mock.calls[0]!.arguments[0].family, 'agent-plugin-write');
+  assert.equal(wrapped[0]!.registration, classify.mock.calls[0]!.result);
   assert.equal(wrapped[0]!.hasDisclose, true);
   const write = descriptor('p_acme_office__append_rows');
   assert.deepEqual(write?.metadata?.approval, { class: 'publish', confirmation: 'policy' });
@@ -69,8 +78,11 @@ test('a write tool asks through the approval owner with a disclosure, as agent-p
 });
 
 test('a destructive tool asks as agent-plugin-destructive (a delete, danger styling)', async () => {
-  const { wrapped, descriptor } = await register([tool('clear_table', 'destructive')]);
+  const { wrapped, descriptor, classify } = await register([tool('clear_table', 'destructive')]);
   assert.equal(wrapped.length, 1);
+  assert.equal(classify.mock.callCount(), 1);
+  assert.equal(classify.mock.calls[0]!.arguments[0].family, 'agent-plugin-destructive');
+  assert.equal(wrapped[0]!.registration, classify.mock.calls[0]!.result);
   assert.deepEqual(descriptor('p_acme_office__clear_table')?.metadata?.approval, { class: 'delete', confirmation: 'policy' });
 });
 

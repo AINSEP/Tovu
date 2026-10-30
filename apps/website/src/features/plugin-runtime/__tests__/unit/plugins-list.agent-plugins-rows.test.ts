@@ -1,4 +1,6 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { providerFacesFor } from "../fixtures/plugins-tool-harness.js";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { resolveAgentPluginLayout } from "../../../../features/agent-plugins/layout.js";
@@ -32,6 +34,7 @@ function fakeDeps(overrides: Partial<Deps> = {}): Deps {
   return {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: "ws-tools",
+    providerFaces: providerFacesFor({ workspaceRoot: () => assert.fail("listing plugins does not read provider faces") }),
     clock: { nowIso: () => "2026-09-24T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     changeSets: new InMemoryChangeSetRepo(),
@@ -42,9 +45,6 @@ function fakeDeps(overrides: Partial<Deps> = {}): Deps {
     onPluginEnabled: async () => {},
     onPluginDisabled: () => {},
     removePlugin: async () => ({ ok: true as const, version: null }),
-    externalMcpServerRepo: {} as never,
-    siteAssistantSecretSealer: {} as never,
-    siteAssistantSecretKeyring: {} as never,
     ...overrides,
   } as unknown as Deps;
 }
@@ -95,8 +95,8 @@ test("an installed Agent Plugin's row carries identity/skill names/exports — n
   const result = await callPluginsList(runtimeDeps());
   // Layout B: listInstalledPlugins walks the WORKSPACE root (<ws>/<pluginId>/package/sha256/*), not
   // the retired flat <ws>/packages/sha256 store (spec 2026-09-10-agent-plugin-memory.md).
-  assert.deepEqual(directories, [resolveAgentPluginLayout().forWorkspace("ws-tools").root]);
-  assert.equal(directories[0], path.join(resolveAgentPluginLayout().root, "ws", "ws-tools"));
+  assert.deepEqual(directories, [resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace("ws-tools").root]);
+  assert.equal(directories[0], path.join(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).root, "ws", "ws-tools"));
   assert.deepEqual(result.plugins, [RUNTIME_ROW]);
   assert.deepEqual(result.agentPlugins, [
     { pluginId: "ui-ux-design", version: null, archiveDigest: "a".repeat(64), skills: ["web-compliance"], exports: [] },
@@ -117,7 +117,7 @@ test("T1: plugins_list attaches export contracts, availability and ready snippet
   listBehavior = async () => [{ pluginId: "demo", archiveDigest: "b".repeat(64), packageRoot: "/private/package", files: [], skills: [] }];
   const { harness, owner, definition } = await import("../../../agent-plugins/__tests__/fixtures/plugin-exports.js");
   const runtime = harness({ packages: [{ ...owner, exports: { button: { ...definition, props: { type: "object", properties: {}, additionalProperties: false } } } }] }).runtime;
-  const result = await callPluginsList(fakeDeps({ workspaceId: "ws-embeds", pluginExports: runtime }));
+  const result = await callPluginsList(fakeDeps({ workspaceId: "ws-embeds", pluginExports: { catalog: (input, options) => runtime.catalog(input, options) } }));
   const row = result.agentPlugins[0] as { exports: { availability: string; snippet: string; consent: string }[] };
   assert.equal(row.exports[0]!.availability, "ready");
   assert.equal(row.exports[0]!.consent, "functional");

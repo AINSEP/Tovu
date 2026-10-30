@@ -22,7 +22,8 @@ import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
  * Wired where the OAuth service is composed (`composition/app.ts`, `composition/deps.ts`,
  * `agent-daemon-server.ts`).
  */
-import type { ExternalMcpStoreDeps } from "#src/assistant/mcp-services";
+import type { AgentPluginMcpPort } from "./service-ports.js";
+import type { Clock as ClockPort } from "@jini-ai/core/primitives";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "./activation-effects.js";
@@ -65,7 +66,8 @@ export async function switchPluginOnUnlessOperatorOff(input: { workspaceId: stri
   return result.enabled;
 }
 
-export interface ApplyConnectDefaultsDeps extends Pick<ExternalMcpStoreDeps, "repo" | "clock"> {
+export interface ApplyConnectDefaultsDeps extends Pick<AgentPluginMcpPort, "repo"> {
+  readonly clock: ClockPort;
   readonly workspaceId: string;
   readonly agentPluginLayout: AgentPluginLayout;
   /** Injected for tests. Defaults to `federate-mcp.ts`'s `resolveAgentPluginMcpServers`. */

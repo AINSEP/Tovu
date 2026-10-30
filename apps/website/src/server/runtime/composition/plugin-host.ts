@@ -1,3 +1,4 @@
+import type { Clock } from "@jini-ai/core/primitives";
 /** The host is the only cross-family composition point. Bind the existing lifecycle owners;
  * discovery is metadata-only and fresh on each call so disable/uninstall cannot leave stale grants. */
 import path from 'node:path';
@@ -14,16 +15,12 @@ import { agentPluginActivations } from '#src/features/agent-plugins/activation-e
 import { setAgentPluginEnabled } from '#src/features/agent-plugins/set-enabled';
 import { runAgentPluginUninstall, type AgentPluginUninstallToolDeps } from '#src/features/agent-plugins/uninstall-tool';
 import { provisionAgentPluginMcpServers, resolveAgentPluginMcpServers } from '#src/features/agent-plugins/federate-mcp';
-import type { Clock } from '@jini-ai/core/primitives';
-import type { ExternalMcpStoreDeps } from '#src/assistant/index';
 
 export interface TovuPluginHostDeps extends AgentPluginUninstallToolDeps {
   readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   readonly pluginActivationRepo: PluginActivationRepoPort;
   readonly clock: Clock;
-  readonly externalMcpServerRepo: ExternalMcpStoreDeps['repo'];
-  readonly siteAssistantSecretSealer: ExternalMcpStoreDeps['sealer'];
-  readonly siteAssistantSecretKeyring: ExternalMcpStoreDeps['keyring'];
+  readonly mcp: import("#src/features/agent-plugins/service-ports").AgentPluginMcpPort;
   readonly listInstalledAgentPlugins?: typeof listInstalledPlugins;
   readonly setAgentPluginEnabled?: typeof setAgentPluginEnabled;
   readonly assertAgentPluginActivationsWritable?: typeof agentPluginActivations.assertAgentPluginActivationsWritable;
@@ -143,7 +140,7 @@ export function createTovuPluginHost(
     provisionMcp: async ({ pluginId, principalId }: { pluginId: string; principalId: string }) => {
       try {
         const servers = await (optional.resolveMcpServers ?? resolveAgentPluginMcpServers)({ agentPluginLayout: deps.agentPluginLayout, workspaceId: deps.workspaceId, pluginId });
-        const result = await (optional.provisionMcpServers ?? provisionAgentPluginMcpServers)({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock }, { workspaceId: deps.workspaceId, pluginId, servers, principalId });
+        const result = await (optional.provisionMcpServers ?? provisionAgentPluginMcpServers)(deps.mcp, { workspaceId: deps.workspaceId, pluginId, servers, principalId });
         for (const failure of result.failed) {
           warn(redactSecrets({ input: `Plugin '${pluginId}': MCP provisioning for server '${failure.serverKey}' failed — ${failure.reason}` }));
         }
@@ -151,7 +148,7 @@ export function createTovuPluginHost(
         warn(redactSecrets({ input: `Plugin '${pluginId}': MCP provisioning could not run — ${error instanceof Error ? error.message : String(error)}` }));
       }
     },
-    uninstall: async (input: Parameters<AgentPluginHostCapability["uninstall"]>[0]) => runAgentPluginUninstall(deps, input.surfaces, input.ctx, input.pluginId, input.executionOptions),
+    uninstall: async (input: Parameters<AgentPluginHostCapability["uninstall"]>[0]) => runAgentPluginUninstall({ routeDeps: deps, surfaces: input.surfaces, ctx: input.ctx, pluginId: input.pluginId }, input.executionOptions),
   };
   return {
     ...lookup,

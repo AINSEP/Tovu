@@ -4,7 +4,8 @@ import { createCoreResolvers } from '@jini-ai/cms/widgets/resolvers';
 import { TrashAwareInMemoryEntryRepo } from '#src/features/entries/trash-aware-memory-repo';
 import { InMemoryFormDefinitionRepo } from '@jini-ai/cms/forms';
 import { resolveMenuDoc } from '@jini-ai/cms/navigation';
-import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout, SYSTEM_CONTENT_TYPES } from '#src/features/entries/public-list';
+import { parseCollectionListConfig, entryPublicHref, humanizeFieldName, isCollectionListLayout } from "../../../entries/public-list.js";
+import { SYSTEM_CONTENT_TYPES } from "../../../../contracts/core/system-content-types.js";
 
 test('core assembly injects the Gallery media port with the render workspace context', async () => {
   const seen: string[] = [];

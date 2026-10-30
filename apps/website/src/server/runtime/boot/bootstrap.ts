@@ -7,7 +7,7 @@ import { applyAgentPluginToolRenames } from "#src/features/agent-plugins/apply-t
 import { bindProviderFacePorts, syncProviderFaces } from "#src/features/agent-plugins/provider-plugin-link";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import type { BootModule, BootResult } from "../lifecycle/boot-lifecycle.js";
-import { bundledAgentPluginsDir } from "../composition/deps.js";
+import { bundledAgentPluginsDir } from "../composition/site-paths.js";
 import { applyPendingAgentPluginTokens, listPendingAgentPluginTokenIds } from "../composition/pending-agent-plugin-tokens.js";
 import { startPluginActivationPolling } from "../composition/agent-daemon-deps.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";

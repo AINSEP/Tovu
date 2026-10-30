@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { CREDENTIAL_PASTE_MODEL_NOTE } from "../../assistant/credential-guidance.js";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
@@ -326,7 +327,7 @@ for (const missing of [false, true]) {
   test(`${BYOK_TURN_PATH} honours explicit plugin picks${missing ? ' and skips failed picks with one notice' : ' without a relevance match'}`, async t => {
     const cwd = await mkdtemp(path.join(tmpdir(), 'byok-pinned-plugins-'));
     t.after(() => forceRemove(cwd));
-    const layout = resolveAgentPluginLayout({ cwd, env: {} });
+    const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
     const deps = createRouteDeps();
     deps.agentPluginLayout = layout;
     const skill = '# Synthetic guidance\n\nUse the unique pinned-plugin fixture instructions.';
@@ -1374,7 +1375,7 @@ test("BYOK a saved-setting revoke while the human reads the card prevents perman
 test(`${BYOK_TURN_PATH} sends a metadata note then loads guidance through the real delegated tool surface`, async t => {
   const cwd = await mkdtemp(path.join(tmpdir(), 'byok-hint-plugins-'));
   t.after(() => forceRemove(cwd));
-  const layout = resolveAgentPluginLayout({ cwd, env: {} });
+  const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
   const deps = createRouteDeps();
   deps.agentPluginLayout = layout;
   const archive = new Uint8Array(Buffer.from('byok-hint-fixture'));

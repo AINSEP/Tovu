@@ -10,6 +10,8 @@ import type { PluginActivationRecord } from "@jini-ai/plugins/host";
 import { InMemoryPluginActivationRepo, type PluginContributionRegistry } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import type { PluginManifest } from "@jini-ai/plugins/host";
+import { requiredPostReader } from "../fixtures/plugin-post-read.js";
+import { PostNotFoundError, type PostRepoPort } from "#src/features/post/index";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import type { PostRecord } from "#src/features/post/post";
 import {
@@ -89,13 +91,14 @@ function post(overrides: Partial<PostRecord> = {}): PostRecord {
   };
 }
 
-function deps(overrides: Partial<PluginCapabilityToolDeps> = {}): PluginCapabilityToolDeps {
+function deps(overrides: Partial<PluginCapabilityToolDeps> & { postRepo?: PostRepoPort } = {}): PluginCapabilityToolDeps {
+  const { postRepo = new InMemoryPostRepo(), ...ports } = overrides;
   return {
     authorize: async () => ({ allowed: true }) as never,
     workspaceId: WORKSPACE,
-    postRepo: new InMemoryPostRepo(),
+    postRead: requiredPostReader({ repo: postRepo }),
     pluginActivationRepo: activationRepoWith([enabledActivation("word-count")]),
-    ...overrides,
+    ...ports,
   };
 }
 
@@ -295,7 +298,7 @@ test("reading a nonexistent postId throws with the exact not-found message", asy
 
   await assert.rejects(
     () => registration.handler(toolContext({ postId: "does-not-exist" })),
-    (error: unknown) => error instanceof Error && error.message === "post 'does-not-exist' was not found",
+    (error: unknown) => error instanceof PostNotFoundError && error.message === "post 'does-not-exist' was not found",
   );
 });
 
@@ -586,4 +589,27 @@ test("registerEnabledPluginCapabilityTools skips executable plugin tools for a r
   assert.deepEqual(registered, ["plugin_capability_word_count"]);
   assert.equal(contributions.subscriptions, 0);
   assert.equal(contributions.lists, 0);
+});
+
+test("post reads use the injected port after permission and preserve its error identity", async () => {
+  const calls: unknown[] = [];
+  const failure = new PostNotFoundError("post 'post-1' was not found");
+  const [registration] = buildPluginCapabilityToolRegistrations({ sources: [WORD_COUNT_SOURCE], deps: deps({
+    authorize: async () => { calls.push("authorize"); return { allowed: true } as never; },
+    postRead: { readRequired: async (input) => { calls.push(input); throw failure; } },
+  }), withExtensionApprovalPolicy });
+  assert.ok(registration);
+  await assert.rejects(() => registration.handler(toolContext({ postId: "post-1" })), (error: unknown) => error === failure);
+  assert.deepEqual(calls, ["authorize", { workspaceId: WORKSPACE, id: "post-1" }]);
+});
+
+test("denied permission never reaches the injected post reader", async () => {
+  const [registration] = buildPluginCapabilityToolRegistrations({ sources: [WORD_COUNT_SOURCE], deps: deps({
+    authorize: async () => ({ allowed: false, reason: "nope" }) as never,
+    postRead: { readRequired: async () => assert.fail("a denied call must not read a post") },
+  }), withExtensionApprovalPolicy });
+  assert.ok(registration);
+  await assert.rejects(() => registration.handler(toolContext({ postId: "post-1" })), {
+    message: "principal 'principal-1' is not authorized for 'content.read' (nope)",
+  });
 });

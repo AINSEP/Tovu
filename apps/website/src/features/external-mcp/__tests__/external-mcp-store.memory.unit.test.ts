@@ -1,12 +1,12 @@
-import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import type { SealedSecret } from "../../features/webhooks/index.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import type { SealedSecret } from "../../webhooks/index.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import { externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
-import type { ExternalMcpServerRecord } from "../external-mcp-store.js";
+import type { ExternalMcpServerRecord } from "../contracts.js";
 
 const keyring = new InMemoryKeyring();
 const deps = { keyring, sealer: new AesGcmSecretSealer(keyring) };

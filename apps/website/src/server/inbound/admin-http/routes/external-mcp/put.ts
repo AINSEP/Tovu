@@ -1,11 +1,7 @@
 import { describeExternalMcpOwnership } from "#src/features/external-mcp/built-in-connections";
-import {
-  ExternalMcpSecretStoreUnconfiguredError,
-  ExternalMcpValidationError,
-  notifyExternalMcpRosterChanged,
-  type SaveExternalMcpOAuthInput,
-  saveExternalMcpServer,
-} from "#src/assistant/index";
+import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, saveExternalMcpServer } from "../../../../../features/external-mcp/external-mcp-store.js";
+import { notifyExternalMcpRosterChanged } from "../../../../../assistant/index.js";
+import { type SaveExternalMcpOAuthInput } from "../../../../../features/external-mcp/contracts.js";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";

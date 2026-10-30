@@ -36,6 +36,7 @@ function store(initial: readonly FormDeliveryBinding[], optional: { failWrite?: 
   let reads = 0;
   const writes: { workspaceId: string; callerPrincipalId: string; value: readonly FormDeliveryBinding[] }[] = [];
   const port: FormDeliveryBindingsStore = {
+    isConflict: ({ error }) => error instanceof FormDeliveryBindingsConflictError,
     async read() { reads += 1; value = optional.onRead?.(reads) ?? value; return structuredClone(value); },
     async write({ expectedValue, ...input }) {
       if (optional.failWrite) throw optional.failWrite;

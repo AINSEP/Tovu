@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -75,7 +76,7 @@ function validPackageEntries(): AgentPluginArchiveEntry[] {
 
 async function freshLayout() {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-install-test-"));
-  const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
+  const instanceLayout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
   return { cwd, instanceLayout, layout: instanceLayout.forWorkspace(WORKSPACE_ID) };
 }
 
@@ -615,7 +616,7 @@ test("a published package root is frozen read-only", async () => {
 test("TENANT-GRADE: two workspaces installing the identical archive extract INDEPENDENTLY -- no sharing", async () => {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-install-test-"));
   try {
-    const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
+    const instanceLayout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
     const workspaceA = instanceLayout.forWorkspace("11111111-1111-4111-8111-111111111111");
     const workspaceB = instanceLayout.forWorkspace("22222222-2222-4222-8222-222222222222");
 
@@ -702,7 +703,7 @@ test("TENANT-GRADE: two workspaces installing the identical archive extract INDE
 test("CLOSED: a layout literal stitching workspace A's `packages` onto workspace B's `staging` is now a compile-time type error, and a cast-bypassed call fails at runtime instead of publishing into the wrong tree", async () => {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-install-test-"));
   try {
-    const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
+    const instanceLayout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
     const workspaceA = instanceLayout.forWorkspace("11111111-1111-4111-8111-111111111111");
     const workspaceB = instanceLayout.forWorkspace("22222222-2222-4222-8222-222222222222");
 

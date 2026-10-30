@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 /** guide tool adapter: actual registration, caller binding, input rejection and prompt wiring. */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -22,7 +23,7 @@ function deps(): TovuSiteGuideDeps {
     postRepo: { list: async () => [] }, themes: [], presentationRepo: { findByWorkspaceId: async () => null },
     settingsRepo: new InMemorySettingsRepo(), getEffective, contentTypeRepo: { listByWorkspace: async () => [] },
     pluginActivationRepo: { listAll: async () => [] }, discoverPlugins: async () => [],
-    agentPluginLayout: resolveAgentPluginLayout({ siteDir: "/tmp/guide-unused-test-site", env: {} }),
+    agentPluginLayout: resolveAgentPluginLayout({ siteDir: "/tmp/guide-unused-test-site" }, { env: {} }),
   };
 }
 const context = (input: unknown): ToolExecutionContext => ({ executionId: "guide-test", input, principal: { id: "caller-from-context" } as ToolExecutionContext["principal"], run: { id: "test-run" } as ToolExecutionContext["run"], signal: new AbortController().signal });
@@ -119,7 +120,7 @@ test("an editor sees permitted plugin workflows without plugin-inventory permiss
     readFile: async () => { reads++; return JSON.stringify({ version: 1, topics: [topic] }); },
     importModule: async () => { throw new Error("Guide contributions must remain data-only"); },
   });
-  Object.defineProperty(d, "agentPluginLifecycle", { value: { ...createTovuAgentPluginLifecycle({ layout: d.agentPluginLayout }), loadPluginContributions: loader.loadPluginContributions }, enumerable: true });
+  Object.defineProperty(d, "agentPluginLifecycle", { value: { ...createTovuAgentPluginLifecycle({ layout: d.agentPluginLayout }, { bundledSourceRoot: bundledAgentPluginsDir() }), loadPluginContributions: loader.loadPluginContributions }, enumerable: true });
   const guide = createTovuSiteGuide({ deps: d }, { engine });
   const result = await guide.run({ caller: { principalId: "editor" }, operation: "explain", topic: topic.id }) as { topics: { id: string; source: string; workflows: unknown }[] };
   assert.equal(reads, 1);
@@ -168,7 +169,7 @@ test("backup guide gates source-control pointers and private-backup workflow wit
     findPackages: async () => [], readFile: async () => { throw new Error("No contributions"); },
     importModule: async () => { throw new Error("Guide must remain data-only"); },
   });
-  Object.defineProperty(d, "agentPluginLifecycle", { value: { ...createTovuAgentPluginLifecycle({ layout: d.agentPluginLayout }), loadPluginContributions: loader.loadPluginContributions } });
+  Object.defineProperty(d, "agentPluginLifecycle", { value: { ...createTovuAgentPluginLifecycle({ layout: d.agentPluginLayout }, { bundledSourceRoot: bundledAgentPluginsDir() }), loadPluginContributions: loader.loadPluginContributions } });
   const guide = createTovuSiteGuide({ deps: d }, { engine: resolveSiteGuideEngine({}) });
   const explain = () => guide.run({ caller: { principalId: "reader" }, operation: "explain", topic: "backup" });
   const restricted = JSON.stringify(await explain());

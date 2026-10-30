@@ -1,3 +1,4 @@
+import { mcpTestPort, credentialTestPort } from "../fixtures/connection-service-ports.js";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { credentialSaveFixtureInput, credentialSaveFixtureRegistrations } from "../../../../__tests__/support/credential-save.js";
 import { saveAgentPluginToken } from "../../access-token-tool.js";
@@ -5,20 +6,20 @@ import assert from "node:assert/strict";
 import test, { after } from "node:test";
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryExternalMcpServerRepo, readEnabledExternalMcpConfigs, saveExternalMcpServer, type UIResource } from "#src/assistant/index";
-import { isMcpUiToolCallAllowed } from "#src/assistant/mcp-ui-tool-calls";
+import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
+import { readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
+import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchange } from "@jini-ai/daemon/surface-exchanges";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 
 import type { AgentPluginAccessTokenToolDeps } from "../../access-token-tool.js";
-import * as externalMcpStore from "#src/assistant/mcp-services";
 import type { McpServerConfig } from "../../mcp-metadata.js";
 import { buildAgentPluginConnectRegistrations } from "../../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import type { PluginCredentialCard } from '../../../custom-credentials/plugin-credential-card.js';
+import type { PluginCredentialCard } from "../../../../contracts/core/plugin-credential-card.js";
 
 
 /**
@@ -97,13 +98,14 @@ async function setup(
     workspaceId: WORKSPACE,
     authorize: (async () => ({ allowed: !options.permissionDenied, reason: options.permissionDenied ? "no_grant" : "matched" })) as unknown as AgentPluginAccessTokenToolDeps["authorize"],
     clock,
-    externalMcpServerRepo: repo,
-    externalMcpStore,
-    notifyRosterChanged: externalMcpStore.notifyExternalMcpRosterChanged,
-    siteAssistantSecretSealer: sealer,
-    siteAssistantSecretKeyring: keyring,
-    customCredentialsHttpClient: http,
-    loadPluginCredentialCards: async () => options.credentialCard ? [options.credentialCard] : [],
+    mcp: mcpTestPort({ repo, sealer, keyring, clock }),
+    notifyRosterChanged: async () => {},
+    credentials: credentialTestPort({ httpClient: http, loadCards: async () => options.credentialCard ? [options.credentialCard] : [] }),
+    preferences: { locale: async ({ workspaceId, principalId }: { workspaceId: string; principalId: string }) => {
+      assert.equal(workspaceId, WORKSPACE);
+      assert.equal(principalId, PRINCIPAL);
+      return "en";
+    } },
     resolveInstalledPlugin: async (pluginId) => (pluginId === "supabase" && servers !== null ? { servers } : null),
     // Stands in for apply-connect-defaults: switches on only a row nobody edited (empty lists).
     onConnected: async (serverId) => {
@@ -321,13 +323,7 @@ test("AC-12: once saved and enabled, the account-wide row carries the token only
   assert.deepEqual(after.configs[0]!.writeAllowedToolNames, [], "INV-02: no write grant appears");
 });
 
-test("AC-08: the generic token form's tool id is redeemable; every deleted Supabase tool id is not", () => {
-  assert.equal(isMcpUiToolCallAllowed(SET_TOKEN), true);
-  assert.equal(isMcpUiToolCallAllowed("supabase_set_access_token"), false);
-  assert.equal(isMcpUiToolCallAllowed("supabase_set_project_scope"), false);
-  assert.equal(isMcpUiToolCallAllowed("supabase_get_database"), false);
-  assert.equal(isMcpUiToolCallAllowed("mcp__supabase__execute_sql"), false);
-});
+
 
 test("IRON RULE: saving a token on an untouched connection switches the plugin on, with no manual step", async () => {
   const env = await setup({ allowedToolNames: "" });

@@ -15,7 +15,7 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platfor
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import type { PluginCredentialCard } from '../plugin-credential-card.js';
+import type { PluginCredentialCard } from "../../../contracts/core/plugin-credential-card.js";
 
 
 /**

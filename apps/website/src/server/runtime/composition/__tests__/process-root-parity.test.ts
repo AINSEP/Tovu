@@ -370,7 +370,7 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
   // real body against that real resolver with an empty env, i.e. local mode.
   const { resolveAgentPermissionMode } = await import("#src/contracts/core/agent-permission-mode");
   const { assistantCliPermissions } = await import("#src/assistant/assistant-subagents-policy");
-  const resolvePermissionMode = new Function("process", "resolveAgentPermissionMode", "resolveBundledHostSignals", permissionFunction.body.getText(daemonSource));
+  const resolvePermissionMode = new Function("process", "resolveAgentPermissionMode", "resolveHostSignals", permissionFunction.body.getText(daemonSource));
   const mode = resolvePermissionMode({ env }, resolveAgentPermissionMode, () => ({ hosted: false, nativeToolsRestricted: false, labels: [] }));
   assert.equal(mode, "bypass");
   const captured = evaluateDaemonExpression<Promise<{ required: Record<string, unknown>; optional: Record<string, unknown> }>>(runCall, {

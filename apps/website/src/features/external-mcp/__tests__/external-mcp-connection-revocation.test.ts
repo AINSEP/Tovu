@@ -4,22 +4,17 @@ import test from "node:test";
 import { createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { createExternalMcpConnectionGate } from "../external-mcp-oauth.js";
-import {
-  deleteExternalMcpServer,
-  readEnabledExternalMcpConfigs,
-  saveExternalMcpServer,
-  toResolvedFederatedConnections,
-  type ExternalMcpServerRepoPort,
-} from "../external-mcp-store.js";
+import { deleteExternalMcpServer, readEnabledExternalMcpConfigs, saveExternalMcpServer, toResolvedFederatedConnections } from "../external-mcp-store.js";
+import { type ExternalMcpServerRepoPort } from "../contracts.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
-import { attachFederatedMcpTools } from "../mcp-federation/bootstrap.js";
+import { InMemoryMcpSession } from "../../../assistant/mcp-federation/adapter.memory.js";
+import { attachFederatedMcpTools } from "../../../assistant/mcp-federation/bootstrap.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "@jini-ai/mcp/federation";
-import { createFakeClock, type FakeClock } from "#src/__tests__/support/fake-clock";
+import { createFakeClock, type FakeClock } from "../../../__tests__/support/fake-clock.js";
 
 /**
  * @file End-to-end proof that a roster connection revoked AFTER admission — turned off, deleted,

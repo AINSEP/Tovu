@@ -1,9 +1,10 @@
+import { composeAgentPluginPreferences } from "#src/server/runtime/composition/agent-plugin-service-ports";
 import '../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { InMemorySettingsRepo, getEffective } from '@jini-ai/core/settings';
+import { InMemorySettingsRepo } from '@jini-ai/core/settings';
 import { InMemoryPrincipalRepo } from '@jini-ai/user-management/server';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/primitives';
@@ -47,7 +48,10 @@ async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 
   const principalRepo = Object.assign(principalRecords, createSettingsPrincipalLookup({ repo: principalRecords }));
   const settingsUiTabsReady = ensureAdminInterfaceSettingDefinitions({ settingsRepo, clock, ids: idGen, principals: { findActiveById: async ({ id }) => ({ id }) } }, { systemPrincipalId: 'system' });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
-  const runs = createAutomaticPluginRuns({ askAgentPluginChoice, deps: { workspaceId, agentPluginLayout: layout, settingsRepo, getEffective, set, siteTitleReady: settingsUiTabsReady, principalRepo, clock, idGen, authorize: async () => ({ allowed: true, reason: 'test' }) }, surfaces: { surfaceExchanges } });
+  const runs = createAutomaticPluginRuns({ askAgentPluginChoice, deps: { workspaceId, agentPluginLayout: layout, siteTitleReady: settingsUiTabsReady,
+    preferences: composeAgentPluginPreferences({ settings: { repo: settingsRepo, clock, ids: idGen,
+      principals: createSettingsPrincipalLookup({ repo: principalRepo }), authorize: async () => ({ allowed: true, reason: 'test' }) } }),
+  }, surfaces: { surfaceExchanges } });
   const published: Parameters<AutomaticPluginRun['publish']>[0][] = [];
   const context: AutomaticPluginRun = { principal: { id: 'alice' }, conversationId: 'chat', state: { decision: null, excluded: [] }, query: 'Design holography', pinned: [], signal: new AbortController().signal, emitSurface: async () => { assert.fail('Auto must not ask'); }, publish: async value => { published.push(value); } };
   await settingsUiTabsReady;

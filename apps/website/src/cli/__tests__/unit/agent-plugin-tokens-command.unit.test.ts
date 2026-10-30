@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -11,15 +12,15 @@ import {
   readAllStdin,
   runTokenSignInPluginsCommand,
 } from "../../commands/agent-plugin-tokens.js";
-import { bundledAgentPluginsSourceRoot, listNewSiteAgentPluginTokenSignInPlugins } from "#src/features/agent-plugins/new-site-agent-plugin-tokens";
+import { listNewSiteAgentPluginTokenSignInPlugins } from "#src/features/agent-plugins/new-site-agent-plugin-tokens";
 
 /**
  * @file The `agent-plugin-tokens` CLI helpers that the other suites only reach through injected
  * fakes: the bundled-plugin root, the stdin reader, the default token check and the sign-in list.
  */
 
-test("the bundled plugin root is the feature's source root", () => {
-  assert.equal(bundledAgentPluginsRoot(), bundledAgentPluginsSourceRoot());
+test("the CLI and server share the bundled plugin source root", () => {
+  assert.equal(bundledAgentPluginsRoot(), bundledAgentPluginsDir());
 });
 
 test("readAllStdin returns every chunk of the stream as one UTF-8 string", async () => {
@@ -44,7 +45,7 @@ test("the default token check refuses a plugin the bundled root does not provide
 test("token-sign-in prints the sign-in plugin list as one JSON line", async () => {
   const out: string[] = [];
   await runTokenSignInPluginsCommand(bundledAgentPluginsRoot(), { output: (message) => out.push(message) });
-  assert.deepEqual(out, [`${JSON.stringify({ plugins: await listNewSiteAgentPluginTokenSignInPlugins(bundledAgentPluginsRoot()) })}\n`]);
+  assert.deepEqual(out, [`${JSON.stringify({ plugins: await listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: bundledAgentPluginsRoot() }) })}\n`]);
 });
 
 test("token-sign-in defaults to the bundled root and stdout", async (t) => {
@@ -52,6 +53,6 @@ test("token-sign-in defaults to the bundled root and stdout", async (t) => {
   t.mock.method(process.stdout, "write", (chunk: string) => { written.push(chunk); return true; });
   await runTokenSignInPluginsCommand();
   t.mock.restoreAll();
-  const expected = `${JSON.stringify({ plugins: await listNewSiteAgentPluginTokenSignInPlugins(bundledAgentPluginsRoot()) })}\n`;
+  const expected = `${JSON.stringify({ plugins: await listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: bundledAgentPluginsRoot() }) })}\n`;
   assert.equal(written.filter((chunk) => chunk === expected).length, 1, "the list is written to stdout exactly once");
 });

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryExternalMcpServerRepo } from "#src/assistant/external-mcp-store.memory";
-import { saveExternalMcpServer } from "#src/assistant/external-mcp-store";
+import { InMemoryExternalMcpServerRepo } from "../../../../features/external-mcp/external-mcp-store.memory.js";
+import { saveExternalMcpServer } from "../../../../features/external-mcp/external-mcp-store.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";

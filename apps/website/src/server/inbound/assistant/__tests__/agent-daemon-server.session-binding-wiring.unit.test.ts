@@ -88,7 +88,7 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     ASSISTANT_DISALLOWED_TOOLS: [], ASSISTANT_SETTING_SOURCES: [],
     resolveAssistantDisallowedTools: () => [], readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: false }),
     resolveFullCliAccess, resolveAssistantCliPermissions, assistantCliPermissions,
-    resolveBundledHostSignals: () => ({ hosted: false, nativeToolsRestricted: false, labels: [] }),
+    resolveHostSignals: () => ({ hosted: false, nativeToolsRestricted: false, labels: [] }),
     resolveAssistantRunSettings: () => undefined, homedir: () => "/isolated", existsSync: () => false,
     console: { error: (...args: unknown[]) => failures.push(args), log() {}, warn() {} },
     AbortController, automaticPluginRuns: { start: async () => "", forget() {} },

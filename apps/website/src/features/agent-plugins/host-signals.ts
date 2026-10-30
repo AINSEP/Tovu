@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { resolveProductRoot } from "../../platform/site-dir/product-root.js";
+import type { AgentPluginPathsPort } from "./service-ports.js";
 import { evaluateHostSignals, selectCoreHostSignalDeclaration, type HostSignal, type HostSignalDeclaration, type HostSignals } from "../../contracts/core/host-signals.js";
 import { bundledContributionSources } from "./bundled-contribution-sources.js";
 
@@ -91,21 +91,21 @@ function combineDeclarations({ declarations }: { declarations: readonly HostSign
 function readManifestText(file: string): string { return readFileSync(file, "utf8"); }
 
 /**
- * Bind product-root discovery to the pure evaluator; no plugin imports, DB or activation needed.
+ * Bind the host's bundled-source fact to the pure evaluator; no plugin imports, DB or activation needed.
  * @param required Environment snapshot, values are never logged or returned as diagnostic copy.
- * @param optional Trusted source root or reader/root-discovery ports; desktop may supply its payload.
+ * @param optional Declaration reader port; desktop may supply its payload in the required path fact.
  * @returns Facts only; unavailable/incomplete/ambiguous security data uses the core HEAD fallback.
- * Discovery and read failures never fail boot or disable the baseline hosted protections.
- * @complexity O(p + s) as for the reader, plus bounded product-root discovery.
- * @example resolveBundledHostSignals({ env }, { sourceRoot });
+ * Read failures never fail boot or disable the baseline hosted protections.
+ * @complexity O(p + s) as for the reader.
+ * @example resolveBundledHostSignals({ env, bundledSourceRoot });
  */
 export function resolveBundledHostSignals(
-  required: { env: Readonly<Record<string, string | undefined>> },
-  optional: { sourceRoot?: string; readDeclaration?: typeof readBundledHostSignalDeclaration; productRoot?: () => string } = {},
+  required: Pick<AgentPluginPathsPort, "bundledSourceRoot"> & { env: Readonly<Record<string, string | undefined>> },
+  optional: { readDeclaration?: typeof readBundledHostSignalDeclaration } = {},
 ): HostSignals {
   try {
-    const sourceRoot = optional.sourceRoot ?? path.join((optional.productRoot ?? resolveProductRoot)(), "content", "agent-plugins");
+    const sourceRoot = required.bundledSourceRoot;
     const declaration = selectCoreHostSignalDeclaration({ declaration: (optional.readDeclaration ?? readBundledHostSignalDeclaration)({ sourceRoot }) });
-    return evaluateHostSignals({ ...required, declaration });
-  } catch { return evaluateHostSignals({ ...required, declaration: selectCoreHostSignalDeclaration({}) }); }
+    return evaluateHostSignals({ env: required.env, declaration });
+  } catch { return evaluateHostSignals({ env: required.env, declaration: selectCoreHostSignalDeclaration({}) }); }
 }

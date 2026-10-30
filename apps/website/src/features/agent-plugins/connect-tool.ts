@@ -1,21 +1,15 @@
-import type { PluginCredentialCard } from "../custom-credentials/plugin-credential-card.js";
-import { loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
+import type { PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
+import type { AgentPluginMcpPort, AgentPluginOAuthPort, AgentPluginApiConnectionsPort, PluginCredentialsPort } from "./service-ports.js";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { type AgentToolSideEffect, type DerivedRiskByToolId, type AgentToolDefinition } from "@jini-ai/core";
-import { type Clock as ClockPort, type UUID } from "@jini-ai/core/primitives";
+import type { UUID } from "@jini-ai/core/primitives";
 import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import { ToolInputError, type ToolExecutionOptions, type ToolExecutionContext } from "@jini-ai/core";
 
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
-import {
-  ExternalMcpValidationError,
-  resolveExternalMcpOAuthStatus,
-  type ExternalMcpOAuthService,
-  type ExternalMcpServerRecord,
-  type ExternalMcpServerRepoPort,
-} from "#src/assistant/mcp-services";
-import { externalMcpRecordHasStaticAccessToken } from "../external-mcp/auth-mode.js";
+import { resolveExternalMcpOAuthStatus } from "../../contracts/core/external-mcp-auth.js";
+import type { ExternalMcpServerRecord } from "../external-mcp/contracts.js";
+import { externalMcpRecordHasStaticAccessToken } from "../../contracts/core/external-mcp-auth.js";
 
 import { buildAgentPluginConnectCard } from "./connect-card-ui.js";
 import { deriveAgentPluginConnectionId, provisionAgentPluginMcpServers } from "./federate-mcp.js";
@@ -24,7 +18,7 @@ import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "
 import type { AgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./lifecycle.js";
 import type { McpServerConfig, RemoteMcpServerConfig } from "./mcp-metadata.js";
-import { runApiConnectionConnect, type ApiConnectionConnectDeps, type ApiConnectionConnectStatus } from "../api-connections/connect.js";
+import type { ApiConnectionConnectStatus } from "../api-connections/connect.js";
 import type { DeclaredApiConnection } from "../api-connections/contribution.js";
 import { OAuthError } from "../../platform/oauth/errors.js";
 
@@ -55,7 +49,7 @@ import { OAuthError } from "../../platform/oauth/errors.js";
  * interactive element is an outbound `openLink`, which (per `@jini-ai/ui`'s `outcome.ts` surface) is
  * not a delivery through `mcp-ui-tool-calls-route.ts` at all. So there is nothing for this call to
  * `receive()`: the only way to observe the callback landing is to read the row this call already
- * provisioned, which is exactly what `resolveExternalMcpOAuthStatus` (`assistant/external-mcp-store.ts`)
+ * provisioned, which is exactly what `resolveExternalMcpOAuthStatus` (`features/external-mcp/external-mcp-store.ts`)
  * is for.
  *
  * ## Deliberately narrow: one pending OAuth server per call
@@ -161,14 +155,17 @@ function isOAuthServer(config: McpServerConfig): config is RemoteMcpServerConfig
  *   call polls `pollDeviceAuthorization`, so the row would never flip to connected. Provisioned rows
  *   always use `authorization_code` (`federate-mcp.ts`), so this is a fail-loud guard.
  */
-async function beginSignIn(oauth: ExternalMcpOAuthService, serverId: string, derivedPublicOrigin: string | undefined): Promise<string> {
+async function beginSignIn(
+  { oauth, serverId, derivedPublicOrigin }: { oauth: AgentPluginOAuthPort; serverId: string; derivedPublicOrigin?: string },
+  _options = {},
+): Promise<string> {
   let start;
   try {
     start = await oauth.beginConnect({ serverId, redirectUri: resolveConnectRedirectUri(serverId, derivedPublicOrigin) });
   } catch (err) {
     // Discovery runs before rendering. A failed start must not leave chat promising a missing card.
-    if (!(err instanceof ExternalMcpValidationError) && !(err instanceof OAuthError)) throw err;
-    throw new ToolInputError({ message: `${err.message}. Sign-in could not start; no sign-in card was opened. Use the plugin's secure key card with credential_save if it offers one. Do not ask the person to restart Tovu.` });
+    if (!oauth.isValidationError({ error: err }) && !(err instanceof OAuthError)) throw err;
+    throw new ToolInputError({ message: `${(err as Error).message}. Sign-in could not start; no sign-in card was opened. Use the plugin's secure key card with credential_save if it offers one. Do not ask the person to restart Tovu.` });
   }
   if (start.kind !== "redirect_required") {
     throw new Error(`agent_plugin_connect: '${start.kind}' sign-in is not supported by the connect card yet.`);
@@ -191,21 +188,15 @@ function sleepOrAbort(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-/** The exact slice of a composition root's deps this tool reads — structural, matching
- *  `features/external-mcp/deps.ts`'s `ExternalMcpToolDeps` field-for-field on purpose: every real
- *  composition root already provides all of these to wire that domain, so this tool needs no new
- *  wiring anywhere a `RouteDeps`-shaped bag is already assembled. `externalMcpOAuth` is optional for
- *  the identical reason that file gives — checked at the top of the handler, fail-closed. */
+/** Consumer-owned services; composition binds persistence, secret custody and sign-in providers.
+ * OAuth remains optional so token-only declarations work without an OAuth service. */
 export interface AgentPluginConnectToolDeps {
-  readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
+  readonly credentials: Pick<PluginCredentialsPort, "loadSafe">;
   readonly agentPluginLayout: AgentPluginLayout;
   readonly workspaceId: UUID;
   readonly authorize: AuthorizeFn;
-  readonly clock: ClockPort;
-  readonly externalMcpServerRepo: ExternalMcpServerRepoPort;
-  readonly siteAssistantSecretSealer: SecretSealerPort;
-  readonly siteAssistantSecretKeyring: KeyringPort;
-  readonly externalMcpOAuth?: ExternalMcpOAuthService;
+  readonly mcp: Pick<AgentPluginMcpPort, "repo" | "saveServer">;
+  readonly externalMcpOAuth?: AgentPluginOAuthPort;
   readonly derivedPublicOrigin?: string;
   /** Injectable for tests; a real composition root omits both and gets the production cadence. */
   readonly pollIntervalMs?: number;
@@ -214,7 +205,7 @@ export interface AgentPluginConnectToolDeps {
    *  root omits this and gets {@link defaultResolveInstalledAgentPlugin}. */
   readonly resolveInstalledPlugin?: (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null>;
   /** Plugin-declared OAuth API connections (`tovu-connections.json`). Absent: only MCP servers connect. */
-  readonly apiConnections?: ApiConnectionConnectDeps;
+  readonly apiConnections?: AgentPluginApiConnectionsPort;
 }
 
 const AGENT_PLUGIN_CONNECT_DESCRIPTION = [
@@ -285,7 +276,7 @@ async function resolvePendingOAuthServers(
   for (const serverKey of oauthServerKeys) {
     const connectionId = deriveAgentPluginConnectionId(serverKey);
     const row = connectionId
-      ? await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: connectionId })
+      ? await routeDeps.mcp.repo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: connectionId })
       : null;
     if (!connectionId || !row || row.provisionedByPluginId !== pluginId) {
       throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}''s '${serverKey}' connection could not be set up in this Tovu version.` });
@@ -344,7 +335,7 @@ async function connectWithoutOAuth(
   const serverId = deriveAgentPluginConnectionId(serverKey);
   if (!serverId) throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}''s '${serverKey}' connection could not be set up in this Tovu version.` });
   ctx.signal.throwIfAborted();
-  const row = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId });
+  const row = await routeDeps.mcp.repo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId });
   ctx.signal.throwIfAborted();
   if (hasReusablePluginCredential({ row, pluginId, url: config.url })) return { status: "connected" };
   if (!saveToken) throw new ToolInputError({ message: `agent_plugin_connect: use the plugin's secure key card with credential_save; no token-card adapter is wired here.` });
@@ -389,7 +380,7 @@ export async function runAgentPluginConnect(
   const externalMcpOAuth = routeDeps.externalMcpOAuth;
 
   const provisioned = await provisionAgentPluginMcpServers(
-    { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer, keyring: routeDeps.siteAssistantSecretKeyring, clock: routeDeps.clock },
+    routeDeps.mcp,
     { workspaceId: routeDeps.workspaceId, pluginId, servers: plugin.servers, principalId: ctx.principal.id },
   );
 
@@ -419,7 +410,7 @@ async function waitAtMcpSignInCard(
     readonly ctx: ToolExecutionContext;
     readonly pluginId: string;
     readonly server: PendingOAuthServer;
-    readonly externalMcpOAuth: ExternalMcpOAuthService;
+    readonly externalMcpOAuth: AgentPluginOAuthPort;
     readonly credentialCard?: PluginCredentialCard;
   },
   optional: ToolExecutionOptions = {},
@@ -430,7 +421,7 @@ async function waitAtMcpSignInCard(
     throw new Error("agent_plugin_connect: this execution context has no interactive channel (no emitSurface), so no sign-in card can be shown.");
   }
 
-  const signInUrl = await beginSignIn(externalMcpOAuth, server.connectionId, routeDeps.derivedPublicOrigin);
+  const signInUrl = await beginSignIn({ oauth: externalMcpOAuth, serverId: server.connectionId, derivedPublicOrigin: routeDeps.derivedPublicOrigin });
   const pluginDisplayName = titleCaseFromPluginId(pluginId);
 
   const exchange = surfaces.surfaceExchanges.open({ binding: { toolId: AGENT_PLUGIN_CONNECT_TOOL_ID, principalId: ctx.principal.id }, emit: emitSurface });
@@ -476,7 +467,7 @@ async function waitForMcpConnection(
   const waitTimeoutMs = routeDeps.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS;
   const deadline = Date.now() + waitTimeoutMs;
   while (Date.now() < deadline && !ctx.signal.aborted) {
-    const row = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: server.connectionId });
+    const row = await routeDeps.mcp.repo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: server.connectionId });
     if (row && resolveExternalMcpOAuthStatus(row) === "connected") {
       return true;
     }
@@ -495,7 +486,7 @@ async function waitForMcpConnection(
  */
 /** The plugin's own `oauth` card copy for its sign-in card, shared by the MCP and API-connection branches. O(cards). */
 async function findPluginOAuthCard(routeDeps: AgentPluginConnectToolDeps, pluginId: string): Promise<PluginCredentialCard | undefined> {
-  const cards = await loadPluginCredentialCardsSafely({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId });
+  const cards = await routeDeps.credentials.loadSafe({ workspaceId: routeDeps.workspaceId });
   return cards.find(card => card.pluginId === pluginId && card.saveKind === "oauth");
 }
 
@@ -507,7 +498,7 @@ async function connectDeclaredApiConnectionOrRefuse(
   optional: ToolExecutionOptions,
 ): Promise<ApiConnectionConnectStatus> {
   const apiConnections = routeDeps.apiConnections;
-  const declared: readonly DeclaredApiConnection[] = apiConnections ? await apiConnections.host.listConnections({ pluginId }) : [];
+  const declared: readonly DeclaredApiConnection[] = apiConnections ? await apiConnections.listConnections({ pluginId }) : [];
   const [connection] = declared;
   if (!apiConnections || !connection) {
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares no OAuth-authenticated MCP server to connect.` });
@@ -521,8 +512,8 @@ async function connectDeclaredApiConnectionOrRefuse(
   const closeOnAbort = () => exchange?.close({});
   ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
   try {
-    const result = await runApiConnectionConnect({
-      deps: apiConnections, connection, actorId: ctx.principal.id, signal: ctx.signal,
+    const result = await apiConnections.connect({
+      connection, actorId: ctx.principal.id, signal: ctx.signal,
       pollIntervalMs: routeDeps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS, waitTimeoutMs: routeDeps.waitTimeoutMs ?? DEFAULT_WAIT_TIMEOUT_MS,
       showSignIn: async ({ signInUrl }) => {
         const emitSurface = optional.emitSurface;

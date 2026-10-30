@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -250,7 +251,7 @@ test("GUARD: seedBundledAgentPlugins still seeds normally against an ABSENT file
   const bundledRoot = await mkdtemp(path.join(tmpdir(), "tovu-seed-corrupt-bundled-"));
   try {
     await writeBundledSourceFixture(bundledRoot);
-    const layout = resolveAgentPluginLayout({ cwd, env: {} });
+    const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
 
     const result = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: bundledRoot });
 
@@ -273,7 +274,7 @@ test("seedBundledAgentPlugins refuses a corrupt activations file: installs nothi
   const bundledRoot = await mkdtemp(path.join(tmpdir(), "tovu-seed-corrupt-bundled-"));
   try {
     await writeBundledSourceFixture(bundledRoot);
-    const layout = resolveAgentPluginLayout({ cwd, env: {} });
+    const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
     const workspaceLayout = layout.forWorkspace(WORKSPACE_ID);
     await mkdir(workspaceLayout.root, { recursive: true });
     await writeFile(path.join(workspaceLayout.root, "activations.json"), CORRUPT, "utf8");
@@ -302,7 +303,7 @@ test("seedBundledAgentPlugins refuses a corrupt activations file: installs nothi
 test("previewAgentPluginUninstall and uninstallAgentPlugin both refuse a corrupt activations file, leaving the package installed", async () => {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-uninstall-corrupt-"));
   try {
-    const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
+    const instanceLayout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
     await installTestPackage(instanceLayout, "op-plugin", "archive-corrupt-preview");
     const workspaceRoot = instanceLayout.forWorkspace(WORKSPACE_ID).root;
     await writeFile(path.join(workspaceRoot, "activations.json"), CORRUPT, "utf8");
@@ -326,7 +327,7 @@ test("previewAgentPluginUninstall and uninstallAgentPlugin both refuse a corrupt
 test("uninstallAgentPlugin refuses a corrupt file even when its (unreadable) content would have said the plugin is bundled", async () => {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-uninstall-corrupt-bundled-"));
   try {
-    const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
+    const instanceLayout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
     await installTestPackage(instanceLayout, "op-plugin", "archive-corrupt-bundled");
     const workspaceRoot = instanceLayout.forWorkspace(WORKSPACE_ID).root;
     await writeFile(

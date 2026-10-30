@@ -13,7 +13,7 @@ import { AgentPluginInstallError, listInstalledPlugins, maxAgentPluginInstallArc
 import { AgentPluginUploadError, UPLOADED_AGENT_PLUGIN_TRUST_WARNING, previewUploadedAgentPlugin, installUploadedAgentPlugin } from "./install-upload.js";
 import type { AgentPluginLayout } from "./layout.js";
 import { agentPluginActivations } from "./activation-effects.js";
-import { bundledAgentPluginsSourceRoot, listBundledAgentPluginServers } from "./new-site-agent-plugin-tokens.js";
+import { listBundledAgentPluginServers } from "./new-site-agent-plugin-tokens.js";
 
 /** The assistant uses the same uploaded-package service as the Agent Plugins admin add tab.
  * No opt-in for this family: only bundled digests may run code. Preview verifies the full archive,
@@ -26,7 +26,7 @@ export type AgentPluginsInstallToolDeps = {
   readonly authorize: AuthorizeFn;
   readonly readInstallAttachment?: InstallAttachmentReader;
   readonly agentPluginLayout: AgentPluginLayout;
-  readonly bundledAgentPluginsSourceRoot?: string;
+  readonly bundledAgentPluginsSourceRoot: string;
 } & Partial<UpdateMcpDeps>;
 
 export const AGENT_PLUGINS_UPDATE_TOOL_ID = "agent_plugins_update";
@@ -187,8 +187,8 @@ async function installBundledPlugin(
   _optional: Record<string, never> = {},
 ) {
   const id = readBundledPluginId({ input });
-  const sourceRoot = deps.bundledAgentPluginsSourceRoot ?? bundledAgentPluginsSourceRoot();
-  const bundledIds = (await listBundledAgentPluginServers(sourceRoot)).map(plugin => plugin.pluginId).sort();
+  const sourceRoot = deps.bundledAgentPluginsSourceRoot;
+  const bundledIds = (await listBundledAgentPluginServers({ bundledSourceRoot: sourceRoot })).map(plugin => plugin.pluginId).sort();
   if (!bundledIds.includes(id)) throw new ToolInputError({ message: `Unknown bundled plugin id '${id}'. Bundled ids: ${bundledIds.join(", ")}.` });
   const workspaceRoot = deps.agentPluginLayout.forWorkspace(deps.workspaceId).root;
   const existing = (await listInstalledPlugins(workspaceRoot)).some(plugin => plugin.pluginId === id);

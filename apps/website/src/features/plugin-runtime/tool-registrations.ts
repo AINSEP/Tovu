@@ -75,7 +75,6 @@ import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
 import { federatedToolApprovalFingerprint } from "@jini-ai/mcp/federation";
-import type { ExternalMcpStoreDeps } from "#src/assistant/mcp-services";
 import type { ToolContributor } from "@jini-ai/core";
 // Keep the domain projection local: importing it from server/admin would invert the composition boundary.
 import { toAdminPluginResponse } from "./admin-response.js";
@@ -104,7 +103,7 @@ import type { InstalledAgentPlugin } from "@jini-ai/agent-plugins/lifecycle";
 // adds no `plugin-runtime -> agent-plugins/tool-registrations` edge. See its header, and the
 // "one tool, two families" section below.
 import { AgentPluginNotInstalledError, type SetAgentPluginEnabledResult } from "@jini-ai/agent-plugins/lifecycle";
-import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf } from "../agent-plugins/provider-plugin-link.js";
+import type { PluginProviderFacesPort } from "./service-ports.js";
 // t91 F1.1/R2 (2026-09-16). `Jini/packages/plugins/src/host/activation.ts` is the domain module that already defines these errors;
 // importing it here adds no `plugin-runtime -> agent-plugins/tool-registrations` edge (same
 // reasoning as the `set-enabled.js` import above).
@@ -176,7 +175,8 @@ async function listAgentPluginsForResponse(routeDeps: PluginsToolDeps): Promise<
  */
 export interface PluginsToolDeps extends OperatorLocaleDeps {
   readonly tracker?: Tracker;
-  readonly pluginExports?: PluginExportRuntime;
+  readonly pluginExports?: Pick<PluginExportRuntime, "catalog">;
+  readonly providerFaces: PluginProviderFacesPort;
   readonly pluginSource?: import('@jini-ai/plugins/host/node').PluginSourcePort;
   readonly pluginSourcePolicy?: import('@jini-ai/plugins/host').PluginSourcePolicyPort;
   readonly pluginHost?: PluginHostPort;
@@ -205,14 +205,6 @@ export interface PluginsToolDeps extends OperatorLocaleDeps {
   /** The admin Install Plugin routes' installer; absent when the site has no plugin install dir.
    *  Read by `install-tool.ts`'s `plugins_install`, not by this file's tools. */
   pluginInstaller?: PluginInstallerPort;
-  /** The external-MCP store slice `provisionAgentPluginMcpServers` writes into. Enabling an Agent
-   *  Plugin from chat must provision its auto-admitted MCP servers exactly as the admin toggle does
-   *  (`server/inbound/admin-http/routes/agent-plugins/set-enabled.ts`); these are the same fields
-   *  that route's `AgentPluginsRouteDeps` threads. The `clock` above is already the fourth
-   *  `ExternalMcpStoreDeps` field, so it is not repeated here. */
-  externalMcpServerRepo: ExternalMcpStoreDeps["repo"];
-  siteAssistantSecretSealer: ExternalMcpStoreDeps["sealer"];
-  siteAssistantSecretKeyring: ExternalMcpStoreDeps["keyring"];
 }
 
 /**
@@ -452,6 +444,9 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
     const result = await (routeDeps.setAgentPluginEnabled
       ? routeDeps.setAgentPluginEnabled({ ...input, agentPluginLayout: routeDeps.agentPluginLayout })
       : requireAgentPluginHost(routeDeps).setEnabled(input));
+    // Enabling an Agent Plugin from chat must provision its auto-admitted MCP servers exactly as
+    // the admin toggle does (`server/inbound/admin-http/routes/agent-plugins/set-enabled.ts`);
+    // the host binds the external-MCP repository, sealer and keyring for that write.
     // Enabling an Agent Plugin also provisions its auto-admitted MCP servers, exactly as the admin
     // route's enable branch does; disabling has nothing to provision. Without this, the same logical
     // enable produced a partially enabled plugin in chat while the admin toggle produced the
@@ -483,7 +478,8 @@ async function applyAgentPluginDecision(routeDeps: PluginsToolDeps, principalId:
     // real id), and a bare `Error` would reach the model as an opaque failure instead. The message
     // carries only the plugin id the caller already sent — nothing internal leaks.
     if (error instanceof AgentPluginNotInstalledError) throw new ToolInputError({ message: error.message });
-    if (error instanceof AgentPluginLinkedError) return linkedFaceResult(request, error);
+    const linkedError = routeDeps.providerFaces.describeLinkedError({ error });
+    if (linkedError !== undefined) return linkedFaceResult({ request, error: linkedError });
     // t91 F1.1/R2 (2026-09-16): nothing changed, so this is a RESULT the model can relay — matching
     // ADR-055 Decision 6's `changed: false` shape — not a redacted failure. See
     // `activationsRefusalResult` below.
@@ -539,7 +535,9 @@ async function hostIncompatibleEnableResult(routeDeps: PluginsToolDeps, request:
 
 /** A provider plugin's assistant face has no switch of its own (`agent-plugins/provider-plugin-link.ts`):
  *  nothing changed, and the note names the provider plugin to switch instead. @complexity O(1). */
-function linkedFaceResult(request: SetEnabledRequest, error: AgentPluginLinkedError): unknown {
+function linkedFaceResult({ request, error }: {
+  request: SetEnabledRequest; error: ReturnType<PluginProviderFacesPort["describeLinkedFace"]>;
+}, _optional = {}): unknown {
   return { changed: false, cancelled: false, family: request.family, pluginId: request.pluginId, restartRequired: false,
     reason: "linked", code: error.code, providerPluginId: error.providerPluginId, note: `Nothing changed. ${error.message}` };
 }
@@ -547,9 +545,10 @@ function linkedFaceResult(request: SetEnabledRequest, error: AgentPluginLinkedEr
 /** Pre-flight: a linked face is refused before the confirmation dialog, not after it. A link that cannot be
  *  read here is left to the write, which checks again. @complexity One manifest read per installed revision. */
 async function linkedFaceEnableResult(routeDeps: PluginsToolDeps, request: SetEnabledRequest): Promise<unknown> {
-  const ports = bindProviderFacePorts({ workspaceRoot: () => routeDeps.agentPluginLayout.forWorkspace(routeDeps.workspaceId).root });
-  const providerPluginId = await linkedProviderOf({ ports, pluginId: request.pluginId }).catch(() => undefined);
-  return providerPluginId === undefined ? undefined : linkedFaceResult(request, new AgentPluginLinkedError({ pluginId: request.pluginId, providerPluginId }));
+  const providerPluginId = await routeDeps.providerFaces.linkedProvider({ pluginId: request.pluginId }).catch(() => undefined);
+  return providerPluginId === undefined ? undefined : linkedFaceResult({
+    request, error: routeDeps.providerFaces.describeLinkedFace({ pluginId: request.pluginId, providerPluginId }),
+  });
 }
 
 /** Every Agent Plugin enable pre-flight, in order; the first not-changed result wins. @complexity As its three checks. */

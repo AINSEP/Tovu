@@ -1,9 +1,10 @@
-import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
+import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy.js";
 import { anonymousMemberAccess } from "#src/assistant/site/__tests__/member-access.fixture";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
-import { agentPluginActivations } from "../../activation-effects.js";
+import { agentPluginActivations } from "#src/features/agent-plugins/activation-effects.js";
 const { readAgentPluginActivations, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { chmod, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
@@ -18,10 +19,10 @@ import { TOVU_CAPABILITY_CARDS, resolveSiteGuideEngine } from "#src/server/runti
 import { createSiteCapabilityRegistry } from "#src/assistant/site/capability-registry";
 import { InMemoryPostRepo, listPublishedPosts } from "#src/features/post/index";
 import { publicCapabilityCard } from "#src/assistant/site/capability-card";
-import { resolveAgentPluginLayout } from "../../layout.js";
-import { resolveAgentPluginRefs, listInstalledPlugins } from "../../lifecycle.js";
-import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, seedBundledAgentPlugins } from "../../lifecycle.js";
-import { loadAgentPluginSearchCandidates, loadInstalledAgentPluginToolSources, registerInstalledAgentPluginTools } from "../../tool-registrations.js";
+import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout.js";
+import { resolveAgentPluginRefs, listInstalledPlugins } from "#src/features/agent-plugins/lifecycle.js";
+import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, seedBundledAgentPlugins } from "#src/features/agent-plugins/lifecycle.js";
+import { loadAgentPluginSearchCandidates, loadInstalledAgentPluginToolSources, registerInstalledAgentPluginTools } from "#src/features/agent-plugins/tool-registrations.js";
 
 /**
  * @file The end-to-end proof that "bundled but inactive" is a real, enforced condition — not a
@@ -67,7 +68,7 @@ async function withSeededWorkspace<T>(
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    const layout = resolveAgentPluginLayout();
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
     const result = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: BUNDLED_SOURCE_ROOT });
 
     const failures = result.outcomes.filter((outcome) => outcome.status === "failed");
@@ -84,7 +85,7 @@ async function withSeededWorkspace<T>(
 
 test("seeding installs the real bundled package and records it INACTIVE", async () => {
   await withSeededWorkspace(async ({ workspaceRoot }) => {
-    const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
     const installed = await listInstalledPlugins(layout.root);
 
     const seeded = installed.find((plugin) => plugin.pluginId === PLUGIN_ID);
@@ -108,7 +109,7 @@ const SEEDED_ENABLED = ["github", "how-tovu-works", "site-import", "tovu-theme",
 // listing (`AGENT_PLUGINS_LIST` reads `loadAgentPluginSearchCandidates`) must not open either gate.
 test("every bundled plugin not seeded enabled is listed as switched off yet gets no tool and no prompt injection", async () => {
   await withSeededWorkspace(async ({ seededIds }) => {
-    const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
     const bundledIds = [...new Set((await listInstalledPlugins(layout.root)).map((plugin) => plugin.pluginId))].filter(
       (pluginId) => !BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(pluginId),
     );
@@ -146,7 +147,7 @@ test("GATE 1 (tool registration): an inactive bundled plugin gets no agent_plugi
 
 test("GATE 2 (run-start injection): pinning an inactive plugin fails with 'not enabled', NOT 'not installed'", async () => {
   await withSeededWorkspace(async () => {
-    const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
     const result = await resolveAgentPluginRefs([PLUGIN_ID], layout);
 
     assert.equal(result.ok, false);
@@ -165,7 +166,7 @@ test("enabling the plugin opens both gates together", async () => {
     const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));
     assert.ok(sources.some((source) => source.pluginId === PLUGIN_ID), "GATE 1 must open");
 
-    const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
     const injected = await resolveAgentPluginRefs([PLUGIN_ID], layout);
     assert.equal(injected.ok, true, "GATE 2 must open");
     assert.ok(injected.ok && injected.promptPrefix.includes("Site Compliance"));
@@ -190,7 +191,7 @@ test("re-seeding is idempotent — same digest, no duplicate install, decision p
   await withSeededWorkspace(async ({ workspaceRoot }) => {
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "test:operator" });
 
-    const layout = resolveAgentPluginLayout();
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
     const second = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: BUNDLED_SOURCE_ROOT });
 
     const outcome = second.outcomes.find((entry) => entry.pluginId === PLUGIN_ID);
@@ -219,7 +220,7 @@ test("re-seeding is idempotent — same digest, no duplicate install, decision p
 test("every core, public and bundled guide tool pointer resolves to a currently registered tool", async () => {
   await withSeededWorkspace(async () => {
     const { registry } = await realToolCatalog();
-    await registerInstalledAgentPluginTools(registry, { withExtensionApprovalPolicy, workspaceId: WORKSPACE_ID, agentPluginLayout: resolveAgentPluginLayout() });
+    await registerInstalledAgentPluginTools(registry, { withExtensionApprovalPolicy, workspaceId: WORKSPACE_ID, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
     const ids = new Set(registry.list({}).map(tool => tool.id));
     const parsed = resolveSiteGuideEngine({}).parseGuideTopics({ raw: await readFile(path.join(BUNDLED_SOURCE_ROOT, "how-tovu-works", "tovu-site-guide.json"), "utf8") });
     if (!parsed.ok) throw new Error(parsed.reason);

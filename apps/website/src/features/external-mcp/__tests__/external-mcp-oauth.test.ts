@@ -2,35 +2,21 @@
 import { externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import { createOAuthProviderRegistry, MAX_AUTHORIZATION_STATE_LENGTH, OAuthError } from "@jini-ai/oauth";
 import { formatAad } from "@jini-ai/platform/secrets";
-import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
+import { createTovuOAuthGuard } from "../../../platform/oauth/endpoint-safety.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ToolInputError } from "@jini-ai/core";
 
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import type { KeyringPort, SecretSealerPort } from "../../features/webhooks/ports.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
-import {
-  createDeviceAuthorizationStore,
-  createExternalMcpConnectionGate,
-  createExternalMcpOAuthService,
-  ExternalMcpReauthRequiredError,
-  externalMcpSettingsDeepLink,
-} from "../external-mcp-oauth.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import type { KeyringPort, SecretSealerPort } from "../../webhooks/ports.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { type OAuthProviderDescriptor } from "../../../platform/oauth/index.js";
+import { createDeviceAuthorizationStore, createExternalMcpConnectionGate, createExternalMcpOAuthService, ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "../external-mcp-oauth.js";
 import { ExternalMcpConnectionRevokedError } from "../external-mcp-revocation.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import {
-  ExternalMcpValidationError,
-  ExternalMcpSecretStoreUnconfiguredError,
-  externalMcpAdmissionRevision,
-  type ExternalMcpServerRepoPort,
-  listExternalMcpServerViews,
-  openExternalMcpOAuthPayload,
-  readEnabledExternalMcpConfigs,
-  saveExternalMcpServer,
-} from "../external-mcp-store.js";
+import { ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError, externalMcpAdmissionRevision, listExternalMcpServerViews, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
+import { type ExternalMcpServerRepoPort } from "../contracts.js";
 import type { FederatedCallTarget } from "@jini-ai/mcp/federation";
 
 /**

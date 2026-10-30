@@ -1,7 +1,7 @@
 import { ToolInputError } from "@jini-ai/core";
 import type { VaultRecord, VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyAttachments, ProjectKeyTransaction } from "./attachments.js";
-import type { PluginCredentialCard } from "../custom-credentials/plugin-credential-card.js";
+import type { PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 
 import type { ProviderKeyUsage } from "@jini-ai/plugins/host";
 export type { ProviderKeyUsage, ProviderWriteResult } from "@jini-ai/plugins/host";

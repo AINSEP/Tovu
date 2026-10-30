@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { mock } from "node:test";
 
 import { createToolRegistry, type ToolExecutionContext } from "@jini-ai/core";
 
@@ -293,11 +293,19 @@ test("registerInstalledSkillTools loads and registers one tool per skill directl
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
 
     const registry = createToolRegistry({});
-    await registerInstalledSkillTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy });
+    const classify = mock.fn(withExtensionApprovalPolicy);
+    await registerInstalledSkillTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy: classify });
 
     assert.equal(registry.has({ toolId: "skill_incident_response" }), true);
     assert.equal(registry.has({ toolId: "skill_code_review" }), true);
     assert.equal(registry.list({}).length, 2);
+    assert.deepEqual(classify.mock.calls.map(call => call.arguments[0].family), ["installed-guidance", "installed-guidance"]);
+    for (const call of classify.mock.calls) {
+      const { result } = call;
+      assert.ok(result);
+      assert.deepEqual(registry.list({}).find(descriptor => descriptor.id === result.descriptor.id), result.descriptor);
+      assert.deepEqual(result.descriptor.metadata?.approval, { class: "read", confirmation: "direct" });
+    }
   });
 });
 
@@ -346,17 +354,29 @@ test("different skill names that sanitize to the same tool id refuse loudly", as
 test("refreshing installed skills adds, updates, removes and re-adds without a restart", async () => {
   await withSkillsDir(async (skillsDir) => {
     const registry = createToolRegistry({});
-    await registerInstalledSkillTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy });
+    const classify = mock.fn(withExtensionApprovalPolicy);
+    const ctx = { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy: classify };
+    await registerInstalledSkillTools(registry, ctx);
+    assert.equal(classify.mock.callCount(), 0);
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
-    await registerInstalledSkillTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy });
+    await registerInstalledSkillTools(registry, ctx);
     assert.deepEqual(registry.list({}).map(d => d.id), ["skill_code_review"]);
+    assert.equal(classify.mock.callCount(), 1);
+    const initial = classify.mock.calls[0]!.result;
+    assert.ok(initial);
+    assert.deepEqual(registry.list({})[0], initial.descriptor);
     await rm(path.join(skillsDir, "ws", WORKSPACE_A, "code-review"), { recursive: true });
-    await registerInstalledSkillTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy });
+    await registerInstalledSkillTools(registry, ctx);
     assert.deepEqual(registry.list({}).map(d => d.id), []);
     assert.equal(registry.has({ toolId: "skill_code_review" }), false);
+    assert.equal(classify.mock.callCount(), 1);
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD.replace("Code Review", "Updated Rules") });
-    await registerInstalledSkillTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy });
+    await registerInstalledSkillTools(registry, ctx);
     assert.deepEqual(registry.list({}).map(d => d.id), ["skill_code_review"]);
+    assert.deepEqual(classify.mock.calls.map(call => call.arguments[0].family), ["installed-guidance", "installed-guidance"]);
+    const refreshed = classify.mock.calls[1]!.result;
+    assert.ok(refreshed);
+    assert.deepEqual(registry.list({})[0], refreshed.descriptor);
   });
 });
 

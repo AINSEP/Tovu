@@ -3,7 +3,7 @@ import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtim
 import { resolveAgentPermissionMode, type AgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { COMMENTS_IP_SALT_ENV_VAR } from "#src/features/comments/index";
 import { LEGACY_DEPLOYMENT_ADVICE, type HostSignalOptions } from "#src/contracts/core/host-signals";
-import { resolveBundledHostSignals } from "#src/features/agent-plugins/host-signals";
+import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 
 /**
  * @file Boot-readiness WARNINGS (2026-10-08 hardwiring audit #4 and #5): conditions worth saying
@@ -46,7 +46,7 @@ export function detectDeploymentSignals(
   if (required.env.NODE_ENV === "production") signals.push("NODE_ENV=production");
   for (const marker of CONTAINER_MARKER_FILES) if (pathExists(marker)) signals.push(`container (${marker})`);
   if (required.env.KUBERNETES_SERVICE_HOST) signals.push("Kubernetes (KUBERNETES_SERVICE_HOST)");
-  signals.push(...(optional.hostSignals ?? resolveBundledHostSignals(required)).labels);
+  signals.push(...(optional.hostSignals ?? resolveHostSignals(required)).labels);
   return signals;
 }
 
@@ -84,7 +84,7 @@ function deploymentModeWarning(
   optional: HostSignalOptions = {},
 ): string {
   const agent = required.agentPermissionMode === "bypass" ? ' and the assistant agent runs with permission mode "bypass"' : "";
-  const advice = (optional.hostSignals ?? resolveBundledHostSignals(required)).deploymentAdvice ?? LEGACY_DEPLOYMENT_ADVICE;
+  const advice = (optional.hostSignals ?? resolveHostSignals(required)).deploymentAdvice ?? LEGACY_DEPLOYMENT_ADVICE;
   return `[boot-readiness] WARNING: this server looks deployed (${required.deploymentSignals.join(", ")}) but TOVU_RUNTIME_MODE is not "production": ` +
     `production boot checks are off${agent}. ${advice}`;
 }
@@ -99,7 +99,7 @@ export function warnOnBootReadinessGaps(
 ): void {
   try {
     const env = optional.env ?? process.env;
-    const hostSignals = optional.hostSignals ?? resolveBundledHostSignals({ env });
+    const hostSignals = optional.hostSignals ?? resolveHostSignals({ env });
     const log = optional.log ?? ((line: string) => console.warn(line));
     const warnings = collectBootReadinessWarnings({
       env,

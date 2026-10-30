@@ -4,7 +4,7 @@ import test from "node:test";
 import { InMemoryVaultRepo, type VaultContext, type VaultKind, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { CUSTOM_CREDENTIAL_CATEGORIES } from "#src/features/custom-credentials/types";
+import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../../contracts/core/custom-credential-categories.js";
 import { byVaultLabel, createTovuStoreVault, createTovuVaultKinds, parseTovuStoreMeta, type TovuVaultPolicy } from "../vault-kinds.js";
 
 const policy: TovuVaultPolicy = {

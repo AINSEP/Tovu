@@ -33,7 +33,7 @@ test("a backup and a share export never collect a share catalog, in any scope", 
     write(path.join(root, catalog, `${SHARE_ID}.tovu.zip`), "PK");
   }
   const sources = { siteDir: root, mediaUploadsDir: path.join(root, "uploads"), themesDir: path.join(root, "themes"),
-    agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }), skillsDir: path.join(root, "skills"), tovuVersion: "test" };
+    agentPlugins: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }), skillsDir: path.join(root, "skills"), tovuVersion: "test" };
   const include = { database: false, media: true, themes: true, plugins: true, settings: true };
   for (const profile of [undefined, "share"] as const) {
     const collected = await collectSiteBackupFiles({ sources, include }, profile ? { profile } : {});

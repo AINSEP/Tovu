@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { heldUntil } from "../../kernel/__tests__/dialect-matrix.js";
 import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
-import { externalMcpVaultEnvelope, externalMcpVaultRecord } from "#src/assistant/external-mcp-vault";
+import { externalMcpVaultEnvelope, externalMcpVaultRecord } from "../../../../features/external-mcp/external-mcp-vault.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
@@ -10,10 +10,10 @@ import path from "node:path";
 import { contentKernel } from "../../content-kernel.js";
 import { openContentDb, openSqliteContentConnection } from "../../sqlite/content-db.js";
 
-import type { ExternalMcpServerRecord } from "#src/assistant/index";
+import type { ExternalMcpServerRecord } from "../../../../features/external-mcp/contracts.js";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect, freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlExternalMcpServerRepo } from "../../../../assistant/external-mcp-repo.js";
+import { SqlExternalMcpServerRepo } from "../../../../features/external-mcp/external-mcp-repo.js";
 
 /**
  * @file `SqlExternalMcpServerRepo` against a real, migrated content database on every dialect

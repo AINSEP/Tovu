@@ -70,7 +70,7 @@ function makeSite(): { root: string; sources: SiteBackupSources; cleanup: () => 
     siteDir: root,
     mediaUploadsDir: path.join(root, "uploads"),
     themesDir: path.join(root, "themes"),
-    agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }),
+    agentPlugins: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }),
     skillsDir: path.join(root, "skills"),
     tovuVersion: "0.1.0",
   };
@@ -115,7 +115,7 @@ test("share profile drops Finder's .DS_Store instead of refusing the share", asy
     write(path.join(root, "themes", ".DS_Store"), "junk");
     write(path.join(root, "themes", "static", "demo", ".DS_Store"), "junk");
     write(path.join(root, "themes", "static", "demo", "index.html"), "<html>");
-    const sources = { siteDir: root, mediaUploadsDir: null, themesDir: path.join(root, "themes"), agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }), skillsDir: path.join(root, "skills"), tovuVersion: "0.1.0" };
+    const sources = { siteDir: root, mediaUploadsDir: null, themesDir: path.join(root, "themes"), agentPlugins: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }), skillsDir: path.join(root, "skills"), tovuVersion: "0.1.0" };
     const collected = await collectSiteBackupFiles({ sources, include: { database: false, media: false, themes: true, plugins: false, settings: false } }, { profile: "share" });
     assert.deepEqual(paths(collected.files), ["themes/static/demo/index.html"]);
   } finally { rmSync(root, { recursive: true, force: true }); }

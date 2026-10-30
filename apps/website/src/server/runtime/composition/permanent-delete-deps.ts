@@ -9,7 +9,7 @@ import { purgeMedia, MediaNotFoundError, MediaStillReferencedError } from "#src/
 import { deleteCustomCredential, describeCredential as describeCustomCredential } from "#src/features/custom-credentials/index";
 import { deletePublishCredential, findPublishCredentialRecord } from "#src/features/deployments/publish-credentials/index";
 import { deleteSourceControlCredential, describeCredential as describeSourceControlCredential } from "#src/features/source-control/index";
-import { deleteExternalMcpServer } from "#src/assistant/index";
+import { deleteExternalMcpServer } from "../../../features/external-mcp/external-mcp-store.js";
 import { mayActOnEntityType } from "#src/features/trash/index";
 import { type TrashItem } from "@jini-ai/cms/trash";
 import type { PermanentDeletePlan, PermanentDeleteToolDeps } from "#src/features/permanent-delete/tool-registrations";

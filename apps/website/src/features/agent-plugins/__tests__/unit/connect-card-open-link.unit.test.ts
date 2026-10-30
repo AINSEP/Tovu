@@ -1,3 +1,4 @@
+import { applyPluginCredentialCard } from "../../../../contracts/core/plugin-credential-card.js";
 import { buildAgentPluginAccessTokenForm } from "../../connect-card-ui.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -77,8 +78,13 @@ test('the sign-in card uses the plugin declaration to explain the connection and
 });
 
 test('plugin token decoration preserves the token app, cancel action and submission fields', () => {
-  const original = buildAgentPluginAccessTokenForm({ pluginDisplayName: 'Example', helpUrl: 'https://example.com/tokens' });
-  const decorated = buildAgentPluginAccessTokenForm({ pluginDisplayName: 'Example', helpUrl: 'https://example.com/tokens', credentialCard: { pluginId: 'example', providerId: 'example', label: 'Account', category: 'ops', baseUrl: 'https://example.com', title: 'Plugin account', keyHint: 'Scoped key only', saveKind: 'agent-plugin-token' } });
+  const applications: Parameters<typeof applyPluginCredentialCard>[0][] = [];
+  const credentials = { apply: (input: Parameters<typeof applyPluginCredentialCard>[0]) => { applications.push(input); return applyPluginCredentialCard(input); } };
+  const original = buildAgentPluginAccessTokenForm({ credentials, pluginDisplayName: 'Example', helpUrl: 'https://example.com/tokens' });
+  const decorated = buildAgentPluginAccessTokenForm({ credentials, pluginDisplayName: 'Example', helpUrl: 'https://example.com/tokens', credentialCard: { pluginId: 'example', providerId: 'example', label: 'Account', category: 'ops', baseUrl: 'https://example.com', title: 'Plugin account', keyHint: 'Scoped key only', saveKind: 'agent-plugin-token' } });
+  assert.equal(applications.length, 2);
+  assert.equal(applications[0]?.card, undefined);
+  assert.equal(applications[1]?.card?.title, "Plugin account");
   assert.deepEqual(decorated.app, original.app);
   assert.equal(decorated.cancelLabel, original.cancelLabel);
   assert.equal(decorated.submitLabel, original.submitLabel);

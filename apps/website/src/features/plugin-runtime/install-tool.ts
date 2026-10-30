@@ -42,6 +42,7 @@ import type { PluginsToolDeps } from "./tool-registrations.js";
  */
 
 export type PluginsInstallToolDeps = Pick<PluginsToolDeps, "workspaceId" | "authorize" | "pluginInstaller" | "pluginSourcePolicy" | "tracker"> & {
+  readonly hostSignals: import("../../contracts/core/host-signals.js").HostSignals;
   readonly readInstallAttachment?: InstallAttachmentReader;
   /** Defaults to `process.env`; read per call so the switch matches the admin route's. */
   readonly env?: Readonly<Record<string, string | undefined>>;
@@ -87,7 +88,7 @@ function refusedResult(error: PluginInstallError, pluginId: string): unknown {
 /** The injected deployment policy decides; without one, the site environment does (read per call). */
 function localInstallEnabled(required: { deps: PluginsInstallToolDeps }): boolean {
   const { deps } = required;
-  return deps.pluginSourcePolicy?.localInstallEnabled({}, {}) ?? sitePluginLocalInstallEnabled({ env: deps.env ?? process.env });
+  return deps.pluginSourcePolicy?.localInstallEnabled({}, {}) ?? sitePluginLocalInstallEnabled({ env: deps.env ?? process.env, hostSignals: deps.hostSignals });
 }
 
 /** A folder source passes its path; a ZIP source (local file or chat attachment) passes its bounded bytes. */

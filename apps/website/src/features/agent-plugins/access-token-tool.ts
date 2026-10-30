@@ -1,9 +1,8 @@
-import { probeCredentialConnection } from "../custom-credentials/credentialed-request.js";
-import { findPluginCredentialCard, type PluginCredentialCard, type LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
+import type { AgentPluginMcpPort, AgentPluginPreferencesPort, PluginCredentialsPort } from "./service-ports.js";
+import type { Clock as ClockPort } from "@jini-ai/core/primitives";
+import type { PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { credentialText, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
-import { resolveOperatorLocale } from '../settings/index.js';
-import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import { assertCredentialToken, CredentialInputError } from '../../contracts/core/credential-token.js';
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
@@ -11,9 +10,7 @@ import { requireInputRecord, ToolInputError, type ToolExecutionOptions, type Too
 import { defineSecretCardTool, type SecretCardRun } from "@jini-ai/ui/mcp-ui/secret-card";
 
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { HttpClientPort } from "../../platform/http/index.js";
-import type * as ExternalMcpStore from "#src/assistant/mcp-services";
-import type { ExternalMcpServerRecord } from "#src/assistant/mcp-services";
+import type { ExternalMcpServerRecord } from "../external-mcp/contracts.js";
 
 import { buildAgentPluginAccessTokenForm, buildAgentPluginAccessTokenOutcome } from "./connect-card-ui.js";
 import { defaultResolveInstalledAgentPlugin, titleCaseFromPluginId, type AgentPluginConnectToolDeps } from "./connect-tool.js";
@@ -54,15 +51,15 @@ const AGENT_PLUGIN_ACCESS_TOKEN_PERMISSION = "admin.integrations.manage";
  *  Shared with `import-access-token.ts`, which saves a token that did not come from this form. */
 export type AgentPluginTokenTargetDeps = Pick<
   AgentPluginConnectToolDeps,
-  "agentPluginLayout" | "workspaceId" | "clock" | "externalMcpServerRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "resolveInstalledPlugin"
-> & { readonly externalMcpStore: Pick<typeof ExternalMcpStore, "saveExternalMcpServer" | "ExternalMcpSecretStoreUnconfiguredError" | "ExternalMcpValidationError"> };
+  "agentPluginLayout" | "workspaceId" | "mcp" | "resolveInstalledPlugin"
+> & { readonly clock: ClockPort };
 
 export interface AgentPluginAccessTokenToolDeps
-  extends AgentPluginConnectToolDeps, AgentPluginTokenTargetDeps, OperatorLocaleDeps,
+  extends AgentPluginConnectToolDeps, AgentPluginTokenTargetDeps,
     Pick<SwitchOnSavedTokenDeps, "onConnected" | "isPluginOffByOperator" | "switchPluginOn" | "notifyRosterChanged"> {
-  /** The guarded outbound client (ADR-038) whose egress policy already admits any public HTTPS host. */
-  readonly customCredentialsHttpClient: HttpClientPort;
-  readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
+  readonly mcp: Pick<AgentPluginMcpPort, "repo" | "saveServer" | "classifyError">;
+  readonly credentials: PluginCredentialsPort;
+  readonly preferences: Pick<AgentPluginPreferencesPort, "locale">;
 }
 
 
@@ -106,8 +103,11 @@ function hostOf(url: string | null): string | null {
  *
  * @throws {ToolInputError}
  */
-export async function requireTargetRow(routeDeps: AgentPluginTokenTargetDeps, target: TokenAuthTarget): Promise<ExternalMcpServerRecord> {
-  const row = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: target.connectionId });
+export async function requireTargetRow(
+  { routeDeps, target }: { routeDeps: AgentPluginTokenTargetDeps; target: TokenAuthTarget },
+  _options = {},
+): Promise<ExternalMcpServerRecord> {
+  const row = await routeDeps.mcp.repo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: target.connectionId });
   if (row === null) {
     throw new ToolInputError({ message: `agent_plugin_set_access_token: '${target.pluginId}''s connection could not be set up in this Tovu version. Nothing was changed.` });
   }
@@ -125,7 +125,10 @@ export async function requireTargetRow(routeDeps: AgentPluginTokenTargetDeps, ta
  * @param optional.signal Stops provisioning when the run ends during plugin resolution.
  * @throws The signal's abort reason before provisioning when cancelled.
  */
-export async function resolveTarget(routeDeps: AgentPluginTokenTargetDeps, pluginId: string, principalId: string, optional: { signal?: AbortSignal } = {}): Promise<TokenAuthTarget> {
+export async function resolveTarget(
+  { routeDeps, pluginId, principalId }: { routeDeps: AgentPluginTokenTargetDeps; pluginId: string; principalId: string },
+  optional: { signal?: AbortSignal } = {},
+): Promise<TokenAuthTarget> {
   const resolvePlugin = routeDeps.resolveInstalledPlugin ?? ((id: string) => defaultResolveInstalledAgentPlugin({ workspaceId: routeDeps.workspaceId, pluginId: id, agentPluginLayout: routeDeps.agentPluginLayout }));
   const plugin = await resolvePlugin(pluginId);
   if (!plugin) throw new ToolInputError({ message: `agent_plugin_set_access_token: '${pluginId}' is not an installed Agent Plugin in this workspace.` });
@@ -141,7 +144,7 @@ export async function resolveTarget(routeDeps: AgentPluginTokenTargetDeps, plugi
 
   optional.signal?.throwIfAborted();
   await provisionAgentPluginMcpServers(
-    { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer, keyring: routeDeps.siteAssistantSecretKeyring, clock: routeDeps.clock },
+    routeDeps.mcp,
     { workspaceId: routeDeps.workspaceId, pluginId, servers: plugin.servers, principalId },
   );
   return { pluginId, displayName: titleCaseFromPluginId(pluginId), connectionId, config };
@@ -151,10 +154,10 @@ export async function resolveTarget(routeDeps: AgentPluginTokenTargetDeps, plugi
  * @returns Invalid only for malformed input; HTTP 401/403 mean refused for this purpose.
  * @complexity One bounded GET; no persistence, response bodies or transport errors escape.
  */
-export async function probeToken({ probeUrl, token }: { probeUrl: string; token: string }, { httpClient }: { httpClient: HttpClientPort }): Promise<"ok" | "invalid" | "refused" | "unavailable"> {
+export async function probeToken({ probeUrl, token, credentials }: { probeUrl: string; token: string; credentials: Pick<PluginCredentialsPort, "probe"> }, _options = {}): Promise<"ok" | "invalid" | "refused" | "unavailable"> {
   try { assertCredentialToken({ value: token, field: 'token' }); }
   catch { return "invalid"; }
-  return probeCredentialConnection({ connection: { token }, url: probeUrl, schemes: [] }, { httpClient });
+  return credentials.probe({ probeUrl, token });
 }
 
 function joinStoredList(raw: string | null): string {
@@ -169,35 +172,36 @@ function joinStoredList(raw: string | null): string {
  * @param optional.signal Stops the write when the run ends during the fresh row read.
  * @throws The signal's abort reason before saving when cancelled.
  */
-export async function saveStaticAccessToken(routeDeps: AgentPluginTokenTargetDeps, target: TokenAuthTarget, principalId: string, token: string, optional: { signal?: AbortSignal } = {}): Promise<void> {
-  const row = await requireTargetRow(routeDeps, target);
+export async function saveStaticAccessToken(
+  { routeDeps, target, principalId, token }: { routeDeps: AgentPluginTokenTargetDeps; target: TokenAuthTarget; principalId: string; token: string },
+  optional: { signal?: AbortSignal } = {},
+): Promise<void> {
+  const row = await requireTargetRow({ routeDeps, target });
   // A row read or probe may finish after the run ends; never start a credential write then.
   optional.signal?.throwIfAborted();
-  await routeDeps.externalMcpStore.saveExternalMcpServer(
-    { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer, keyring: routeDeps.siteAssistantSecretKeyring, clock: routeDeps.clock },
-    {
-      workspaceId: routeDeps.workspaceId,
-      serverId: row.serverId,
-      ...(row.label !== null ? { label: row.label } : {}),
-      transport: "streamable_http",
-      authMode: "static_env",
-      enabled: row.enabled,
-      command: "",
-      url: row.url ?? target.config.url,
-      args: "",
-      allowedToolNames: joinStoredList(row.allowedToolNames),
-      writeAllowedToolNames: joinStoredList(row.writeAllowedToolNames),
-      accessToken: token,
-      principalId,
-    },
-  );
+  await routeDeps.mcp.saveServer({
+    workspaceId: routeDeps.workspaceId,
+    serverId: row.serverId,
+    ...(row.label !== null ? { label: row.label } : {}),
+    transport: "streamable_http",
+    authMode: "static_env",
+    enabled: row.enabled,
+    command: "",
+    url: row.url ?? target.config.url,
+    args: "",
+    allowedToolNames: joinStoredList(row.allowedToolNames),
+    writeAllowedToolNames: joinStoredList(row.writeAllowedToolNames),
+    accessToken: token,
+    principalId,
+  });
 }
 
 /** Only the store's known validation/unconfigured errors are shown. Sealing failures can quote
  * plaintext, so unconfigured storage gets fixed copy; the engine redacts allowlisted messages. */
-function describeSaveError({ err, store: { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError } }: { err: unknown; store: AgentPluginTokenTargetDeps["externalMcpStore"] }, _options = {}): string {
-  if (err instanceof ExternalMcpSecretStoreUnconfiguredError) return credentialText({ id: "storage", locale: "en" });
-  const known = err instanceof ExternalMcpValidationError || err instanceof ToolInputError;
+function describeSaveError({ err, mcp }: { err: unknown; mcp: Pick<AgentPluginMcpPort, "classifyError"> }, _options = {}): string {
+  const kind = mcp.classifyError({ error: err });
+  if (kind === "unconfigured") return credentialText({ id: "storage", locale: "en" });
+  const known = kind === "validation" || err instanceof ToolInputError;
   return known ? (err as Error).message : MESSAGES.saveFailed;
 }
 
@@ -218,7 +222,7 @@ async function saveSubmittedAccessToken(
   catch (err) { if (err instanceof CredentialInputError) { return { saved: false, reason: 'invalid', message: credentialText({ id: err.rule, locale }) }; } throw err; }
 
   const token = (submitted as string).trim();
-  const probe = await probeToken({ probeUrl: target.config.tovuTokenAuth.probeUrl, token }, { httpClient: routeDeps.customCredentialsHttpClient });
+  const probe = await probeToken({ probeUrl: target.config.tovuTokenAuth.probeUrl, token, credentials: routeDeps.credentials });
   signal.throwIfAborted();
   if (probe === "invalid") return { saved: false, reason: "invalid", message: translateCredentialMessage({ message: MESSAGES.tokenInvalid, locale }) };
   if (probe === "refused") {
@@ -226,7 +230,7 @@ async function saveSubmittedAccessToken(
     return { saved: false, reason: "refused", message: `This token was refused for this purpose.${hint}` };
   }
   if (probe === "unavailable") return { saved: false, reason: "unavailable", message: `${target.displayName} is unavailable right now. Try again shortly.` };
-  await saveStaticAccessToken(routeDeps, target, principalId, token, { signal });
+  await saveStaticAccessToken({ routeDeps, target, principalId, token }, { signal });
   let next: string;
   try {
     next = describeSavedTokenSwitch(await switchOnSavedTokenConnection(routeDeps, target), target);
@@ -268,13 +272,13 @@ export async function saveAgentPluginToken(
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: AGENT_PLUGIN_ACCESS_TOKEN_PERMISSION }, { entityType: "agent-plugin", entityId: pluginId });
       // Resolution provisions a missing plugin row; an ended run must not start that effect.
       ctx.signal.throwIfAborted();
-      const target = await resolveTarget(routeDeps, pluginId, ctx.principal.id, { signal: ctx.signal });
-      await requireTargetRow(routeDeps, target);
-      const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
-      const credentialCard = await findPluginCredentialCard({ loadCards: routeDeps.loadPluginCredentialCards, workspaceId: routeDeps.workspaceId, saveKind: "agent-plugin-token", target: pluginId });
+      const target = await resolveTarget({ routeDeps, pluginId, principalId: ctx.principal.id }, { signal: ctx.signal });
+      await requireTargetRow({ routeDeps, target });
+      const locale = await routeDeps.preferences.locale({ workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
+      const credentialCard = await routeDeps.credentials.find({ workspaceId: routeDeps.workspaceId, saveKind: "agent-plugin-token", target: pluginId });
       return { target, principalId: ctx.principal.id, locale, credentialCard };
     },
-    form: ({ prep }) => buildAgentPluginAccessTokenForm({ pluginDisplayName: prep.target.displayName, helpUrl: prep.target.config.tovuTokenAuth.helpUrl, credentialCard: prep.credentialCard }),
+    form: ({ prep }) => buildAgentPluginAccessTokenForm({ credentials: routeDeps.credentials, pluginDisplayName: prep.target.displayName, helpUrl: prep.target.config.tovuTokenAuth.helpUrl, credentialCard: prep.credentialCard }),
     save: ({ values, prep, signal }) => saveSubmittedAccessToken({ values, routeDeps, ...prep, signal }),
     result: ({ prep, run }) => accessTokenResult({ run, locale: prep.locale }),
     outcome: ({ prep, run }) => {
@@ -285,6 +289,6 @@ export async function saveAgentPluginToken(
         title: result.saved ? "Token saved" : "Token not saved", message: result.saved ? result.next : result.message!,
       });
     },
-  }, { uriHost: "tovu", frameSize: ["100%", "380px"], safeError: err => describeSaveError({ err, store: routeDeps.externalMcpStore }), text: { saveFailure: MESSAGES.saveFailed } });
+  }, { uriHost: "tovu", frameSize: ["100%", "380px"], safeError: err => describeSaveError({ err, mcp: routeDeps.mcp }), text: { saveFailure: MESSAGES.saveFailed } });
   return card.handler({ surfaceExchanges: surfaces.surfaceExchanges, askThenReport })(ctx, optional);
 }

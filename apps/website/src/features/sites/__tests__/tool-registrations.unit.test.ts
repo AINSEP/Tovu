@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
@@ -90,6 +91,7 @@ function fakeDeps(options: FakeDepsOptions = {}): FakeDeps {
   ];
 
   const routeDeps: SitesToolDeps = {
+    bundledSourceRoot: bundledAgentPluginsDir(),
     createSite: async () => assert.fail("unexpected site creation"),
     workspaceId: WORKSPACE_ID,
     sitesWorkspace,

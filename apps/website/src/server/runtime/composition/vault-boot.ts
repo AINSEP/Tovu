@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir, siteDir } from "./site-paths.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
@@ -331,8 +332,8 @@ export async function loadSiteVaultKinds(input: { workspaceId: string; siteDir?:
   { loadContributions: loadContributionsOverride }: { loadContributions?: LoadPluginContributions } = {},
 ): Promise<ReturnType<typeof createTovuVaultKinds>> {
   const loadContributions = loadContributionsOverride ?? createTovuAgentPluginLifecycle({
-    layout: resolveAgentPluginLayout({ siteDir: input.siteDir }),
-  }).loadPluginContributions;
+    layout: resolveAgentPluginLayout({ siteDir: input.siteDir ?? siteDir() }),
+  }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions;
   const registries = await Promise.all([
     loadDeployTargetRegistry({ workspaceId: input.workspaceId }, { loadContributions }),
     // Every bundled plugin's source, not one: a legacy publish row must resolve its vendor even

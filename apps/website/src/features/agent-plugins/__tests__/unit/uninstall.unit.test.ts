@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { installLegacyRevision } from '../fixtures/install-legacy-revision.js';
 
@@ -56,7 +57,7 @@ function fileEntry(entryPath: string, content: string): AgentPluginArchiveEntry 
 
 async function freshLayout() {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-uninstall-test-"));
-  const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
+  const instanceLayout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
   return { cwd, instanceLayout, workspaceLayout: instanceLayout.forWorkspace(WORKSPACE_ID) };
 }
 
@@ -286,7 +287,7 @@ test("a failed uninstall puts every staged package tree back — no digest is le
 test("TENANT ISOLATION: uninstalling in one workspace never touches another workspace's own copy of the same plugin id", async () => {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-uninstall-test-"));
   try {
-    const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
+    const instanceLayout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
     const otherWorkspaceId = "22222222-2222-4222-8222-222222222222";
 
     const manifest = JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "shared-name", version: "1.0.0" });

@@ -6,7 +6,7 @@ import express from "express";
 
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import type { KeyringPort } from "../../features/webhooks/index.js";
-import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs } from "../../assistant/external-mcp-store.js";
+import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs } from "../../features/external-mcp/external-mcp-store.js";
 import { onExternalMcpRosterChanged, resetExternalMcpRosterChangeListenersForTests } from "../../assistant/external-mcp-roster-change.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";

@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
@@ -11,7 +12,7 @@ import { ToolInputError, createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 import { approvalClassAsks } from "../../../../assistant/assistant-tool-approval-policy.js";
-import { InMemoryExternalMcpServerRepo } from "#src/assistant/index";
+import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { toolMetadata } from "../../../../contracts/core/tool-metadata/agent-plugins.js";
@@ -48,7 +49,7 @@ async function withInstalled<T>(fn: (env: { dir: string; layout: ReturnType<type
   const dir = await mkdtemp(path.join(tmpdir(), "agent-tool-update-"));
   // Every operation receives this layout explicitly; a fixture must not change another test's env.
   try {
-    const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: dir } });
+    const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: dir } });
     const archive = await packageZip("1.0.0");
     const { plugin } = await installUploadedAgentPlugin({ archive, expectedSha256: sha(archive), workspaceId: WORKSPACE, actor: "owner" }, { layout });
     return await fn({ dir, layout, oldDigest: plugin.archiveDigest, archive });
@@ -155,7 +156,7 @@ test("agent_plugins_update: lifecycle refusals reach the model as input errors c
 
 test("agent_plugins_update: malformed targets are input errors before any file is read", async () => {
   let reads = 0;
-  const tool = updateTool({ agentPluginLayout: resolveAgentPluginLayout(), readInstallAttachment: async () => { reads++; return { ok: false as const, refusal: "not-owner" as const }; } });
+  const tool = updateTool({ agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), readInstallAttachment: async () => { reads++; return { ok: false as const, refusal: "not-owner" as const }; } });
   const source = { kind: "zip", attachmentRef: "attachment:agent123" };
   for (const input of [
     { source, pluginId: "Bad_Id", expectedOldDigest: "a".repeat(64) },
@@ -169,7 +170,7 @@ test("agent_plugins_update: malformed targets are input errors before any file i
 });
 
 test("agent_plugins_update: a bundled source kind is refused like any non-archive source", async () => {
-  const tool = updateTool({ agentPluginLayout: resolveAgentPluginLayout(), ...mcpDeps(), snapshotAgentPluginSettings: async () => ({ keys: [] }) });
+  const tool = updateTool({ agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), ...mcpDeps(), snapshotAgentPluginSettings: async () => ({ keys: [] }) });
   await assert.rejects(() => tool.handler(context({ source: { kind: "bundled", bundledId: PLUGIN }, pluginId: PLUGIN, expectedOldDigest: "a".repeat(64) }), {}),
     (error: unknown) => error instanceof ToolInputError && /source.kind must be 'folder' or 'zip'/.test(error.message));
 });

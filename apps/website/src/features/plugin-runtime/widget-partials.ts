@@ -1,9 +1,9 @@
-/** Product binding: plugin admission belongs to Jini's host; placement uses the theme's
- * existing partial marker parser/expander. No CMS widget registry or resolver is replaced. */
+/** Product binding: plugin admission belongs to Jini's host; placement uses the shared
+ * partial marker parser/expander. No CMS widget registry or resolver is replaced. */
 import { renderPluginWidgetFragments, type PluginContributionRegistry, type PluginActivationRepoPort } from '@jini-ai/plugins/host';
 import { markersOfType, PARTIAL_MARKER_TYPE } from '@jini-ai/cms/widgets/markers';
 import { validateServerWidgetFragment } from '@jini-ai/cms/widgets/html';
-import { expandPartials } from '../theme/rendering.js';
+import { expandPartials } from "../../contracts/core/expand-partials.js";
 export async function renderPluginWidgetPartials(required: {
   html: string; workspaceId: string; contributions: PluginContributionRegistry;
   activationRepo: PluginActivationRepoPort;

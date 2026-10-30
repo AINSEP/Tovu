@@ -8,7 +8,7 @@ import path from "node:path";
 import test from "node:test";
 import ts from "typescript";
 
-import { builtInThemesDir, bundledAgentPluginsDir } from "../../runtime/composition/deps.js";
+import { builtInThemesDir, bundledAgentPluginsDir } from "../../runtime/composition/site-paths.js";
 
 /**
  * @file Regression coverage for the 2026-08-27 `src/` -> `content/` stock-data move.

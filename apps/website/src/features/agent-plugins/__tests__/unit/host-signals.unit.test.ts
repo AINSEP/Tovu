@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import os from "node:os";
 import path from "node:path";
 import { parseHostSignalDeclaration, readBundledHostSignalDeclaration, resolveBundledHostSignals } from "../../host-signals.js";
+import { resolveProductRoot } from "../../../../platform/site-dir/index.js";
 import { CORE_HOST_SIGNAL_FALLBACK } from "#src/contracts/core/host-signals";
 
 const signal = { env: "EXAMPLE_APP", facts: { hosted: true, nativeToolsRestricted: true, trustProxyHops: 1 }, label: "Example host" };
@@ -69,14 +70,13 @@ test("conflicting advice and duplicate names within one package yield no hints",
   assert.deepEqual(result, { signals: [] });
 });
 
-test("root discovery and read/evaluation failures never fail boot; supplied roots bypass discovery", () => {
-  const input = { env: { EXAMPLE_APP: "private-value" } };
-  assert.deepEqual(resolveBundledHostSignals(input, { productRoot: () => { throw new Error("no product root"); } }), fallback);
-  assert.deepEqual(resolveBundledHostSignals(input, { sourceRoot: "/trusted", readDeclaration: () => { throw new Error("I/O failed"); } }), fallback);
+test("path-fact and read/evaluation failures never fail boot; supplied roots select the declaration", () => {
+  const input = { env: { EXAMPLE_APP: "private-value" }, bundledSourceRoot: "/trusted" };
+  assert.deepEqual(resolveBundledHostSignals({ ...input, get bundledSourceRoot(): string { throw new Error("no bundled root"); } }), fallback);
+  assert.deepEqual(resolveBundledHostSignals(input, { readDeclaration: () => { throw new Error("I/O failed"); } }), fallback);
   let reads = 0;
   const roots: string[] = [];
   const ports = {
-    productRoot: () => "/product",
     readDeclaration: ({ sourceRoot }: { sourceRoot: string }) => {
       reads++;
       roots.push(sourceRoot);
@@ -85,14 +85,11 @@ test("root discovery and read/evaluation failures never fail boot; supplied root
   };
   assert.deepEqual(resolveBundledHostSignals(input, ports), { hosted: true, nativeToolsRestricted: true, trustProxyHops: 1, labels: ["Example host"] });
   assert.equal(reads, 1);
-  assert.deepEqual(roots, [path.join("/product", "content", "agent-plugins")]);
-  let discoveries = 0;
+  assert.deepEqual(roots, ["/trusted"]);
   const suppliedRoots: string[] = [];
-  assert.deepEqual(resolveBundledHostSignals(input, {
-    sourceRoot: "/payload", productRoot: () => { discoveries++; return "/wrong-root"; },
+  assert.deepEqual(resolveBundledHostSignals({ ...input, bundledSourceRoot: "/payload" }, {
     readDeclaration: required => { suppliedRoots.push(required.sourceRoot); return { signals: [] }; },
   }), fallback);
-  assert.equal(discoveries, 0, "explicit root must win");
   assert.deepEqual(suppliedRoots, ["/payload"]);
 });
 
@@ -106,11 +103,12 @@ test("real synchronous bundled selection reads manifests, excludes retired/non-p
   writeFileSync(path.join(sourceRoot, "ordinary-file"), "not a directory");
   assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot }), { signals: [signal] });
   // An unrelated valid declaration cannot mask a missing baseline security declaration.
-  assert.deepEqual(resolveBundledHostSignals({ env: { EXAMPLE_APP: "app" } }, { sourceRoot }), fallback);
+  assert.deepEqual(resolveBundledHostSignals({ env: { EXAMPLE_APP: "app" }, bundledSourceRoot: sourceRoot }), fallback);
   // Exercise the text port separately from the production default reader.
   assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot }, { readText: file => readFileSync(file, "utf8") }), { signals: [signal] });
 });
 
-test("default product-root binding reads shipped data without changing independent no-signal defaults", () => {
-  assert.deepEqual(resolveBundledHostSignals({ env: {} }).labels, []);
+test("explicit shipped and unavailable payloads keep independent no-signal defaults", () => {
+  assert.deepEqual(resolveBundledHostSignals({ env: {}, bundledSourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") }).labels, []);
+  assert.deepEqual(resolveBundledHostSignals({ env: {}, bundledSourceRoot: "/missing-host-signals-payload" }).labels, []);
 });

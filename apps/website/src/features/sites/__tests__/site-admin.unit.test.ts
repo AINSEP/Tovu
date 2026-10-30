@@ -1,3 +1,5 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
+import { composePluginCredentials } from "#src/server/runtime/composition/agent-plugin-service-ports";
 import { createSite } from "#src/server/runtime/composition/site-dir";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -81,22 +83,22 @@ test("createSiteForOwner: creates under the switcher base and reports no tokens"
   const calls: unknown[] = [];
   const result = await createSiteForOwner(
     { workspaceId: "ws", switcherBase: "/repo", name: "beta" },
-    { createSite: async (required, optional) => (calls.push([required, optional]), { name: required.name, dir: "/repo/sites/beta", siteId: "id-1" } as never) },
+    { bundledSourceRoot: bundledAgentPluginsDir(), createSite: async (required, optional) => (calls.push([required, optional]), { name: required.name, dir: "/repo/sites/beta", siteId: "id-1" } as never) },
   );
   assert.deepEqual(calls, [[{ name: "beta", adminPassword: "tovu-dev" }, { cwd: "/repo" }]]);
   assert.deepEqual(result, { ok: true, site: { name: "beta", dir: "/repo/sites/beta", siteId: "id-1" }, agentPluginTokens: { status: "none", pluginIds: [] } });
 });
 
 test("createSiteForOwner: a taken name and a bad name become refusals, not throws", async () => {
-  const taken = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta" }, { createSite: async () => { throw new InitDirNotEmptyError("/repo/sites/beta"); } });
+  const taken = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta" }, { bundledSourceRoot: bundledAgentPluginsDir(), createSite: async () => { throw new InitDirNotEmptyError("/repo/sites/beta"); } });
   assert.equal(taken.ok === false && taken.code, "SITE_ALREADY_EXISTS");
-  const bad = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "B" }, { createSite: async () => { throw new ValidationError("bad name"); } });
+  const bad = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "B" }, { bundledSourceRoot: bundledAgentPluginsDir(), createSite: async () => { throw new ValidationError("bad name"); } });
   assert.deepEqual(bad, { ok: false, code: "VALIDATION_ERROR", error: "bad name" });
 });
 
 test("createSiteForOwner: an unclassified failure is rethrown for the caller's 500", async () => {
   await assert.rejects(
-    () => createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta" }, { createSite: async () => { throw new Error("disk full"); } }),
+    () => createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta" }, { bundledSourceRoot: bundledAgentPluginsDir(), createSite: async () => { throw new Error("disk full"); } }),
     /disk full/,
   );
 });
@@ -105,7 +107,7 @@ test("createSiteForOwner: tokens with no way to seal them are refused before any
   let created = false;
   const result = await createSiteForOwner(
     { workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: { notion: "tok" } },
-    { createSite: async () => { created = true; return {} as never; } },
+    { bundledSourceRoot: bundledAgentPluginsDir(), createSite: async () => { created = true; return {} as never; } },
   );
   assert.equal(result.ok === false && result.code, "VALIDATION_ERROR");
   assert.equal(created, false);
@@ -161,14 +163,14 @@ test("activateSite: an unknown name never restarts", () => {
 });
 
 test("createSiteForOwner refuses malformed tokens before checking or creating", async () => {
-  assert.deepEqual(await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: [] }, {
+  assert.deepEqual(await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: [] }, { bundledSourceRoot: bundledAgentPluginsDir(),
     createSite: async () => assert.fail("invalid tokens must not create a site"),
     checkAgentPluginAccessToken: async () => assert.fail("invalid tokens must not be checked"),
   }), { ok: false, code: "VALIDATION_ERROR", error: "'agentPluginTokens' must map plugin ids to token strings" });
 });
 
 test("createSiteForOwner refuses tokens without a guarded HTTP client", async () => {
-  assert.deepEqual(await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: { notion: "tok" } }, {
+  assert.deepEqual(await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: { notion: "tok" } }, { bundledSourceRoot: bundledAgentPluginsDir(),
     createSite: async () => assert.fail("unsupported token must not create a site"),
     checkAgentPluginAccessToken: async () => assert.fail("no unguarded token check"),
     sealPendingAgentPluginTokens: async () => assert.fail("no unchecked tokens saved"),
@@ -178,10 +180,11 @@ test("createSiteForOwner refuses tokens without a guarded HTTP client", async ()
 test("createSiteForOwner checks tokens before creation and seals trimmed tokens for the new site's key", async () => {
   const events: unknown[] = [];
   const httpClient = { request: async () => assert.fail("the injected checker owns probing") } as never;
-  const result = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", adminPassword: "explicit-password", agentPluginTokens: { notion: " tok " } }, {
+  const credentials = composePluginCredentials({ httpClient });
+  const result = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", adminPassword: "explicit-password", agentPluginTokens: { notion: " tok " } }, { bundledSourceRoot: bundledAgentPluginsDir(), credentials,
     customCredentialsHttpClient: httpClient,
     checkAgentPluginAccessToken: async (deps, input) => {
-      assert.equal(deps.workspaceId, "ws"); assert.equal(deps.httpClient, httpClient);
+      assert.equal(deps.workspaceId, "ws"); assert.equal(deps.credentials, credentials);
       events.push(["checked", input]); return "ok";
     },
     createSite: async (required, optional) => {
@@ -198,7 +201,7 @@ test("createSiteForOwner checks tokens before creation and seals trimmed tokens 
 });
 
 test("createSiteForOwner refuses an invalid checked token before writing anything", async () => {
-  const result = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: { notion: "bad-token" } }, {
+  const result = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: { notion: "bad-token" } }, { bundledSourceRoot: bundledAgentPluginsDir(), credentials: composePluginCredentials({ httpClient: {} as never }),
     customCredentialsHttpClient: {} as never, checkAgentPluginAccessToken: async () => "invalid",
     createSite: async () => assert.fail("invalid token must not create a site"),
     sealPendingAgentPluginTokens: async () => assert.fail("invalid token must not be sealed"),
@@ -207,7 +210,7 @@ test("createSiteForOwner refuses an invalid checked token before writing anythin
 });
 
 test("createSiteForOwner uses the real checker to refuse an unbundled plugin", async () => {
-  const result = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: { "coverage-no-such-plugin": "tok" } }, {
+  const result = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: { "coverage-no-such-plugin": "tok" } }, { bundledSourceRoot: bundledAgentPluginsDir(), credentials: composePluginCredentials({ httpClient: { request: async () => assert.fail("unbundled plugins have no probe URL") } as never }),
     customCredentialsHttpClient: { request: async () => assert.fail("unbundled plugins have no probe URL") } as never,
     createSite: async () => assert.fail("unbundled token must not create a site"), sealPendingAgentPluginTokens: async () => assert.fail("unchecked token"),
   });
@@ -219,7 +222,7 @@ test("createSiteForOwner uses the real checker to refuse an unbundled plugin", a
 for (const failure of [new Error("disk full"), "volume offline"]) {
   test(`createSiteForOwner keeps the created site and reports failed token storage: ${String(failure)}`, async (t) => {
     const diagnostics = t.mock.method(console, "error", () => {});
-    const result = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: { notion: "tok" } }, {
+    const result = await createSiteForOwner({ workspaceId: "ws", switcherBase: "/repo", name: "beta", agentPluginTokens: { notion: "tok" } }, { bundledSourceRoot: bundledAgentPluginsDir(), credentials: composePluginCredentials({ httpClient: {} as never }),
       customCredentialsHttpClient: {} as never, checkAgentPluginAccessToken: async () => "unavailable",
       createSite: async () => ({ name: "beta", dir: "/new/site", siteId: "new-key" }) as never,
       sealPendingAgentPluginTokens: async () => { throw failure; },
@@ -230,7 +233,7 @@ for (const failure of [new Error("disk full"), "volume offline"]) {
 }
 
 test("createSiteForOwner uses the injected real name validator without creating an invalid site", async () => {
-  assert.deepEqual(await createSiteForOwner({ workspaceId: "ws", switcherBase: "/unused", name: "../invalid" }, { createSite }), {
+  assert.deepEqual(await createSiteForOwner({ workspaceId: "ws", switcherBase: "/unused", name: "../invalid" }, { bundledSourceRoot: bundledAgentPluginsDir(), createSite }), {
     ok: false, code: "VALIDATION_ERROR", error: "createSite: name must be 1..100 lowercase letters, digits, and dashes",
   });
 });

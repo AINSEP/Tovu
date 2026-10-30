@@ -1,5 +1,6 @@
-import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
-import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort, ExternalMcpStoreDeps } from "#src/assistant/mcp-services";
+import type { AgentPluginMcpPort } from "./service-ports.js";
+import { type Clock as ClockPort, nowIso as clockNowIso } from "@jini-ai/core/primitives";
+import type { ExternalMcpServerRecord } from "../external-mcp/contracts.js";
 
 import { deriveAgentPluginConnectionId } from "./federate-mcp.js";
 import { listInstalledAgentPluginServers, type InstalledAgentPluginServers, type TokenImportLog } from "./import-access-token.js";
@@ -30,8 +31,8 @@ const TOOL_RENAMES_ACTOR = "system:tool-renames";
 export interface ApplyAgentPluginToolRenamesDeps {
   readonly workspaceId: string;
   readonly agentPluginLayout: import("./layout.js").AgentPluginLayout;
-  readonly externalMcpServerRepo: ExternalMcpServerRepoPort;
-  readonly clock: ExternalMcpStoreDeps["clock"];
+  readonly externalMcpServerRepo: AgentPluginMcpPort["repo"];
+  readonly clock: ClockPort;
   /** Injected for tests. Defaults to `import-access-token.ts`'s `listInstalledAgentPluginServers`. */
   readonly listPlugins?: () => Promise<readonly InstalledAgentPluginServers[]>;
   /** Announces a changed roster so live runtimes reload — the composition root passes
@@ -67,7 +68,7 @@ function renameRowTools(
   input: {
     readonly row: ExternalMcpServerRecord;
     readonly renames: Readonly<Record<string, string>>;
-    readonly clock: ExternalMcpStoreDeps["clock"];
+    readonly clock: ClockPort;
     readonly pluginId: string;
     readonly url: string;
   },

@@ -1,3 +1,4 @@
+import { credentialTestPort } from "../fixtures/connection-service-ports.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -37,7 +38,7 @@ function check(http: HttpClientPort, servers: Readonly<Record<string, McpServerC
   return checkAgentPluginAccessToken(
     {
       workspaceId: "ws-check",
-      httpClient: http,
+      credentials: credentialTestPort({ httpClient: http }),
       resolveInstalledPlugin: async () => {
         if (servers === "throws") throw new Error("plugin dir unreadable");
         return servers === null ? null : { servers };

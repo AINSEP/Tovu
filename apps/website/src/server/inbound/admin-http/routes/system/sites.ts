@@ -1,3 +1,5 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
+import { composePluginCredentials } from "#src/server/runtime/composition/agent-plugin-service-ports";
 import { registerSitesHomeRoutes } from "../sites/sites-home.js";
 import { registerLocalSitesRoutes, type LocalSitesRouteDeps } from "../sites/local-sites.js";
 import { localSiteSupervisorForHost } from "#src/server/runtime/lifecycle/local-site-host";
@@ -286,6 +288,8 @@ function createSiteFromRequest({ body, deps, switcherBase, name, actorId }: {
       agentPluginTokens: (body as Record<string, unknown> | null | undefined)?.agentPluginTokens,
     },
     {
+      bundledSourceRoot: bundledAgentPluginsDir(),
+      credentials: deps.customCredentialsHttpClient && composePluginCredentials({ httpClient: deps.customCredentialsHttpClient }),
       tracker: deps.tracker,
       createSite: deps.createSite,
       customCredentialsHttpClient: deps.customCredentialsHttpClient,
@@ -353,7 +357,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
         entityType: "site-registry",
       });
       if (!authorized) return;
-      const plugins = await (deps.listTokenSignInPlugins ?? (() => listNewSiteAgentPluginTokenSignInPlugins()))(deps.workspaceId);
+      const plugins = await (deps.listTokenSignInPlugins ?? (() => listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: bundledAgentPluginsDir() })))(deps.workspaceId);
       res.status(200).json({ plugins });
     } catch (err) {
       console.error("[system/sites] unexpected error listing token sign-in plugins", err);

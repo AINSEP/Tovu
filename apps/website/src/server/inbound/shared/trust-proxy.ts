@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import type { HostSignalOptions } from "#src/contracts/core/host-signals";
-import { resolveBundledHostSignals } from "#src/features/agent-plugins/host-signals";
+import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 
 /**
  * @file Express `trust proxy` for the site app.
@@ -47,7 +47,7 @@ export function resolveTrustProxySetting({ env }: { env: NodeJS.ProcessEnv }, op
     if (/^\d+$/.test(override)) return Number(override);
     return override;
   }
-  return (optional.hostSignals ?? resolveBundledHostSignals({ env })).trustProxyHops ?? false;
+  return (optional.hostSignals ?? resolveHostSignals({ env })).trustProxyHops ?? false;
 }
 
 /** Sets `trust proxy` on `app` from {@link resolveTrustProxySetting}.

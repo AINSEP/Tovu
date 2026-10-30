@@ -7,15 +7,8 @@ import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { byVaultLabel, createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { customVaultRecord, customVaultScope } from "./vault-repo.js";
 import { credentialDeletionRepo, credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "../vendor-credentials/index.js";
-import {
-  CUSTOM_CREDENTIAL_CATEGORIES,
-  type CustomCredentialCategoryId,
-  type CustomCredentialScope,
-  type CustomCredentialSetRecord,
-  type CustomCredentialSetRepoPort,
-  type CustomCredentialSummary,
-  type CustomProviderConnectionInput,
-} from "./types.js";
+import { CUSTOM_CREDENTIAL_CATEGORIES, type CustomCredentialCategoryId } from "../../contracts/core/custom-credential-categories.js";
+import { type CustomCredentialScope, type CustomCredentialSetRecord, type CustomCredentialSetRepoPort, type CustomCredentialSummary, type CustomProviderConnectionInput } from "./types.js";
 
 /**
  * @file Feature validation and CRUD over Jini's vault. Public summaries contain saved origins,

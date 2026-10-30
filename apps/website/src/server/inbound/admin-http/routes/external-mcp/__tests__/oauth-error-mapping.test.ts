@@ -4,12 +4,9 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import {
-  ExternalMcpReauthRequiredError,
-  ExternalMcpSecretStoreUnconfiguredError,
-  ExternalMcpValidationError,
-  type ExternalMcpOAuthService,
-} from "#src/assistant/index";
+import { ExternalMcpReauthRequiredError } from "../../../../../../features/external-mcp/external-mcp-oauth.js";
+import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError } from "../../../../../../features/external-mcp/external-mcp-store.js";
+import { type ExternalMcpOAuthService } from "../../../../../../features/external-mcp/contracts.js";
 import { OAuthError } from "@jini-ai/oauth";
 import type { RateLimiter, RateLimitResult } from "#src/contracts/core/rate-limit/rate-limit";
 import { createRouteDeps } from "#src/server/runtime/composition/app";

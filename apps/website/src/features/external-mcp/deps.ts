@@ -5,7 +5,7 @@ import type { AuthorizeFn } from "@jini-ai/cms/core";
 // `#src/*` maps to `./src/*.ts` (package.json `imports`), so the subpath carries no `.js`
 // suffix — unlike a relative specifier, which does. `#src/assistant/mcp-services` below is the same shape.
 import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/index";
-import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "#src/assistant/mcp-services";
+import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "./contracts.js";
 
 /**
  * @file The exact slice of a composition root's deps bag this domain's tool handlers read.

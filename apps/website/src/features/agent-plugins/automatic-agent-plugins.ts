@@ -6,25 +6,14 @@ import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import { loadAgentPluginSearchCandidates, type AgentPluginSearchToolDeps } from './tool-registrations.js';
 import { formatPluginToolPointer } from './bundled-catalog.js';
 import type { PluginMaturity } from './identity.js';
-import { createSettingsPrincipalLookup } from '../settings/index.js';
-import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '../settings/admin-interface.js';
-import type { IdGenerator } from '@jini-ai/core/primitives';
-import type { getEffective, set, SettingsRepoPort } from '@jini-ai/core/settings';
-import type { AuthorizeFn } from '@jini-ai/cms/core';
-import type { PrincipalRepoPort } from '@jini-ai/user-management';
+import type { AgentPluginPreferencesPort } from './service-ports.js';
 import { resolveAgentPluginGuidance, rankInstalledAgentPlugins } from './lifecycle.js';
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
 
 /** Only the ports read by automatic plugin guidance and its settings write. */
 export interface AutomaticPluginDeps extends AgentPluginSearchToolDeps {
-  settingsRepo: SettingsRepoPort;
-  getEffective: typeof getEffective;
-  set: typeof set;
+  preferences: Pick<AgentPluginPreferencesPort, 'mode' | 'saveAuto'>;
   siteTitleReady: Promise<void>;
-  authorize: AuthorizeFn;
-  principalRepo: PrincipalRepoPort;
-  clock: { nowIso(): string };
-  idGen: IdGenerator;
 }
 
 /** The feature's consent port; the assistant supplies its principal-bound exchange adapter. */
@@ -49,11 +38,6 @@ export interface AutomaticPluginRun {
   publish(input: { conversationId: string; state: ChatAgentPluginState; plugins: readonly { id: string; name: string }[] }): Promise<void>;
 }
 
-/** The stored chat Agent Plugins preference; anything but Ask or Off (including no value) is Auto. @complexity O(1). */
-function chatAgentPluginsMode({ value }: { value: unknown }, _options = {}): ChatAgentPlugins {
-  return value === 'ask' || value === 'off' ? value : 'auto';
-}
-
 /** Logical-turn controllers share preflight and the actual authorized tool gate. Cleanup is explicit.
  * @returns start/forget, the read-only guidance loader and the tool preparation hook.
  * @complexity O(1) identity lookup; one controller per live turn, one late answer per chat.
@@ -76,7 +60,7 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
   async function start({ runId, messageId, context }: { runId: string; messageId?: string; context: AutomaticPluginRun }, _options = {}): Promise<string> {
     // core.interface definitions are in this existing boot chain, after the UI-tab definitions.
     await deps.siteTitleReady;
-    const effective = await deps.getEffective({ repo: deps.settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, scopeContext: { workspaceId: deps.workspaceId, principalId: context.principal.id } });
+    const mode = await deps.preferences.mode({ workspaceId: deps.workspaceId, principalId: context.principal.id });
     if (context.signal.aborted) return '';
     // A restarted attempt still owns the same pending/answered question. Reuse the controller's
     // serialized preparation instead of rebuilding consent from the frozen request state.
@@ -85,7 +69,6 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
     const existing = runs.get(runId) ?? turns.get(turnId);
     if (existing) return rejoin({ existing, runId, messageId, context });
     const current = withLateAnswer({ context });
-    const mode = chatAgentPluginsMode({ value: effective?.value });
     const entry = createEntry({ mode, context: current, turnId, runId });
     turns.set(turnId, entry);
     runs.set(runId, entry);
@@ -139,11 +122,7 @@ export function createAutomaticPluginRuns({ deps, surfaces, askAgentPluginChoice
             }, signal: abort.signal, matches });
         } finally { entry.pending = false; }
       },
-      saveAuto: async () => {
-        await deps.set({ deps: { repo: deps.settingsRepo, clock: { nowMs: () => Date.parse(deps.clock.nowIso()) }, ids: deps.idGen, authorize: deps.authorize,
-          principals: createSettingsPrincipalLookup({ repo: deps.principalRepo }) }, input: { namespace: ADMIN_INTERFACE_NAMESPACE, key: CHAT_AGENT_PLUGINS_KEY, value: 'auto', scope: 'user',
-          workspaceId: deps.workspaceId, principalId: context.principal.id, callerPrincipalId: context.principal.id, authWorkspaceId: deps.workspaceId } });
-      },
+      saveAuto: () => deps.preferences.saveAuto({ workspaceId: deps.workspaceId, principalId: context.principal.id }),
       publish: async value => {
         if (abort.signal.aborted) return;
         if (!entry.attempts.size) lateAnswers.set(chatKey(context), value.state);

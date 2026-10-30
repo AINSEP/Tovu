@@ -86,7 +86,7 @@ test("SEC-1: GitHub backup excludes password hashes, sessions, magic-link tokens
     },
     siteBackupSources: {
       siteDir, mediaUploadsDir: null, themesDir: path.join(siteDir, "themes"),
-      agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(siteDir, "agent-plugins") } }),
+      agentPlugins: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(siteDir, "agent-plugins") } }),
       skillsDir: path.join(siteDir, "skills"), tovuVersion: "test",
     },
     siteBackupPlanStore: new SiteBackupPlanStore(),

@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -100,7 +101,7 @@ async function withUpgradeScenario<T>(
   try {
     /** Runs one "boot" against `sourceRoot` and returns the digest seeded for {@link PLUGIN_ID}. */
     const seedFrom = async (sourceRoot: string): Promise<string> => {
-      const result = await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout(), workspaceId: WORKSPACE_ID, sourceRoot });
+      const result = await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE_ID, sourceRoot });
       const failures = result.outcomes.filter((outcome) => outcome.status === "failed");
       assert.deepEqual(failures, [], `bundled plugins must seed cleanly, got: ${JSON.stringify(failures)}`);
       const seeded = result.outcomes.find((outcome) => outcome.pluginId === PLUGIN_ID);
@@ -108,7 +109,7 @@ async function withUpgradeScenario<T>(
       return seeded.archiveDigest;
     };
 
-    return await fn({ workspaceRoot: resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID).root, upgradedSourceRoot, seedFrom });
+    return await fn({ workspaceRoot: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).root, upgradedSourceRoot, seedFrom });
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
@@ -149,7 +150,7 @@ test("a bundled upgrade of an ENABLED plugin keeps run-start injection working, 
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "operator:test" });
     await seedFrom(upgradedSourceRoot);
 
-    const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
     const injected = await resolveAgentPluginRefs([PLUGIN_ID], layout);
 
     assert.equal(injected.ok, true, `pinning '${PLUGIN_ID}' must still resolve after a bundled upgrade`);
@@ -172,7 +173,7 @@ test("an edited bundled SKILL.md refreshes the site's installed copy even with N
       const secondDigest = await seedFrom(editedOnly);
       assert.notEqual(secondDigest, firstDigest, "a SKILL.md-only edit must still change the content digest");
 
-      const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
+      const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
       const installedCopy = await readFile(path.join(layout.root, PLUGIN_ID, "package", "sha256", secondDigest, "skills", PLUGIN_ID, "SKILL.md"), "utf8");
       assert.ok(installedCopy.includes(UPGRADE_MARKER), "the site's installed SKILL.md copy must carry the edit");
 
@@ -189,7 +190,7 @@ test("successful upgrade prunes superseded bytes and keeps the newly published d
     const firstDigest = await seedFrom(BUNDLED_SOURCE_ROOT);
     const secondDigest = await seedFrom(upgradedSourceRoot);
 
-    const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
     const digestsOnDisk = (await listInstalledPlugins(layout.root))
       .filter((plugin) => plugin.pluginId === PLUGIN_ID)
       .map((plugin) => plugin.archiveDigest)
@@ -247,7 +248,7 @@ test("a bundled upgrade preserves an operator's disabled decision and keeps both
     assert.notEqual(upgraded, original);
     assert.deepEqual((await readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN_ID], before);
     assert.deepEqual((await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }))).filter(source => source.pluginId === PLUGIN_ID), []);
-    const injected = await resolveAgentPluginRefs([PLUGIN_ID], resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID));
+    const injected = await resolveAgentPluginRefs([PLUGIN_ID], resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID));
     assert.ok(!injected.ok && injected.reason.includes("is not enabled"));
   });
 });

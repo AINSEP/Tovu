@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -31,7 +32,7 @@ async function withLayout<T>(fn: (layout: ReturnType<typeof resolveAgentPluginLa
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    return await fn(resolveAgentPluginLayout());
+    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }));
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
@@ -141,8 +142,8 @@ test("preview refuses oversized or unverified bytes before opening the archive",
   let opened = 0;
   const archiveReader = { async *entries() { opened++; } };
   const base = { workspaceId: WORKSPACE, actor: "owner", expectedSha256: "f".repeat(64) };
-  await assert.rejects(() => previewUploadedAgentPlugin({ ...base, archive: Buffer.from("bad digest") }, { archiveReader, layout: resolveAgentPluginLayout() }), (e: unknown) => e instanceof AgentPluginInstallError && e.code === "DIGEST_MISMATCH");
-  await assert.rejects(() => previewUploadedAgentPlugin({ ...base, archive: new Uint8Array(32 * 1024 * 1024 + 1) }, { archiveReader, layout: resolveAgentPluginLayout() }), (e: unknown) => e instanceof AgentPluginInstallError && e.code === "ARCHIVE_TOO_LARGE");
+  await assert.rejects(() => previewUploadedAgentPlugin({ ...base, archive: Buffer.from("bad digest") }, { archiveReader, layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }), (e: unknown) => e instanceof AgentPluginInstallError && e.code === "DIGEST_MISMATCH");
+  await assert.rejects(() => previewUploadedAgentPlugin({ ...base, archive: new Uint8Array(32 * 1024 * 1024 + 1) }, { archiveReader, layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }), (e: unknown) => e instanceof AgentPluginInstallError && e.code === "ARCHIVE_TOO_LARGE");
   assert.equal(opened, 0);
 });
 

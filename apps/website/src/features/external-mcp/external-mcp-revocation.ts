@@ -1,15 +1,3 @@
-import { ToolInputError } from "@jini-ai/core";
-
-import {
-  externalMcpAdmissionRevision,
-  readExternalMcpToolGrants,
-  resolveExternalMcpAuthMode,
-  resolveExternalMcpOAuthStatus,
-  type ExternalMcpServerRecord,
-} from "./external-mcp-store.js";
-import type { FederatedCallTarget } from "@jini-ai/mcp/federation";
-import { refusalForAdmittedToolUnderCurrentGrants } from "@jini-ai/mcp/federation";
-
 /**
  * @file Per-call operator-revocation checks for an already-admitted federated tool — the roster half
  * of `mcp-federation/registrations.ts`'s `FederationDeps.assertConnectionUsable`, consumed by
@@ -33,17 +21,15 @@ import { refusalForAdmittedToolUnderCurrentGrants } from "@jini-ai/mcp/federatio
  * the wrong place. A handler-side `ToolInputError` reaches the model as `errorKind: 'validation'`
  * with this file's own text instead.
  */
+import type { ExternalMcpRevocationReason } from "./contracts.js";
+import { ToolInputError } from "@jini-ai/core";
 
-/** Why an admitted federated tool is refused on THIS call. Every value pairs with one D3 message in
- *  {@link revocationMessage} — see that lookup for the exact, test-pinned wording. */
-export type ExternalMcpRevocationReason =
-  | "removed"
-  | "turned-off"
-  | "disconnected"
-  | "changed"
-  | "tool-not-allowed"
-  | "write-not-allowed"
-  | "unverifiable";
+import { externalMcpAdmissionRevision, readExternalMcpToolGrants } from "./external-mcp-store.js";
+import { resolveExternalMcpOAuthStatus } from "../../contracts/core/external-mcp-auth.js";
+import { resolveExternalMcpAuthMode } from "../../contracts/core/external-mcp-auth.js";
+import { type ExternalMcpServerRecord } from "./contracts.js";
+import type { FederatedCallTarget } from "@jini-ai/mcp/federation";
+import { refusalForAdmittedToolUnderCurrentGrants } from "@jini-ai/mcp/federation";
 
 interface RevocationMessageInput {
   readonly serverId: string;

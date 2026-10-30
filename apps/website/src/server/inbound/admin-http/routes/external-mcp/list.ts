@@ -1,5 +1,5 @@
 import { describeExternalMcpOwnership } from "#src/features/external-mcp/built-in-connections";
-import { listExternalMcpServerViews } from "#src/assistant/index";
+import { listExternalMcpServerViews } from "../../../../../features/external-mcp/external-mcp-store.js";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 

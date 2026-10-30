@@ -198,3 +198,20 @@ export function resolveSiteStoragePaths(
     chatAttachmentsDir: resolveChatAttachmentUploadDirectory({ contentDbPath: anchor }, optional),
   };
 }
+
+/**
+ * Agent Plugins that ship WITH the product live in `content/agent-plugins/<pluginId>/`, copied to
+ * `dist/content/agent-plugins/` at build time and resolved package-relative to this file — the exact
+ * same shape as {@link builtInThemesDir} immediately above, including the product-root walk-up that
+ * makes it land correctly in both the source and compiled layouts, and for the same reason (CR-R04:
+ * a `process.cwd()`-relative path is wrong the moment the CLI is invoked from outside the checkout).
+ *
+ * Deliberately NOT `<site>/agent-plugins/`. That directory is `layout.ts`'s per-workspace INSTALL
+ * root — gitignored site data (`sites/README.md`), populated by extraction, and frozen read-only
+ * per digest. Product-shipped source cannot live there: it would not be tracked, would not ship in
+ * a release, and would collide with the content-addressed tree the installer owns. Bundled source
+ * is an INPUT to installation (`features/agent-plugins/seed-bundled.ts`), not a location within it.
+ */
+export function bundledAgentPluginsDir(_required: Record<string, never> = {}, optional: { env?: NodeJS.ProcessEnv } = {}): string {
+  return (optional.env ?? process.env).TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? join(resolveProductRoot(), "content", "agent-plugins");
+}

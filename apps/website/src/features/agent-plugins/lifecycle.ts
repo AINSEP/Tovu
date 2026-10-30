@@ -28,7 +28,7 @@ import { readPluginMaturity, UNTESTED_PLUGIN_GUIDANCE } from "./identity.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, formatPluginToolPointer } from "./bundled-catalog.js";
 import {
   readSupersessions, supersededDescriptorRefusal, supersededPackageRefusal, createBundledSourceManifestReader,
-  defaultBundledSourceRoot, type SupersessionManifestsPort,
+  type SupersessionManifestsPort,
 } from "./supersession.js";
 
 export {
@@ -92,7 +92,7 @@ export function resolveAgentPluginDeliveryMode(env: { readonly TOVU_AGENT_PLUGIN
  * Network installation and MCP provisioning have separate host owners and are not used by this
  * binding. Refuse those unbound capabilities rather than bypassing their guards.
  * @complexity O(1) composition. All operations delegate to the lifecycle owner. */
-export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLayout }, optional: { readonly productTracker?: () => Pick<Tracker, 'capture'>; readonly filesystem?: FilesystemPort; readonly identityAdmission?: AgentPluginLifecycleOptional["identityAdmission"]; readonly mcpProvisioning?: import("@jini-ai/agent-plugins/lifecycle").AgentPluginMcpProvisioningPort; readonly supersessionManifests?: SupersessionManifestsPort } = {}) {
+export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLayout }, optional: { readonly bundledSourceRoot?: string; readonly productTracker?: () => Pick<Tracker, 'capture'>; readonly filesystem?: FilesystemPort; readonly identityAdmission?: AgentPluginLifecycleOptional["identityAdmission"]; readonly mcpProvisioning?: import("@jini-ai/agent-plugins/lifecycle").AgentPluginMcpProvisioningPort; readonly supersessionManifests?: SupersessionManifestsPort } = {}) {
   const unbound = async (): Promise<never> => { throw new Error("This lifecycle binding does not provide network installation or MCP provisioning"); };
   const policy: AgentPluginLifecycleOptional = {
     onActivationChanged: ({ pluginId, actor, enabled }) => optional.productTracker?.().capture({ name: enabled ? "agent_plugin_enabled" : "agent_plugin_disabled", userId: actor }, { properties: { pluginId, pluginKind: "agent", source: "shared" } }),
@@ -125,7 +125,7 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
   }, policy);
   const manifests: SupersessionManifestsPort = optional.supersessionManifests ?? {
     readInstalled: ({ plugin }) => owner.readTrustedPluginFile({ plugin, filename: "plugin.json" }),
-    readBundledSource: createBundledSourceManifestReader({ sourceRoot: () => defaultBundledSourceRoot({ env: process.env }) }),
+    readBundledSource: optional.bundledSourceRoot === undefined ? unbound : createBundledSourceManifestReader({ bundledSourceRoot: optional.bundledSourceRoot }),
   };
   /** Apply host disclosure after Jini's trust/activation checks, for pinned and automatic guidance.
    * @throws A manifest read failure; never deliver guidance while hiding its maturity.

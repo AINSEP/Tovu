@@ -8,7 +8,7 @@ import {
   type IndexProvisionerPort,
 } from "#src/features/content-types/index";
 
-import type { DeclaredContentTypePorts } from "./declarative-content-types.js";
+import type { DeclaredContentTypePorts } from "#src/features/plugin-runtime/declarative-content-types";
 
 export interface CreateDeclaredContentTypePortsRequired {
   readonly repo: ContentTypeRepoPort;

@@ -1,4 +1,4 @@
-import * as externalMcpStore from "../../../../apps/website/src/assistant/mcp-services.ts";
+import * as externalMcpStore from "../../../../apps/website/src/features/external-mcp/external-mcp-store.js";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
@@ -17,7 +17,7 @@ import { saveAgentPluginToken } from "../../../../apps/website/src/features/agen
 import { buildCredentialSaveRegistrations } from "../../../../apps/website/src/features/custom-credentials/credential-save-tool.ts";
 import { InMemoryCustomCredentialSetRepo } from "../../../../apps/website/src/features/custom-credentials/repo.memory.ts";
 import { createCustomCredential, resolveCustomCredentialByLabel } from "../../../../apps/website/src/features/custom-credentials/store.ts";
-import { InMemoryExternalMcpServerRepo } from "../../../../apps/website/src/assistant/external-mcp-store.memory.ts";
+import { InMemoryExternalMcpServerRepo } from "../../../../apps/website/src/features/external-mcp/external-mcp-store.memory.js";
 import { InMemoryKeyring } from "../../../../apps/website/src/features/webhooks/keyring.memory.ts";
 import { resolveAgentPluginLayout } from "../../../../apps/website/src/features/agent-plugins/layout.ts";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";

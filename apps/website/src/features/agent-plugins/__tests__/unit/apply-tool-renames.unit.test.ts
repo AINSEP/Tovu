@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { InMemoryExternalMcpServerRepo, saveExternalMcpServer } from "#src/assistant/index";
+import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
+import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
@@ -288,7 +289,7 @@ test("without an injected listing, the workspace's installed plugins are read (n
   const logs: string[] = [];
   await applyAgentPluginToolRenames(
     { workspaceId: WORKSPACE, externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), clock: createFakeClock({ startIso: NOW }),
-      notifyRosterChanged: async () => assert.fail("must not notify"), agentPluginLayout: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: temporary } }) },
+      notifyRosterChanged: async () => assert.fail("must not notify"), agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: temporary } }) },
     { info: (m) => logs.push(m), warn: (m) => logs.push(m) },
   );
   assert.deepEqual(logs, []);

@@ -8,7 +8,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 import type { UIResource } from "#src/assistant/index";
 import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/ui/mcp-ui/surfaces";
-import { InMemoryExternalMcpServerRepo } from "#src/assistant/index";
+import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import {
   createSurfaceExchangeStore,

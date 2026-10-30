@@ -1,4 +1,5 @@
-import { applyPluginCredentialCard, type PluginCredentialCard } from "../custom-credentials/plugin-credential-card.js";
+import type { PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
+import type { PluginCredentialsPort } from "./service-ports.js";
 import { buildOutcomeSurface, type SurfaceOutcomeSpec, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 import type { SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
 
@@ -71,16 +72,17 @@ export function buildAgentPluginConnectCard(spec: AgentPluginConnectCardSpec): U
  * replaces the form. This builder supplies domain copy only; the engine owns routing and dismissal.
  *
  * @returns A secret-card form spec without routing parameters or prefilled credentials.
- * @example buildAgentPluginAccessTokenForm({ pluginDisplayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" });
+ * @example buildAgentPluginAccessTokenForm({ credentials, pluginDisplayName: "Supabase", helpUrl: "https://supabase.com/dashboard/account/tokens" });
  * @complexity O(1).
  */
 export function buildAgentPluginAccessTokenForm(spec: {
+  readonly credentials: Pick<PluginCredentialsPort, "apply">;
   readonly pluginDisplayName: string;
   readonly helpUrl: string;
   readonly credentialCard?: PluginCredentialCard;
 }, _optional = {}): SecretCardForm {
   const { pluginDisplayName, helpUrl } = spec;
-  return applyPluginCredentialCard({ card: spec.credentialCard, form: {
+  return spec.credentials.apply({ card: spec.credentialCard, form: {
     title: `Connect ${pluginDisplayName} with an access token`,
     description:
       `Create a personal access token at ${helpUrl}, then paste it below. Tovu checks it with ` +

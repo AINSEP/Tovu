@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { SealedSecret } from "#src/features/webhooks/index";
-import { EXTERNAL_MCP_AUTH_MODES, externalMcpRecordHasStaticAccessToken, resolveExternalMcpAuthMode } from "../../auth-mode.js";
+import { EXTERNAL_MCP_AUTH_MODES, externalMcpRecordHasStaticAccessToken, resolveExternalMcpAuthMode } from "../../../../contracts/core/external-mcp-auth.js";
 
 /** @file The external-MCP row auth-mode readers (`auth-mode.ts`): the pre-column default and the static-token check. */
 

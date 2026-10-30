@@ -15,7 +15,7 @@ import {
   CustomCredentialSecretStoreUnconfiguredError,
   type CustomCredentialSetRepoPort,
 } from "#src/features/custom-credentials/index";
-import type { PluginCredentialCard } from "#src/features/custom-credentials/plugin-credential-card";
+import type { PluginCredentialCard } from "../../../contracts/core/plugin-credential-card.js";
 import type { SecretSealerPort } from "#src/features/webhooks/index";
 import { contributeMailProviders, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { defaultMailProviderSetup } from "#src/features/agent-plugins/mail-provider-setup";

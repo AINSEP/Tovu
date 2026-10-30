@@ -14,6 +14,8 @@ import { InMemoryChangeSetRepo } from '#src/contracts/core/commands/index';
 import { buildPluginsRegistrations, type PluginsToolDeps } from '../../tool-registrations.js';
 import { buildPluginSourceRegistrations } from '../../source-tools.js';
 import { createSitePluginPolicy, sitePluginLocalInstallEnabled } from '../../install.js';
+import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals } from '../../../../contracts/core/host-signals.js';
+import { providerFacesFor } from '../fixtures/plugins-tool-harness.js';
 
 const id = 'site-rules';
 const workspaceId = 'site';
@@ -33,7 +35,7 @@ async function harness(t: TestContext) {
     authorize: async () => ({ allowed: true, reason: 'matched' }), idGen: { newId: () => 'change-' + ++counter },
     changeSets: new InMemoryChangeSetRepo(), outbox: new InMemoryOutbox(),
     removePlugin: async () => assert.fail('Source tools must never uninstall'),
-    agentPluginLayout: {} as never, externalMcpServerRepo: {} as never, siteAssistantSecretSealer: {} as never, siteAssistantSecretKeyring: {} as never,
+    agentPluginLayout: {} as never, providerFaces: providerFacesFor({ workspaceRoot: () => assert.fail('Site-runtime tools do not read Agent Plugin faces') }),
   } satisfies PluginsToolDeps;
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
   const surfaces = { surfaceExchanges };
@@ -220,11 +222,24 @@ test('hosted source sealing retains the Tovu opt-in hint and publishes no packag
 });
 
 test('the deployment adapter treats desktop and dev as local and production/Fly as hosted', () => {
-  assert.equal(sitePluginLocalInstallEnabled({ env: {} }), true);
-  assert.equal(sitePluginLocalInstallEnabled({ env: { NODE_ENV: 'development', TOVU_PLUGIN_LOCAL_INSTALL: '0' } }), true);
-  assert.equal(sitePluginLocalInstallEnabled({ env: { NODE_ENV: 'production' } }), false);
-  assert.equal(sitePluginLocalInstallEnabled({ env: { FLY_APP_NAME: 'hosted' } }), false);
-  assert.equal(sitePluginLocalInstallEnabled({ env: { NODE_ENV: 'production', TOVU_PLUGIN_LOCAL_INSTALL: '1' } }), true);
-  assert.equal(sitePluginLocalInstallEnabled({ env: { NODE_ENV: 'production', ELECTRON_RUN_AS_NODE: '1', TOVU_DESKTOP_OWNER_PID: '42' } }), true);
-  assert.equal(createSitePluginPolicy({ env: { FLY_APP_NAME: 'hosted', ELECTRON_RUN_AS_NODE: '1', TOVU_DESKTOP_OWNER_PID: '42' } }).localInstallEnabled(), false);
+  const cases: ReadonlyArray<readonly [Readonly<Record<string, string | undefined>>, boolean]> = [
+    [{}, true],
+    [{ NODE_ENV: 'development', TOVU_PLUGIN_LOCAL_INSTALL: '0' }, true],
+    [{ NODE_ENV: 'production' }, false],
+    [{ FLY_APP_NAME: 'hosted' }, false],
+    [{ NODE_ENV: 'production', TOVU_PLUGIN_LOCAL_INSTALL: '1' }, true],
+    [{ NODE_ENV: 'production', ELECTRON_RUN_AS_NODE: '1', TOVU_DESKTOP_OWNER_PID: '42' }, true],
+    [{ FLY_APP_NAME: 'hosted', ELECTRON_RUN_AS_NODE: '1', TOVU_DESKTOP_OWNER_PID: '42' }, false],
+  ];
+  for (const [env, expected] of cases) {
+    const hostSignals = evaluateHostSignals({ env, declaration: CORE_HOST_SIGNAL_FALLBACK });
+    assert.equal(sitePluginLocalInstallEnabled({ env, hostSignals }), expected);
+    assert.equal(createSitePluginPolicy({ env, hostSignals }).localInstallEnabled({}, {}), expected);
+  }
+});
+
+test('install policy uses injected host facts even when the env has no hosted hint', () => {
+  const hostSignals = evaluateHostSignals({ env: { FLY_APP_NAME: 'hosted' }, declaration: CORE_HOST_SIGNAL_FALLBACK });
+  assert.equal(sitePluginLocalInstallEnabled({ env: {}, hostSignals }), false);
+  assert.equal(sitePluginLocalInstallEnabled({ env: { TOVU_PLUGIN_LOCAL_INSTALL: '1' }, hostSignals }), true);
 });

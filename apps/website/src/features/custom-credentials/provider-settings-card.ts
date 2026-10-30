@@ -6,7 +6,7 @@ import { defineSecretCardTool, type SecretCardField, type SecretCardForm } from 
 import type { SurfaceOutcomeSpec } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
-import type { PluginCredentialCard } from "./plugin-credential-card.js";
+import type { PluginCredentialCard } from "../../contracts/core/plugin-credential-card.js";
 
 /**
  * @file The assistant's key card for a PROVIDER plugin's settings (2026-10-25): an agent plugin

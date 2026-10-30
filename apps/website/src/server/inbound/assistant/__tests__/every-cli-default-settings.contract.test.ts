@@ -26,7 +26,7 @@ import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, type A
 import { readAssistantCliPermissions } from "#src/assistant/subagent-settings";
 import { ASSISTANT_CLI_CAPABILITIES } from "#src/contracts/headless/index";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
-import { resolveBundledHostSignals } from "#src/features/agent-plugins/host-signals";
+import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { captureDaemonRun, daemonFunction, evaluateDaemonStatements } from "./helpers/daemon-source.js";
 
 /** The refusal that told a Gemini user nothing; no CLI may ever be refused with it again. */
@@ -47,7 +47,7 @@ class FakeChild extends EventEmitter {
  * own `resolvePermissionMode` source over an empty env, not the helper's fixed "bypass". */
 async function captureDefaultLaunch({ agentId, siteDir }: { agentId: string; siteDir: string }, _optional = {}): Promise<AgentExecutorRunInput> {
   const resolvePermissionMode = await evaluateDaemonStatements<() => "bypass" | "restricted">([daemonFunction("resolvePermissionMode")],
-    { resolveAgentPermissionMode, resolveBundledHostSignals, process: { env: {} } }, "resolvePermissionMode");
+    { resolveAgentPermissionMode, resolveHostSignals, process: { env: {} } }, "resolvePermissionMode");
   return captureDaemonRun({ prompt: "hello" }, { request: { agentId }, bindings: {
     routeDeps: {
       ownerPrincipalId: Promise.resolve("daemon-test-principal"), workspaceId: "ws-every-cli", siteBinding: { dir: siteDir },

@@ -15,7 +15,7 @@ import { credentialSaveFixtureRegistrations } from "#src/__tests__/support/crede
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createCustomCredential, InMemoryCustomCredentialSetRepo, resolveCustomCredentialByLabel } from "#src/features/custom-credentials/index";
-import { buildPluginCredentialForm, type PluginCredentialCard } from "#src/features/custom-credentials/plugin-credential-card";
+import { buildPluginCredentialForm, type PluginCredentialCard } from "../../../../contracts/core/plugin-credential-card.js";
 import { buildApiCredentialSaveHandlers, type CustomCredentialsToolDeps } from "#src/features/custom-credentials/tool-registrations";
 import { buildMailProviderRegistrations } from "#src/features/mail-status/provider-tool-registrations";
 import type { HttpClientPort } from "#src/platform/http/index";

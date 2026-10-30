@@ -3,8 +3,6 @@ import type { FormDeliveryBinding } from "@jini-ai/cms/forms";
 import { ValueValidationFailedError } from "@jini-ai/core/settings";
 import { deriveApiConnectionKey } from "@jini-ai/integrations/api-connections";
 
-import { FormDeliveryBindingsConflictError } from "#src/features/settings/index";
-
 /**
  * @file Tovu's `deliveryBindings` port for plugin admin-surface handlers (Jini's
  * `AdminSurfaceDeliveryBindings`): a plugin's destination screen lists, saves and removes the
@@ -27,6 +25,7 @@ import { FormDeliveryBindingsConflictError } from "#src/features/settings/index"
 
 /** Read and write of the site's `core.forms/deliveryBindings` list (the forms build owns both). */
 export interface FormDeliveryBindingsStore {
+  isConflict(required: { readonly error: unknown }, optional?: Record<string, never>): boolean;
   read(required: { readonly workspaceId: string }): Promise<readonly FormDeliveryBinding[]>;
   /** Atomically refuses a stale expectedValue with FormDeliveryBindingsConflictError. */
   write(required: { readonly workspaceId: string; readonly callerPrincipalId: string; readonly value: readonly FormDeliveryBinding[]; readonly expectedValue: readonly FormDeliveryBinding[] }): Promise<void>;
@@ -185,7 +184,7 @@ export function createSurfaceDeliveryBindings(
       await required.bindings.write({ workspaceId, callerPrincipalId: input.callerPrincipalId, value, expectedValue: owned.all });
       return result;
     } catch (error) {
-      if (error instanceof FormDeliveryBindingsConflictError) {
+      if (required.bindings.isConflict({ error })) {
         if (optional.retry !== false) return update(input, { retry: false });
         throw new AdminSurfaceActionError({ code: "delivery-binding-conflict", message: "Delivery settings changed in another panel. List the bindings again and retry your change." }, { cause: error });
       }

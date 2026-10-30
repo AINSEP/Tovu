@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../activation-effects.js";
@@ -11,7 +12,8 @@ import path from "node:path";
 import test from "node:test";
 import { ACTIVATIONS_LOCK_FILENAME } from "@jini-ai/agent-plugins/lifecycle";
 
-import { InMemoryExternalMcpServerRepo, saveExternalMcpServer, notifyExternalMcpRosterChanged } from "#src/assistant/index";
+import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
+import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
@@ -37,7 +39,7 @@ async function withAgentPluginsDir(fn: (workspaceRoot: string) => Promise<void>)
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    await fn(resolveAgentPluginLayout().forWorkspace(WORKSPACE).root);
+    await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE).root);
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
@@ -52,7 +54,7 @@ async function installPlugin(): Promise<void> {
     await mkdir(source, { recursive: true });
     await writeFile(path.join(source, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN, version: "1.0.0" }));
     const packed = await packAgentPluginDirectory(source);
-    await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: createBundledSourceArchiveReader(), layout: resolveAgentPluginLayout(), workspaceId: WORKSPACE });
+    await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: createBundledSourceArchiveReader(), layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE });
   } finally {
     await forceRemove(source);
   }
@@ -80,7 +82,7 @@ async function operatorEnabledRow() {
       provisionedByPluginId: PLUGIN,
     },
   );
-  return { workspaceId: WORKSPACE, agentPluginLayout: resolveAgentPluginLayout(), externalMcpServerRepo: repo, clock, notifyRosterChanged: notifyExternalMcpRosterChanged, onConnected: async () => {} };
+  return { workspaceId: WORKSPACE, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), mcp: { repo }, clock, notifyRosterChanged: async () => {}, onConnected: async () => {} };
 }
 
 test("the seeder's default 'off' is switched on with the row, and only then reported on", async () => {
@@ -145,7 +147,7 @@ test("no activation record reads as on and writes nothing", async () => {
 
 test("the production fallback enables an untouched saved-token row with the installed plugin's declared grants", async () => {
   await withAgentPluginsDir(async (workspaceRoot) => {
-    await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout(), workspaceId: WORKSPACE, sourceRoot: path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins") });
+    await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE, sourceRoot: path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins") });
     const repo = new InMemoryExternalMcpServerRepo();
     const keyring = new InMemoryKeyring();
     const sealer = new AesGcmSecretSealer(keyring);
@@ -158,7 +160,7 @@ test("the production fallback enables an untouched saved-token row with the inst
     });
     const before = (await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" }))!;
     assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.supabase?.enabled, false);
-    assert.deepEqual(await switchOnSavedTokenConnection({ workspaceId: WORKSPACE, agentPluginLayout: resolveAgentPluginLayout(), externalMcpServerRepo: repo, clock, notifyRosterChanged: notifyExternalMcpRosterChanged }, { pluginId: "supabase", connectionId: "supabase" }), { state: "on" });
+    assert.deepEqual(await switchOnSavedTokenConnection({ workspaceId: WORKSPACE, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), mcp: { repo }, clock, notifyRosterChanged: async () => {} }, { pluginId: "supabase", connectionId: "supabase" }), { state: "on" });
     const row = (await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" }))!;
     assert.equal(row.enabled, true);
     assert.ok(JSON.parse(row.allowedToolNames ?? "[]").includes("list_projects"));
@@ -173,8 +175,8 @@ test("a connection row an operator left disabled is reported as off, and the plu
   await withAgentPluginsDir(async (workspaceRoot) => {
     await recordBundledAgentPluginIfAbsent({ workspaceRoot, pluginId: PLUGIN });
     const deps = await operatorEnabledRow();
-    const row = (await deps.externalMcpServerRepo.findByServerId({ workspaceId: WORKSPACE, serverId: "remote" }))!;
-    await deps.externalMcpServerRepo.upsert({ ...row, enabled: false });
+    const row = (await deps.mcp.repo.findByServerId({ workspaceId: WORKSPACE, serverId: "remote" }))!;
+    await deps.mcp.repo.upsert({ ...row, enabled: false });
     const switched: string[] = [];
     const outcome = await switchOnSavedTokenConnection({ ...deps, switchPluginOn: async (pluginId) => (switched.push(pluginId), true) }, { pluginId: PLUGIN, connectionId: "remote" });
     assert.deepEqual(outcome, { state: "connection-off-by-operator" });

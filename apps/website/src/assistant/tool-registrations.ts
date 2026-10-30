@@ -143,7 +143,7 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
   EntriesToolDeps &
   PluginsToolDeps &
   AgentPluginSearchToolDeps &
-  Pick<import("../features/agent-plugins/access-token-tool.js").AgentPluginAccessTokenToolDeps, "externalMcpStore" | "notifyRosterChanged"> &
+  Pick<import("../features/agent-plugins/access-token-tool.js").AgentPluginAccessTokenToolDeps, "mcp" | "preferences" | "notifyRosterChanged"> &
   PostToolDeps &
   PublishContentToolDeps &
   PagesToolDeps &

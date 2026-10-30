@@ -12,12 +12,12 @@ import { pluginStatePaths } from "@jini-ai/agent-plugins/persistent-state";
  * Writable PLUGIN_DATA belongs to the same workspace tree.
  *
  * Installed plugins are site data: they must travel with the site and survive upgrades.
- * resolveSiteRoot binds the default to TOVU_SITE/TOVU_SITE_DIR; TOVU_AGENT_PLUGINS_DIR overrides it.
+ * The host binds the site directory before calling; TOVU_AGENT_PLUGINS_DIR overrides it.
  * Overrides must be absolute because an unpredictable cwd must not redirect a trusted tenant root.
  */
 import path from "node:path";
 
-import { resolveSiteRoot } from "../../platform/site-dir/index.js";
+import type { AgentPluginPathsPort } from "./service-ports.js";
 
 /**
  * One safe, indivisible path segment: lowercase alphanumerics in `-`/`.`-separated runs, with no
@@ -42,11 +42,6 @@ import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from '../../contra
 export type { AgentPluginLayout, AgentPluginWorkspaceLayout } from '../../contracts/headless/index.js';
 
 export interface ResolveAgentPluginLayoutOptional {
-  /** Defaults to `process.cwd()`, matching `mediaUploadsDir()`'s own default base — injectable so
-   * this function is testable without `process.chdir()`. */
-  readonly cwd?: string;
-  /** Booted site directory; prevents env/cwd from selecting a different site. */
-  readonly siteDir?: string;
   /** Defaults to `process.env`. */
   readonly env?: NodeJS.ProcessEnv;
 }
@@ -57,8 +52,10 @@ export interface ResolveAgentPluginLayoutOptional {
  * @throws {Error} If `TOVU_AGENT_PLUGINS_DIR` is set to a relative path.
  * @complexity O(1).
  */
-export function resolveAgentPluginLayout(optional: ResolveAgentPluginLayoutOptional = {}): AgentPluginLayout {
-  const cwd = optional.cwd ?? process.cwd();
+export function resolveAgentPluginLayout(
+  required: Pick<AgentPluginPathsPort, "siteDir">,
+  optional: ResolveAgentPluginLayoutOptional = {},
+): AgentPluginLayout {
   const env = optional.env ?? process.env;
   const override = env.TOVU_AGENT_PLUGINS_DIR;
 
@@ -66,7 +63,7 @@ export function resolveAgentPluginLayout(optional: ResolveAgentPluginLayoutOptio
     throw new Error(`TOVU_AGENT_PLUGINS_DIR must be an absolute path, got '${override}'`);
   }
 
-  const root = path.resolve(override ?? path.join(optional.siteDir ?? resolveSiteRoot({ cwd, env }), "agent-plugins"));
+  const root = path.resolve(override ?? path.join(required.siteDir, "agent-plugins"));
   const workspacesDir = path.join(root, "ws");
 
   return {

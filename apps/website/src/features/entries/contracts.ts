@@ -1,11 +1,6 @@
 /** Public entry read contracts and vocabulary; no repositories or registration wiring. */
 import type { EntryRecord, EntryStatus } from "@jini-ai/cms/entries";
-import { NAV_MENU_CONTENT_TYPE } from "@jini-ai/cms/navigation/types";
 
-/** Content types a collection list must never resolve against, even if asked to by config —
- * these are platform plumbing, not user content (D8). `NAV_MENU_CONTENT_TYPE` comes from
- * the `@jini-ai/cms` navigation type/vocabulary leaf, without loading menu services. */
-export const SYSTEM_CONTENT_TYPES: readonly string[] = ["widget", "widget_area", NAV_MENU_CONTENT_TYPE];
 
 /** Every collection-list presentation `theme/entry-list-render.ts` renders. `accordion` (an FAQ
  *  disclosure list) and `carousel` (a scroll-snap track of cards) were added for AW-7's zero-code

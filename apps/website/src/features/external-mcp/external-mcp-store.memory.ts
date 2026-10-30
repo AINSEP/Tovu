@@ -1,9 +1,9 @@
 import { InMemoryVaultRepo, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
-import type { SealedSecret } from "../features/webhooks/index.js";
+import type { SealedSecret } from "../webhooks/index.js";
 import { externalMcpVaultEnvelope, externalMcpVaultRecord, persistExternalMcpVaultEnvelope, deleteExternalMcpVaultEnvelope } from "./external-mcp-vault.js";
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
-import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "./external-mcp-store.js";
+import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "./contracts.js";
 
 /**
  * @file In-memory `ExternalMcpServerRepoPort` — the ADR-006 rule-of-two "first adapter", and the

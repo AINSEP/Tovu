@@ -23,7 +23,7 @@ import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 const workspaceId = "workspace-local";
 async function fixture() {
   const temporary = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "plugin-layout-b-")));
-  const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: temporary } });
+  const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: temporary } });
   const workspace = layout.forWorkspace(workspaceId);
   const memory = (pluginId = "example") => pluginMemory({ contain: containAgentPluginStatePath, workspaceId, pluginId }, { layout });
   const install = async (pluginId = "example", version = "1.0.0", seedText?: string) => {

@@ -39,7 +39,7 @@ async function withSites(work: (input: { siteA: string; siteB: string; agentPlug
   try {
     // Binding A wins over a conflicting ambient site B; explicit root overrides still win at boot.
     process.env.TOVU_SITE_DIR = siteB;
-    const agentPluginLayout = resolveAgentPluginLayout({ siteDir: siteA, env: { TOVU_SITE_DIR: siteB } });
+    const agentPluginLayout = resolveAgentPluginLayout({ siteDir: siteA }, { env: { TOVU_SITE_DIR: siteB } });
     const skillLayout = resolveSkillLayout({ siteDir: siteA, env: { TOVU_SITE_DIR: siteB } });
     assert.equal(agentPluginLayout.root, path.join(siteA, "agent-plugins"));
     assert.equal(skillLayout.root, path.join(siteA, "skills"));

@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
-import { isHostedSignInLinkPath } from "#src/features/api-connections/browser-binding";
+import { isHostedSignInLinkPath } from "../../../contracts/core/hosted-sign-in-links.js";
 
 /**
  * @file The per-request registry of sign-in links this host issued while running one admin-surface

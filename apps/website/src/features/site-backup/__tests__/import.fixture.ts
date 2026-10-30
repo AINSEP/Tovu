@@ -166,7 +166,7 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
     const readKeys: string[] = [];
     const productionPlan = await prepareShareContent({
       snapshotRoot: root,
-      sources: { siteDir, mediaUploadsDir: null, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir, env: {} }), sitePlugins: jiniSitePlugins({ installDir }), tovuVersion: "test" },
+      sources: { siteDir, mediaUploadsDir: null, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir: siteDir }, { env: {} }), sitePlugins: jiniSitePlugins({ installDir }), tovuVersion: "test" },
       sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia, imageTransformer: { transform: async () => assert.fail("fixture media is not raster") },
       blobStore: { get: async ({ storageKey }) => { assert.equal(storageKey, STORAGE_KEY); readKeys.push(storageKey); return MEDIA; }, sizeOf: async ({ storageKey }) => { assert.equal(storageKey, STORAGE_KEY); return MEDIA.length; } },
       dbOps: { getCapabilities: async () => ({ restorePoint: { costClass: "cheap", kind: "file-snapshot" } }), captureRestorePoint: async () => {

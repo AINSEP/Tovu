@@ -12,9 +12,10 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { ExternalMcpValidationError, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer, type ExternalMcpServerRecord } from "../external-mcp-store.js";
-import type { ExternalMcpOAuthService } from "../external-mcp-oauth.js";
+import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
+import { ExternalMcpValidationError, openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
+import { type ExternalMcpServerRecord } from "../../features/external-mcp/contracts.js";
+import type { ExternalMcpOAuthService } from "../../features/external-mcp/contracts.js";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { type AgentToolDefinition as ExternalMcpAgentToolDefinition } from "@jini-ai/core";
 import { externalMcpAgentToolCatalog, EXTERNAL_MCP_MANAGE_PERMISSION } from "../../features/external-mcp/agent-tools.js";

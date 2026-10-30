@@ -54,6 +54,7 @@ import type { ActivateSitePorts, CreateSiteForOwnerPorts } from "./site-admin.js
  * "The sites route and `sites_duplicate_site` re-derive the site binding from `process.cwd()`").
  */
 export interface SitesToolDeps {
+  bundledSourceRoot: string;
   tracker?: Tracker;
   workspaceId: string;
   authorize: AuthorizeFn;

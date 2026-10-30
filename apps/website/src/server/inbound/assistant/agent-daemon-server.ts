@@ -5,7 +5,7 @@ import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import { createAutomaticPluginRuns } from "../../../features/agent-plugins/automatic-agent-plugins.js";
 import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
-import { resolveBundledHostSignals } from "#src/features/agent-plugins/host-signals";
+import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { assistantCliPermissions } from "#src/assistant/runtime-settings";
 import { type AssistantCliPermissions } from "#src/contracts/headless/index";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
@@ -428,7 +428,7 @@ const bashProhibitionEnabled = resolveBashProhibitionEnabled();
  * the boot-readiness warning so both always agree on the mode this daemon actually runs in.
  */
 function resolvePermissionMode(): "bypass" | "restricted" {
-  return resolveAgentPermissionMode({ env: process.env }, { hostSignals: resolveBundledHostSignals({ env: process.env }) });
+  return resolveAgentPermissionMode({ env: process.env }, { hostSignals: resolveHostSignals({ env: process.env }) });
 }
 
 // Mirrors `src/index.ts`'s own `useMemory` branch exactly — see this file's module doc on why
@@ -1352,7 +1352,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     { sessionBinding, attachmentRunFields }: { sessionBinding: RunSessionBinding; attachmentRunFields: AttachmentRunFields }, _optional = {},
   ): Promise<void> {
     const isOwner = principal.id === await routeDeps.ownerPrincipalId;
-    const hostSignals = resolveBundledHostSignals({ env: process.env });
+    const hostSignals = resolveHostSignals({ env: process.env });
     // No settings read at all for non-owners or hosted runs. Failed reads deny the grant.
     const settings = resolveFullCliAccess({ isOwner, env: process.env }, { hostSignals })
       ? await readAssistantCliPermissions({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,

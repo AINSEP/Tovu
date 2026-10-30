@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import '../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -23,7 +24,7 @@ test('admin memory round-trips a user note, refuses learned writes/traversal, an
   process.env.TOVU_AGENT_PLUGINS_DIR = temporary;
   try {
     const archive = Buffer.from('memory-route-example');
-    await installAgentPlugin({ layout: resolveAgentPluginLayout(), workspaceId: 'workspace-local', archive,
+    await installAgentPlugin({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: 'workspace-local', archive,
       expectedSha256: createHash('sha256').update(archive).digest('hex'),
       archiveReader: { async *entries() {
         for (const [entryPath, text] of [['plugin.json', '{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"example"}'], ['skills/example/SKILL.md', '# Example']])
@@ -94,7 +95,7 @@ async function bootMemoryApp(t: TestContext): Promise<{ prefix: string; cookie: 
     await forceRemove(temporary);
   });
   const archive = Buffer.from('memory-route-example');
-  await installAgentPlugin({ layout: resolveAgentPluginLayout(), workspaceId: 'workspace-local', archive,
+  await installAgentPlugin({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: 'workspace-local', archive,
     expectedSha256: createHash('sha256').update(archive).digest('hex'),
     archiveReader: { async *entries() {
       yield { kind: 'file', entryPath: 'plugin.json', async *openReadStream() { yield Buffer.from('{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"example"}'); } };

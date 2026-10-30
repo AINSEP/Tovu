@@ -10,7 +10,7 @@ import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 async function preparation(t: TestContext) {
   const h = await importFixture(t), siteDir = path.join(h.root, "source");
   fs.mkdirSync(siteDir);
-  const sources = { siteDir, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), mediaUploadsDir: null, agentPlugins: resolveAgentPluginLayout({ siteDir, env: {} }), tovuVersion: "test" };
+  const sources = { siteDir, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), mediaUploadsDir: null, agentPlugins: resolveAgentPluginLayout({ siteDir: siteDir }, { env: {} }), tovuVersion: "test" };
   const projection: ShareDatabaseProjection = { bytes: Buffer.from("projected"), media: [] };
   const enrich = (value: ShareDatabaseProjection): ShareDatabaseProjection => ({ ...value, archiveMedia: [...new Map(value.media.map(row => [row.storageKey, row])).values()].map(row => ({ ...row, sha256: row.sha256 ?? "", id: row.storageKey, slug: row.storageKey, workspaceId: "ws", kind: value.documents?.some(doc => doc.storageKey === row.storageKey) ? "document" : "media", originalFilename: null })) });
   const ports: Parameters<typeof prepareShareContent>[0] = { snapshotRoot: h.root, sources, sanitize: async () => enrich(projection), rewriteMedia: async ({ bytes }) => bytes, imageTransformer: { transform: async () => assert.fail("not raster") },

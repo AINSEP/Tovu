@@ -1,10 +1,4 @@
-export {
-  expandPartials,
-  renderStaticFragment,
-  renderStaticPage,
-  renderCoverImageTag,
-  postAuthorForContentHeader,
-} from "./static-render.js";
+export { renderStaticFragment, renderStaticPage, renderCoverImageTag, postAuthorForContentHeader } from "./static-render.js";
 export {
   renderEntryList,
   renderEntryListStructuredData,

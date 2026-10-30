@@ -10,8 +10,8 @@ import { createApplyConnectDefaults } from "../../features/agent-plugins/apply-c
 import * as federation from "../../features/agent-plugins/federate-mcp.js";
 import { parseAgentPluginMcpConfig, type McpServerConfig } from "../../features/agent-plugins/mcp-metadata.js";
 import { createStoredExternalMcpConnectionSource } from "../external-mcp-connection-source.js";
-import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../external-mcp-store.js";
+import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
+import { readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
 
 const siteLayouts = createTempSiteLayoutFixture({});
 after(siteLayouts.cleanup);

@@ -1,3 +1,5 @@
+import { isMcpUiToolCallAllowed } from "#src/assistant/mcp-ui-tool-calls";
+import { CREDENTIAL_SAVE_TOOL_ID } from "#src/contracts/headless/index";
 /**
  * @file The composition root's installed-extension pass registers executable Agent Plugin tools
  * (C4b): onto the process registry it is handed, gated per call by the plugin's live activation
@@ -129,4 +131,12 @@ test("every family that fails is logged once with the registrar's prefix, a non-
   assert.ok(lines.includes("[families-test] skill tools could not be registered, continuing without them — layout unreadable"), String(lines));
   assert.ok(lines.includes("[families-test] plugin capability tools could not be registered, continuing without them — discovery offline"), String(lines));
   assert.deepEqual(installed, []);
+});
+
+test("AC-08: the generic token form's tool id is redeemable; every deleted Supabase tool id is not", () => {
+  assert.equal(isMcpUiToolCallAllowed(CREDENTIAL_SAVE_TOOL_ID), true);
+  assert.equal(isMcpUiToolCallAllowed("supabase_set_access_token"), false);
+  assert.equal(isMcpUiToolCallAllowed("supabase_set_project_scope"), false);
+  assert.equal(isMcpUiToolCallAllowed("supabase_get_database"), false);
+  assert.equal(isMcpUiToolCallAllowed("mcp__supabase__execute_sql"), false);
 });

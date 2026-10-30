@@ -9,6 +9,7 @@ import type { PluginActivationRecord } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { WORD_COUNT_MANIFEST } from "../../built-ins/word-count/index.js";
 import { buildPluginCapabilityToolRegistrations, loadEnabledPluginCapabilityToolSources, type PluginCapabilityToolSource } from "../../capability-tool-registrations.js";
+import { requiredPostReader } from "../fixtures/plugin-post-read.js";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 
 /**
@@ -46,7 +47,7 @@ async function buildCatalogDescriptors(withRegistration: boolean, suppliedSource
     const registrations = buildPluginCapabilityToolRegistrations({ sources: sources, deps: {
       authorize: async () => ({ allowed: true }) as never,
       workspaceId: WORKSPACE,
-      postRepo: new InMemoryPostRepo(),
+      postRead: requiredPostReader({ repo: new InMemoryPostRepo() }),
       pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [enabledActivation()] }),
     }, withExtensionApprovalPolicy });
     for (const registration of registrations) registry.register(registration);

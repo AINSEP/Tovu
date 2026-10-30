@@ -6,7 +6,7 @@ import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/hu
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
-import { resolveOperatorLocale } from "../settings/index.js";
+import type { AgentPluginPreferencesPort } from "./service-ports.js";
 import {
   AgentPluginChangedSincePreviewError,
   AgentPluginNotFoundError,
@@ -47,8 +47,12 @@ import { describeAgentPluginUninstallApproval } from "./uninstall-confirmation-u
  * radii (site plugins go to the Trash; Agent Plugins do not).
  */
 
-import type { AgentPluginUninstallToolDeps } from '../../contracts/headless/index.js';
-export type { AgentPluginUninstallToolDeps } from '../../contracts/headless/index.js';
+import type { AgentPluginUninstallToolDeps as HostUninstallDeps } from '../../contracts/headless/index.js';
+
+/** The lifecycle inputs and principal-bound locale resolver this branch consumes. */
+export interface AgentPluginUninstallToolDeps extends Pick<HostUninstallDeps, 'agentPluginLayout' | 'authorize' | 'workspaceId' | 'uninstallAgentPlugin'> {
+  readonly preferences: Pick<AgentPluginPreferencesPort, 'locale'>;
+}
 
 /**
  * Re-classifies `uninstallAgentPlugin`'s own domain errors into `ToolInputError` on their way to the
@@ -236,10 +240,12 @@ async function uninstallConfirmedAgentPlugin(request: UninstallAgentPluginRequir
  * @complexity O(1) beyond `previewAgentPluginUninstall`/`uninstallAgentPlugin`.
  */
 export async function runAgentPluginUninstall(
-  routeDeps: AgentPluginUninstallToolDeps,
-  surfaces: AssistantSurfaceDeps,
-  ctx: ToolExecutionContext,
-  pluginId: string,
+  { routeDeps, surfaces, ctx, pluginId }: {
+    routeDeps: AgentPluginUninstallToolDeps;
+    surfaces: AssistantSurfaceDeps;
+    ctx: ToolExecutionContext;
+    pluginId: string;
+  },
   optional: ToolExecutionOptions = {},
 ): Promise<unknown> {
   ctx = { ...ctx, input: structuredClone(ctx.input), principal: { ...ctx.principal }, run: { ...ctx.run } };
@@ -249,7 +255,7 @@ export async function runAgentPluginUninstall(
   const previewed = await previewOrRefusal(request);
   if ("refusal" in previewed) return previewed.refusal;
 
-  const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
+  const locale = await routeDeps.preferences.locale({ workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
   return approvalToolHandler({ surfaces,
     prepare: async () => previewed.preview,
     describe: ({ prepared }) => describeAgentPluginUninstallApproval({ preview: prepared }, { locale }),

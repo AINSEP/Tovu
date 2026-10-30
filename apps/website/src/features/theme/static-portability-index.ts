@@ -2,7 +2,8 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { PARTIAL_MARKER_TYPE, substituteMarkers, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
-import { DEFAULT_THEME_SLOTS, loadTheme, type DiscoveredTheme } from "./theme.js";
+import { DEFAULT_THEME_SLOTS } from "../../contracts/core/theme-slots.js";
+import { loadTheme, type DiscoveredTheme } from "./theme.js";
 import { resolveThemeLayout } from "./theme-layout.js";
 
 /**

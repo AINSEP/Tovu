@@ -1,6 +1,7 @@
 import { VaultError, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import { byVaultLabel, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
-import type { CustomCredentialCategoryId, CustomCredentialProjectScope, CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "./types.js";
+import type { CustomCredentialCategoryId } from "../../contracts/core/custom-credential-categories.js";
+import type { CustomCredentialProjectScope, CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "./types.js";
 
 type VaultPutRecord = Parameters<VaultRepoPort["put"]>[0]["record"];
 

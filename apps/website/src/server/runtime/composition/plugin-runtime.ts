@@ -1,3 +1,4 @@
+import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { createPluginLookupFacade } from "@jini-ai/core/plugin-directory";
 import { createPluginModuleImporter, type PluginBeforeSavePreview, pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
@@ -270,7 +271,7 @@ export function composePluginRuntime(required: ComposePluginRuntimeRequired, _op
   const snapshots = installDir === undefined ? undefined : createPluginModuleSnapshotLifecycle({ runtimeRoot: path.resolve(installDir) + "-runtime" });
   const pendingAttachments = new Set<Promise<void>>();
   let closing = false;
-  const pluginSourcePolicy = required.pluginSourcePolicy ?? createSitePluginPolicy({ env: process.env });
+  const pluginSourcePolicy = required.pluginSourcePolicy ?? createSitePluginPolicy({ env: process.env, hostSignals: resolveHostSignals({ env: process.env }) });
   const loadedVersions = new Map<string, string>();
   const browserProviders = new Map<string, readonly AdmittedBrowserProvider[]>();
   let browserGeneration = 0;

@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createNoopObservabilityPort, createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
@@ -15,7 +16,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { saveExternalMcpServer } from "#src/assistant/index";
+import { saveExternalMcpServer } from "../../../../../../../features/external-mcp/external-mcp-store.js";
 import { AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
@@ -103,7 +104,7 @@ async function installReal(
     archive,
     expectedSha256: digest,
     archiveReader: reader(entries),
-    layout: resolveAgentPluginLayout(),
+    layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
     workspaceId: WORKSPACE_A,
   });
 }
@@ -120,7 +121,7 @@ function buildTestApp(overrides: Partial<Pick<AgentPluginsRouteDeps, "setAgentPl
   const routeDeps: AgentPluginsRouteDeps = testSiteLayoutContext({
     tracker: createNoopTracker({}),
     // Pin the port so failure injection and the request use the same layout object.
-    agentPluginLayout: resolveAgentPluginLayout(),
+    agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
     workspaceId: baseDeps.workspaceId,
     authorize: baseDeps.authorize,
     clock: baseDeps.clock,
@@ -154,7 +155,7 @@ async function installRealWithMcp(pluginId: string, archiveSeed: string, mcpServ
     archive,
     expectedSha256: digest,
     archiveReader: reader(entries),
-    layout: resolveAgentPluginLayout(),
+    layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
     workspaceId: WORKSPACE_A,
   });
 }
@@ -170,7 +171,7 @@ function patch(baseUrl: string, cookie: string, pluginId: string, body: unknown)
 test("AGENT_PLUGIN_SET_ENABLED: enabling writes a real activation record and returns the updated row", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-a", { version: "1.0.0", extensions: { tovu: { id: "tovu/site-compliance", provides: ["outbound-mail"], displayName: "Example Mail", summary: "Send site mail." } } });
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "site-compliance", enabled: false, actor: "test" });
 
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
@@ -240,14 +241,14 @@ test("AGENT_PLUGIN_SET_ENABLED: omitted version and description are returned as 
     assert.equal(agentPlugin.pluginId, "minimal-metadata");
     assert.equal(agentPlugin.version, null);
     assert.equal(agentPlugin.description, null);
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     assert.equal((await readAgentPluginActivations({ workspaceRoot })).plugins["minimal-metadata"]?.enabled, false);
   });
 });
 
 test("AGENT_PLUGIN_SET_ENABLED: an uninstalled plugin is 404 even when the activation service is unavailable", async (t) => {
   await withAgentPluginsDir(async () => {
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     const before = await readAgentPluginActivations({ workspaceRoot });
     const { app } = buildTestApp({
       setAgentPluginEnabled: async () => { throw new Error("activation service unavailable"); },
@@ -267,7 +268,7 @@ test("AGENT_PLUGIN_SET_ENABLED: an uninstalled plugin is 404 even when the activ
 test("AGENT_PLUGIN_SET_ENABLED: a corrupt activations file is 409 AGENT_PLUGIN_ACTIVATIONS_UNREADABLE — nothing is written, no host path leaks", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-corrupt");
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     const activationsPath = path.join(workspaceRoot, "activations.json");
     await writeFile(activationsPath, "{ not json", "utf8");
 
@@ -291,7 +292,7 @@ test("AGENT_PLUGIN_SET_ENABLED: a corrupt activations file is 409 AGENT_PLUGIN_A
 test("AGENT_PLUGIN_SET_ENABLED: the toggle actually gates an assistant run — resolveAgentPluginRefs flips across a PATCH", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-b");
-    const workspaceLayout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A);
+    const workspaceLayout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A);
     await setAgentPluginActivation({ workspaceRoot: workspaceLayout.root, pluginId: "site-compliance", enabled: false, actor: "test" });
 
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
@@ -318,7 +319,7 @@ test("AGENT_PLUGIN_SET_ENABLED: the toggle actually gates an assistant run — r
 test("AGENT_PLUGIN_SET_ENABLED: a toggle preserves the package's `origin` provenance", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-c");
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "site-compliance", enabled: false, actor: "system:seed" }, { origin: "bundled" });
 
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
@@ -333,7 +334,7 @@ test("AGENT_PLUGIN_SET_ENABLED: a toggle preserves the package's `origin` proven
 test("AGENT_PLUGIN_SET_ENABLED: an id that is not installed in this workspace is 404, and writes nothing", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-d");
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
 
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
     const response = await patch(baseUrl, cookie, "never-installed", { enabled: true });
@@ -349,7 +350,7 @@ test("AGENT_PLUGIN_SET_ENABLED: an id that is not installed in this workspace is
 test("AGENT_PLUGIN_SET_ENABLED: a non-boolean `enabled` is 400 VALIDATION_ERROR, not a silent disable", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-e");
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "site-compliance", enabled: true, actor: "test" });
 
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
@@ -384,7 +385,7 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling a plugin with a declared remote MCP ser
     await installRealWithMcp("higgsfield-fixture", "seed-set-enabled-mcp-a", {
       higgsfield: { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth" },
     });
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "higgsfield-fixture", enabled: false, actor: "test" });
 
     const { app, baseDeps } = buildTestApp();
@@ -411,7 +412,7 @@ test("AGENT_PLUGIN_SET_ENABLED: disabling a plugin never touches its already-fed
     await installRealWithMcp("higgsfield-fixture", "seed-set-enabled-mcp-b", {
       higgsfield: { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth" },
     });
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "higgsfield-fixture", enabled: false, actor: "test" });
 
     const { app, baseDeps } = buildTestApp();
@@ -439,7 +440,7 @@ test("AGENT_PLUGIN_SET_ENABLED: a plugin declaring only a stdio MCP server feder
     await installRealWithMcp("stdio-fixture", "seed-set-enabled-mcp-c", {
       local: { type: "stdio", command: "./server/index.js" },
     });
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "stdio-fixture", enabled: false, actor: "test" });
 
     const { app, baseDeps } = buildTestApp();
@@ -461,7 +462,7 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling adopts an operator's pre-existing row a
     await installRealWithMcp("higgsfield-fixture", "seed-set-enabled-mcp-d", {
       higgsfield: { type: "streamable-http", url: "https://mcp.higgsfield.ai/mcp", tovuAuthMode: "oauth" },
     });
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "higgsfield-fixture", enabled: false, actor: "test" });
 
     const { app, baseDeps } = buildTestApp();
@@ -528,7 +529,7 @@ test("AGENT_PLUGIN_SET_ENABLED: a workspace id that does not match the route's o
 test("AGENT_PLUGIN_SET_ENABLED: a signed-in principal without enable permission changes neither activation nor MCP records", async (t) => {
   await withAgentPluginsDir(async () => {
     await installRealWithMcp("enable-denied-fixture", "seed-enable-denied", { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" } });
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "enable-denied-fixture", enabled: false, actor: "test" });
     const { app, baseDeps } = buildTestApp();
     const { baseUrl } = await bootAuthenticated(app, t);
@@ -548,7 +549,7 @@ test("AGENT_PLUGIN_SET_ENABLED: a signed-in principal without enable permission 
 test("AGENT_PLUGIN_SET_ENABLED: an MCP-store failure preserves the successful activation without a partial MCP row", async (t) => {
   await withAgentPluginsDir(async () => {
     await installRealWithMcp("mcp-failure-fixture", "seed-mcp-failure", { remote: { type: "streamable-http", url: "https://mcp.example.com/mcp" } });
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "mcp-failure-fixture", enabled: false, actor: "test" });
     const { app, baseDeps } = buildTestApp();
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -585,7 +586,7 @@ test("AGENT_PLUGIN_SET_ENABLED: a package removed after discovery is still a 404
   await withAgentPluginsDir(async () => {
     const { AgentPluginNotInstalledError } = await import("#src/features/agent-plugins/set-enabled");
     await installReal("site-compliance", "seed-disappearing-plugin");
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     const before = await readAgentPluginActivations({ workspaceRoot });
     const { app } = buildTestApp({ setAgentPluginEnabled: async ({ pluginId }) => { throw new AgentPluginNotInstalledError({ pluginId }); } });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -602,7 +603,7 @@ for (const failure of [new Error("layout unavailable"), "layout unavailable"]) {
       const { setAgentPluginEnabled } = await import("#src/features/agent-plugins/set-enabled");
       // A qualified identity avoids unrelated legacy-manifest warnings during discovery.
       await installReal("site-compliance", "seed-discovery-failure", { extensions: { tovu: { id: "test/site-compliance" } } });
-      const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+      const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
       const warnings = t.mock.method(console, "warn", () => {});
       const { app } = buildTestApp({ setAgentPluginEnabled: async (input) => {
         const written = await setAgentPluginEnabled(input);
@@ -622,7 +623,7 @@ for (const failure of [new Error("layout unavailable"), "layout unavailable"]) {
 test("AGENT_PLUGIN_SET_ENABLED: enabling a plugin this host cannot run is 409 PLUGIN_HOST_INCOMPATIBLE and writes nothing", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("future-only", "seed-host-incompatible", { version: "1.0.0", extensions: { tovu: { hostRange: ">=99" } } });
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "future-only", enabled: false, actor: "test" });
 
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
@@ -639,7 +640,7 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling a plugin this host cannot run is 409 PL
 test("AGENT_PLUGIN_SET_ENABLED: a requirement no enabled plugin provides still enables, with a warning", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("needs-xy", "seed-missing-requires", { version: "1.0.0", extensions: { tovu: { requires: ["x:y"] } } });
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "needs-xy", enabled: false, actor: "test" });
 
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
@@ -659,7 +660,7 @@ test("AGENT_PLUGIN_SET_ENABLED: disabling a provider another enabled plugin need
   await withAgentPluginsDir(async () => {
     await installReal("mailer", "seed-provider", { version: "1.0.0", extensions: { tovu: { provides: ["mail:send"] } } });
     await installReal("consumer", "seed-consumer", { version: "1.0.0", extensions: { tovu: { requires: ["mail:send"] } } });
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
 
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
     const response = await patch(baseUrl, cookie, "mailer", { enabled: false });
@@ -716,7 +717,7 @@ test("AGENT_PLUGIN_SET_ENABLED: `req.params.workspaceId ?? \"\"` fallback, force
 test("AGENT_PLUGIN_SET_ENABLED: `req.params.pluginId ?? \"\"` fallback, forced via a direct handler call past auth, matches no installed plugin and writes nothing", async () => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-guard");
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     const { app, baseDeps } = buildTestApp();
     await baseDeps.identityReady;
     const ownerUser = await baseDeps.userRepo.findByUsername({ workspaceId: baseDeps.workspaceId, username: "admin" });
@@ -738,7 +739,7 @@ test("AGENT_PLUGIN_SET_ENABLED: `req.params.pluginId ?? \"\"` fallback, forced v
 test("AGENT_PLUGIN_SET_ENABLED: a provider plugin's assistant face has no switch of its own (409, nothing written)", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("metrics", "seed-linked-face", { version: "1.0.0", extensions: { tovu: { id: "tovu/metrics", providerPlugin: "metrics-provider" } } });
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "metrics", enabled: true, actor: "system:provider-plugin" });
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
     for (const enabled of [false, true]) {

@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -72,7 +73,7 @@ test("BYOK pins absent and empty attachments, malformed plugin picks, and missin
 test("BYOK repeats pinned guidance while retaining good picks around failures (reported, not fixed)", async t => {
   const cwd = await mkdtemp(path.join(tmpdir(), "byok-pin-"));
   t.after(() => forceRemove(cwd));
-  const layout = resolveAgentPluginLayout({ cwd, env: {} });
+  const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
   const deps = createRouteDeps();
   deps.agentPluginLayout = layout;
   const archive = new TextEncoder().encode("pin-plugin-fixture");

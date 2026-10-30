@@ -1,9 +1,6 @@
-import {
-  saveExternalMcpServer,
-  type ExternalMcpServerRecord,
-  type ExternalMcpStoreDeps,
-} from "#src/assistant/mcp-services";
-import { externalMcpRecordHasStaticAccessToken } from "../external-mcp/auth-mode.js";
+import type { AgentPluginMcpPort } from "./service-ports.js";
+import type { ExternalMcpServerRecord } from "../external-mcp/contracts.js";
+import { externalMcpRecordHasStaticAccessToken } from "../../contracts/core/external-mcp-auth.js";
 
 import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
 import type { AgentPluginLayout } from "./layout.js";
@@ -15,7 +12,7 @@ import { listInstalledPlugins } from "./lifecycle.js";
 /**
  * @file Phase 4 of the 2026-09-10 plugin-MCP-wiring work: PROVISIONS an activated Agent Plugin's
  * auto-admitted remote MCP servers as real rows in the SAME external-MCP store
- * (`assistant/external-mcp-store.ts`) Settings → External MCP already owns — reusing that path
+ * (`features/external-mcp/external-mcp-store.ts`) Settings → External MCP already owns — reusing that path
  * rather than building a parallel one. A provisioned row appears in Settings → External MCP exactly
  * like an operator-typed one: the same allowlist/"may write" tool picker, the same enable toggle,
  * the same revoke button. There is no second, plugin-only registration path.
@@ -454,7 +451,7 @@ export function isEmptyJsonList(raw: string | null): boolean {
  *  try/catch inline.
  *  @complexity O(1) plus at most one `repo.upsert` for the adoption case. */
 async function adoptOrRecognizeExistingAgentPluginMcpServer(
-  deps: Pick<ExternalMcpStoreDeps, "repo">,
+  deps: Pick<AgentPluginMcpPort, "repo">,
   existing: ExternalMcpServerRecord,
   planned: PlannedAgentPluginMcpUpsert,
   pluginId: string,
@@ -516,7 +513,7 @@ async function adoptOrRecognizeExistingAgentPluginMcpServer(
  * one create or adopt.
  */
 export async function provisionAgentPluginMcpServers(
-  deps: ExternalMcpStoreDeps,
+  deps: Pick<AgentPluginMcpPort, "repo" | "saveServer">,
   input: ProvisionAgentPluginMcpServersInput,
 ): Promise<ProvisionAgentPluginMcpServersResult> {
   const plan = planAgentPluginMcpFederation(input);
@@ -539,7 +536,7 @@ export async function provisionAgentPluginMcpServers(
 /** Execute one planned write, keeping lookup, adoption and replacement failures isolated. */
 async function provisionPlannedServer(
   required: {
-    readonly deps: ExternalMcpStoreDeps;
+    readonly deps: Pick<AgentPluginMcpPort, "repo" | "saveServer">;
     readonly input: ProvisionAgentPluginMcpServersInput;
     readonly planned: PlannedAgentPluginMcpUpsert;
   },
@@ -555,7 +552,7 @@ async function provisionPlannedServer(
       await deps.repo.deleteByServerId({ workspaceId: input.workspaceId, serverId: planned.connectionId });
     }
 
-    await saveExternalMcpServer(deps, buildProvisioningSaveInput(planned, input));
+    await deps.saveServer(buildProvisioningSaveInput(planned, input));
     return { kind: "provisioned" };
   } catch (err) {
     return { kind: "failed", reason: err instanceof Error ? err.message : String(err) };

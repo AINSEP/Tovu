@@ -1,3 +1,4 @@
+import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createFormsModule } from "../../runtime/composition/modules/forms.js";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
@@ -170,7 +171,7 @@ test("plugin_installed on an install (never a preview), with the plugin id", asy
   app.use((_req, res, next) => { res.locals.principal = { id: "owner-1" }; next(); });
   app.use(express.json());
   registerPluginInstallRoutes(app, { workspaceId: "ws", tracker: createTracker({ productAnalytics: port }), authorize: async () => ({ allowed: true, reason: "ok" }),
-    pluginSourcePolicy: createSitePluginPolicy({ env: { NODE_ENV: "production", TOVU_PLUGIN_LOCAL_INSTALL: "1" } }),
+    pluginSourcePolicy: createSitePluginPolicy({ env: { NODE_ENV: "production", TOVU_PLUGIN_LOCAL_INSTALL: "1" }, hostSignals: resolveHostSignals({ env: { NODE_ENV: "production", TOVU_PLUGIN_LOCAL_INSTALL: "1" } }) }),
     pluginInstaller: { preview: async () => plugin, install: async () => plugin } });
   const baseUrl = await startTestServer(app, t);
   const post = (suffix: string, body: unknown) => fetch(`${baseUrl}/api/admin/v1/workspaces/ws/plugins/install${suffix}`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${secret}` }, body: JSON.stringify(body) });

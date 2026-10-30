@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 /** Folder and bundled input contracts for the existing gated Agent Plugin install tool. */
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readdir, readFile, symlink, unlink, writeFile } from "node:fs/promises";
@@ -19,7 +20,7 @@ const bundledInput = { source: { kind: "bundled", bundledId: "ui-ux-design" } };
 async function fixture(t: TestContext) {
   const root = await mkdtemp(path.join(tmpdir(), "agent-install-sources-"));
   t.after(() => forceRemove(root));
-  const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "installed") } });
+  const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "installed") } });
   const sourceRoot = path.join(root, "bundled");
   await mkdir(sourceRoot);
   const deps = { workspaceId: "workspace-local", authorize: async () => ({ allowed: true as const, reason: "matched" as const }), agentPluginLayout: layout, bundledAgentPluginsSourceRoot: sourceRoot,
@@ -195,9 +196,9 @@ function recordingPluginHost(candidates: unknown[]): PluginHostPort {
   } as unknown as PluginHostPort;
 }
 
-test("without an injected source root, bundled ids come from the build's own bundled packages", async t => {
+test("the composed source root lists the build's own bundled packages", async t => {
   const f = await fixture(t);
-  const { bundledAgentPluginsSourceRoot: _root, ...deps } = f.deps;
+  const deps = { ...f.deps, bundledAgentPluginsSourceRoot: bundledAgentPluginsDir() };
   const install = buildRegistrations(deps).find(tool => tool.descriptor.id === "agent_plugins_install")!;
   await assert.rejects(() => install.handler(context({ source: { kind: "bundled", bundledId: "no-such-bundled-plugin" } }), {}),
     (error: unknown) => error instanceof ToolInputError && /^Unknown bundled plugin id 'no-such-bundled-plugin'\. Bundled ids: .*\bgithub\b/.test((error as Error).message));

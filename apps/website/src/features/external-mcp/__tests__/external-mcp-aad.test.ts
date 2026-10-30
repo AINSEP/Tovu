@@ -1,6 +1,6 @@
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { externalMcpVaultRecord } from "../external-mcp-vault.js";
-import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
+import { SITE_KEY_ENV_VAR_NAME } from "../../webhooks/site-key-sources.js";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import test from "node:test";
@@ -8,14 +8,9 @@ import test from "node:test";
 process.env[SITE_KEY_ENV_VAR_NAME] ??= randomBytes(32).toString("hex");
 
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { EnvOrFileKeyring } from "../../features/webhooks/keyring.env.js";
-import {
-  openExternalMcpOAuthPayload,
-  readEnabledExternalMcpConfigs,
-  saveExternalMcpServer,
-  sealExternalMcpOAuthPayload,
-} from "../external-mcp-store.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { EnvOrFileKeyring } from "../../webhooks/keyring.env.js";
+import { openExternalMcpOAuthPayload, readEnabledExternalMcpConfigs, saveExternalMcpServer, sealExternalMcpOAuthPayload } from "../external-mcp-store.js";
 
 /**
  * @file The adversarial proof for `external_mcp_servers`' AAD binding.

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { InMemoryVaultRepo, SecretsVaultService, VaultError, type VaultMeta, type VaultRecord,
   type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "@jini-ai/platform/secrets";
-import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
+import { createTovuVaultKinds } from "../../platform/secrets/vault-kinds.js";
 
 type Identity = { workspaceId: string; serverId: string };
 type Kind = "mcp-env" | "mcp-auth";

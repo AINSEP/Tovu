@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { expandPartials, renderStaticPage, renderStaticPartial } from "../static-render.js";
+import { expandPartials } from "../../../contracts/core/expand-partials.js";
+import { renderStaticPage, renderStaticPartial } from "../static-render.js";
 import type { DiscoveredTheme } from "../theme.js";
 
 /**

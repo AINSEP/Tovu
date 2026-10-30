@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
@@ -88,7 +89,7 @@ async function installReal(workspaceId: string, pluginId: string, files: Readonl
   const entries: AgentPluginArchiveEntry[] = Object.entries(files).map(([entryPath, content]) => fileEntry(entryPath, content));
   const archive = new Uint8Array(Buffer.from(archiveSeed));
   const digest = createHash("sha256").update(archive).digest("hex");
-  return installAgentPlugin({ archive, expectedSha256: digest, archiveReader: reader(entries), layout: resolveAgentPluginLayout(), workspaceId });
+  return installAgentPlugin({ archive, expectedSha256: digest, archiveReader: reader(entries), layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId });
 }
 
 function buildTestApp(): { app: express.Express; agentPluginsDeps: AgentPluginsRouteDeps } {
@@ -102,7 +103,7 @@ function buildTestApp(): { app: express.Express; agentPluginsDeps: AgentPluginsR
   const agentPluginsDeps: AgentPluginsRouteDeps = testSiteLayoutContext({
     tracker: createNoopTracker({}),
     // Pin the port so failure injection and the request use the same layout object.
-    agentPluginLayout: resolveAgentPluginLayout(),
+    agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
     workspaceId: baseDeps.workspaceId,
     authorize: baseDeps.authorize,
     clock: baseDeps.clock,
@@ -145,7 +146,7 @@ test("AGENT_PLUGINS_LIST: returns real installed Agent Plugins with skills, keyw
     // `isAgentPluginActive`'s "absent means active" default: that default exists to keep an
     // OPERATOR-installed plugin usable without an extra step, which is a different case from the
     // one this test needs (a plugin whose activation record explicitly says disabled).
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "site-compliance", enabled: true, actor: "test" });
     await setAgentPluginActivation({ workspaceRoot, pluginId: "example-host-deploy", enabled: false, actor: "test" });
 

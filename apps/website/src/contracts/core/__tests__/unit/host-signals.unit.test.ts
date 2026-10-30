@@ -28,7 +28,7 @@ for (const app of [undefined, "", " ", "0", "app"]) {
         assert.deepEqual(hostSignals, { hosted, nativeToolsRestricted: restricted,
           trustProxyHops: hosted ? 1 : undefined, labels: hosted ? ["Example host"] : [] });
         assert.equal(resolveTrustProxySetting({ env }, options), hosted ? 1 : false);
-        assert.equal(createSitePluginPolicy({ env }, options).localInstallEnabled({}, {}), !hosted);
+        assert.equal(createSitePluginPolicy({ env, hostSignals }).localInstallEnabled({}, {}), !hosted);
         assert.equal(isHostedAssistantRuntime({ env }, options), restricted);
         assert.equal(resolveFullCliAccess({ isOwner: true, setting: true, env }, options), !restricted);
         assert.equal(resolveAgentPermissionMode({ env: { ...env, TOVU_AGENT_PERMISSION_MODE: "bypass" } }, options), restricted ? "restricted" : "bypass");
@@ -57,7 +57,7 @@ test("packaged desktop exempts only NODE_ENV from hosted install policy", () => 
     for (const app of ["", "app"]) for (const optIn of [undefined, "0", "1"]) {
       const input = { ...env, NODE_ENV: "production", EXAMPLE_APP: app, TOVU_PLUGIN_LOCAL_INSTALL: optIn };
       const hostSignals = evaluateHostSignals({ env: input, declaration });
-      assert.equal(createSitePluginPolicy({ env: input }, { hostSignals }).localInstallEnabled({}, {}), optIn === "1" || (!app && desktop));
+      assert.equal(createSitePluginPolicy({ env: input, hostSignals }).localInstallEnabled({}, {}), optIn === "1" || (!app && desktop));
       assert.equal(resolveFullCliAccess({ isOwner: true, env: input }, { hostSignals }), !app);
     }
   }
@@ -68,7 +68,7 @@ test("an explicitly empty evaluated declaration has no hints; independent core s
   const hostSignals = evaluateHostSignals({ env, declaration: { signals: [] } });
   assert.equal(resolveTrustProxySetting({ env }, { hostSignals }), false);
   assert.equal(isHostedAssistantRuntime({ env }, { hostSignals }), false);
-  assert.equal(createSitePluginPolicy({ env }, { hostSignals }).localInstallEnabled({}, {}), true);
+  assert.equal(createSitePluginPolicy({ env, hostSignals }).localInstallEnabled({}, {}), true);
   for (const independent of [{ TOVU_RUNTIME_MODE: "production" }, { TOVU_HOSTED: "1" }, { TOVU_HOSTED: "true" }, { TOVU_PUBLIC_URL: "https://owner.tovu.dev/" }]) {
     assert.equal(isHostedAssistantRuntime({ env: independent }, { hostSignals }), true);
   }

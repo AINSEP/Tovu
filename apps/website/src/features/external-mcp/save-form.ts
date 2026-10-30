@@ -1,5 +1,5 @@
 import type { SecretCardField, SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
-import type { ExternalMcpServerView } from "#src/assistant/mcp-services";
+import type { ExternalMcpServerView } from "./contracts.js";
 import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/index.js";
 
 /**

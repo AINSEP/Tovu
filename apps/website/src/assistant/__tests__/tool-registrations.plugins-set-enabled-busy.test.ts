@@ -1,3 +1,5 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext, deferredTestAgentPluginLayout } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
@@ -41,7 +43,7 @@ const realFsp = await import("node:fs/promises");
 const { createTovuAgentPluginLifecycle, installAgentPlugin } = await import("../../features/agent-plugins/lifecycle.js");
 // Exercise the owner's real lock-error translation, not a raw error at its preflight boundary.
 let behavior: typeof realFsp.open = realFsp.open;
-const lifecycle = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, {
+const lifecycle = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, { bundledSourceRoot: bundledAgentPluginsDir(),
   filesystem: { ...realFsp, open: (...args) => behavior(...args) },
 });
 
@@ -99,10 +101,10 @@ async function withInstalledAgentPlugin<T>(fn: (workspaceRoot: string) => Promis
         ),
         fileEntry(`skills/${AGENT_PLUGIN_ID}/SKILL.md`, `---\nname: ${AGENT_PLUGIN_ID}\ndescription: test\n---\n\nguidance\n`),
       ]),
-      layout: resolveAgentPluginLayout(),
+      layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
       workspaceId: WORKSPACE_ID,
     });
-    return await fn(resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID).root);
+    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).root);
   } finally {
     behavior = realFsp.open;
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;

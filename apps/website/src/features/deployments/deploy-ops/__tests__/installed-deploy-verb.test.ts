@@ -1,3 +1,5 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -21,7 +23,7 @@ async function withAgentPluginsDir<T>(fn: (layout: ReturnType<typeof resolveAgen
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-deploy-ops-verb-"));
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
-  try { return await fn(resolveAgentPluginLayout()); }
+  try { return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() })); }
   finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR; else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
     await forceRemove(dir);
@@ -35,7 +37,7 @@ for (const deployEnabled of [false, true]) {
     test(`split upgrade: deploy=${deployEnabled}, github=${githubEnabled} — Actions follows github, Fly follows deploy`, async () => {
       const { loadSourceControlProviderRegistry } = await import("../../../source-control/provider-registry.js");
       await withAgentPluginsDir(async layout => {
-        const lifecycle = createTovuAgentPluginLifecycle({ layout });
+        const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
         const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
         await lifecycle.setAgentPluginActivation({ workspaceRoot, pluginId: "deploy", enabled: deployEnabled, actor: "operator" }, { origin: "bundled" });
         await lifecycle.setAgentPluginActivation({ workspaceRoot, pluginId: "github", enabled: githubEnabled, actor: "operator" }, { origin: "bundled" });

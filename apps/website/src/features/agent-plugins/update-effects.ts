@@ -5,8 +5,7 @@ import type { AgentPluginLayout } from "./layout.js";
 type ProvisionDeps = Parameters<typeof provisionAgentPluginMcpServers>[0];
 export type UpdateMcpDeps = {
   workspaceId: string; agentPluginLayout: AgentPluginLayout;
-  externalMcpServerRepo: ProvisionDeps["repo"]; siteAssistantSecretSealer: ProvisionDeps["sealer"];
-  siteAssistantSecretKeyring: ProvisionDeps["keyring"]; clock: ProvisionDeps["clock"];
+  mcp: ProvisionDeps;
   /** Announces the changed roster so live runtimes reload; the composition root binds
    *  `notifyExternalMcpRosterChanged`. A port rather than a value import: a feature module may not
    *  value-import `#src/assistant/` (`domain-no-direct-tool-registration.boundary.test.ts`), the
@@ -31,8 +30,7 @@ export function createAgentPluginUpdateEffects(
   return {
     provision: async ({ workspaceId, installed }) => {
       const servers = await resolveServers({ agentPluginLayout: deps.agentPluginLayout, workspaceId, pluginId: installed.pluginId });
-      const result = await provisionServers({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer,
-        keyring: deps.siteAssistantSecretKeyring, clock: deps.clock }, { workspaceId, pluginId: installed.pluginId, servers, principalId: actor });
+      const result = await provisionServers(deps.mcp, { workspaceId, pluginId: installed.pluginId, servers, principalId: actor });
       // A named refusal, so the route answers 409 with this code rather than a redacted 500. The lifecycle
       // owner rolls the update back before it rethrows this, so the message can say so.
       if (result.failed.length) throw new AgentPluginUpdateError({ code: 'PLUGIN_MCP_PROVISION_FAILED', message: 'The new version\'s MCP servers could not be set up; the previous version was restored.' });
@@ -47,11 +45,10 @@ export function createAgentPluginUpdateEffects(
  *  caller's, so this throws a plain error (redacted to the model and to HTTP clients).
  *  @complexity O(1). */
 export function requireUpdateMcpDeps({ deps }: { deps: UpdateMcpHostDeps }, _optional: Record<string, never> = {}): UpdateMcpDeps {
-  const { workspaceId, agentPluginLayout, clock, externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring, notifyExternalMcpRosterChanged } = deps;
+  const { workspaceId, agentPluginLayout, mcp, notifyExternalMcpRosterChanged } = deps;
   const unbound = () => new Error("Agent Plugin update is unavailable: the host did not bind its MCP provisioning.");
-  if (!clock || !externalMcpServerRepo || !siteAssistantSecretSealer) throw unbound();
-  if (!siteAssistantSecretKeyring || !notifyExternalMcpRosterChanged) throw unbound();
-  return { workspaceId, agentPluginLayout, clock, externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring, notifyExternalMcpRosterChanged };
+  if (!mcp?.repo || !mcp.saveServer || !notifyExternalMcpRosterChanged) throw unbound();
+  return { workspaceId, agentPluginLayout, mcp, notifyExternalMcpRosterChanged };
 }
 
 /** Who boot recovery provisions as: no operator is signed in while the host starts. */

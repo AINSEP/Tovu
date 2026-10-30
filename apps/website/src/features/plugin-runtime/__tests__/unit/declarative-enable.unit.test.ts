@@ -6,7 +6,7 @@ import test from "node:test";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 
 import { PluginInvalidError } from "@jini-ai/plugins/host";
-import { createDeclaredContentTypePorts } from "../../declarative-enable.js";
+import { createDeclaredContentTypePorts } from "#src/server/runtime/composition/declared-content-types";
 import { deferDeclaredContentTypePorts, enableDeclaredPlugin } from "@jini-ai/plugins/host";
 import type { PluginManifest } from "@jini-ai/plugins/host";
 

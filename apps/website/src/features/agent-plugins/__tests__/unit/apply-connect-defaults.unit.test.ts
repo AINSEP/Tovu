@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 // openid-client validates token_type; successful provider fixtures include the required wire field.
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
@@ -7,12 +8,9 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import {
-  createDeviceAuthorizationStore,
-  createExternalMcpOAuthService,
-  InMemoryExternalMcpServerRepo,
-  saveExternalMcpServer,
-} from "#src/assistant/index";
+import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../../external-mcp/external-mcp-oauth.js";
+import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
+import { saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { type OAuthProviderDescriptor } from "#src/platform/oauth/index";
@@ -184,7 +182,7 @@ test("OAuth callback composes installed defaults with real plugin activation sto
     await writeFile(path.join(source, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN, version: "1.0.0" }));
     await writeFile(path.join(source, "mcp.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", mcpServers: DECLARED }));
     const packed = await packAgentPluginDirectory(source);
-    const layout = resolveAgentPluginLayout();
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
     await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256,
       archiveReader: createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
     const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
@@ -217,7 +215,7 @@ test("an operator turning the plugin OFF after the off-check but before the enab
     await writeFile(path.join(source, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN, version: "1.0.0" }));
     await writeFile(path.join(source, "mcp.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", mcpServers: DECLARED }));
     const packed = await packAgentPluginDirectory(source);
-    const layout = resolveAgentPluginLayout();
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
     await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256,
       archiveReader: createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
     const workspaceRoot = layout.forWorkspace(WORKSPACE).root;
@@ -257,7 +255,7 @@ async function signInWith(tovuExtension: Record<string, unknown>, before: Activa
     await writeFile(path.join(source, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: PLUGIN, version: "1.0.0", extensions: { tovu: tovuExtension } }));
     await writeFile(path.join(source, "mcp.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", mcpServers: DECLARED }));
     const packed = await packAgentPluginDirectory(source);
-    const layout = resolveAgentPluginLayout();
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
     await installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256,
       archiveReader: createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
     const workspaceRoot = layout.forWorkspace(WORKSPACE).root;

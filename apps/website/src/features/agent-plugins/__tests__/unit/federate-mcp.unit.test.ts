@@ -1,3 +1,5 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
+import { mcpTestPort } from "../fixtures/connection-service-ports.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -10,12 +12,14 @@ import { installAgentPlugin } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { recordBundledAgentPluginDigests } from "../../lifecycle.js";
 
-import { InMemoryExternalMcpServerRepo, listExternalMcpServerViews, saveExternalMcpServer, type ExternalMcpServerRepoPort, type ExternalMcpStoreDeps } from "#src/assistant/index";
+import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
+import { listExternalMcpServerViews, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
+import { type ExternalMcpServerRepoPort, type ExternalMcpStoreDeps } from "../../../external-mcp/contracts.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "#src/assistant/external-mcp-store";
+import { openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "../../../external-mcp/external-mcp-store.js";
 
-import { deriveAgentPluginConnectionId, findAgentPluginMcpServerDefaults, isEmptyJsonList, planAgentPluginMcpFederation, provisionAgentPluginMcpServers, resolveAgentPluginMcpServers, resolveAgentPluginReadOnlyRemoteNames } from "../../federate-mcp.js";
+import { deriveAgentPluginConnectionId, findAgentPluginMcpServerDefaults, isEmptyJsonList, planAgentPluginMcpFederation, provisionAgentPluginMcpServers as provisionWithPort, resolveAgentPluginMcpServers, resolveAgentPluginReadOnlyRemoteNames } from "../../federate-mcp.js";
 import type { McpServerConfig } from "../../mcp-metadata.js";
 
 /**
@@ -42,7 +46,7 @@ test("MCP resolution keeps each workspace's bundled declaration despite competin
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    const layout = resolveAgentPluginLayout();
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
     const install = async (workspaceId: string, pluginId: string, servers: Record<string, McpServerConfig>) => {
       const files = {
         "plugin.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: pluginId, version: "1.0.0" }),
@@ -75,6 +79,11 @@ test("MCP resolution keeps each workspace's bundled declaration despite competin
     await forceRemove(dir);
   }
 });
+
+
+function provisionAgentPluginMcpServers(deps: ExternalMcpStoreDeps, input: Parameters<typeof provisionWithPort>[1]) {
+  return provisionWithPort(mcpTestPort(deps), input);
+}
 
 function makeDeps(): ExternalMcpStoreDeps {
   const repo = new InMemoryExternalMcpServerRepo();
@@ -570,7 +579,7 @@ async function installMcpPlugin(workspaceId: string, pluginId: string, mcpServer
     "mcp.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", mcpServers }),
   };
   const archive = Buffer.from(JSON.stringify(files));
-  return installAgentPlugin({ layout: resolveAgentPluginLayout(), workspaceId, archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), archiveReader: {
+  return installAgentPlugin({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId, archive, expectedSha256: createHash("sha256").update(archive).digest("hex"), archiveReader: {
     async *entries() {
       for (const [entryPath, text] of Object.entries(files)) {
         const bytes = Buffer.from(text);
@@ -613,7 +622,7 @@ test("planAgentPluginMcpFederation: a server key with no usable characters is sk
 
 test("resolveAgentPluginMcpServers bundledOnly: only the exact build-seeded digest supplies servers", async () => {
   await withPluginsDir(async () => {
-    const layout = resolveAgentPluginLayout();
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
     const resolve = (workspaceId: string, pluginId: string) => resolveAgentPluginMcpServers(testSiteLayoutContext({ workspaceId, pluginId, bundledOnly: true }));
     // Installed but never seeded by the build: no read trust source.
     await installMcpPlugin("ws-installed", "widget", { main: REMOTE_SERVER });
@@ -631,7 +640,7 @@ test("resolveAgentPluginMcpServers bundledOnly: only the exact build-seeded dige
 
 test("resolveAgentPluginReadOnlyRemoteNames: a bundled plugin's reviewed read names for its exact endpoint; nothing otherwise", async () => {
   await withPluginsDir(async () => {
-    const layout = resolveAgentPluginLayout();
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
     const read = (workspaceId: string, url: string) => resolveAgentPluginReadOnlyRemoteNames({ agentPluginLayout: layout, workspaceId, pluginId: "widget", serverId: "main", url });
     const extensions = { tovu: { mcpServers: { main: { tovuDefaultTools: { write: [], read: ["list_things"] } } } } };
     const seeded = await installMcpPlugin("ws-1", "widget", { main: REMOTE_SERVER }, extensions);

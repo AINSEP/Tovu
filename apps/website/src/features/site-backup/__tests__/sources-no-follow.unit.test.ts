@@ -34,6 +34,6 @@ test("without O_NOFOLLOW share planning refuses themes reached through a linked 
   fs.symlinkSync(outside, path.join(root, "linked"));
   const sources = { siteDir: root, themesDir: path.join(root, "linked/themes"), mediaUploadsDir: null,
     skillsDir: path.join(root, "skills"), tovuVersion: "test",
-    agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }) };
+    agentPlugins: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }) };
   await assert.rejects(collectSiteBackupFiles({ sources, include: { database: false, media: false, themes: true, plugins: false, settings: false } }, { profile: "share" }), { code: "PLAN_STALE" });
 });

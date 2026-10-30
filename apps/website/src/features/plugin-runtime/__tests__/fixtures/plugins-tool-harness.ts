@@ -7,13 +7,12 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExch
 import type { InstalledAgentPlugin } from "@jini-ai/agent-plugins/lifecycle";
 import { InMemoryPluginActivationRepo, type PluginActivationRecord, type PluginConflict, type PluginSourcePolicyPort, type RemovePluginFn } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord, PluginSourcePort } from "@jini-ai/plugins/host/node";
-import { InMemoryExternalMcpServerRepo } from "#src/assistant/index";
 
 import { InMemoryChangeSetRepo } from "../../../../contracts/core/commands/index.js";
 import { InMemoryOutbox } from "../../../../contracts/core/events/memory-bus.js";
 import type { AgentPluginHostCapability, AgentPluginLayout, PluginHostPort } from "../../../../contracts/headless/index.js";
-import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
+import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf } from "../../../agent-plugins/provider-plugin-link.js";
+import type { PluginProviderFacesPort } from "../../service-ports.js";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../tool-registrations.js";
 
 /** Typed fakes for the Plugins tool handlers (`tool-registrations.ts`): every port the handlers read,
@@ -40,6 +39,16 @@ export function installedAgentPlugin(overrides: Partial<InstalledAgentPlugin> = 
   return { pluginId: "higgsfield", version: "1.0.0", archiveDigest: "a".repeat(64), packageRoot: "/fake/pkg", files: [], skills: [], ...overrides };
 }
 
+/** Bind the existing provider owner, including its error identity and safe message, for tool tests. */
+export function providerFacesFor({ workspaceRoot }: { workspaceRoot: () => string }, _optional = {}): PluginProviderFacesPort {
+  const ports = bindProviderFacePorts({ workspaceRoot });
+  return {
+    linkedProvider: (input) => linkedProviderOf({ ports, ...input }),
+    describeLinkedFace: (input) => new AgentPluginLinkedError(input),
+    describeLinkedError: ({ error }) => error instanceof AgentPluginLinkedError ? error : undefined,
+  };
+}
+
 export interface HarnessOptions {
   readonly discovery?: () => readonly PluginDiscoveryRecord[];
   readonly source?: Partial<Pick<PluginSourcePort, "isSealedHere" | "readApproval" | "recordApproval">> | false;
@@ -54,6 +63,7 @@ export interface HarnessOptions {
   /** The lifecycle owners a composition root may inject in place of the host capability. */
   readonly injected?: Pick<PluginsToolDeps, "assertAgentPluginActivationsWritable" | "setAgentPluginEnabled" | "listInstalledAgentPlugins">;
   readonly layout?: AgentPluginLayout;
+  readonly providerFaces?: Partial<PluginProviderFacesPort>;
 }
 
 /** Records every observable port call into one ordered log so tests can pin ORDER, not just occurrence. */
@@ -92,9 +102,9 @@ export function harness(options: HarnessOptions = {}) {
     getHostCapability: () => agentHost,
   };
   let authorizeCount = 0;
-  const keyring = new InMemoryKeyring();
   const deps: PluginsToolDeps = {
     agentPluginLayout: options.layout ?? FAKE_LAYOUT,
+    providerFaces: { ...providerFacesFor({ workspaceRoot: () => (options.layout ?? FAKE_LAYOUT).forWorkspace(WORKSPACE_ID).root }), ...options.providerFaces },
     ...options.injected,
     pluginHost,
     ...(pluginSource ? { pluginSource } : {}),
@@ -115,9 +125,6 @@ export function harness(options: HarnessOptions = {}) {
     onPluginDisabled: (pluginId) => { events.push(`onDisabled:${pluginId}`); options.onPluginDisabled?.(); },
     removePlugin: options.removePlugin ?? notUsed("removePlugin"),
     ...(options.listPluginConflicts ? { listPluginConflicts: options.listPluginConflicts } : {}),
-    externalMcpServerRepo: new InMemoryExternalMcpServerRepo(),
-    siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
-    siteAssistantSecretKeyring: keyring,
   };
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const tool = (id: string): ToolRegistration => {

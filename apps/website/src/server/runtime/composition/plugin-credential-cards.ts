@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir } from "./site-paths.js";
 import { type LoadPluginContributions, createTovuAgentPluginLifecycle, type TrustedPluginPackage } from '#src/features/agent-plugins/lifecycle';
 import { credentialCardsContribution, mergePluginCredentialCards } from '#src/features/agent-plugins/credential-cards';
 import { parseDeployTargetsFile } from '#src/features/deployments/deploy-targets/registry';
@@ -5,7 +6,8 @@ import { parseSourceControlProvidersFile } from '#src/features/source-control/pr
 import { parseMailAdaptersFile } from '#src/features/agent-plugins/mail-adapter-registry';
 import type { AgentPluginLayout } from '#src/features/agent-plugins/layout';
 import { readProviderPluginLink } from '#src/features/agent-plugins/identity';
-import type { LoadPluginCredentialCards, PluginCredentialCard } from '#src/features/custom-credentials/plugin-credential-card';
+import type { LoadPluginCredentialCards } from "../../../features/custom-credentials/plugin-credential-card.js";
+import type { PluginCredentialCard } from "../../../contracts/core/plugin-credential-card.js";
 
 type ReadFile = (required: { plugin: TrustedPluginPackage; filename: string }, optional?: Record<string, never>) => Promise<string>;
 
@@ -34,7 +36,7 @@ export function createPluginCredentialCardsLoader({ agentPluginLayout, loadMailC
   const warn = options.onRefusal ?? (message => console.warn(`[plugin-credential-cards] ${message}`));
   let lifecycle: ReturnType<typeof createTovuAgentPluginLifecycle> | undefined;
   // Tool catalogs can be built before a site is bound; only a lookup needs the fixed layout.
-  const owner = () => lifecycle ??= createTovuAgentPluginLifecycle({ layout: agentPluginLayout });
+  const owner = () => lifecycle ??= createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, { bundledSourceRoot: bundledAgentPluginsDir() });
   const readFile: ReadFile = options.readFile ?? (({ plugin, filename }) => owner().readTrustedPluginFile(plugin, filename));
   const definition = { ...credentialCardsContribution, load: async ({ plugin, descriptor }: Parameters<typeof credentialCardsContribution.load>[0]) =>
     await ownsDestination({ plugin, card: descriptor, readFile }) ? { ...descriptor, pluginId: plugin.pluginId }

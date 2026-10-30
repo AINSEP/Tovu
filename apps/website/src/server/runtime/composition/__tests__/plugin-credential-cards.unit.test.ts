@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { AgentPluginLayout } from '#src/features/agent-plugins/layout';
 import { createPluginCredentialCardsLoader } from '../plugin-credential-cards.js';
-import type { PluginCredentialCard } from '#src/features/custom-credentials/plugin-credential-card';
+import type { PluginCredentialCard } from "../../../../contracts/core/plugin-credential-card.js";
 
 const mail = { providerId: 'mail', label: 'Mail', category: 'ops', baseUrl: 'https://mail.example.com', title: 'Mail' };
 const manifest = { providerId: 'host', label: 'Host', category: 'hosting', baseUrl: 'https://host.example.com', title: 'Hosting' };

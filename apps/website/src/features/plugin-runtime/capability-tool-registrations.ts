@@ -15,9 +15,10 @@ import { capabilityToolIdFor } from "@jini-ai/plugins/host";
 // package: `ext.{pluginId}.*` is written ONLY on a `posts` row (see `post.ts`'s own `ext` field
 // doc — "content.entry.beforeSave hook-merge step... immediately before the single
 // deps.repo.save() call"), so a tool that reads a plugin's stored output back has nowhere else to
-// read it FROM. Read-only (`PostRepoPort.findById`/`PostRecord`/`PostNotFoundError` only) — this
+// read it FROM. Read-only (`PluginPostReadPort`/`PostRecord` only) — this
 // file never imports anything that could write a post.
-import { PostNotFoundError, type PostRecord, type PostRepoPort } from "../post/index.js";
+import type { PostRecord } from "../post/post.js";
+import type { PluginPostReadPort } from "./service-ports.js";
 
 /**
  * @file Projects each ENABLED plugin-runtime plugin's own declared `fields[]` (manifest.ts,
@@ -340,7 +341,7 @@ export interface PluginCapabilityToolDeps {
   readonly executablePluginToolRegistry?: ToolRegistry;
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
-  readonly postRepo: PostRepoPort;
+  readonly postRead: PluginPostReadPort;
   /** Re-read on EVERY call by each registration's policy — see this file's header, "Revocation". */
   readonly pluginActivationRepo: PluginActivationRepoPort;
   /** Runs ONE attached plugin's beforeSave filter on a draft without saving — the composition
@@ -399,10 +400,7 @@ function capabilityToolHandler(source: PluginCapabilityToolSource, deps: PluginC
     const postId = requireString({ input: input, key: "postId" });
     await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "content.read" }, { entityType: "post", entityId: postId });
 
-    const post = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
-    if (!post) {
-      throw new PostNotFoundError(`post '${postId}' was not found`);
-    }
+    const post = await deps.postRead.readRequired({ workspaceId: deps.workspaceId, id: postId });
     return buildCapabilityToolResult(source, post, await resolveFieldBag(source, post, deps));
   };
 }

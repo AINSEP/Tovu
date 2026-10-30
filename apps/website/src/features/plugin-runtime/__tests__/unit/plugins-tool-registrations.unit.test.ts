@@ -2,6 +2,7 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { AgentPluginLinkedError } from "../../../agent-plugins/provider-plugin-link.js";
 import { ToolInputError } from "@jini-ai/core";
 import { AgentPluginActivationsUnreadableError, AgentPluginNotInstalledError } from "@jini-ai/agent-plugins/lifecycle";
 import type { PluginConflict } from "@jini-ai/plugins/host";
@@ -11,7 +12,7 @@ import type { AssistantToolRegistryDeps } from "../../../../assistant/tool-regis
 import { toAssistantRegistryDeps } from "../../../../assistant/__tests__/fixtures/registry-deps.js";
 import { createRouteDeps } from "../../../../server/runtime/composition/app.js";
 import { contributePluginsTools, pluginApprovalIdentity, pluginsDerivedRisk, type PluginsToolDeps } from "../../tool-registrations.js";
-import { ABANDONED_NOTE, PLUGIN_ID, WORKSPACE_ID, answerCard, context, harness, installedAgentPlugin, siteRecord } from "../fixtures/plugins-tool-harness.js";
+import { ABANDONED_NOTE, PLUGIN_ID, WORKSPACE_ID, answerCard, context, harness, installedAgentPlugin, noDialog, siteRecord } from "../fixtures/plugins-tool-harness.js";
 
 /**
  * @file The Plugins tool handlers' remaining boundaries: `plugins_list`'s per-plugin conflicts, the
@@ -74,7 +75,7 @@ test("approval identity refuses an Agent Plugin that is not installed and a site
 
 /** The composed assistant registry deps with this harness's Plugins ports laid over them, minus any
  *  bound host. The composed clock is kept: other domains in the registry need its `nowIso`. */
-function registryDepsWithoutHost(deps: PluginsToolDeps): Omit<AssistantToolRegistryDeps, "pluginHost"> {
+function registryDepsWithoutHost(deps: PluginsToolDeps): Omit<AssistantToolRegistryDeps, "pluginHost"> & Pick<PluginsToolDeps, "providerFaces"> {
   const base = toAssistantRegistryDeps({ routeDeps: createRouteDeps() });
   const { pluginHost: _composedHost, ...composed } = { ...base, ...deps, clock: base.clock };
   return composed;
@@ -233,4 +234,41 @@ test("an unreadable activation record on a disable says the plugin was NOT disab
   const result = await h.tool("plugins_set_enabled").handler(context({ family: "agent-plugin", pluginId: "higgsfield", enabled: false }), {}) as { reason: string; note: string };
   assert.equal(result.reason, "activations-unreadable");
   assert.match(result.note, /'higgsfield' was NOT disabled\./);
+});
+
+test("the injected provider link refuses a face before identity, confirmation or write", async () => {
+  const failure = new AgentPluginLinkedError({ pluginId: "higgsfield", providerPluginId: "provider" });
+  const calls: unknown[] = [];
+  const h = harness({ confirmEnable: () => true, providerFaces: {
+    linkedProvider: async (input) => { calls.push(input); return "provider"; },
+    describeLinkedFace: (input) => { calls.push(input); return failure; },
+  } });
+  const result = await h.tool("plugins_set_enabled").handler(context(AGENT_ENABLE), { emitSurface: noDialog });
+  assert.deepEqual(result, { changed: false, cancelled: false, family: "agent-plugin", pluginId: "higgsfield",
+    restartRequired: false, reason: "linked", code: failure.code, providerPluginId: "provider", note: `Nothing changed. ${failure.message}` });
+  assert.deepEqual(calls, [{ pluginId: "higgsfield" }, { pluginId: "higgsfield", providerPluginId: "provider" }]);
+  assert.deepEqual(h.events, ["assertWritable"]);
+});
+
+test("the injected classifier keeps the owner's linked-switch refusal at write time", async () => {
+  const failure = new AgentPluginLinkedError({ pluginId: "higgsfield", providerPluginId: "provider" });
+  const h = harness({ agentHost: { setEnabled: async () => { throw failure; } } });
+  const result = await h.tool("plugins_set_enabled").handler(context({ ...AGENT_ENABLE, enabled: false }), { emitSurface: noDialog });
+  assert.deepEqual(result, { changed: false, cancelled: false, family: "agent-plugin", pluginId: "higgsfield",
+    restartRequired: false, reason: "linked", code: failure.code, providerPluginId: "provider", note: `Nothing changed. ${failure.message}` });
+  assert.deepEqual(h.events, ["setEnabled:false"]);
+});
+
+test("an unreadable provider link is left to the existing write and provisioning path", async () => {
+  const h = harness({ confirmEnable: () => false, providerFaces: { linkedProvider: async () => { throw new Error("manifest unreadable"); } } });
+  const result = await h.tool("plugins_set_enabled").handler(context(AGENT_ENABLE), { emitSurface: noDialog }) as { changed: boolean };
+  assert.equal(result.changed, true);
+  assert.deepEqual(h.events.slice(-2), ["setEnabled:true", "provisionMcp:higgsfield"]);
+});
+
+test("a lookalike linked error is not classified as the owner's safe refusal", async () => {
+  const failure = Object.assign(new Error("internal failure"), { code: "AGENT_PLUGIN_LINKED", providerPluginId: "provider" });
+  const h = harness({ agentHost: { setEnabled: async () => { throw failure; } } });
+  await assert.rejects(h.tool("plugins_set_enabled").handler(context({ ...AGENT_ENABLE, enabled: false }), {}), (error: unknown) => error === failure);
+  assert.deepEqual(h.events, ["setEnabled:false"]);
 });

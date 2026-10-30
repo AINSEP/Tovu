@@ -1,3 +1,5 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -87,7 +89,7 @@ async function withAgentPluginsDir<T>(fn: (layout: ReturnType<typeof resolveAgen
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    return await fn(resolveAgentPluginLayout());
+    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }));
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
@@ -106,7 +108,7 @@ test("existing site: an earlier explicitly ENABLED deploy record is retired at t
     const { plugins } = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
     assert.equal(Object.hasOwn(plugins, "deploy"), false);
     for (const host of HOST_PLUGINS) assert.equal(plugins[host.pluginId]?.enabled, true, host.pluginId);
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
     for (const target of TARGETS) assert.equal(registry.get(target.id)?.pluginId, target.pluginId, target.id);
   });
 });
@@ -160,13 +162,13 @@ test("seeded by the real seeder, hosts start disabled, explicit enable loads tar
     assert.equal(activations.plugins.fly?.enabled, false, "server hosting requires explicit enable");
     for (const host of HOST_PLUGINS) assert.equal(activations.plugins[host.pluginId]?.enabled, false, `${host.pluginId}: hosting requires explicit enable`);
     assert.equal(activations.plugins["site-compliance"]?.enabled, false, "every other bundled plugin still seeds disabled");
-    const inactive = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout }).loadPluginContributions });
+    const inactive = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
     assert.deepEqual(inactive.list(), []);
     for (const host of HOST_PLUGINS) {
       await setAgentPluginActivation({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root, pluginId: host.pluginId, enabled: true, actor: "test:operator" }, { origin: "bundled" });
     }
 
-    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
+    const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
     assert.deepEqual(registry.refusals, []);
     // Plugin-id order (`orderByPluginId`), the order the Static site tab lists hosts in.
     assert.deepEqual(registry.list().map((target) => target.pluginId), [...TARGETS].sort((a, b) => (a.pluginId < b.pluginId ? -1 : a.pluginId > b.pluginId ? 1 : 0)).map((target) => target.pluginId));
@@ -199,7 +201,7 @@ test("upgrade: a site holding an OLDER bundled host digest serves the new one af
       const packages = await readdir(layout.forWorkspace(WORKSPACE_ID).pluginPackagesDir({ pluginId: owner }));
       assert.equal(packages.length, 1, "successful publication prunes the superseded digest");
 
-      const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
+      const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
       assert.deepEqual(registry.refusals, []);
       assert.equal(registry.get("netlify")?.descriptor.label, "Netlify (next build)");
     });

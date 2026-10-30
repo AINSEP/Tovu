@@ -1,3 +1,5 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { installLegacyRevision } from '../fixtures/install-legacy-revision.js';
 import { testSiteLayoutContext, deferredTestAgentPluginLayout } from "#src/__tests__/fixtures/site-layout-context";
@@ -23,7 +25,7 @@ import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "../.
 
 const injected = new Error("injected: activations.json could not be rewritten");
 let failActivationPublication = false;
-const lifecycle = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, { filesystem: {
+const lifecycle = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, { bundledSourceRoot: bundledAgentPluginsDir(),  filesystem: {
   ...filesystem,
   async rename(source, destination) {
     if (failActivationPublication && String(destination).endsWith("/activations.json")) throw injected;
@@ -72,7 +74,7 @@ async function installTestPackage(layout: ReturnType<typeof resolveAgentPluginLa
 test("an activation-write failure after staging restores every package tree, frozen, and keeps the record (any uid)", async () => {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-uninstall-rollback-"));
   try {
-    const layout = resolveAgentPluginLayout({ cwd, env: {} });
+    const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
     const workspace = layout.forWorkspace(WORKSPACE_ID);
     const first = await installTestPackage(layout, "multi-digest", "archive-rollback-a");
     const second = await installLegacyRevision({ packagesDir: workspace.pluginPackagesDir({ pluginId: "multi-digest" }), install: () => installTestPackage(layout, "multi-digest", "archive-rollback-b") });

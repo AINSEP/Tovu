@@ -1,3 +1,8 @@
+import { ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError } from "#src/features/external-mcp/external-mcp-store";
+import { composeAgentPluginMcp, composePluginProviderFaces } from "../agent-plugin-service-ports.js";
+import { InMemoryExternalMcpServerRepo } from "#src/features/external-mcp/external-mcp-store.memory";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -38,13 +43,17 @@ async function fixture(t: { after(callback: () => unknown): void }) {
   const warnings: string[] = [];
   const listedRoots: string[] = [];
   let extraSitePlugins: readonly PluginDiscoveryRecord[] = [];
-  const deps: TovuPluginHostDeps = {
-    agentPluginLayout: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: root } }), workspaceId: 'site',
-    authorize: async () => ({ allowed: true, reason: 'matched' }), clock: createSystemClock(),
+  const keyring = new InMemoryKeyring();
+  const clock = createSystemClock();
+  const deps: TovuPluginHostDeps & Pick<PluginsToolDeps, "providerFaces"> = {
+    agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: root } }), workspaceId: 'site',
+    authorize: async () => ({ allowed: true, reason: 'matched' }), clock,
     pluginActivationRepo: new InMemoryPluginActivationRepo(),
     discoverPlugins: async () => [{ id: 'word-count', name: 'Word Count', version: '1.0.0', source: 'built-in', status: 'valid', errors: [], manifest: WORD_COUNT_MANIFEST }, ...extraSitePlugins],
     listInstalledAgentPlugins: async workspaceRoot => { listedRoots.push(workspaceRoot); return installed; },
-    externalMcpServerRepo: {} as never, siteAssistantSecretSealer: {} as never, siteAssistantSecretKeyring: {} as never,
+    mcp: composeAgentPluginMcp({ repo: new InMemoryExternalMcpServerRepo(), sealer: new AesGcmSecretSealer(keyring), keyring, clock }),
+    preferences: { locale: async () => "en" },
+    providerFaces: composePluginProviderFaces({ workspaceRoot: () => deps.agentPluginLayout.forWorkspace(deps.workspaceId).root }),
   };
   const host = createTovuPluginHost({ deps }, { readAgentManifest: async () => manifest, resolveEnabled: async () => enabled, warn: message => warnings.push(message) });
   return { root, deps, host, warnings, listedRoots, enable: () => { enabled = true; }, remove: () => { installed = []; }, addSite: (rows: readonly PluginDiscoveryRecord[]) => { extraSitePlugins = rows; } };
@@ -375,4 +384,17 @@ test('L058b agent revision lookup and admission retain distinct selection contra
   }
   assert.equal(await host.withInstallIdentity({ candidate: { id: 'vendor/new', localId: 'new', family: 'site-runtime' }, run: async () => 'published' }), 'published');
   assert.ok(warnings.includes("Plugin 'broken': installed identity manifest is unreadable or invalid; omitted from metadata lookup."));
+});
+
+test('the composed MCP port preserves store errors by identity and persists through the bound store', async t => {
+  const { deps } = await fixture(t);
+  assert.equal(deps.mcp.classifyError({ error: new ExternalMcpValidationError('invalid input', 'url') }), 'validation');
+  assert.equal(deps.mcp.classifyError({ error: new ExternalMcpSecretStoreUnconfiguredError('missing key') }), 'unconfigured');
+  assert.equal(deps.mcp.classifyError({ error: Object.assign(new Error('lookalike'), { name: 'ExternalMcpValidationError' }) }), 'other');
+  await deps.mcp.saveServer({ workspaceId: deps.workspaceId, serverId: 'bound-store', transport: 'streamable_http', authMode: 'none',
+    enabled: false, command: '', url: 'https://mcp.example.test/mcp', args: '', allowedToolNames: '', writeAllowedToolNames: '', principalId: 'operator' });
+  const row = await deps.mcp.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: 'bound-store' });
+  assert.equal(row?.url, 'https://mcp.example.test/mcp');
+  assert.equal(row?.enabled, false);
+  assert.equal(row?.allowedToolNames, "[]");
 });

@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ContentTypeAlreadyExistsError, type ContentTypeRecord } from "#src/features/content-types/index";
+import { ContentTypeAlreadyExistsError, type ContentTypeRecord } from "@jini-ai/cms/content-types";
 
 import {
   applyDeclaredContentTypes,

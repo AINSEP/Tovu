@@ -1,8 +1,9 @@
 import type { ContentTypeFieldDef, ContentTypeFieldKind, ContentTypeRecord } from "#src/features/content-types/index";
 import type { EntryRecord } from "@jini-ai/cms/entries";
-import { SYSTEM_CONTENT_TYPES, COLLECTION_LIST_FAQ_PAGE, isCollectionListLayout } from "./contracts.js";
+import { SYSTEM_CONTENT_TYPES } from "../../contracts/core/system-content-types.js";
+import { COLLECTION_LIST_FAQ_PAGE, isCollectionListLayout } from "./contracts.js";
 import type { CollectionListLayout, CollectionListStructuredData } from "./contracts.js";
-export { SYSTEM_CONTENT_TYPES, COLLECTION_LIST_LAYOUTS, COLLECTION_LIST_FAQ_PAGE, isCollectionListLayout } from "./contracts.js";
+export { COLLECTION_LIST_LAYOUTS, COLLECTION_LIST_FAQ_PAGE, isCollectionListLayout } from "./contracts.js";
 export type { CollectionListLayout, CollectionListStructuredData, EntryListExcludingTypesPort } from "./contracts.js";
 
 /**

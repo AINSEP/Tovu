@@ -75,7 +75,7 @@ test("the site backup collects no pre-migrations copy from any scope", async (t)
       siteDir: dir,
       mediaUploadsDir: path.join(dir, "uploads"),
       themesDir: path.join(dir, "themes"),
-      agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(dir, "agent-plugins") } }),
+      agentPlugins: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(dir, "agent-plugins") } }),
       skillsDir: path.join(dir, "skills"),
       tovuVersion: "test",
     },

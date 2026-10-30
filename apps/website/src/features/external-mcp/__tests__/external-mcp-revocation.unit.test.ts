@@ -3,11 +3,13 @@ import test from "node:test";
 
 import { ToolInputError } from "@jini-ai/core";
 
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import { ExternalMcpConnectionRevokedError, rosterRefusalFor, type ExternalMcpRevocationReason } from "../external-mcp-revocation.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { ExternalMcpConnectionRevokedError, rosterRefusalFor } from "../external-mcp-revocation.js";
+import { type ExternalMcpRevocationReason } from "../contracts.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { externalMcpAdmissionRevision, saveExternalMcpServer, type ExternalMcpServerRecord } from "../external-mcp-store.js";
+import { externalMcpAdmissionRevision, saveExternalMcpServer } from "../external-mcp-store.js";
+import { type ExternalMcpServerRecord } from "../contracts.js";
 
 /**
  * @file `ExternalMcpConnectionRevokedError`'s operator-facing wording, per revocation reason: each

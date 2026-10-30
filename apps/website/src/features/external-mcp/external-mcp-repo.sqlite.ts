@@ -1,6 +1,6 @@
-import { type ContentKernel, contentKernel } from "../platform/db/content-kernel.js";
+import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
 import { SqlExternalMcpServerRepo } from "./external-mcp-repo.js";
-import type { ContentDb } from "../platform/db/sqlite/content-db.js";
+import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 
 /**
  * @file The external MCP server store on a site's SQLite `content.db`: {@link

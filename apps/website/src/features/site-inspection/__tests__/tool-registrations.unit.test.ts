@@ -1,7 +1,7 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
-import { sealExternalMcpVaultPayload } from "#src/assistant/external-mcp-vault";
+import { sealExternalMcpVaultPayload } from "../../external-mcp/external-mcp-vault.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 

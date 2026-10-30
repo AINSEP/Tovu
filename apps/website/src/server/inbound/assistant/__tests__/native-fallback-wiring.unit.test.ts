@@ -113,7 +113,7 @@ test('non-owner and production/hosted paths never consult the owner setting or l
   ]) {
     const input = await captureDaemonRun({ prompt: 'Use Bash, Task and MCP', nativeToolAccess: true, cliParity: true }, { bindings: {
       routeDeps: { ownerPrincipalId: Promise.resolve(policy.ownerPrincipalId), workspaceId: 'w', siteBinding: { dir: tmpdir() }, toolAttemptAuditSink: { append: async () => {} } },
-      resolveBundledHostSignals: ({ env }: { env: Record<string, string | undefined> }) => evaluateHostSignals({ env, declaration: {
+      resolveHostSignals: ({ env }: { env: Record<string, string | undefined> }) => evaluateHostSignals({ env, declaration: {
         signals: [{ env: "EXAMPLE_MACHINE", facts: { nativeToolsRestricted: true } }],
       } }),
       process: { env: { ...policy.env, TOVU_AGENT_FULL_CLI_ACCESS: '1', TOVU_AGENT_NATIVE_FALLBACKS: '1' }, cwd: () => '/site' },

@@ -213,7 +213,7 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
       const switcherBase = await gateSiteSwitchWrite(routeDeps, switcherEnabled, ctx.principal.id);
       return withSchemaOnRejection({ toolId: "sites_create_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         // No access tokens from chat: a pasted token would sit in the transcript. The admin Create form takes them.
-        const created = orThrowRefusal(await createSiteForOwner({ workspaceId: routeDeps.workspaceId, switcherBase, name, actorId: ctx.principal.id, source: "assistant" }, { createSite: routeDeps.createSite, tracker: routeDeps.tracker }));
+        const created = orThrowRefusal(await createSiteForOwner({ workspaceId: routeDeps.workspaceId, switcherBase, name, actorId: ctx.principal.id, source: "assistant" }, { createSite: routeDeps.createSite, tracker: routeDeps.tracker, bundledSourceRoot: routeDeps.bundledSourceRoot }));
         return created.site;
       } });
     },

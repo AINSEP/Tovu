@@ -59,8 +59,8 @@ export async function importAgentPluginAccessToken(
   },
 ): Promise<ImportAgentPluginAccessTokenOutcome> {
   const principalId = input.principalId ?? AGENT_PLUGIN_TOKEN_IMPORT_ACTOR;
-  const target = await resolveTarget(deps, input.pluginId, principalId);
-  const row = await deps.externalMcpServerRepo.findByServerId({ workspaceId: deps.workspaceId, serverId: target.connectionId });
+  const target = await resolveTarget({ routeDeps: deps, pluginId: input.pluginId, principalId });
+  const row = await deps.mcp.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: target.connectionId });
   if (row && hasStoredAgentPluginCredential(row)) {
     // Finishes a switch-on an earlier import saved the token for but did not complete (it threw
     // after the save): idempotent, and it keeps an operator's off switch (`switch-on-saved-token.ts`).
@@ -71,7 +71,7 @@ export async function importAgentPluginAccessToken(
     throw new Error(`its '${target.connectionId}' connection points at a different URL than the '${input.pluginId}' plugin declares, so the token is not copied there`);
   }
 
-  await saveStaticAccessToken(deps, target, principalId, input.token);
+  await saveStaticAccessToken({ routeDeps: deps, target, principalId, token: input.token });
   const switched = await switchOnSavedTokenConnection(deps, target);
   return switched.state === "on" ? "saved" : "saved-left-off";
 }

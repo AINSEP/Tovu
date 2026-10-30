@@ -10,7 +10,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { readEnabledExternalMcpConfigs } from "../../assistant/index.js";
+import { readEnabledExternalMcpConfigs } from "../../features/external-mcp/external-mcp-store.js";
 
 import { provisionAgentPluginMcpServers } from "../../features/agent-plugins/federate-mcp.js";
 import { parseAgentPluginMcpConfig } from "../../features/agent-plugins/mcp-metadata.js";
@@ -46,7 +46,7 @@ async function buildAdminOnlyApp() {
   assert.ok(parsed.ok);
   // Exactly what enabling the bundled plugin does at boot (`federate-mcp.ts`), no agent involved.
   await provisionAgentPluginMcpServers(
-    { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock },
+    deps.mcp,
     { workspaceId: deps.workspaceId, pluginId: "supabase", servers: parsed.config.servers, principalId: "system:test" },
   );
 

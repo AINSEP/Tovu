@@ -1,7 +1,8 @@
 import type { Express } from "express";
 
-import { ExternalMcpValidationError, notifyExternalMcpRosterChanged } from "#src/assistant/index";
-import type { ExternalMcpOAuthService } from "#src/assistant/index";
+import { ExternalMcpValidationError } from "../../../../../features/external-mcp/external-mcp-store.js";
+import { notifyExternalMcpRosterChanged } from "../../../../../assistant/index.js";
+import type { ExternalMcpOAuthService } from "../../../../../features/external-mcp/contracts.js";
 import { OAuthError } from "@jini-ai/oauth";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";

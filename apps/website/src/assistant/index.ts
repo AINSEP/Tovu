@@ -191,36 +191,9 @@ export type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 // registering itself against a public registry is the designed extension point, not a leak; kept
 // exposed here on purpose rather than chased to 0).
 // ---------------------------------------------------------------------------------------------
-export {
-  listExternalMcpServerViews,
-  saveExternalMcpServer,
-  deleteExternalMcpServer,
-  ExternalMcpValidationError,
-  ExternalMcpSecretStoreUnconfiguredError,
-  // The admin probe route (`routes/admin/
-  // external-mcp/probe.ts`) resolves ONE server's live connection target the same way the daemon's
-  // boot path does, so it can open its own short-lived session and ask `tools/list` — reusing this
-  // pair rather than re-deriving credential/target resolution a second time.
-  readEnabledExternalMcpConfigs,
-  toResolvedFederatedConnections,
-  resolveExternalMcpAuthMode,
-  resolveExternalMcpOAuthStatus,
-  externalMcpRecordHasStaticAccessToken,
-} from "./external-mcp-store.js";
-export type {
-  ExternalMcpAuthMode,
-  ExternalMcpOAuthStatus,
-  ExternalMcpOAuthTokenResolverPort,
-  ExternalMcpServerRepoPort,
-  ExternalMcpServerRecord,
-  ExternalMcpServerView,
-  SaveExternalMcpOAuthInput,
-  SaveExternalMcpServerInput,
-  ExternalMcpServerConfig,
-  // Plugin activation uses the same public store contract.
-  ExternalMcpStoreDeps,
-} from "./external-mcp-store.js";
-export { InMemoryExternalMcpServerRepo } from "./external-mcp-store.memory.js";
+
+
+
 export { InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore } from "./external-mcp-tool-approval-adapters.js";
 export {
   type ConversationToolApprovalStore,
@@ -231,19 +204,8 @@ export {
 // The OAuth half of the same surface — `authMode: "oauth"` connections. Exposed through this barrel
 // rather than deep-imported so the `no-deep-imports:assistant` boundary rule keeps holding for the
 // server routes and the composition roots that consume it.
-export {
-  createDeviceAuthorizationStore,
-  createExternalMcpConnectionGate,
-  createExternalMcpOAuthService,
-  ExternalMcpReauthRequiredError,
-  externalMcpSettingsDeepLink,
-} from "./external-mcp-oauth.js";
-export type {
-  DeviceAuthorizationStore,
-  ExternalMcpConnectStart,
-  ExternalMcpOAuthDeps,
-  ExternalMcpOAuthService,
-} from "./external-mcp-oauth.js";
+
+
 
 export { FEDERATED_CONNECTION_DEFAULTS, isFederationEnabled, parseAllowedToolNames, positiveIntOrDefault } from "@jini-ai/mcp/federation";
 export type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";

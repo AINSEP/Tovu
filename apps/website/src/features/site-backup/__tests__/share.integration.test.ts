@@ -125,7 +125,7 @@ test("fresh share projection preserves drafts/schedules/autosaves, excludes priv
   for (const file of ["themes/static/site/nested/.env.local", "plugins/site/1.0.0/data/oauth.json", "plugins/site/1.0.0/memory/private/facts.md", "plugins/site/1.0.0/nested/chat.db-wal", "uploads/chat-attachments/private.txt"]) await write(file, sentinel);
   await write("config.json", JSON.stringify({ name: "Shared site", domain: "private.local", port: 1234, password: sentinel }));
   await write(".site-meta.json", JSON.stringify({ templateId: "starter", templateVersion: "1", schemaVersion: 13, siteId: sentinel, siteKeyId: sentinel, storage: sentinel }));
-  const sources = { siteDir: dir, mediaUploadsDir: null, themesDir: path.join(dir, "themes"), agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(dir, "agent-plugins") } }), skillsDir: path.join(dir, "skills"), tovuVersion: "test", sitePlugins: jiniSitePlugins({ installDir: path.join(dir, "plugins") }) };
+  const sources = { siteDir: dir, mediaUploadsDir: null, themesDir: path.join(dir, "themes"), agentPlugins: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(dir, "agent-plugins") } }), skillsDir: path.join(dir, "skills"), tovuVersion: "test", sitePlugins: jiniSitePlugins({ installDir: path.join(dir, "plugins") }) };
   const readKeys: string[] = [];
   const plan = await prepareShareContent({ snapshotRoot: tmpdir(), sources, sanitize: sanitizeShareDatabase, rewriteMedia: rewriteArchiveMedia, imageTransformer: { transform: async () => assert.fail("not raster") },
     blobStore: { get: async ({ storageKey: key }) => { readKeys.push(key); return mediaBytes; }, sizeOf: async () => mediaBytes.length },

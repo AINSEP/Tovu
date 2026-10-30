@@ -6,12 +6,9 @@ import test from "node:test";
 import type { ToolRegistration } from "@jini-ai/core";
 import { ToolInputError } from "@jini-ai/core";
 
-import {
-  createDeviceAuthorizationStore,
-  createExternalMcpOAuthService,
-  InMemoryExternalMcpServerRepo,
-  saveExternalMcpServer,
-} from "#src/assistant/index";
+import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../external-mcp-oauth.js";
+import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.js";
+import { saveExternalMcpServer } from "../../external-mcp-store.js";
 import { type OAuthProviderDescriptor } from "#src/platform/oauth/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";

@@ -1,3 +1,4 @@
+import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -36,6 +37,7 @@ function deps(overrides: Partial<PluginsInstallToolDeps> = {}): PluginsInstallTo
     workspaceId: "ws-1",
     authorize: async () => ({ allowed: true, reason: "matched" }),
     env: { TOVU_PLUGIN_LOCAL_INSTALL: "1" },
+    hostSignals: resolveHostSignals({ env: overrides.env ?? { TOVU_PLUGIN_LOCAL_INSTALL: "1" } }),
     ...overrides,
   };
 }

@@ -1,3 +1,4 @@
+import { providerFacesFor } from "../fixtures/plugins-tool-harness.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -30,6 +31,7 @@ function fakeDeps(): PluginsToolDeps {
   return {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
+    providerFaces: providerFacesFor({ workspaceRoot: () => assert.fail("listing plugins does not read provider faces") }),
     clock: { nowIso: () => "2026-09-24T00:00:00.000Z" },
     idGen: { newId: () => "id-1" },
     changeSets: new InMemoryChangeSetRepo(),
@@ -39,9 +41,6 @@ function fakeDeps(): PluginsToolDeps {
     onPluginEnabled: async () => {},
     onPluginDisabled: () => {},
     removePlugin: async () => ({ ok: true as const, version: null }),
-    externalMcpServerRepo: {} as never,
-    siteAssistantSecretSealer: {} as never,
-    siteAssistantSecretKeyring: {} as never,
   } as unknown as PluginsToolDeps;
 }
 

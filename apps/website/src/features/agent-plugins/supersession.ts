@@ -21,7 +21,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { TrustedPluginPackage, TrustedPluginVerdict } from "@jini-ai/agent-plugins/lifecycle";
-import { resolveProductRoot } from "../../platform/site-dir/product-root.js";
+import type { AgentPluginPathsPort } from "./service-ports.js";
 
 /** One descriptor id the successor provides instead of the named packages. */
 export interface SupersededContribution {
@@ -124,16 +124,11 @@ export function supersededDescriptorRefusal(required: { readonly supersessions: 
   return undefined;
 }
 
-/** The build's bundled source root: `deps.ts`'s `bundledAgentPluginsDir()`, resolved the same way
- *  here because a feature must not import the composition root. */
-export function defaultBundledSourceRoot(required: { readonly env: Readonly<Record<string, string | undefined>> }): string {
-  return required.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
-}
-
 /** Reads `<sourceRoot>/<pluginId>/plugin.json`. An id that is not a single path segment is refused
- *  so a manifest read can never leave the bundled source root. */
+ *  so a manifest read can never leave the bundled source root. The host supplies the build's
+ *  resolved bundled source root because a feature must not import the composition root. */
 export function createBundledSourceManifestReader(
-  required: { readonly sourceRoot: () => string },
+  required: Pick<AgentPluginPathsPort, "bundledSourceRoot">,
   optional: { readonly readText?: (filePath: string) => Promise<string> } = {},
 ): SupersessionManifestsPort["readBundledSource"] {
   const readText = optional.readText ?? (filePath => readFile(filePath, "utf8"));
@@ -141,6 +136,6 @@ export function createBundledSourceManifestReader(
     if (pluginId === "" || path.basename(pluginId) !== pluginId || pluginId === "." || pluginId === "..") {
       throw new Error(`'${pluginId}' is not a bundled plugin directory name`);
     }
-    return readText(path.join(required.sourceRoot(), pluginId, "plugin.json"));
+    return readText(path.join(required.bundledSourceRoot, pluginId, "plugin.json"));
   };
 }

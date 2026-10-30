@@ -15,8 +15,8 @@ import {
   EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID,
   buildExternalMcpReauthRegistrations,
 } from "../external-mcp-reauth-tool.js";
-import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { saveExternalMcpServer } from "../external-mcp-store.js";
+import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
+import { saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import {

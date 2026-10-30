@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -64,10 +65,10 @@ async function withSwitchedOffPlugin<T>(fn: () => Promise<T>): Promise<T> {
           yield* entries;
         },
       },
-      layout: resolveAgentPluginLayout(),
+      layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
       workspaceId: WORKSPACE,
     });
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: false, actor: "test" });
     return await fn();
   } finally {

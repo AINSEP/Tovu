@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
@@ -32,7 +33,7 @@ const PRINCIPAL = "operator-1";
 async function setup(t: TestContext, options: { allow?: boolean; locale?: string; instanceLayout?: boolean } = {}) {
   const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "plugin-write-note-")));
   t.after(() => forceRemove(root));
-  const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: root } });
+  const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: root } });
   const archive = Buffer.from("example-note-plugin");
   const files: Record<string, string> = {
     "plugin.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "example", version: "1.0.0" }),
@@ -59,7 +60,7 @@ async function setup(t: TestContext, options: { allow?: boolean; locale?: string
     process.env.TOVU_AGENT_PLUGINS_DIR = root;
     t.after(() => { if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR; else process.env.TOVU_AGENT_PLUGINS_DIR = previous; });
   }
-  const handler = pluginNoteHandler({ deps, surfaces: { surfaceExchanges } }, { layout: options.instanceLayout ? resolveAgentPluginLayout() : layout });
+  const handler = pluginNoteHandler({ deps, surfaces: { surfaceExchanges } }, { layout: options.instanceLayout ? resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) : layout });
   return { layout, surfaceExchanges, handler };
 }
 

@@ -1,3 +1,6 @@
+import { mcpTestPort, credentialTestPort } from "../fixtures/connection-service-ports.js";
+import type { AgentPluginApiConnectionsPort } from "../../service-ports.js";
+import { runApiConnectionConnect, type ApiConnectionConnectDeps } from "../../../api-connections/connect.js";
 /**
  * @file `agent_plugin_connect`'s API-connection branch (C4b): a plugin that declares no OAuth MCP
  * server but one plugin-declared API connection connects through the REAL
@@ -15,7 +18,7 @@ import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/prim
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
-import { InMemoryExternalMcpServerRepo } from "#src/assistant/index";
+import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import {
@@ -34,12 +37,16 @@ function ctxFor(signal: AbortSignal = new AbortController().signal): ToolExecuti
 
 /** Route deps for a plugin with no MCP servers, connecting through `apiConnections` when given (`null` wait: the tool's built-in defaults). The
  *  external-MCP store is real but stays empty: this branch never provisions an MCP row. */
-function depsFor(apiConnections: AgentPluginConnectToolDeps["apiConnections"], waitTimeoutMs: number | null = 5_000): AgentPluginConnectToolDeps {
+function depsFor(apiConnections: ApiConnectionConnectDeps | undefined, waitTimeoutMs: number | null = 5_000): AgentPluginConnectToolDeps {
   const keyring = new InMemoryKeyring();
+  const apiPort: AgentPluginApiConnectionsPort | undefined = apiConnections && {
+    listConnections: (input, _options = {}) => apiConnections.host.listConnections(input),
+    connect: (input, _options = {}) => runApiConnectionConnect({ ...input, deps: apiConnections }),
+  };
   return testSiteLayoutContext({
     workspaceId: WORKSPACE, clock: { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() },
-    externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), authorize: async () => ({ allowed: true, reason: "test" }), ...(waitTimeoutMs === null ? {} : { pollIntervalMs: 5, waitTimeoutMs }),
-    resolveInstalledPlugin: async () => ({ servers: {} }), ...(apiConnections ? { apiConnections } : {}),
+    mcp: mcpTestPort({ repo: new InMemoryExternalMcpServerRepo(), keyring, sealer: new AesGcmSecretSealer(keyring), clock: createSystemClock() }), credentials: credentialTestPort({}), authorize: async () => ({ allowed: true, reason: "test" }), ...(waitTimeoutMs === null ? {} : { pollIntervalMs: 5, waitTimeoutMs }),
+    resolveInstalledPlugin: async () => ({ servers: {} }), ...(apiPort ? { apiConnections: apiPort } : {}),
   });
 }
 
@@ -87,10 +94,10 @@ test('API sign-in displays only the declaring plugin oauth card copy', async () 
     intro: 'Use the files you choose.', permissions: 'Read selected files only.', keyHint: 'Account sign-in' };
   const cards: string[] = [];
   // Assign rather than spread: spreading would evaluate the fixture's lazy layout getters outside the test site.
-  const result = await runAgentPluginConnect({ routeDeps: Object.assign(depsFor(composition.apiConnections), { loadPluginCredentialCards: async (workspaceId: string) => {
+  const result = await runAgentPluginConnect({ routeDeps: Object.assign(depsFor(composition.apiConnections), { credentials: credentialTestPort({ loadCards: async (workspaceId: string) => {
     assert.equal(workspaceId, WORKSPACE);
     return [{ ...card, pluginId: 'other-plugin', title: 'Wrong owner copy' }, { ...card, saveKind: 'api', title: 'Wrong kind copy' }, card];
-  } }), surfaces: surfaces(), ctx: ctxFor(), pluginId: PLUGIN }, { emitSurface: async emission => {
+  } }) }), surfaces: surfaces(), ctx: ctxFor(), pluginId: PLUGIN }, { emitSurface: async emission => {
     const html = htmlOf(emission); cards.push(html);
     if (cards.length === 1) assert.equal((await followConsent(signInUrlOf(html))).status, 200);
   } });

@@ -5,7 +5,7 @@ import { askThenReport, createSurfaceExchangeStore } from "@jini-ai/daemon/surfa
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
-import type { ExternalMcpServerView } from "#src/assistant/index";
+import type { ExternalMcpServerView } from "../../contracts.js";
 
 import { buildExternalMcpSaveForm, buildExternalMcpSaveFormFields, mergeExternalMcpSavePrefill, type ExternalMcpSaveInput } from "../../save-form.js";
 

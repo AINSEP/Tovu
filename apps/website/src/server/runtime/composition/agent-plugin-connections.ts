@@ -11,7 +11,7 @@ import type { SetValueRequired } from "@jini-ai/core/settings";
 
 import type { CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
 import { loadFormDestinationRegistry } from "#src/features/form-destinations/registry";
-import { readFormDeliveryBindings, writeFormDeliveryBindings } from "#src/features/settings/index";
+import { FormDeliveryBindingsConflictError, readFormDeliveryBindings, writeFormDeliveryBindings } from "#src/features/settings/index";
 
 import { createRateLimiter, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
 import { createApiConnectionHost, type ApiConnectionHost } from "#src/features/api-connections/host";
@@ -95,6 +95,7 @@ export interface AgentPluginDeliveryBindingsDeps {
 function formDeliveryBindingsStore(required: { settings: SetValueRequired["deps"] }, _optional: Record<string, never> = {}): FormDeliveryBindingsStore {
   const { settings } = required;
   return {
+    isConflict: ({ error }, _options = {}) => error instanceof FormDeliveryBindingsConflictError,
     read: ({ workspaceId }) => readFormDeliveryBindings({ settingsRepo: settings.repo, workspaceId }),
     write: async ({ workspaceId, callerPrincipalId, value, expectedValue }) => { await writeFormDeliveryBindings({ deps: settings, workspaceId, callerPrincipalId, value }, { expectedValue }); },
   };

@@ -34,7 +34,7 @@ function site(t: TestContext, optional: { pins?: Record<string, string> } = {}):
     }
   };
   const sources: SiteBackupSources = { siteDir: root, mediaUploadsDir: null, themesDir: path.join(root, "themes"), skillsDir: path.join(root, "skills"), tovuVersion: "test",
-    agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }), sitePlugins: jiniSitePlugins({ installDir }, optional) };
+    agentPlugins: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "agent-plugins") } }), sitePlugins: jiniSitePlugins({ installDir }, optional) };
   return { sources, installDir, write };
 }
 

@@ -3,7 +3,7 @@ import type { Dirent } from "node:fs";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { createBundledSourceArchiveReader, packAgentPluginDirectory } from "../agent-plugins/lifecycle.js";
-import { defaultBundledSourceRoot } from "../agent-plugins/supersession.js";
+import { resolveProductRoot } from "#src/platform/site-dir/index";
 import type { PackageFileInventory } from "./share-file-policy.js";
 
 /**
@@ -21,7 +21,7 @@ import type { PackageFileInventory } from "./share-file-policy.js";
  * @complexity O(bundled source bytes): one pack and one hash per file.
  */
 export async function readBundledPackageFiles(_required: Record<string, never> = {}, optional: { sourceRoot?: string } = {}): Promise<PackageFileInventory> {
-  const sourceRoot = optional.sourceRoot ?? defaultBundledSourceRoot({ env: process.env });
+  const sourceRoot = optional.sourceRoot ?? process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
   const inventory = new Map<string, ReadonlyMap<string, string>>();
   const folders = await readdir(sourceRoot, { withFileTypes: true }).catch((): Dirent[] => []);
   for (const folder of folders) {

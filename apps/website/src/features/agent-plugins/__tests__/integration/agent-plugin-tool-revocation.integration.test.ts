@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
@@ -104,7 +105,7 @@ async function installReal(archiveSeed: string, { workspaceId = WORKSPACE_ID, pl
     archive,
     expectedSha256: digest,
     archiveReader: reader(entries(manifest, pluginId)),
-    layout: resolveAgentPluginLayout(),
+    layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
     workspaceId,
   });
 }
@@ -158,7 +159,7 @@ test("revocation follows the activation RECORD, not the caller: a bare setAgentP
   await withAgentPluginsDir(async () => {
     await installReal("archive-revoke-bare-writer");
     const registry = await bootDaemonToolSurface();
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).root;
 
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: false, actor: "operator-1" });
     assert.equal((await callPluginTool(registry)).status, "denied", "any writer of the activation record revokes the tool");
@@ -190,7 +191,7 @@ test("uninstalling a DISABLED plugin must not re-admit its revoked tool — dele
     await setAgentPluginEnabled(testSiteLayoutContext({ workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID, enabled: false, actor: "operator-1" }));
     assert.equal((await callPluginTool(registry)).status, "denied", "precondition: the disable itself revokes the tool");
 
-    await uninstallAgentPlugin({ layout: resolveAgentPluginLayout(), workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID });
+    await uninstallAgentPlugin({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID });
 
     const after = await callPluginTool(registry);
     assert.equal(
@@ -212,7 +213,7 @@ test("uninstalling an ENABLED plugin revokes its live tool too — uninstall alo
     const registry = await bootDaemonToolSurface();
     assert.equal((await callPluginTool(registry)).status, "completed", "precondition: while enabled and installed, the tool answers");
 
-    await uninstallAgentPlugin({ layout: resolveAgentPluginLayout(), workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID });
+    await uninstallAgentPlugin({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID });
 
     const after = await callPluginTool(registry);
     assert.equal(after.status, "denied", "a plugin whose package is gone must not keep serving from the registration built at boot");
@@ -224,7 +225,7 @@ test("the gate's INSTALLED half stands on its own: the package bytes disappearin
   await withAgentPluginsDir(async () => {
     const installed = await installReal("archive-uninstall-bytes-only");
     const registry = await bootDaemonToolSurface();
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).root;
 
     // An explicit enabled:true record, so the activation half of the gate cannot be what denies.
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "operator-1" });

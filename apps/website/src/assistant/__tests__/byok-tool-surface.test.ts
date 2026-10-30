@@ -39,11 +39,11 @@ import { installFirstPartyToolContributors } from "../../server/runtime/composit
 import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import { saveExternalMcpServer } from "../external-mcp-store.js";
+import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
+import { saveExternalMcpServer } from "../../features/external-mcp/external-mcp-store.js";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import type { ExternalMcpOAuthService } from "../external-mcp-oauth.js";
+import type { ExternalMcpOAuthService } from "../../features/external-mcp/contracts.js";
 import type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 
 const contributions = {

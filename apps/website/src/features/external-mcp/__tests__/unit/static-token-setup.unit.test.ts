@@ -2,8 +2,9 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
-import { InMemoryExternalMcpServerRepo, readEnabledExternalMcpConfigs, saveExternalMcpServer } from "#src/assistant/index";
-import { openExternalMcpOAuthPayload } from "#src/assistant/external-mcp-store";
+import { InMemoryExternalMcpServerRepo } from "../../external-mcp-store.memory.js";
+import { readEnabledExternalMcpConfigs, saveExternalMcpServer } from "../../external-mcp-store.js";
+import { openExternalMcpOAuthPayload } from "../../external-mcp-store.js";
 import type { SurfaceEmission } from "@jini-ai/core";
 import type { ExternalMcpToolDeps } from "../../deps.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

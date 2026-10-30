@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { installLegacyRevision } from '../fixtures/install-legacy-revision.js';
 
@@ -92,7 +93,7 @@ async function installReal(
   const entries: AgentPluginArchiveEntry[] = Object.entries(files).map(([entryPath, content]) => fileEntry(entryPath, content));
   const archive = new Uint8Array(Buffer.from(archiveSeed));
   const digest = createHash("sha256").update(archive).digest("hex");
-  return installAgentPlugin({ archive, expectedSha256: digest, archiveReader: reader(entries), layout: resolveAgentPluginLayout(), workspaceId });
+  return installAgentPlugin({ archive, expectedSha256: digest, archiveReader: reader(entries), layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId });
 }
 
 function fakeCtx(input: unknown): ToolExecutionContext {
@@ -117,7 +118,7 @@ interface SearchResponse {
 }
 
 function findRegistration(workspaceId: string): ToolRegistration {
-  const [registration] = buildAgentPluginSearchRegistrations({ workspaceId, agentPluginLayout: resolveAgentPluginLayout() });
+  const [registration] = buildAgentPluginSearchRegistrations({ workspaceId, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
   assert.ok(registration, "search_agent_plugin_local must be registered");
   return registration;
 }
@@ -150,7 +151,7 @@ for (const maturity of ['untested', 'soon', undefined] as const) {
 }
 
 test("the catalog carries exactly one tool, search_agent_plugin_local, with optional 'query' and 'limit'", async () => {
-  const registrations = buildAgentPluginSearchRegistrations({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });
+  const registrations = buildAgentPluginSearchRegistrations({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
   assert.equal(registrations.length, 1);
   const [registration] = registrations;
   assert.ok(registration);
@@ -165,7 +166,7 @@ test("the description sends the model to plugins_set_enabled's 'agent-plugin' fa
   // Tool descriptions ship verbatim to the model. Since a1abe2bb plugins_set_enabled toggles BOTH
   // plugin families, so the old wording steered the model away from the one tool that can turn a
   // plugin found here on or off.
-  const [registration] = buildAgentPluginSearchRegistrations({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });
+  const [registration] = buildAgentPluginSearchRegistrations({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
   const description = registration?.descriptor.description ?? "";
   assert.doesNotMatch(description, /plugins_list\/plugins_set_enabled, which manage the separate \.tovu-plugin/);
   assert.match(description, /plugins_set_enabled with family 'agent-plugin'/);
@@ -194,7 +195,7 @@ test("finds a real installed plugin by keyword, with compact discovery and full 
     assert.ok(match);
     assert.equal(match.pluginId, "site-compliance");
     assert.deepEqual(Object.keys(match).sort(), ['description', 'enabled', 'id', 'pluginId']);
-    const [detail] = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });
+    const [detail] = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
     assert.ok(detail);
     assert.equal(detail.version, "1.0.0");
     assert.match(match.description ?? "", /risk screening/);
@@ -231,7 +232,7 @@ test("a DISABLED plugin is still found (unlike the dynamic agent_plugin_<id> too
       { "plugin.json": manifestJson("site-compliance", { description: "compliance screening" }) },
       "archive-disabled",
     );
-    const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A);
+    const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A);
     await setAgentPluginActivation({ workspaceRoot: layout.root, pluginId: "site-compliance", enabled: false, actor: "test-operator" });
     assert.ok(installed);
 
@@ -256,7 +257,7 @@ test("MCP server ids stay on the detail path, while discovery omits transport co
     const result = await search(WORKSPACE_A, { query: "example-host.io deploy" });
     assert.equal(result.matches.length, 1);
     assert.equal(Object.hasOwn(result.matches[0]!, 'mcpServers'), false);
-    const [detail] = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });
+    const [detail] = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
     assert.deepEqual(detail?.mcpServerIds, ["example-host-cli"]);
 
     const serialized = JSON.stringify(result);
@@ -271,7 +272,7 @@ test("a plugin with no mcp.json remains discoverable and has no servers on the d
 
     const result = await search(WORKSPACE_A, { query: "plain" });
     assert.equal(result.matches.length, 1);
-    const [detail] = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });
+    const [detail] = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
     assert.deepEqual(detail?.mcpServerIds, []);
   });
 });
@@ -300,7 +301,7 @@ test("SINK: a plugin whose SKILL.md is no longer readable does not take another 
     // readable — e.g. a permissions problem on disk. chmod 0 revokes read for everyone, including
     // this test's own process.
     const skillFile = path.join(broken.packageRoot, "skills", "broken-plugin", "SKILL.md");
-    const before = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });
+    const before = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
     assert.equal(before.find((m) => m.pluginId === "broken-plugin")?.skills.length, 1);
     await chmod(skillFile, 0o000);
 
@@ -311,7 +312,7 @@ test("SINK: a plugin whose SKILL.md is no longer readable does not take another 
       ["broken-plugin", "healthy-plugin"],
       "the plugin with the missing skill file must still be found — search degrades per-skill, not per-plugin"
     );
-    const details = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout() });
+    const details = await loadAgentPluginSearchCandidates({ workspaceId: WORKSPACE_A, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
     const brokenMatch = details.find((m) => m.pluginId === "broken-plugin");
     assert.deepEqual(brokenMatch?.skills, [], "the unreadable skill itself is dropped, not fabricated");
   });
@@ -320,7 +321,7 @@ test("SINK: a plugin whose SKILL.md is no longer readable does not take another 
 test("two installed digests of the same plugin id do not crash search — unlike the dynamic tool loader's refusal", async () => {
   await withAgentPluginsDir(async () => {
     await installReal(WORKSPACE_A, "site-compliance", { "plugin.json": manifestJson("site-compliance", { description: "variant a compliance" }) }, "archive-a");
-    await installLegacyRevision({ packagesDir: resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).pluginPackagesDir({ pluginId: "site-compliance" }), install: () => installReal(WORKSPACE_A, "site-compliance", { "plugin.json": manifestJson("site-compliance", { description: "variant b compliance" }) }, "archive-b") });
+    await installLegacyRevision({ packagesDir: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).pluginPackagesDir({ pluginId: "site-compliance" }), install: () => installReal(WORKSPACE_A, "site-compliance", { "plugin.json": manifestJson("site-compliance", { description: "variant b compliance" }) }, "archive-b") });
 
     const result = await search(WORKSPACE_A, { query: "compliance" });
     assert.equal(result.totalInstalled, 1, "one logical plugin id, even though two digests are on disk");
@@ -348,7 +349,7 @@ test("blank queries list the existing loader's enabled and disabled plugins", as
   await withAgentPluginsDir(async () => {
     await installReal(WORKSPACE_A, "zeta", { "plugin.json": manifestJson("zeta") }, "list-zeta");
     await installReal(WORKSPACE_A, "alpha", { "plugin.json": manifestJson("alpha") }, "list-alpha");
-    await setAgentPluginActivation({ workspaceRoot: resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root, pluginId: "zeta", enabled: false, actor: "test-operator" });
+    await setAgentPluginActivation({ workspaceRoot: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root, pluginId: "zeta", enabled: false, actor: "test-operator" });
     for (const input of [{}, { query: "" }, { query: " \t\n " }]) {
       const result = await search(WORKSPACE_A, input);
       assert.equal(result.totalInstalled, 2);

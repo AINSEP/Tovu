@@ -14,14 +14,11 @@ import {
   type AssistantSurfaceDeps,
   type SurfaceExchange,
 } from "@jini-ai/daemon/surface-exchanges";
-import { ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "./external-mcp-oauth.js";
-import {
-  resolveExternalMcpAuthMode,
-  resolveExternalMcpOAuthStatus,
-  type ExternalMcpOAuthStatus,
-  type ExternalMcpServerRecord,
-  type ExternalMcpServerRepoPort,
-} from "./external-mcp-store.js";
+import { ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "../features/external-mcp/external-mcp-oauth.js";
+import { resolveExternalMcpAuthMode } from "../contracts/core/external-mcp-auth.js";
+import { resolveExternalMcpOAuthStatus } from "../contracts/core/external-mcp-auth.js";
+import { type ExternalMcpOAuthStatus } from "../contracts/core/external-mcp-auth.js";
+import { type ExternalMcpServerRecord, type ExternalMcpServerRepoPort } from "../features/external-mcp/contracts.js";
 
 /**
  * @file The in-chat re-auth NOTICE for one external MCP connection — the surface half of the flow

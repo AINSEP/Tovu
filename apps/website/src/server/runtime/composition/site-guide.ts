@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir } from "./site-paths.js";
 import * as agentic from "@jini-ai/agentic/core";
 import { FIELD_TYPES } from "@jini-ai/cms/forms";
 import { WIDGET_TYPE_REGISTRATIONS } from "@jini-ai/cms/widgets";
@@ -89,7 +90,7 @@ export function siteGuideFactDeps(
  */
 export function createTovuSiteGuide({ deps }: { deps: TovuSiteGuideDeps }, options: { engine?: SiteGuideEngine } = {}): SiteGuideService {
   const engine = options.engine ?? resolveSiteGuideEngine({});
-  const lifecycle = deps.agentPluginLifecycle ?? createTovuAgentPluginLifecycle({ layout: deps.agentPluginLayout });
+  const lifecycle = deps.agentPluginLifecycle ?? createTovuAgentPluginLifecycle({ layout: deps.agentPluginLayout }, { bundledSourceRoot: bundledAgentPluginsDir() });
   const authorize = async ({ caller, permission }: { caller: { principalId: string }; permission: string }) =>
     (await deps.authorize({ principalId: caller.principalId, permission, workspaceId: deps.workspaceId })).allowed;
   const service = engine.createSiteGuide({

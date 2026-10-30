@@ -1,10 +1,10 @@
-import { createTovuIssuerBoundDiscoveryPolicy, tovuOAuthMessages, withTovuOAuthCopy } from "../platform/oauth/endpoint-safety.js";
+import type { DeviceAuthorizationStore, ExternalMcpOAuthDeps, ExternalMcpOAuthService } from "./contracts.js";
+import { createTovuIssuerBoundDiscoveryPolicy, tovuOAuthMessages, withTovuOAuthCopy } from "../../platform/oauth/endpoint-safety.js";
 import { randomBytes } from "node:crypto";
-import { nowIso as readNowIso, type Clock as ClockPort, type ISODateTime, type UUID } from "@jini-ai/core/primitives";
+import { nowIso as readNowIso, type UUID } from "@jini-ai/core/primitives";
 import { formatAad } from "@jini-ai/platform/secrets";
 // Shared OAuth design rationale: Jini/packages/oauth/src/authorization-code.ts.
 
-import type { KeyringPort, SecretSealerPort } from "../features/webhooks/index.js";
 import { ExternalMcpConnectionRevokedError, rosterRefusalFor } from "./external-mcp-revocation.js";
 import type { FederatedCallTarget, FederatedGateVerdict } from "@jini-ai/mcp/federation";
 import {
@@ -20,30 +20,20 @@ import {
   OAuthError,
   pollDeviceAuthorizationOnce,
   registerOAuthClientDynamically,
-  type AuthorizationCallbackParams,
   type DeviceAuthorization,
   type DiscoveredOAuthConfiguration,
   type OAuthClient,
   type OAuthClientAuthMethod,
   type OAuthProviderDescriptor,
   type OAuthTokenSet,
-  type OAuthHttpPorts,
   type OAuthAppOptions,
   type OAuthProviderRegistry,
 } from "@jini-ai/oauth";
-import {
-  ExternalMcpSecretStoreUnconfiguredError,
-  ExternalMcpValidationError,
-  openExternalMcpOAuthPayload,
-  resolveExternalMcpAuthMode,
-  resolveExternalMcpOAuthStatus,
-  sealExternalMcpOAuthPayload,
-  type ExternalMcpOAuthGrant,
-  type ExternalMcpOAuthStatus,
-  type ExternalMcpOAuthTokenResolverPort,
-  type ExternalMcpServerRecord,
-  type ExternalMcpServerRepoPort,
-} from "./external-mcp-store.js";
+import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "./external-mcp-store.js";
+import { resolveExternalMcpOAuthStatus } from "../../contracts/core/external-mcp-auth.js";
+import { resolveExternalMcpAuthMode } from "../../contracts/core/external-mcp-auth.js";
+import { type ExternalMcpOAuthGrant, type ExternalMcpServerRecord, type ExternalMcpServerRepoPort } from "./contracts.js";
+import { type ExternalMcpOAuthStatus } from "../../contracts/core/external-mcp-auth.js";
 
 /**
  * @file Connects `@jini-ai/oauth`'s generic client to one external-MCP connection row.
@@ -142,25 +132,6 @@ export class ExternalMcpReauthRequiredError extends Error {
  */
 export function externalMcpSettingsDeepLink(serverId: string): string {
   return `/settings/external-mcp?server=${encodeURIComponent(serverId)}`;
-}
-
-/**
- * One device authorization awaiting the operator's approval.
- *
- * `Promise`-returning because the real adapter
- * (`platform/db/repos/oauth-pending-store.ts`'s `createSqlDeviceAuthorizationStore`)
- * persists to `content.db` and seals `deviceCode` through the same ADR-058 sealer/keyring every
- * other secret there goes through, so both implementations share one async call shape. This file's
- * own `createDeviceAuthorizationStore` below is the in-memory ADR-006 "second adapter" — used by
- * tests and by any composition root with no persistent `content.db` — not the production path.
- * "Worthless after a restart" was never the reason durability matters: the agent daemon starts the
- * handshake and the web server completes it in a different process, and a process-local Map cannot
- * join those two legs. Memory stores remain useful only where the whole handshake stays in one process.
- */
-export interface DeviceAuthorizationStore {
-  put(serverId: string, authorization: DeviceAuthorization): Promise<void>;
-  get(serverId: string): Promise<DeviceAuthorization | undefined>;
-  delete(serverId: string): Promise<void>;
 }
 
 /** Bounded by the per-workspace server cap, so no explicit eviction policy is needed beyond
@@ -262,26 +233,6 @@ function assertNotAwaitingReauth(record: ExternalMcpServerRecord | null, connect
   throw new ExternalMcpReauthRequiredError({ serverId: connectionId, label: record.label });
 }
 
-export interface ExternalMcpOAuthDeps {
-  readonly workspaceId: UUID;
-  readonly repo: ExternalMcpServerRepoPort;
-  readonly sealer: SecretSealerPort;
-  readonly keyring: KeyringPort;
-  readonly clock: ClockPort;
-  readonly devices: DeviceAuthorizationStore;
-  /** Required guarded transport and endpoint policy: no raw-fetch fallback can send a credential. */
-  readonly httpPorts: OAuthHttpPorts;
-  /** Host-owned registration; separate services do not mutate a process-wide provider map. */
-  readonly providers?: OAuthProviderRegistry;
-  /** Resolves a REGISTERED provider descriptor. Injected so a test can register its own without
-   *  mutating another service's registry. Defaults to this service's host-owned instance. */
-  readonly lookupProvider?: (providerId: string) => OAuthProviderDescriptor;
-  /** Runs after a sign-in succeeds (redirect callback or device poll), once the token is durable.
-   *  The composition root wires `features/agent-plugins/apply-connect-defaults.ts` here. A throw is
-   *  logged and never fails the sign-in: the connection itself already succeeded. */
-  readonly onConnected?: (serverId: string) => Promise<void>;
-}
-
 /** {@link ExternalMcpOAuthDeps} as the service holds them: `providers` defaulted once at construction,
  *  so nothing downstream builds a second registry. */
 type ExternalMcpOAuthServiceDeps = ExternalMcpOAuthDeps & { readonly providers: OAuthProviderRegistry };
@@ -302,89 +253,6 @@ async function notifyConnected(deps: ExternalMcpOAuthDeps, serverId: string): Pr
   } catch (error) {
     console.warn(`[external-mcp] '${serverId}': post-connect step failed: ${error instanceof Error ? error.message : String(error)}`);
   }
-}
-
-/** What an authorization-code connect hands back to the route. Carries no secret. */
-export interface ExternalMcpAuthorizationStart {
-  readonly kind: "redirect_required";
-  readonly authorizationUrl: string;
-  readonly expiresAt: string;
-}
-
-/** What a device-grant connect hands back. `deviceCode` is deliberately absent — it stays
- *  server-side, and the poll route looks it up by server id. */
-export interface ExternalMcpDeviceStart {
-  readonly kind: "device_code";
-  readonly userCode: string;
-  readonly verificationUri: string;
-  readonly verificationUriComplete: string | null;
-  readonly expiresAt: ISODateTime;
-  readonly intervalSeconds: number;
-}
-
-export type ExternalMcpConnectStart = ExternalMcpAuthorizationStart | ExternalMcpDeviceStart;
-
-export interface ExternalMcpOAuthService {
-  /**
-   * Starts an authorization for one connection.
-   *
-   * @param input.redirectUri - The absolute public callback URL, built by the route from the
-   *   request so a reverse-proxied deployment gets the origin the browser actually used.
-   *
-   *   OPTIONAL, because whether one is needed at all is a property of the GRANT, and only this
-   *   function knows the grant: `device_code` never uses a redirect URI (RFC 8628 — the human types
-   *   a code at the provider; nothing redirects back), while `authorization_code` cannot proceed
-   *   without one. Requiring it here pushed that decision up to every caller, and the caller with no
-   *   live HTTP request to derive an origin from (`external_mcp_oauth_connect`) consequently refused
-   *   EVERY grant whenever `TOVU_PUBLIC_URL` was unset — including the one that needed nothing. So:
-   *   omit it when there is genuinely no origin. Never pass one built from anything the CALLER
-   *   supplied (a form field, a tool-call argument) — only from operator configuration or this
-   *   process's own known bind origin (`features/external-mcp/tool-registrations.ts`'s
-   *   `resolveExternalMcpOAuthRedirectUri` covers both). A redirect URI the provider was
-   *   not registered with still fails at the vendor with an error about the client, so this is not a
-   *   license to guess from arbitrary caller input — it is what makes a value trustworthy enough to
-   *   pass at all.
-   * @throws {ExternalMcpValidationError} When the server is unknown, is not OAuth-authenticated, or
-   *   uses a grant that requires a redirect URI and none was supplied.
-   * @throws {OAuthError} Bounded, terminal, never retried — see this file's header.
-   */
-  beginConnect(input: { serverId: string; redirectUri?: string }): Promise<ExternalMcpConnectStart>;
-  /**
-   * Finishes an authorization-code handshake from the public callback route.
-   *
-   * @param input.params - The callback's query parameters, already narrowed to strings. Untrusted.
-   * @param input.redirectUri - Canonical callback URI from the host's existing trusted origin policy.
-   */
-  completeAuthorizationCallback(input: { serverId: string; redirectUri: string; params: AuthorizationCallbackParams }, optionalArgs?: Record<string, never>): Promise<void>;
-  /**
-   * Polls a device authorization exactly once.
-   *
-   * @returns `"pending"` with the interval to wait, or `"connected"` once the token is stored.
-   * @throws {OAuthError} On any terminal outcome — declined, expired, or a provider failure.
-   */
-  pollDeviceAuthorization(input: { serverId: string }): Promise<
-    { readonly status: "pending"; readonly retryAfterSeconds: number } | { readonly status: "connected" }
-  >;
-  /** Clears the stored token and returns the connection to `disconnected`. */
-  disconnect(input: { serverId: string }): Promise<void>;
-  /**
-   * Reacts to a live federated call failing because the remote rejected our authorization (HTTP
-   * 401/403), discovered mid-session rather than at boot — wired as
-   * `mcp-federation/registrations.ts`'s `FederationDeps.onAuthFailed`.
-   *
-   * For an OAuth-authenticated row this records `needs_reauth` durably, the same state
-   * `tokenResolver.resolveAccessToken` reaches at boot, so the NEXT call is refused cheaply by
-   * `createExternalMcpConnectionGate`'s row read instead of reaching the network again — and
-   * replaces the transport-shaped error with the same terminal, non-retryable
-   * {@link ExternalMcpReauthRequiredError} that path already throws.
-   *
-   * A row that is not OAuth-authenticated (or no longer exists) has no reauth state to record;
-   * `error` propagates unchanged.
-   * @throws Always — either the original `error`, or {@link ExternalMcpReauthRequiredError}.
-   */
-  reportAuthFailure(serverId: string, error: Error): Promise<never>;
-  /** The port `readEnabledExternalMcpConfigs` takes, wired to this service's refresher. */
-  readonly tokenResolver: ExternalMcpOAuthTokenResolverPort;
 }
 
 /** Loads an OAuth-authenticated row, or explains why it cannot be used.

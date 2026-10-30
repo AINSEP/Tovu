@@ -31,7 +31,7 @@ test("agent install names chat_list_pending_attachments as the attachmentRef sou
 
 test("agent attachment and local ZIP paths install via the real upload service, switched off", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "agent-tool-install-"));
-  const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: dir } });
+  const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: dir } });
   const bytes = await buildZipFixture([{ path: "plugin.json", content: JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "chat-test", version: "1.0.0" }) }]);
   const reads: unknown[] = [];
   try {

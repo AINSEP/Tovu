@@ -54,7 +54,7 @@ test("create-time token parser preserves absence, entry validation, raw limits, 
 test("site migration handles a missing workspace directory and propagates a non-directory error", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "tw2-L224-missing-"));
   try {
-    const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "plugins") } });
+    const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "plugins") } });
     assert.deepEqual(await migrateSiteAgentPluginLayouts({ contain: containAgentPluginStatePath, layout, workspaceId: "active" }), { complete: true, moved: 0 });
     await rm(layout.workspacesDir, { recursive: true, force: true });
     await writeFile(layout.workspacesDir, "file");
@@ -65,7 +65,7 @@ test("site migration handles a missing workspace directory and propagates a non-
 test("site migration skips files and invalid workspace folders, deduplicates active id and returns its result", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "tw2-L224-workspaces-"));
   try {
-    const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: root } });
+    const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: root } });
     for (const id of ["active", "other", "bad_id"]) await mkdir(path.join(layout.workspacesDir, id), { recursive: true });
     await writeFile(path.join(layout.workspacesDir, "plain-file"), "skip");
     const legacy = path.join(layout.forWorkspace("other").root, "memory", "example", "notes");

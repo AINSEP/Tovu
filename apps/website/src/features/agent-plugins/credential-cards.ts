@@ -1,6 +1,6 @@
 import type { PluginContributionDefinition, PluginContributionParseResult } from '@jini-ai/agent-plugins/lifecycle';
-import type { PluginCredentialCard, PluginCredentialField } from '../custom-credentials/plugin-credential-card.js';
-import { CUSTOM_CREDENTIAL_CATEGORIES } from '../custom-credentials/types.js';
+import type { PluginCredentialCard, PluginCredentialField } from "../../contracts/core/plugin-credential-card.js";
+import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../contracts/core/custom-credential-categories.js";
 
 /** Data-only Tovu binding over Jini's trusted contribution lifecycle. No modules execute here. */
 type RecordValue = Record<string, unknown>;

@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
@@ -30,8 +31,8 @@ async function boundLifecycle(t: TestContext) {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR; else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
     await forceRemove(dir);
   });
-  const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: dir } });
-  return { dir, layout, lifecycle: createTovuAgentPluginLifecycle({ layout }) };
+  const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: dir } });
+  return { dir, layout, lifecycle: createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() }) };
 }
 
 async function packedNotes(dir: string, lifecycle: ReturnType<typeof createTovuAgentPluginLifecycle>, maturity?: 'untested' | 'soon') {

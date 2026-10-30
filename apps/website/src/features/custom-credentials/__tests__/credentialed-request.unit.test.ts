@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -1323,8 +1324,8 @@ test("a disabled installed bundled plugin retains its trusted ExampleV1 rule and
   const { loadCredentialSchemeRegistry } = await import("../../agent-plugins/auth-schemes.js");
   const root = await mkdtemp(path.join(tmpdir(), "tovu-disabled-example-host-header-"));
   try {
-    const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: root } });
-    const lifecycle = createTovuAgentPluginLifecycle({ layout });
+    const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: root } });
+    const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
     const packed = await lifecycle.packAgentPluginDirectory(EXAMPLE_HOST_PLUGIN_ROOT);
     const installed = await lifecycle.installAgentPlugin({ layout, workspaceId: WORKSPACE, archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader() });
     const workspaceRoot = layout.forWorkspace(WORKSPACE).root;

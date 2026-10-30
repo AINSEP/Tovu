@@ -2,7 +2,7 @@ import type { Dirent } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { resolveProductRoot } from "../../platform/site-dir/index.js";
+import type { AgentPluginPathsPort } from "./service-ports.js";
 
 import { readInstalledMcpServers } from "./capability-projection.js";
 import { titleCaseFromPluginId, type ResolvedAgentPluginForConnect } from "./connect-tool.js";
@@ -99,10 +99,15 @@ async function readBundledPluginId(pluginDir: string): Promise<string | null> {
  * The bundled plugins shipped with this Tovu (`content/agent-plugins/`, `deps.ts`'s
  * `bundledAgentPluginsDir()`), for a create path that runs before the new site has a workspace to
  * install them into — the new site's first boot seeds exactly these. An absent dir is an empty list.
+ * The host supplies `TOVU_BUNDLED_AGENT_PLUGINS_DIR`, else `<product>/content/agent-plugins`;
+ * importing composition here would pull its whole server graph into a feature for one path.
  *
  * @complexity O(p) plugin dirs, one manifest and one `mcp.json` read each.
  */
-export async function listBundledAgentPluginServers(sourceRoot: string): Promise<readonly InstalledAgentPluginServers[]> {
+export async function listBundledAgentPluginServers(
+  { bundledSourceRoot: sourceRoot }: Pick<AgentPluginPathsPort, "bundledSourceRoot">,
+  _optional = {},
+): Promise<readonly InstalledAgentPluginServers[]> {
   let entries: Dirent[];
   try {
     entries = await readdir(sourceRoot, { withFileTypes: true });
@@ -121,22 +126,14 @@ export async function listBundledAgentPluginServers(sourceRoot: string): Promise
 }
 
 /** `checkAgentPluginAccessToken`'s `resolveInstalledPlugin`, answered from the bundled plugins. */
-export function resolveBundledAgentPlugin(sourceRoot: string): (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null> {
+export function resolveBundledAgentPlugin(
+  paths: Pick<AgentPluginPathsPort, "bundledSourceRoot">,
+  _optional = {},
+): (pluginId: string) => Promise<ResolvedAgentPluginForConnect | null> {
   return async (pluginId) => {
-    const found = (await listBundledAgentPluginServers(sourceRoot)).find((plugin) => plugin.pluginId === pluginId);
+    const found = (await listBundledAgentPluginServers(paths)).find((plugin) => plugin.pluginId === pluginId);
     return found ? { servers: found.servers } : null;
   };
-}
-
-/** The bundled plugins' source dir: `TOVU_BUNDLED_AGENT_PLUGINS_DIR`, else `<product>/content/agent-plugins`.
- *  Same resolution as `deps.ts`'s `bundledAgentPluginsDir()` (not imported: that module pulls in the
- *  whole server composition graph for one path). `optional.env`/`optional.productRoot` default to the
- *  process environment and the resolved product root. @complexity O(1). */
-export function bundledAgentPluginsSourceRoot(
-  optional: { env?: Readonly<Record<string, string | undefined>>; productRoot?: () => string } = {},
-): string {
-  const env = optional.env ?? process.env;
-  return env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join((optional.productRoot ?? resolveProductRoot)(), "content", "agent-plugins");
 }
 
 /**
@@ -146,6 +143,9 @@ export function bundledAgentPluginsSourceRoot(
  *
  * @complexity O(p) bundled plugin dirs.
  */
-export function listNewSiteAgentPluginTokenSignInPlugins(sourceRoot: string = bundledAgentPluginsSourceRoot()): Promise<readonly TokenSignInPlugin[]> {
-  return listTokenSignInPlugins("new-site", () => listBundledAgentPluginServers(sourceRoot));
+export function listNewSiteAgentPluginTokenSignInPlugins(
+  paths: Pick<AgentPluginPathsPort, "bundledSourceRoot">,
+  _optional = {},
+): Promise<readonly TokenSignInPlugin[]> {
+  return listTokenSignInPlugins("new-site", () => listBundledAgentPluginServers(paths));
 }

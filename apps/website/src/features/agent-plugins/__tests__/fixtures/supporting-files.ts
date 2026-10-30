@@ -18,7 +18,7 @@ export async function installSupportingFilesFixture(
   options: { readonly files?: Readonly<Record<string, string | Uint8Array>> } = {},
 ) {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-skill-supporting-files-"));
-  const agentPluginLayout = resolveAgentPluginLayout({ siteDir: root, env: {} });
+  const agentPluginLayout = resolveAgentPluginLayout({ siteDir: root }, { env: {} });
   const workspaceId = "supporting-files";
   const files = {
     "plugin.json": JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "ui-ux-design", version: "1.0.0" }),

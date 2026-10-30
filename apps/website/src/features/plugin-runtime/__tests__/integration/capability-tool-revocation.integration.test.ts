@@ -11,6 +11,7 @@ import { registerEnabledPluginCapabilityTools } from "../../capability-tool-regi
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { uninstallPlugin } from "@jini-ai/plugins/host";
+import { requiredPostReader } from "../fixtures/plugin-post-read.js";
 import { InMemoryPostRepo } from "#src/features/post/repo.memory";
 import type { PostRecord } from "#src/features/post/post";
 
@@ -71,7 +72,7 @@ async function bootDaemonToolSurface(repo: PluginActivationRepoPort): Promise<To
   await registerEnabledPluginCapabilityTools(registry, { withExtensionApprovalPolicy,
     authorize: async () => ({ allowed: true }) as never,
     workspaceId: WORKSPACE,
-    postRepo: new InMemoryPostRepo([post()]),
+    postRead: requiredPostReader({ repo: new InMemoryPostRepo([post()]) }),
     discoverPlugins: async () => [RECORD],
     pluginActivationRepo: repo,
   });

@@ -1,3 +1,5 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -55,7 +57,7 @@ async function installBundled(workspaceRoot: string, pluginId: string, enabled =
         yield* entries;
       },
     },
-    layout: resolveAgentPluginLayout(),
+    layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
     workspaceId: WORKSPACE_ID,
   });
   await recordBundledAgentPluginDigests({ workspaceRoot, seeded: [{ pluginId, archiveDigest: installed.archiveDigest }] });
@@ -67,7 +69,7 @@ async function withWorkspace<T>(fn: (workspaceRoot: string) => Promise<T>): Prom
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    return await fn(resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID).root);
+    return await fn(resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID).root);
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
@@ -83,7 +85,7 @@ test("orderByPluginId returns trusted packages sorted by plugin id", async () =>
   await withWorkspace(async (workspaceRoot) => {
     for (const pluginId of ["zeta-seam", "alpha-seam", "mid-seam"]) await installBundled(workspaceRoot, pluginId);
 
-    const verdicts = await createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).findTrustedPluginPackages({ workspaceId: WORKSPACE_ID, filename: SEAM_FILE, contribution: "fixtures", requireActive: true, orderByPluginId: true });
+    const verdicts = await createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).findTrustedPluginPackages({ workspaceId: WORKSPACE_ID, filename: SEAM_FILE, contribution: "fixtures", requireActive: true, orderByPluginId: true });
 
     assert.deepEqual(trustedIds(verdicts), ["alpha-seam", "mid-seam", "zeta-seam"]);
   });
@@ -95,7 +97,7 @@ test("onInactive hears a switched-off plugin, which is neither trusted nor refus
     await installBundled(workspaceRoot, "off-seam", false);
     const heard: TrustedPluginPackage[] = [];
 
-    const verdicts = await createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).findTrustedPluginPackages({
+    const verdicts = await createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).findTrustedPluginPackages({
       workspaceId: WORKSPACE_ID,
       filename: SEAM_FILE,
       contribution: "fixtures",
@@ -116,7 +118,7 @@ test("without requireActive a switched-off plugin is trusted and onInactive is n
     await installBundled(workspaceRoot, "off-seam", false);
     let calls = 0;
 
-    const verdicts = await createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).findTrustedPluginPackages({
+    const verdicts = await createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).findTrustedPluginPackages({
       workspaceId: WORKSPACE_ID,
       filename: SEAM_FILE,
       contribution: "fixtures",
@@ -140,11 +142,11 @@ test("unreadable activation refuses a bundled executable contribution before its
       "adapter.mjs": `globalThis[${JSON.stringify(marker)}] = true; export default { create() { return {}; } };`,
     });
     await writeFile(path.join(workspaceRoot, "activations.json"), "{broken-json");
-    const verdicts = await createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).findTrustedPluginPackages({ workspaceId: WORKSPACE_ID, filename: MAIL_ADAPTERS_FILENAME, contribution: "mail adapters", requireActive: true });
+    const verdicts = await createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).findTrustedPluginPackages({ workspaceId: WORKSPACE_ID, filename: MAIL_ADAPTERS_FILENAME, contribution: "mail adapters", requireActive: true });
     assert.equal(verdicts.length, 1);
     assert.ok("refusal" in verdicts[0]!);
     assert.match(verdicts[0].refusal, /activation could not be read/);
-    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions });
+    const registry = await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
     assert.deepEqual(registry.list(), []);
     assert.equal(registry.refusals.length, 1);
     assert.match(registry.refusals[0]!, /activation could not be read/);

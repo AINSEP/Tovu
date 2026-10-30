@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -45,7 +46,7 @@ function reader(entries: readonly AgentPluginArchiveEntry[]): AgentPluginArchive
 test("install -> parse mcp.json -> read installed files through the containment guarantee, end to end, for a plugin with both a skill and an MCP server", async () => {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-pipeline-test-"));
   try {
-    const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
+    const instanceLayout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
     const workspaceId = "11111111-1111-4111-8111-111111111111";
 
     const manifest = JSON.stringify({

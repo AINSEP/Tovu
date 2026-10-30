@@ -1,3 +1,4 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
@@ -43,7 +44,7 @@ const WORKSPACE_ID = "workspace-local";
 const PLUGIN_ID = "ui-ux-design";
 
 test("resolveAgentPluginRefs injects the REAL installed ui-ux-design SKILL.md verbatim (production install, this machine)", { skip: process.env.TOVU_RUN_REAL_INSTALL_CHECK !== "1" ? "environment acceptance: opt in after installing and activating ui-ux-design" : false }, async () => {
-  const layout = resolveAgentPluginLayout({ cwd: REPO_ROOT, env: {} }).forWorkspace(WORKSPACE_ID);
+  const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: REPO_ROOT }) }, { env: {} }).forWorkspace(WORKSPACE_ID);
 
   let digestDirs: string[];
   try {
@@ -93,7 +94,7 @@ test("resolveAgentPluginRefs injects the REAL installed ui-ux-design SKILL.md ve
 });
 
 test("resolveAgentPluginRefs fails closed with an exact reason for a pluginRefId absent from the real installed packages", { skip: process.env.TOVU_RUN_REAL_INSTALL_CHECK !== "1" ? "environment acceptance: opt in after installing and activating ui-ux-design" : false }, async () => {
-  const layout = resolveAgentPluginLayout({ cwd: REPO_ROOT, env: {} }).forWorkspace(WORKSPACE_ID);
+  const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: REPO_ROOT }) }, { env: {} }).forWorkspace(WORKSPACE_ID);
 
   const result = await resolveAgentPluginRefs(["not-a-real-installed-plugin-id"], layout);
 

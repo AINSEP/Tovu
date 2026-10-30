@@ -32,6 +32,7 @@ import { registerInstalledSkillTools } from "#src/features/skills/tool-registrat
 import { registerAgentPluginExecutableTools } from "#src/features/agent-plugins/executable-tools/register";
 import { agentPluginActivations } from "#src/features/agent-plugins/activation-effects";
 import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy";
+import { PostNotFoundError } from "#src/features/post/index";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 
 /** Registers every installed Agent Plugin, installed Agent Skill, and enabled plugin-runtime
@@ -65,7 +66,11 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
       withExtensionApprovalPolicy,
       authorize: deps.authorize,
       workspaceId: deps.workspaceId,
-      postRepo: deps.postRepo,
+      postRead: { readRequired: async (input, _options = {}) => {
+        const post = await deps.postRepo.findById(input);
+        if (!post) throw new PostNotFoundError(`post '${input.id}' was not found`);
+        return post;
+      } },
       discoverPlugins: deps.discoverPlugins,
       pluginActivationRepo: deps.pluginActivationRepo,
       pluginContributions: deps.pluginContributions,

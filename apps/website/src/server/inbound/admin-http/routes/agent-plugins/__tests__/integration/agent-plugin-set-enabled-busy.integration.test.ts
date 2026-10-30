@@ -1,3 +1,5 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { testSiteLayoutContext, deferredTestAgentPluginLayout } from "#src/__tests__/fixtures/site-layout-context";
@@ -36,7 +38,7 @@ const real = await import("@jini-ai/platform/fs/file-lock");
 const realFsp = await import("node:fs/promises");
 let behavior: typeof realFsp.open = realFsp.open;
 const { createTovuAgentPluginLifecycle, installAgentPlugin } = await import("../../../../../../../features/agent-plugins/lifecycle.js");
-const lifecycle = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, {
+const lifecycle = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, { bundledSourceRoot: bundledAgentPluginsDir(),
   filesystem: { ...realFsp, open: (...args) => behavior(...args) },
 });
 const { resolveAgentPluginLayout } = await import("#src/features/agent-plugins/layout");
@@ -99,7 +101,7 @@ async function installReal(pluginId: string, archiveSeed: string) {
     archive,
     expectedSha256: digest,
     archiveReader: reader(entries),
-    layout: resolveAgentPluginLayout(),
+    layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }),
     workspaceId: WORKSPACE_A,
   });
 }
@@ -145,7 +147,7 @@ function timeoutBehavior(pid: number): typeof behavior {
 test("AGENT_PLUGIN_SET_ENABLED: another process holding the write lock is 409 AGENT_PLUGIN_ACTIVATIONS_BUSY — nothing is written, no host or lock path leaks", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-busy-a");
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     behavior = timeoutBehavior(9101);
 
     const { baseUrl, cookie } = await bootAuthenticated(buildTestApp().app, t);
@@ -170,7 +172,7 @@ test("AGENT_PLUGIN_SET_ENABLED: another process holding the write lock is 409 AG
 test("AGENT_PLUGIN_SET_ENABLED: a lock lost right before commit is also 409 AGENT_PLUGIN_ACTIVATIONS_BUSY, not a 500", async (t) => {
   await withAgentPluginsDir(async () => {
     await installReal("site-compliance", "seed-set-enabled-busy-b");
-    const workspaceRoot = resolveAgentPluginLayout().forWorkspace(WORKSPACE_A).root;
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
     behavior = async (...args) => {
       const handle = await realFsp.open(...args);
       const target = String(args[0]);

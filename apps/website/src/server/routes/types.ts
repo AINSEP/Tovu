@@ -76,13 +76,8 @@ import type { HttpClientPort } from "../../platform/http/index.js";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/index.js";
 import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials/index.js";
 import type { MediaProviderCredentialRepoPort } from "../../features/media/index.js";
-import type {
-  ExternalMcpServerRepoPort,
-  ConversationToolApprovalStore,
-  ExternalMcpToolApprovalRepoPort,
-  DeviceAuthorizationStore,
-  ExternalMcpOAuthService,
-} from "../../assistant/mcp-services.js";
+import type { ExternalMcpServerRepoPort, DeviceAuthorizationStore, ExternalMcpOAuthService } from "../../features/external-mcp/contracts.js";
+import type { ConversationToolApprovalStore, ExternalMcpToolApprovalRepoPort } from "../../assistant/mcp-services.js";
 import type {
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
@@ -387,7 +382,10 @@ export interface CredentialsDeps {
    * table, usable as soon as migrations run.
    */
   externalMcpServerRepo: ExternalMcpServerRepoPort;
-  externalMcpStore: import("../../features/agent-plugins/access-token-tool.js").AgentPluginTokenTargetDeps["externalMcpStore"];
+  bundledSourceRoot: string;
+  mcp: import("../../features/agent-plugins/service-ports.js").AgentPluginMcpPort;
+  preferences: import("../../features/agent-plugins/service-ports.js").AgentPluginPreferencesPort;
+  providerFaces: import("../../features/plugin-runtime/service-ports.js").PluginProviderFacesPort;
   notifyRosterChanged: () => Promise<void>;
   /** Runtime-owned connections declared by the desktop host, independent of labels. */
   builtInExternalMcpServerIds?: readonly string[];

@@ -1,3 +1,4 @@
+import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
@@ -34,7 +35,7 @@ async function boot(t: TestContext, options: BootOptions = {}) {
   const deps: PluginInstallRouteDeps = {
     tracker: createNoopTracker({}),
     workspaceId: WS,
-    ...(options.policy === "none" ? {} : { pluginSourcePolicy: createSitePluginPolicy({ env: { NODE_ENV: 'production', TOVU_PLUGIN_LOCAL_INSTALL: options.env ?? '1' } }) }),
+    ...(options.policy === "none" ? {} : { pluginSourcePolicy: createSitePluginPolicy({ env: { NODE_ENV: 'production', TOVU_PLUGIN_LOCAL_INSTALL: options.env ?? '1' }, hostSignals: resolveHostSignals({ env: { NODE_ENV: 'production', TOVU_PLUGIN_LOCAL_INSTALL: options.env ?? '1' } }) }) }),
     authorize: async (request) => { authorizations.push(request); return options.allowed === false ? { allowed: false, reason: "denied" } : { allowed: true, reason: "ok" }; },
     ...(respond ? { pluginInstaller: installer(respond) } : {}),
   };

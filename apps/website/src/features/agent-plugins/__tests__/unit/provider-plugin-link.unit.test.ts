@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { cp, mkdtemp, rm } from "node:fs/promises";
@@ -92,8 +93,8 @@ test("production ports read the shipped links and switch the real activation rec
   t.after(async () => { await chmod({ root }); await rm(root, { recursive: true, force: true }); });
   const sourceRoot = path.join(root, "bundled");
   for (const name of ["posthog", "sentry", "opentelemetry", "vercel"]) await cp(path.resolve("content/agent-plugins", name), path.join(sourceRoot, name), { recursive: true });
-  const layout = resolveAgentPluginLayout({ siteDir: root, env: {} });
-  await createTovuAgentPluginLifecycle({ layout }).seedBundledAgentPlugins({ layout, workspaceId: "ws", sourceRoot });
+  const layout = resolveAgentPluginLayout({ siteDir: root }, { env: {} });
+  await createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() }).seedBundledAgentPlugins({ layout, workspaceId: "ws", sourceRoot });
   const ports = bindProviderFacePorts({ workspaceRoot: () => layout.forWorkspace("ws").root });
   const links = await ports.links({});
   assert.deepEqual([...links].filter(([face]) => ["posthog", "sentry", "opentelemetry"].includes(face)).sort(),

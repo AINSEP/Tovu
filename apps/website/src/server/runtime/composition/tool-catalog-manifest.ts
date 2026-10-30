@@ -1,3 +1,6 @@
+import { bundledAgentPluginsDir } from "./site-paths.js";
+import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
+import { composeAgentPluginConnectServices } from "./agent-plugin-service-ports.js";
 import { createDatabaseTransferAdapters } from "./database-transfer-adapters.js";
 import { toolSearchKeywords } from "#src/assistant/tool-registrations";
 import { bundledContributionSources } from "#src/features/agent-plugins/bundled-contribution-sources";
@@ -379,7 +382,13 @@ export function installFirstPartyToolContributors(
   // `agent_plugin_connect` (S-G1, 2026-09-27 Supabase-agent-plugin v2 plan) — the generic "connect
   // this plugin's account" tool any OAuth-authenticated Agent Plugin uses. Its access-token
   // fallback now uses credential_save with kind agent-plugin-token below. Static, same seam as `search_agent_plugin_local` above.
-  contributions.contributors.register({ contribution: { ...contributeAgentPluginConnectTools(), build: (deps, surfaces) => contributeAgentPluginConnectTools().build({ ...deps, loadPluginCredentialCards: createPluginCredentialCardsLoader({ agentPluginLayout: deps.agentPluginLayout, loadMailCards: deps.loadPluginCredentialCards ?? (async () => []) }) }, surfaces) } });
+  contributions.contributors.register({ contribution: { ...contributeAgentPluginConnectTools(), build: (deps, surfaces) => {
+    const loadCards = createPluginCredentialCardsLoader({ agentPluginLayout: deps.agentPluginLayout, loadMailCards: deps.loadPluginCredentialCards ?? (async () => []) });
+    return contributeAgentPluginConnectTools().build({ ...deps,
+      ...composeAgentPluginConnectServices({ loadCards, httpClient: deps.customCredentialsHttpClient,
+        externalMcpOAuth: deps.externalMcpOAuth, apiConnections: deps.apiConnections }),
+    }, surfaces);
+  } } });
   // The standalone `agent_plugins_uninstall` tool that used to be contributed here (static, same seam
   // as `search_agent_plugin_local` above) was deleted (S4, 2026-09-24): its Agent Plugin branch is now
   // reached through `plugins_uninstall` (`contributePluginsTools()` below, family: "agent-plugin") —
@@ -434,12 +443,16 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeNewsletterDeliveryTools() });
   contributions.contributors.register({ contribution: contributePagesTools() });
   contributions.contributors.register({ contribution: contributeEmailTemplatesTools() });
-  contributions.contributors.register({ contribution: contributePluginsTools({ createPluginHost: createTovuPluginHost }) });
-  contributions.contributors.register({ contribution: contributePluginsInstallTools({ readInstallAttachment }) });
+  const plugins = contributePluginsTools();
+  contributions.contributors.register({ contribution: { ...plugins, build: (deps, surfaces) => plugins.build({ ...deps,
+    pluginHost: deps.pluginHost ?? createTovuPluginHost({ deps }),
+  }, surfaces) } });
+  contributions.contributors.register({ contribution: { ...contributePluginsInstallTools({ readInstallAttachment }), build: (deps, surfaces) => contributePluginsInstallTools({ readInstallAttachment }).build({ ...deps, hostSignals: resolveHostSignals({ env: process.env }) }, surfaces) } });
   contributions.contributors.register({ contribution: contributePluginSourceTools() });
-  contributions.contributors.register({ contribution: contributeAgentPluginsInstallTools({ readInstallAttachment,
+  const agentPluginsInstall = contributeAgentPluginsInstallTools({ readInstallAttachment,
     pluginInstallSource: { readRequest: readPluginInstallRequest, readArchive: readPluginInstallArchive },
-  }) });
+  });
+  contributions.contributors.register({ contribution: { ...agentPluginsInstall, build: (deps, surfaces) => agentPluginsInstall.build({ ...deps, bundledAgentPluginsSourceRoot: bundledAgentPluginsDir() }, surfaces) } });
   contributions.contributors.register({ contribution: contributeSkillsInstallTools() });
   contributions.contributors.register({ contribution: contributePostTools() });
   contributions.contributors.register({ contribution: contributePostPreviewTools({ renderPostPreview: async (deps, input) => {
@@ -537,13 +550,14 @@ export function installFirstPartyToolContributors(
       const loadPluginCredentialCards = createPluginCredentialCardsLoader({ agentPluginLayout: originalDeps.agentPluginLayout, loadMailCards: originalDeps.loadPluginCredentialCards ?? (async () => []) });
       const adaptersFor = (loadCards: LoadPluginCredentialCards) => {
         const routeDeps = { ...originalDeps, loadPluginCredentialCards: loadCards };
+        const tokenDeps = { ...routeDeps, ...composeAgentPluginConnectServices({ loadCards, httpClient: routeDeps.customCredentialsHttpClient, externalMcpOAuth: routeDeps.externalMcpOAuth, apiConnections: routeDeps.apiConnections }) };
         const api = buildApiCredentialSaveHandlers({ routeDeps, surfaces });
         return {
           apiCreate: api.create, apiRotate: api.rotate,
           mediaProvider: (ctx, optional = {}) => saveMediaCredential({ ctx, deps: routeDeps, surfaces }, optional),
           sourceControl: buildSourceControlCredentialHandler({ deps: routeDeps, surfaces }),
           publishHost: buildPublishHostCredentialHandler({ deps: routeDeps, surfaces }),
-          agentPluginToken: (ctx, optional = {}) => saveAgentPluginToken({ ctx, routeDeps, surfaces }, optional),
+          agentPluginToken: (ctx, optional = {}) => saveAgentPluginToken({ ctx, routeDeps: tokenDeps, surfaces }, optional),
           pluginProvider: api.pluginProvider,
           // A provider plugin's settings, saved through the admin Settings card's rule and store.
           ...(originalDeps.providerConfig ? { providerSettings: buildProviderSettingsCredentialHandler({ surfaces, loadCards: () => loadCards(originalDeps.workspaceId), ports: {

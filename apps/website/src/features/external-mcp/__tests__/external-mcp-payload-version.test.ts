@@ -1,19 +1,15 @@
-import { SITE_KEY_ENV_VAR_NAME } from "#src/features/webhooks/site-key-sources";
+import { SITE_KEY_ENV_VAR_NAME } from "../../webhooks/site-key-sources.js";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import test from "node:test";
 
 process.env[SITE_KEY_ENV_VAR_NAME] ??= randomBytes(32).toString("hex");
 
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { EnvOrFileKeyring } from "../../features/webhooks/keyring.env.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { EnvOrFileKeyring } from "../../webhooks/keyring.env.js";
 import { buildVaultAad, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
 import { externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
-import {
-  EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION,
-  openExternalMcpOAuthPayload,
-  sealExternalMcpOAuthPayload,
-} from "../external-mcp-store.js";
+import { EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION, openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "../external-mcp-store.js";
 
 /**
  * @file Proof that the sealed OAuth *payload* carries its own schema version.

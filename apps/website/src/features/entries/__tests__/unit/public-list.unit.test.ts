@@ -3,13 +3,8 @@ import test from "node:test";
 
 import type { ContentTypeFieldDef, ContentTypeRecord } from "#src/features/content-types/index";
 
-import {
-  SYSTEM_CONTENT_TYPES,
-  entryPublicHref,
-  humanizeFieldName,
-  isCollectionListLayout,
-  parseCollectionListConfig,
-} from "../../public-list.js";
+import { SYSTEM_CONTENT_TYPES } from "../../../../contracts/core/system-content-types.js";
+import { entryPublicHref, humanizeFieldName, isCollectionListLayout, parseCollectionListConfig } from "../../public-list.js";
 
 /**
  * @file Collections plan C1 — unit tier for the collection-list embed config parser, the system

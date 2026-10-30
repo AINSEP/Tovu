@@ -1,6 +1,6 @@
 import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
-import { resolveBundledHostSignals } from "#src/features/agent-plugins/host-signals";
+import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
 import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
 import assert from "node:assert/strict";
@@ -82,7 +82,7 @@ export async function captureDaemonRun(
     probeAssistantChrome: async () => true,
     // No picked folder unless a fixture sets one (the run reads the site's custom fs root).
     getCustomFsRoot: () => undefined,
-    resolveFullCliAccess, resolveAssistantCliPermissions, resolveBundledHostSignals, assistantCliPermissions, createToolGapCollector, redactSecretShapes,
+    resolveFullCliAccess, resolveAssistantCliPermissions, resolveHostSignals, assistantCliPermissions, createToolGapCollector, redactSecretShapes,
     readLoginShellEnvironment: async () => ({ PATH: "/test/login-shell" }),
     deleteScope: { fresh: ({ run }: { run: () => unknown }) => run() },
     DEFAULT_AGENT_ID: "claude",

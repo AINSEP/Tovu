@@ -7,7 +7,7 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginA
 import express from "express";
 import { registerAdminSiteProfileRoute } from "../../inbound/admin-http/routes/site/profile.js";
 import { SITE_PROFILE_SECTION_NAMES } from "#src/features/site-inspection/index";
-import { externalMcpVaultEnvelope } from "#src/assistant/external-mcp-vault";
+import { externalMcpVaultEnvelope } from "../../../features/external-mcp/external-mcp-vault.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { RouteDeps } from "../../routes/types.js";
 

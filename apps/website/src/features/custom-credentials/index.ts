@@ -2,17 +2,8 @@
  * @file Public surface for the `custom-credentials` feature (structural mirror of
  * `features/source-control/index.ts`).
  */
-export {
-  allowedOriginsFor,
-  CUSTOM_CREDENTIAL_CATEGORIES,
-  type CustomCredentialCategoryId,
-  type CustomCredentialProjectScope,
-  type CustomCredentialScope,
-  type CustomCredentialSetRecord,
-  type CustomCredentialSetRepoPort,
-  type CustomCredentialSummary,
-  type CustomProviderConnectionInput,
-} from "./types.js";
+export { allowedOriginsFor, type CustomCredentialProjectScope, type CustomCredentialScope, type CustomCredentialSetRecord, type CustomCredentialSetRepoPort, type CustomCredentialSummary, type CustomProviderConnectionInput } from "./types.js";
+export { CUSTOM_CREDENTIAL_CATEGORIES, type CustomCredentialCategoryId } from "../../contracts/core/custom-credential-categories.js";
 
 export {
   createCustomCredential,

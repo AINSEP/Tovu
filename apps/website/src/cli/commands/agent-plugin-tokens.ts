@@ -1,8 +1,9 @@
+import { bundledAgentPluginsDir } from "../../server/runtime/composition/site-paths.js";
+import { composePluginCredentials } from "../../server/runtime/composition/agent-plugin-service-ports.js";
 import { ValidationError } from "../../platform/site-dir/index.js";
 import { createDefaultHttpClient } from "../../platform/http/index.js";
 import { CUSTOM_CREDENTIALS_EGRESS_POLICY } from "../../platform/http/index.js";
 import {
-  bundledAgentPluginsSourceRoot,
   firstNewSiteAgentPluginTokenRefusal,
   listNewSiteAgentPluginTokenSignInPlugins,
   parseNewSiteAgentPluginTokens,
@@ -24,7 +25,7 @@ import { sealPendingAgentPluginTokensForNewSite } from "../../server/runtime/com
 
 /** The bundled plugins' source dir (`new-site-agent-plugin-tokens.ts`). @complexity O(1). */
 export function bundledAgentPluginsRoot(): string {
-  return bundledAgentPluginsSourceRoot();
+  return bundledAgentPluginsDir();
 }
 
 function writeStdout(message: string): void {
@@ -60,8 +61,8 @@ export type NewSiteAgentPluginTokenCheck = (input: { pluginId: string; token: st
 /** The real check: the bundled plugins (the new site has no workspace yet) and the guarded client. */
 export function defaultNewSiteAgentPluginTokenCheck(sourceRoot: string = bundledAgentPluginsRoot()): NewSiteAgentPluginTokenCheck {
   const httpClient = createDefaultHttpClient(CUSTOM_CREDENTIALS_EGRESS_POLICY);
-  const resolveInstalledPlugin = resolveBundledAgentPlugin(sourceRoot);
-  return (input) => checkAgentPluginAccessToken({ workspaceId: "new-site", httpClient, resolveInstalledPlugin }, input);
+  const resolveInstalledPlugin = resolveBundledAgentPlugin({ bundledSourceRoot: sourceRoot });
+  return (input) => checkAgentPluginAccessToken({ workspaceId: "new-site", credentials: composePluginCredentials({ httpClient }), resolveInstalledPlugin }, input);
 }
 
 /**
@@ -104,6 +105,6 @@ export async function runTokenSignInPluginsCommand(
   sourceRoot: string = bundledAgentPluginsRoot(),
   { output = writeStdout }: { output?: (message: string) => void } = {},
 ): Promise<void> {
-  const plugins = await listNewSiteAgentPluginTokenSignInPlugins(sourceRoot);
+  const plugins = await listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: sourceRoot });
   output(`${JSON.stringify({ plugins })}\n`);
 }

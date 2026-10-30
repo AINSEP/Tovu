@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
@@ -103,8 +104,8 @@ async function fixture(t: TestContext, optional: { siteFiles?: Readonly<Record<s
   write(sourceRoot, "demo/plugin.json", '{"$schema":"https://agent-plugins.org/schemas/1.1.0/plugin.schema.json","name":"demo","version":"1.0.0","description":"Fixture plugin"}');
   write(sourceRoot, "demo/skills/demo/SKILL.md", "Fixture skill");
   write(sourceRoot, "demo/server.mjs", "export const value = 1;");
-  const layout = resolveAgentPluginLayout({ siteDir, env: {} });
-  const lifecycle = createTovuAgentPluginLifecycle({ layout });
+  const layout = resolveAgentPluginLayout({ siteDir: siteDir }, { env: {} });
+  const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
   await lifecycle.seedBundledAgentPlugins({ layout, workspaceId: "ws", sourceRoot });
   await lifecycle.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace("ws").root, pluginId: "demo", enabled: true, actor: "owner" });
   write(siteDir, "agent-plugins/ws/ws/demo/memory/notes/note.md", "Site note");
@@ -162,7 +163,7 @@ test("v2 tree, one public media copy per item, no secrets and full content round
   assert.equal(resetThemeFileToOriginal({ themeDir: path.join(themesRoot, "static/site"), themesRoot, originalDir: path.join(themesRoot, "__original-themes__/static/site"), originalsRoot: path.join(themesRoot, "__original-themes__"), relativePath: "index.html" })?.wasModified, true);
   assert.equal(fs.readFileSync(path.join(themesRoot, "static/site/index.html"), "utf8"), "<main>original theme</main>");
   assert.ok(fs.existsSync(path.join(dir, ".import-quarantine/agent-plugins/demo/package/server.mjs")));
-  const layout = resolveAgentPluginLayout({ siteDir: dir, env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout });
+  const layout = resolveAgentPluginLayout({ siteDir: dir }, { env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
   const workspaceRoot = layout.forWorkspace(readTemplate({ templateId: "starter" }).seed.workspace.id).root;
   assert.equal((await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins.demo!.enabled, true);
 });
@@ -240,7 +241,7 @@ test("edited plugin and theme import with a warning and the whole unit kept off"
   assert.equal(verified.trustedPlugins.length, 0);
   assert.equal(fs.existsSync(path.join(dir, "themes/static/site/index.html")), false);
   assert.ok(fs.existsSync(path.join(dir, ".import-quarantine/themes/static/site/index.html")));
-  const layout = resolveAgentPluginLayout({ siteDir: dir, env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout });
+  const layout = resolveAgentPluginLayout({ siteDir: dir }, { env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
   const workspaceRoot = layout.forWorkspace(readTemplate({ templateId: "starter" }).seed.workspace.id).root;
   assert.equal((await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins.demo!.enabled, false);
   // A later boot's seeder must preserve the importer's explicit disabled decision.
@@ -264,7 +265,7 @@ test("a built-in shipped by a different Tovu version keeps this install's own st
   await restoreStagedImport({ root: stage, dir, dbPath: path.join(dir, "content.db") }, { pluginSourceRoot: bundled });
   const workspaceId = readTemplate({ templateId: "starter" }).seed.workspace.id;
   const activation = async (siteDir: string) => {
-    const layout = resolveAgentPluginLayout({ siteDir, env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout });
+    const layout = resolveAgentPluginLayout({ siteDir: siteDir }, { env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
     if (siteDir === fresh) await lifecycle.seedBundledAgentPlugins({ layout, workspaceId, sourceRoot: bundled });
     const { updatedAt: _when, ...record } = (await lifecycle.readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(workspaceId).root })).plugins.demo!;
     return record;

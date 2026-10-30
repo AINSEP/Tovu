@@ -15,7 +15,6 @@ import {
 import type { HttpClientPort } from "#src/platform/http/index";
 import type { DevRestartPort } from "#src/platform/dev-supervisor/index";
 import {
-  bundledAgentPluginsSourceRoot,
   firstNewSiteAgentPluginTokenRefusal,
   parseNewSiteAgentPluginTokens,
   resolveBundledAgentPlugin,
@@ -131,6 +130,8 @@ export interface CreateSiteForOwnerRequired {
 }
 
 export interface CreateSiteForOwnerPorts {
+  bundledSourceRoot: string;
+  credentials?: Pick<import("../agent-plugins/service-ports.js").PluginCredentialsPort, "probe">;
   tracker?: Tracker;
   createSite: CreateSitePort;
   /** The guarded outbound client a token check probes through. Absent, a given token is refused as
@@ -157,10 +158,10 @@ async function checkTokensBeforeCreate(
 ): Promise<SiteAdminRefusal | null> {
   const check = ports.checkAgentPluginAccessToken ?? checkAgentPluginAccessTokenReal;
   const httpClient = ports.customCredentialsHttpClient;
-  const resolveInstalledPlugin = resolveBundledAgentPlugin(bundledAgentPluginsSourceRoot());
+  const resolveInstalledPlugin = resolveBundledAgentPlugin({ bundledSourceRoot: ports.bundledSourceRoot });
   const refusal = await firstNewSiteAgentPluginTokenRefusal(
     // Checked against the bundled plugin the NEW site's first boot seeds, not this site's install.
-    async (input) => (httpClient ? check({ workspaceId, httpClient, resolveInstalledPlugin }, input) : "unsupported"),
+    async (input) => (httpClient && ports.credentials ? check({ workspaceId, credentials: ports.credentials, resolveInstalledPlugin }, input) : "unsupported"),
     tokens,
   );
   return refusal ? { ok: false, ...refusal, code: refusal.code as SiteAdminRefusalCode } : null;

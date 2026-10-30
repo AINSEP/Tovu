@@ -1,3 +1,4 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext, deferredTestAgentPluginLayout } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
@@ -43,7 +44,7 @@ const wrappedRename = (async (from: Parameters<typeof realFsp.rename>[0], to: Pa
 
 const { createTovuAgentPluginLifecycle } = await import("../../lifecycle.js");
 // The same log-only native wrappers are supplied through the owner's filesystem port.
-const { setAgentPluginActivation, resolveAgentPluginActivation } = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, {
+const { setAgentPluginActivation, resolveAgentPluginActivation } = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, { bundledSourceRoot: bundledAgentPluginsDir(),
   filesystem: { ...realFsp, open: wrappedOpen, rename: wrappedRename },
 });
 

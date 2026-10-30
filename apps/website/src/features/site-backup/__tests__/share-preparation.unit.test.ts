@@ -25,7 +25,7 @@ function harness(t: TestContext, projection: ShareDatabaseProjection = { bytes: 
   fs.mkdirSync(siteDir);
   const ports: Ports = {
     snapshotRoot: root,
-    sources: { siteDir, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), mediaUploadsDir: null, agentPlugins: resolveAgentPluginLayout({ siteDir, env: {} }), tovuVersion: "9.9.9" },
+    sources: { siteDir, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), mediaUploadsDir: null, agentPlugins: resolveAgentPluginLayout({ siteDir: siteDir }, { env: {} }), tovuVersion: "9.9.9" },
     sanitize: async () => projection, rewriteMedia: async ({ bytes }) => bytes, imageTransformer: { transform: async () => assert.fail("not raster") },
     blobStore: blobStore ?? { sizeOf: async () => BLOB.length, get: async () => BLOB },
     dbOps: {

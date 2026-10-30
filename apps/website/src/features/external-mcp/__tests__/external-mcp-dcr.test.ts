@@ -1,20 +1,15 @@
 import { sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
-import { createTovuOAuthGuard } from "#src/platform/oauth/endpoint-safety";
+import { createTovuOAuthGuard } from "../../../platform/oauth/endpoint-safety.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { startDiscoveryFixture, startLoopbackServer, sendJson } from "../../platform/oauth/__tests__/helpers.js";
-import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { startDiscoveryFixture, startLoopbackServer, sendJson } from "../../../platform/oauth/__tests__/helpers.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
-import {
-  ExternalMcpValidationError,
-  listExternalMcpServerViews,
-  openExternalMcpOAuthPayload,
-  resolveExternalMcpOAuthStatus,
-  saveExternalMcpServer,
-} from "../external-mcp-store.js";
+import { ExternalMcpValidationError, listExternalMcpServerViews, openExternalMcpOAuthPayload, saveExternalMcpServer } from "../external-mcp-store.js";
+import { resolveExternalMcpOAuthStatus } from "../../../contracts/core/external-mcp-auth.js";
 
 /**
  * @file The wiring: an external-MCP connection that has no `client_id` — or, since, no `grant` —

@@ -1,3 +1,6 @@
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
+import { mcpTestPort, credentialTestPort } from "../fixtures/connection-service-ports.js";
+import type { AgentPluginOAuthPort } from "../../service-ports.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -11,13 +14,9 @@ import { resolveAgentPluginLayout } from "../../layout.js";
 
 import type { SurfaceEmission, ToolExecutionContext } from "@jini-ai/core";
 
-import {
-  InMemoryExternalMcpServerRepo,
-  ExternalMcpValidationError,
-  saveExternalMcpServer,
-  type ExternalMcpOAuthService,
-  type ExternalMcpServerRecord,
-} from "#src/assistant/index";
+import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
+import { ExternalMcpValidationError, saveExternalMcpServer } from "../../../external-mcp/external-mcp-store.js";
+import { type ExternalMcpServerRecord } from "../../../external-mcp/contracts.js";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
@@ -51,30 +50,14 @@ function makeStoreDeps() {
   return { repo, keyring, sealer, clock: CLOCK };
 }
 
-function fakeOAuth(repo: InMemoryExternalMcpServerRepo, authorizationUrl: string): ExternalMcpOAuthService {
+function fakeOAuth(repo: InMemoryExternalMcpServerRepo, authorizationUrl: string): AgentPluginOAuthPort {
   return {
     async beginConnect({ serverId }) {
       const existing = await repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId });
       if (existing) await repo.upsert({ ...existing, oauthStatus: "pending" });
       return { kind: "redirect_required", authorizationUrl, expiresAt: "2026-09-27T00:10:00.000Z" };
     },
-    async completeAuthorizationCallback() {
-      throw new Error("not used by this test");
-    },
-    async pollDeviceAuthorization() {
-      throw new Error("not used by this test");
-    },
-    async disconnect() {
-      throw new Error("not used by this test");
-    },
-    async reportAuthFailure() {
-      throw new Error("not used by this test");
-    },
-    tokenResolver: {
-      async resolveAccessToken() {
-        throw new Error("not used by this test");
-      },
-    },
+    isValidationError: ({ error }) => error instanceof ExternalMcpValidationError,
   };
 }
 
@@ -107,7 +90,7 @@ test("agent_plugin_connect: a bundled plugin with one OAuth server shows exactly
   t.after(() => { if (previousOrigin === undefined) delete process.env.TOVU_PUBLIC_URL; else process.env.TOVU_PUBLIC_URL = previousOrigin; });
   const originalOAuth = fakeOAuth(store.repo, "https://mcp.example.com/authorize?state=abc123");
   const beginInputs: unknown[] = [];
-  const oauth: ExternalMcpOAuthService = { ...originalOAuth, beginConnect: async input => { beginInputs.push(input); return originalOAuth.beginConnect(input); } };
+  const oauth: AgentPluginOAuthPort = { ...originalOAuth, beginConnect: async input => { beginInputs.push(input); return originalOAuth.beginConnect(input); } };
   const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
   const emissions: SurfaceEmission[] = [];
   const ctx = fakeCtx(emissions);
@@ -116,9 +99,7 @@ test("agent_plugin_connect: a bundled plugin with one OAuth server shows exactly
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "test" }),
     clock: CLOCK,
-    externalMcpServerRepo: store.repo,
-    siteAssistantSecretSealer: store.sealer,
-    siteAssistantSecretKeyring: store.keyring,
+    mcp: mcpTestPort(store), credentials: credentialTestPort({}),
     externalMcpOAuth: oauth,
     pollIntervalMs: 5,
     waitTimeoutMs: 30,
@@ -144,7 +125,7 @@ test("agent_plugin_connect: a fake callback flipping the row to connected resolv
   const originalOAuth = fakeOAuth(store.repo, "https://mcp.example.com/authorize?state=xyz789");
   let began!: () => void;
   const begun = new Promise<void>(resolve => { began = resolve; });
-  const oauth: ExternalMcpOAuthService = { ...originalOAuth, beginConnect: async input => {
+  const oauth: AgentPluginOAuthPort = { ...originalOAuth, beginConnect: async input => {
     const result = await originalOAuth.beginConnect(input);
     began();
     return result;
@@ -157,9 +138,7 @@ test("agent_plugin_connect: a fake callback flipping the row to connected resolv
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "test" }),
     clock: CLOCK,
-    externalMcpServerRepo: store.repo,
-    siteAssistantSecretSealer: store.sealer,
-    siteAssistantSecretKeyring: store.keyring,
+    mcp: mcpTestPort(store), credentials: credentialTestPort({}),
     externalMcpOAuth: oauth,
     pollIntervalMs: 5,
     waitTimeoutMs: 2000,
@@ -186,9 +165,7 @@ test("agent_plugin_connect: a plugin with no OAuth server is refused", async () 
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "test" }),
     clock: CLOCK,
-    externalMcpServerRepo: store.repo,
-    siteAssistantSecretSealer: store.sealer,
-    siteAssistantSecretKeyring: store.keyring,
+    mcp: mcpTestPort(store), credentials: credentialTestPort({}),
     resolveInstalledPlugin: async () => ({ servers: { plain: { type: "streamable-http", url: "https://example.com/mcp" } } }),
   });
 
@@ -200,9 +177,7 @@ function baseDeps(store: ReturnType<typeof makeStoreDeps>, overrides: Partial<Ag
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "test" }),
     clock: CLOCK,
-    externalMcpServerRepo: store.repo,
-    siteAssistantSecretSealer: store.sealer,
-    siteAssistantSecretKeyring: store.keyring,
+    mcp: mcpTestPort(store), credentials: credentialTestPort({}),
     pollIntervalMs: 5,
     waitTimeoutMs: 30,
     ...overrides,
@@ -253,7 +228,7 @@ for (const reason of ["cancelled", "expired", "abandoned", "refused", "invalid",
 
 test("token-only connect reuses a stored credential without prompting or changing grants", async () => {
   const store = makeStoreDeps();
-  await provisionAgentPluginMcpServers(store, { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers: { widget: TOKEN_SERVER }, principalId: PRINCIPAL_ID });
+  await provisionAgentPluginMcpServers(mcpTestPort(store), { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers: { widget: TOKEN_SERVER }, principalId: PRINCIPAL_ID });
   await saveExternalMcpServer(store, {
     workspaceId: WORKSPACE_ID, serverId: "widget", transport: "streamable_http", authMode: "static_env",
     enabled: false, command: "", url: TOKEN_SERVER.url, args: "", allowedToolNames: "list_items", writeAllowedToolNames: "",
@@ -289,7 +264,7 @@ test("oauth_with_token_fallback_still_starts_oauth", async () => {
 for (const mismatch of ["owner", "endpoint"] as const) {
   test(`a saved token with a different ${mismatch} cannot report this plugin connected`, async () => {
     const store = makeStoreDeps();
-    await provisionAgentPluginMcpServers(store, { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers: { widget: TOKEN_SERVER }, principalId: PRINCIPAL_ID });
+    await provisionAgentPluginMcpServers(mcpTestPort(store), { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers: { widget: TOKEN_SERVER }, principalId: PRINCIPAL_ID });
     await saveExternalMcpServer(store, {
       workspaceId: WORKSPACE_ID, serverId: "widget", transport: "streamable_http", authMode: "static_env",
       enabled: false, command: "", url: TOKEN_SERVER.url, args: "", allowedToolNames: "list_items", writeAllowedToolNames: "",
@@ -326,7 +301,7 @@ test("agent_plugin_connect: an OAuth server provisioning skipped (legacy sse) is
   const store = makeStoreDeps();
   let beginCalls = 0;
   const oauth = fakeOAuth(store.repo, "https://mcp.example.com/authorize");
-  const counting: ExternalMcpOAuthService = { ...oauth, beginConnect: async (input) => { beginCalls += 1; return oauth.beginConnect(input); } };
+  const counting: AgentPluginOAuthPort = { ...oauth, beginConnect: async (input) => { beginCalls += 1; return oauth.beginConnect(input); } };
   const emissions: SurfaceEmission[] = [];
   const deps = baseDeps(store, {
     externalMcpOAuth: counting,
@@ -365,7 +340,7 @@ test("agent_plugin_connect: a skipped stdio helper does not block its OAuth serv
 test("agent_plugin_connect: a device-code grant is refused rather than showing a link with no code", async () => {
   const store = makeStoreDeps();
   const emissions: SurfaceEmission[] = [];
-  const deviceOAuth: ExternalMcpOAuthService = {
+  const deviceOAuth: AgentPluginOAuthPort = {
     ...fakeOAuth(store.repo, "unused"),
     async beginConnect() {
       return {
@@ -492,7 +467,7 @@ for (const credential of ["oauth", "static-token"] as const) {
   test(`agent_plugin_connect: an already saved ${credential} starts no sign-in and preserves the row`, async () => {
     const store = makeStoreDeps();
     const server: McpServerConfig = { ...OAUTH_SERVER, tovuTokenAuth: { helpUrl: "https://mcp.example.com/tokens", probeUrl: "https://mcp.example.com/probe" } };
-    await provisionAgentPluginMcpServers(store, { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers: { widget: server }, principalId: PRINCIPAL_ID });
+    await provisionAgentPluginMcpServers(mcpTestPort(store), { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers: { widget: server }, principalId: PRINCIPAL_ID });
     const row = (await store.repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "widget" }))!;
     if (credential === "oauth") {
       await store.repo.upsert({ ...row, oauthStatus: "connected" });
@@ -524,7 +499,7 @@ test("agent_plugin_connect resolves the installed package without an injected re
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout(), workspaceId: WORKSPACE_ID, sourceRoot: path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins") });
+    await seedBundledAgentPlugins({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }), workspaceId: WORKSPACE_ID, sourceRoot: path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins") });
     const store = makeStoreDeps();
     const emissions: SurfaceEmission[] = [];
     const result = await runAgentPluginConnect(baseDeps(store, {
@@ -587,13 +562,13 @@ for (const scenario of ["unknown", "no-oauth-service", "already-connected", "mul
     const store = makeStoreDeps();
     const servers: Readonly<Record<string, McpServerConfig>> = scenario === "multiple" ? { widget: OAUTH_SERVER, second: OAUTH_SERVER } : { widget: OAUTH_SERVER };
     if (scenario === "already-connected") {
-      await provisionAgentPluginMcpServers(store, { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers, principalId: PRINCIPAL_ID });
+      await provisionAgentPluginMcpServers(mcpTestPort(store), { workspaceId: WORKSPACE_ID, pluginId: "widget-store", servers, principalId: PRINCIPAL_ID });
       await flipRowConnected(store.repo, "widget");
     }
     const emissions: SurfaceEmission[] = [];
     const deps: AgentPluginConnectToolDeps = testSiteLayoutContext({
       workspaceId: WORKSPACE_ID, authorize: async () => ({ allowed: true, reason: "test" }), clock: CLOCK,
-      externalMcpServerRepo: store.repo, siteAssistantSecretSealer: store.sealer, siteAssistantSecretKeyring: store.keyring,
+      mcp: mcpTestPort(store), credentials: credentialTestPort({}),
       externalMcpOAuth: scenario === "no-oauth-service" ? undefined : fakeOAuth(store.repo, "https://example.com/sign-in"),
       resolveInstalledPlugin: async () => scenario === "unknown" ? null : { servers },
     });
@@ -617,7 +592,7 @@ test("connect closes its exchange when the initial waiting card fails", async ()
   const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
   const deps: AgentPluginConnectToolDeps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID, authorize: async () => ({ allowed: true, reason: "test" }), clock: CLOCK,
-    externalMcpServerRepo: store.repo, siteAssistantSecretSealer: store.sealer, siteAssistantSecretKeyring: store.keyring,
+    mcp: mcpTestPort(store), credentials: credentialTestPort({}),
     externalMcpOAuth: fakeOAuth(store.repo, "https://example.com/sign-in"),
     resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
   });
@@ -631,7 +606,7 @@ for (const mode of ["provisioning-refused", "ownership-changed"] as const) {
   test(`connect refuses a different plugin's endpoint before OAuth: ${mode}`, async () => {
     const store = makeStoreDeps();
     const otherUrl = "https://other.example/mcp";
-    await provisionAgentPluginMcpServers(store, { workspaceId: WORKSPACE_ID, pluginId: mode === "ownership-changed" ? "widget-store" : "other-plugin", principalId: PRINCIPAL_ID,
+    await provisionAgentPluginMcpServers(mcpTestPort(store), { workspaceId: WORKSPACE_ID, pluginId: mode === "ownership-changed" ? "widget-store" : "other-plugin", principalId: PRINCIPAL_ID,
       servers: { widget: mode === "ownership-changed" ? OAUTH_SERVER : { type: "streamable-http", url: otherUrl, tovuAuthMode: "oauth" } },
     });
     if (mode === "ownership-changed") {
@@ -647,8 +622,8 @@ for (const mode of ["provisioning-refused", "ownership-changed"] as const) {
     const oauth = fakeOAuth(store.repo, "https://other.example/sign-in");
     const deps: AgentPluginConnectToolDeps = testSiteLayoutContext({
       workspaceId: WORKSPACE_ID, authorize: async () => ({ allowed: true, reason: "test" }), clock: CLOCK,
-      externalMcpServerRepo: store.repo, siteAssistantSecretSealer: store.sealer, siteAssistantSecretKeyring: store.keyring,
-      externalMcpOAuth: { ...oauth, beginConnect: async (input: Parameters<ExternalMcpOAuthService["beginConnect"]>[0]) => { starts.push(input.serverId); return oauth.beginConnect(input); } },
+      mcp: mcpTestPort(store), credentials: credentialTestPort({}),
+      externalMcpOAuth: { ...oauth, beginConnect: async (input: Parameters<AgentPluginOAuthPort["beginConnect"]>[0]) => { starts.push(input.serverId); return oauth.beginConnect(input); } },
       waitTimeoutMs: 0, resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
     });
     const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
@@ -768,7 +743,7 @@ test("defaultResolveInstalledAgentPlugin returns null for a plugin this workspac
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
-    assert.equal(await defaultResolveInstalledAgentPlugin({ workspaceId: WORKSPACE_ID, pluginId: "never-installed", agentPluginLayout: resolveAgentPluginLayout() }), null);
+    assert.equal(await defaultResolveInstalledAgentPlugin({ workspaceId: WORKSPACE_ID, pluginId: "never-installed", agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }), null);
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR; else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
     await forceRemove(dir);
@@ -779,12 +754,12 @@ test('agent_plugin_connect carries plugin-owned connection and permission copy i
   const store = makeStoreDeps();
   const deps: AgentPluginConnectToolDeps = testSiteLayoutContext({
     workspaceId: WORKSPACE_ID, authorize: async () => ({ allowed: true, reason: 'test' }), clock: CLOCK,
-    externalMcpServerRepo: store.repo, siteAssistantSecretSealer: store.sealer, siteAssistantSecretKeyring: store.keyring,
+    mcp: mcpTestPort(store),
     externalMcpOAuth: fakeOAuth(store.repo, 'https://mcp.example.com/authorize'), waitTimeoutMs: 0,
     resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
-    loadPluginCredentialCards: async () => [{
+    credentials: credentialTestPort({ loadCards: async () => [{
       pluginId: 'widget-store', providerId: 'widget-store', label: 'Account', category: 'general', baseUrl: 'https://mcp.example.com', title: 'Connect your workspace apps', intro: 'Connect the apps you choose.', permissions: 'Each app asks for permission separately.', saveKind: 'oauth',
-    }],
+    }] }),
   });
   const emissions: SurfaceEmission[] = [];
   await runAgentPluginConnect(deps, freshSurfaces(), fakeCtx(emissions), 'widget-store');
@@ -799,12 +774,35 @@ test('OAuth card copy comes only from the trusted merged loader and the declarin
   const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
   const baseCard = { providerId: 'sign-in', label: 'Account', category: 'ops', baseUrl: 'https://example.com', saveKind: 'oauth' as const };
   const deps: AgentPluginConnectToolDeps = testSiteLayoutContext({ workspaceId: WORKSPACE_ID, authorize: async () => ({ allowed: true, reason: 'test' }), clock: CLOCK,
-    externalMcpServerRepo: store.repo, siteAssistantSecretSealer: store.sealer, siteAssistantSecretKeyring: store.keyring,
+    mcp: mcpTestPort(store),
     externalMcpOAuth: fakeOAuth(store.repo, 'https://mcp.example.com/authorize'), pollIntervalMs: 5, waitTimeoutMs: 10,
     resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER }, credentialCards: [{ ...baseCard, title: 'Untrusted manifest copy' }] }),
-    loadPluginCredentialCards: async () => [{ ...baseCard, title: 'Other plugin copy', pluginId: 'other' }, { ...baseCard, title: 'Trusted owner copy', pluginId: 'widget-store' }],
+    credentials: credentialTestPort({ loadCards: async () => [{ ...baseCard, title: 'Other plugin copy', pluginId: 'other' }, { ...baseCard, title: 'Trusted owner copy', pluginId: 'widget-store' }] }),
   });
   await runAgentPluginConnect(deps, surfaces, fakeCtx(emissions), 'widget-store');
   assert.match(htmlOf(emissions[0]!), /Trusted owner copy/);
   assert.doesNotMatch(htmlOf(emissions[0]!), /Untrusted manifest copy|Other plugin copy/);
+});
+
+
+test("OAuth validation classification is supplied by the port before any card opens", async () => {
+  for (const classified of [true, false]) {
+    const store = makeStoreDeps();
+    const failure = new Error("redirect URI is not allowed");
+    const classifiedErrors: unknown[] = [];
+    const emissions: SurfaceEmission[] = [];
+    const oauth: AgentPluginOAuthPort = {
+      ...fakeOAuth(store.repo, "unused"),
+      beginConnect: async () => { throw failure; },
+      isValidationError: ({ error }) => { classifiedErrors.push(error); return classified; },
+    };
+    await assert.rejects(runAgentPluginConnect(baseDeps(store, {
+      externalMcpOAuth: oauth,
+      resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
+    }), freshSurfaces(), fakeCtx(emissions), "widget-store"), (error: unknown) => classified
+      ? error instanceof ToolInputError && error.message === `${failure.message}. Sign-in could not start; no sign-in card was opened. Use the plugin's secure key card with credential_save if it offers one. Do not ask the person to restart Tovu.`
+      : error === failure);
+    assert.deepEqual(classifiedErrors, [failure]);
+    assert.deepEqual(emissions, []);
+  }
 });

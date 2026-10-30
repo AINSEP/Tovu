@@ -1,19 +1,4 @@
-import { CredentialInputError, assertCredentialFreeField, normalizeCredentialToken, assertCredentialToken, CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT, credentialTokenHint, type CredentialTokenHint } from '../contracts/core/credential-token.js';
-import { createHash } from "node:crypto";
-
-import { nowIso, type Clock as ClockPort, type ISODateTime, type UUID } from "@jini-ai/core/primitives";
-
-import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
-import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
-import type { McpLaunchSpec } from "@jini-ai/mcp/federation";
-import { assertValidConnectionId } from "@jini-ai/mcp/federation";
-import {
-  EXTERNAL_MCP_AUTH_MODES,
-  externalMcpRecordHasStaticAccessToken,
-  resolveExternalMcpAuthMode,
-  type ExternalMcpAuthMode,
-} from "../features/external-mcp/auth-mode.js";
-
+import { resolveExternalMcpOAuthStatus } from "../../contracts/core/external-mcp-auth.js";
 /**
  * @file The operator-editable roster of external MCP servers — what Settings → External MCP writes,
  * and what the agent daemon reads at boot to decide which third-party servers to federate.
@@ -43,7 +28,7 @@ import {
  * `allowedToolNames` is carried here and enforced there, on purpose: a config store that also
  * adjudicated trust would be two mechanisms with one owner.
  *
- * It does not run the OAuth flow either. That is `assistant/external-mcp-oauth.ts` over the generic
+ * It does not run the OAuth flow either. That is `features/external-mcp/external-mcp-oauth.ts` over the generic
  * client in `src/platform/oauth/`; this store owns only the ROW — which auth mode a server uses, its
  * plaintext OAuth metadata, and the sealed blob. Same split as `allowedToolNames`, same reason.
  *
@@ -55,47 +40,24 @@ import {
  * server may also require OAuth — Tovu obtains the token and hands it to the child process in its
  * environment. Both combinations are real, so neither field can be derived from the other.
  */
+import { SUPPORTED_EXTERNAL_MCP_TRANSPORTS, EXTERNAL_MCP_OAUTH_GRANTS } from "./contracts.js";
+import type { ExternalMcpTransport, ExternalMcpOAuthGrant, ExternalMcpServerRecord, ExternalMcpServerTarget, ExternalMcpServerConfig, ExternalMcpServerView, ExternalMcpStoreDeps, ExternalMcpOAuthTokenResolverPort, SaveExternalMcpOAuthInput, SaveExternalMcpServerInput, ExternalMcpSealedOAuthPayload, SealedExternalMcpOAuth } from "./contracts.js";
+import { CredentialInputError, assertCredentialFreeField, normalizeCredentialToken, assertCredentialToken, CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT, credentialTokenHint, type CredentialTokenHint } from "../../contracts/core/credential-token.js";
+import { createHash } from "node:crypto";
 
-/**
- * Both transports are federated. `stdio` is served by `mcp-federation/adapter.stdio.ts` (a local
- * child process); `streamable_http` by `mcp-federation/adapter.http.ts` (a hosted endpoint, with a
- * bearer header when the row is OAuth- or access-token-authenticated — see `resolveHttpTarget`).
- * {@link readEnabledExternalMcpConfigs} resolves a hosted row to a `streamable_http` target,
- * `toFederatedLaunchSpec` maps it to a `{ url, headers }` launch spec, and
- * `mcp-federation/bootstrap.ts`'s `defaultConnect` picks the HTTP adapter from that spec's shape.
- * A hosted row is reported unusable only when it has no URL or its token cannot be resolved.
- */
-export const SUPPORTED_EXTERNAL_MCP_TRANSPORTS = ["stdio", "streamable_http"] as const;
-export type ExternalMcpTransport = (typeof SUPPORTED_EXTERNAL_MCP_TRANSPORTS)[number];
+import { nowIso, type ISODateTime, type UUID } from "@jini-ai/core/primitives";
+
+import type { SealedSecret, SecretSealerPort } from "../webhooks/index.js";
+import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
+import type { McpLaunchSpec } from "@jini-ai/mcp/federation";
+import { assertValidConnectionId } from "@jini-ai/mcp/federation";
+import { EXTERNAL_MCP_AUTH_MODES, externalMcpRecordHasStaticAccessToken, resolveExternalMcpAuthMode, type ExternalMcpAuthMode } from "../../contracts/core/external-mcp-auth.js";
 
 /** `EXTERNAL_MCP_AUTH_MODES`/`ExternalMcpAuthMode` (how a server's credentials are obtained) and
- *  their two readers live in the external-MCP domain module `features/external-mcp/auth-mode.ts`
- *  (owner decision C — see that file's header). Re-exported here so every
- *  `#src/assistant/index` importer keeps working unchanged. */
-export {
-  EXTERNAL_MCP_AUTH_MODES,
-  externalMcpRecordHasStaticAccessToken,
-  resolveExternalMcpAuthMode,
-  type ExternalMcpAuthMode,
-} from "../features/external-mcp/auth-mode.js";
+ *  their two readers live in the shared contract leaf `contracts/core/external-mcp-auth.ts`
+ *  (owner decision C — see that file's header). Imported from the shared contract leaf so every
+ *  consumer reads the same mode vocabulary. */
 
-/**
- * The runtime lifecycle of an OAuth-backed connection.
- *
- * `needs_reauth` is the state that earns its place here. It is deliberately NOT the boot-time "skip
- * this row and report why" path {@link readEnabledExternalMcpConfigs} already uses for a sealed blob
- * that will not decrypt: that is a STORAGE failure, nothing the operator types can fix it, and it is
- * discovered while the daemon starts. `needs_reauth` is an expected RUNTIME lifecycle state — a
- * token expired or was revoked while everything was working — it is exactly operator-actionable, and
- * it must be visible in the admin tab rather than buried in a boot log nobody is reading at the time.
- */
-export const EXTERNAL_MCP_OAUTH_STATUSES = ["disconnected", "pending", "connected", "needs_reauth"] as const;
-export type ExternalMcpOAuthStatus = (typeof EXTERNAL_MCP_OAUTH_STATUSES)[number];
-
-/** Which OAuth grant an operator chose. Mirrors `src/platform/oauth/`'s `OAuthGrantKind`; restated rather
- *  than imported so the stored row shape does not depend on the flow module. */
-export const EXTERNAL_MCP_OAUTH_GRANTS = ["authorization_code", "device_code"] as const;
-export type ExternalMcpOAuthGrant = (typeof EXTERNAL_MCP_OAUTH_GRANTS)[number];
 
 /** Raised when operator-supplied input cannot be stored. Carries `field` so a route can point the
  *  form at the offending input rather than rejecting the whole submission opaquely. */
@@ -126,221 +88,6 @@ export class ExternalMcpSecretStoreUnconfiguredError extends Error {
 export const EXTERNAL_MCP_VAULT_VERSION = 1;
 type ExternalMcpIdentity = { workspaceId: string; serverId: string };
 import { openExternalMcpVaultPayload, sealExternalMcpVaultPayload } from "./external-mcp-vault.js";
-
-export interface ExternalMcpServerRecord {
-  workspaceId: UUID;
-  serverId: string;
-  label: string | null;
-  /** The Agent Plugin id that auto-provisioned this row, or `null` for an operator-created one. See
-   *  `schema.sqlite.ts`'s `provisioned_by_plugin_id` column doc for the full rule. */
-  provisionedByPluginId: string | null;
-  transport: string;
-  /** How credentials are obtained. Independent of `transport` — see this file's header. */
-  authMode: string;
-  enabled: boolean;
-  command: string | null;
-  /** Endpoint for a remote transport. NULL for `stdio`, where `command` is used instead. */
-  url: string | null;
-  /** JSON array of argv strings, as stored. */
-  args: string | null;
-  /** JSON array of admissible remote tool names, as stored. */
-  allowedToolNames: string | null;
-  /**
-   * JSON array of remote tool names separately authorized to write, as stored. `trust.ts` R3's
-   * override — a tool declaring `readOnlyHint: false` is admitted only when it also appears in
-   * {@link allowedToolNames}. See `@jini-ai/mcp/federation`'s `FederatedMcpConnectionConfig
-   * .writeAllowedToolNames` for the full argument.
-   */
-  writeAllowedToolNames: string | null;
-  /** Principal who last CHANGED {@link writeAllowedToolNames}'s contents. `null` until that list is
-   *  ever touched, or for a row written before this column existed. */
-  writeGrantsUpdatedByPrincipalId: string | null;
-  /** When {@link writeAllowedToolNames} was last changed. `null` under the same condition. */
-  writeGrantsUpdatedAt: ISODateTime | null;
-  /** JSON array of env variable names, as stored. Plaintext by design. */
-  envNames: string | null;
-  sealedEnv: SealedSecret | null;
-  /** Which registered provider descriptor this connection authorizes against. */
-  oauthProviderId: string | null;
-  oauthGrant: string | null;
-  /** Plaintext: a client id is not a secret — it travels in the authorization URL by design. */
-  oauthClientId: string | null;
-  /** JSON object of operator-typed endpoints, when this connection defines its own provider instead
-   *  of naming a registered one. Non-secret. */
-  oauthEndpointsJson: string | null;
-  /** JSON array of requested scopes. Non-secret. */
-  oauthScopesJson: string | null;
-  oauthStatus: string | null;
-  /**
-   * PLAINTEXT absolute expiry of the stored access token, beside the sealed blob rather than inside
-   * it. Exactly the split this file already makes for `envNames` beside `sealedEnv`, and here it is
-   * load-bearing rather than merely convenient: expiry has to be checkable by a scheduler and
-   * displayable in the admin tab, and neither can afford a keyring round trip — nor should either be
-   * a code path that decrypts a live token to answer a question about when it dies.
-   */
-  oauthExpiresAt: ISODateTime | null;
-  /**
-   * For `stdio` + `oauth`: which child-process environment variable receives the access token.
-   * Plaintext because it is a NAME, exactly as `envNames` is.
-   */
-  oauthTokenEnvName: string | null;
-  /**
-   * Cross-process refresh lease. Held while one process is redeeming the refresh token, so the other
-   * — the admin web server and the agent daemon are separate processes with separate database
-   * handles — does not redeem the same single-use rotating token. Plaintext for the same reason as
-   * `oauthExpiresAt`: a lease you must decrypt to inspect is a lease you cannot break after a crash.
-   */
-  oauthRefreshLeaseUntil: ISODateTime | null;
-  /** Sealed `{ clientSecret?, tokens? }`. See `external-mcp-oauth.ts` for the read-modify-write rule. */
-  sealedOAuth: SealedSecret | null;
-  /** Compatibility read field; normalized vault envelopes use lineage 1. */
-  aadVersion: number;
-  /** Compatibility read field; actual authenticated context lives on the vault row. */
-  oauthAadVersion: number;
-  createdAt: ISODateTime;
-  updatedAt: ISODateTime;
-}
-
-/** Workspace-scoped persistence (ADR-007 §1). Multi-row per workspace, so list/upsert/delete rather
- *  than a single-row find/upsert. */
-export interface ExternalMcpServerRepoPort {
-  listByWorkspaceId(workspaceId: UUID): Promise<ExternalMcpServerRecord[]>;
-  findByServerId(input: { workspaceId: UUID; serverId: string }): Promise<ExternalMcpServerRecord | null>;
-  upsert(record: ExternalMcpServerRecord): Promise<void>;
-  deleteByServerId(input: { workspaceId: UUID; serverId: string }): Promise<boolean>;
-  /**
-   * Atomically claims the OAuth refresh lease for one row, iff nobody holds an unexpired one.
-   *
-   * A COMPARE-AND-SET, not a read-then-write, and that is the entire point: `upsert` cannot express
-   * it, because between reading "no lease" and writing "my lease" the other process does the same
-   * and both go on to redeem the same single-use rotating refresh token. One statement with the
-   * condition in its `WHERE` is what makes the loser observable.
-   *
-   * @returns `true` when this caller now holds the lease.
-   */
-  tryClaimOAuthRefreshLease(input: {
-    workspaceId: UUID;
-    serverId: string;
-    /** Now, per the caller's clock. A lease at or before this instant is treated as abandoned. */
-    nowIso: ISODateTime;
-    /** When this claim expires, so a crashed holder cannot wedge the connection forever. */
-    leaseUntil: ISODateTime;
-  }): Promise<boolean>;
-  /** Releases the lease unconditionally. Safe when not held — the lease is advisory and
-   *  time-bounded, so a spurious release costs at most one extra refresh attempt. */
-  releaseOAuthRefreshLease(input: { workspaceId: UUID; serverId: string }): Promise<void>;
-}
-
-/** The decrypted, validated domain shape. Only ever exists in memory. */
-/**
- * Where a resolved connection's credentials go, which is the one thing the two transports do
- * genuinely differently.
- *
- * A union rather than a flat shape with an empty `command` on one arm and an empty `url` on the
- * other: a config carrying both is not a degraded row to tolerate, it is a bug, and this makes it
- * unrepresentable. It mirrors `@jini-ai/mcp/federation`'s `McpLaunchSpec` deliberately — this is
- * the same distinction one layer earlier, before policy is attached.
- */
-export type ExternalMcpServerTarget =
-  | {
-      readonly kind: "stdio";
-      readonly command: string;
-      readonly args: string[];
-      /**
-       * The child process's environment. For an `oauth` connection this ALREADY contains the
-       * resolved access token under the operator's chosen variable name — resolution happens before
-       * this shape exists, so nothing downstream needs to know whether a value came from a pasted
-       * block or a token endpoint.
-       */
-      readonly env: Record<string, string>;
-    }
-  | {
-      readonly kind: "streamable_http";
-      readonly url: string;
-      /**
-       * Request headers, carrying the resolved access token as `Authorization: Bearer ...` for an
-       * `oauth` connection. The hosted analogue of `env` above, and resolved at the same point for
-       * the same reason.
-       */
-      readonly headers: Record<string, string>;
-    };
-
-export interface ExternalMcpServerConfig {
-  /** Retained for matching the reviewed plugin declaration when the roster is loaded. */
-  provisionedByPluginId?: string;
-  serverId: string;
-  label: string;
-  transport: ExternalMcpTransport;
-  authMode: ExternalMcpAuthMode;
-  enabled: boolean;
-  allowedToolNames: string[];
-  /** The operator's second, write-authorization list. See {@link ExternalMcpServerRecord
-   *  .writeAllowedToolNames}. Passed through untouched for `trust.ts` to enforce. */
-  writeAllowedToolNames: string[];
-  target: ExternalMcpServerTarget;
-  /** {@link externalMcpAdmissionRevision} of the row this config was resolved from — carried onto
-   *  {@link ResolvedFederatedConnection.config}'s `origin` by {@link toResolvedFederatedConnections}
-   *  for `external-mcp-revocation.ts`'s per-call gate. */
-  admissionRevision: string;
-}
-
-/** The OAuth half of {@link ExternalMcpServerView}. Non-secret by construction: no access token, no
- *  refresh token and no client secret appears here or in anything that builds it. */
-export interface ExternalMcpOAuthView {
-  providerId: string | null;
-  grant: string | null;
-  clientId: string | null;
-  scopes: string[];
-  status: ExternalMcpOAuthStatus;
-  /** Plaintext expiry, straight off the row — nothing is unsealed to produce it. */
-  expiresAt: ISODateTime | null;
-  tokenEnvName: string | null;
-  /** Whether an access TOKEN is stored. Presence, never the value — the same technique
-   *  `routes/admin/system/deployment-overview.ts` uses for environment variables. Decided from
-   *  PLAINTEXT columns only; see {@link externalMcpRecordHasStoredToken} for why it must not unseal
-   *  and for the one state it under-reports. */
-  hasStoredToken: boolean;
-}
-
-/** The read model the admin tab renders — never carries env VALUES or any OAuth secret. */
-export interface ExternalMcpServerView {
-  serverId: string;
-  label: string;
-  /** Which Agent Plugin auto-provisioned this row, or `null` for one an operator created by hand —
-   *  what lets the admin tab (and a future uninstall flow) tell the two apart. */
-  provisionedByPluginId: string | null;
-  transport: string;
-  authMode: string;
-  enabled: boolean;
-  command: string;
-  url: string | null;
-  args: string[];
-  allowedToolNames: string[];
-  /** The operator's second, write-authorization list. See {@link ExternalMcpServerRecord
-   *  .writeAllowedToolNames}. */
-  writeAllowedToolNames: string[];
-  /** Who last changed {@link writeAllowedToolNames}, and when — so the tab can render "authorized by
-   *  X on Y". `null` until that list is ever touched. */
-  writeGrantsUpdatedByPrincipalId: string | null;
-  writeGrantsUpdatedAt: ISODateTime | null;
-  /** Variable names only. The tab masks values it never receives. */
-  envNames: string[];
-  /** Whether a `static_env` access token is stored. Presence only, decided from plaintext columns —
-   *  see {@link externalMcpRecordHasStaticAccessToken}. */
-  hasAccessToken: boolean;
-  accessTokenHint?: CredentialTokenHint | null;
-  envTokenHints?: Readonly<Record<string, CredentialTokenHint>>;
-  /** For `stdio` + `static_env`: the child env variable that receives that token. A NAME, so plaintext. */
-  accessTokenEnvName: string | null;
-  oauth: ExternalMcpOAuthView;
-}
-
-export interface ExternalMcpStoreDeps {
-  repo: ExternalMcpServerRepoPort;
-  sealer: SecretSealerPort;
-  keyring: KeyringPort;
-  clock: ClockPort;
-}
 
 const MAX_SERVERS_PER_WORKSPACE = 32;
 const MAX_ENV_VARS = 64;
@@ -678,15 +425,6 @@ function toolNameSetsEqual(a: readonly string[], b: readonly string[]): boolean 
   return a.every((name) => setB.has(name));
 }
 
-/** A row's OAuth status, defaulting an absent or unrecognized value to `disconnected` — the safe
- *  direction, since it is the state in which no token is used and the operator is prompted. */
-export function resolveExternalMcpOAuthStatus(record: Pick<ExternalMcpServerRecord, "oauthStatus">): ExternalMcpOAuthStatus {
-  const status = record.oauthStatus;
-  return status !== null && EXTERNAL_MCP_OAUTH_STATUSES.includes(status as ExternalMcpOAuthStatus)
-    ? (status as ExternalMcpOAuthStatus)
-    : "disconnected";
-}
-
 /**
  * Whether this row holds an access TOKEN — answered from PLAINTEXT columns alone, never by unsealing.
  *
@@ -827,23 +565,6 @@ async function openExternalMcpEnv(
     // These reasons reach admissions and chat tools. Parser/sealer errors can contain secret plaintext.
     return { ok: false, reason: "stored credentials could not be decrypted — check the site credential store and re-enter them in Settings → External MCP" };
   }
-}
-
-/**
- * Resolves an `oauth` row's contribution to the child environment.
- *
- * Kept behind a port rather than inlined, so this store never imports a token endpoint, a refresher,
- * or `src/platform/oauth/` at all: the boot path asks for a token, and whoever wired the daemon decides where
- * it comes from. That is also what keeps this module testable without a network.
- */
-export interface ExternalMcpOAuthTokenResolverPort {
-  /**
-   * Returns the access token to inject, refreshing first when it is due.
-   *
-   * @throws When the connection needs re-authorization or the provider could not be reached. The
-   * caller turns that into a per-server failure entry rather than letting it abort the whole read.
-   */
-  resolveAccessToken(input: { serverId: string }): Promise<string>;
 }
 
 /**
@@ -1118,85 +839,6 @@ function toFederatedLaunchSpec(target: ExternalMcpServerTarget): McpLaunchSpec {
     // a server needs is an explicit, written-down grant in its own env block.
     env: target.env,
   };
-}
-
-/**
- * The OAuth half of a save. Every field follows the same three-state rule `env` established:
- * ABSENT keeps what is stored, a STRING replaces it, an EMPTY string clears it.
- *
- * Structural validation only happens here — charsets, lengths, required-when-oauth. Whether
- * `providerId` names a registered descriptor, and whether the endpoints form a usable provider, is
- * `external-mcp-oauth.ts`'s call: resolving a descriptor is the flow module's job, and importing its
- * registry here would put the store back in the business of the thing its header says it is not.
- */
-export interface SaveExternalMcpOAuthInput {
-  /** A registered provider id, or empty to define this connection's own endpoints below — or, on a
-   *  REMOTE connection, to leave both to discovery at connect time. */
-  providerId?: string;
-  grant?: string;
-  /** Empty on a remote connection means "mint one by dynamic client registration at connect". */
-  clientId?: string;
-  /** SECRET. Sealed, never returned by any read model. */
-  clientSecret?: string;
-  /** Raw operator input, comma- or space-separated. */
-  scopes?: string;
-  /** For `stdio`: which child env variable receives the access token. */
-  tokenEnvName?: string;
-  authorizationEndpoint?: string;
-  tokenEndpoint?: string;
-  deviceAuthorizationEndpoint?: string;
-}
-
-export interface SaveExternalMcpServerInput {
-  workspaceId: UUID;
-  serverId: string;
-  label?: string;
-  transport: string;
-  /** One of {@link EXTERNAL_MCP_AUTH_MODES}. Absent keeps an existing row's mode, or defaults a new
-   *  row to `static_env` — the mode every row written before this field existed effectively had. */
-  authMode?: string;
-  enabled: boolean;
-  command: string;
-  /** Endpoint for a remote transport. Required for `streamable_http`, ignored for `stdio`. */
-  url?: string;
-  /** Raw operator input, space-separated. */
-  args: string;
-  /** Raw operator input, comma-separated remote tool names. */
-  allowedToolNames: string;
-  /** Raw operator input, comma-separated remote tool names the operator separately authorizes to
-   *  write. Same shape and same "resent in full on every save" convention as {@link
-   *  allowedToolNames} — this is NOT tri-state like {@link env}, because the admin tab shows this
-   *  list in the clear and can always resend it. Rejected at save (C-006) if it names a tool absent
-   *  from {@link allowedToolNames}. Defaulted defensively to `""` if a caller omits it, so a route or
-   *  test written before this field existed degrades to "no write grants" rather than throwing. */
-  writeAllowedToolNames: string;
-  /** Raw operator input, `KEY=VALUE` per line. `undefined` leaves an existing block untouched. */
-  env?: string;
-  /** SECRET, `static_env` only. Sealed, never returned by any read model. Three-state like {@link env}:
-   *  `undefined` keeps the stored token, a string replaces it, `""` clears it. Delivered as
-   *  {@link accessTokenEnvName} to a stdio child, or as `Authorization: Bearer` to a hosted server. */
-  accessToken?: string;
-  /** For `stdio` + `static_env`: which child env variable receives {@link accessToken}. `undefined`
-   *  keeps the stored name. */
-  accessTokenEnvName?: string;
-  oauth?: SaveExternalMcpOAuthInput;
-  /**
-   * Set ONLY by `features/agent-plugins/federate-mcp.ts`, on the ONE save that creates a brand-new
-   * plugin-provisioned row. Every other caller (the admin PUT route, the assistant's own
-   * `external_mcp_save` tool) omits this field entirely, and an omitted field PRESERVES whatever the
-   * row already has — the same three-state rule `env` establishes, minus the "empty string clears
-   * it" arm: nothing should ever intentionally clear this column once set, so no clear signal is
-   * defined for it. See `schema.sqlite.ts`'s `provisioned_by_plugin_id` doc for the full rule.
-   */
-  provisionedByPluginId?: string;
-  /**
-   * The principal performing this save, threaded from `getAuthedPrincipal(res)` at the route. Used
-   * ONLY to attribute a change to {@link writeAllowedToolNames} — see {@link
-   * resolveWriteGrantAttribution}. Required so every new caller has to supply one; a caller that
-   * never touches the write list never reads it, so an un-migrated caller cannot crash on its
-   * absence (see that function's doc).
-   */
-  principalId: string;
 }
 
 /**
@@ -1756,23 +1398,6 @@ export function hydrateExternalMcpOAuthPayload(parsed: Record<string, unknown>):
   return rest as ExternalMcpSealedOAuthPayload;
 }
 
-export interface ExternalMcpSealedOAuthPayload {
-  /**
-   * A `static_env` row's operator-pasted access token — the only member such a row's blob ever holds
-   * (see {@link externalMcpRecordHasStaticAccessToken}). Additive to payload v1: the OAuth flow never
-   * reads a `static_env` row (`requireOAuthRecord` refuses it), so no older reader can mishandle it.
-   */
-  readonly staticAccessToken?: string;
-  readonly clientSecret?: string;
-  readonly tokens?: {
-    readonly accessToken: string;
-    readonly refreshToken: string | null;
-    readonly tokenType: string;
-    readonly scopes: readonly string[];
-    readonly expiresAt: ISODateTime | null;
-  };
-}
-
 /**
  * Opens a row's sealed OAuth blob.
  *
@@ -1799,27 +1424,6 @@ export async function openExternalMcpOAuthPayload(
   // Deliberately OUTSIDE the catch above: a version mismatch is not a decryption failure, and must
   // not be swallowed by a caller that treats that error as "not connected yet".
   return hydrateExternalMcpOAuthPayload(parsed);
-}
-
-/**
- * Seals an OAuth payload, or resolves `null` when there is nothing worth sealing.
- *
- * An empty payload seals to `null` rather than to a blob containing `{}`, so `sealedOAuth !== null`
- * is a truthful answer to "does this connection hold anything secret". It is NOT an answer to "does
- * it hold a token" — a cleared connection keeps its client secret in that blob — which is why
- * {@link externalMcpRecordHasStoredToken} reads the plaintext columns instead.
- *
- * @throws {ExternalMcpSecretStoreUnconfiguredError} When no site key is available.
- * @complexity O(1) — one seal.
- */
-/**
- * A sealed OAuth blob with its compatibility lineage. Vault identity travels with the opaque
- * envelope so carried credentials keep the exact ID/context they were authenticated under.
- * The server repository commits that vault row, its pointer, status and expiry together.
- */
-export interface SealedExternalMcpOAuth {
-  readonly sealedOAuth: SealedSecret | null;
-  readonly oauthAadVersion: number;
 }
 
 export async function sealExternalMcpOAuthPayload(
@@ -2118,3 +1722,4 @@ export async function deleteExternalMcpServer(
 ): Promise<boolean> {
   return deps.repo.deleteByServerId(input);
 }
+

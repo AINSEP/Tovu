@@ -1,3 +1,5 @@
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
+import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext, deferredTestAgentPluginLayout } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
@@ -31,7 +33,7 @@ const realFsp = await import("node:fs/promises");
 let behavior: typeof realFsp.open = realFsp.open;
 const { createTovuAgentPluginLifecycle } = await import("../../lifecycle.js");
 // Inject native effects once; every writer and seed preflight uses the same lifecycle owner.
-const lifecycle = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, {
+const lifecycle = createTovuAgentPluginLifecycle({ layout: deferredTestAgentPluginLayout }, { bundledSourceRoot: bundledAgentPluginsDir(),
   filesystem: { ...realFsp, open: (...args) => behavior(...args) },
 });
 const { assertAgentPluginActivationsWritable, deleteAgentPluginActivation, recordBundledAgentPluginIfAbsent, setAgentPluginActivation, seedBundledAgentPlugins, listInstalledPlugins } = lifecycle;
@@ -198,7 +200,7 @@ test("B6: a busy pre-flight fails every bundled plugin with a reason naming the 
   const bundledRoot = await mkdtemp(path.join(os.tmpdir(), "tovu-seed-lock-busy-bundled-"));
   try {
     await writeBundledSourceFixture(bundledRoot);
-    const layout = resolveAgentPluginLayout({ cwd, env: {} });
+    const layout = resolveAgentPluginLayout({ siteDir: resolveSiteRoot({ env: {}, cwd: cwd }) }, { env: {} });
     behavior = timeoutBehavior(4206);
 
     const result = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: bundledRoot });

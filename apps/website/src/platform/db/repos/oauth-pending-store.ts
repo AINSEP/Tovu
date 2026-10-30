@@ -6,7 +6,7 @@ import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "#src/features/webhooks/index";
 import type { DeviceAuthorization } from "@jini-ai/oauth";
-import type { DeviceAuthorizationStore } from "#src/assistant/mcp-services";
+import type { DeviceAuthorizationStore } from "../../../features/external-mcp/contracts.js";
 import type { ContentKernel } from "../content-kernel.js";
 import type { OauthDeviceAuthorizationsTable } from "../content-database.generated.js";
 
