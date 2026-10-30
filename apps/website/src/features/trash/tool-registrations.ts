@@ -98,10 +98,12 @@ async function loadUsernamesByPrincipalId(deps: TrashToolDeps): Promise<Readonly
   return new Map(users.map((user) => [user.principalId, user.username]));
 }
 
-/** Model-facing row. Drops `workspaceId` (every call is already scoped to one) and the trash row's
- *  own id, which addresses nothing a tool can call — `trash_restore_item` takes the entity's id. */
+/** Model-facing row. Drops `workspaceId` because every call is already scoped to one.
+ *  Exposes the row's id as `trashItemId` for `trash_purge_item`; `trash_restore_item` still takes
+ *  the entity's id as `entityId`. */
 function toTrashToolView(item: TrashItem, now: string, usernameByPrincipalId: ReadonlyMap<string, string>) {
   return {
+    trashItemId: item.id,
     entityType: item.entityType,
     entityId: item.entityId,
     title: item.displayTitle,

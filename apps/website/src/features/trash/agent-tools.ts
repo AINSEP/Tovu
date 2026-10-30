@@ -109,9 +109,9 @@ export function buildTrashAgentToolCatalog(kinds: readonly TrashEntityType[]): r
       description:
         "Lists what is currently in the Trash — anything in the Trash: posts, pages, comments, media, redirects, " +
         "forms and submissions, widgets, menus, taxonomies and terms, plugins, themes, members; see the entityType enum for the " +
-        "exact list — newest first. Each row reports entityType, entityId, the title as it was when it was " +
+        "exact list — newest first. Each row reports trashItemId (pass it to trash_purge_item), entityType, entityId, the title as it was when it was " +
         "deleted, who deleted it, when, and the date it will be permanently removed automatically. Rows past " +
-        "that date are already excluded. Restore anything listed here with trash_restore_item. Reading this " +
+        "that date are already excluded. Restore anything listed here with trash_restore_item using entityType and entityId. Reading this " +
         "never touches the deleted thing itself, so it works even on items whose content is corrupt. Rows the " +
         "caller has no permission to restore are omitted. " +
         "Use trash_purge_item or trash_empty for permanent deletion if available to you; otherwise link /admin/trash. Secrets, credentials and MCP connections have no Trash screen. " +

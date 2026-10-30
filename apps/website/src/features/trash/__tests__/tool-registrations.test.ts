@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { requireString, ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import type { UserRepoPort, UserRecord } from "@jini-ai/user-management";
 
 import * as schema from "#src/platform/db/schema.sqlite";
 
 import { TRASH_PERMISSION_BY_ENTITY_TYPE } from "../permissions.js";
 import { buildTrashRegistry } from "../registry.js";
-import { buildTrashRegistrations } from "../tool-registrations.js";
+import { buildTrashRegistrations, type TrashToolDeps } from "../tool-registrations.js";
+import { PERMANENT_DELETE_SPECS } from "../../permanent-delete/agent-tools.js";
+import { buildPermanentDeleteDeps } from "#src/server/runtime/composition/permanent-delete-deps";
 import type { PurgeReport, RestoreOutcome, TrashActor, TrashItem, TrashPort } from "@jini-ai/cms/trash";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
@@ -47,6 +49,7 @@ function item(overrides: Partial<TrashItem> & Pick<TrashItem, "id" | "entityType
 }
 
 interface Harness {
+  deps: TrashToolDeps;
   byId: Map<string, ToolRegistration>;
   restoreCalls: { entityType: string; entityId: string }[];
   /** The `actor` each `trash.restore` call received, positionally aligned with `restoreCalls` —
@@ -126,7 +129,7 @@ function harness(
     },
   };
 
-  const registrations = buildTrashRegistrations({
+  const deps: TrashToolDeps = {
     workspaceId: WS,
     clock: createFakeClock({ startIso: NOW }),
     trash,
@@ -146,9 +149,11 @@ function harness(
     // "form" -> "admin.forms.manage" is now registry-derived (`TRASHABLE`), not in the bespoke
     // `TRASH_PERMISSION_BY_ENTITY_TYPE` map — see `REGISTRY`'s own doc above.
     registry: REGISTRY,
-  });
+  };
+  const registrations = buildTrashRegistrations(deps);
 
   return {
+    deps,
     byId: new Map(registrations.map((r) => [r.descriptor.id, r])),
     restoreCalls,
     restoreActors,
@@ -177,6 +182,7 @@ test("a listed row carries the snapshot, the resolved actor username and the day
 
   assert.deepEqual(result.items, [
     {
+      trashItemId: "r1",
       entityType: "post",
       entityId: "post-1",
       title: "title of post-1",
@@ -188,6 +194,33 @@ test("a listed row carries the snapshot, the resolved actor username and the day
     },
   ]);
   assert.equal(result.nextCursor, "cursor-2");
+});
+
+test("a listed trashItemId resolves the purge target while entityId still restores it", async () => {
+  const saved = item({ id: "trash-row-1", entityType: "post", entityId: "content-1" });
+  const h = harness({ items: [saved] });
+  h.deps.trash.list = async () => ({ items: [saved], nextCursor: null });
+  const page = await list(h) as { items: { trashItemId: string; entityType: string; entityId: string }[] };
+  const listed = page.items[0]!;
+  const spec = PERMANENT_DELETE_SPECS.find(entry => entry.name === "trash_purge_item")!;
+  assert.equal(spec.key, "trashItemId");
+
+  // Exercise purge's real input contract and target lookup without requesting or bypassing consent.
+  // Post preparation reads only these Trash deps; other resource ports are not used by this path.
+  const purge = buildPermanentDeleteDeps(h.deps as Parameters<typeof buildPermanentDeleteDeps>[0]);
+  const input = { trashItemId: listed.trashItemId };
+  const id = requireString({ input, key: spec.key });
+  const plan = await purge.prepare(spec.name, id, "principal-1");
+  assert.deepEqual(plan.details, [
+    { label: "Count", value: "1" },
+    { label: "post", value: "title of content-1 (trash-row-1)" },
+  ]);
+
+  await assert.rejects(purge.prepare(spec.name, listed.entityId, "principal-1"), {
+    message: "trash_purge_item: item was not found. List the resource and check its id.",
+  });
+  await restore(h, { entityType: listed.entityType, entityId: listed.entityId });
+  assert.deepEqual(h.restoreCalls, [{ entityType: "post", entityId: "content-1" }]);
 });
 
 test("list forwards the workspace, clock, cursor, limit and requested kind filter", async () => {
