@@ -56,6 +56,8 @@ export interface SiteSharePlanContent extends SiteBackupCommonContent {
   readonly media?: readonly import("./archive-manifest.js").ArchiveMedia[];
   readonly plugins?: readonly import("./archive-manifest.js").ArchivePlugin[];
   readonly bufferedFiles?: readonly { readonly path: string; readonly content: Buffer }[];
+  readonly staticSite?: import("./static-copy.js").StaticSiteMetadata;
+  readonly staticSiteOmitted?: string;
 }
 
 export type SiteBackupPlan<T extends SiteBackupCommonContent = SiteBackupPlanContent> = T & {

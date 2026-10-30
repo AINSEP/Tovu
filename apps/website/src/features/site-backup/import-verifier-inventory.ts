@@ -4,6 +4,7 @@ import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal } from "./share-policy
 import { validateSharePath, excludedSharePath, requireShareSecretFree, claimSharePath, sharePathAlias, type PackageFileInventory } from "./share-file-policy.js";
 import { ARCHIVE_MANIFEST_PATH as SITE_BACKUP_MANIFEST_PATH, ARCHIVE_DATABASE_PATH as SITE_BACKUP_DATABASE_PATH, parseArchiveManifest, requireArchiveFileRecord, type ArchiveManifest } from "./archive-manifest.js";
 import { archiveCodeUnit, archiveSecretScanPath } from "./archive-paths.js";
+import { isStaticSitePath } from "./static-copy.js";
 
 /**
  * @file The archive half of `verifySiteImport`: the metadata-only first pass, the manifest contract,
@@ -153,6 +154,7 @@ export function parseShareManifest(required: { manifestBytes: Buffer; schema: { 
 export function buildManifestInventory(required: { files: readonly unknown[] }): Map<string, InventoryRecord> {
   const inventory = new Map<string, InventoryRecord>();
   for (const record of required.files) {
+    if (typeof (record as { path?: unknown })?.path === "string" && isStaticSitePath({ path: (record as { path: string }).path })) continue;
     const file = requireArchiveFileRecord({ file: record });
     validateSharePath({ path: file.path });
     if (inventory.has(file.path) || file.path === SITE_BACKUP_MANIFEST_PATH) refuseArchive("Duplicate manifest file.");
@@ -190,6 +192,7 @@ export async function readListedFiles(required: { archive: Buffer; reader: Agent
   for await (const entry of required.reader.entries({ archive: required.archive })) {
     if (entry.kind !== "file" || ignoredArchivePath({ path: entry.entryPath })) continue;
     const entryPath = stripArchiveWrapper({ path: entry.entryPath, wrapper: required.wrapper ?? "" });
+    if (isStaticSitePath({ path: entryPath })) continue;
     if (entryPath !== SITE_BACKUP_MANIFEST_PATH) {
       const content = await readListedFile({ entry: { ...entry, entryPath }, inventory: required.inventory, remainingBytes: SHARE_LIMITS.maxExpandedBytes - expanded, manifest: required.manifest, modified: required.modified }, optional);
       expanded += content.length;
@@ -237,6 +240,7 @@ function claimNormalizedEntries(required: { entries: readonly AgentPluginArchive
   for (const entry of entries) {
     if (entry.kind === "directory" && entry.entryPath.replace(/\/$/, "") === wrapper.slice(0, -1)) continue;
     const entryPath = stripArchiveWrapper({ path: entry.entryPath, wrapper });
+    if (isStaticSitePath({ path: entryPath.replace(/\/$/, "") })) continue;
     claimEntry({ claims, entry: { ...entry, entryPath } });
   }
 }

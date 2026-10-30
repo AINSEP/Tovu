@@ -40,6 +40,13 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
       res.json(await deps.siteShareBackend!.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, ...(jobId ? { jobId } : {}) }));
     } catch (error) { fail(res, error); }
   });
+  app.post(`${root}/static`, async (req, res) => {
+    try {
+      if (!await gate(req, res)) return;
+      const jobId = readShareJobId({ body: req.body });
+      res.json(await deps.siteShareBackend!.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, format: "static", ...(jobId ? { jobId } : {}) }));
+    } catch (error) { fail(res, error); }
+  });
   app.get(`${root}/:shareId/download`, async (req, res) => {
     try {
       if (!await gate(req, res)) return;

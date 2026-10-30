@@ -84,6 +84,7 @@ export const BATCH_OPT_OUT: readonly BatchOptOut[] = [
   { toolId: "site_import_backup", reason: "imports a whole site" },
   { toolId: "site_backup_push", reason: "pushes a whole-site backup plan" },
   { toolId: "site_share_create", reason: "one share already covers the whole site" },
+  { toolId: "site_export_static", reason: "one static export already renders the whole site" },
   { toolId: "credential_copy_from_project", reason: "copies every matching credential in one call" },
   { toolId: "forms_pull_submissions", reason: "pulls every form's submissions in one call" },
   { toolId: "publish_content_connect", reason: SINGLETON },

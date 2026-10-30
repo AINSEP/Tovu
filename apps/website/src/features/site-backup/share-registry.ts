@@ -25,7 +25,7 @@ export const SHARE_TOKEN_ALPHABET = ASCII_LETTERS;
 export const SHARE_TOKEN_LENGTH = 16;
 export const SHARE_TOKEN_PATTERN = `[A-Za-z]{${SHARE_TOKEN_LENGTH}}`;
 export const SHARE_TOKEN = new RegExp(`^${SHARE_TOKEN_PATTERN}$`);
-export const SHARE_FILE = /^[a-z0-9][a-z0-9-]{0,79}\.tovu\.zip$/;
+export const SHARE_FILE = /^[a-z0-9][a-z0-9-]{0,79}(?:\.tovu|-static-\d{4}-\d{2}-\d{2}-\d{4})\.zip$/;
 
 /**
  * Private per-site share catalog, outside every backup walk and public static root. One atomic

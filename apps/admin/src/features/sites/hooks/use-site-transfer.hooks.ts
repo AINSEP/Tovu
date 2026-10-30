@@ -30,10 +30,10 @@ function isFinishedShare(result: SiteShareCreateResult): result is SiteShare & {
 /** Starts an export and re-posts its job id until a finished share returns, the caller stops
  *  wanting it (`alive()` false, the tab unmounted) or the poll cap is spent.
  *  @returns The last answer: a finished share, or a still-running job. */
-async function createShareUntilDone({ port, alive }: { port: SiteTransferPort; alive: () => boolean }): Promise<SiteShareCreateResult> {
-  let result = await port.createShare({});
+async function createShareUntilDone({ create, alive }: { create: SiteTransferPort["createShare"]; alive: () => boolean }, _options = {}): Promise<SiteShareCreateResult> {
+  let result = await create({});
   for (let polls = 0; !isFinishedShare(result) && alive() && polls < MAX_EXPORT_POLLS; polls += 1) {
-    result = await port.createShare({ jobId: result.jobId });
+    result = await create({ jobId: result.jobId });
   }
   return result;
 }
@@ -42,14 +42,16 @@ export interface SiteExportController {
   shares: SiteShare[] | undefined;
   listError: string | null;
   exporting: boolean;
+  exportingStatic: boolean;
   exportError: string | null;
   exportSite: () => Promise<void>;
+  exportStaticSite: () => Promise<void>;
   revokingId: string | null;
   revoke: (share: SiteShare) => Promise<void>;
   copiedId: string | null;
   copyLink: (share: SiteShare) => Promise<void>;
   downloadHref: (share: SiteShare) => string;
-  /** True when the newest export has no recipient link: no link host is set up. */
+  /** True when the newest backup has no recipient link; static-only exports always stay private. */
   zipOnly: boolean;
 }
 
@@ -65,7 +67,7 @@ export function useSiteExport(
 ): SiteExportController {
   const list = useFetchQuery({ key: [...SITE_TRANSFER_KEYS.shares], fetch: () => port.listShares() });
   const invalidate = useInvalidate();
-  const [exporting, setExporting] = useState(false);
+  const [exportKind, setExportKind] = useState<"backup" | "static" | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -76,17 +78,24 @@ export function useSiteExport(
     return () => { alive.current = false; };
   }, []);
 
-  async function exportSite() {
-    if (exporting) return;
-    setExporting(true);
+  function finishExport({ result, format }: { result: SiteShareCreateResult; format: "backup" | "static" }, _options = {}) {
+    if (!alive.current) return;
+    if (!isFinishedShare(result)) { setExportError(t("The export is taking too long. Try again later.")); return; }
+    if (format === "static") port.downloadShare({ share: result });
+  }
+
+  async function exportSite({ format = "backup" }: { format?: "backup" | "static" } = {}, _options = {}) {
+    if (exportKind) return;
+    setExportKind(format);
     setExportError(null);
     try {
-      const result = await createShareUntilDone({ port, alive: () => alive.current });
-      if (alive.current && !isFinishedShare(result)) setExportError(t("The export is taking too long. Try again later."));
+      const create = format === "static" ? port.createStaticShare.bind(port) : port.createShare.bind(port);
+      const result = await createShareUntilDone({ create, alive: () => alive.current });
+      finishExport({ result, format });
     } catch (failure) {
       if (alive.current) setExportError(describeApiError(failure, t("Export failed.")));
     } finally {
-      if (alive.current) setExporting(false);
+      if (alive.current) setExportKind(null);
       invalidate({ key: [...SITE_TRANSFER_KEYS.shares] });
     }
   }
@@ -112,18 +121,22 @@ export function useSiteExport(
   }
 
   const shares = list.data?.shares;
+  // Static downloads stay private even when a link host is configured; only backups diagnose its absence.
+  const newestBackup = shares?.find(share => share.file.endsWith(".tovu.zip"));
   return {
     shares,
     listError: list.error ? describeApiError(list.error, t("Couldn't load exports.")) : null,
-    exporting,
+    exporting: exportKind === "backup",
+    exportingStatic: exportKind === "static",
     exportError,
     exportSite,
+    exportStaticSite: () => exportSite({ format: "static" }),
     revokingId,
     revoke,
     copiedId,
     copyLink,
     downloadHref: (share) => port.shareDownloadHref(share),
-    zipOnly: shares?.[0] !== undefined && shares[0].url === null,
+    zipOnly: newestBackup !== undefined && newestBackup.url === null,
   };
 }
 

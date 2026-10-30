@@ -8,6 +8,7 @@ import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal } from "./share-policy
 import { requireShareSecretFree, claimSharePath, type PackageFileInventory } from "./share-file-policy.js";
 import { readBundledPackageFiles } from "./package-file-inventory.js";
 import type { SiteBackupPushProgress } from "./push-engine.js";
+import type { StaticSiteCopy } from "./static-copy.js";
 
 type ShareZipEntry = { readonly path: string; readonly content: Buffer };
 type ShareZipProgressOptions = { signal?: AbortSignal; progress?: SiteBackupPushProgress };
@@ -21,9 +22,9 @@ function inMemoryEntries(required: { plan: SiteSharePlanContent }): ShareZipEntr
 }
 
 /** Claims the manifest path and every entry path in one archive-wide alias set before any content is read. */
-function claimArchivePaths(required: { entries: readonly { path: string }[] }): void {
+function claimArchivePaths(required: { entries: readonly { path: string }[] }, optional: { manifest?: boolean } = {}): void {
   const aliases = new Map<string, string>(), fileAliases = new Set<string>();
-  claimSharePath({ path: SITE_BACKUP_MANIFEST_PATH, directory: false, aliases, files: fileAliases });
+  if (optional.manifest !== false) claimSharePath({ path: SITE_BACKUP_MANIFEST_PATH, directory: false, aliases, files: fileAliases });
   for (const file of required.entries) claimSharePath({ path: file.path, directory: false, aliases, files: fileAliases });
 }
 
@@ -58,7 +59,8 @@ function buildManifestFile(required: { plan: SiteSharePlanContent; inventory: Co
   // Count the manifest as an entry first: the manifest validator would otherwise refuse a full
   // share as INVALID_ARCHIVE instead of telling the owner it is over the file cap.
   checkShareLimits({ files: [...required.inventory, { path: SITE_BACKUP_MANIFEST_PATH, bytes: 0 }] });
-  const manifest = Buffer.from(buildArchiveManifest({ schema: required.plan.schema, site: { name: required.plan.site.name }, scopes: required.plan.include, media: required.plan.media ?? [], plugins: required.plan.plugins ?? [], files: required.inventory }));
+  const manifest = Buffer.from(buildArchiveManifest({ schema: required.plan.schema, site: { name: required.plan.site.name }, scopes: required.plan.include, media: required.plan.media ?? [], plugins: required.plan.plugins ?? [], files: required.inventory,
+    ...(required.plan.staticSite ? { staticSite: required.plan.staticSite } : {}), ...(required.plan.staticSiteOmitted ? { staticSiteOmitted: required.plan.staticSiteOmitted } : {}) }));
   if (manifest.length > SHARE_LIMITS.maxManifestBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Share manifest exceeds 2 MiB." });
   checkShareLimits({ files: [...required.inventory, { path: SITE_BACKUP_MANIFEST_PATH, bytes: manifest.length }] });
   return new File([manifest], SITE_BACKUP_MANIFEST_PATH);
@@ -80,17 +82,45 @@ async function encodeShareZip(required: { files: readonly File[]; zip: typeof zi
  * @throws SiteShareRefusal for stale files, unsafe aliases, secrets, cancellation, and archive caps.
  * @complexity O(payload bytes + paths²), at most 2,000 paths; O(payload bytes) memory, bounded to 300 MiB.
  */
-export async function buildShareZip(required: { plan: SiteSharePlanContent; zip: typeof zipFolderFiles }, optional: ShareZipProgressOptions & { packageFiles?: PackageFileInventory } = {}): Promise<Buffer> {
+async function buildShareZipContent(required: { plan: SiteSharePlanContent; zip: typeof zipFolderFiles }, optional: ShareZipProgressOptions & { packageFiles?: PackageFileInventory } = {}): Promise<Buffer> {
   const { plan } = required;
   const memory = inMemoryEntries({ plan });
   const sizes = [...plan.files, ...memory.map(file => ({ path: file.path, bytes: file.content.length }))];
   checkShareLimits({ files: sizes, totalBytes: plan.totalBytes });
   const paths = [...plan.files.flatMap(file => { const path = runtimeToArchivePath({ path: file.path }); return path === null ? [] : [{ path }]; }), ...memory];
   claimArchivePaths({ entries: paths });
+  if (optional.progress) Object.assign(optional.progress, { filesTotal: paths.length, bytesTotal: sizes.reduce((sum, file) => sum + file.bytes, 0) });
   const collected: CollectedShareEntries = { files: [], inventory: [], plugins: plan.plugins ?? [], packageFiles: optional.packageFiles ?? await readBundledPackageFiles() };
   for (const entry of memory) addEntry({ entry, collected }, optional);
   await addDiskFiles({ files: plan.files, collected }, optional);
   collected.files.push(buildManifestFile({ plan, inventory: collected.inventory }));
   optional.signal?.throwIfAborted();
+  return encodeShareZip({ files: collected.files, zip: required.zip });
+}
+
+/** Add the optional rendered copy. Its render/scan/size failures must never block the backup.
+ * Reuses the existing collector and encoder, including every path, secret and archive limit check. */
+export async function buildShareZip(required: { plan: SiteSharePlanContent; zip: typeof zipFolderFiles }, optional: ShareZipProgressOptions & { packageFiles?: PackageFileInventory; staticCopy?: StaticSiteCopy } = {}): Promise<Buffer> {
+  const copy = optional.staticCopy;
+  if (!copy) return buildShareZipContent(required, optional);
+  if ("reason" in copy) return buildShareZipContent({ ...required, plan: { ...required.plan, staticSiteOmitted: copy.reason } }, optional);
+  const buffered = copy.files.map(file => ({ ...file, path: "static_site/" + file.path }));
+  const plan = { ...required.plan, staticSite: copy.metadata, bufferedFiles: [...(required.plan.bufferedFiles ?? []), ...buffered], totalBytes: required.plan.totalBytes + buffered.reduce((sum, file) => sum + file.content.length, 0) };
+  try { return await buildShareZipContent({ ...required, plan }, optional); }
+  catch (error) {
+    optional.signal?.throwIfAborted();
+    if (optional.progress) Object.assign(optional.progress, { filesDone: 0, bytesDone: 0 });
+    return buildShareZipContent({ ...required, plan: { ...required.plan, staticSiteOmitted: String(error) } }, optional);
+  }
+}
+
+/** Static-only ZIP uses the same picked-file path/scanning pipeline and Jini encoder, without a backup manifest. */
+export async function buildStaticSiteZip(required: { copy: Exclude<StaticSiteCopy, { reason: string }>; zip: typeof zipFolderFiles }, optional: ShareZipProgressOptions = {}): Promise<Buffer> {
+  const entries = required.copy.files;
+  checkShareLimits({ files: entries.map(file => ({ path: file.path, bytes: file.content.length })) });
+  claimArchivePaths({ entries }, { manifest: false });
+  if (optional.progress) Object.assign(optional.progress, { filesTotal: entries.length, bytesTotal: entries.reduce((sum, file) => sum + file.content.length, 0) });
+  const collected: CollectedShareEntries = { files: [], inventory: [], plugins: [], packageFiles: new Map() };
+  for (const entry of entries) addEntry({ entry, collected }, optional);
   return encodeShareZip({ files: collected.files, zip: required.zip });
 }

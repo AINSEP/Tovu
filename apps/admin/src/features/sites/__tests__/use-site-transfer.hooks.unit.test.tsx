@@ -67,6 +67,8 @@ describe("site transfer port", () => {
     { name: "createShare poll", run: () => defaultSiteTransferPort.createShare({ jobId: "job-1" }), path: "/site-shares", method: "POST", contentType: undefined, body: JSON.stringify({ jobId: "job-1" }) },
     { name: "revokeShare", run: () => defaultSiteTransferPort.revokeShare({ shareId: "a/b" }), path: "/site-shares/a%2Fb", method: "DELETE", contentType: undefined, body: undefined },
     { name: "listImports", run: () => defaultSiteTransferPort.listImports(), path: "/site-imports", method: "GET", contentType: undefined, body: undefined },
+    { name: "createStaticShare", run: () => defaultSiteTransferPort.createStaticShare({}), path: "/site-shares/static", method: "POST", contentType: undefined, body: JSON.stringify({}) },
+    { name: "pollStaticShare", run: () => defaultSiteTransferPort.createStaticShare({ jobId: "static-job" }), path: "/site-shares/static", method: "POST", contentType: undefined, body: JSON.stringify({ jobId: "static-job" }) },
     { name: "startImport", run: () => defaultSiteTransferPort.startImport({ url: "https://example.com/s/abc" }), path: "/site-imports", method: "POST", contentType: undefined, body: JSON.stringify({ url: "https://example.com/s/abc" }) },
     { name: "uploadImportZip", run: () => defaultSiteTransferPort.uploadImportZip({ file: new Blob(["PK"], { type: "application/x-zip-compressed" }) }), path: "/site-imports/uploads", method: "POST", contentType: "application/zip", body: "PK" },
     { name: "completeImportOwner", run: () => defaultSiteTransferPort.completeImportOwner({ importId: "import-1", adminPassword: "a b&c" }), path: "/site-imports/import-1/owner", method: "POST", contentType: "application/x-www-form-urlencoded", body: "adminPassword=a+b%26c" },

@@ -332,7 +332,7 @@ async function rejection(promise: Promise<unknown>): Promise<ToolInputError> {
 
 test("both tools are registered; the plan is read-only and the push is not", (t) => {
   const h = harness(t);
-  assert.deepEqual([...h.tools.keys()].sort(), ["site_backup_plan", "site_backup_push", "site_import_backup", "site_import_list", "site_share_create", "site_share_list", "site_share_revoke"]);
+  assert.deepEqual([...h.tools.keys()].sort(), ["site_backup_plan", "site_backup_push", "site_export_static", "site_import_backup", "site_import_list", "site_share_create", "site_share_list", "site_share_revoke"]);
   assert.equal(h.planTool.descriptor.readOnly, true);
   assert.equal(h.pushTool.descriptor.readOnly, false);
 });
@@ -349,11 +349,12 @@ test("share tools use the site-bound backend and authorize before every effect",
   } }, { surfaceExchanges: h.surfaceExchanges });
   const tools = new Map(registrations.map(r => [r.descriptor.id, r]));
   assert.deepEqual(await call(tools.get("site_share_create")!, {}), row);
+  assert.deepEqual(await call(tools.get("site_export_static")!, {}), row);
   assert.deepEqual(await call(tools.get("site_share_list")!, {}), { shares: [row] });
   assert.equal((await call(tools.get("site_share_revoke")!, { shareId: row.shareId }) as Result).status, "revoked");
   const before = [...calls];
   h.setAllow(() => false);
-  for (const [id, input] of [["site_share_create", {}], ["site_share_list", {}], ["site_share_revoke", { shareId: row.shareId }]] as const) await assert.rejects(call(tools.get(id)!, input));
+  for (const [id, input] of [["site_share_create", {}], ["site_export_static", {}], ["site_share_list", {}], ["site_share_revoke", { shareId: row.shareId }]] as const) await assert.rejects(call(tools.get(id)!, input));
   assert.deepEqual(calls, before, "permission denials never reach the export or registry ports");
 });
 
@@ -1240,7 +1241,7 @@ test("the contributor exposes the backup registrations and their independent ris
   const contributor = contributeSiteBackupTools();
   assert.equal(contributor.domain, "site-backup");
   assert.equal(contributor.risk, siteBackupDerivedRisk);
-  assert.deepEqual(contributor.build(h.deps as never, { surfaceExchanges: h.surfaceExchanges }).map(registration => registration.descriptor.id), ["site_import_backup", "site_import_list", "site_backup_plan", "site_backup_push", "site_share_create", "site_share_list", "site_share_revoke"]);
+  assert.deepEqual(contributor.build(h.deps as never, { surfaceExchanges: h.surfaceExchanges }).map(registration => registration.descriptor.id), ["site_import_backup", "site_import_list", "site_backup_plan", "site_backup_push", "site_share_create", "site_export_static", "site_share_list", "site_share_revoke"]);
 });
 
 test("a malformed saved API URL is ignored during automatic credential selection", async t => {
@@ -1539,9 +1540,10 @@ test("share tool adapters enforce exact input contracts, pass job/principal/sign
   const jobId = "00000000-0000-4000-8000-000000000001";
   assert.deepEqual(await call(tool("site_share_create"), {}, { signal }), { jobId: "pending" });
   assert.deepEqual(await call(tool("site_share_create"), { jobId }, { signal }), { jobId: "pending" });
+  assert.deepEqual(await call(tool("site_export_static"), { jobId }, { signal }), { jobId: "pending" });
   assert.deepEqual(await call(tool("site_share_list"), {}), { shares: [] });
   assert.deepEqual(await call(tool("site_share_revoke"), { shareId: "share" }), { status: "revoked" });
-  assert.deepEqual(calls, [["create", { principalId: OWNER_PRINCIPAL, signal }], ["create", { principalId: OWNER_PRINCIPAL, signal, jobId }], ["list", {}], ["revoke", { shareId: "share" }]]);
+  assert.deepEqual(calls, [["create", { principalId: OWNER_PRINCIPAL, signal }], ["create", { principalId: OWNER_PRINCIPAL, signal, jobId }], ["create", { principalId: OWNER_PRINCIPAL, signal, jobId, format: "static" }], ["list", {}], ["revoke", { shareId: "share" }]]);
   calls.length = 0;
   for (const [id, input] of [["site_share_list", { extra: true }], ["site_share_revoke", { shareId: "share", extra: true }], ["site_share_create", { extra: true }], ["site_share_create", { jobId: 1 }], ["site_share_create", { jobId: "invalid" }]] as const) {
     assert.equal((await call(tool(id), input) as Result).code, "INVALID_INPUT");

@@ -501,6 +501,8 @@ export interface ExportSiteOptions {
    * comment.
    */
   basePath?: string;
+  /** Portable static copies render only the active theme; deployment builds retain previews. */
+  includeThemePreviews?: boolean;
 }
 
 
@@ -515,9 +517,9 @@ function listingRoutes({ hrefs, kind }: { hrefs: readonly string[]; kind: string
 }
 
 /** Compose the real CMS manifest/theme/security policy with Jini's export engine. */
-export async function exportSite({ routeDeps, outputDir, clean, basePath }: ExportSiteOptions, _options = {}): Promise<ExportReport> {
+export async function exportSite({ routeDeps, outputDir, clean, basePath, includeThemePreviews }: ExportSiteOptions, _options = {}): Promise<ExportReport> {
   const tracedFetch = trackFetch({ fetch: (input, init) => fetch(input, init), observability: routeDeps.observability });
-  const { manifest, themeCount } = await buildPreviewExportManifest({ routeDeps });
+  const { manifest, themeCount } = await buildPreviewExportManifest({ routeDeps }, { includeThemePreviews });
   const report = await runExport({
     outputDir: path.resolve(outputDir),
     manifest: { build: async () => manifest },

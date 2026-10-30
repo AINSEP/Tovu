@@ -115,10 +115,17 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
   },
   {
     name: "site_share_create",
-    description: "Export THIS SITE to a portable .tovu.zip share: all pages/posts including drafts, scheduled content and autosaves, media (including object storage), themes, menus, portable plugins and settings. Accounts, sessions, API keys, vault/legacy credentials, chats and operational history are excluded by a fresh-database allowlist. Anyone with the link receives unpublished content; revocation cannot recall downloads. Uses persistent running-server storage or the configured S3-compatible artifact capability. With no public storage it returns a ZIP download and setup instructions, never a localhost share link. Caps: 300 MiB expanded/archive, 2,000 files; unsupported populated plugin tables and secret-bearing content are refused by name. Returns {shareId,url,bytes,sha256,downloadUrl}, or {jobId,phase,progress}; poll using that SAME jobId to resume without creating another export.",
+    description: "Export THIS SITE to a portable .tovu.zip share: all pages/posts including drafts, scheduled content and autosaves, media (including object storage), themes, menus, portable plugins and settings. Includes an active-theme static_site/ copy with an export timestamp and failure report when renderable; static rendering never blocks the backup. Accounts, sessions, API keys, vault/legacy credentials, chats and operational history are excluded by a fresh-database allowlist. Anyone with the link receives unpublished content; revocation cannot recall downloads. Uses persistent running-server storage or the configured S3-compatible artifact capability. With no public storage it returns a ZIP download and setup instructions, never a localhost share link. Caps: 300 MiB expanded/archive, 2,000 files; unsupported populated plugin tables and secret-bearing content are refused by name. Returns {shareId,url,bytes,sha256,downloadUrl}, or {jobId,phase,progress}; poll using that SAME jobId to resume without creating another export.",
     sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: PUSH_PERMISSION },
     inputSchema: { type: "object", additionalProperties: false, properties: { jobId: { type: "string", description: "Only when polling: the jobId returned by this same create operation." } } },
+  },
+  {
+    name: "site_export_static",
+    description: "Export THIS SITE as rendered HTML, CSS, JavaScript and assets through the active theme. Creates a private ZIP download with a date-time filename and EXPORTED.txt listing its time, theme and every known failure/skip. No database backup or public upload. Returns {shareId,file,downloadUrl}, or {jobId,phase,progress}; poll with the SAME jobId. Partial renders include their successful pages and disclose gaps. Does not require an already-running public server.",
+    sideEffects: MUTATES_DURABLE_STATE,
+    authorization: { permission: PUSH_PERMISSION },
+    inputSchema: { type: "object", additionalProperties: false, properties: { jobId: { type: "string", description: "Only when polling this static export." } } },
   },
   {
     name: "site_share_list",
@@ -150,6 +157,7 @@ export const siteBackupDerivedRisk: DerivedRiskByToolId = new Map<string, AgentT
   // THIRD-PARTY repository — the same classification custom_credential_write_files carries.
   [SITE_BACKUP_PUSH_TOOL_ID, MUTATES_DURABLE_STATE],
   ["site_share_create", MUTATES_DURABLE_STATE],
+  ["site_export_static", MUTATES_DURABLE_STATE],
   ["site_share_list", "none"],
   ["site_share_revoke", MUTATES_DURABLE_STATE],
 ]);
@@ -166,9 +174,10 @@ const SITE_BACKUP_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
 ];
 
 /** One share tool's effect once authorized: its exact input contract, then the backend call. */
-type ShareAction = (required: { backend: SiteShareBackend; raw: Record<string, unknown>; ctx: ToolExecutionContext }) => Promise<unknown>;
+type ShareAction = (required: { backend: SiteShareBackend; raw: Record<string, unknown>; ctx: ToolExecutionContext; format?: "static" }) => Promise<unknown>;
 
-const SHARE_ACTIONS: Record<"create" | "list" | "revoke", ShareAction> = {
+const SHARE_ACTIONS: Record<"create" | "static" | "list" | "revoke", ShareAction> = {
+  static: required => SHARE_ACTIONS.create({ ...required, format: "static" }),
   list: async ({ backend, raw }) => {
     if (Object.keys(raw).length) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "site_share_list takes no fields." });
     return { shares: await backend.list({}) };
@@ -177,14 +186,14 @@ const SHARE_ACTIONS: Record<"create" | "list" | "revoke", ShareAction> = {
     if (Object.keys(raw).some(key => key !== "shareId")) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Only shareId is accepted." });
     return await backend.revoke({ shareId: requireString({ input: raw, key: "shareId" }) });
   },
-  create: async ({ backend, raw, ctx }) => {
+  create: async ({ backend, raw, ctx, format }) => {
     if (Object.keys(raw).some(key => key !== "jobId") || raw.jobId !== undefined && (typeof raw.jobId !== "string" || !/^[0-9a-f-]{36}$/.test(raw.jobId))) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Only an optional share jobId is accepted." });
-    return await backend.create({ principalId: ctx.principal.id, signal: ctx.signal, ...(typeof raw.jobId === "string" ? { jobId: raw.jobId } : {}) });
+    return await backend.create({ principalId: ctx.principal.id, signal: ctx.signal, ...(format ? { format } : {}), ...(typeof raw.jobId === "string" ? { jobId: raw.jobId } : {}) });
   },
 };
 
 /** Authorization stays on the existing backup contributor; backend effects are shared with HTTP. */
-async function handleShare(required: { deps: SiteBackupToolDeps; ctx: ToolExecutionContext; action: "create" | "list" | "revoke" }, _optional: Record<string, never> = {}): Promise<unknown> {
+async function handleShare(required: { deps: SiteBackupToolDeps; ctx: ToolExecutionContext; action: "create" | "static" | "list" | "revoke" }, _optional: Record<string, never> = {}): Promise<unknown> {
   const { deps, ctx, action } = required;
   const raw = requireInputRecord({ input: ctx.input });
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: PUSH_PERMISSION }, { entityType: DOMAIN });
@@ -209,6 +218,7 @@ export function buildSiteBackupRegistrations(deps: SiteBackupToolDeps, _surfaces
     [PLAN_TOOL_ID]: (ctx) => planSiteBackup({ deps, call: ctx }),
     [SITE_BACKUP_PUSH_TOOL_ID]: (ctx) => pushSiteBackup({ deps, call: ctx }),
     site_share_create: (ctx) => handleShare({ deps, ctx, action: "create" }),
+    site_export_static: (ctx) => handleShare({ deps, ctx, action: "static" }),
     site_share_list: (ctx) => handleShare({ deps, ctx, action: "list" }),
     site_share_revoke: (ctx) => handleShare({ deps, ctx, action: "revoke" }),
   };

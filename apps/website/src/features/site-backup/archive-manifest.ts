@@ -1,6 +1,7 @@
 import { SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
 import { claimSharePath, SHARED_PLUGIN_MEMORY } from "./share-file-policy.js";
 import type { SiteBackupInclude } from "./sources.js";
+import { isStaticSitePath, type StaticSiteMetadata } from "./static-copy.js";
 
 export const ARCHIVE_MANIFEST_PATH = "manifest.json";
 export const ARCHIVE_DATABASE_PATH = "content.db";
@@ -23,6 +24,8 @@ export interface ArchiveManifest {
   readonly media: readonly ArchiveMedia[];
   readonly plugins: readonly ArchivePlugin[];
   readonly files: readonly ArchiveFile[];
+  readonly staticSite?: StaticSiteMetadata;
+  readonly staticSiteOmitted?: string;
 }
 const HASH = /^[a-f0-9]{64}$/;
 const ID = /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/;
@@ -66,6 +69,8 @@ function validateFiles({ files }: { files: any[] }): Map<string, ArchiveFile> {
   const inventory = new Map<string, ArchiveFile>();
   claimSharePath({ path: ARCHIVE_MANIFEST_PATH, directory: false, aliases, files: names });
   for (const record of files) {
+    // Static copies are a convenience for humans, never restore input or an integrity dependency.
+    if (typeof record?.path === "string" && isStaticSitePath({ path: record.path })) continue;
     const file = requireArchiveFileRecord({ file: record });
     if (![ARCHIVE_DATABASE_PATH, "settings.json"].includes(file.path) && !ROOT.test(file.path)) invalid();
     claimSharePath({ path: file.path, directory: false, aliases, files: names });

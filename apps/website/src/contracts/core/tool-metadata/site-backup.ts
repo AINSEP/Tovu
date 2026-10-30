@@ -22,6 +22,7 @@ export const toolMetadata = {
     approval: { class: 'edit', confirmation: 'direct' },
   },
   site_share_create: { search: { keywords: "share export site zip portable link download drafts", queries: ["Share this site", "Export this site as a Tovu ZIP"] }, approval: { class: 'edit', confirmation: 'direct' } },
+  site_export_static: { search: { keywords: "export static site html css javascript assets zip download", queries: ["Export static site", "Download my site as HTML pages"] }, approval: { class: 'edit', confirmation: 'direct' } },
   site_share_list: { search: { keywords: "list site exports shares links archive downloads" }, approval: { class: 'read', confirmation: 'direct' } },
   site_share_revoke: { search: { keywords: "revoke remove delete site export share link" }, approval: { class: 'edit', confirmation: 'direct' } },
 } as const satisfies ToolMetadataById<ToolApprovalPolicy>;

@@ -7,7 +7,7 @@ import { formatTransferBytes, shareStatusView, shortLink } from "./site-transfer
 
 /**
  * @file The "Export Site" screen (owner, 2026-10-18; on Sites, then the Import & Export page's
- * Export tab from 2026-10-25): one button that makes a
+ * Export tab from 2026-10-25): the primary action makes a
  * `.tovu.zip` of this site (no confirmation, owner rule) and the list of this site's exports. Markup
  * only; every effect is in {@link useWiredSiteExport}.
  */
@@ -28,13 +28,24 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
         <button
           type="button"
           className="btn-primary"
-          disabled={controller.exporting}
+          disabled={controller.exporting || controller.exportingStatic}
           aria-busy={controller.exporting}
           onClick={() => void controller.exportSite()}
           {...agentHandle({ handle: "sites-export-create" }, { role: "button", label: "Export this site as a .tovu.zip" })}
         >
           {controller.exporting ? <span className="site-transfer-spinner" aria-hidden="true" /> : null}
           {controller.exporting ? t("Exporting…") : t("Export this site")}
+        </button>
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={controller.exporting || controller.exportingStatic}
+          aria-busy={controller.exportingStatic}
+          onClick={() => void controller.exportStaticSite()}
+          {...agentHandle({ handle: "sites-export-static" }, { role: "button", label: "Export static site as a zip" })}
+        >
+          {controller.exportingStatic ? <span className="site-transfer-spinner" aria-hidden="true" /> : null}
+          {controller.exportingStatic ? t("Exporting…") : t("Export static site")}
         </button>
       </div>
       {controller.exportError ? <div className="notice error" role="alert">{controller.exportError}</div> : null}

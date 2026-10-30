@@ -153,6 +153,20 @@ test("live server chooses per request; cookie persists, reset clears, canonical 
   assert.equal(concurrent.length, 2);
 });
 
+test("portable static copies export only the active theme when the preview switcher is enabled", async t => {
+  const f = await fixture(t);
+  await f.save();
+  const preview = await buildPreviewExportManifest({ routeDeps: f.deps });
+  assert.equal(preview.themeCount, 2);
+  const outputDir = join(f.root, "active-theme-copy");
+  const result = await exportSite({ routeDeps: f.deps, outputDir, includeThemePreviews: false });
+  assert.ok(result.routes.succeeded.some(route => route.outputFile === "index.html"));
+  assert.ok(!result.routes.succeeded.some(route => route.path.startsWith("/_themes/")));
+  assert.match(readFileSync(join(outputDir, "index.html"), "utf8"), /<h1>preview-one<\/h1>/);
+  assert.ok(!result.assets.succeeded.some(asset => asset.url.includes("/preview-two/")));
+  assert.equal(result.themePreview, undefined);
+});
+
 test("static manifest and real export include themed pages/assets, noindex, canonical, prefixed navigation and size multiplier", async t => {
   const f = await fixture(t);
   await f.save();

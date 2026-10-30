@@ -38,6 +38,8 @@ export interface SiteImport {
 export interface SiteTransferPort {
   listShares(): Promise<{ shares: SiteShare[] }>;
   createShare(input: { jobId?: string }): Promise<SiteShareCreateResult>;
+  createStaticShare(input: { jobId?: string }, optional?: Record<string, never>): Promise<SiteShareCreateResult>;
+  downloadShare(required: { share: SiteShare }, optional?: Record<string, never>): void;
   revokeShare(input: { shareId: string }): Promise<SiteShare>;
   /** Absolute admin URL for a share's zip, so a plain link can download it with the session cookie. */
   shareDownloadHref(share: SiteShare): string;
@@ -54,6 +56,16 @@ const IMPORTS = `/workspaces/${WORKSPACE_ID}/site-imports`;
 export const defaultSiteTransferPort: SiteTransferPort = {
   listShares: () => authenticatedAdminRequest({ method: "GET", path: SHARES }),
   createShare: (input) => authenticatedAdminRequest({ method: "POST", path: SHARES, body: input.jobId ? { jobId: input.jobId } : {} }),
+  createStaticShare: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/static`, body: input.jobId ? { jobId: input.jobId } : {} }),
+  downloadShare: ({ share }, _options = {}) => {
+    // The same authenticated attachment route the export list's Download zip link uses.
+    const anchor = document.createElement("a");
+    anchor.href = defaultSiteTransferPort.shareDownloadHref(share);
+    anchor.download = share.file;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  },
   revokeShare: ({ shareId }) => authenticatedAdminRequest({ method: "DELETE", path: `${SHARES}/${encodeURIComponent(shareId)}` }),
   shareDownloadHref: (share) => authenticatedAdminUrl({ path: `${SHARES}/${encodeURIComponent(share.shareId)}/download` }),
   listImports: () => authenticatedAdminRequest({ method: "GET", path: IMPORTS }),
@@ -77,6 +89,8 @@ export function createFakeSiteTransferPort(overrides: Partial<SiteTransferPort> 
   return {
     listShares: () => Promise.resolve({ shares: [] }),
     createShare: unexpected("createShare"),
+    createStaticShare: unexpected("createStaticShare"),
+    downloadShare: () => { throw new Error("downloadShare was not expected"); },
     revokeShare: unexpected("revokeShare"),
     shareDownloadHref: (share) => `/download/${share.shareId}`,
     listImports: () => Promise.resolve({ imports: [] }),

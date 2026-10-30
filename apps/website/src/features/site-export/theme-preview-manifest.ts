@@ -12,9 +12,11 @@ function isHtmlPage({ route }: { route: ManifestRoute }, _options = {}): boolean
  * O(themes × routes), at most 8 themes. Only normal routes own sitemap/feed/robots/404 outputs. */
 export async function buildPreviewExportManifest({ routeDeps }: {
   routeDeps: RouteManifestDeps & { settingsRepo?: SettingsRepoPort; siteTitleReady?: Promise<void> };
-}, _options = {}): Promise<{ manifest: RouteManifest; themeCount: number }> {
+}, options: { includeThemePreviews?: boolean } = {}): Promise<{ manifest: RouteManifest; themeCount: number }> {
   await routeDeps.siteTitleReady;
   const manifest = await buildRouteManifest(routeDeps);
+  // A portable static copy represents the active theme, even when the live preview switcher is on.
+  if (options.includeThemePreviews === false) return { manifest, themeCount: 1 };
   if (!routeDeps.settingsRepo || !manifest.activeTheme) return { manifest, themeCount: 1 };
   const activeThemeId = manifest.activeTheme.id;
   const config = await readPreviewSwitcher({ ...routeDeps, settingsRepo: routeDeps.settingsRepo, activeThemeId });

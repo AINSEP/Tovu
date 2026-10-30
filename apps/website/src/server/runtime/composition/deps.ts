@@ -167,7 +167,7 @@ import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
 import { createSiteAssistantErrorReporter } from "#src/assistant/site/public-errors";
 import { redactSecrets } from "@jini-ai/core";
-import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster, resolveActiveTheme } from "#src/features/theme/index";
 import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
@@ -189,7 +189,7 @@ import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-conten
 import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
 import { createLiveSiteDisplayName, createSiteCreationTimeZone } from "#src/platform/site-dir/read-site-dir";
-import { createSiteTimeZonePort, ensureSiteTimeZoneSettingDefinition } from "#src/features/settings/site-timezone";
+import { createSiteTimeZonePort, ensureSiteTimeZoneSettingDefinition, resolveSiteTimeZone } from "#src/features/settings/site-timezone";
 import { seedSiteThemes } from "#src/platform/site-dir/seed-site-themes";
 import { resolveCheckoutRoot, describeSiteBinding, type SiteBinding } from "#src/platform/site-dir/index";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
@@ -2843,6 +2843,17 @@ async function composeSiteRouteDeps(
         // infer a recipient-facing URL from localhost, Host, or ephemeral deployment storage.
         routeDeps.siteShareBackend = createSiteShareBackend({ registry, site: workspaceId, zip: zipFolderFiles,
           prepare: ({ signal }) => prepareShareContent({ dbOps: routeDeps.dbOps, snapshotRoot: tmpdir(), sources: routeDeps.siteBackupSources!, sanitize: sanitizeShareDatabase, blobStore, imageTransformer: routeDeps.imageTransformer!, rewriteMedia: rewriteArchiveMedia }, { signal, packageThemesRoot: routeDeps.packageThemesDir }),
+          staticSite: {
+            render: input => routeDeps.exportSiteBound({ ...input, includeThemePreviews: false }),
+            now: () => new Date(routeDeps.clock.nowMs()),
+            context: async () => {
+              const theme = resolveActiveTheme(routeDeps, await routeDeps.resolveActiveThemeId());
+              const creationZone = createSiteCreationTimeZone({ dir: resolvedSiteBinding.dir });
+              const timeZone = await resolveSiteTimeZone({ settingsRepo, creationTimeZone: { read: () => creationZone.read() ?? Intl.DateTimeFormat().resolvedOptions().timeZone } }, { workspaceId });
+              return { name: routeDeps.siteDisplayName.read() ?? resolvedSiteBinding.name, slug: resolvedSiteBinding.name,
+                theme: theme && typeof theme === "object" ? theme.manifest.name : "None", timeZone };
+            },
+          },
           delivery: selection => resolveShareDelivery({
             http: guardedOutboundHttpClient,
             peer: async () => {

@@ -26,10 +26,10 @@ export async function receiveSiteShareArtifact(required: { registry: SiteShareRe
 }
 
 /** Persist before delivery; publish a URL only after an anonymous verification succeeds. O(bytes). */
-export async function createSiteShare(required: { registry: SiteShareRegistry; site: string; name: string; archive: Buffer }, optional: { delivery?: ShareDelivery; signal?: AbortSignal } = {}): Promise<SiteShareRecord> {
+export async function createSiteShare(required: { registry: SiteShareRegistry; site: string; name: string; archive: Buffer }, optional: { delivery?: ShareDelivery; signal?: AbortSignal; filename?: string } = {}): Promise<SiteShareRecord> {
   const identity = newShareIdentity({});
   // The derived stem always satisfies SHARE_FILE; receiveSiteShareArtifact re-checks it before any write.
-  const file = `${shareFileStem({ name: required.name })}.tovu.zip`;
+  const file = optional.filename ?? `${shareFileStem({ name: required.name })}.tovu.zip`;
   const key = `_share/${identity.token}/${file}`;
   const row = await receiveSiteShareArtifact({ ...required, token: identity.token, file }, optional.delivery ? { storage: deliveryStorage({ delivery: optional.delivery, key }) } : {});
   if (optional.signal?.aborted) await cancelReceivedShare({ registry: required.registry, row });
@@ -38,7 +38,7 @@ export async function createSiteShare(required: { registry: SiteShareRegistry; s
 }
 
 /** A lowercase, dash-separated file stem of at most 80 characters; `site` when nothing is left. */
-function shareFileStem(required: { name: string }): string {
+export function shareFileStem(required: { name: string }, _options = {}): string {
   return required.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "site";
 }
 

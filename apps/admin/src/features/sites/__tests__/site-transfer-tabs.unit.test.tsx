@@ -261,7 +261,7 @@ describe("SiteImportTab", () => {
 // remain covered above through the real hooks; these cases pin every transient display state.
 function exportController(overrides: Partial<SiteExportController> = {}): SiteExportController {
   return { shares: [], listError: null, exporting: false, exportError: null, zipOnly: false,
-    exportSite: vi.fn(async () => {}), revokingId: null, revoke: vi.fn(async () => {}),
+    exportSite: vi.fn(async () => {}), exportingStatic: false, exportStaticSite: vi.fn(async () => {}), revokingId: null, revoke: vi.fn(async () => {}),
     copiedId: null, copyLink: vi.fn(async () => {}), downloadHref: item => `/download/${item.shareId}`, ...overrides };
 }
 function importController(overrides: Partial<SiteImportController> = {}): SiteImportController {

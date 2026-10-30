@@ -131,6 +131,24 @@ async function fixture(t: TestContext, optional: { siteFiles?: Readonly<Record<s
   return { root, plan, archive, verify, restore, packageFiles, db, webp };
 }
 
+test("a backup carrying ignored static_site files restores the same content and never places the static folder", async t => {
+  const h = await fixture(t);
+  const baseline = await h.restore(h.archive, "without-static");
+  const files = await unpack(h.archive);
+  // These optional human-readable files are deliberately unlisted and stale/corrupted.
+  files.set("static_site/index.html", Buffer.from("<h1>Stale content must not replace the database</h1>"));
+  files.set("static_site/EXPORTED.txt", Buffer.from([0xff, 0x00]));
+  const carried = await h.restore(await repack(files), "with-static");
+  assert.deepEqual(carried.verified.files, baseline.verified.files);
+  assert.deepEqual(carried.verified.warnings, baseline.verified.warnings);
+  assert.equal(fs.existsSync(path.join(carried.dir, "static_site")), false);
+  assert.equal(fs.existsSync(path.join(h.root, "with-static-stage/static_site")), false);
+  const before = new Database(path.join(baseline.dir, "content.db"));
+  const after = new Database(path.join(carried.dir, "content.db"));
+  try { assert.deepEqual(after.prepare("SELECT id,title,status,body_json FROM posts ORDER BY id").all(), before.prepare("SELECT id,title,status,body_json FROM posts ORDER BY id").all()); }
+  finally { before.close(); after.close(); }
+});
+
 test("v2 tree, one public media copy per item, no secrets and full content round-trip", async t => {
   const h = await fixture(t), files = await unpack(h.archive);
   assert.ok(files.has("manifest.json") && files.has("content.db") && files.has("settings.json"));
