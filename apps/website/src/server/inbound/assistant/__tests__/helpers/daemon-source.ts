@@ -84,6 +84,8 @@ export async function captureDaemonRun(
     // No picked folder unless a fixture sets one (the run reads the site's custom fs root).
     getCustomFsRoot: () => undefined,
     verifyJsonAgentInstall: async () => {}, bridgeInjection: { command: "host-bridge" }, readFile: async () => "",
+    // Preserve existing preflight spies at the recovery boundary; recovery I/O has its own tests.
+    ensureJsonAgentInstall: async (): Promise<void> => { await bindings.verifyJsonAgentInstall(); },
     resolveNativeToolPolicy, resolveFullCliAccess, resolveAssistantCliPermissions, resolveHostSignals, assistantCliPermissions, createToolGapCollector, redactSecretShapes,
     readLoginShellEnvironment: async () => ({ PATH: "/test/login-shell" }),
     deleteScope: { fresh: ({ run }: { run: () => unknown }) => run() },

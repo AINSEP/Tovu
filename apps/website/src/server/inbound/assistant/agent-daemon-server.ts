@@ -1,4 +1,4 @@
-import { verifyJsonAgentInstall } from "@jini-ai/mcp";
+import { ensureJsonAgentInstall } from "./ensure-json-agent-install.js";
 import { buildAssistantFilesystemNotices } from "./assistant-filesystem-notices.js";
 import { buildLibrarySaveAttachmentTool, buildListPendingChatAttachmentsTool, buildPromoteChatAttachmentTool, MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID } from "#src/features/media/attachment-tools";
 import { createDocumentArchiveReader } from "#src/features/media/document-archive";
@@ -1446,15 +1446,14 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     }
   }
 
-  /** Validate CLI bridge registration before emitting its access note. A failed preflight terminalizes
-   * the run and returns false; lifecycle emission errors propagate. O(1) registration reads. */
+  /** Verify/repair CLI bridge registration before emitting its access note. A failed recovery
+   * terminalizes the run and returns false; lifecycle emission errors propagate. O(config bytes). */
   async function prepareCliLaunch({ def }: { def: ReturnType<typeof getAgentDef> }, _optional = {}): Promise<boolean> {
     if (def?.externalMcpInjection === 'env-passthrough') {
       try {
-        await verifyJsonAgentInstall({ agentId: def.id, spec: { command: bridgeInjection.command,
+        await ensureJsonAgentInstall({ agentId: def.id, spec: { command: bridgeInjection.command,
           args: [...(bridgeInjection.args ?? [])], env: { ...bridgeInjection.env } },
-          ctx: { home: homedir(), platform: process.platform, serverName: 'jini' },
-          readFile: ({ path }) => readFile(path, 'utf8') });
+          ctx: { home: homedir(), platform: process.platform, serverName: 'jini' } }, {});
       } catch (error) {
         await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: (error as Error).message }, {}); return false;
       }
