@@ -6,7 +6,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/prim
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createAssistantToolExecutor } from "#src/assistant/tool-recovery-preset";
-import { installSupportingFilesFixture, FOUNDATIONS, SKILL_MARKDOWN } from "#src/features/agent-plugins/__tests__/fixtures/supporting-files.js";
+import { installSupportingFilesFixture, FOUNDATIONS, SKILL_MARKDOWN } from "#src/features/agent-plugins/__tests__/fixtures/supporting-files";
 
 type Result = { guidance: string; skillName: string; files: string[]; availableSkills: { name: string; description: string }[]; note?: string };
 
