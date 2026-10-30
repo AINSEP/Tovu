@@ -5,6 +5,8 @@ import { previewDomains, assertDomainApproval, applyDomains } from './domains.mj
 import { normalizeDomain } from './zones.mjs';
 import { formPageRoutes, formsWorkerParts, normalizeForms, previewForms, provisionForms } from './forms.mjs';
 
+const WORKERS_TARGET_ID = 'cloudflare-workers';
+
 /** Stable jini-<project> identity, retained for Pages; an explicitly recorded remote name wins. */
 /**
    * Derives a stable, Cloudflare-Pages-safe project name from the caller's
@@ -37,12 +39,12 @@ export async function previewTarget({ credential, config, kit, projectName, targ
 }
 
 async function inspectTarget({ api, config, kit, targetId, name, domain, formDestination }, _options = {}) {
-  const path = targetId === 'cloudflare-workers' ? `${api.accountPath}/workers/scripts` : `${api.accountPath}/pages/projects`;
-  const resources = await api.list({ path }, targetId === 'cloudflare-workers' ? {} : PAGES_PROJECTS_PAGING);
+  const path = targetId === WORKERS_TARGET_ID ? `${api.accountPath}/workers/scripts` : `${api.accountPath}/pages/projects`;
+  const resources = await api.list({ path }, targetId === WORKERS_TARGET_ID ? {} : PAGES_PROJECTS_PAGING);
   // Workers scripts are identified by `id`, Pages projects by `name`.
   const existing = resources.find(resource => resource.id === name || resource.name === name);
   const hostingChanges = [{ action: existing ? 'update' : 'create', targetId, resourceName: name }];
-  if (targetId === 'cloudflare-workers') {
+  if (targetId === WORKERS_TARGET_ID) {
     await workersAddress({ api, kit, resourceName: name });
     hostingChanges.push({ action: 'enable-workers-dev', targetId, resourceName: name });
   }
@@ -93,7 +95,7 @@ function publishResult({ targetId, name, accountId, hosting, link, hostnames, pl
 /** Workers with active forms: provision D1 and build the receiver parts. Pages and form-less sites keep assets only.
  * Runs after consent checks and before the upload session, so a failed provision changes no script. */
 async function prepareForms({ api, kit, targetId, resourceName, formDestination, files }, _options = {}) {
-  if (targetId !== 'cloudflare-workers') return undefined;
+  if (targetId !== WORKERS_TARGET_ID) return undefined;
   const normalized = normalizeForms({ formDestination, kit });
   if (!normalized) return undefined;
   const database = await provisionForms({ api, kit, resourceName });
@@ -102,7 +104,7 @@ async function prepareForms({ api, kit, targetId, resourceName, formDestination,
 }
 
 function preparePublish({ input, kit, config, plan, targetId }, _options = {}) {
-  const maxFiles = targetId === 'cloudflare-workers' && config.assetPlan === 'paid' ? 100_000 : 20_000;
+  const maxFiles = targetId === WORKERS_TARGET_ID && config.assetPlan === 'paid' ? 100_000 : 20_000;
   const assets = prepareAssets({ files: input.files, responseHeaders: input.responseHeaders, kit }, { maxFiles });
   if (!plan) return { assets };
   const expected = createHash('sha256').update(JSON.stringify({ manifest: assets.manifest, config: assets.config })).digest('hex');

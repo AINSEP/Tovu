@@ -50,8 +50,8 @@ const unavailable = (reason) => ({ mode: 'unavailable', reason, message: new Goo
 
 /** A stored session that is this surface's, unexpired, and the one the frame names. @complexity O(1). */
 function isLiveSession(session, sessionId, nowMs) {
-  return typeof session?.id === 'string' && session.id === sessionId && typeof session.accountId === 'string'
-    && typeof session.expiresAt === 'number' && session.expiresAt > nowMs;
+  if (typeof session?.id !== 'string' || session.id !== sessionId) return false;
+  return typeof session.accountId === 'string' && typeof session.expiresAt === 'number' && session.expiresAt > nowMs;
 }
 
 /** A stored desktop attempt in the shape `start` wrote. @complexity O(1). */

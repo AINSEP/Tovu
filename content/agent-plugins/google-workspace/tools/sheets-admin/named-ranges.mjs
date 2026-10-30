@@ -30,10 +30,11 @@ export default {
   },
   describeAffectedResources({ input }) {
     const where = input.range ? ` at ${gridRangeLabel({ range: input.range })}` : '';
+    const newName = input.name === undefined ? '' : ` to "${input.name}"`;
     const lines = {
       list: 'list named ranges (no change)',
       add: `add named range "${input.name}"${where}`,
-      update: `change named range ${input.namedRangeId}${input.name === undefined ? '' : ` to "${input.name}"`}${where} (formulas using it follow the change)`,
+      update: `change named range ${input.namedRangeId}${newName}${where} (formulas using it follow the change)`,
       delete: `delete named range ${input.namedRangeId} (formulas using it stop working)`,
     };
     return resourceLines({ lines: [spreadsheetLine(input), lines[input.action]] });

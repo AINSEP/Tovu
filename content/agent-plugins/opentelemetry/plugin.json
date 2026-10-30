@@ -7,6 +7,7 @@
   "license": "Apache-2.0",
   "extensions": {
     "tovu": {
+      "toolKeywords": { "observability_send_test_error": "OpenTelemetry" },
       "displayName": "OpenTelemetry",
       "summary": "Sends your site's traces to Grafana Cloud, Honeycomb or any OpenTelemetry backend.",
       "id": "tovu/opentelemetry",

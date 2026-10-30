@@ -1,0 +1,24 @@
+{
+  "name": "@tovu/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@jini-ai/analytics": "^0.6.12",
+    "@jini-ai/diagnostics": "^0.6.12"
+  }
+}

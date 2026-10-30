@@ -564,37 +564,36 @@ describe('GitHubPagesDeployTarget.publish', () => {
   });
 
   it('proceeds to the reachability wait using whatever Pages URL it already has when the build poll exhausts its 30-attempt budget', { timeout: 20_000 }, async () => {
-    vi.useFakeTimers();
-    try {
-      let pollCount = 0;
-      const fetchSpy = vi.fn(async (input, init) => {
-        const url = String(input);
-        const method = init?.method ?? 'GET';
-        if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
-        if (method === 'POST' && url.endsWith('/git/trees')) return jsonResponse(201, { sha: 'tree-sha' });
-        if (method === 'POST' && url.endsWith('/git/commits')) return jsonResponse(201, { sha: 'commit-sha' });
-        if (method === 'POST' && url.endsWith('/git/refs')) return jsonResponse(201, { ref: 'refs/heads/gh-pages', object: { sha: 'commit-sha', type: 'commit' } });
-        if (method === 'GET' && isPagesSiteUrl(url)) return new Response('', { status: 404 });
-        if (method === 'POST' && isPagesSiteUrl(url)) return jsonResponse(201, { html_url: 'https://octo.github.io/demo/' });
-        if (method === 'GET' && url.endsWith('/pages/builds/latest')) {
-          pollCount += 1;
-          return jsonResponse(200, { commit: 'commit-sha', status: 'building' });
-        }
-        return new Response('', { status: 200 });
-      });
-      vi.stubGlobal('fetch', fetchSpy);
+    const delays = [];
+    const { GitHubPagesDeployTarget: PollingTarget } = loaded.bindGitHubPages({
+      ...createDeployHostKit(), sleep: async ms => { delays.push(ms); },
+    });
+    let pollCount = 0;
+    const fetchSpy = vi.fn(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+      if (method === 'GET' && url.endsWith('/git/ref/heads/gh-pages')) return new Response('', { status: 404 });
+      if (method === 'POST' && url.endsWith('/git/trees')) return jsonResponse(201, { sha: 'tree-sha' });
+      if (method === 'POST' && url.endsWith('/git/commits')) return jsonResponse(201, { sha: 'commit-sha' });
+      if (method === 'POST' && url.endsWith('/git/refs')) return jsonResponse(201, { ref: 'refs/heads/gh-pages', object: { sha: 'commit-sha', type: 'commit' } });
+      if (method === 'GET' && isPagesSiteUrl(url)) return new Response('', { status: 404 });
+      if (method === 'POST' && isPagesSiteUrl(url)) return jsonResponse(201, { html_url: 'https://octo.github.io/demo/' });
+      if (method === 'GET' && url.endsWith('/pages/builds/latest')) {
+        pollCount += 1;
+        return jsonResponse(200, { commit: 'commit-sha', status: 'building' });
+      }
+      return new Response('', { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
 
-      const target = new GitHubPagesDeployTarget({ token: 'tok', owner: 'octo', repo: 'demo' });
-      const publishPromise = target.publish({ files: [], projectName: 'demo' });
-      await vi.advanceTimersByTimeAsync(60_000);
-      const result = await publishPromise;
+    const target = new PollingTarget({ token: 'tok', owner: 'octo', repo: 'demo' });
+    const publishPromise = target.publish({ files: [], projectName: 'demo' });
+    const result = await publishPromise;
 
-      expect(pollCount).toBe(30);
-      expect(result.status).toBe('ready');
-      expect(result.url).toBe('https://octo.github.io/demo/');
-    } finally {
-      vi.useRealTimers();
-    }
+    expect(pollCount).toBe(30);
+    expect(delays).toEqual([...Array(5).fill(1000), ...Array(25).fill(2000)]);
+    expect(result.status).toBe('ready');
+    expect(result.url).toBe('https://octo.github.io/demo/');
   });
 
   it('throws DeployError with the message field when blob creation fails', async () => {

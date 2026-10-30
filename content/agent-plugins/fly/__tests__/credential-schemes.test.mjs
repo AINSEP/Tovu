@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { detectSelfDescribingAuthScheme } from "@jini-ai/integrations/credentialed-http";
 
-import { loadCredentialSchemeRegistryFromSource } from "../../../../apps/website/src/features/custom-credentials/auth-schemes.ts";
+import { loadCredentialSchemeRegistryFromSource } from "../../../../apps/website/src/features/agent-plugins/auth-schemes.ts";
 
 /**
  * @file Moved from core (`apps/website/src/features/custom-credentials/__tests__/auth-schemes.unit.test.ts`)

@@ -36,7 +36,9 @@ export function createSiteVanillaArgs({ element }: { element: HTMLElement }, opt
         if (!allowsSitePageAction({ action })) return false;
         const target = findTargetElement(action.target.title);
         if (!target) return false;
-        scrollToElement(target); if (action.type === 'highlight') applyHighlight(target); return true;
+        scrollToElement(target);
+        if (action.type === 'highlight') applyHighlight(target);
+        return true;
       },
       clearHighlight: () => clearHighlight(),
     },

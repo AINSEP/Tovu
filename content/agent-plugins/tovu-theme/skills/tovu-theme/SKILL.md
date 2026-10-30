@@ -6,8 +6,8 @@ argument-hint: "[new: theme id, tier static|templated|declarative, authored|comp
 
 # Tovu themes: make a new one, convert an existing static site, or match a reference site
 
-The in-app assistant uses the Tovu tools below; never use Bash, curl, or a framework
-CLI from chat. Shell/build examples apply only to an authorized coding-agent checkout
+The in-app assistant uses Tovu tools first; never substitute Bash or curl for a mapped tool.
+Framework shell/build examples apply only to an authorized coding-agent checkout
 or the operator's terminal. If a compiled build needs that environment, hand it off.
 
 **Load design first.** Before designing a theme or writing page layouts, call `agent_plugin_ui_ux_design({"skill":"ui-ux-design"})` and follow its guidance, including the reference files and companion skills it directs you to load.
@@ -49,6 +49,16 @@ loads with `status: "valid"` and ships 15 real page files can still serve exactl
 URL. Do not treat "the theme validated" as "the site works."
 
 ## Tools
+
+**Inventory first.** Before building or re-uploading, including after a handoff, list Library
+documents (`library_list`), Media (`content_read.media_asset`), and relevant
+site files (`fs_list_files`, especially brand assets and handoff text). Reuse existing assets by slug.
+
+Map shell intents: theme list/read/search → theme_list_files / theme_read_file (find, startLine, lineCount); site/handoff/plugin text → fs_list_files / fs_read_file; page HTML/localhost routes → fetch_published_page (site path, never curl); picked-folder copies → files_copy; images → media_view_image; documents → library_list / library_read (text only; PDFs are download-only, so PDF inspection is a Tool gap).
+
+After ONE "Operation not permitted" or permission refusal, do not retry the same kind of command, even with another shell, flags or path spelling. Switch to the mapped tool; otherwise stop and tell the owner in one line: `Tool gap: <job and searched queries> — <denial or missing capability>.` Native fallback gaps are recorded automatically; tool_gaps_list reads that audit.
+
+Shell is only for genuine tool gaps: literal paths inside granted roots, no paths computed at run time, no ~/.claude/tool-results or other CLI spill-file reads. Applies to every agent CLI. Before a fallback, call search_tools for the job and retry discovery with different phrasing or a higher limit if nothing fits.
 
 Everything runs on tools that already exist: `fs_list_files` / `fs_read_file` to survey and
 read a source tree, `theme_duplicate` to start a new theme as a full copy of an existing one

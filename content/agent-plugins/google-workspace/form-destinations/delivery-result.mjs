@@ -11,6 +11,8 @@
  */
 import { GoogleWorkspaceError } from '../lib/request-policy.mjs';
 
+const DELIVERY_FAILED = 'delivery-failed';
+
 /** A refusal decided by the adapter itself (config, mapping, dedupe limit, product off). */
 export class DeliveryRefusal extends Error {
   /**
@@ -43,7 +45,7 @@ const CONTRACT_CODES = new Map([
   ['limit-exceeded', ['destination-limit', false]],
   ['uncertain-outcome', ['outcome-unknown', true]],
   ['product-disabled', ['adapter-unavailable', true]],
-  ['conflict', ['delivery-failed', true]], ['service-unavailable', ['delivery-failed', true]], ['network-error', ['delivery-failed', true]],
+  ['conflict', [DELIVERY_FAILED, true]], ['service-unavailable', [DELIVERY_FAILED, true]], ['network-error', [DELIVERY_FAILED, true]],
 ]);
 
 /** `{ ok: false, error }` with only the fields the contract keeps. @complexity O(1). */
@@ -61,7 +63,7 @@ export function failureResult(required, _optional = {}) {
 export function resultForError(required, _optional = {}) {
   const { error } = required;
   if (error instanceof DeliveryRefusal) return failureResult(error);
-  if (!(error instanceof GoogleWorkspaceError)) return failureResult({ code: 'delivery-failed', retryable: true });
-  const [code, retryable] = CONTRACT_CODES.get(error.code) ?? ['delivery-failed', false];
+  if (!(error instanceof GoogleWorkspaceError)) return failureResult({ code: DELIVERY_FAILED, retryable: true });
+  const [code, retryable] = CONTRACT_CODES.get(error.code) ?? [DELIVERY_FAILED, false];
   return failureResult({ code, retryable, outcome: error.outcome, retryAfterMs: error.retryAfterMs });
 }

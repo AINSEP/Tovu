@@ -43,7 +43,8 @@ function addAsset({ file, manifest, byHash, config, kit }, _options = {}) {
 }
 
 export function renderHeaders({ headers }, _options = {}) {
-  return `/*\n${Object.entries(headers).map(([name, value]) => `  ${name}: ${value}`).join('\n')}\n`;
+  const lines = Object.entries(headers).map(([name, value]) => `  ${name}: ${value}`).join('\n');
+  return `/*\n${lines}\n`;
 }
 
 /** Respect both Pages limits. A single oversize request is refused before any upload.

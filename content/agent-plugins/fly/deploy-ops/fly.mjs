@@ -18,15 +18,30 @@ function overall(machines) {
 function imageRef(machine) {
   const ref = machine.image_ref;
   if (typeof ref === "string") return ref;
-  if (ref?.repository) return `${ref.registry ? `${ref.registry}/` : ""}${ref.repository}${ref.tag ? `:${ref.tag}` : ""}${ref.digest ? `@${ref.digest}` : ""}`;
+  if (ref?.repository) {
+    const registry = ref.registry ? `${ref.registry}/` : "";
+    const tag = ref.tag ? `:${ref.tag}` : "";
+    const digest = ref.digest ? `@${ref.digest}` : "";
+    return `${registry}${ref.repository}${tag}${digest}`;
+  }
   return machine.config?.image;
+}
+/** Machine checks are optional, but every supplied check must carry a status. @complexity O(checks). */
+function invalidChecks({ checks }, _options = {}) {
+  return checks !== undefined && (!Array.isArray(checks) || checks.some(c => !c || typeof c.status !== "string"));
 }
 /** Return only machine identity/state and a bounded detail with region, image, checks and update time. */
 async function status(ctx, { target }) {
   const response = await ctx.get(`https://api.machines.dev/v1/apps/${app(ctx, target)}/machines`);
-  if (!Array.isArray(response.json) || response.json.some(m => !m || typeof m.id !== "string" || typeof m.state !== "string" || (m.checks !== undefined && (!Array.isArray(m.checks) || m.checks.some(c => !c || typeof c.status !== "string"))))) ctx.fail("Machine status response must be an array.");
+  if (!Array.isArray(response.json)) ctx.fail("Machine status response must be an array.");
+  if (response.json.some(m => !m || typeof m.id !== "string" || typeof m.state !== "string" || invalidChecks({ checks: m.checks }))) ctx.fail("Machine status response must be an array.");
   const machines = response.json; const state = overall(machines);
-  return { platform: "fly", target, state, summary: `${machines.length} machines: ${state}`, items: machines.slice(0, 500).map(m => ({ id: text(m.id), state: text(m.state), detail: text(`region=${text(m.region)}; image=${text(imageRef(m))}; checks=${(m.checks ?? []).map(c => `${text(c.name)}:${text(c.status)}`).join(",")}; updated_at=${text(m.updated_at)}`) })), checkedAt: ctx.nowIso() };
+  return { platform: "fly", target, state, summary: `${machines.length} machines: ${state}`, items: machines.slice(0, 500).map(m => ({ id: text(m.id), state: text(m.state), detail: machineDetail({ machine: m }) })), checkedAt: ctx.nowIso() };
+}
+/** Bounded display detail; check names and statuses use the same per-field cap. @complexity O(checks). */
+function machineDetail({ machine }, _options = {}) {
+  const checks = (machine.checks ?? []).map(c => `${text(c.name)}:${text(c.status)}`).join(",");
+  return text(`region=${text(machine.region)}; image=${text(imageRef(machine))}; checks=${checks}; updated_at=${text(machine.updated_at)}`);
 }
 function flyLogOrigin({ entry }, _options = {}) {
   return { ...(entry.timestamp || entry.at ? { at: text(entry.timestamp ?? entry.at) } : {}), ...(entry.instance || entry.source ? { source: text(entry.instance ?? entry.source) } : {}) };
@@ -55,7 +70,7 @@ async function listTargets(ctx, { org = "personal" } = {}) {
 /** App secrets live under one Machines API collection; names are env-var shaped before encoding. */
 const secretsUrl = (ctx, target) => `https://api.machines.dev/v1/apps/${app(ctx, target)}/secrets`;
 function secretName(ctx, name) {
-  if (typeof name !== "string" || !/^[A-Za-z_][A-Za-z0-9_]{0,127}$/.test(name)) ctx.fail("Secret name must be an environment variable name.");
+  if (typeof name !== "string" || !/^[A-Za-z_]\w{0,127}$/.test(name)) ctx.fail("Secret name must be an environment variable name.");
   return encodeURIComponent(name);
 }
 /** Names, Fly digests and update times only. Values are never requested by a listing. */
