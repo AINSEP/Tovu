@@ -165,6 +165,8 @@ function materializeLink(fs: StageFs, full: string): number {
     fs.unlinkSync(full);
     return 0;
   }
+  // Remove the link itself: Node 24.2's rmSync follows directory links and ignores dangling ones.
+  // The destination must be absent so copying cannot merge into or write through the link.
   fs.unlinkSync(full);
   fs.cpSync(target, full, { recursive: true, dereference: true });
   return 1;

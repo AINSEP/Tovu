@@ -592,7 +592,9 @@ async function reconcileInstanceFile(file: InstanceFile): Promise<SiteProcessRow
   }
   const reconciled = read.state === "ok" ? await reconcileRows(read.sites) : [];
   if (ownerGone) {
-    fs.rmSync(file.filePath, { force: true });
+    // A dangling link still owns a directory entry; Node 24.2's rmSync leaves it behind.
+    if (fs.lstatSync(file.filePath, { throwIfNoEntry: false })?.isSymbolicLink()) fs.unlinkSync(file.filePath);
+    else fs.rmSync(file.filePath, { force: true });
     fs.rmSync(tempPathFor(file.filePath, file.ownerPid), { force: true });
   }
   return reconciled;
