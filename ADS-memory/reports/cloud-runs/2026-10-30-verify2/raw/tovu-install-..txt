@@ -1,0 +1,18 @@
+npm warn deprecated @jini-ai/infra@0.5.4: Compatibility shim: use @jini-ai/db/core and @jini-ai/db/sqlite directly.
+npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.hirok.io
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.hirok.io
+npm warn deprecated @opentelemetry/sdk-trace-node@2.12.0: Use @opentelemetry/sdk-trace package
+npm warn deprecated @opentelemetry/sdk-trace-base@2.12.0: Use @opentelemetry/sdk-trace package
+
+added 726 packages, and audited 764 packages in 1m
+
+215 packages are looking for funding
+  run `npm fund` for details
+
+10 vulnerabilities (4 moderate, 6 high)
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.

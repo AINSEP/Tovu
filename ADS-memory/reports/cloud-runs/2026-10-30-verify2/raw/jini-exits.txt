@@ -1,0 +1,2 @@
+jini-typecheck exit=0
+jini-guard exit=0

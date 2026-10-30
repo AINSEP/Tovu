@@ -1,0 +1,773 @@
+✔ X1: a second process's write during a first process's paused rename is not erased once the write is locked cross-process (1310.299515ms)
+✔ X2: an 80-write burst across two processes loses nothing and leaves no lock behind (922.679803ms)
+[agent-plugins] removed a stale activations.json lock left by pid 2712 on vm (acquired 2026-10-30T07:42:08.359Z): /tmp/tovu-activation-xproc-OzVrwU/activations.json.lock
+✔ X3: a lock left by a SIGKILLed holder is recovered by liveness, not by waiting out the age threshold (487.567728ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ install -> parse mcp.json -> read installed files through the containment guarantee, end to end, for a plugin with both a skill and an MCP server (652.970142ms)
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ search results carry host maturity untested (108.068915ms)
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ search results carry host maturity soon (21.090696ms)
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ search results carry host maturity (absent) (120.370069ms)
+✔ the catalog carries exactly one tool, search_agent_plugin_local, with optional 'query' and 'limit' (36.989023ms)
+✔ the description sends the model to plugins_set_enabled's 'agent-plugin' family — it no longer claims that tool manages only .tovu-plugin site plugins (3.822247ms)
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ finds a real installed plugin by keyword, with compact discovery and full metadata retained by the detail loader (153.906156ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ a query matching nothing still reports totalInstalled, distinguishing 'nothing installed' from 'nothing matched' (163.374574ms)
+✔ an empty workspace (nothing installed) returns zero matches and totalInstalled 0, no throw (9.859319ms)
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ a DISABLED plugin is still found (unlike the dynamic agent_plugin_<id> tools) — search must not gate on activation (289.134563ms)
+Plugin 'example-host-deploy' has no publisher-qualified id; using 'unknown/example-host-deploy'.
+Plugin 'example-host-deploy' has no publisher-qualified id; using 'unknown/example-host-deploy'.
+Plugin 'example-host-deploy' has no publisher-qualified id; using 'unknown/example-host-deploy'.
+✔ MCP server ids stay on the detail path, while discovery omits transport config (139.138263ms)
+Plugin 'no-mcp-plugin' has no publisher-qualified id; using 'unknown/no-mcp-plugin'.
+Plugin 'no-mcp-plugin' has no publisher-qualified id; using 'unknown/no-mcp-plugin'.
+Plugin 'no-mcp-plugin' has no publisher-qualified id; using 'unknown/no-mcp-plugin'.
+✔ a plugin with no mcp.json remains discoverable and has no servers on the detail path (173.563265ms)
+﹣ SINK: a plugin whose SKILL.md is no longer readable does not take another installed plugin's search entry down with it (0.485415ms) # root bypasses chmod read permissions
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ two installed digests of the same plugin id do not crash search — unlike the dynamic tool loader's refusal (162.090555ms)
+Plugin 'compliance-tool-0' has no publisher-qualified id; using 'unknown/compliance-tool-0'.
+Plugin 'compliance-tool-1' has no publisher-qualified id; using 'unknown/compliance-tool-1'.
+Plugin 'compliance-tool-2' has no publisher-qualified id; using 'unknown/compliance-tool-2'.
+Plugin 'compliance-tool-3' has no publisher-qualified id; using 'unknown/compliance-tool-3'.
+Plugin 'compliance-tool-4' has no publisher-qualified id; using 'unknown/compliance-tool-4'.
+Plugin 'compliance-tool-5' has no publisher-qualified id; using 'unknown/compliance-tool-5'.
+Plugin 'compliance-tool-6' has no publisher-qualified id; using 'unknown/compliance-tool-6'.
+Plugin 'compliance-tool-7' has no publisher-qualified id; using 'unknown/compliance-tool-7'.
+Plugin 'compliance-tool-8' has no publisher-qualified id; using 'unknown/compliance-tool-8'.
+Plugin 'compliance-tool-9' has no publisher-qualified id; using 'unknown/compliance-tool-9'.
+Plugin 'compliance-tool-10' has no publisher-qualified id; using 'unknown/compliance-tool-10'.
+Plugin 'compliance-tool-11' has no publisher-qualified id; using 'unknown/compliance-tool-11'.
+Plugin 'compliance-tool-12' has no publisher-qualified id; using 'unknown/compliance-tool-12'.
+Plugin 'compliance-tool-13' has no publisher-qualified id; using 'unknown/compliance-tool-13'.
+Plugin 'compliance-tool-14' has no publisher-qualified id; using 'unknown/compliance-tool-14'.
+Plugin 'compliance-tool-15' has no publisher-qualified id; using 'unknown/compliance-tool-15'.
+Plugin 'compliance-tool-16' has no publisher-qualified id; using 'unknown/compliance-tool-16'.
+Plugin 'compliance-tool-17' has no publisher-qualified id; using 'unknown/compliance-tool-17'.
+Plugin 'compliance-tool-18' has no publisher-qualified id; using 'unknown/compliance-tool-18'.
+Plugin 'compliance-tool-19' has no publisher-qualified id; using 'unknown/compliance-tool-19'.
+Plugin 'compliance-tool-20' has no publisher-qualified id; using 'unknown/compliance-tool-20'.
+Plugin 'compliance-tool-21' has no publisher-qualified id; using 'unknown/compliance-tool-21'.
+Plugin 'compliance-tool-22' has no publisher-qualified id; using 'unknown/compliance-tool-22'.
+Plugin 'compliance-tool-23' has no publisher-qualified id; using 'unknown/compliance-tool-23'.
+Plugin 'compliance-tool-24' has no publisher-qualified id; using 'unknown/compliance-tool-24'.
+Plugin 'compliance-tool-25' has no publisher-qualified id; using 'unknown/compliance-tool-25'.
+Plugin 'compliance-tool-26' has no publisher-qualified id; using 'unknown/compliance-tool-26'.
+Plugin 'compliance-tool-27' has no publisher-qualified id; using 'unknown/compliance-tool-27'.
+Plugin 'compliance-tool-28' has no publisher-qualified id; using 'unknown/compliance-tool-28'.
+Plugin 'compliance-tool-29' has no publisher-qualified id; using 'unknown/compliance-tool-29'.
+Plugin 'compliance-tool-30' has no publisher-qualified id; using 'unknown/compliance-tool-30'.
+Plugin 'compliance-tool-31' has no publisher-qualified id; using 'unknown/compliance-tool-31'.
+Plugin 'compliance-tool-32' has no publisher-qualified id; using 'unknown/compliance-tool-32'.
+Plugin 'compliance-tool-33' has no publisher-qualified id; using 'unknown/compliance-tool-33'.
+Plugin 'compliance-tool-34' has no publisher-qualified id; using 'unknown/compliance-tool-34'.
+Plugin 'compliance-tool-35' has no publisher-qualified id; using 'unknown/compliance-tool-35'.
+Plugin 'compliance-tool-36' has no publisher-qualified id; using 'unknown/compliance-tool-36'.
+Plugin 'compliance-tool-37' has no publisher-qualified id; using 'unknown/compliance-tool-37'.
+Plugin 'compliance-tool-38' has no publisher-qualified id; using 'unknown/compliance-tool-38'.
+Plugin 'compliance-tool-39' has no publisher-qualified id; using 'unknown/compliance-tool-39'.
+Plugin 'compliance-tool-40' has no publisher-qualified id; using 'unknown/compliance-tool-40'.
+Plugin 'compliance-tool-41' has no publisher-qualified id; using 'unknown/compliance-tool-41'.
+Plugin 'compliance-tool-42' has no publisher-qualified id; using 'unknown/compliance-tool-42'.
+Plugin 'compliance-tool-43' has no publisher-qualified id; using 'unknown/compliance-tool-43'.
+Plugin 'compliance-tool-44' has no publisher-qualified id; using 'unknown/compliance-tool-44'.
+Plugin 'compliance-tool-45' has no publisher-qualified id; using 'unknown/compliance-tool-45'.
+Plugin 'compliance-tool-46' has no publisher-qualified id; using 'unknown/compliance-tool-46'.
+Plugin 'compliance-tool-47' has no publisher-qualified id; using 'unknown/compliance-tool-47'.
+Plugin 'compliance-tool-48' has no publisher-qualified id; using 'unknown/compliance-tool-48'.
+Plugin 'compliance-tool-49' has no publisher-qualified id; using 'unknown/compliance-tool-49'.
+Plugin 'compliance-tool-50' has no publisher-qualified id; using 'unknown/compliance-tool-50'.
+Plugin 'compliance-tool-0' has no publisher-qualified id; using 'unknown/compliance-tool-0'.
+Plugin 'compliance-tool-1' has no publisher-qualified id; using 'unknown/compliance-tool-1'.
+Plugin 'compliance-tool-10' has no publisher-qualified id; using 'unknown/compliance-tool-10'.
+Plugin 'compliance-tool-11' has no publisher-qualified id; using 'unknown/compliance-tool-11'.
+Plugin 'compliance-tool-12' has no publisher-qualified id; using 'unknown/compliance-tool-12'.
+Plugin 'compliance-tool-13' has no publisher-qualified id; using 'unknown/compliance-tool-13'.
+Plugin 'compliance-tool-14' has no publisher-qualified id; using 'unknown/compliance-tool-14'.
+Plugin 'compliance-tool-15' has no publisher-qualified id; using 'unknown/compliance-tool-15'.
+Plugin 'compliance-tool-16' has no publisher-qualified id; using 'unknown/compliance-tool-16'.
+Plugin 'compliance-tool-17' has no publisher-qualified id; using 'unknown/compliance-tool-17'.
+Plugin 'compliance-tool-18' has no publisher-qualified id; using 'unknown/compliance-tool-18'.
+Plugin 'compliance-tool-19' has no publisher-qualified id; using 'unknown/compliance-tool-19'.
+Plugin 'compliance-tool-2' has no publisher-qualified id; using 'unknown/compliance-tool-2'.
+Plugin 'compliance-tool-20' has no publisher-qualified id; using 'unknown/compliance-tool-20'.
+Plugin 'compliance-tool-21' has no publisher-qualified id; using 'unknown/compliance-tool-21'.
+Plugin 'compliance-tool-22' has no publisher-qualified id; using 'unknown/compliance-tool-22'.
+Plugin 'compliance-tool-23' has no publisher-qualified id; using 'unknown/compliance-tool-23'.
+Plugin 'compliance-tool-24' has no publisher-qualified id; using 'unknown/compliance-tool-24'.
+Plugin 'compliance-tool-25' has no publisher-qualified id; using 'unknown/compliance-tool-25'.
+Plugin 'compliance-tool-26' has no publisher-qualified id; using 'unknown/compliance-tool-26'.
+Plugin 'compliance-tool-27' has no publisher-qualified id; using 'unknown/compliance-tool-27'.
+Plugin 'compliance-tool-28' has no publisher-qualified id; using 'unknown/compliance-tool-28'.
+Plugin 'compliance-tool-29' has no publisher-qualified id; using 'unknown/compliance-tool-29'.
+Plugin 'compliance-tool-3' has no publisher-qualified id; using 'unknown/compliance-tool-3'.
+Plugin 'compliance-tool-30' has no publisher-qualified id; using 'unknown/compliance-tool-30'.
+Plugin 'compliance-tool-31' has no publisher-qualified id; using 'unknown/compliance-tool-31'.
+Plugin 'compliance-tool-32' has no publisher-qualified id; using 'unknown/compliance-tool-32'.
+Plugin 'compliance-tool-33' has no publisher-qualified id; using 'unknown/compliance-tool-33'.
+Plugin 'compliance-tool-34' has no publisher-qualified id; using 'unknown/compliance-tool-34'.
+Plugin 'compliance-tool-35' has no publisher-qualified id; using 'unknown/compliance-tool-35'.
+Plugin 'compliance-tool-36' has no publisher-qualified id; using 'unknown/compliance-tool-36'.
+Plugin 'compliance-tool-37' has no publisher-qualified id; using 'unknown/compliance-tool-37'.
+Plugin 'compliance-tool-38' has no publisher-qualified id; using 'unknown/compliance-tool-38'.
+Plugin 'compliance-tool-39' has no publisher-qualified id; using 'unknown/compliance-tool-39'.
+Plugin 'compliance-tool-4' has no publisher-qualified id; using 'unknown/compliance-tool-4'.
+Plugin 'compliance-tool-40' has no publisher-qualified id; using 'unknown/compliance-tool-40'.
+Plugin 'compliance-tool-41' has no publisher-qualified id; using 'unknown/compliance-tool-41'.
+Plugin 'compliance-tool-42' has no publisher-qualified id; using 'unknown/compliance-tool-42'.
+Plugin 'compliance-tool-43' has no publisher-qualified id; using 'unknown/compliance-tool-43'.
+Plugin 'compliance-tool-44' has no publisher-qualified id; using 'unknown/compliance-tool-44'.
+Plugin 'compliance-tool-45' has no publisher-qualified id; using 'unknown/compliance-tool-45'.
+Plugin 'compliance-tool-46' has no publisher-qualified id; using 'unknown/compliance-tool-46'.
+Plugin 'compliance-tool-47' has no publisher-qualified id; using 'unknown/compliance-tool-47'.
+Plugin 'compliance-tool-48' has no publisher-qualified id; using 'unknown/compliance-tool-48'.
+Plugin 'compliance-tool-49' has no publisher-qualified id; using 'unknown/compliance-tool-49'.
+Plugin 'compliance-tool-5' has no publisher-qualified id; using 'unknown/compliance-tool-5'.
+Plugin 'compliance-tool-50' has no publisher-qualified id; using 'unknown/compliance-tool-50'.
+Plugin 'compliance-tool-6' has no publisher-qualified id; using 'unknown/compliance-tool-6'.
+Plugin 'compliance-tool-7' has no publisher-qualified id; using 'unknown/compliance-tool-7'.
+Plugin 'compliance-tool-8' has no publisher-qualified id; using 'unknown/compliance-tool-8'.
+Plugin 'compliance-tool-9' has no publisher-qualified id; using 'unknown/compliance-tool-9'.
+Plugin 'compliance-tool-0' has no publisher-qualified id; using 'unknown/compliance-tool-0'.
+Plugin 'compliance-tool-1' has no publisher-qualified id; using 'unknown/compliance-tool-1'.
+Plugin 'compliance-tool-10' has no publisher-qualified id; using 'unknown/compliance-tool-10'.
+Plugin 'compliance-tool-11' has no publisher-qualified id; using 'unknown/compliance-tool-11'.
+Plugin 'compliance-tool-12' has no publisher-qualified id; using 'unknown/compliance-tool-12'.
+Plugin 'compliance-tool-13' has no publisher-qualified id; using 'unknown/compliance-tool-13'.
+Plugin 'compliance-tool-14' has no publisher-qualified id; using 'unknown/compliance-tool-14'.
+Plugin 'compliance-tool-15' has no publisher-qualified id; using 'unknown/compliance-tool-15'.
+Plugin 'compliance-tool-16' has no publisher-qualified id; using 'unknown/compliance-tool-16'.
+Plugin 'compliance-tool-17' has no publisher-qualified id; using 'unknown/compliance-tool-17'.
+Plugin 'compliance-tool-18' has no publisher-qualified id; using 'unknown/compliance-tool-18'.
+Plugin 'compliance-tool-19' has no publisher-qualified id; using 'unknown/compliance-tool-19'.
+Plugin 'compliance-tool-2' has no publisher-qualified id; using 'unknown/compliance-tool-2'.
+Plugin 'compliance-tool-20' has no publisher-qualified id; using 'unknown/compliance-tool-20'.
+Plugin 'compliance-tool-21' has no publisher-qualified id; using 'unknown/compliance-tool-21'.
+Plugin 'compliance-tool-22' has no publisher-qualified id; using 'unknown/compliance-tool-22'.
+Plugin 'compliance-tool-23' has no publisher-qualified id; using 'unknown/compliance-tool-23'.
+Plugin 'compliance-tool-24' has no publisher-qualified id; using 'unknown/compliance-tool-24'.
+Plugin 'compliance-tool-25' has no publisher-qualified id; using 'unknown/compliance-tool-25'.
+Plugin 'compliance-tool-26' has no publisher-qualified id; using 'unknown/compliance-tool-26'.
+Plugin 'compliance-tool-27' has no publisher-qualified id; using 'unknown/compliance-tool-27'.
+Plugin 'compliance-tool-28' has no publisher-qualified id; using 'unknown/compliance-tool-28'.
+Plugin 'compliance-tool-29' has no publisher-qualified id; using 'unknown/compliance-tool-29'.
+Plugin 'compliance-tool-3' has no publisher-qualified id; using 'unknown/compliance-tool-3'.
+Plugin 'compliance-tool-30' has no publisher-qualified id; using 'unknown/compliance-tool-30'.
+Plugin 'compliance-tool-31' has no publisher-qualified id; using 'unknown/compliance-tool-31'.
+Plugin 'compliance-tool-32' has no publisher-qualified id; using 'unknown/compliance-tool-32'.
+Plugin 'compliance-tool-33' has no publisher-qualified id; using 'unknown/compliance-tool-33'.
+Plugin 'compliance-tool-34' has no publisher-qualified id; using 'unknown/compliance-tool-34'.
+Plugin 'compliance-tool-35' has no publisher-qualified id; using 'unknown/compliance-tool-35'.
+Plugin 'compliance-tool-36' has no publisher-qualified id; using 'unknown/compliance-tool-36'.
+Plugin 'compliance-tool-37' has no publisher-qualified id; using 'unknown/compliance-tool-37'.
+Plugin 'compliance-tool-38' has no publisher-qualified id; using 'unknown/compliance-tool-38'.
+Plugin 'compliance-tool-39' has no publisher-qualified id; using 'unknown/compliance-tool-39'.
+Plugin 'compliance-tool-4' has no publisher-qualified id; using 'unknown/compliance-tool-4'.
+Plugin 'compliance-tool-40' has no publisher-qualified id; using 'unknown/compliance-tool-40'.
+Plugin 'compliance-tool-41' has no publisher-qualified id; using 'unknown/compliance-tool-41'.
+Plugin 'compliance-tool-42' has no publisher-qualified id; using 'unknown/compliance-tool-42'.
+Plugin 'compliance-tool-43' has no publisher-qualified id; using 'unknown/compliance-tool-43'.
+Plugin 'compliance-tool-44' has no publisher-qualified id; using 'unknown/compliance-tool-44'.
+Plugin 'compliance-tool-45' has no publisher-qualified id; using 'unknown/compliance-tool-45'.
+Plugin 'compliance-tool-46' has no publisher-qualified id; using 'unknown/compliance-tool-46'.
+Plugin 'compliance-tool-47' has no publisher-qualified id; using 'unknown/compliance-tool-47'.
+Plugin 'compliance-tool-48' has no publisher-qualified id; using 'unknown/compliance-tool-48'.
+Plugin 'compliance-tool-49' has no publisher-qualified id; using 'unknown/compliance-tool-49'.
+Plugin 'compliance-tool-5' has no publisher-qualified id; using 'unknown/compliance-tool-5'.
+Plugin 'compliance-tool-50' has no publisher-qualified id; using 'unknown/compliance-tool-50'.
+Plugin 'compliance-tool-6' has no publisher-qualified id; using 'unknown/compliance-tool-6'.
+Plugin 'compliance-tool-7' has no publisher-qualified id; using 'unknown/compliance-tool-7'.
+Plugin 'compliance-tool-8' has no publisher-qualified id; using 'unknown/compliance-tool-8'.
+Plugin 'compliance-tool-9' has no publisher-qualified id; using 'unknown/compliance-tool-9'.
+✔ limit is clamped, not rejected — an out-of-range value still returns a result within [1, 50] (14162.487643ms)
+Plugin 'zeta' has no publisher-qualified id; using 'unknown/zeta'.
+Plugin 'alpha' has no publisher-qualified id; using 'unknown/alpha'.
+Plugin 'alpha' has no publisher-qualified id; using 'unknown/alpha'.
+Plugin 'zeta' has no publisher-qualified id; using 'unknown/zeta'.
+Plugin 'alpha' has no publisher-qualified id; using 'unknown/alpha'.
+Plugin 'zeta' has no publisher-qualified id; using 'unknown/zeta'.
+Plugin 'alpha' has no publisher-qualified id; using 'unknown/alpha'.
+Plugin 'zeta' has no publisher-qualified id; using 'unknown/zeta'.
+✔ blank queries list the existing loader's enabled and disabled plugins (275.900249ms)
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ SECURITY: no absolute host path leaks into the response, even for a matched plugin (129.359836ms)
+Plugin 'only-in-other' has no publisher-qualified id; using 'unknown/only-in-other'.
+✔ workspace isolation: a search in workspace A finds nothing installed only under a different workspace (104.916478ms)
+Plugin 'minimal-pinned' has no publisher-qualified id; using 'unknown/minimal-pinned'.
+Plugin 'bad-pinned' has no publisher-qualified id; using 'unknown/bad-pinned'.
+Plugin 'minimal-pinned' has no publisher-qualified id; using 'unknown/minimal-pinned'.
+✔ L025b search projection preserves optional metadata and isolates invalid identities (104.535404ms)
+Plugin 'paged-tool-0' has no publisher-qualified id; using 'unknown/paged-tool-0'.
+Plugin 'paged-tool-1' has no publisher-qualified id; using 'unknown/paged-tool-1'.
+Plugin 'paged-tool-2' has no publisher-qualified id; using 'unknown/paged-tool-2'.
+Plugin 'paged-tool-0' has no publisher-qualified id; using 'unknown/paged-tool-0'.
+Plugin 'paged-tool-1' has no publisher-qualified id; using 'unknown/paged-tool-1'.
+Plugin 'paged-tool-2' has no publisher-qualified id; using 'unknown/paged-tool-2'.
+Plugin 'paged-tool-0' has no publisher-qualified id; using 'unknown/paged-tool-0'.
+Plugin 'paged-tool-1' has no publisher-qualified id; using 'unknown/paged-tool-1'.
+Plugin 'paged-tool-2' has no publisher-qualified id; using 'unknown/paged-tool-2'.
+✔ offset pages the ranked catalog; a negative or fractional offset is an input error (58.53363ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ a plugin disabled through setAgentPluginEnabled — the composition BOTH the admin toggle and plugins_set_enabled call — stops answering in the already-running daemon, with no restart (197.109341ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ revocation follows the activation RECORD, not the caller: a bare setAgentPluginActivation write revokes the live tool too (290.902328ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ uninstalling a DISABLED plugin must not re-admit its revoked tool — deleting the activation record is not consent (331.323338ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ uninstalling an ENABLED plugin revokes its live tool too — uninstall alone is a revocation, not just a disk operation (240.105563ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ the gate's INSTALLED half stands on its own: the package bytes disappearing revokes the tool even while the record still says enabled (136.940631ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'tea-roastery' has no publisher-qualified id; using 'unknown/tea-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'tea-roastery' has no publisher-qualified id; using 'unknown/tea-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'tea-roastery' has no publisher-qualified id; using 'unknown/tea-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'tea-roastery' has no publisher-qualified id; using 'unknown/tea-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'tea-roastery' has no publisher-qualified id; using 'unknown/tea-roastery'.
+✔ revocation is scoped to the plugin and workspace in an already-booted registry (427.424687ms)
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+[agent-plugins] 'operator-plugin': plugins_uninstall (family agent-plugin) refused — agent-plugin activation: could not take the write lock (/tmp/tovu-agent-plugin-uninstall-busy-test-t8blU1/ws/88888888-8888-4888-8888-888888888888/activations.json.lock) within 15s — held by pid 9301 on otherhost since 2026-10-30T07:43:51.973Z. Nothing was written, so no recorded enable/disable decision was changed. This clears by itself when the other host process (server, agent daemon, or the agent-plugin:activation CLI) finishes; a lock left by a crashed process is removed automatically once that process is gone or the lock is older than 10s. If it persists, stop every host process for this workspace and delete /tmp/tovu-agent-plugin-uninstall-busy-test-t8blU1/ws/88888888-8888-4888-8888-888888888888/activations.json.lock.
+✔ t91 R2: a lock already busy before the call still raises the confirmation dialog — preview takes no lock — and only refuses the actual delete on confirm (279.49151ms)
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+[agent-plugins] 'operator-plugin': plugins_uninstall (family agent-plugin) refused — agent-plugin activation: could not take the write lock (/tmp/tovu-agent-plugin-uninstall-busy-test-7j9v4e/ws/88888888-8888-4888-8888-888888888888/activations.json.lock) within 15s — held by pid 9302 on otherhost since 2026-10-30T07:43:52.220Z. Nothing was written, so no recorded enable/disable decision was changed. This clears by itself when the other host process (server, agent daemon, or the agent-plugin:activation CLI) finishes; a lock left by a crashed process is removed automatically once that process is gone or the lock is older than 10s. If it persists, stop every host process for this workspace and delete /tmp/tovu-agent-plugin-uninstall-busy-test-7j9v4e/ws/88888888-8888-4888-8888-888888888888/activations.json.lock.
+✔ t91 R2: a lock that goes busy while the dialog is open removes nothing on confirm, and the package survives (297.965715ms)
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+[agent-plugins] 'operator-plugin': plugins_uninstall (family agent-plugin) refused — exclusive file lock timed out after 15000ms
+✔ Layout B: a busy per-plugin state lock on confirm is a not-removed RESULT (plugin-busy), never an opaque thrown error, and the package survives (45.263165ms)
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+✔ an unexpected failure of the confirmed delete propagates unchanged instead of being relabelled as bad input (24.588544ms)
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+✔ a run aborted while the human was confirming removes nothing and reports the uninstall as abandoned (67.26571ms)
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+✔ a run aborted during the post-confirmation permission re-check removes nothing and reports it abandoned (22.966675ms)
+✔ the catalog's plugins_uninstall entry requires 'family' and 'pluginId', is classified deletes-durable-state, and says it asks the human (2.716164ms)
+✔ checks admin.plugins.enable for this run's principal, scoped to this workspace (221.316482ms)
+✔ the dialog's memory choices are in the calling operator's saved admin language (55.512031ms)
+✔ a denied principal is rejected before any dialog is raised, and nothing is removed from disk (40.96387ms)
+✔ an unknown pluginId is reclassified as ToolInputError before any dialog, not a redacted internal error (4.791725ms)
+✔ a bundled plugin is refused as ToolInputError before any dialog, naming plugins_set_enabled as the way to turn it off — and nothing is removed (49.700753ms)
+✔ t91 §7.1: a corrupt activations.json reaches the model through the real executor as a path-free result, not an opaque INTERNAL_ERROR; the detail goes to console.warn (90.914407ms)
+✔ t91 §7.1: activations.json corrupted while the dialog is open: confirm removes nothing and returns the same path-free result (174.037596ms)
+✔ FAILS CLOSED: with no interactive confirmation channel (no emitSurface) nothing is removed (179.54528ms)
+✔ the dialog names the plugin and its version, targets plugins_uninstall, and carries no host path (178.17377ms)
+✔ confirm: uninstalls — package root gone, activation record deleted, and the result says a restart is needed (848.296578ms)
+✔ confirm: the result note says the plugin's provisioned external MCP connections were NOT removed (420.642592ms)
+✔ cancel: nothing is removed and the result reports the cancellation, not an error (91.071448ms)
+✔ an archive installed for the same id while the dialog is open: confirm removes NOTHING and the result says it changed (273.034121ms)
+✔ a run that ends while the dialog is open closes it, reports 'abandoned', and removes nothing (212.913579ms)
+✔ an interrupted update waiting for boot recovery refuses the uninstall as a path-free update-pending result, removing nothing (197.883763ms)
+✔ an unreadable update recovery record refuses the uninstall with a manual-repair note, never 'restart', removing nothing (199.088973ms)
+[agent-plugins:migration-complete] /tmp/tovu-higgsfield-media-jY7yUV/ws/44444444-4444-4444-8444-444444444444
+✔ higgsfield-media seeds from the real bundled tree and is recorded INACTIVE, like every bundled plugin (4116.543547ms)
+[agent-plugins:migration-complete] /tmp/tovu-higgsfield-media-S1tYyw/ws/44444444-4444-4444-8444-444444444444
+✔ enabling it injects the REAL SKILL.md, carrying every claim an agent cannot infer (5481.385965ms)
+[agent-plugins:migration-complete] /tmp/tovu-higgsfield-media-tyB9Yb/ws/44444444-4444-4444-8444-444444444444
+✔ disabling it again withholds the SKILL.md entirely (4586.861688ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-g6T1xB/ws/44444444-4444-4444-8444-444444444444
+✔ a bundled upgrade of an ENABLED plugin keeps its tool registered, on the NEW digest (10708.530279ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-IgRe6I/ws/44444444-4444-4444-8444-444444444444
+✔ a bundled upgrade of an ENABLED plugin keeps run-start injection working, with the NEW content (11914.566166ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-Kwj1r2/ws/44444444-4444-4444-8444-444444444444
+✔ an edited bundled SKILL.md refreshes the site's installed copy even with NO version bump (13662.13166ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-MtpBq7/ws/44444444-4444-4444-8444-444444444444
+✔ successful upgrade prunes superseded bytes and keeps the newly published digest (12839.511757ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-jINeF9/ws/44444444-4444-4444-8444-444444444444
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-ZlX70g/ws/44444444-4444-4444-8444-444444444444
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-VlRua7/ws/44444444-4444-4444-8444-444444444444
+✔ the admin listing reports the version the RUNNING build ships, in EITHER seeding order (43366.016404ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-UlJSKO/ws/44444444-4444-4444-8444-444444444444
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-1On5RM/ws/44444444-4444-4444-8444-444444444444
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-FgDazB/ws/44444444-4444-4444-8444-444444444444
+✔ MCP federation reads the RUNNING build's package, in EITHER seeding order (61127.860851ms)
+[agent-plugins:migration-complete] /tmp/tovu-bundled-upgrade-Bau8f6/ws/44444444-4444-4444-8444-444444444444
+✔ a bundled upgrade preserves an operator's disabled decision and keeps both gates closed (21130.394549ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ approved dev.tovu.memory namespace retains package guidance while each site's learned memory starts empty (936.895352ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'second' has no publisher-qualified id; using 'unknown/second'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'second' has no publisher-qualified id; using 'unknown/second'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ Layout B isolates two packages and keeps mutable state outside the indexed/frozen package on update (824.68276ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ uninstall keeps memory/data by default; reinstall resumes it; explicit preview-bound deletion removes the plugin folder (890.576698ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ notes autoload in pinned skill guidance; learned knowledge does not; package notes-seed is ignored (452.213892ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'second' has no publisher-qualified id; using 'unknown/second'.
+Plugin 'staging' has no publisher-qualified id; using 'unknown/staging'.
+✔ learned capability refuses traversal, sibling plugin aliases, notes writes, invalid UTF-8 and size overflows (595.141073ms)
+✔ memory tools cannot select a different plugin/kind and obey the per-call revocation gate (80.944065ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+[agent-plugins:migration-moved] /tmp/plugin-layout-b-r8rdTV/ws/workspace-local/packages/sha256/56c599e7f172180854649e9e462e3b6cdc9416e1219bbd2e45a308e05e40bdae -> /tmp/plugin-layout-b-r8rdTV/ws/workspace-local/example/package/sha256/56c599e7f172180854649e9e462e3b6cdc9416e1219bbd2e45a308e05e40bdae
+[agent-plugins:migration-moved] /tmp/plugin-layout-b-r8rdTV/ws/workspace-local/memory/example -> /tmp/plugin-layout-b-r8rdTV/ws/workspace-local/example/memory
+[agent-plugins:migration-moved] /tmp/plugin-layout-b-r8rdTV/ws/workspace-local/data/example -> /tmp/plugin-layout-b-r8rdTV/ws/workspace-local/example/data
+[agent-plugins:migration-complete] /tmp/plugin-layout-b-r8rdTV/ws/workspace-local
+✔ migration moves legacy packages, Layout A memory and PLUGIN_DATA once, preserving frozen modes and activations (266.125581ms)
+Plugin 'first' has no publisher-qualified id; using 'unknown/first'.
+Plugin 'second' has no publisher-qualified id; using 'unknown/second'.
+✔ migration resumes after interruption, isolates malformed manifests, and serializes concurrent boots (99.494793ms)
+[agent-plugins:migration-quarantined] /tmp/plugin-layout-b-TaC22p/ws/workspace-local/packages/sha256/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff -> /tmp/plugin-layout-b-TaC22p/ws/workspace-local/staging/legacy-quarantine/2026-10-30T07-47-27.267Z-7816cccb-97bb-4241-9d0f-e65030b74eea/packages/sha256/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff: SyntaxError: Unexpected token 'b', "bad json" is not valid JSON
+[agent-plugins:migration-complete] /tmp/plugin-layout-b-TaC22p/ws/workspace-local
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ malformed legacy entries are quarantined once and bundled seeding proceeds on this boot and the next (762.444065ms)
+[agent-plugins:migration-moved] /tmp/plugin-layout-b-6WqION/ws/workspace-local/packages/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd -> /tmp/plugin-layout-b-6WqION/ws/workspace-local/example/package/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+[agent-plugins:migration-complete] /tmp/plugin-layout-b-6WqION/ws/workspace-local
+[agent-plugins:migration-moved] /tmp/plugin-layout-b-6WqION/ws/ws-second/packages/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd -> /tmp/plugin-layout-b-6WqION/ws/ws-second/example/package/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+[agent-plugins:migration-complete] /tmp/plugin-layout-b-6WqION/ws/ws-second
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ site boot migrates every existing workspace before seeding the active one (424.309794ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ a crash after rename but before permission restoration never leaves the migrated package writable (221.127034ms)
+✔ withAgentPluginStateLock runs the critical section under a per-plugin lock and returns its result (126.563629ms)
+✔ withAgentPluginStateLock refuses a plugin id that is not a safe path segment before locking (58.009366ms)
+✔ a legacy package whose manifest is not a valid Agent Plugin manifest is quarantined, not migrated (366.667336ms)
+✔ appendPluginNotes returns the guidance untouched when the plugin has no notes, and JSON-quotes them when it does (49.276781ms)
+✔ read names survive parsing alongside independent write defaults (18.210716ms)
+✔ absent read defaults to an empty read list (0.558528ms)
+✔ read outside an explicitly provided allow list excludes the entire server (2.989823ms)
+✔ invalid read arrays and names exclude the entire server, including mixed valid/invalid lists (0.910908ms)
+✔ read supports the same name grammar and exact 64-tool bound as allow (0.813037ms)
+✔ read-only declarations preserve the absence of sign-in defaults (0.336627ms)
+✔ bundled Higgsfield declares only the two evidenced read tools and no sign-in allow defaults (127.519798ms)
+✔ legacy mcp.json fields cannot supply operator read trust (0.499955ms)
+✔ an invalid plugin manifest cannot supply read trust (0.373156ms)
+✔ a plugin that is not installed is refused before any form or network call (24.056141ms)
+✔ a plugin whose servers declare no tovuTokenAuth is refused: there is no token form for it (3.82204ms)
+✔ a plugin declaring two access-token sign-ins is refused rather than guessing which one the token is for (2.958029ms)
+✔ a token-auth server whose key yields no connection id is refused, and a stdio server never counts as token-auth (3.119255ms)
+✔ a row an operator pointed at another host is refused, so the token is never sent there (4.259317ms)
+✔ INV-01: the token tool takes only a pluginId, so a token can never ride in on the model's own call (2.286086ms)
+✔ with no emitSurface the token tool fails closed with no exchange and no network call (2.695432ms)
+✔ the form names the plugin and displays its declared tokens page in the help text (39.48889ms)
+✔ AC-10/EC-03/EC-04: a valid token is probed at the declared URL, sealed as the row's static token, and never echoed anywhere (35.963519ms)
+✔ EC-03/REQ-14: a token the vendor rejects is not stored, and the vendor's raw body is not relayed (10.198789ms)
+✔ an unreachable vendor stores nothing and says the plugin is unavailable (5.226129ms)
+✔ a 403 refuses this purpose, names the plugin card keyHint and preserves an existing saved token (28.116837ms)
+✔ a 403 without optional plugin copy is still a refusal rather than an invalid token (104.017563ms)
+✔ a blank token is refused without a probe, and a cancel stores nothing (6.088874ms)
+✔ AC-12: once saved and enabled, the account-wide row carries the token only as a Bearer header (8.590747ms)
+✔ IRON RULE: saving a token on an untouched connection switches the plugin on, with no manual step (10.26374ms)
+✔ a plugin an operator turned off keeps the token but stays off, and the result names the Agent Plugins screen (10.240047ms)
+✔ a failure switching on after the save still reports the token as saved, with a retry step (34.955552ms)
+✔ permission denial raises no form, opens no exchange and leaves the token row unchanged (2.212578ms)
+✔ a rejected HTTP transport returns unavailable, saves nothing and closes the exchange (19.189984ms)
+✔ a store failure after a successful probe is redacted and leaves the previous row intact (37.018417ms)
+✔ a pending form that is expired saves nothing and rejects late answers (17.479166ms)
+✔ a pending form that is abandoned saves nothing and rejects late answers (8.19967ms)
+✔ a pending form that is abort saves nothing and rejects late answers (7.992078ms)
+✔ credential validation precedes the agent-plugin probe (The token exceeds the 8192-character limit. Copy only the token.) (11.389213ms)
+✔ credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).) (10.600265ms)
+✔ credential validation precedes the agent-plugin probe (Hosted tokens must use visible ASCII characters (0x21–0x7E).) (3.430296ms)
+✔ credential validation precedes the agent-plugin probe (Enter a token. Spaces alone are not a token.) (5.857604ms)
+✔ an abort during the token probe prevents the sealed write and plugin activation (10.495934ms)
+✔ a run aborted before preparation opens no form and leaves the plugin row unchanged (4.932803ms)
+✔ a destination repointed while the token form is open cannot receive the submitted credential (14.950812ms)
+✔ recordBundledAgentPluginIfAbsent refuses a corrupt file and never rewrites it (146.411529ms)
+✔ setAgentPluginActivation refuses a corrupt file even when toggling an UNRELATED plugin (34.64794ms)
+✔ deleteAgentPluginActivation refuses a corrupt file rather than silently no-op'ing (26.379712ms)
+✔ a well-formed but unsupported schemaVersion is refused, not silently downgraded (and destroyed) into v1 (6.2698ms)
+✔ recordBundledAgentPluginIfAbsent for a DIFFERENT plugin preserves a malformed sibling entry byte-for-byte (53.751071ms)
+✔ recordBundledAgentPluginIfAbsent treats a present-but-malformed entry as an existing decision, and leaves it alone (14.874671ms)
+✔ setAgentPluginActivation for a DIFFERENT plugin preserves a malformed sibling entry byte-for-byte (13.484788ms)
+[agent-plugins:migration-complete] /tmp/tovu-seed-corrupt-guard-fbLXfY/sites/tovu-dev/agent-plugins/ws/33333333-3333-4333-8333-333333333333
+Plugin 'mini-bundled' has no publisher-qualified id; using 'unknown/mini-bundled'.
+Plugin 'mini-bundled' has no publisher-qualified id; using 'unknown/mini-bundled'.
+Plugin 'mini-bundled' has no publisher-qualified id; using 'unknown/mini-bundled'.
+Plugin 'mini-bundled' has no publisher-qualified id; using 'unknown/mini-bundled'.
+Plugin 'mini-bundled' has no publisher-qualified id; using 'unknown/mini-bundled'.
+Plugin 'mini-bundled' has no publisher-qualified id; using 'unknown/mini-bundled'.
+✔ GUARD: seedBundledAgentPlugins still seeds normally against an ABSENT file (first boot) (219.902844ms)
+[agent-plugins:migration-complete] /tmp/tovu-seed-corrupt-jDLFn5/sites/tovu-dev/agent-plugins/ws/33333333-3333-4333-8333-333333333333
+✔ seedBundledAgentPlugins refuses a corrupt activations file: installs nothing, reports every bundled plugin failed (262.66927ms)
+Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+✔ previewAgentPluginUninstall and uninstallAgentPlugin both refuse a corrupt activations file, leaving the package installed (284.772536ms)
+Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+✔ uninstallAgentPlugin refuses a corrupt file even when its (unreadable) content would have said the plugin is bundled (178.662466ms)
+✔ two concurrent disables of DIFFERENT plugins both land — neither write erases the other (989.393642ms)
+✔ a burst of concurrent operator toggles and seeder records in one process keeps every decision (172.544996ms)
+[agent-plugins] removed a stale activations.json lock left by pid 5638 on vm (acquired 2026-10-30T07:47:46.976Z): /tmp/tovu-activation-corrupt-MMYDXm/activations.json.lock
+✔ T17: a lock left by a dead pid does not block setAgentPluginActivation (224.279625ms)
+[agent-plugins] removed a stale activations.json lock with an unreadable holder: /tmp/tovu-activation-corrupt-atWg1S/activations.json.lock
+✔ T18: a 0-byte lock aged 60s does not block recordBundledAgentPluginIfAbsent (79.766561ms)
+[agent-plugins] removed a stale activations.json lock left by pid 5645 on vm (acquired 2026-10-30T07:47:47.462Z): /tmp/tovu-activation-corrupt-grm9VA/activations.json.lock
+✔ T19: assertAgentPluginActivationsWritable removes a dead-holder lock, not merely tolerates it (278.263843ms)
+✔ T20: a writer WAITS for a live foreign lock, and proceeds the moment it is released (168.562733ms)
+[agent-plugins] removed a stale activations.json lock left by pid 5652 on vm (acquired 2026-10-30T07:47:47.752Z): /tmp/tovu-activation-corrupt-V8rAps/activations.json.lock
+✔ T21: a corrupt file combined with a stale lock still rejects AgentPluginActivationsUnreadableError, and the lock is still released (234.686768ms)
+✔ N1: setAgentPluginActivation refuses when the TARGET plugin's own entry is malformed, rather than rewriting it as operator-installed (48.178606ms)
+✔ D1: the temp file is fsync'd before the rename that publishes it (97.569995ms)
+✔ D2: the workspace directory is best-effort fsync'd AFTER the rename (74.22321ms)
+✔ D2: unsupported directory fsync does not reject a persisted activation (43.532036ms)
+✔ B1: setAgentPluginActivation maps a lock timeout to AgentPluginActivationsBusyError, writing nothing (118.534279ms)
+✔ B2: recordBundledAgentPluginIfAbsent maps a lock timeout to AgentPluginActivationsBusyError, writing nothing (21.182906ms)
+✔ B3: deleteAgentPluginActivation maps a lock timeout to AgentPluginActivationsBusyError, writing nothing (24.81762ms)
+✔ B4: assertAgentPluginActivationsWritable maps a lock timeout to AgentPluginActivationsBusyError (6.953197ms)
+✔ B5: a lock LOST right before the rename maps to AgentPluginActivationsBusyError with lost:true, and leaves no temp file (78.272156ms)
+[agent-plugins:migration-complete] /tmp/tovu-seed-lock-busy-vzGLHD/sites/tovu-dev/agent-plugins/ws/44444444-4444-4444-8444-444444444444
+✔ B6: a busy pre-flight fails every bundled plugin with a reason naming the write lock, installing nothing (154.641801ms)
+✔ B7: a REAL lock combined with a corrupt file rejects AgentPluginActivationsUnreadableError, not Busy — non-lock errors are not remapped (7.583467ms)
+✔ a plugin with NO record is active — an operator's own install keeps working (1.457854ms)
+✔ an explicit enabled:false record makes a plugin inactive (0.21845ms)
+✔ isAgentPluginActive: a plugin named for an Object.prototype member is active by absence, never an inherited value (0.609581ms)
+✔ filterActiveAgentPlugins drops exactly the disabled ones, keeping order (4.006114ms)
+✔ a workspace with no activations file reads as empty, not as an error (108.214315ms)
+✔ a corrupt activations file reads as empty for DISCOVERY — but the boot seeder refuses to rewrite it (74.763787ms)
+✔ normalizeActivations drops malformed entries WITHOUT discarding the operator's good ones (0.901238ms)
+✔ a wrong schemaVersion reads as empty rather than being interpreted under this version's rules (0.230847ms)
+✔ setAgentPluginActivation round-trips and leaves no temp file behind (159.002085ms)
+✔ deleteAgentPluginActivation removes the record entirely — a subsequent read has no key for it, not a disabled tombstone (89.193086ms)
+✔ deleteAgentPluginActivation is a no-op, not an error, when no record exists (10.081103ms)
+✔ deleteAgentPluginActivation rejects an invalid plugin id (3.817672ms)
+✔ toggling preserves provenance — enabling a bundled plugin does not make it look operator-installed (36.98713ms)
+✔ recordBundledAgentPluginIfAbsent NEVER overwrites an existing decision — it runs on every boot (43.87814ms)
+✔ recordBundledAgentPluginIfAbsent { enabled: true } writes an ENABLED bundled record when none exists (9.595056ms)
+✔ recordBundledAgentPluginIfAbsent { enabled: true } upgrades the seeder's OWN untouched disabled record — existing sites need no action (28.2909ms)
+✔ recordBundledAgentPluginIfAbsent { enabled: true } NEVER re-enables a plugin an operator switched off (145.338773ms)
+✔ a plugin id that is not valid Agent Plugins grammar is refused with an exact message (30.404621ms)
+✔ the written file is human-readable JSON an operator can inspect (30.835779ms)
+✔ resolveAgentPluginActivation: no file at all is ACTIVE — the 'absent means active' rule is untouched (2.810683ms)
+✔ resolveAgentPluginActivation: a workspace root that does not exist at all is ACTIVE, not a fault (0.786761ms)
+✔ resolveAgentPluginActivation: a well-formed file with no entry for THIS plugin is ACTIVE (30.414412ms)
+✔ resolveAgentPluginActivation: an explicit record answers exactly what it says (62.667655ms)
+✔ resolveAgentPluginActivation: a file that is not valid JSON is UNDETERMINED — readAgentPluginActivations reads the same bytes as empty (8.132484ms)
+✔ resolveAgentPluginActivation: a wrong-shape or wrong-version envelope is UNDETERMINED (9.66904ms)
+✔ resolveAgentPluginActivation: a malformed record for THIS plugin is UNDETERMINED, not 'dropped, therefore absent, therefore active' (8.720214ms)
+✔ resolveAgentPluginActivation: an id that names an Object.prototype member is ACTIVE by absence, never an inherited value (8.041432ms)
+✔ EISDIR read errors remain undetermined, writers refuse, and existing bytes survive (11.241084ms)
+✔ after the first OAuth callback, a plugin-provisioned row with empty lists is enabled with the declared tools (106.270098ms)
+✔ T21: OAuth sign-in respects an operator's explicit plugin-off decision (274.431552ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+✔ OAuth callback composes installed defaults with real plugin activation storage (137.225494ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+✔ an operator turning the plugin OFF after the off-check but before the enable keeps it off and grants nothing (86.53178ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+[external-mcp] 'supabase': post-connect step failed: 'supabase' is part of the 'acme-provider' plugin and turns on and off with it. Switch 'acme-provider' instead: Add-Ons → Plugins, or plugins_set_enabled with family 'site-runtime' and pluginId 'acme-provider'.
+✔ a sign-in never switches on a provider plugin's linked face (its provider's switch decides), and grants nothing (86.50266ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+[external-mcp] 'supabase': post-connect step failed: Plugin 'supabase' is not compatible with this host's Agent Plugin contract.
+✔ a sign-in never switches on a plugin this host is incompatible with, and grants nothing (104.121985ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+[external-mcp] 'supabase': post-connect step failed: Plugin 'supabase' is not compatible with this host's Agent Plugin contract.
+✔ an incompatible plugin whose activation is absent gets no grants from a sign-in, and its record is untouched (130.361973ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+✔ a compatible plugin whose activation is absent gets its grants, and its record is not rewritten (81.448208ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+[external-mcp] 'supabase': post-connect step failed: Plugin 'supabase' is not compatible with this host's Agent Plugin contract.
+✔ an incompatible plugin whose activation is operator-on gets no grants from a sign-in, and its record is untouched (107.688568ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+[external-mcp] 'supabase': post-connect step failed: activation store unwritable
+✔ a compatible plugin whose activation is operator-on gets its grants, and its record is not rewritten (97.025319ms)
+✔ a row the operator already edited is untouched by a sign-in (4.220937ms)
+✔ an operator's own row (no provisioning plugin) is untouched by a sign-in (8.879411ms)
+✔ a provisioned row whose url no longer matches the plugin's declaration is untouched (4.645081ms)
+✔ a second sign-in after the defaults applied changes nothing further (7.844626ms)
+✔ a failing post-connect step never fails the sign-in, and leaves the row for the next sign-in to retry (4.250732ms)
+✔ renameToolNames: replaces renamed names in place, drops a duplicate the rename creates, null when nothing matched (2.734664ms)
+✔ a provisioned row's saved allowlist follows the declared rename, and the roster is notified once (9.773743ms)
+✔ a renamed WRITE grant stays a write grant, attributed to the rename; a read-only name never gains write (4.156085ms)
+✔ a second boot finds nothing to rename: no write, no log, no notification (6.649965ms)
+✔ a row selecting no renamed tool is left byte-identical (3.19977ms)
+✔ an operator's own row (no provisioning plugin) is never touched (1.418959ms)
+✔ a row provisioned by a DIFFERENT plugin is never touched (1.318463ms)
+✔ a row pointed at a different url than the plugin declares is never touched (0.894613ms)
+✔ a plugin that declares no renames writes nothing (0.937511ms)
+✔ a plugin listing that throws is a warning, never a boot failure (0.529963ms)
+✔ a per-server findByServerId failure preserves that row and still renames a later server (4.827795ms)
+✔ a per-server upsert failure preserves that row and still renames a later server (1.607741ms)
+✔ tool renames skip local, invalid, missing, and unreadable rows while later eligible rows still change (1.065824ms)
+✔ tool renames propagate a roster notification failure after persisting the rename (reported, not fixed) (1.500251ms)
+✔ tool renames still notify after a successful write when its info logger throws (0.757435ms)
+✔ a non-Error thrown by the plugin listing is still reported as text (0.296782ms)
+✔ without an injected listing, the workspace's installed plugins are read (none here) and nothing is touched (96.504569ms)
+✔ a row whose read list no longer names the old tool still has its write grant renamed, read list untouched (3.241619ms)
+✔ an empty stored read list counts as no tools, not as an unreadable list (1.103397ms)
+✔ a non-Error upsert failure is reported as text and the row is kept (1.058525ms)
+✔ Auto suggests only relevant bundled plugins: Design a new theme for this site (109.515532ms)
+✔ Auto suggests only relevant bundled plugins: Design a new theme for this site — just tell me which plugins you'd load, don't change anything. (8.698404ms)
+✔ Auto suggests only relevant bundled plugins: Deploy this site to Vercel (8.572221ms)
+✔ Auto suggests only relevant bundled plugins: Import my old WordPress site (10.300001ms)
+✔ Auto suggests only relevant bundled plugins: what's 2+2 (11.935893ms)
+✔ Auto suggests only relevant bundled plugins: Design a theme inspired by Vercel (7.756942ms)
+✔ explicit skill and supporting-file pointers name Tovu’s registered loader (1.39645ms)
+✔ plugin.json parses with no warnings and carries the words a user would search with (31.960639ms)
+✔ mcp.json declares Composio Connect over OAuth, auto-admitted (no secret, no local execution) (20.953981ms)
+✔ the package packs through the real installer's packer, and carries no credential material (27.258022ms)
+✔ SKILL.md names the meta-tools the flow uses and the connection's real tool prefix (5.571904ms)
+✔ SKILL.md never recommends granting Composio's remote code-execution tools (4.815929ms)
+✔ SKILL.md says the sign-in is a browser OAuth flow, never an API key pasted into chat (5.115065ms)
+✔ each plugin's target ids are the legacy provider ids it owns (sealed credentials bind to them) (42.979951ms)
+✔ github-pages: a valid hosting plugin of its own, with its skill, descriptor and module packed (86.411965ms)
+✔ vercel: a valid hosting plugin of its own, with its skill, descriptor and module packed (33.752594ms)
+✔ netlify: a valid hosting plugin of its own, with its skill, descriptor and module packed (6.034383ms)
+✔ cloudflare: a valid hosting plugin of its own, with its skill, descriptor and module packed (7.648882ms)
+✔ cloudflare: a valid hosting plugin of its own, with its skill, descriptor and module packed (6.316332ms)
+✔ s3-compatible: a valid hosting plugin of its own, with its skill, descriptor and module packed (4.44674ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-7THIVO/ws/workspace-local
+✔ existing site: an earlier explicitly ENABLED deploy record is retired at the next boot, and every host is on (7245.952344ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-RRwRn0/ws/workspace-local
+✔ an untouched disabled deploy seed retires without enabling opt-in hosts (5471.366745ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-xiqwDb/ws/workspace-local
+✔ an existing site whose operator switched deploy off keeps the split-out hosting plugins off (5821.574543ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-Q5EIej/ws/workspace-local
+✔ an operator who switched fly (deploy's server successor) off stays switched off across boots (20277.01648ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-psskW4/ws/workspace-local
+✔ seeded by the real seeder, hosts start disabled, explicit enable loads targets, deploy is never seeded, and the registry loads Netlify from the installed digest (9814.509451ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-plugin-nwUp9p/ws/workspace-local
+✔ upgrade: a site holding an OLDER bundled host digest serves the new one after the next boot, with no user action (343.192437ms)
+✔ normalizeBundledDigests keeps only well-formed entries and rejects a foreign envelope (7.776869ms)
+✔ preferBundledAgentPluginDigests narrows ONLY an id the ledger can speak for (4.924163ms)
+✔ recordBundledAgentPluginDigests merges over earlier boots and refuses a self-contradictory build (161.840963ms)
+✔ a boot that seeded nothing writes no ledger at all (66.759995ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+[agent-plugins] 'ui-ux-design': agent-plugin tools: 'ui-ux-design' is installed under more than one digest (e4e85c50608d9625df43a6f6fc4c083e65a0df048dc8d8922c63a5b7e98756d6 and f3b0d57569e3ac520cfec7b16b26780420e9503fbfc446130426d0bf693fc4c0) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+✔ an OPERATOR-installed plugin under two digests is still refused — the ledger has no say over it (1002.62253ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ a ledger naming a digest this workspace does not have leaves the ambiguity refusal standing (547.897117ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ an UNREADABLE ledger reads as empty, so the ambiguity refusal still fires (460.270589ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ a DISABLED plugin under two digests stays harmless — the activation gate answers first (87.937015ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ a first-ever install resolves exactly as before, ledger or no ledger (152.614563ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ the bundled ledger selects one upgrade's content on both real resolution surfaces (457.157055ms)
+✔ the github plugin contributes the github-actions ops platform and declares it (84.651875ms)
+✔ there is no separate github-actions plugin, seed id (0.526472ms)
+✔ the github skill routes source control/backup apart from deploying with GitHub Actions (4.783971ms)
+[agent-plugins:migration-complete] /tmp/tovu-github-plugin-BJZUSW/ws/workspace-local
+✔ existing site: the seeder's own earlier DISABLED github record is switched on at boot, so commit and backup still work (10581.921238ms)
+[agent-plugins:migration-complete] /tmp/tovu-github-plugin-8X5r3F/ws/workspace-local
+✔ fresh site: github seeds ENABLED with no user action (8495.491929ms)
+[agent-plugins:migration-complete] /tmp/tovu-github-plugin-GTayCc/ws/workspace-local
+✔ an operator who switched github off stays off across boots, and a commit is refused with how to switch it back on (8397.455114ms)
+✔ a private repo: resolves the default branch, its tip and tree, and whether the backup folder already exists (4.712522ms)
+✔ a PUBLIC repo is refused before any branch lookup, and the message says why (user data would be exposed) (0.712057ms)
+✔ an 'internal' (enterprise-wide) repo is refused too — private is the only accepted visibility (1.307481ms)
+✔ a repo the token cannot push to is refused up front (0.525608ms)
+✔ an unknown repo is 'repo-not-found', naming it (1.679807ms)
+✔ an empty repository (GitHub answers 409 on the ref) says to add a first commit, rather than a raw provider error (0.837014ms)
+✔ a named branch that does not exist is 'branch-not-found' (never created) (0.68022ms)
+✔ a backup folder that exists as a FILE on the branch is refused rather than replaced (0.589697ms)
+✔ binary bytes (NUL, 0xFF, invalid UTF-8) are sent base64-encoded byte-for-byte, and the sha256 is recorded (1.110934ms)
+✔ the folder becomes a fresh tree (stale files inside it disappear) grafted onto the branch's tree (everything else kept), committed on the planned parent, ref moved WITHOUT force (1.088447ms)
+✔ a branch that moved since the plan (GitHub 422 on the ref update) is a clear divergence error, never overwritten (1.118613ms)
+✔ blob upload: GitHub 401 is a provider-error with the provider message (0.831068ms)
+✔ blob upload: GitHub 422 is a provider-error with the provider message (0.555751ms)
+✔ blob upload: a non-JSON success response is a provider-error, never a recorded blob (0.4077ms)
+✔ every backup request asks for a 2-minute idle budget, not the 30 s a file write uses (0.274821ms)
+✔ blob upload: a 502 and then a network timeout are retried with doubling backoff, and the third try's blob is recorded (1.149548ms)
+✔ a secondary rate limit (403 with retry-after) waits exactly what GitHub asked, then retries (0.644769ms)
+✔ a secondary rate limit named only in the 403 body waits a minute; a 429 is a rate limit too (0.407752ms)
+✔ a plain 403 (no rate-limit sign) is final: one request, no wait (0.27484ms)
+✔ a host asking to wait longer than 10 minutes (an hourly limit) is reported, not slept on (0.974468ms)
+✔ a persistently failing host gets 5 attempts in all, then the last failure is returned (0.39785ms)
+✔ a write a file-writer makes is never retried: custom_credential_write_files keeps one attempt and 30 s (0.436114ms)
+✔ small text files ride inline in the tree request; a large folder is built over chained base_tree requests of at most 300 entries (2.521939ms)
+✔ commit: existing branch, real content change — advances the branch, never force (23.709678ms)
+✔ commit: branch omitted — resolves the repo's own default branch, never invents one (4.683249ms)
+✔ commit: branch does not exist yet — CREATEs the ref, reports branchCreated:true, and the commit has no parents (2.97542ms)
+✔ commit: a 2xx ref-write response whose body fails to parse as JSON is STILL success — the irreversible step never depends on the body (5.287179ms)
+✔ commit: two files with IDENTICAL content dedupe to ONE blob call (3.809944ms)
+✔ REPOSITORY_NOT_FOUND: repo lookup 404s, no dialog-adjacent call happens after it (0.970775ms)
+✔ DIVERGED_BRANCH: a non-fast-forward ref update (422) is refused, never overwritten — the ref write is attempted WITHOUT force (3.144257ms)
+✔ the ref-write request body never carries force:true — the ONE structural proof for the no-force decision (1.878749ms)
+✔ NETWORK_UNREACHABLE: a thrown fetch error on the FIRST call maps distinctly from a rejected response (1.682745ms)
+✔ NETWORK_UNREACHABLE: a request that never gets a response times out (rather than hanging forever) and is reported with a distinguishable message (33.738316ms)
+✔ NETWORK_UNREACHABLE on the irreversible ref-write call itself is STILL reported honestly — never silently treated as success (19.241324ms)
+✔ PROVIDER_ERROR: a rejected (401) blob creation is reported with GitHub's own message, distinct from NETWORK_UNREACHABLE (1.858647ms)
+✔ a redirect refusal (DeployError thrown by the shared redirect guard) maps to provider-error, never network-unreachable (0.65212ms)
+✔ NO_CHANGES: the new tree matches the parent's tree — no commit, no ref write (2.289134ms)
+✔ a failed parent-tree lookup on an EXISTING branch BLOCKS the commit — never risk a base_tree-less tree for an optimization's sake (0.786157ms)
+✔ CRITICAL (read-failure defect): a manifest lookup that fails for a reason OTHER than a verified 404 now BLOCKS the commit — never silently 'forgets' what was previously managed (1.172493ms)
+✔ a manifest read that returns 200 with a body that is not valid JSON blocks the commit the same as a network failure — never silently treated as 'no manifest' (1.343917ms)
+✔ a manifest read rejected with a non-404 HTTP error (e.g. 500) blocks the commit — distinct from a verified 404 (0.960756ms)
+✔ CRITICAL (ownership-trust defect): a LEGACY (pre-provenance) manifest entry with no recorded sha does NOT authorize deletion — reported via divergedPaths, never silently deleted (3.282106ms)
+✔ CRITICAL (ownership-trust defect): a v2 manifest entry whose recorded sha no longer matches LIVE content (a human edited it since Tovu wrote it) does NOT authorize deletion (2.676879ms)
+✔ a candidate deletion whose LIVE-verification read itself fails is skipped for THAT path only — never blocks the whole commit (2.455207ms)
+✔ CRITICAL (concurrency): two commits racing on the SAME branch tip — the second to write is refused (422 -> diverged), never silently overwritten (3.415855ms)
+✔ CRITICAL: an existing branch's own content Tovu never wrote survives — the new tree is built ON TOP of the parent's tree (base_tree), never replacing it (1.954258ms)
+✔ CRITICAL: a page removed from the export is explicitly deleted (via the previous manifest, its recorded sha VERIFIED against live content), while content Tovu never wrote is left alone (13.682099ms)
+✔ PROVIDER_ERROR: fetchRepo itself rejected (403) surfaces GitHub's own message, distinctly from the 404 (repository-not-found) case (1.011268ms)
+✔ PROVIDER_ERROR: a rejected response with NO message field at all falls back to providerErrorMessage's own fixed wording (0.518335ms)
+✔ PROVIDER_ERROR: fetchRepo's own 2xx response failing to parse as JSON is reported, never mistaken for a successful lookup (1.87621ms)
+✔ PROVIDER_ERROR: fetchBranchTip itself rejected (500), distinctly from its own 404 (brand-new-branch) case (0.669318ms)
+✔ PROVIDER_ERROR: fetchParentTree itself rejected (e.g. 404 — the parent commit sha it was given is bogus), distinct from a network failure (1.337979ms)
+✔ PROVIDER_ERROR: fetchParentTree's response parses as JSON but is missing its own tree.sha field (1.203211ms)
+✔ PROVIDER_ERROR: a managed-manifest 200 response whose JSON body has no 'content' field at all (0.926583ms)
+✔ PROVIDER_ERROR: a managed-manifest's base64 content decodes to bytes that are not valid JSON at all (0.993592ms)
+✔ PROVIDER_ERROR: a managed-manifest that parses as JSON but matches NEITHER the v1 nor v2 recognized shape (1.272288ms)
+✔ PROVIDER_ERROR: tree creation itself rejected by GitHub (e.g. 422 — an invalid tree entry) (1.586755ms)
+✔ PROVIDER_ERROR: commit-object creation itself rejected by GitHub (2.043792ms)
+✔ PROVIDER_ERROR: a brand-new branch's ref CREATE is itself rejected by GitHub (never mapped to 'diverged' — that mapping is update-only) (1.494659ms)
+✔ a candidate deletion's live-verification GET receiving a real non-ok, non-404 response (not a thrown network error) is unverifiable — reported via divergedPaths, never silently dropped (4.893147ms)
+✔ a candidate deletion's live-verification GET receiving a VERIFIED 404 is confirmed-absent — nothing left to report, unlike an unverifiable (non-404) rejection (2.501746ms)
+✔ PROVIDER_ERROR: createBlob's 2xx response is missing its own sha field (1.555101ms)
+✔ PROVIDER_ERROR: fetchBranchTip's 2xx response fails to parse as JSON (1.296821ms)
+✔ PROVIDER_ERROR: fetchParentTree's 2xx response fails to parse as JSON (0.773697ms)
+✔ PROVIDER_ERROR: createBlob's 2xx response fails to parse as JSON (1.063174ms)
+✔ PROVIDER_ERROR: createTreeObject's 2xx response fails to parse as JSON (3.673686ms)
+✔ PROVIDER_ERROR: createTreeObject's 2xx response is missing its own sha field (1.931558ms)
+✔ PROVIDER_ERROR: createCommitObject's 2xx response fails to parse as JSON (1.251104ms)
+✔ PROVIDER_ERROR: createCommitObject's 2xx response is missing its own sha field (1.403127ms)
+✔ PROVIDER_ERROR: a rejected response whose message field is present but BLANK also falls back to providerErrorMessage's own fixed wording (0.404267ms)
+✔ NETWORK_UNREACHABLE: a thrown AbortError (not merely a TimeoutError) is bucketed the same way — both are 'the request never got a response' (0.583881ms)
+✔ PROVIDER_ERROR: a branch-tip lookup's 200 response is missing its own object.sha field (0.60012ms)
+✔ a branch name containing '/' reaches GitHub's ref URLs with the '/' preserved as a real path separator, not percent-encoded (2.266669ms)
+✔ a candidate deletion's live-verification GET receiving a 2xx response that fails to parse as JSON is unverifiable, never crashes, and is reported via divergedPaths (4.921214ms)
+✔ CRITICAL (ownership-trust defect): a v2 manifest entry whose recorded sha is a string but NOT git-blob-sha-shaped is treated as having no provenance (2.701801ms)
+✔ PROVIDER_ERROR: a v2-shaped manifest with ONE malformed entry (missing path) is unrecognized in its ENTIRETY, not partially trusted (1.567427ms)
+✔ PROVIDER_ERROR: a v1-shaped manifest with a non-string path entry is unrecognized in its entirety (1.022948ms)
+✔ commit: a repo lookup response missing default_branch falls back to 'main', never a crash or an undefined branch name (2.15149ms)
+✔ plugin.json parses under the Agent Plugins v1.0.0 validator (43.111963ms)
+✔ plugin.json's keywords carry the vocabulary that moved off the fly deploy procedure (5.31419ms)
+✔ mcp.json declares ZERO servers — this plugin ships no server, it drives existing native tools (2.042893ms)
+✔ the eponymous skill folder exists — run-start injection resolves skills/<pluginId>/SKILL.md by that exact name (2.607793ms)
+✔ the package packs through the real installer's own packer, every reference included (50.581081ms)
+✔ SKILL.md points at every reference file, and every reference file is pointed at (2.182347ms)
+✔ the package knows NOTHING about fly.io — every file, not just SKILL.md (26.877675ms)
+✔ SKILL.md declares its own scope and disclaims deploy/host semantics (1.565838ms)
+✔ SKILL.md: a repository secret is ALWAYS the human's step, and says WHY (2.039352ms)
+✔ SKILL.md: a 204 dispatch means QUEUED, never deployed (3.085916ms)
+✔ SKILL.md: a workflow only fires on the branch its own trigger names (0.921184ms)
+✔ SKILL.md: editing an existing file means diffing the MODIFIED files, not just added and deleted (0.896555ms)
+✔ SKILL.md: a 403 on an org-wide listing is a permission BOUNDARY, not a broken credential (2.20652ms)
+✔ SKILL.md distinguishes pushing app source from committing a rendered static export (3.303903ms)
+✔ site-backup.md: a site backup is plan-then-push, private-only, and never forced (8.46612ms)
+✔ SKILL.md forbids shelling out to git/curl for GitHub, and never invents a tool (0.857749ms)
+✔ actions.md: the ref is RESOLVED to a commit before dispatch, via the branches endpoint (0.594906ms)
+✔ actions.md: the resolved ref, its SHA and its date are STATED to the human before the POST (0.590844ms)
+✔ actions.md: the resolution step REPORTS and does not gate — refusing is a separate owner decision (0.823489ms)
+✔ actions.md: an identical head_sha predicts a no-op deploy, and head_sha is read when polling (0.698729ms)
+✔ actions.md: the human's LOCAL working copy is declared invisible, not guessed at (0.524474ms)

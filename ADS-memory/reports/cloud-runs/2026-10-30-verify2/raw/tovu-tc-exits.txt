@@ -1,0 +1,16 @@
+tc-root exit=2
+tc-root total=241 nonkysely=6
+tc-e2e exit=2
+tc-e2e total=231 nonkysely=6
+tc-tests exit=2
+tc-tests total=1017 nonkysely=8
+tc-admin exit=0
+tc-admin total=0 nonkysely=0
+tc-desktop-preload exit=0
+tc-desktop-preload total=0 nonkysely=0
+tc-desktop-renderer exit=0
+tc-desktop-renderer total=0 nonkysely=0
+tc-desktop-main exit=2
+tc-desktop-main total=181 nonkysely=6
+tc-desktop-live-verify exit=0
+tc-desktop-live-verify total=0 nonkysely=0
