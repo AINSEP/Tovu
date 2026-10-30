@@ -24,13 +24,13 @@ function renderPanel(tabId: string | null, { sitesAvailable = false }: { sitesAv
 }
 
 describe("Import & Export tabs (owner, 2026-10-25, option A)", () => {
-  it("opens Export by default, with Export this site and no Publish button beside it", async () => {
+  it("opens Export by default, with Export Tovu site and no Publish button beside it", async () => {
     renderPanel(null);
     expect(screen.getByRole("heading", { level: 1, name: "Import & Export" })).toBeTruthy();
     // No "Operations" kicker above the title (owner, 2026-10-25).
     expect(screen.queryByText("Operations")).toBeNull();
     expect(screen.getByRole("tab", { name: /Export/ }).getAttribute("aria-selected")).toBe("true");
-    expect(screen.getByRole("button", { name: "Export this site" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Export Tovu site" })).toBeTruthy();
     // Removed from this page (owner, 2026-10-25): it republished the whole site, not the zip.
     expect(screen.queryByRole("button", { name: "Publish" })).toBeNull();
     await waitFor(() => expect(screen.queryByText("Loading exports…")).toBeNull());

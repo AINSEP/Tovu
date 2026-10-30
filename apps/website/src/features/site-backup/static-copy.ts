@@ -12,10 +12,10 @@ export interface StaticSiteMetadata {
   failed: { routes: ExportReport["routes"]["failed"]; assets: ExportReport["assets"]["failed"] };
   skipped: { routes: ExportReport["skippedManifestEntries"]; assets: string[]; references: ExportReport["droppedReferences"] };
 }
-export type StaticSiteCopy = { metadata: StaticSiteMetadata; filename: string; files: readonly { path: string; content: Buffer }[] } | { reason: string };
+export type StaticSiteCopy = { metadata: StaticSiteMetadata; filename: string; siteSlug?: string; themeId?: string; publicOrigin?: string; files: readonly { path: string; content: Buffer }[] } | { reason: string };
 export interface StaticSitePorts {
   render?: (required: { outputDir: string; clean: boolean }) => Promise<ExportReport>;
-  context: () => Promise<{ name: string; slug: string; theme: string; timeZone?: string }>;
+  context: () => Promise<{ name: string; slug: string; theme: string; themeId?: string; timeZone?: string }>;
   now: () => Date;
 }
 
@@ -36,22 +36,34 @@ function exportStamp({ date, timeZone }: { date: Date; timeZone?: string }, _opt
 }
 
 /** Plain-language gaps are limited to things that could not render or need a server.
- * The full machine diagnostics, including assets a crawl could not discover, stay in the manifest.
+ * The full machine diagnostics, including assets a crawl could not discover, stay in capture metadata.
  * @complexity O(report entries + exported file count).
  */
 function readmeText({ name, words, metadata, rendered }: { name: string; words: string; metadata: StaticSiteMetadata; rendered: Awaited<ReturnType<typeof renderCopy>> }, _options = {}): Buffer {
-  const formNotes = [...new Set(metadata.skipped.references.map(reference => `${reference.url.startsWith("/forms/contact/") ? "Contact form" : "Form"} on ${reference.page}.`))];
+  const formNotes = [...new Set(metadata.skipped.references.map(reference => `${serverFeatureName({ url: reference.url })} on ${reference.page}.`))];
   const { pages, images, videos } = copyCounts({ files: rendered.files });
   const lines = [`${name} — static copy`, `Exported: ${words} (${metadata.exportedAt})`, `Theme: ${metadata.theme}`,
     `Contains: ${pages} pages and posts, ${images} ${images === 1 ? "image" : "images"}, ${videos} ${videos === 1 ? "video" : "videos"}.`,
     "Open with any static web host (links start at the site root).",
     ...formNotes.map(note => `Needs a server (does not work in this copy): ${note}`),
     ...metadata.failed.routes.map(item => `Not included: Page ${item.path} could not be rendered.`),
-    ...metadata.failed.assets.map(item => `Not included: File ${item.url} could not be copied.`)];
+    ...metadata.failed.assets.map(item => failedAssetNote({ url: item.url }))];
   if (!rendered.publicOrigin) lines.push("No public domain is set, so sitemap.xml was left out.",
     "The Sitemap line in robots.txt was removed and feed.xml was left out because both need absolute public URLs.",
     "Canonical and og:url metadata and JSON-LD url/@id values were removed; social images and llms.txt links use paths starting at the site root.");
   return Buffer.from([...lines, ""].join("\n"));
+}
+
+/** A denied media response can be a private Library document; its identifier must not reach README. */
+function failedAssetNote({ url }: { url: string }, _options = {}): string {
+  if (url.startsWith("/m/")) return "Not included: A media file could not be copied.";
+  return `Not included: File ${url} could not be copied.`;
+}
+
+/** Server-only links and removed form actions share the same per-page README disclosure. */
+function serverFeatureName({ url }: { url: string }, _options = {}): string {
+  if (url === "/signin") return "Sign in";
+  return url.startsWith("/forms/contact/") ? "Contact form" : "Form";
 }
 
 /** Count delivered HTML pages (excluding the error document) and image/video files. */
@@ -68,7 +80,7 @@ function downloadableFiles({ files, publicOrigin, pages }: { files: { path: stri
     if (!/\.html$/i.test(file.path)) return file;
     const page = pages.get(file.path) ?? "/" + file.path.replace(/(?:\/)?index\.html$/, "");
     const result = downloadForms({ html: file.content.toString(), page, publicOrigin });
-    references.push(...result.removed);
+    references.push(...result.removed, ...result.serverLinks);
     return { ...file, content: Buffer.from(result.html) };
   });
   return { files: rewritten, references };
@@ -114,7 +126,8 @@ async function stampedCopy({ ports, outputDir }: { ports: StaticSitePorts; outpu
   if (!rendered.files.some(file => file.path !== "404.html" && /\.html$/i.test(file.path))) return { reason: rendered.failed.routes[0]?.reason ?? "The exporter produced no HTML pages." };
   const metadata: StaticSiteMetadata = { exportedAt: stamp.iso, theme: context.theme, routes: rendered.routes, failed: rendered.failed, skipped: rendered.skipped };
   const slug = shareFileStem({ name: context.name });
-  return { metadata, filename: `${slug}-static-${stamp.filename}.zip`, files: [...rendered.files, { path: "README.txt", content: readmeText({ name: context.name, words: stamp.words, metadata, rendered }) }] };
+  return { metadata, filename: `${slug}-static-${stamp.filename}.zip`, siteSlug: context.slug, themeId: context.themeId ?? context.theme, publicOrigin: rendered.publicOrigin,
+    files: [...rendered.files, { path: "README.txt", content: readmeText({ name: context.name, words: stamp.words, metadata, rendered }) }] };
 }
 
 /**

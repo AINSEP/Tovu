@@ -56,10 +56,9 @@ export function createSiteShareBackend(required: {
         return await createSiteShare({ registry: required.registry, site: required.site, name: copy.filename, archive }, { signal: bounded, filename: copy.filename });
       }
       const content = await required.prepare({ signal: bounded });
-      // Progress's readonly totals describe the prepared backup; the ZIP collector includes its optional static copy.
+      // Progress's readonly totals describe the prepared backup; the ZIP collector records its exact files.
       Object.assign(progress, { filesTotal: content.files.length + (content.bufferedFiles?.length ?? 0) + 1, bytesTotal: content.totalBytes });
-      const staticCopy = required.staticSite ? await captureStaticSite(required.staticSite) : { reason: "Static exporter is unavailable in this context." };
-      const archive = await buildShareZip({ plan: content, zip: required.zip }, { signal: bounded, progress, staticCopy });
+      const archive = await buildShareZip({ plan: content, zip: required.zip }, { signal: bounded, progress });
       const delivery = await required.delivery({});
       bounded.throwIfAborted();
       const record = await createSiteShare({ registry: required.registry, site: required.site, name: content.site.folderName, archive }, { delivery, signal: bounded });

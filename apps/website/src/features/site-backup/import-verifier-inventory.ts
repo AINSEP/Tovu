@@ -86,11 +86,11 @@ function sharedWrapperFolder(required: { entries: readonly AgentPluginArchiveEnt
 }
 
 /** A separate pass for the manifest alone: the reader closes the ZIP when an iteration ends, so
- * the bounded read happens inside it. */
+ * the bounded read must be awaited inside it before iterator cleanup closes the stream. */
 async function readManifest(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; path: string }, optional: { signal?: AbortSignal }): Promise<Buffer> {
   for await (const entry of required.reader.entries({ archive: required.archive })) {
     optional.signal?.throwIfAborted();
-    if (entry.kind === "file" && entry.entryPath === required.path) return readBounded({ entry, maxBytes: SHARE_LIMITS.maxManifestBytes, signal: optional.signal });
+    if (entry.kind === "file" && entry.entryPath === required.path) return await readBounded({ entry, maxBytes: SHARE_LIMITS.maxManifestBytes, signal: optional.signal });
   }
   return refuseArchive("A v2 manifest.json at root, or inside one wrapper folder with nothing outside it, is required.");
 }

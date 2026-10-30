@@ -20,6 +20,7 @@ export interface SiteExportTabProps {
 
 export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportTabProps) {
   const controller = useExport({ t });
+  const exporting = controller.exporting || controller.exportingStatic;
   return (
     <section className="site-transfer" aria-label={t("Export Site")}>
       <p className="onboarding-section-lead site-transfer-lead">{t("Makes a .tovu.zip copy of this site that another Tovu can import.")}</p>
@@ -28,18 +29,18 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
         <button
           type="button"
           className="btn-primary"
-          disabled={controller.exporting || controller.exportingStatic}
+          disabled={exporting}
           aria-busy={controller.exporting}
           onClick={() => void controller.exportSite()}
           {...agentHandle({ handle: "sites-export-create" }, { role: "button", label: "Export this site as a .tovu.zip" })}
         >
           {controller.exporting ? <span className="site-transfer-spinner" aria-hidden="true" /> : null}
-          {controller.exporting ? t("Exporting…") : t("Export this site")}
+          {controller.exporting ? t("Exporting…") : t("Export Tovu site")}
         </button>
         <button
           type="button"
           className="btn-secondary"
-          disabled={controller.exporting || controller.exportingStatic}
+          disabled={exporting}
           aria-busy={controller.exportingStatic}
           onClick={() => void controller.exportStaticSite()}
           {...agentHandle({ handle: "sites-export-static" }, { role: "button", label: "Export static site as a zip" })}

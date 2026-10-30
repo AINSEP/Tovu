@@ -197,7 +197,7 @@ describe("Import & Export inside the desktop shell (owner, 2026-10-25, option A)
     expect(container.querySelector('a[href="/admin/sites"]')).toBeNull();
     const main = container.querySelector("main")!;
     await waitFor(() => expect(within(main).getByRole("tab", { name: /Export/ })).toHaveAttribute("aria-selected", "true"));
-    expect(within(main).getByRole("button", { name: "Export this site" })).toBeTruthy();
+    expect(within(main).getByRole("button", { name: "Export Tovu site" })).toBeTruthy();
     expect(within(main).queryByRole("button", { name: "Publish" })).toBeNull();
   });
 

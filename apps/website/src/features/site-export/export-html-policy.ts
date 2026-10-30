@@ -125,13 +125,16 @@ function formEdits({ node, alternative }: { node: Element; alternative: string }
 
 /** Download-only form policy. Publish retains receiver-enabled actions. Report only removed actions.
  * Theme data attributes remain: themes and the form scripts may use them for styling/validation.
+ * Retained sign-in links are reported separately for the download's server-dependency notes.
  * @complexity O(HTML bytes + edits log edits); returned removals are the machine-report evidence.
  */
-export function downloadForms({ html, page, publicOrigin }: { html: string; page: string; publicOrigin?: string }, _options = {}): { html: string; removed: DroppedReference[] } {
+export function downloadForms({ html, page, publicOrigin }: { html: string; page: string; publicOrigin?: string }, _options = {}): { html: string; removed: DroppedReference[]; serverLinks: DroppedReference[] } {
   const nodes = elements({ html });
   const alternative = emailAlternative({ nodes });
-  const edits: Edit[] = [], removed: DroppedReference[] = [];
+  const edits: Edit[] = [], removed: DroppedReference[] = [], serverLinks: DroppedReference[] = [];
   for (const node of nodes) {
+    const signin = signInReference({ node, page, publicOrigin });
+    if (signin) serverLinks.push(signin);
     if (node.tagName !== "form" || !node.sourceCodeLocation) continue;
     const action = attribute({ node, name: "action" });
     if (action === undefined) continue;
@@ -140,5 +143,49 @@ export function downloadForms({ html, page, publicOrigin }: { html: string; page
     edits.push(...formEdits({ node, alternative }));
     removed.push({ page, url: target.pathname, attribute: "action", reason: "needs-server" });
   }
-  return { html: editedHtml({ html, edits }), removed };
+  return { html: editedHtml({ html, edits }), removed, serverLinks };
+}
+
+/** Account entry points need a backend even when their link remains visible in the download. */
+function signInReference({ node, page, publicOrigin }: { node: Element; page: string; publicOrigin?: string }, _options = {}): DroppedReference | undefined {
+  if (node.tagName !== "a") return undefined;
+  const href = attribute({ node, name: "href" });
+  if (href === undefined) return undefined;
+  const target = serverAction({ action: href, publicOrigin, page });
+  if (target?.pathname !== "/signin") return undefined;
+  return { page, url: "/signin", attribute: "href", reason: "needs-server" };
+}
+
+/** Rebase refresh targets and drop base elements so download links resolve from their own file.
+ * @param required HTML and the download owner's URL mapping.
+ * @returns HTML with parser-located edits; theme scripts and surrounding formatting stay intact.
+ * @complexity O(HTML bytes + edits log edits), no I/O.
+ * @example downloadDocumentBase({ html, rewrite: url => url });
+ */
+export function downloadDocumentBase({ html, rewrite }: { html: string; rewrite: (url: string) => string }, _options = {}): string {
+  const edits: Edit[] = [];
+  for (const node of elements({ html })) {
+    if (node.tagName === "base" && node.sourceCodeLocation) edits.push({ ...node.sourceCodeLocation, text: "" });
+    const edit = refreshEdit({ node, rewrite });
+    if (edit) edits.push(edit);
+  }
+  return editedHtml({ html, edits });
+}
+
+/** Refresh content is a delay plus one URL; HTML structure and quoting remain parser-owned. */
+function refreshEdit({ node, rewrite }: { node: Element; rewrite: (url: string) => string }, _options = {}): Edit | undefined {
+  if (node.tagName !== "meta" || attribute({ node, name: "http-equiv" })?.toLowerCase() !== "refresh") return undefined;
+  const location = node.sourceCodeLocation?.attrs?.content;
+  const content = refreshContent({ content: attribute({ node, name: "content" }) ?? "", rewrite });
+  if (!location || content === undefined) return undefined;
+  return { ...location, text: `content="${escapeHtml(content)}"` };
+}
+
+/** Split the refresh value at its delimiters without overlapping whitespace runs or HTML matching. */
+function refreshContent({ content, rewrite }: { content: string; rewrite: (url: string) => string }, _options = {}): string | undefined {
+  const match = /^([^;]*;[^=]*=)([\s\S]*)$/.exec(content);
+  if (!match) return undefined;
+  if (!/;\s*url\s*=$/i.test(match[1]!)) return undefined;
+  const url = match[2]!.trim().replace(/^["']|["']$/g, "");
+  return match[1]! + rewrite(url);
 }

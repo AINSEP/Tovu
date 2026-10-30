@@ -5,7 +5,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import express from "express";
-import { createRouteDeps } from "#src/server/runtime/composition/app";
+import * as yauzl from "yauzl";
+import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
+import { uploadMedia } from "@jini-ai/cms/media";
+import { saveLibraryDocument } from "../../media/library-save-attachment.js";
+import { buildStaticSiteZip } from "../../site-backup/share-zip.js";
+import { createShareArchiveReader } from "../../site-backup/import-archive-reader.js";
+import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { exportSite } from "../site-exporter.js";
 import { captureStaticSite } from "../../site-backup/static-copy.js";
 import { publishStaticSite } from "../../deployments/static-publish/adapter.js";
@@ -176,4 +182,58 @@ test("fallback metadata removes nested JSON-LD identity and invalid blocks witho
   assert.doesNotMatch(actual, /og:url|og:image|@id|"url"|invalid/);
   assert.match(actual, /\[{"nested":{"name":"Keep"}}\]/);
   assert.match(actual, /<a  href="\/about">About<\/a>/);
+});
+
+test("static download excludes a saved private Library document and removes every HTML and CSS reference to it", async t => {
+  const { deps } = await fixture({ t, configured: false });
+  const privateBytes = Buffer.from("Assistant-only Library notes: keep this document private.");
+  const saved = await saveLibraryDocument({ deps, bytes: privateBytes, name: "internal-library-notes.md", principalId: "owner" });
+  assert.equal(saved.document.publicUrl, null);
+  const document = await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: saved.document.id });
+  assert.equal(document?.kind, "document");
+  const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: document!.source.sha256 });
+  assert.equal(blob?.documentOwned, true, "fixture must use assistant-only Library ingestion, not public media");
+  const { media: publicImage } = await uploadMedia({
+    deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo,
+      renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
+    input: { workspaceId: deps.workspaceId, bytes: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><circle r="2"/></svg>'),
+      filename: "public-mark.svg", contentType: "image/svg+xml", createdByPrincipal: "owner" },
+  });
+  const privateSlugUrl = `/m/${document!.slug}/original`;
+  const privateIdUrl = `/m/${document!.id}/original`;
+  const app = express();
+  app.get("/", (_req, res) => res.type("html").send(`<!doctype html><html><head>
+    <link rel="stylesheet" href="/theme-assets/library-test/css/theme.css">
+    <style>.private{background:url('${privateSlugUrl}')}</style></head><body>
+    <a href="${privateSlugUrl}">Library document</a><img src="${privateIdUrl}" srcset="${privateSlugUrl} 1x, ${privateIdUrl} 2x">
+    <div style="background:url('${privateIdUrl}')"></div><img src="/m/${publicImage.slug}/original">
+    </body></html>`));
+  app.get("/theme-assets/library-test/css/theme.css", (_req, res) => res.type("css").send(
+    `.by-slug{background:url('${privateSlugUrl}')}.by-id{background:url('${privateIdUrl}')}`));
+  // The real public media route must enforce the document-owned blob boundary.
+  app.use(createApp(deps));
+  const copy = await captureStaticSite({
+    render: input => exportSite({ ...input, routeDeps: { ...deps, themes: [], createSiteApp: () => app }, includeThemePreviews: false }),
+    context: async () => ({ name: "Library Test", slug: "library-test", theme: "library-test" }),
+    now: () => new Date("2026-10-30T17:15:00Z"),
+  });
+  assert.ok(!("reason" in copy));
+  const archive = await buildStaticSiteZip({ copy, zip: zipFolderFiles });
+  const files = new Map<string, Buffer>();
+  for await (const entry of createShareArchiveReader({ yauzl }).entries({ archive })) {
+    if (entry.kind !== "file") continue;
+    const chunks: Buffer[] = [];
+    for await (const chunk of entry.openReadStream({})) chunks.push(Buffer.from(chunk));
+    files.set(entry.entryPath, Buffer.concat(chunks));
+  }
+  assert.ok([...files].some(([name]) => name.endsWith("/index.html")), "export must deliver pages");
+  assert.ok([...files].some(([name]) => name.endsWith("/theme.css")), "export must deliver CSS");
+  assert.ok([...files.values()].some(bytes => bytes.includes('<circle r="2"/>')), "referenced public media must still be delivered");
+  for (const [name, bytes] of files) {
+    assert.ok(!name.includes(document!.id) && !name.includes(document!.slug) && !name.includes("internal-library-notes"), name);
+    assert.ok(!bytes.includes(privateBytes), `private Library bytes leaked in ${name}`);
+    if (/\.(?:html|css)$/i.test(name)) {
+      assert.ok(!bytes.includes(document!.id) && !bytes.includes(document!.slug), `private Library reference left in ${name}`);
+    }
+  }
 });

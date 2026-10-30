@@ -103,7 +103,7 @@ describe("SiteExportTab", () => {
     const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ code: "SECRET_IN_CONTENT", message }, { status: 400 }));
     try {
       renderExport(createFakeSiteTransferPort({ createShare: defaultSiteTransferPort.createShare }));
-      fireEvent.click(screen.getByRole("button", { name: "Export this site" }));
+      fireEvent.click(screen.getByRole("button", { name: "Export Tovu site" }));
       const alert = await screen.findByRole("alert");
       expect(alert.textContent).toBe(message);
       expect(alert.querySelector("strong")).toBeNull();
@@ -114,7 +114,7 @@ describe("SiteExportTab", () => {
     const createShare = vi.fn(async () => { listed = [share()]; return share(); });
     renderExport(createFakeSiteTransferPort({ listShares: async () => ({ shares: listed }), createShare }));
     expect(await screen.findByText("No exports yet.")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Export this site" }));
+    fireEvent.click(screen.getByRole("button", { name: "Export Tovu site" }));
     await waitFor(() => expect(createShare).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole("dialog")).toBeNull();
     const table = await screen.findByRole("table");
@@ -157,7 +157,7 @@ describe("SiteExportTab", () => {
 
   it("shows an export failure as an alert", async () => {
     renderExport(createFakeSiteTransferPort({ createShare: async () => { throw "no"; } }));
-    fireEvent.click(await screen.findByRole("button", { name: "Export this site" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Export Tovu site" }));
     expect((await screen.findByRole("alert")).textContent).toBe("Export failed.");
   });
 });
@@ -283,7 +283,7 @@ describe("transfer tab presentation contracts", () => {
     const ui = render(<SiteExportTab t={t} useExport={() => controller} />);
     expect(screen.getByRole("region", { name: "Export Site" })).toBeTruthy();
     expect(screen.getByText("Makes a .tovu.zip copy of this site that another Tovu can import.")).toBeTruthy();
-    const button = screen.getByRole("button", { name: "Export this site" });
+    const button = screen.getByRole("button", { name: "Export Tovu site" });
     handle(button, "sites-export-create", "button", "Export this site as a .tovu.zip");
     await userEvent.click(button);
     expect(controller.exportSite).toHaveBeenCalledExactlyOnceWith();

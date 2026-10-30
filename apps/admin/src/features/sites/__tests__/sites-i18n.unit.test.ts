@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { t } from "../sites-i18n";
+import { SITE_TRANSFER_DICT } from "../site-transfer-i18n";
 
 // Author Checklist / F4.1: literal language expectations; no expected values derived from t.
 describe("Sites assembled dictionary", () => {
@@ -70,4 +71,17 @@ it("carries every Export/Import key in all 21 locales", async () => {
   expect(locales).toHaveLength(21);
   const keys = Object.keys(SITE_TRANSFER_DICT.de!).sort();
   for (const locale of locales) expect(Object.keys(SITE_TRANSFER_DICT[locale]!).sort()).toEqual(keys);
+});
+
+// English uses the key itself; every translated locale must own the new branded label.
+it.each(Object.keys(SITE_TRANSFER_DICT))("renames the Tovu export action in locale %s", locale => {
+  const dictionary = SITE_TRANSFER_DICT[locale]!;
+  expect(dictionary).toHaveProperty("Export Tovu site");
+  expect(dictionary).not.toHaveProperty("Export this site");
+  const label = dictionary["Export Tovu site"]!;
+  expect(label).toMatch(/Tovu/);
+  expect(label).not.toBe("Export Tovu site");
+  // Check the assembled dictionary too, so forgetting its merge cannot fall back to English.
+  expect(t({ locale, key: "Export Tovu site" })).toMatch(/Tovu/);
+  expect(t({ locale, key: "Export Tovu site" })).not.toBe("Export Tovu site");
 });

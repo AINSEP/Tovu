@@ -2851,7 +2851,8 @@ async function composeSiteRouteDeps(
               const creationZone = createSiteCreationTimeZone({ dir: resolvedSiteBinding.dir });
               const timeZone = await resolveSiteTimeZone({ settingsRepo, creationTimeZone: { read: () => creationZone.read() ?? Intl.DateTimeFormat().resolvedOptions().timeZone } }, { workspaceId });
               return { name: routeDeps.siteDisplayName.read() ?? resolvedSiteBinding.name, slug: resolvedSiteBinding.name,
-                theme: theme && typeof theme === "object" ? theme.manifest.name : "None", timeZone };
+                theme: theme && typeof theme === "object" ? theme.manifest.name : "None",
+                themeId: theme && typeof theme === "object" ? theme.manifest.id : "None", timeZone };
             },
           },
           delivery: selection => resolveShareDelivery({
