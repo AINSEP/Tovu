@@ -17232,3 +17232,13 @@ SqliteError: no such table: posts
     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
   code: 'SQLITE_ERROR'
 }
+Error: content database not found at /tmp/backfill-slug-collision-missingdb-TXhGvg/content.db — refusing to create one. An empty database would report zero rows to migrate and look like success. Pass --db pointing at the real site database (e.g. sites/<site>/content.db).
+    at resolveExistingDbPath (/home/user/Tovu/development/scripts/backfill-db-path.ts:48:11)
+    at main (/home/user/Tovu/development/scripts/backfill-slug-collision-defaults.ts:152:18)
+    at <anonymous> (/home/user/Tovu/development/scripts/backfill-slug-collision-defaults.ts:209:1)
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+✔ backfill-slug-collision-defaults: leaves a genuine collision candidate at false, reclassifies a non-collision to NULL, and never touches true or already-null rows (30565.351094ms)
+✔ backfill-slug-collision-defaults: a dry run against a not-yet-migrated content.db must not migrate it — asserted on the actual file, not a log line (10448.692696ms)
+✔ backfill-slug-collision-defaults: a mistyped --db path fails loudly and creates nothing, instead of silently opening an empty database (14992.596543ms)
