@@ -1,0 +1,15 @@
+
+ RUN  v4.1.12 /home/user/Tovu/apps/admin
+
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js" points to missing source files
+Sourcemap for "/home/user/Tovu/apps/admin/node_modules/untruncate-json/dist/cjs/index.js" points to missing source files
+
+ Test Files  70 passed (70)
+      Tests  775 passed (775)
+   Start at  04:46:50
+   Duration  126.46s (transform 24.39s, setup 14.83s, import 120.59s, tests 30.55s, environment 65.02s)
+

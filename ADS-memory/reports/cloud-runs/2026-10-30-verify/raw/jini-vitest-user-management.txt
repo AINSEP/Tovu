@@ -1,0 +1,116 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/user-management
+
+ ✓ src/server/__tests__/admin-crud-service.test.ts (47 tests) 240ms
+ ✓ src/server/__tests__/agent-tool-registrations.contracts.test.ts (50 tests) 186ms
+ ✓ src/admin/__tests__/roles.controller.pins.test.ts (52 tests) 45ms
+ ✓ src/admin/__tests__/users.controller.pins.test.ts (45 tests) 52ms
+ ✓ src/admin/__tests__/memory.pins.test.ts (41 tests) 46ms
+ ✓ src/server/__tests__/grant-service.test.ts (16 tests) 93ms
+ ✓ src/server/__tests__/seed.resume.test.ts (8 tests) 60ms
+ ✓ src/server/__tests__/authorization-regressions.test.ts (21 tests) 25ms
+ ✓ src/server/__tests__/agent-tools.schema-agreement.test.ts (29 tests) 15ms
+ ✓ src/server/__tests__/seed.pins.test.ts (13 tests) 73ms
+ ✓ src/server/__tests__/seed.test.ts (7 tests) 57ms
+ ✓ src/server/__tests__/agent-tool-input.pins.test.ts (53 tests) 23ms
+ ✓ src/admin/__tests__/people.controllers.test.ts (13 tests) 30ms
+ ✓ src/server/__tests__/auth-service.test.ts (9 tests) 21ms
+ ✓ src/server/__tests__/admin-crud-service.pins.test.ts (17 tests) 54ms
+ ✓ src/server/__tests__/authorize.test.ts (12 tests) 6ms
+ ✓ src/server/__tests__/cms-entries-authorization.integration.test.ts (4 tests) 5ms
+ ✓ src/server/__tests__/auth-service.pins.test.ts (27 tests) 19ms
+ ✓ src/server/__tests__/permission-migrations.pins.test.ts (15 tests) 18ms
+ ✓ src/server/__tests__/auth-challenge.test.ts (53 tests) 62ms
+ ✓ src/admin/__tests__/people.rules.test.ts (19 tests) 12ms
+ ✓ src/server/__tests__/cms-content-types-authorization.integration.test.ts (4 tests) 10ms
+ ✓ src/server/__tests__/change-username.test.ts (8 tests) 41ms
+ ✓ src/admin/__tests__/controllers.test.ts (6 tests) 11ms
+ ✓ src/admin/__tests__/people.adapters.test.ts (5 tests) 14ms
+ ✓ src/server/__tests__/unit/ensure-principal.unit.test.ts (12 tests) 12ms
+ ✓ src/admin/__tests__/conformance.failures.test.ts (7 tests) 13ms
+ ✓ src/admin/__tests__/rules.pins.test.ts (9 tests) 7ms
+ ✓ src/server/__tests__/args-convention.test.ts (4 tests) 8ms
+ ✓ src/server/__tests__/grant-service.validation.test.ts (4 tests) 27ms
+ ✓ src/admin/__tests__/people.rules.pins.test.ts (6 tests) 1653ms
+   ✓ userActionAllowed truth table (pin) > matches the documented rules for every enumerated combination 312ms
+   ✓ userActionAllowed truth table (pin) > consults ownership exactly once when a caller exists and never without one 564ms
+   ✓ userActionAllowed truth table (pin) > returns a real boolean for every combination 517ms
+ ✓ src/admin/__tests__/memory.test.ts (4 tests) 11ms
+ ✓ src/admin/__tests__/members.controller.branches.test.ts (8 tests) 17ms
+ ✓ src/server/__tests__/agent-tool-registrations.consistency.test.ts (4 tests) 32ms
+ ✓ src/server/__tests__/session-policy.test.ts (8 tests) 14ms
+ ✓ src/admin/__tests__/http.options.test.ts (5 tests) 7ms
+ ✓ src/core/__tests__/runtime-boundary.test.ts (4 tests) 108ms
+ ✓ src/admin/__tests__/controller-store.test.ts (5 tests) 30ms
+ ✓ src/admin/__tests__/boundaries.test.ts (3 tests) 337ms
+ ✓ src/admin/__tests__/http.test.ts (2 tests) 6ms
+ ✓ src/server/__tests__/repo.memory-transactions.contract.test.ts (5 tests) 6ms
+ ✓ src/core/__tests__/builtin-permissions.invariants.test.ts (6 tests) 14ms
+ ✓ src/__tests__/user-management-rename.contract.test.ts (2 tests) 14ms
+ ✓ src/core/__tests__/permissions.test.ts (5 tests) 2ms
+ ✓ src/server/__tests__/runtime.test.ts (4 tests) 4ms
+ ✓ src/__tests__/public-args.test.ts (1 test) 728ms
+   ✓ public functions, constructors and adapter methods accept named argument objects 727ms
+ ✓ src/server/__tests__/change-username-tool.test.ts (1 test) 16ms
+ ✓ src/server/__tests__/agent-tools.honesty.test.ts (5 tests) 3ms
+ ✓ src/__tests__/package-entries.test.ts (2 tests) 8ms
+ ✓ src/server/__tests__/agent-tool-registrations.guards.test.ts (2 tests) 4ms
+ ✓ src/server/__tests__/password-policy.test.ts (4 tests) 2ms
+ ✓ src/__tests__/react-import-boundaries.test.ts (2 tests) 8ms
+ ✓ src/core/__tests__/principal-kind-policy.test.ts (2 tests) 10ms
+ ✓ src/admin/__tests__/public-barrel.test.ts (1 test) 6ms
+ ✓ src/admin/__tests__/conformance.test.ts (1 test) 4ms
+ ✓ src/react/users/__tests__/use-users.hooks.pins.test.tsx (45 tests) 2538ms
+ ✓ src/react/users/__tests__/Users.coverage.test.tsx (37 tests) 1024ms
+ ✓ src/react/users/__tests__/use-users.ported.test.tsx (19 tests) 1622ms
+ ✓ src/admin/react/__tests__/people-hooks.test.tsx (15 tests) 412ms
+ ✓ src/react/users/__tests__/Users.complexity-pins.test.tsx (36 tests) 1271ms
+ ✓ src/admin/react/__tests__/people.test.tsx (12 tests) 3116ms
+   ✓ composable users screen > renders read-only with no grants, and hides all writes for unresolved owner classifications 538ms
+   ✓ composable users screen > creates an operator with new-password autocomplete and manages email and grants 714ms
+   ✓ composable users screen > cancels disable, then confirms it; enable stays immediate and deletion uses Trash copy 349ms
+   ✓ composable users screen > reset guards mismatch, preserves failures and reveals independently with autocomplete intact 575ms
+ ✓ src/admin/react/__tests__/admin-pages.branches.test.tsx (17 tests) 3035ms
+   ✓ members page > shows a load failure with a retry that recovers the roster 351ms
+   ✓ users page > keeps the create form open with the server error when creating a user fails 380ms
+   ✓ roles and policies tabs > keeps the role form with the server error when creating a role fails 410ms
+   ✓ roles and policies tabs > renames a policy and its description inline, and cancel discards a second edit 661ms
+   ✓ roles and policies tabs > lists an unscoped permission without a resource type and offers no removal to read-only viewers 374ms
+ ✓ src/react/members/__tests__/use-members.hooks.pins.test.ts (24 tests) 1451ms
+ ✓ src/react/users/__tests__/account-protections.ported.test.tsx (19 tests) 965ms
+ ✓ src/react/members/__tests__/use-members.ported.test.ts (10 tests) 1058ms
+ ✓ src/admin/react/__tests__/UsersTab.hooks.pins.test.tsx (19 tests) 276ms
+ ✓ src/admin/react/__tests__/roles.test.tsx (7 tests) 2229ms
+   ✓ composable roles React screen > loads a read-only screen without grants and exposes readable permissions without any write controls 570ms
+   ✓ composable roles React screen > creates roles and policies, renames inline, and hides builtin/frozen mutation controls 858ms
+   ✓ composable roles React screen > requires confirmation for revocation and policy deletion 424ms
+ ✓ src/react/__tests__/testing.fakes.test.ts (11 tests) 15ms
+ ✓ src/react/users/__tests__/change-username.hooks.test.tsx (7 tests) 1034ms
+   ✓ marks the own row inline without a username role badge and keeps renames in the row menu 481ms
+ ✓ src/react/users/__tests__/UserRowParts.unit.test.tsx (16 tests) 175ms
+ ✓ src/admin/react/__tests__/RolesPage.hooks.pins.test.tsx (9 tests) 164ms
+ ✓ src/react/members/__tests__/Members.ported.test.tsx (5 tests) 692ms
+ ✓ src/react/__tests__/screens.test.tsx (5 tests) 908ms
+   ✓ users retain the new-password autofill protection and create through their port 475ms
+ ✓ src/admin/react/__tests__/RolesPage.pins.test.tsx (12 tests) 214ms
+ ✓ src/admin/react/__tests__/UsersPage.pins.test.tsx (13 tests) 302ms
+ ✓ src/react/auth/__tests__/use-login.hooks.unit.test.ts (8 tests) 77ms
+ ✓ src/react/members/__tests__/Members.detail.test.tsx (7 tests) 621ms
+   ✓ Members detail panel > shows a loading notice while the detail request is in flight, then the fetched fields 316ms
+ ✓ src/admin/react/__tests__/MemberRow.pins.test.tsx (11 tests) 218ms
+ ✓ src/react/auth/__tests__/Login.unit.test.tsx (9 tests) 303ms
+ ✓ src/react/__tests__/errors.pins.test.ts (18 tests) 7ms
+ ✓ src/admin/react/__tests__/admin-rows.branches.test.tsx (3 tests) 344ms
+ ✓ src/react/members/__tests__/fqfix-disable.unit.test.ts (3 tests) 207ms
+ ✓ src/react/__tests__/integration-reconcile.test.tsx (3 tests) 156ms
+ ✓ src/react/users/__tests__/use-reset-password-fields.unit.test.tsx (5 tests) 42ms
+ ✓ src/react/users/__tests__/ChangeUsernameDialog.unit.test.tsx (2 tests) 170ms
+ ✓ src/react/members/__tests__/Members.host-ports.test.tsx (2 tests) 282ms
+ ✓ src/react/users/__tests__/rules.labels.unit.test.ts (3 tests) 4ms
+ ✓ src/react/members/__tests__/rules.busy.unit.test.ts (2 tests) 3ms
+
+ Test Files  88 passed (88)
+      Tests  1116 passed (1116)
+   Start at  04:56:22
+   Duration  53.90s (transform 5.71s, setup 13.30s, collect 22.10s, tests 29.27s, environment 14.84s, prepare 6.72s)
+

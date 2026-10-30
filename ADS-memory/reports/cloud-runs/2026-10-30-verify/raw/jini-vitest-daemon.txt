@@ -313,3 +313,42 @@ npm notice
  ✓ src/agent-executor/__tests__/values.test.ts (4 tests) 9ms
  ✓ src/agent-executor/__tests__/model-fixture-m1.unit.test.ts (2 tests) 5ms
  ✓ src/http/__tests__/agents-model-catalog.test.ts (1 test) 5ms
+ ✓ src/store/agent-sessions/__tests__/loads-without-driver.test.ts (2 tests) 20889ms
+   ✓ neutral packed port works with no db/Kysely/drivers/React and keeps declaration imports usable 6928ms
+   ✓ SQL factory declarations accept the host numeric timestamp and extra tables without a cast 13960ms
+ ✓ src/agent-executor/__tests__/attachment-stdin.test.ts (1 test) 3ms
+ ✓ src/run/__tests__/index.test.ts (1 test) 3ms
+ ✓ src/__tests__/legacy-filesystem-port.regression.test.ts (1 test) 3ms
+ ✓ src/__tests__/credential-crypto-parity.test.ts (8 tests) 4ms
+ ✓ src/continuation/__tests__/journal-failure.regression.test.ts (1 test) 5ms
+ ✓ src/http/__tests__/attachment-route-m1.unit.test.ts (1 test) 5ms
+ ✓ src/store/agent-sessions/__tests__/pack-refusal-m1.unit.test.ts (1 test) 10ms
+ ✓ src/store/agent-sessions/__tests__/fixture-failure-m1.unit.test.ts (1 test) 3ms
+ ✓ src/agent-executor/__tests__/cost-metadata.test.ts (2 tests) 3ms
+ ✓ src/__tests__/memory-recovery.db-contract.test.ts (1 test) 2ms
+ ✓ src/agent-executor/codex/__tests__/isolation-m1.unit.test.ts (4 tests) 5ms
+ ✓ src/agent-executor/__tests__/durable-session-status.test.ts (2 tests) 3ms
+ ✓ src/store/agent-sessions/__tests__/pglite.socket.test.ts (7 tests) 28353ms
+   ✓ opaque pair encodings are independent, including ambiguous delimiter pairs 5609ms
+   ✓ overwrite and idempotent clear affect only the selected pair 4017ms
+   ✓ concurrent sets leave one complete successor 4042ms
+   ✓ shares the injected transaction for insert, overwrite and clear rollback 3664ms
+   ✓ uses assistant_agent_sessions FK and cascades exactly the deleted conversation 3377ms
+   ✓ construction performs no I/O or ownership changes; writes use the injected clock 3103ms
+   ✓ concurrent upserts preserve one primary-key row 4539ms
+ ✓ src/store/agent-sessions/__tests__/sqlite.test.ts (7 tests) 61ms
+ ✓ src/store/agent-sessions/__tests__/pglite.test.ts (7 tests) 23701ms
+   ✓ opaque pair encodings are independent, including ambiguous delimiter pairs 5253ms
+   ✓ overwrite and idempotent clear affect only the selected pair 3725ms
+   ✓ concurrent sets leave one complete successor 4458ms
+   ✓ shares the injected transaction for insert, overwrite and clear rollback 2782ms
+   ✓ uses assistant_agent_sessions FK and cascades exactly the deleted conversation 3217ms
+   ✓ construction performs no I/O or ownership changes; writes use the injected clock 2273ms
+   ✓ concurrent upserts preserve one primary-key row 1990ms
+ ✓ src/store/agent-sessions/__tests__/memory.test.ts (3 tests) 3ms
+
+ Test Files  183 passed | 1 skipped (184)
+      Tests  3838 passed | 1 skipped (3839)
+   Start at  04:43:51
+   Duration  106.85s (transform 9.44s, setup 0ms, collect 60.46s, tests 88.75s, environment 38ms, prepare 14.61s)
+

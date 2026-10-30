@@ -2,3 +2,17 @@
 > tovu@0.1.0 complexity:strict
 > eslint --no-error-on-unmatched-pattern --no-inline-config --ignore-pattern '**/{__tests__,__measurements__,__mocks__,fixtures,test,tests,vendor,.build}/**' --ignore-pattern '**/*.{test,spec,typecheck}.*' --ignore-pattern '**/*.d.{ts,mts,cts}' --ignore-pattern 'apps/website/src/platform/db/migrations/{0002,0006,0011,0012,0013,0020}_*.ts' --rule '{"complexity":["error",10],"sonarjs/cognitive-complexity":["error",10]}' "apps/*/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}" "packages/*/src/**/*.{ts,tsx}" "content/agent-plugins/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"
 
+
+/home/user/Tovu/apps/admin/src/lib/api.ts
+   693:13  warning  Remove this redundant type alias and replace its occurrences with "AdminPublishCredentialProviderId"  sonarjs/redundant-type-aliases
+   818:13  warning  Remove this redundant type alias and replace its occurrences with "string"                            sonarjs/redundant-type-aliases
+  1014:13  warning  Remove this redundant type alias and replace its occurrences with "string"                            sonarjs/redundant-type-aliases
+
+/home/user/Tovu/apps/desktop/src/stage-payload-run.ts
+  120:3  warning  Reduce the total number of "break" and "continue" statements in this loop to use one at most  sonarjs/too-many-break-or-continue-in-loop
+
+/home/user/Tovu/apps/website/src/features/plugin-runtime/install.ts
+  11:9  warning  Use destructuring syntax for these assignments from "required"  sonarjs/destructuring-assignment-syntax
+
+✖ 5 problems (0 errors, 5 warnings)
+

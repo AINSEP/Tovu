@@ -2,3 +2,8 @@ typecheck exit 0
 guard exit 0
 test-scripts exit 1
 vitest-agent-runtime exit 0
+vitest-daemon exit 0
+vitest-chat exit 0
+vitest-db exit 1
+vitest-plugin-catalog exit 0
+vitest-user-management exit 0

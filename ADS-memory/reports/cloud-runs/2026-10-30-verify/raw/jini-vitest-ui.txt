@@ -1,0 +1,132 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/ui
+
+ ✓ src/features/memory/__tests__/react/hooks/useMemoryConnectors.test.tsx (70 tests) 272ms
+ ✓ src/renderers/annotation-canvas/react/hooks/__tests__/useAnnotationCanvas.test.ts (85 tests) 652ms
+stderr | src/features/html-editor/react/hooks/__tests__/useInteractiveHtmlEditor.test.tsx > useInteractiveHtmlEditor — integrity failures and lifecycle edges > keeps the last good copy and shows the error when an export throws, and flush then rejects
+[useInteractiveHtmlEditor] falling back to full re-serialization: a block was added, moved, copied or deleted since mount (first: component:add <unknown>)
+
+stderr | src/features/html-editor/react/hooks/__tests__/useInteractiveHtmlEditor.test.tsx > useInteractiveHtmlEditor — integrity failures and lifecycle edges > ignores a content update for a component no longer found in its parent, so it is never spliced
+[useInteractiveHtmlEditor] falling back to full re-serialization: no text edit was recorded for this change
+
+ ✓ src/features/html-editor/react/hooks/__tests__/useInteractiveHtmlEditor.test.tsx (48 tests) 317ms
+ ✓ src/features/memory/__tests__/react/hooks/useMemoryEntries.test.tsx (46 tests) 189ms
+ ✓ src/features/connectors/__tests__/hooks/useConnectorAuthorization.test.ts (38 tests) 156ms
+ ✓ src/react/__tests__/components/CustomSelect.test.tsx (79 tests) 1150ms
+ ✓ src/renderers/srcdoc/__tests__/build.test.ts (78 tests) 237ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/form.test.ts (49 tests) 675ms
+ ✓ src/features/lexical-rich-text-editor/__tests__/rules.test.ts (71 tests) 62ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/confirmation.test.ts (62 tests) 851ms
+ ✓ src/features/browser-chrome/__tests__/rules.test.ts (95 tests) 42ms
+ ✓ src/features/sketch-editor/__tests__/dom.test.ts (58 tests) 136ms
+ ✓ src/features/admin-widgets/__tests__/Select.unit.test.tsx (37 tests) 1206ms
+ ✓ src/features/panel-kit/fetch-query/__tests__/fetch-query.test.tsx (90 tests) 7300ms
+   ✓ built-in adapter conformance > provider isolation and defaults > surfaces read/write failures once and retries reads only on an explicit request 1215ms
+   ✓ tanstack adapter conformance > provider isolation and defaults > surfaces read/write failures once and retries reads only on an explicit request 1262ms
+   ✓ tanstack adapter conformance > useFetchQuery > exposes the last error while refetching, replaces it on failure and clears it on success (cached data: true) 314ms
+ ✓ src/features/connectors/__tests__/rules.test.ts (112 tests) 54ms
+ ✓ src/features/execution/__tests__/react/components/LocalCliAgentCard.test.tsx (49 tests) 1106ms
+ ✓ src/features/version-manager/__tests__/react/hooks/useVersionManager.test.tsx (38 tests) 2910ms
+ ✓ src/react/__tests__/components/OnboardingDropdown.test.tsx (60 tests) 1099ms
+ ✓ src/features/mcp-ui/__tests__/secret-card.unit.test.ts (61 tests) 95ms
+ ✓ src/features/execution/__tests__/react/components/ExecutionTab.test.tsx (32 tests) 1446ms
+ ✓ src/features/media-providers/__tests__/react/hooks/useMediaProvidersTab.test.ts (27 tests) 3101ms
+stderr | src/features/asset-tree-browser/__tests__/react/components/AssetTreeBrowser.test.tsx > AssetTreeBrowser > clicking the batch-download button drives downloadFiles through to completion
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at Timeout._onTimeout (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/nodes/HTMLHyperlinkElementUtils-impl.js:80:7)
+    at listOnTimeout (node:internal/timers:685:17)
+    at processTimers (node:internal/timers:618:7) undefined
+
+ ✓ src/features/asset-tree-browser/__tests__/react/components/AssetTreeBrowser.test.tsx (37 tests) 2125ms
+   ✓ AssetTreeBrowser > gates copy-local-path on the selectors.getLocalPath result: disabled for readme.txt, enabled for photo.png 431ms
+ ✓ src/react/__tests__/components/WorkingDirPicker.test.tsx (39 tests) 1097ms
+ ✓ src/features/memory/__tests__/react/hooks/useMemoryConfig.test.ts (33 tests) 133ms
+ ✓ src/react/hooks/__tests__/useResizableSplitPane.test.tsx (29 tests) 316ms
+ ✓ src/features/source-config-list/__tests__/SourceConfigItemCard.test.tsx (46 tests) 2335ms
+ ✓ src/features/resource-dashboard/react/hooks/useResourceBoard.test.ts (38 tests) 1444ms
+ ✓ src/features/asset-tree-browser/__tests__/rules.test.ts (95 tests) 55ms
+ ✓ src/features/resource-dashboard/__tests__/ResourceBoard.test.tsx (32 tests) 1327ms
+ ✓ src/features/memory/__tests__/react/hooks/useMemoryExtractions.store.test.ts (55 tests) 29ms
+ ✓ src/features/admin-widgets/__tests__/Select.hooks.unit.test.tsx (40 tests) 343ms
+ ✓ src/features/memory/__tests__/react/components/MemoryConnectedPanel.test.tsx (47 tests) 1147ms
+ ✓ src/features/source-config-list/react/components/SourceConfigList.test.tsx (18 tests) 2315ms
+   ✓ SourceConfigList — MCP-server-shaped source > adds a new MCP-shaped source with a trust level through the generic add form 368ms
+   ✓ SourceConfigList — MCP-server-shaped source > toggles enabled and edits the label/fields of a real MCP-shaped server end-to-end 391ms
+   ✓ SourceConfigList — BYOK-key-shaped source (same component, different fields/adapter) > adds a new API-key-shaped source, masks the key, and never renders a trust control 830ms
+ ✓ src/features/memory/__tests__/react/hooks/useMemoryExtractions.test.tsx (27 tests) 96ms
+ ✓ src/features/memory/__tests__/formatters.test.ts (61 tests) 46ms
+ ✓ src/react/__tests__/components/TooltipLayer.test.tsx (40 tests) 236ms
+ ✓ src/features/connectors/__tests__/ConnectorsBrowser.test.tsx (27 tests) 1920ms
+ ✓ src/features/viewer-shell/__tests__/react/components/CommentSidePanel.test.tsx (46 tests) 1772ms
+ ✓ src/features/tab-strip/__tests__/react/hooks/useTabStripDragReorder.test.ts (22 tests) 98ms
+ ✓ src/features/execution/__tests__/react/hooks/useReasoningControl.test.ts (24 tests) 74ms
+ ✓ src/features/version-manager/__tests__/react/components/VersionManagerModal.test.tsx (23 tests) 1446ms
+ ✓ src/features/skills/__tests__/react/hooks/useSkillsTab.test.ts (22 tests) 2834ms
+ ✓ src/features/viewer-shell/__tests__/react/hooks/useMarkdownScrollSync.test.ts (14 tests) 448ms
+ ✓ src/renderers/preview-modal-shell/react/components/__tests__/PreviewModalShell.test.tsx (37 tests) 1315ms
+ ✓ src/features/source-config-list/agent-handles.test.tsx (45 tests) 518ms
+ ✓ src/features/html-editor/__tests__/canvas-embed-placeholders.test.ts (26 tests) 206ms
+ ✓ src/features/about/__tests__/rules.test.ts (53 tests) 16ms
+ ✓ src/features/connectors/__tests__/components/ConnectorDetailDrawer.test.tsx (24 tests) 667ms
+ ✓ src/features/skills/__tests__/rules.test.ts (76 tests) 38ms
+ ✓ src/features/resource-dashboard/react/hooks/useResourceRowList.test.ts (23 tests) 963ms
+ ✓ src/features/asset-grid/__tests__/react/components/AssetGrid.test.tsx (25 tests) 2081ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/controls.test.ts (50 tests) 165ms
+ ✓ src/features/skills/__tests__/react/components/SkillsTab.test.tsx (29 tests) 2078ms
+   ✓ SkillsTab > creating a skill validates name and body, then saves and shows it in the list 362ms
+ ✓ src/features/progress-card/__tests__/reference-adapters.test.ts (45 tests) 21ms
+ ✓ src/features/media-providers/__tests__/rules.test.ts (66 tests) 33ms
+ ✓ src/features/memory/__tests__/dependencies.test.ts (30 tests) 50ms
+ ✓ src/utils/__tests__/markdown-scroll-sync.test.ts (40 tests) 245ms
+ ✓ src/renderers/annotation-canvas/react/components/__tests__/AnnotationCanvas.test.tsx (22 tests) 2029ms
+ ✓ src/features/media-providers/__tests__/react/components/MediaProvidersTab.test.tsx (25 tests) 2116ms
+ ✓ src/renderers/annotation-canvas/react/hooks/__tests__/useAnnotationCanvas.controller.test.ts (46 tests) 19ms
+ ✓ src/features/admin-widgets/__tests__/InfoTip.unit.test.tsx (29 tests) 689ms
+ ✓ src/features/panel-kit/hooks/__tests__/use-standing-draft-autosave.hooks.test.tsx (17 tests) 83ms
+ ✓ src/features/asset-grid/__tests__/react/hooks/useAssetGridLiveUpdates.test.ts (17 tests) 79ms
+ ✓ src/features/file-dropzone/__tests__/react/components/FileDropzone.test.tsx (35 tests) 838ms
+stderr | src/react/__tests__/components/ExportDiagnosticsButton.test.tsx > ExportDiagnosticsButton > falls back to an HTTP export against exportPath when no bridge is supplied
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at Timeout._onTimeout (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/nodes/HTMLHyperlinkElementUtils-impl.js:80:7)
+    at listOnTimeout (node:internal/timers:685:17)
+    at processTimers (node:internal/timers:618:7) undefined
+
+ ✓ src/react/__tests__/components/ExportDiagnosticsButton.test.tsx (28 tests) 343ms
+ ✓ src/features/about/__tests__/react/components/AboutTab.test.tsx (26 tests) 461ms
+ ✓ src/react/__tests__/components/HeaderActionsMenu.test.tsx (30 tests) 448ms
+ ✓ src/features/sketch-editor/__tests__/rules.test.ts (53 tests) 26ms
+ ✓ src/features/charts/__tests__/browser.characterization.test.ts (22 tests) 120ms
+ ✓ src/features/source-config-list/react/hooks/useSourceConfigList.test.ts (22 tests) 1290ms
+ ✓ src/features/connectors/__tests__/components/ConnectorCard.test.tsx (24 tests) 445ms
+ ✓ src/features/connectors/__tests__/hooks/useConnectorDetail.test.ts (15 tests) 349ms
+ ✓ src/renderers/__tests__/sandboxed-document.test.ts (29 tests) 25ms
+ ✓ src/features/mcp-ui/__tests__/surfaces/bridge.test.ts (26 tests) 27ms
+ ✓ src/react/mcp-ui/__tests__/useMcpUiHost.test.tsx (20 tests) 137ms
+ ✓ src/features/lexical-rich-text-editor/react/hooks/useMentionAtomicNavigation.test.ts (19 tests) 79ms
+ ✓ src/features/viewer-shell/__tests__/react/hooks/useCommentReorder.test.ts (20 tests) 69ms
+ ✓ src/react/__tests__/components/BrandLogo.test.tsx (30 tests) 106ms
+ ✓ src/features/source-config-list/__tests__/SourceConfigField.test.tsx (22 tests) 475ms
+ ✓ src/features/skills/__tests__/react/components/SkillRow.test.tsx (35 tests) 554ms
+ ✓ src/react/__tests__/components/Toast.test.tsx (31 tests) 313ms
+ ✓ src/features/sketch-editor/__tests__/react/hooks/useSketchSaveWorkflow.test.ts (17 tests) 73ms
+stderr | src/features/integrations/__tests__/react/components/IntegrationsTab.test.tsx > IntegrationsTab > shows a method sub-label for the trigger and every dropdown item once install info has loaded
+Error: Not implemented: navigation (except hash changes)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at navigateFetch (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:77:3)
+    at exports.navigate (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/window/navigation.js:55:3)
+    at Timeout._onTimeout (/home/user/Jini/node_modules/.pnpm/jsdom@26.1.0/node_modules/jsdom/lib/jsdom/living/nodes/HTMLHyperlinkElementUtils-impl.js:80:7)
+    at listOnTimeout (node:internal/timers:685:17)
+    at processTimers (node:internal/timers:618:7) undefined
+
+ ✓ src/features/integrations/__tests__/react/components/IntegrationsTab.test.tsx (20 tests) 972ms
+ ✓ src/features/execution/__tests__/api-key-format-warning.test.ts (24 tests) 24ms
+ ✓ src/features/file-dropzone/react/hooks/useFileDropzonePreviews.test.ts (18 tests) 459ms
+ ✓ src/features/file-dropzone/react/hooks/useFileDropzone.test.tsx (19 tests) 879ms
+   ✓ useFileDropzone > a large-by-bytes (not by count) selection also triggers the processing affordance 726ms
+ ✓ src/react/__tests__/components/LanguageMenu.test.tsx (23 tests) 330ms
