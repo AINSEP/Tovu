@@ -1,5 +1,5 @@
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
-import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy.js";
+import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
@@ -14,10 +14,10 @@ import test from "node:test";
 
 import { createToolRegistry } from "@jini-ai/core";
 
-import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove.js";
-import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout.js";
-import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "#src/features/agent-plugins/lifecycle.js";
-import { registerInstalledAgentPluginTools } from "#src/features/agent-plugins/tool-registrations.js";
+import { forceRemove } from "#src/features/agent-plugins/__tests__/fixtures/force-remove";
+import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
+import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "#src/features/agent-plugins/lifecycle";
+import { registerInstalledAgentPluginTools } from "#src/features/agent-plugins/tool-registrations";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
