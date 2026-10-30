@@ -392,6 +392,7 @@ export interface MediaTable {
   caption: string;
   credit: string;
   source_sha256: string;
+  source_metadata_json: string | null;
   status: string;
   created_at: string;
   updated_at: string;

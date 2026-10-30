@@ -113,8 +113,10 @@ test("stock resolvers work from a dist/src module layout independently of cwd", 
   // Only the two real resolver bodies need the product-root port. Importing the entire composition
   // also loads every feature and its boot graph under a second symlink identity; none of that is
   // part of this path contract, and it exhausted the child deadline in the snapshot run.
-  const source = ts.createSourceFile("deps.ts", readFileSync(path.join(REPO_ROOT, "apps/website/src/server/runtime/composition/deps.ts"), "utf8"), ts.ScriptTarget.Latest, true);
+
   const resolverSource = ["builtInThemesDir", "bundledAgentPluginsDir"].map((name) => {
+    const owner = name === "builtInThemesDir" ? "site-paths.ts" : "deps.ts";
+    const source = ts.createSourceFile(owner, readFileSync(path.join(REPO_ROOT, "apps/website/src/server/runtime/composition", owner), "utf8"), ts.ScriptTarget.Latest, true);
     const declaration = source.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === name);
     assert.ok(declaration, `missing resolver ${name}`);
     return declaration.getText(source).replace(/^export\s+/, "");

@@ -7,6 +7,7 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 
+import { assertContentDbFileName } from "../../runtime/composition/site-paths.js";
 import { openSiteContentDb } from "../../runtime/composition/open-site-content-db.js";
 
 import { createSiteRouteDepsForWorkspace, createSiteRouteDeps, defaultContentDbPath } from "../../runtime/composition/deps.js";
@@ -128,7 +129,7 @@ test("workspaceIdOverride supplied: the db opened for validation is the SAME han
     assert.ok(declaration);
     const compiled = ts.transpileModule(declaration.getText(source).replace(/^export\s+/, ""), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
     const composeWithPorts: typeof createSiteRouteDepsForWorkspace = runInNewContext(`${compiled}\ncreateSiteRouteDepsForWorkspace`, {
-      defaultContentDbPath, isInMemoryDbPath, dirname: path.dirname, resolveSiteStorage, resolveWorkspace, contentKernel, closeSqliteConnection,
+      assertContentDbFileName, defaultContentDbPath, isInMemoryDbPath, basename: path.basename, dirname: path.dirname, resolveSiteStorage, resolveWorkspace, contentKernel, closeSqliteConnection,
       resolveSiteDirForDatabase: ({ dbPath: file }: { dbPath: string }) => path.dirname(file),
       openSiteContentDb: async (file: string) => {
         const opened = await openSiteContentDb(file);

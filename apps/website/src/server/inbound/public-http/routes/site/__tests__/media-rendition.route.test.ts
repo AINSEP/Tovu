@@ -46,14 +46,14 @@ test("a members-only post's featured image is a 404 private no-store for an anon
   assert.deepEqual(await response.json(), { error: "rendition not found" });
 });
 
-test("a public post's featured image keeps the asset ungated and immutably cacheable", async t => {
+test("a public post's featured image keeps the asset ungated with bare-id revalidation", async t => {
   const { deps, baseUrl } = await boot(t);
   const media = await upload(deps, { bytes: SVG, filename: "hero.svg", contentType: "image/svg+xml" });
   await deps.postRepo.save(post(deps, { id: "p1", slug: "open", featuredMediaId: media.id }));
   await deps.postRepo.save(post(deps, { id: "p2", slug: "gated", memberAccessJson: MEMBERS_ONLY, featuredMediaId: media.id }));
   const response = await fetch(`${baseUrl}/m/${media.id}/public.v1/hero.webp`);
   assert.equal(response.status, 200);
-  assert.equal(response.headers.get("cache-control"), "public, max-age=31536000, immutable");
+  assert.equal(response.headers.get("cache-control"), "public, max-age=60, must-revalidate");
 });
 
 test("a library document is never served on the rendition route, even unreferenced", async t => {

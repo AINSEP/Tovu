@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import { trashTaxonomy } from "#src/features/taxonomy/trash-term";
+import { trashTaxonomy } from "#src/features/taxonomy/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps.js";

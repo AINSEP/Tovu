@@ -46,11 +46,20 @@ import { randomUUID } from "node:crypto";
 
 import type { Express, NextFunction, Request, Response } from "express";
 
-import { EventType, type AGUIEvent } from "@ag-ui/core";
+import { EventType } from "@ag-ui/core";
 import { EventEncoder } from "@ag-ui/encoder";
 
 import type { AgentEvent } from "@jini-ai/chat/core";
 import { parseUsageEvent } from "@jini-ai/chat/core/run-events";
+import {
+  createAgUiTranslationState as createJiniAgUiTranslationState,
+  translateAgentEventToAgUi as translateJiniAgentEventToAgUi,
+  closeAgUiRun as closeJiniAgUiRun,
+  type AgUiEvent,
+  type AgUiTranslationState,
+} from "@jini-ai/chat/core/ag-ui";
+
+export type { AgUiEvent, AgUiTranslationState } from "@jini-ai/chat/core/ag-ui";
 
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -122,7 +131,8 @@ interface RunAgentWirePayload {
 }
 
 function asString(v: unknown): string {
-  return typeof v === "string" ? v : v == null ? "" : JSON.stringify(v);
+  if (typeof v === "string") return v;
+  return v == null ? "" : JSON.stringify(v);
 }
 
 // Jini owns usage validation and session cost metadata for every transport.
@@ -134,8 +144,8 @@ function reduceUsagePayload(payload: RunAgentWirePayload): AgentEvent {
  * One entry per recognized wire `payload.type`. A dispatch table rather than the flat `switch`
  * `translateRunAgentPayload` uses client-side (see this file's own header for why this is a port,
  * not an import — keep the two in sync): `payload.type` is an untyped wire string, not a checked TS
- * union, so — unlike {@link translateAgentEventToAgUi}'s switch over `AgentEvent.kind` below — a
- * table costs no exhaustiveness guarantee a `switch`+`default` wasn't already forgoing. Chosen
+ * union, so — unlike Jini's exhaustive switch over `AgentEvent.kind` — a table costs no
+ * exhaustiveness guarantee a `switch`+`default` wasn't already forgoing. Chosen
  * because a flat switch's cyclomatic cost is one per `case` regardless of body size: 10 wire types
  * puts the floor at 11 before any real branching, over this repo's ≤9 gate by construction.
  */
@@ -196,191 +206,39 @@ export function terminalReasonNotice(reason: string): AgentEvent | null {
 // ---------------------------------------------------------------------------------------------
 
 /**
- * The subset of `@ag-ui/core`'s real `AGUIEvent` union this adapter emits, narrowed with `Extract`
- * so field shapes come straight from the package's own schema — including two shapes an earlier
- * hand-rolled draft got wrong by inference: `REASONING_START`/`REASONING_END` both require a
- * `messageId` (not bare), and `REASONING_MESSAGE_START` requires a literal `role: "reasoning"`.
+ * Jini's narrowed `@ag-ui/core` event union is authoritative, including the required reasoning
+ * `messageId` and literal `role: "reasoning"`; the host keeps only its IDs and custom wire names.
+ *
+ * Mutable state belongs to ONE run, threaded through every translation call — never a singleton,
+ * which would merge concurrent admins/tabs. ADR-059 Decision 6: Tovu's boundary-less deltas have
+ * no signal for a new text/thinking run except a change in `AgentEvent.kind`. Jini synthesizes the
+ * strict START/CONTENT/END lifecycle; it closes reasoning before text (thinking to answering), text
+ * before reasoning, and either before a tool call, avoiding a double START without an END.
+ *
+ * Text/thinking/tool-result events carry no message ID, so a monotonic per-run counter mints one.
+ * Complete `tool_use` input emits START/ARGS/END back-to-back rather than incremental argument deltas.
+ * Usage can arrive mid-stream: buffering it into RUN_FINISHED would lose that signal. Status labels
+ * have no matched end, so CUSTOM is used instead of STEP_STARTED/STEP_FINISHED. Extension events
+ * (`mcp-ui`/`a2ui`/unmodeled types) remain inert side-channels (ADR-059 Decision 5).
+ *
+ * Retain this host API for existing callers; Jini owns the exhaustive AgentEvent projection.
+ * @complexity O(1) per state creation or translated event.
  */
-export type AgUiEvent = Extract<
-  AGUIEvent,
-  {
-    type:
-      | EventType.RUN_STARTED
-      | EventType.RUN_FINISHED
-      | EventType.RUN_ERROR
-      | EventType.TEXT_MESSAGE_START
-      | EventType.TEXT_MESSAGE_CONTENT
-      | EventType.TEXT_MESSAGE_END
-      | EventType.REASONING_START
-      | EventType.REASONING_MESSAGE_START
-      | EventType.REASONING_MESSAGE_CONTENT
-      | EventType.REASONING_MESSAGE_END
-      | EventType.REASONING_END
-      | EventType.TOOL_CALL_START
-      | EventType.TOOL_CALL_ARGS
-      | EventType.TOOL_CALL_END
-      | EventType.TOOL_CALL_RESULT
-      | EventType.RAW
-      | EventType.CUSTOM;
-  }
->;
-
-/**
- * Mutable per-run state the translator needs to synthesize AG-UI's START/CONTENT/END message
- * lifecycle out of Tovu's boundary-less delta stream (ADR-059 Decision 6 — a named, load-bearing
- * risk, not a detail: no wire-level signal marks a new `text`/`thinking` run beginning, only a
- * change in `AgentEvent.kind`). One instance per run, threaded through every call — NOT a
- * module-level singleton, which would corrupt concurrent runs from different admins/tabs into one
- * shared lifecycle.
- */
-export interface AgUiTranslationState {
-  openTextMessageId: string | null;
-  openReasoningMessageId: string | null;
-  /** Monotonic counter for minting message/tool-call ids deterministically within one run, since
-   *  Tovu's `text`/`thinking`/`tool_result` events carry no id of their own to reuse for this. */
-  nextId: number;
-}
-
 export function createAgUiTranslationState(): AgUiTranslationState {
-  return { openTextMessageId: null, openReasoningMessageId: null, nextId: 0 };
+  return createJiniAgUiTranslationState({
+    ids: { next: ({ prefix, ordinal }) => `${prefix}_${ordinal}` },
+    customEventNames: { usage: "tovu.usage", status: "tovu.status", extensionPrefix: "tovu.ext." },
+  });
 }
 
-function mintId(state: AgUiTranslationState, prefix: string): string {
-  state.nextId += 1;
-  return `${prefix}_${state.nextId}`;
-}
-
-/**
- * Closes whichever message lifecycle is open in `state`, if any — called before opening the OTHER
- * kind of message, and once more at the run's end ({@link closeAgUiRun}), so a stream left open at
- * the moment the run ends still gets its END event rather than leaving a real AG-UI client's
- * lifecycle state permanently open (a documented rejection case in AG-UI's own ecosystem for a
- * double-START with no intervening END).
- */
-function closeOpenMessages(state: AgUiTranslationState): AgUiEvent[] {
-  const events: AgUiEvent[] = [];
-  if (state.openTextMessageId) {
-    events.push({ type: EventType.TEXT_MESSAGE_END, messageId: state.openTextMessageId });
-    state.openTextMessageId = null;
-  }
-  if (state.openReasoningMessageId) {
-    const messageId = state.openReasoningMessageId;
-    events.push({ type: EventType.REASONING_MESSAGE_END, messageId });
-    events.push({ type: EventType.REASONING_END, messageId });
-    state.openReasoningMessageId = null;
-  }
-  return events;
-}
-
-/** The `"text"` case of {@link translateAgentEventToAgUi}, pulled out so its two lifecycle `if`s are
- *  scored in its own complexity budget rather than the switch's. */
-function handleTextAgentEvent(event: Extract<AgentEvent, { kind: "text" }>, state: AgUiTranslationState): AgUiEvent[] {
-  const events: AgUiEvent[] = [];
-  // Text arriving while a REASONING message is open means the model moved from thinking to
-  // answering — close reasoning first. AG-UI's lifecycle is strict, so this order matters.
-  if (state.openReasoningMessageId) events.push(...closeOpenMessages(state));
-  if (!state.openTextMessageId) {
-    state.openTextMessageId = mintId(state, "msg");
-    events.push({ type: EventType.TEXT_MESSAGE_START, messageId: state.openTextMessageId, role: "assistant" });
-  }
-  events.push({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: state.openTextMessageId, delta: event.text });
-  return events;
-}
-
-/** The `"thinking"` case of {@link translateAgentEventToAgUi} — same extraction reasoning as
- *  {@link handleTextAgentEvent}. */
-function handleThinkingAgentEvent(event: Extract<AgentEvent, { kind: "thinking" }>, state: AgUiTranslationState): AgUiEvent[] {
-  const events: AgUiEvent[] = [];
-  if (state.openTextMessageId) events.push(...closeOpenMessages(state));
-  if (!state.openReasoningMessageId) {
-    state.openReasoningMessageId = mintId(state, "reasoning");
-    events.push({ type: EventType.REASONING_START, messageId: state.openReasoningMessageId });
-    events.push({ type: EventType.REASONING_MESSAGE_START, messageId: state.openReasoningMessageId, role: "reasoning" });
-  }
-  events.push({ type: EventType.REASONING_MESSAGE_CONTENT, messageId: state.openReasoningMessageId, delta: event.text });
-  return events;
-}
-
-/** The `"tool_use"` case of {@link translateAgentEventToAgUi} — same extraction reasoning as
- *  {@link handleTextAgentEvent}. */
-function handleToolUseAgentEvent(event: Extract<AgentEvent, { kind: "tool_use" }>, state: AgUiTranslationState): AgUiEvent[] {
-  const events: AgUiEvent[] = [];
-  // Tovu hands over one complete `tool_use` event (input already assembled), not incremental
-  // argument deltas — so all three AG-UI tool-call events fire back-to-back for one Tovu event.
-  // Also closes any open text/reasoning segment first: a tool call interrupts either lifecycle.
-  if (state.openTextMessageId || state.openReasoningMessageId) events.push(...closeOpenMessages(state));
-  events.push({ type: EventType.TOOL_CALL_START, toolCallId: event.id, toolCallName: event.name });
-  events.push({ type: EventType.TOOL_CALL_ARGS, toolCallId: event.id, delta: JSON.stringify(event.input ?? {}) });
-  events.push({ type: EventType.TOOL_CALL_END, toolCallId: event.id });
-  return events;
-}
-
-/**
- * Translates ONE already-reduced `AgentEvent` into zero or more AG-UI events, threading `state`
- * across calls within a single run so message/reasoning boundaries come out correct.
- *
- * A flat switch over a closed union, one case per kind, mirroring `translateRunAgentPayload`'s own
- * shape and reasoning: exhaustiveness checking a lookup table would silently lose (unlike
- * {@link reduceAgentWirePayload}'s sibling table above, `event.kind` IS a real TS union here, so
- * that tradeoff is live for this switch, not moot). The three cases with real internal branching
- * are pulled into their own named functions above so this switch's own cost is just its case count.
- *
- * @complexity O(1) per call; the `default: never` arm is a compile-time exhaustiveness guard, not a
- *   runtime branch a real caller can reach.
- */
+/** Project one reduced event using the per-run state and Tovu wire names above. */
 export function translateAgentEventToAgUi(event: AgentEvent, state: AgUiTranslationState): AgUiEvent[] {
-  switch (event.kind) {
-    case "text":
-      return handleTextAgentEvent(event, state);
-
-    case "thinking":
-      return handleThinkingAgentEvent(event, state);
-
-    case "tool_use":
-      return handleToolUseAgentEvent(event, state);
-
-    case "tool_result":
-      // `messageId` is required by AG-UI's `ToolCallResultEvent` shape but Tovu's `tool_result` has
-      // no message id of its own (only `toolUseId`) — minted fresh, same disclosed gap the sample
-      // prototype flagged.
-      return [
-        {
-          type: EventType.TOOL_CALL_RESULT,
-          messageId: mintId(state, "tool_result_msg"),
-          toolCallId: event.toolUseId,
-          content: event.content,
-          role: "tool",
-        },
-      ];
-
-    case "usage":
-      // Usage can arrive mid-stream, before the run's real end — folding it into `RUN_FINISHED`
-      // would mean buffering it and losing that mid-stream signal.
-      return [{ type: EventType.CUSTOM, name: "tovu.usage", value: event }];
-
-    case "status":
-      // NOT `STEP_STARTED`/`STEP_FINISHED` — those imply a matched pair Tovu's fire-and-forget
-      // status labels have no way to reliably close.
-      return [{ type: EventType.CUSTOM, name: "tovu.status", value: event }];
-
-    case "raw":
-      return [{ type: EventType.RAW, event: event.line }];
-
-    case "ext":
-      // `mcp-ui`/`a2ui`/unmodeled wire types — inert side-channel only, ADR-059 Decision 5.
-      return [{ type: EventType.CUSTOM, name: `tovu.ext.${event.name}`, value: event.data }];
-
-    default: {
-      const neverEvent: never = event;
-      throw new Error(`translateAgentEventToAgUi: unhandled AgentEvent.kind ${JSON.stringify(neverEvent)}`);
-    }
-  }
+  return translateJiniAgentEventToAgUi({ event, state });
 }
 
-/** Convenience wrapper for the run's terminal boundary — call once after the last
- *  `translateAgentEventToAgUi` call, before `RUN_FINISHED`/`RUN_ERROR`. */
+/** Close pending messages before RUN_FINISHED/RUN_ERROR so a client never retains an open lifecycle. */
 export function closeAgUiRun(state: AgUiTranslationState): AgUiEvent[] {
-  return closeOpenMessages(state);
+  return closeJiniAgUiRun({ state });
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -433,7 +291,9 @@ function parseDaemonFrame(rawFrame: string): DaemonFrame | null {
   const dataLines: string[] = [];
   for (const line of rawFrame.split("\n")) {
     if (line.startsWith("event:")) event = line.slice(6).trim();
-    else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+    else {
+      if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+    }
   }
   return dataLines.length > 0 ? { event, data: dataLines.join("\n") } : null;
 }
@@ -622,7 +482,7 @@ async function startDaemonRun(
   const startUpstream = await fetchAgentDaemon(req, res, {
     path: "/api/runs",
     method: "POST",
-    body: { contextRef: JSON.stringify({ prompt, principalId, ...(run.secretRedacted ? { secretRedacted: true } : {}) }), agentId: run.agentId },
+    body: { contextRef: JSON.stringify({ prompt, userPrompt: run.messages.at(-1)?.content, principalId, ...(run.secretRedacted ? { secretRedacted: true } : {}) }), agentId: run.agentId },
     observability: daemon.observability,
   });
   if (!startUpstream) return { ok: false }; // fetchAgentDaemon already wrote a 503/502.
@@ -691,7 +551,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
   const run = resolveAgUiRunRequest(body);
   if (!run) {
     res.status(400).json({ error: "'messages' must end with a non-empty user message", code: "VALIDATION_ERROR" });
-    return;
+    return undefined;
   }
 
   // Cancels the DAEMON run, not just this response's own SSE subscription (MEDIUM audit finding,
@@ -739,7 +599,7 @@ async function handleAgUiRun(req: Request, res: Response, deps: Pick<RouteDeps, 
   // once headers have been flushed for the event stream below.
   const principal = getAuthedPrincipal(res);
   const started = await startDaemonRun(req, res, run, principal.id, daemon);
-  if (!started.ok) return;
+  if (!started.ok) return undefined;
   daemonRunId = started.daemonRunId;
   return deps.tracker.trace({ name: "assistant.run", run: async (span) => {
     runTracker = span;

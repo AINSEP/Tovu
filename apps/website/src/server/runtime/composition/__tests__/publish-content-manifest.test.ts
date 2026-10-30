@@ -1,3 +1,5 @@
+import { sqliteTableInfo } from "#src/platform/db/kernel/sqlite-only";
+import { sqliteForeignKeyCheckedTransaction } from "#src/platform/db/kernel/sqlite-only";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 /**
  * @file Task 2 of the publish-content (Publish Content) feature — proves
@@ -36,8 +38,8 @@ import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { makeSite, sqliteContentSite, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { createRawRowSqlitePort } from "#src/platform/db/sqlite/publish-backstop-row.sqlite";
-import { createRawFileSitePort } from "#src/platform/site-dir/publish-backstop-file";
+import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
+import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, type MediaRecord } from "#src/features/media/index";
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, type NavMenuEntry } from "#src/features/navigation/index";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "@jini-ai/http-kit/verified-origin";
@@ -163,7 +165,7 @@ test("the registered raw-row contributor creates a row readable through an indep
   try {
     site.db.$client.exec("CREATE TABLE p_registry_article (id TEXT PRIMARY KEY, title TEXT)");
     const deps: PublishContentDeps = { ...makeSite({}, "raw-row-registry"),
-      backstop: { rows: createRawRowSqlitePort({ kernel: contentKernel(site.db) }), coveredTables: [], coveredRoots: [] } };
+      backstop: { rows: createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel(site.db) }), coveredTables: [], coveredRoots: [] } };
     const handler = buildPublishContentCatalog(deps).handlerByType.get("raw-row");
     assert.ok(handler);
     const id = 'p_registry_article:{"id":"article-1"}';

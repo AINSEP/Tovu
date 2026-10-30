@@ -1,9 +1,11 @@
-import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
+import type { StoreBoundServices } from "./store-bound-contracts.js";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { PostgresDbOpsAdapter } from "#src/platform/db/postgres/db-ops-adapter";
 import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
 import type { SiteStore } from "./open-site-store.js";
 import { sqliteOnlyServices } from "./sqlite-only-services.js";
+
+export type { StoreBoundServices } from "./store-bound-contracts.js";
 
 /**
  * @file The composition body's one seam between storage engines (R1 plan R1d step 4, R1f).
@@ -17,14 +19,6 @@ import { sqliteOnlyServices } from "./sqlite-only-services.js";
  * The watermark stamp is the async kernel stamp on both (`watermark-kernel.ts`; Jini cms awaits it,
  * owner decision O2); it stays in this bundle so the body keeps one source for it.
  */
-
-/** The services whose implementation depends on the storage engine. */
-export interface StoreBoundServices {
-  /** Restore points; shared by the body and the boot password reset. */
-  readonly dbOps: DbOpsPort;
-  /** Advances `database_write_watermark` after a taxonomy write; callers await it (O2). */
-  readonly stampWatermark: () => Promise<void> | void;
-}
 
 /**
  * The Postgres/PGlite twin of `sqliteOnlyServices`.

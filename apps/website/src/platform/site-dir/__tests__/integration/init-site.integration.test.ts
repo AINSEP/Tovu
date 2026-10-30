@@ -12,7 +12,7 @@ import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";
 import { openSiteContentDb } from "#src/server/runtime/composition/open-site-content-db";
 
-import { initSite } from "../../init-site.js";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { runtimeSchemaVersion } from "../../schema-guard.js";
 
 /**

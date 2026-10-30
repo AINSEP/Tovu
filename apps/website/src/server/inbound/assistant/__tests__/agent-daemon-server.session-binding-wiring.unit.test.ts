@@ -9,7 +9,7 @@ import { agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNew
 import { resolveResumeSessionField } from "../../../../assistant/agent-session-preset.js";
 import { createConversationStartLock } from "../../../../assistant/agent-session-preset.js";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
-import { assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
+import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
 import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "../run-start-decisions.js";
 import { resolveAssistantRuntimeLaunch } from "../assistant-runtime-guidance.js";
 import { getAgentDef } from "@jini-ai/agent-runtime";
@@ -95,6 +95,8 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     assistantCliCapabilitiesContext: new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>(),
     assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
     resolveAssistantRuntimeLaunch, getAgentDef, probeAssistantChrome: async () => true, assistantRuntimeGuidanceContext: new AsyncLocalStorage(),
+    // 1ca5e89e9 added the picked-folder lookup; these session fixtures have no picked folder.
+    getCustomFsRoot: () => undefined,
     deleteScope: { fresh: async ({ run }: { run: () => Promise<unknown> }) => run() },
     failRunBeforeStart: async ({ message }: { message: string }) => assert.fail(message),
   }) as (input: unknown) => void;
@@ -238,8 +240,8 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
     // buries the one-line reason under a screenful of unrelated text.
     for (const name of ["agentAcceptsHostMintedSessionId", "resolveHostMintedSessionId", "resolveNewSessionField"]) {
       assert.ok(
-        new RegExp(`import\\s*\\{[^}]*${name}[^}]*\\}\\s*from\\s*["'][^"']*agent-session-preset(\\.js)?["']`, "s").test(DAEMON_ENTRY_SOURCE),
-        `onStarted must import ${name} from agent-session-preset.ts, not reimplement that decision inline`,
+        new RegExp(`import\\s*\\{[^}]*${name}[^}]*\\}\\s*from\\s*["'][^"']*agent-daemon-port(\\.js)?["']`, "s").test(DAEMON_ENTRY_SOURCE),
+        `onStarted must import ${name} through agent-daemon-port.ts, not reimplement that decision inline`,
       );
     }
   });
@@ -268,7 +270,7 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
   });
 
   test("the dispatch-time write is awaited, so the binding is durable before the CLI is ever spawned", () => {
-    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
+    const runCallIndex = onStartedSource.indexOf("const executeRun = () => agentExecutor.run({");
     assert.ok(runCallIndex > -1, "the awaited agentExecutor.run call must exist");
     const preDispatch = onStartedSource.slice(0, runCallIndex);
     const bindingFnIndex = preDispatch.indexOf("async function resolveSessionBinding(");
@@ -292,7 +294,7 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
   });
 
   test("the minted id is both persisted and handed to AgentExecutor.run — one id, not two", () => {
-    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
+    const runCallIndex = onStartedSource.indexOf("const executeRun = () => agentExecutor.run({");
     const mintIndex = onStartedSource.indexOf("resolveHostMintedSessionId({");
     assert.ok(mintIndex > -1, "onStarted must call resolveHostMintedSessionId to decide whether to mint");
     assert.ok(mintIndex < runCallIndex, "the mint decision must be made before agentExecutor.run is called");
@@ -318,8 +320,8 @@ describe("Defect 1 wiring — the conversation/session binding must be written a
 describe("Defect 1 wiring — run starts must be serialized per conversation", () => {
   test("imports createConversationStartLock and constructs exactly one module-level instance", () => {
     assert.ok(
-      /import\s*\{[^}]*createConversationStartLock[^}]*\}\s*from\s*["'][^"']*agent-session-preset(\.js)?["']/s.test(DAEMON_ENTRY_SOURCE),
-      "agent-daemon-server.ts must import createConversationStartLock from agent-session-preset.ts",
+      /import\s*\{[^}]*createConversationStartLock[^}]*\}\s*from\s*["'][^"']*agent-daemon-port(\.js)?["']/s.test(DAEMON_ENTRY_SOURCE),
+      "agent-daemon-server.ts must import createConversationStartLock through agent-daemon-port.ts",
     );
     assert.ok(
       /const\s+conversationStartLock\s*=\s*createConversationStartLock\(\{\},\s*\{\}\)\s*;/.test(DAEMON_ENTRY_SOURCE),
@@ -334,7 +336,7 @@ describe("Defect 1 wiring — run starts must be serialized per conversation", (
       "onStarted must run its session-binding section through conversationStartLock.run — without it two near-simultaneous turns both read an empty session slot and both mint, forking the conversation",
     );
 
-    const runCallIndex = onStartedSource.indexOf("await assistantRuntimeGuidanceContext.run(runtimeLaunch.guidance, () => assistantNativeToolsContext.run(nativeToolAccess, () => assistantCliCapabilitiesContext.run(nativeCapabilities, () => deleteScope.fresh({ principalId: principal.id, run: () => agentExecutor.run({");
+    const runCallIndex = onStartedSource.indexOf("const executeRun = () => agentExecutor.run({");
     assert.ok(lockCallIndex < runCallIndex, "the lock must be entered before agentExecutor.run is reached");
 
     // The critical section is the function handed to the lock. Both halves of the read-modify-write

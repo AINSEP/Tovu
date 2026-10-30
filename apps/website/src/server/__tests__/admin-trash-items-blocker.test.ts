@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -8,7 +9,6 @@ import type Database from "better-sqlite3";
 import {
   buildTrashRegistry,
   createContentDbTransactionRunner,
-  createSqliteTrashDb,
   createTableTrashAdapter,
   createTrashService,
   SqliteTrashRepo,
@@ -51,7 +51,7 @@ function buildHarness(): Harness {
     .run(base.workspaceId, "ws", "ws", "2026-01-01T00:00:00.000Z");
 
   const registry = buildTrashRegistry();
-  const sqliteTrashDb = createSqliteTrashDb({ db });
+  const sqliteTrashDb = contentKernel(db);
   const adapters = new Map<string, TrashAdapter>(
     [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: sqliteTrashDb })] as const)
   );

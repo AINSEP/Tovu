@@ -1,9 +1,8 @@
-import { captureMediaUploaded } from "#src/features/media/analytics";
 import { MAX_DOCUMENT_BYTES, documentContentType, type MediaKind } from "@jini-ai/cms/media";
 import { createDocumentArchiveReader } from "#src/features/media/document-archive";
 import type { Request, Response } from "express";
 
-import { MediaConflictError, MediaValidationError, resolveUploadContentType, TOVU_MAX_UPLOAD_BYTES, uploadMedia } from "#src/features/media/index";
+import { captureMediaUploaded, MediaConflictError, MediaValidationError, resolveUploadContentType, TOVU_MAX_UPLOAD_BYTES, uploadMedia } from "#src/features/media/index";
 import { decodeStrictBase64 } from "#src/contracts/core/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { MediaRouteRegistrar } from "./deps.js";
@@ -47,7 +46,8 @@ function parseUploadRequestFields(rawBody: unknown): UploadRequestFields | null 
   const filename = typeof body.filename === "string" ? body.filename : "";
   const contentType = String(body.contentType ?? "");
   const dataBase64 = body.dataBase64;
-  if (!filename || (kind === "media" && !contentType) || typeof dataBase64 !== "string" || !dataBase64) {
+  if (!filename || (kind === "media" && !contentType)) return null;
+  if (typeof dataBase64 !== "string" || !dataBase64) {
     return null;
   }
   return {
@@ -196,8 +196,12 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
       });
 
       const family = verifiedContentType.split("/")[0];
+      let uploadedKind: "document" | "image" | "audio" | "video" | "other";
+      if (kind === "document") uploadedKind = "document";
+      else if (family === "image" || family === "audio" || family === "video") uploadedKind = family;
+      else uploadedKind = "other";
       captureMediaUploaded({ tracker: deps.tracker, actorId: principal.id, byteLength: bytes.byteLength,
-        kind: kind === "document" ? "document" : family === "image" || family === "audio" || family === "video" ? family : "other", source: "admin" });
+        kind: uploadedKind, source: "admin" });
       res.status(201).json(await toStoredMediaResponse({ deps, media, contentType: verifiedContentType, byteLength: bytes.byteLength }));
     } catch (error) {
       sendUploadFailure({ res, error });

@@ -6,26 +6,20 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { redactSecrets } from '@jini-ai/core';
 import { maskLocalPaths } from '@jini-ai/diagnostics';
-import { createNoopObservabilityPort, type CrashUpload, type ErrorReport, type ObservabilityPort } from '@jini-ai/diagnostics/observability';
+import { createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from '@jini-ai/diagnostics/observability';
 import { createNoopProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsPort } from '@jini-ai/analytics/product';
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
 import { redactLocalText } from '#src/platform/server-logs/redact-local-text';
 import { productAdminScreen, projectProductEvent } from '#src/server/runtime/composition/product-events';
 import { processBuildRelease } from './build-release.js';
 
-export interface ProductConsent { crashes: boolean; usage: boolean; installationId: string | null; }
-export interface ProductTelemetry {
-  /** Successful config/provider initialization; desktop must not prompt on a failed boot. */
-  active?: boolean;
-  observability: ObservabilityPort;
-  productAnalytics: ProductAnalyticsPort;
-  crashUpload?: CrashUpload;
-  dispose(): Promise<void>;
-}
+import type { ProductConsent, ProductTelemetry } from '@tovu/contracts/product-telemetry';
+export type { ProductConsent, ProductTelemetry } from '@tovu/contracts/product-telemetry';
 interface ConfigEntry { plugin: string; input: Readonly<Record<string, unknown>>; }
 export interface ProductTelemetryConfig { observability?: ConfigEntry; productAnalytics?: ConfigEntry; }
 export interface ProductTelemetryRequired { configPath: string; preferencePath: string; processRole: 'server' | 'daemon' | 'desktop-main'; release: string; }
 export interface ProductProviderInput { config: ProductTelemetryConfig; attribution: { attributes: Record<string, string>; groups: Record<string, string> }; release: string; }
+interface ProductProviderCatalogEntry { kind: string; id: string; packageName: string; contract: { id: string }; }
 export interface ProductTelemetryOptions {
   loadProviders?: (required: ProductProviderInput) => Promise<ProductTelemetry>;
   readConsent?: () => ProductConsent;
@@ -111,19 +105,23 @@ function productProviderOf({ records, pluginId, contract }: { records: readonly 
 
 /** Bind artifact discovery and the existing product SDK once; Jini owns integrity, import ordering,
  * provider validation and lifecycle. This is composition glue, never a second plugin runtime.
+ * @param required Configured selections and product attribution, never a site's activation state.
+ * @param options Native package-resolution port; payload/shell roots also work in staged desktop.
+ * @returns Selected provider ports and their owned teardown; catalog entries never enable plugins.
  * @throws To the boot boundary, which releases earlier resources and stays on both noops.
- * @complexity O(a) discovery/integrity in bundled artifact bytes; at most two provider loads.
+ * @example loadProductProviders({ config, attribution, release });
+ * @complexity O(c + a) catalog and selected artifact bytes; at most two provider loads.
  */
-async function loadProductProviders(required: ProductProviderInput, _options = {}): Promise<ProductTelemetry> {
+export async function loadProductProviders(required: ProductProviderInput, { resolvePackage = createRequire(import.meta.url).resolve }: {
+  resolvePackage?: NodeJS.RequireResolve;
+} = {}): Promise<ProductTelemetry> {
   const [{ discoverPlugins, loadProviderPluginArtifact, siteEntryPath }, { pluginHostBinding, createPluginModuleImporter }, { PROVIDER_CONTRACTS }] = await Promise.all([
-    import('@jini-ai/plugins/host/node'), import('../../../features/plugin-runtime/host-binding.js'), import('./provider-plugins.js'),
+    import('@jini-ai/plugins/host/node'), import('../../../features/plugin-runtime/host-binding.js'), import('./provider-contracts.js'),
   ]);
   // The staged desktop bundle has no node_modules ancestor: resolve from the payload/shell roots too.
-  const catalogPath = createRequire(import.meta.url).resolve('@jini-ai/provider-plugins/catalog', {
-    paths: [path.dirname(fileURLToPath(import.meta.url)), path.join(INSTALL_ROOT, 'tovu'), path.join(INSTALL_ROOT, 'app.asar')],
-  });
-  const installDir = path.join(path.dirname(catalogPath), 'plugins');
-  const records = await discoverPlugins({ ...pluginHostBinding, builtIns: [], installDir });
+  const resolveOptions = { paths: [path.dirname(fileURLToPath(import.meta.url)), path.join(INSTALL_ROOT, 'tovu'), path.join(INSTALL_ROOT, 'app.asar')] };
+  const catalogPath = resolvePackage('@jini-ai/plugin-catalog/catalog', resolveOptions);
+  const catalog = JSON.parse(await readFile(catalogPath, 'utf8')) as ProductProviderCatalogEntry[];
   const resources: Awaited<ReturnType<typeof loadProviderPluginArtifact>>[] = [];
   const result = noopTelemetry({});
   result.dispose = async () => { await Promise.all(resources.map(resource => resource.dispose({}))); };
@@ -131,6 +129,12 @@ async function loadProductProviders(required: ProductProviderInput, _options = {
     for (const [key, contract] of [['observability', 'observability'], ['productAnalytics', 'product_analytics']] as const) {
       const entry = required.config[key];
       if (!entry) continue;
+      const selected = catalog.find(item => item.kind === 'provider' && item.id === entry.plugin && item.contract?.id === contract);
+      if (!selected) throw new Error('ProductProviderUnavailable');
+      // Metadata names the owner; only an explicitly configured, installed package is resolved.
+      const packagePath = resolvePackage(`${selected.packageName}/package.json`, resolveOptions);
+      const installDir = path.join(path.dirname(packagePath), 'plugins');
+      const records = await discoverPlugins({ ...pluginHostBinding, builtIns: [], installDir });
       const { record, manifest, provider } = productProviderOf({ records, pluginId: entry.plugin, contract });
       const unavailable = (): never => { throw new Error('ProductProviderHasNoSiteContext'); };
       const resource = await loadProviderPluginArtifact({ load: { ...pluginHostBinding, record, manifest,
@@ -160,7 +164,9 @@ function errorContext({ context }: Pick<ErrorReport, 'context'>, _options = {}):
   for (const key of ['process', 'code', 'signal'] as const) {
     const value = context.attributes?.[key];
     if (typeof value === 'string') attributes[key] = scrub({ text: value }).slice(0, 100);
-    else if (typeof value === 'number' && Number.isFinite(value)) attributes[key] = value;
+    else {
+      if (typeof value === 'number' && Number.isFinite(value)) attributes[key] = value;
+    }
   }
   const route = productAdminScreen({ route: context.attributes?.route });
   if (route) attributes.route = route;
@@ -183,9 +189,9 @@ function productObservability({ inner, readConsent }: { inner: ObservabilityPort
   return { ...createNoopObservabilityPort({}),
     get supportsMetric() { return inner.supportsMetric === true; },
     metric(input, options = {}) {
-      if (readConsent().usage !== true || !Object.hasOwn(PRODUCT_METRIC_UNITS, input.name)) return;
+      if (readConsent().usage !== true || !Object.hasOwn(PRODUCT_METRIC_UNITS, input.name)) return undefined;
       const process = options.attributes?.process;
-      if (typeof process !== 'string' || !PRODUCT_METRIC_PROCESSES.has(process) || !Number.isFinite(input.value) || input.value < 0) return;
+      if (typeof process !== 'string' || !PRODUCT_METRIC_PROCESSES.has(process) || !Number.isFinite(input.value) || input.value < 0) return undefined;
       return inner.metric({ name: input.name, value: input.value }, { kind: 'gauge', unit: PRODUCT_METRIC_UNITS[input.name], attributes: { process } });
     }, reportError({ error, context }) {
       if (readConsent().crashes !== true) return false;
@@ -206,6 +212,7 @@ function productAnalytics({ inner, readConsent }: { inner: ProductAnalyticsPort;
   return { identify() {}, capture(event) {
     const projected = projectProductEvent({ event, installationId: readConsent().installationId });
     if (projected) return guarded.capture(projected);
+    return undefined;
   } };
 }
 
@@ -247,7 +254,7 @@ export async function bootProductTelemetry(required: ProductTelemetryRequired, o
  * provider loads; ordinary web/dev composition retains its existing ports and tracker behavior.
  * @returns Undefined without an active launch configuration. @complexity O(1) beyond boot.
  */
-export async function bootProductTelemetryFromEnv({ env = process.env, processRole = 'server' }: { env?: NodeJS.ProcessEnv | undefined; processRole?: 'server' | 'daemon' | undefined }, options: ProductTelemetryOptions = {}): Promise<ProductTelemetry | undefined> {
+export async function bootProductTelemetryFromEnv({ env = process.env, processRole = 'server' }: { env?: NodeJS.ProcessEnv; processRole?: 'server' | 'daemon' }, options: ProductTelemetryOptions = {}): Promise<ProductTelemetry | undefined> {
   const configPath = env.TOVU_PRODUCT_TELEMETRY_CONFIG;
   const preferencePath = env.TOVU_PRODUCT_TELEMETRY_PREFS;
   if (!configPath || !preferencePath) return undefined;

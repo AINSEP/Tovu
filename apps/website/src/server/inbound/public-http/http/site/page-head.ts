@@ -59,9 +59,6 @@ export type HeadElement =
     })
   | (HeadElementBase & { readonly kind: "jsonld"; readonly data: JsonLd });
 
-/** Stable dedup key for a HeadElement (behavior.spec.md §5.1). */
-export type HeadElementKey = string;
-
 /**
  * A serializable snapshot of the entry being rendered. NOT a live `PostRecord`
  * — core extracts this at the render seam and hands it to contributors by
@@ -141,7 +138,10 @@ export function resetPageHeadRegistry(): void {
   contributors = [];
 }
 
-function headElementKey(element: HeadElement): HeadElementKey {
+/** Stable dedup key for a HeadElement (behavior.spec.md §5.1). */
+export type HeadElementKey = ReturnType<typeof headElementKey>;
+
+function headElementKey(element: HeadElement): string {
   switch (element.kind) {
     case "title":
       return "title";
@@ -160,6 +160,8 @@ function headElementKey(element: HeadElement): HeadElementKey {
       const type = element.data["@type"];
       return `jsonld:${typeof type === "string" ? type : "untyped"}`;
     }
+    // Preserve the undefined fallback for runtime inputs outside this exhaustive union.
+    default: return undefined as never;
   }
 }
 
@@ -226,6 +228,8 @@ function serializeElement(element: HeadElement): string {
     }
     case "jsonld":
       return `<script type="application/ld+json">${serializeJsonLd(element.data)}</script>`;
+    // Preserve the undefined fallback for runtime inputs outside this exhaustive union.
+    default: return undefined as never;
   }
 }
 

@@ -149,7 +149,7 @@ export function registerSiteSearchRoute(app: Pick<Express, "get">, deps: SiteSea
       const startedAt = deps.clock?.nowMs();
       const result = await runtime.service.query({ siteId, workspaceId, query: parsed.query }, { audiences });
       if (result.status === "ok") void captureVisitorEvent({ deps, request: req, name: "site_search_performed", properties: {
-        resultCountBucket: result.page.hits.length === 0 ? "0" : result.page.hits.length <= 10 ? "1-10" : "11-50",
+        resultCountBucket: searchResultCountBucket({ count: result.page.hits.length }),
         ...(startedAt === undefined ? {} : { durationBucket: searchDurationBucket({ elapsedMs: deps.clock!.nowMs() - startedAt }) }),
       } });
       send(res, result);
@@ -159,6 +159,11 @@ export function registerSiteSearchRoute(app: Pick<Express, "get">, deps: SiteSea
       res.status(500).json({ error: "internal error" });
     }
   });
+}
+
+function searchResultCountBucket({ count }: { count: number }, _optional = {}): string {
+  if (count === 0) return "0";
+  return count <= 10 ? "1-10" : "11-50";
 }
 
 /** Coarse latency only; query terms and exact timing never enter the event. @complexity O(1). */

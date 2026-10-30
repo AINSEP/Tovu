@@ -8,6 +8,11 @@ import { readProviderPluginLink } from '#src/features/agent-plugins/identity';
 import type { LoadPluginCredentialCards, PluginCredentialCard } from '#src/features/custom-credentials/plugin-credential-card';
 
 type ReadFile = (required: { plugin: TrustedPluginPackage; filename: string }, optional?: Record<string, never>) => Promise<string>;
+
+function isApiCard({ card }: { card: PluginCredentialCard }, _options = {}): boolean {
+  return card.saveKind === undefined || card.saveKind === 'api';
+}
+
 /** Read only descriptors contributed by the declaring package, through the lifecycle's contained port.
  * Missing or invalid descriptors grant no ownership; a parsed card may explicitly own its API label.
  * Cross-plugin label conflicts are refused by the existing merge. O(descriptors); no modules execute.
@@ -17,8 +22,8 @@ async function ownsDestination({ plugin, card, readFile }: { plugin: TrustedPlug
   if (card.saveKind === 'provider-settings') return card.saveTarget !== undefined && card.saveTarget === await linkedProviderOf({ plugin, readFile });
   const identities = await readOwnedIdentities({ plugin, readFile });
   if (card.saveTarget !== undefined && !identities.has(card.saveTarget)) return false;
-  if ((card.saveKind === undefined || card.saveKind === 'api') && card.ownedApiLabel === card.label) return true;
-  const identity = card.saveKind === undefined || card.saveKind === 'api' ? card.label : card.saveTarget ?? card.providerId;
+  if (isApiCard({ card }) && card.ownedApiLabel === card.label) return true;
+  const identity = isApiCard({ card }) ? card.label : card.saveTarget ?? card.providerId;
   return identities.has(identity);
 }
 
@@ -64,13 +69,14 @@ async function readOwnedIdentities({ plugin, readFile }: { plugin: TrustedPlugin
     { filename: 'tovu-mail-adapters.json', parse: parseMailAdaptersFile },
   ];
   for (const source of sources) {
-    try {
-      const parsed = source.parse(await readFile({ plugin, filename: source.filename }));
-      if (parsed.ok) for (const entry of parsed.descriptors) {
-        identities.add(entry.id);
-        if ('credentialLabel' in entry) identities.add(entry.credentialLabel);
-      }
-    } catch { /* Missing or broken descriptors grant no ownership. */ }
+    let parsed: ReturnType<typeof source.parse> | undefined;
+    try { parsed = source.parse(await readFile({ plugin, filename: source.filename })); }
+    catch { /* Missing or broken descriptors grant no ownership. */ }
+    if (!parsed?.ok) continue;
+    for (const entry of parsed.descriptors) {
+      identities.add(entry.id);
+      if ('credentialLabel' in entry) identities.add(entry.credentialLabel);
+    }
   }
   return identities;
 }

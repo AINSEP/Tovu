@@ -1,4 +1,4 @@
-import { assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
+import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
 import { resolveBundledHostSignals } from "#src/features/agent-plugins/host-signals";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";

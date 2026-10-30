@@ -12,8 +12,8 @@ import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { runBootDataRepairs } from "../boot-data-repairs.js";
 import { openSiteContentDb } from "../open-site-content-db.js";
 import { openSiteStore } from "../open-site-store.js";
-import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
-import { initSite } from "#src/platform/site-dir/init-site";
+import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
+import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 
 /**
@@ -27,8 +27,8 @@ const kernel = {} as ContentKernel;
 test("runs the footer repair, then the unreadable-owner repair, on the same kernel", async () => {
   const calls: Array<[string, ContentKernel]> = [];
   await runBootDataRepairs({ kernel }, {
-    migrateFooterPageLinks: async (required) => calls.push(["footer", required.kernel]),
-    removeUnreadableOwnerEntries: async (required) => calls.push(["unreadable", required.kernel]),
+    migrateFooterPageLinks: async (required) => { calls.push(["footer", required.kernel]); return { converted: 0 }; },
+    removeUnreadableOwnerEntries: async (required) => { calls.push(["unreadable", required.kernel]); return { ran: true, removed: [] }; },
     logError: () => assert.fail("nothing failed"),
   });
   assert.deepEqual(calls, [["footer", kernel], ["unreadable", kernel]]);
@@ -37,7 +37,7 @@ test("runs the footer repair, then the unreadable-owner repair, on the same kern
 test("an unreadable-owner repair failure is logged, not thrown: the site still boots and the next boot retries", async () => {
   const lines: string[] = [];
   await runBootDataRepairs({ kernel }, {
-    migrateFooterPageLinks: async () => undefined,
+    migrateFooterPageLinks: async () => ({ converted: 0 }),
     removeUnreadableOwnerEntries: async () => {
       throw new Error("db went away");
     },

@@ -38,7 +38,7 @@ test("2026-09-09 durability fix: hasMissingSiteKey reads !inspectSiteKeyMaterial
 test("2026-09-09 durability fix: boot-readiness-gate.ts imports inspectSiteKeyMaterial from the real keyring module, not a local reimplementation", () => {
   assert.match(
     SOURCE,
-    /import\s*\{\s*inspectSiteKeyMaterial\s*\}\s*from\s*"#src\/features\/webhooks\/keyring\.env"/,
+    /import\s*\{\s*inspectSiteKeyMaterial\s*\}\s*from\s*"#src\/features\/webhooks\/index"/,
     "must reuse the SAME env-first/file-second precedence EnvOrFileKeyring itself uses, not a second, driftable implementation of that check"
   );
 });

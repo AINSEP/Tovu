@@ -8,11 +8,6 @@ import test from "node:test";
 import express from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, setExecutionCredential } from "../../assistant/index.js";
-// `resetLiveModelCacheForTesting` is a test-only reset for `live-model-cache.ts`'s module-level
-// cache — not barrel-exported (the barrel's other Section D symbols are all production surface;
-// see 2026-08-17 no-deep-imports:assistant triage notes for why this one was left as an open
-// violation rather than forced into the production barrel).
-import { resetLiveModelCacheForTesting } from "../../assistant/live-model-cache.js";
 import { startTestServer, loginAsOwner, loginAsBarePrincipal } from "./helpers/http-test-server.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -86,8 +81,10 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
 /** A stand-in Anthropic-shaped `/v1/models` endpoint for the "credential present" tests. Real
  *  loopback HTTP, not a mock — `validateBaseUrlResolved` short-circuits DNS for 127.0.0.1, so this
  *  needs no network/DNS injection (same pattern `live-model-cache.test.ts` uses). */
-async function startProviderServer(): Promise<{ baseUrl: string; server: Server }> {
+async function startProviderServer(): Promise<{ baseUrl: string; server: Server; requestCount: () => number }> {
+  let count = 0;
   const server = createServer((req, res) => {
+    count += 1;
     if (req.method !== "GET" || req.url !== "/v1/models?limit=1000" || req.headers["x-api-key"] !== "sk-ant-test-key" || req.headers["anthropic-version"] !== "2023-06-01") {
       res.writeHead(401);
       res.end("unexpected models request");
@@ -99,7 +96,7 @@ async function startProviderServer(): Promise<{ baseUrl: string; server: Server 
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   const { port } = server.address() as AddressInfo;
-  return { baseUrl: `http://127.0.0.1:${port}`, server };
+  return { baseUrl: `http://127.0.0.1:${port}`, server, requestCount: () => count };
 }
 
 let harnessPromise: Promise<{
@@ -156,10 +153,9 @@ test.after(async () => {
   }
 });
 
-// Every boot builds fresh dependencies, including the execution-credential repository.
+// Every boot builds fresh dependencies and an assistant module with its own discovery cache.
 
 test("no stored admin credential leaves the daemon's agent list byte-identical, including modelsSource", async (t) => {
-  resetLiveModelCacheForTesting();
   const { baseUrl, cookie } = await bootProxy(t);
 
   const res = await fetch(`${baseUrl}/api/agents`, { headers: { cookie } });
@@ -170,7 +166,6 @@ test("no stored admin credential leaves the daemon's agent list byte-identical, 
 });
 
 test("an anthropic admin credential enriches only the claude entry, unioned with the fallback list", async (t) => {
-  resetLiveModelCacheForTesting();
   const { baseUrl, cookie, deps, principalId } = await bootProxy(t);
   const provider = await startProviderServer();
   t.after(() => new Promise<void>((resolve) => provider.server.close(() => resolve())));
@@ -203,8 +198,7 @@ test("an anthropic admin credential enriches only the claude entry, unioned with
   assert.deepEqual(await other.json(), { agents: [CLAUDE_AGENT, CODEX_AGENT] }, "another principal cannot use the owner's credential or cached live models");
 });
 
-test("POST /api/agents/rescan gets the same enrichment as GET /api/agents", async (t) => {
-  resetLiveModelCacheForTesting();
+test("POST /api/agents/rescan shares GET /api/agents' enrichment and host cache", async (t) => {
   const { baseUrl, cookie, deps, principalId } = await bootProxy(t);
   const provider = await startProviderServer();
   t.after(() => new Promise<void>((resolve) => provider.server.close(() => resolve())));
@@ -219,6 +213,10 @@ test("POST /api/agents/rescan gets the same enrichment as GET /api/agents", asyn
     { workspaceId: deps.workspaceId, principalId, apiKey: "sk-ant-test-key", protocol: "anthropic", baseUrl: provider.baseUrl },
   );
 
+  const listed = await fetch(`${baseUrl}/api/agents`, { headers: { cookie } });
+  assert.equal(listed.status, 200);
+  const listedBody = await listed.json();
+
   const res = await fetch(`${baseUrl}/api/agents/rescan`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
@@ -228,10 +226,11 @@ test("POST /api/agents/rescan gets the same enrichment as GET /api/agents", asyn
 
   const claude = body.agents.find((agent) => agent.id === "claude");
   assert.equal(claude?.modelsSource, "live", "rescan must go through the same enrichment as the GET route");
+  assert.deepEqual(body, listedBody);
+  assert.equal(provider.requestCount(), 1, "GET and rescan must reuse the module's discovery cache within the TTL");
 });
 
 test("a 2xx daemon response missing the agents array is relayed unmodified and logs a warning — the dangerous silent-degradation path", async (t) => {
-  resetLiveModelCacheForTesting();
   const { baseUrl, cookie } = await bootProxy(t);
   const originalWarn = console.warn;
   const warnings: unknown[][] = [];

@@ -98,7 +98,8 @@ export const parsePublicJsonBody: RequestHandler = (req, res, next) => {
 export function parseAuthenticatedJsonBody(req: Request, res: Response, next: NextFunction): void {
   const limit = jsonBodyLimitForAuthenticatedRequest(req.method, `${req.baseUrl}${req.path}`);
   if (limit === TELEMETRY_JSON_BODY_LIMIT) { telemetryParser(req, res, next); return; }
-  const parser = limit === PUBLIC_JSON_BODY_LIMIT ? publicParser : limit === LARGE_UPLOAD_JSON_BODY_LIMIT ? largeUploadParser : authenticatedParser;
+  const largerParser = limit === LARGE_UPLOAD_JSON_BODY_LIMIT ? largeUploadParser : authenticatedParser;
+  const parser = limit === PUBLIC_JSON_BODY_LIMIT ? publicParser : largerParser;
   parser(req, res, next);
 }
 

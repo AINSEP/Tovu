@@ -18,13 +18,6 @@ export interface ResealCredentialsDeps extends VaultCredentialKeyDeps {
 }
 const OPTIONAL_ENVELOPES = new Set(["site-assistant", "personal-execution", "media-provider", "publish-peer"]);
 
-/** Sealed counts exclude metadata-only configurations. */
-export async function countVaultCredentialsOpening(deps: SealedCredentialKeyDeps, _options = {}): Promise<{ sealed: number; opens: number }> {
-  const { values } = await snapshotVaultCredentials(deps);
-  let opens = 0;
-  for (const value of values) if (await opensVaultCredential({ value, sealer: deps.sealer })) opens += 1;
-  return { sealed: values.length, opens };
-}
 /** Lock workspaces in a deterministic order, matching every Jini vault writer and boot normalization. */
 async function lockWorkspaces({ deps, values }: { deps: SealedCredentialKeyDeps; values: VaultCredentialValue[] }): Promise<void> {
   const workspaces = values.flatMap(value => value.record ? [value.record.workspaceId] : []);
@@ -112,10 +105,11 @@ export async function resealVaultCredentialsOpeningUnder(deps: ResealCredentials
   let unreadable = 0;
   for (const value of values) {
     const opens = await opensVaultCredential({ value, sealer: deps.sealer });
-    if (opens && value.record?.meta.legacyAad === undefined) continue;
-    if (opens) { moves.push({ value, previous: deps.sealer }); continue; }
-    if (!await opensVaultCredential({ value, sealer: deps.previous })) { unreadable += 1; continue; }
-    moves.push({ value, previous: deps.previous });
+    if (opens) {
+      if (value.record?.meta.legacyAad !== undefined) moves.push({ value, previous: deps.sealer });
+    } else if (await opensVaultCredential({ value, sealer: deps.previous })) {
+      moves.push({ value, previous: deps.previous });
+    } else unreadable += 1;
   }
   const resealed = await deps.kernel.transaction(async () => {
     await lockWorkspaces({ deps, values });
@@ -123,14 +117,24 @@ export async function resealVaultCredentialsOpeningUnder(deps: ResealCredentials
     let moved = 0;
     for (const { value, previous } of moves) {
       if (!eligible.has(value)) continue;
-      if (value.record) { await deps.resealRecord({ record: value.record, previous }); moved += 1; continue; }
-      if (!value.sealed) continue;
-      const plaintext = await previous.open({ sealed: value.sealed }, { aad: value.aad });
-      const sealed = await deps.sealer.seal({ plaintext, key: deps.key, aad: value.aad ?? "" });
-      if (await deps.sealer.open({ sealed }, { aad: value.aad }) !== plaintext) throw new Error("Credential recovery verification failed");
-      moved += await mutateOther({ deps, value, sealed });
+      moved += await resealVaultValue({ deps, value, previous });
     }
     return moved;
   });
   return { resealed, unreadable };
+}
+
+/** Normalize vault records through their owner; unknown columns retain full-envelope verification. */
+async function resealVaultValue({ deps, value, previous }: {
+  deps: ResealCredentialsDeps; value: VaultCredentialValue; previous: ResealCredentialsDeps["previous"];
+}, _optional = {}): Promise<number> {
+  if (value.record) {
+    await deps.resealRecord({ record: value.record, previous });
+    return 1;
+  }
+  if (!value.sealed) return 0;
+  const plaintext = await previous.open({ sealed: value.sealed }, { aad: value.aad });
+  const sealed = await deps.sealer.seal({ plaintext, key: deps.key, aad: value.aad ?? "" });
+  if (await deps.sealer.open({ sealed }, { aad: value.aad }) !== plaintext) throw new Error("Credential recovery verification failed");
+  return mutateOther({ deps, value, sealed });
 }

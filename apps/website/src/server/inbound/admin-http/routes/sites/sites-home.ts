@@ -4,11 +4,15 @@ import path from "node:path";
 import type { Express, Request, Response } from "express";
 import { authorizeOrRespond } from "../../authorize-guard.js";
 import { getAuthedPrincipal } from "../../dev-auth.js";
-import { isSiteSwitcherEnabled } from "#src/platform/site-dir/site-switcher-enabled";
-import type { SitesWorkspace } from "#src/platform/site-dir/sites-home";
-import type { AdminSitesDeps } from "../system/sites.js";
+import { isSiteSwitcherEnabled, type SitesWorkspace } from "#src/platform/site-dir/index";
+import type { AuthorizeFn } from "@jini-ai/cms/core";
+import type { UUID } from "@jini-ai/core/primitives";
 
-type SettingsDeps = Pick<AdminSitesDeps, "workspaceId" | "authorize" | "isSiteSwitcherEnabled">;
+type SettingsDeps = {
+  workspaceId: UUID;
+  authorize: AuthorizeFn;
+  isSiteSwitcherEnabled?: typeof isSiteSwitcherEnabled;
+};
 
 function admitSettingsRequest({ req, res, deps }: { req: Request; res: Response; deps: SettingsDeps }, _options = {}): boolean {
   if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return false; }

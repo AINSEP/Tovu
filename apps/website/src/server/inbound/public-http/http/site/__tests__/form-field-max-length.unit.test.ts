@@ -5,7 +5,7 @@ import { stampFormFieldMaxLengths } from "../form-render.js";
 import { formValidationMessages } from "../form-validation-message.js";
 import { injectFormSubmissionResultIntoHtml, renderWidgetIr } from "../render.js";
 
-const FIELDS = [
+const FIELDS: import("@jini-ai/core/primitives").JsonObject[] = [
   { id: "name", label: "Name", type: "text", required: true },
   { id: "email", label: "Email", type: "email", required: true },
   { id: "message", label: "Message", type: "textarea", required: true },

@@ -23,7 +23,7 @@ import { buildLibrarySaveAttachmentTool } from "#src/features/media/library-save
 import { buildPromoteChatAttachmentTool } from "#src/features/media/promote-chat-attachment";
 import { buildListPendingChatAttachmentsTool } from "#src/features/media/list-pending-chat-attachments";
 import { createDocumentArchiveReader } from "#src/features/media/document-archive";
-import type { InstallAttachmentReader } from "#src/features/plugin-runtime/install-source";
+import type { InstallAttachmentReader } from '#src/contracts/headless/index';
 import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
 import { createPluginInstallAttachmentReader } from "../plugin-install-attachment-reader.js";
 

@@ -32,7 +32,10 @@ export const FORM_VALIDATION_COPY: Record<string, FormValidationCopy> = {
 
 export function formValidationCopy({ locale }: { locale: string }, _optional = {}) {
   const normalized = locale.toLowerCase();
-  const key = Object.keys(FORM_VALIDATION_COPY).find((key) => key.toLowerCase() === normalized)
-    ?? (normalized.startsWith("zh") ? (/(tw|hk|hant)/.test(normalized) ? "zh-TW" : "zh-CN") : (normalized.split("-")[0] ?? normalized));
+  let key = Object.keys(FORM_VALIDATION_COPY).find((key) => key.toLowerCase() === normalized);
+  if (key === undefined) {
+    if (normalized.startsWith("zh")) key = /(tw|hk|hant)/.test(normalized) ? "zh-TW" : "zh-CN";
+    else key = normalized.split("-")[0] ?? normalized;
+  }
   return FORM_VALIDATION_COPY[key] ?? (key === "pt" ? FORM_VALIDATION_COPY["pt-BR"] : undefined) ?? ENGLISH_COPY;
 }

@@ -1,17 +1,17 @@
+import type { OpenSiteStoreOptional, OpenSiteStoreRequired, SiteStore } from "#src/platform/site-dir/site-store";
+export type { OpenSiteStoreOptional, OpenSiteStoreRequired, SiteStore, SiteStoreRole } from "#src/platform/site-dir/site-store";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import type { SecretSealerPort } from "#src/features/webhooks/ports";
-import { type ChatKernel, chatKernel, pgChatKernel } from "#src/platform/db/chat-kernel";
+import { chatKernel, pgChatKernel } from "#src/platform/db/chat-kernel";
 import { type ContentKernel, contentKernel } from "#src/platform/db/content-kernel";
 import { closeSqliteConnection, openPostgresKernel, type StorageKernel } from "#src/platform/db/kernel/index";
 import { defaultPgliteSocketDir, PGLITE_SOCKET_FILE, startPgliteOwner, type PgliteOwner } from "#src/platform/db/kernel/drivers/pglite-owner";
 import { openPgliteSocketKernel } from "#src/platform/db/kernel/drivers/pglite-socket";
 import { migrateChatDatabase, migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { prepareContentStore } from "#src/platform/db/prepare-content-store";
-import type { ContentDbOpenOptions, ContentDbSeedData } from "#src/platform/db/sqlite/content-db";
+import type { ContentDbSeedData } from "#src/platform/db/sqlite/content-db";
 import { openSiteChatDb } from "#src/platform/db/sqlite/chat-db";
-import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { PGLITE_DATA_DIR_NAME } from "#src/platform/site-dir/layout";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 import { seededPosts, seededPresentation, seededWorkspace } from "../configuration/seed.js";
@@ -40,9 +40,6 @@ import { resolvePostgresConnectionString } from "./storage-secret.js";
  * The journal (`ops/database-journal.db`) is not part of the store: it is SQLite on every kind.
  */
 
-/** Which process opens the store. The API process owns it; the agent daemon is a client (PGlite: R1f). */
-export type SiteStoreRole = "owner" | "client";
-
 /** A PGlite site's data dir, inside the site folder (owned by `site-dir/layout.ts`). */
 export { PGLITE_DATA_DIR_NAME };
 
@@ -58,41 +55,6 @@ export class StorageNotAvailableError extends Error {
     super(message);
     this.name = "StorageNotAvailableError";
   }
-}
-
-export interface SiteStore {
-  readonly storage: SiteStorage;
-  readonly content: ContentKernel;
-  readonly chat: ChatKernel;
-  /** The Drizzle handle behind `content`, on SQLite only: the one input `sqliteOnlyServices` takes. */
-  readonly sqliteDb?: ContentDb;
-  /** PGlite: the owner's socket file, for the agent daemon ({@link PG_SOCKET_ENV}). */
-  readonly pgliteSocketPath?: string;
-  /** Closes the connections this call opened (a caller-supplied `db` stays open); a PGlite owner also stops serving. */
-  close(): Promise<void>;
-}
-
-export interface OpenSiteStoreRequired {
-  storage: SiteStorage;
-  /** `content.db` (SQLite), also the anchor for the site folder. */
-  dbPath: string;
-  chatDbPath: string;
-  role: SiteStoreRole;
-}
-
-export interface OpenSiteStoreOptional {
-  /** SQLite acquisition belongs to the embedding host, including reopen after recovery. */
-  sqliteOpen?: ContentDbOpenOptions["open"];
-  /** An already opened, migrated and prepared content.db (the install-dir `serve` path). SQLite only. */
-  db?: ContentDb;
-  /** Postgres: where `secretRef: { env }` is read; PGlite: where a client reads {@link PG_SOCKET_ENV} (default `process.env`). */
-  env?: NodeJS.ProcessEnv;
-  /** PGlite client: how long to wait for the owner's socket (default 60 s). */
-  pgliteClientWaitMs?: number;
-  /** Postgres: opens `secretRef: "site"` (default: the site key's sealer, `siteSecretSealer`). */
-  sealer?: SecretSealerPort;
-  /** Postgres/PGlite: the first-run seed (default: the demo seed; `tovu init` passes its template's). */
-  seed?: ContentDbSeedData;
 }
 
 /**

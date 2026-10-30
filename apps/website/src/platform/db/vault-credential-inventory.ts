@@ -130,10 +130,12 @@ async function readOther({ deps, ref }: { deps: VaultCredentialKeyDeps; ref: Dis
   const siblings = siblingColumns(ref.column);
   const optional = (name: string) => ref.tableColumns.has(name) ? sql.id(name) : sql`NULL`;
   const device = isDeviceCodeColumn({ ref });
+  const workspaceColumn = device ? sql.id("workspace_id") : sql`NULL`;
+  const serverColumn = device ? sql.id("server_id") : sql`NULL`;
   const rows = await deps.kernel.query<Record<string, unknown>>(sql`SELECT ${sql.id(ref.column)} AS ciphertext,
     ${optional(siblings.keyId)} AS key_id, ${optional(siblings.nonce)} AS nonce, ${optional(siblings.alg)} AS alg,
-    ${device ? sql.id("workspace_id") : sql`NULL`} AS workspace_id,
-    ${device ? sql.id("server_id") : sql`NULL`} AS server_id FROM ${sql.id(ref.table)} WHERE ${sql.id(ref.column)} IS NOT NULL`);
+    ${workspaceColumn} AS workspace_id,
+    ${serverColumn} AS server_id FROM ${sql.id(ref.table)} WHERE ${sql.id(ref.column)} IS NOT NULL`);
   return rows.map(row => otherValue({ ref, siblings, row, identity: device ? deviceIdentity({ row }) : undefined }));
 }
 /** The retained device-code store's own envelope column, with the identity columns its AAD needs. */
@@ -162,11 +164,13 @@ function otherValue({ ref, siblings, row, identity }: {
   identity: { workspaceId: string; serverId: string } | undefined;
 }): VaultCredentialValue {
   const sealed = sealedQuad({ row });
+  let reason: VaultCredentialValue["reason"] = identity ? null : "no-descriptor";
+  if (!sealed) reason = "incomplete-sealed-row";
   return { ref, sealed, ciphertext: String(row.ciphertext),
     guard: Object.fromEntries([[ref.column, row.ciphertext], [siblings.keyId, row.key_id], [siblings.nonce, row.nonce], [siblings.alg, row.alg]]
       .filter(([column]) => ref.tableColumns.has(column as string))), ...(identity ? { device: identity } : {}),
     aad: identity ? deviceAad(identity.workspaceId, identity.serverId) : undefined,
-    reason: !sealed ? "incomplete-sealed-row" : identity ? null : "no-descriptor",
+    reason,
     entry: otherEntry({ ref, row, identity }) };
 }
 /** The safe identity of a device-code or unknown-column row: ids and a fixed label, never row payloads. */

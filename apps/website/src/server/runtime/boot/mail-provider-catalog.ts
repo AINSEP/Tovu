@@ -1,4 +1,4 @@
-import { credentialSecrets, safeMailProviderText } from "#src/platform/mail/provider-error";
+import { credentialSecrets, safeMailProviderText } from "#src/platform/mail/index";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { HttpClientPort as JiniHttpClientPort } from "@jini-ai/core/primitives";
 import {
@@ -19,7 +19,7 @@ import type { PluginCredentialCard } from "#src/features/custom-credentials/plug
 import type { SecretSealerPort } from "#src/features/webhooks/index";
 import { contributeMailProviders, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { defaultMailProviderSetup } from "#src/features/agent-plugins/mail-provider-setup";
-import type { MailProviderSetup } from "#src/platform/mail/mail-status";
+import type { MailProviderSetup } from "#src/platform/mail/index";
 import type { HttpClientPort } from "#src/platform/http/index";
 import {
   createNodemailerSmtpTransport,
@@ -27,7 +27,7 @@ import {
   type MailerPort,
   type SmtpTransport,
 } from "#src/platform/mail/index";
-import { toTovuMailer } from "#src/platform/mail/purpose-scoped-mailer";
+import { toTovuMailer } from "#src/platform/mail/index";
 
 /**
  * @file The keyed mail-provider catalog `resolve-mailer.ts` selects from (email provider contract v1,

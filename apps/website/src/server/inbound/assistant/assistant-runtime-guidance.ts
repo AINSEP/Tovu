@@ -2,7 +2,7 @@
  * The launch resolves every input once, so the guidance and the argv come from one snapshot; every
  * builder below is pure and the one async resolver takes its reads and def lookup as ports. */
 import { agentSupportsChromeIntegration, agentSupportsSubagents, type RuntimeAgentDef, type RuntimeCapabilityMap } from "@jini-ai/agent-runtime";
-import { readAssistantRuntimePreferences, type AssistantRuntimePreferenceDeps, type AssistantRuntimePreferences } from "../../../assistant/runtime-preferences.js";
+import { readAssistantRuntimePreferences, type AssistantRuntimePreferenceDeps, type AssistantRuntimePreferences } from "../../../assistant/runtime-settings.js";
 
 /** Reply guidance; Normal deliberately contributes no text to the existing overlay. */
 export const SHORT_REPLY_GUIDANCE = "Lead with the result in 1–3 lines, then only decisions, approvals, failures or unverified items needing the person; retain the Tool gap line and anything flagged as needing the person, and omit step narration, recaps and change lists unless asked.";

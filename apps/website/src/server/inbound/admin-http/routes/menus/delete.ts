@@ -1,5 +1,5 @@
 import { MenuConflictError, MenuNotFoundError } from "#src/features/navigation/index";
-import { trashMenu } from "#src/features/navigation/trash-menu";
+import { trashMenu } from "#src/features/navigation/index";
 import { toAdminTrashMenuResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

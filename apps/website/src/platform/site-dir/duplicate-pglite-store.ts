@@ -33,7 +33,8 @@ async function purgeAiChat(kernel: StorageKernel<unknown>): Promise<void> {
         ORDER BY table_name`
   );
   if (tables.length === 0) return;
-  await kernel.execute(sql`TRUNCATE ${sql.join(tables.map((t) => sql.table(`ai_chat.${t.name}`)))}`);
+  const tableNames = tables.map(t => sql.table(`ai_chat.${t.name}`));
+  await kernel.execute(sql`TRUNCATE ${sql.join(tableNames)}`);
 }
 
 /** Copies the source data dir to `targetDataDir` through the right door (see this file's header). */

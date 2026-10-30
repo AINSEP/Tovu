@@ -10,3 +10,6 @@ export type { PinnedPeer, EgressPolicy } from "@jini-ai/platform/http/guarded";
 // ADR-038 / SEC-05: agent boundaries must surface a recognizable, caller-safe egress refusal.
 export { EgressRefusedError } from "@jini-ai/platform/http/guarded";
 export type { HttpClientPort } from "./ports.js";
+export { createDefaultHttpClient } from "./client.js";
+export { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "./egress-policies.js";
+export { CUSTOM_CREDENTIALS_EGRESS_POLICY } from "./egress-policies.js";

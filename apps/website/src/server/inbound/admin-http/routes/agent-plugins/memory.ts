@@ -1,3 +1,4 @@
+import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import type { Request, Response } from "express";
 
 import { pluginMemory } from "#src/features/agent-plugins/memory";
@@ -18,9 +19,10 @@ interface NoteWrite {
  * @complexity O(k) in the body's key count.
  */
 function isNoteWrite(body: unknown): body is NoteWrite {
-  return !(!body || typeof body !== "object" || Array.isArray(body) ||
-    Object.keys(body).some(key => key !== "entryPath" && key !== "text") ||
-    !("entryPath" in body) || typeof body.entryPath !== "string" || !("text" in body) || typeof body.text !== "string");
+  if (!body || typeof body !== "object" || Array.isArray(body)) return false;
+  if (Object.keys(body).some(key => key !== "entryPath" && key !== "text")) return false;
+  if (!("entryPath" in body) || typeof body.entryPath !== "string") return false;
+  return "text" in body && typeof body.text === "string";
 }
 
 /**
@@ -57,7 +59,7 @@ export const registerAgentPluginMemoryRoutes: AgentPluginsRouteRegistrar = (app,
       if (!(await isInstalled(deps, pluginId))) {
         res.status(404).json({ error: "agent plugin was not found", code: "AGENT_PLUGIN_NOT_FOUND" }); return;
       }
-      const memory = pluginMemory({ workspaceId: deps.workspaceId, pluginId }, { layout: deps.agentPluginLayout });
+      const memory = pluginMemory({ contain: containAgentPluginStatePath, workspaceId: deps.workspaceId, pluginId }, { layout: deps.agentPluginLayout });
       if (write && !(await writeNoteOrRespond({ body: req.body, memory, res }))) return;
       const [learned, notes] = await Promise.all([memory.list({ kind: "learned" }), memory.list({ kind: "notes" })]);
       res.json({ pluginId, learned, notes, limits: DEFAULT_PLUGIN_MEMORY_LIMITS });

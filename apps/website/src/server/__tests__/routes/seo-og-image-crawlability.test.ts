@@ -139,7 +139,7 @@ test("SEO/media fix: a dedicated (never-embedded) OG image with NO pre-existing 
   const html = await page.text();
   const ogImage = extractOgImage(html);
   assert.ok(ogImage, "og:image must be present even though nothing has ever generated this rendition before");
-  assert.match(ogImage!, /\/og\.v1\/image\.jpg$/);
+  assert.equal(ogImage, `${baseUrl}/m/${media.slug}/og.v1/image.jpg?v=${media.source.sha256.slice(0, 12)}`);
   assert.ok(html.includes(`<meta name="twitter:image" content="${ogImage}"`));
   assert.ok(html.includes('<meta property="og:image:width" content="1200"'));
   assert.ok(html.includes('<meta property="og:image:height" content="630"'));
@@ -209,6 +209,7 @@ test("SEO/media-gate seam: once the SAME rendition exists (e.g. an admin preview
   const html = await page.text();
   const ogImage = extractOgImage(html);
   assert.ok(ogImage, "og:image must now be present -- the rendition exists, so resolveSeoImageRef resolves it");
+  assert.equal(ogImage, `${baseUrl}/m/${media.slug}/og.v1/image.jpg?v=${media.source.sha256.slice(0, 12)}`);
   assert.match(ogImage!, /^https?:\/\//, "og:image must be an ABSOLUTE URL -- crawlers do not resolve relative image URLs");
 
   assert.equal(new URL(ogImage!).origin, baseUrl);

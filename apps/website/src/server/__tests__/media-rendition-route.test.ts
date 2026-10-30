@@ -136,7 +136,7 @@ function activeMemberSession(workspaceId: string): MemberSessionRecord {
   };
 }
 
-test("media rendition route: an already-generated rendition serves 200 with the immutable long-lived Cache-Control", async () => {
+test("media rendition route: an already-generated bare-id rendition serves 200 with revalidating Cache-Control", async () => {
   await withServer(async (baseUrl, deps) => {
     const { media } = await uploadOne(deps, "hero-photo-bytes", "hero.png");
     const { definition } = await registerOne(deps, "thumb", { width: 100, height: 100, format: "webp" });
@@ -150,7 +150,7 @@ test("media rendition route: an already-generated rendition serves 200 with the 
 
     const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/hero.webp`);
     assert.equal(res.status, 200);
-    assert.equal(res.headers.get("cache-control"), "public, max-age=31536000, immutable");
+    assert.equal(res.headers.get("cache-control"), "public, max-age=60, must-revalidate");
     assert.equal(res.headers.get("content-type"), "image/webp");
     const body = new Uint8Array(await res.arrayBuffer());
     assert.ok(body.byteLength > 0);
@@ -213,7 +213,7 @@ test("media rendition route: an older, never-generated transform version is an u
 
     const latestVersionRes = await fetch(`${baseUrl}/m/${media.id}/${v2.name}.v${v2.version}/b.webp`);
     assert.equal(latestVersionRes.status, 200);
-    assert.equal(latestVersionRes.headers.get("cache-control"), "public, max-age=31536000, immutable");
+    assert.equal(latestVersionRes.headers.get("cache-control"), "public, max-age=60, must-revalidate");
   });
 });
 
@@ -409,7 +409,7 @@ test("media rendition route: an unrelated or malformed cookie header does not gr
  * first half below. The second half is the behavior that moved: this test used to seed a draft
  * carrying `visibility: "members"` and assert 200, which is exactly the hole finding 2 named —
  * reverting a live members-only post to draft as a takedown released its media to the public web,
- * with `public, max-age=31536000, immutable` stamped on it. A GATED draft now still gates.
+ * with `public, max-age=60, must-revalidate` stamped on it. A GATED draft now still gates.
  */
 test("media rendition route: a PUBLIC draft's reference leaves its asset unrestricted, while a GATED draft still gates it — unpublishing is a takedown, not a release", async () => {
   await withServer(async (baseUrl, deps) => {
@@ -421,7 +421,7 @@ test("media rendition route: a PUBLIC draft's reference leaves its asset unrestr
     );
     const publicDraftRes = await fetch(`${baseUrl}/m/${publicDraftAsset.id}/${definition.name}.v${definition.version}/d.webp`);
     assert.equal(publicDraftRes.status, 200, "a public draft-only reference must not gate the asset");
-    assert.equal(publicDraftRes.headers.get("cache-control"), "public, max-age=31536000, immutable");
+    assert.equal(publicDraftRes.headers.get("cache-control"), "public, max-age=60, must-revalidate");
 
     const { media: gatedDraftAsset } = await uploadOne(deps, "gated-draft-bytes", "gated-draft.png");
     await deps.postRepo.save(
@@ -465,16 +465,17 @@ test("media rendition route: an asset referenced only by a TRASHED post is not g
       200,
       "a trashed post's stale reference must not gate the asset — no LIVE post references it, so it must be treated the same as an unreferenced asset"
     );
-    assert.equal(res.headers.get("cache-control"), "public, max-age=31536000, immutable");
+    assert.equal(res.headers.get("cache-control"), "public, max-age=60, must-revalidate");
   });
 });
 
 // --- readable-slugs S2b: cache split by which spelling was requested ----------------------------
-// The id and the slug both resolve to the SAME bytes for an ungated asset, but only the id spelling
-// is immutable forever — a slug can be renamed (S2a's `media_slug_history` is what makes an old
+// The id and the slug both resolve to the SAME bytes for an ungated asset, but only a current-version id spelling
+// is immutable: replacement changes bytes under a stable id. A slug can be renamed (S2a's
+// `media_slug_history` is what makes an old
 // slug keep resolving at all), so a slug-keyed 200 gets a short, revalidate-soon TTL instead.
 
-test("media rendition route: an ungated 200 requested BY SLUG gets a short-TTL public Cache-Control, while the SAME asset requested by id keeps the year-long immutable header", async () => {
+test("media rendition route: an ungated 200 requested BY SLUG gets a short-TTL public Cache-Control, while the SAME asset requested by bare id revalidates", async () => {
   await withServer(async (baseUrl, deps) => {
     const { media } = await uploadOne(deps, "slug-cache-split-bytes", "slug-cache.png");
     const { definition } = await registerOne(deps, "public", { format: "webp" });
@@ -483,7 +484,7 @@ test("media rendition route: an ungated 200 requested BY SLUG gets a short-TTL p
     const suffix = `${definition.name}.v${definition.version}/x.webp`;
     const byId = await fetch(`${baseUrl}/m/${media.id}/${suffix}`);
     assert.equal(byId.status, 200);
-    assert.equal(byId.headers.get("cache-control"), "public, max-age=31536000, immutable");
+    assert.equal(byId.headers.get("cache-control"), "public, max-age=60, must-revalidate");
 
     const bySlug = await fetch(`${baseUrl}/m/${media.slug}/${suffix}`);
     assert.equal(bySlug.status, 200);
@@ -530,8 +531,8 @@ test("media rendition route: an asset embedded in BOTH a public post and a membe
     assert.equal(res.status, 200);
     assert.equal(
       res.headers.get("cache-control"),
-      "public, max-age=31536000, immutable",
-      "visible to everyone through the public post — ordinary immutable caching is correct here"
+      "public, max-age=60, must-revalidate",
+      "visible to everyone through the public post — ordinary public caching is correct here"
     );
   });
 });

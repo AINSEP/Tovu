@@ -1,7 +1,8 @@
+import { createCoreTableCatalog } from "#src/server/runtime/composition/database-transfer-adapters";
 import type { PGlite, Transaction } from "@electric-sql/pglite";
 
 import { collectSchemaTables } from "../../../features/database-transfer/table-catalog.js";
-import { constraintSql, createTableSql, indexSql } from "../../../features/database-transfer/postgres-ddl.js";
+import { constraintSql, createTableSql, indexSql } from "@jini-ai/db/transfer";
 
 /**
  * @file Test support: the content schema on a fresh Postgres (PGlite) database, built from
@@ -23,11 +24,13 @@ export async function hasPgContentSchema(client: PGlite | Transaction): Promise<
 /** The whole content schema — every table, credential tables included — as one DDL script
  *  (tables, then indexes, then constraints). */
 export function pgContentSchemaSql(): string {
-  const tables = collectSchemaTables();
+  const tables = collectSchemaTables({ catalog: createCoreTableCatalog({}) });
   return (
-    tables.map((table) => createTableSql("public", table)).join("") +
-    tables.map((table) => indexSql("public", table)).join("") +
-    constraintSql("public", tables)
+    tables.map((table) => createTableSql({ schema: "public", table })).join("") +
+    tables.map((table) => indexSql({ schema: "public", table })).join("") +
+    constraintSql({ schema: "public", tables, unvalidatedTable: "pg_temp._tovu_unvalidated" }, { sqlTag: "tovu" })
+      .replace('CREATE TEMP TABLE "_tovu_unvalidated"', 'CREATE TEMP TABLE _tovu_unvalidated')
+      .replaceAll('"pg_temp"."_tovu_unvalidated"', 'pg_temp._tovu_unvalidated')
   );
 }
 

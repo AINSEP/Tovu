@@ -1,6 +1,6 @@
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { toolMetadata } from "#src/contracts/core/tool-metadata/site-guide";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { createTovuSiteGuide, type TovuSiteGuideDeps } from "./site-guide.js";
 import type { SiteGuideEngine } from "#src/features/site-guide/index";
 
@@ -8,7 +8,9 @@ export const SITE_GUIDE_SCHEMA = {
   type: "object", additionalProperties: false, required: ["operation"],
   properties: {
     operation: { type: "string", enum: ["overview", "explain", "search"], description: "overview lists topics; explain describes one topic; search finds visible topics by text." },
-    topic: { type: "string", aliases: ["query"], minLength: 1, maxLength: 200, description: "For explain: a topic id from overview. For search: words to find in topic ids, titles and summaries. query is an alias." },
+    topic: { type: ["string", "array"], aliases: ["query"], minLength: 1, maxLength: 200,
+      minItems: 1, maxItems: 1, items: { type: "string", minLength: 1, maxLength: 200 },
+      description: "For explain: one topic id from overview, as a string or a one-element array. To explain several topics, send a separate site_guide call per topic. For search: words to find in topic ids, titles and summaries. query is an alias." },
   },
 } as const;
 export const catalog = indexCatalogById({ catalog: [{
@@ -51,10 +53,15 @@ function readSearchTopic({ topic }: { topic: unknown }, _options = {}): string {
  */
 function normalizeGuideInput({ input }: { input: Readonly<Record<string, unknown>> }, _options = {}) {
   const alias = SITE_GUIDE_SCHEMA.properties.topic.aliases.find(key => Object.hasOwn(input, key));
-  if (!alias) return { input, notes: [] };
-  if (Object.hasOwn(input, "topic")) throw new ToolInputError({ message: `Conflicting inputs '${alias}' and 'topic'. Send only 'topic'.` });
-  const { [alias]: topic, ...rest } = input;
-  return { input: { ...rest, topic }, notes: [`${alias}→topic`] };
+  if (alias && Object.hasOwn(input, "topic")) throw new ToolInputError({ message: `Conflicting inputs '${alias}' and 'topic'. Send only 'topic'.` });
+  const { [alias ?? "topic"]: topic, ...rest } = input;
+  const notes = alias ? [`${alias}→topic`] : [];
+  const normalized = topic === undefined ? rest : { ...rest, topic };
+  if (!Array.isArray(topic)) return { input: normalized, notes };
+  if (topic.length !== 1 || typeof topic[0] !== "string") {
+    throw new ToolInputError({ message: 'site_guide accepts one topic per call. To explain several, send a separate site_guide({"operation":"explain","topic":"<topic id>"}) call for each topic; use operation "overview" to list topic ids.' });
+  }
+  return { input: { ...normalized, topic: topic[0] }, notes: [...notes, "topic: one-item string array→string"] };
 }
 
 /** Search only the permission-filtered overview; hidden topics and their facts are never read.
@@ -99,6 +106,6 @@ export function buildSiteGuideRegistrations({ deps }: { deps: TovuSiteGuideDeps 
 }
 
 /** Shared by every admin CLI vendor and BYOK through the existing first-party manifest. */
-export function contributeSiteGuideTools(_input: Record<string, never>, options: { engine?: SiteGuideEngine } = {}): ToolContributor {
+export function contributeSiteGuideTools(_input: Record<string, never>, options: { engine?: SiteGuideEngine } = {}): ToolContributor<TovuSiteGuideDeps, unknown> {
   return { domain: "site-guide", risk: siteGuideDerivedRisk, build: deps => buildSiteGuideRegistrations({ deps }, options) };
 }

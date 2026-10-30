@@ -51,6 +51,10 @@ export async function findSiteKeyDependentData(siteDir: string, optional: { env?
       return pgliteHasKeyDependentData(join(siteDir, PGLITE_DATA_DIR_NAME));
     case "postgres":
       return postgresHasKeyDependentData(storage, optional.env ?? process.env);
+    default: {
+      const unexpected: never = storage;
+      throw new Error(`Unexpected site storage: ${unexpected}`);
+    }
   }
 }
 

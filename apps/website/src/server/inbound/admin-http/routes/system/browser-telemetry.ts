@@ -35,7 +35,8 @@ const REQUIRED = { error: ["message", "stack", "route"], pageview: ["route"] } a
 
 const ROUTE_SHAPE = /^\/admin(?:\/[A-Za-z0-9:_.~-]*)*$/;
 // Segments that name a record rather than a screen: numbers, UUIDs, hex ids, long mixed tokens.
-const ID_SEGMENT = /^(?:\d+|[0-9a-f]{8}-[0-9a-f-]{27}|[0-9a-f]{12,}|(?=[^/]*\d)[A-Za-z0-9_.~-]{16,})$/i;
+const STRUCTURED_ID_SEGMENT = /^(?:\d+|[a-f\d]{8}-[a-f\d-]{27}|[a-f\d]{12,})$/i;
+const MIXED_ID_SEGMENT = /^(?=[^/]*\d)[a-z\d_.~-]{16,}$/i;
 // A URL's query or fragment inside free text (a stack frame, a fetch error); the URL itself and a
 // stack frame's trailing `:line:col` stay. Both runs are bounded, so a long run costs linear time.
 const URL_QUERY = /(\b[a-z][a-z0-9+.-]*:\/\/[^\s?#()'"]{0,2048})[?#][^\s()'"]{0,8192}?((?::\d+){0,2})(?=[\s()'"]|$)/gi;
@@ -48,7 +49,7 @@ const URL_QUERY = /(\b[a-z][a-z0-9+.-]*:\/\/[^\s?#()'"]{0,2048})[?#][^\s()'"]{0,
 export function toRouteTemplate(raw: string): string | null {
   const path = raw.split(/[?#]/, 1)[0] ?? "";
   if (!ROUTE_SHAPE.test(path)) return null;
-  return path.split("/").map((segment) => (ID_SEGMENT.test(segment) ? ":id" : segment)).join("/");
+  return path.split("/").map((segment) => ((STRUCTURED_ID_SEGMENT.test(segment) || MIXED_ID_SEGMENT.test(segment)) ? ":id" : segment)).join("/");
 }
 
 /** Cuts URL queries/fragments, then core redaction (keys, tokens, e-mails, phones). @complexity O(n). */

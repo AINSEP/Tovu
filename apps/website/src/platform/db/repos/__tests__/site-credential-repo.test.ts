@@ -6,7 +6,7 @@ import { contentKernel, type ContentKernel } from "#src/platform/db/content-kern
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { openContentDb } from "../../sqlite/content-db.js";
-import { SqlSiteAssistantCredentialRepo } from "../site-credential-repo.js";
+import { SqlSiteAssistantCredentialRepo } from "../../../../assistant/site-credential-repo.js";
 import type { SiteAssistantCredentialRecord } from "#src/assistant/site-credential-store";
 
 /** Existing adapter characterization on the Jini vault: envelope/settings round trips,

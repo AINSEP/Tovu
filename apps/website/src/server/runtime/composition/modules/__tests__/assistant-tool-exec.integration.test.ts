@@ -10,11 +10,14 @@ import { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { createApp, createRouteDeps } from "../../app.js";
 import { bootAuthenticated, loginAsBarePrincipal } from "../../../../__tests__/helpers/http-test-server.js";
 import { ALL_CHAT_DELETE_TOOLS } from "../../../../../assistant/permanent-delete-tool-gate.js";
-import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY } from "../../../../../contracts/headless/assistant-permanent-deletes-policy.js";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY } from "../../../../../contracts/headless/index.js";
 import { set as setSiteSetting } from "../../../../../features/settings/index.js";
 import { toWriteServiceDeps } from "../../../../inbound/admin-http/routes/settings/shared.js";
 import { POST_ENTITY_TYPE } from "../../../../../features/trash/adapters/post.js";
-import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface, type DerivedToolContributor, type ToolContributor } from "../../../../../assistant/index.js";
+import type { DerivedToolContributor, ToolContributor } from "@jini-ai/core";
+import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface } from "../../../../../assistant/index.js";
 import { installFirstPartyToolContributors } from "../../tool-catalog-manifest.js";
 import { constrainPrincipalToReadOnlyTools } from "../../../../../assistant/read-only-tool-constraint.js";
 import { ensureAgentDaemonToken, ensureToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "../../../../../assistant/daemon-access.js";
@@ -48,8 +51,8 @@ function stripExecutionId<T extends { executionId?: unknown }>(result: T): Omit<
 
 function firstPartyContributions() {
   const contributions = {
-    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
-    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
   };
   installFirstPartyToolContributors({ contributions });
   return contributions;

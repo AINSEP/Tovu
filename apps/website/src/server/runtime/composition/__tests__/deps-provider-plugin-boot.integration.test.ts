@@ -176,7 +176,7 @@ test("a project store that can't open (EACCES on its folder): the site boots, wa
 
 test("siteIdentityFor: Fly (production) is its own project; desktop is detected from the Electron child env; else local", () => {
   const base = { workspaceId: "ws-1", binding: { name: "blog", dir: path.join(os.tmpdir(), "tovu-no-such-site-dir") } };
-  assert.deepEqual(siteIdentityFor({ ...base, runtimeMode: "production", projectId: undefined }, { env: {} }), { siteId: "ws-1", siteSlug: "blog", environment: "fly", projectId: "ws-1" });
+  assert.deepEqual(siteIdentityFor({ ...base, runtimeMode: "production", projectId: undefined }, { env: {} }), { siteId: "ws-1", siteSlug: "blog", environment: "production", projectId: "ws-1" });
   assert.deepEqual(siteIdentityFor({ ...base, runtimeMode: "local", projectId: "project-x" }, { env: { ELECTRON_RUN_AS_NODE: "1" } }), { siteId: "ws-1", siteSlug: "blog", environment: "desktop", projectId: "project-x" });
   assert.equal(siteIdentityFor({ ...base, runtimeMode: "local", projectId: "project-x" }).environment, process.env.ELECTRON_RUN_AS_NODE === "1" ? "desktop" : "local");
 });
@@ -202,7 +202,7 @@ test("siteIdentityFor: each site is named by its own .site-meta.json siteId, not
   assert.equal(siteIdentityFor({ ...shared, binding: siteWith("d", "{not json") }, { env: {} }).siteId, "workspace-local");
   // Fly has no project store: the project is the site itself, by its siteId (never the shared workspace id).
   const fly = siteIdentityFor({ ...shared, runtimeMode: "production", projectId: undefined, binding: siteWith("e", { siteId: "site-uuid-e" }) }, { env: {} });
-  assert.deepEqual(fly, { siteId: "site-uuid-e", siteSlug: "e", environment: "fly", projectId: "site-uuid-e" });
+  assert.deepEqual(fly, { siteId: "site-uuid-e", siteSlug: "e", environment: "production", projectId: "site-uuid-e" });
 });
 
 test("siteIdentityFor: a deployed site with no .site-meta.json is named by TOVU_SITE_ID (set at deploy), never the shared workspace id", (t) => {
@@ -212,7 +212,7 @@ test("siteIdentityFor: a deployed site with no .site-meta.json is named by TOVU_
   fs.mkdirSync(bare.dir);
   const flyShape = { workspaceId: "workspace-local", runtimeMode: "production" as const, projectId: undefined, binding: bare };
   assert.deepEqual(siteIdentityFor(flyShape, { env: { TOVU_SITE_ID: "site-uuid-local-twin" } }),
-    { siteId: "site-uuid-local-twin", siteSlug: "blog", environment: "fly", projectId: "site-uuid-local-twin" });
+    { siteId: "site-uuid-local-twin", siteSlug: "blog", environment: "production", projectId: "site-uuid-local-twin" });
   // Empty means unset: the workspace id stays the last resort.
   assert.equal(siteIdentityFor(flyShape, { env: { TOVU_SITE_ID: "" } }).siteId, "workspace-local");
   // The site's own meta still wins: one env shared by several local sites must not merge them.

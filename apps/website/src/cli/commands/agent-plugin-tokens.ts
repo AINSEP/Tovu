@@ -1,6 +1,6 @@
 import { ValidationError } from "../../platform/site-dir/index.js";
-import { createDefaultHttpClient } from "../../platform/http/client.js";
-import { CUSTOM_CREDENTIALS_EGRESS_POLICY } from "../../platform/http/egress-policies.js";
+import { createDefaultHttpClient } from "../../platform/http/index.js";
+import { CUSTOM_CREDENTIALS_EGRESS_POLICY } from "../../platform/http/index.js";
 import {
   bundledAgentPluginsSourceRoot,
   firstNewSiteAgentPluginTokenRefusal,

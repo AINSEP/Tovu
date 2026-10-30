@@ -1,4 +1,4 @@
-import type { AssistantCliPermissions } from '#src/contracts/headless/assistant-subagents-policy';
+import type { AssistantCliPermissions } from '#src/contracts/headless/index';
 
 /** Explain the site launch's personal-configuration boundaries without exposing settings or paths.
  * Pure, O(1); provider enforcement fallbacks are disclosed by the executor after its CLI probe.

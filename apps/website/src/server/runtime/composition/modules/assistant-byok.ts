@@ -1,14 +1,17 @@
-import { createAutomaticPluginRuns } from "#src/assistant/automatic-agent-plugins";
+import { createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic-agent-plugins";
+import { askAgentPluginChoice } from "#src/assistant/ask-choice-tool";
 import { createAiTraceRecorder } from "@jini-ai/agent-runtime/ai-trace";
 import { readChatAgentPluginState } from "@jini-ai/agent-plugins/lifecycle";
 import { resolveAgentPluginRefs } from "#src/features/agent-plugins/lifecycle";
-import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/assistant-permanent-deletes-policy";
+import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/index";
 import { CREDENTIAL_GUIDANCE, CREDENTIAL_PASTE_MODEL_NOTE } from "#src/assistant/credential-guidance";
 import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
 import { guardUserText } from "@jini-ai/chat/core";
 import { prepareByokMessageAttachments } from "#src/server/inbound/assistant/byok-message-attachments";
 import { createContributionRegistry } from "@jini-ai/core";
-import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
+import type { ToolContributor, DerivedToolContributor } from "@jini-ai/core";
+import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 /**
  * @file The admin assistant dock's "API · BYOK" execution mode (ADR-049's picker, see
  * `@jini-ai/chat`'s `AgentRuntimePicker`) — a SECOND, provider-direct run path alongside the
@@ -192,14 +195,16 @@ export function toWireSurfacePayload(emission: SurfaceEmission, toolUseId: strin
 }
 
 /** One raw history entry -> a valid {@link ByokChatMessage}, or `null` if it isn't one — the single
- *  per-entry validation `resolveMessages` below loops over. */
-function toByokChatMessage(entry: unknown): ByokChatMessage | null {
+ *  per-entry validation `resolveMessages` below loops over. Always redacts user text; only the
+ *  current user turn receives a notice. Does not mutate the entry or perform I/O.
+ *  @complexity Redaction cost in the message content; constant validation work. */
+function toByokChatMessage({ entry, currentUserTurn }: { entry: unknown; currentUserTurn: boolean }, _optional = {}): ByokChatMessage | null {
   if (!isPlainMessage(entry)) return null;
   const role = entry.role === "user" || entry.role === "assistant" ? entry.role : null;
   const content = typeof entry.content === "string" ? entry.content : null;
   if (role === null || content === null || content.length === 0) return null;
   const modelContent = role === "user" ? guardUserText({ text: content }, {
-    modelNote: CREDENTIAL_PASTE_MODEL_NOTE, secretRedacted: entry.secretRedacted === true,
+    modelNote: currentUserTurn ? CREDENTIAL_PASTE_MODEL_NOTE : "", secretRedacted: entry.secretRedacted === true,
   }) : content;
   return { role, content: modelContent };
 }
@@ -208,12 +213,17 @@ function toByokChatMessage(entry: unknown): ByokChatMessage | null {
  *  (dropped, not rejected) — mirrors `site-assistant.ts`'s own `resolveBoundedHistory` posture for
  *  the sibling visitor-assistant route: history is passive background context the caller did not
  *  just author this instant, so a malformed entry degrades the turn's context rather than the whole
- *  request. */
+ *  request.
+ *  @complexity O(n) entries plus per-message redaction cost; O(n) output space, no I/O. */
 export function resolveMessages(raw: unknown): ByokChatMessage[] {
   if (!Array.isArray(raw)) return [];
+  // Redact every user turn, but notify only for the latest valid user message. Historical flags
+  // and raw historical secrets must not turn an unrelated request into another rotation warning.
+  const currentUserIndex = raw.findLastIndex(entry => isPlainMessage(entry) && entry.role === "user"
+    && typeof entry.content === "string" && entry.content.length > 0);
   const messages: ByokChatMessage[] = [];
-  for (const entry of raw) {
-    const message = toByokChatMessage(entry);
+  for (const [index, entry] of raw.entries()) {
+    const message = toByokChatMessage({ entry, currentUserTurn: index === currentUserIndex }, {});
     if (message) messages.push(message);
   }
   return messages.slice(-MAX_HISTORY_MESSAGES);
@@ -343,6 +353,24 @@ export interface AssistantByokModuleHandle extends ServerModuleHandle {
  */
 type ByokTurnInputs = { messages: ByokChatMessage[]; principal: Principal; credential: ResolvedByokCredential };
 
+/** BYOK bypasses the daemon lifecycle, but publishes the same normalized model/tool events.
+ * Reuse its recorder so both execution modes report generations with the same semantics. */
+function startByokTrace(
+  { routeDeps, run, credential, messages }: { routeDeps: Pick<RouteDeps, "aiTraceSink">; run: { id: string }; credential: ResolvedByokCredential; messages: ByokChatMessage[] },
+  _optional = {},
+) {
+  const trace = routeDeps.aiTraceSink ? createAiTraceRecorder({ sink: routeDeps.aiTraceSink, runId: run.id, agentId: credential.protocol },
+    { provider: credential.protocol, model: credential.model, exactSecrets: [credential.apiKey] }) : undefined;
+  trace?.start(routeDeps.aiTraceSink?.capture === "full" ? { input: messages.at(-1)?.content ?? null } : {});
+  return trace;
+}
+
+function byokTraceOutcome({ aborted, reportedError }: { aborted: boolean; reportedError: boolean }, _optional = {}): "cancelled" | "failed" | "succeeded" {
+  const { status } = byokTurnOutcome({ aborted, reportedError });
+  if (status === "canceled") return "cancelled";
+  return status === "succeeded" ? "succeeded" : "failed";
+}
+
 /**
  * The two gates `handleTurn` must clear before it opens a stream: the client-supplied history must
  * resolve to a non-empty, user-ending message list, and a usable BYOK credential (request-supplied
@@ -422,8 +450,8 @@ export function createAssistantByokModule(
   // `agent-daemon-server.ts`, and nowhere else. Idempotent, so a test supplying its own `toolSurface`
   // (built from an already-installed registry) pays nothing extra for this still running.
   const contributions = {
-    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
-    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
   };
   // `outboundTestOrigins` is set only by the site-import journey harness; absent, this factory is
   // `createDefaultHttpClient` itself (`platform/http/test-origin-allowlist.ts`).
@@ -453,7 +481,7 @@ export function createAssistantByokModule(
         registry.register(automaticPluginRuns.loadRegistration);
       },
     });
-  automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, surfaces: { surfaceExchanges: resolvedToolSurface.surfaceExchanges } });
+  automaticPluginRuns = createAutomaticPluginRuns({ deps: routeDeps, askAgentPluginChoice, surfaces: { surfaceExchanges: resolvedToolSurface.surfaceExchanges } });
   const credentialPort = createStoredExecutionCredentialPort({
     repo: routeDeps.adminExecutionCredentialRepo,
     sealer: routeDeps.siteAssistantSecretSealer,
@@ -538,7 +566,7 @@ export function createAssistantByokModule(
 
   async function handleTurn(req: Request, res: Response): Promise<void> {
     const inputs = await resolveTurnInputsOrRespond(req, res, credentialPort, routeDeps);
-    if (!inputs) return;
+    if (!inputs) return undefined;
     const { messages, principal, credential } = inputs;
 
     // `ready` resolves once the installed-extension-tools pass (Agent Plugins, Agent Skills, enabled
@@ -601,17 +629,23 @@ export function createAssistantByokModule(
     // One agent-run span per turn (its own trace root); the turn runs inside it, so its tool calls'
     // DB and outbound spans nest under the run rather than the long-lived request.
     return routeDeps.tracker.trace({ name: "assistant.run", run: async (span) => {
-      // BYOK bypasses the daemon lifecycle, but publishes the same normalized model/tool events.
-      // Reuse its recorder so both execution modes report generations with the same semantics.
-      const aiTrace = routeDeps.aiTraceSink ? createAiTraceRecorder({ sink: routeDeps.aiTraceSink, runId: run.id, agentId: credential.protocol },
-        { provider: credential.protocol, model: credential.model, exactSecrets: [credential.apiKey] }) : undefined;
-      aiTrace?.start(routeDeps.aiTraceSink?.capture === "full" ? { input: messages.at(-1)?.content ?? null } : {});
+      const aiTrace = startByokTrace({ routeDeps, run, credential, messages });
       routeDeps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, eventId: `assistant-start:${run.id}` } });
       let reportedError = false;
       // A failed turn (a provider error event or a throw, not an owner's cancel) is an incident for
       // the error tracker too: the protocol and run id only, the key blanked even without a known shape.
       const reportRunFailure = (error: unknown) => routeDeps.tracker.error({ error: error instanceof Error ? error : redactedError({ error }) }, { context: { operation: "assistant.run", attributes: { agent: credential.protocol, runId: run.id }, exactSecrets: [credential.apiKey] } });
       const stampUsage = createByokUsageTimer({ startedAt: Date.now() });
+      function finishFailedTurn({ error }: { error: unknown }, _optional = {}): void {
+        aiTrace?.observe({ type: "error", message: error instanceof Error ? error.message : String(error) });
+        aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : "failed" });
+        routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : "failed", eventId: `assistant-finish:${run.id}` } });
+        span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
+        if (!abort.signal.aborted && !reportedError) reportRunFailure(error);
+        sse(res, "error", { type: "error", message: error instanceof Error ? error.message : String(error) });
+        sse(res, "end", { reason: "error" });
+        res.end();
+      }
       let result: ByokProviderTurnResult;
       try {
         result = await runByokProviderTurn({
@@ -646,20 +680,13 @@ export function createAssistantByokModule(
           },
         });
       } catch (error) {
-        aiTrace?.observe({ type: "error", message: error instanceof Error ? error.message : String(error) });
-        aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : "failed" });
-        routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : "failed", eventId: `assistant-finish:${run.id}` } });
-        span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }, { thrown: { error } }));
-        if (!abort.signal.aborted && !reportedError) reportRunFailure(error);
-        sse(res, "error", { type: "error", message: error instanceof Error ? error.message : String(error) });
-        sse(res, "end", { reason: "error" });
-        res.end();
+        finishFailedTurn({ error });
         return;
       }
 
       span.setOutcome(byokTurnOutcome({ aborted: abort.signal.aborted, reportedError }));
-      aiTrace?.finish({ outcome: abort.signal.aborted ? "cancelled" : reportedError ? "failed" : "succeeded" });
-      routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: abort.signal.aborted ? "cancelled" : reportedError ? "failed" : "succeeded", eventId: `assistant-finish:${run.id}` } });
+      aiTrace?.finish({ outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }) });
+      routeDeps.tracker.capture({ name: "assistant_run_finished", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.id, outcome: byokTraceOutcome({ aborted: abort.signal.aborted, reportedError }), eventId: `assistant-finish:${run.id}` } });
       sse(res, "end", { reason: result.stopReason ?? "stop" });
       res.end();
     } }, { agent: { runId: run.id, agentName: credential.protocol } });

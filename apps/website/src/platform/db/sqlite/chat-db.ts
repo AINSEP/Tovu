@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type { NativeSqliteDatabase } from "../kernel/drivers/sqlite.js";
 import type { SqliteSyncOpener } from "@jini-ai/db/sqlite";
 import { openNativeSqlite } from "../kernel/drivers/sqlite.js";
 
@@ -27,9 +27,9 @@ import { migrateChatDatabase } from "../migrations/index.js";
  */
 
 /** Opens (or creates) `chat.db` with the pragmas `content-db.ts` sets — no schema, no write. */
-export interface ChatDbOpenOptions { readonly open?: SqliteSyncOpener<Database.Database> }
+export interface ChatDbOpenOptions { readonly open?: SqliteSyncOpener<NativeSqliteDatabase> }
 
-function openChatConnection(filePath: string, { open = openNativeSqlite }: ChatDbOpenOptions = {}): Database.Database {
+function openChatConnection(filePath: string, { open = openNativeSqlite }: ChatDbOpenOptions = {}): NativeSqliteDatabase {
   const sqlite = open(filePath, {});
   sqlite.pragma("journal_mode = WAL");
   // Required for `ai_chat_messages`' and `assistant_agent_sessions`' `ON DELETE CASCADE` to fire.
@@ -45,7 +45,7 @@ function openChatConnection(filePath: string, { open = openNativeSqlite }: ChatD
  * `createChatStoreFactory`/`createSqliteAgentSessionStore` take (none of the chat tables has a
  * `sqliteTable` declaration, by design: `RAW_SQL_MANAGED_TABLES` in `schema-migration-drift.test.ts`).
  */
-export async function openSiteChatDb(required: string | { filePath: string }, options: ChatDbOpenOptions = {}): Promise<Database.Database> {
+export async function openSiteChatDb(required: string | { filePath: string }, options: ChatDbOpenOptions = {}): Promise<NativeSqliteDatabase> {
   const filePath = typeof required === "string" ? required : required.filePath;
   const sqlite = openChatConnection(filePath, options);
   try {
@@ -64,7 +64,7 @@ export async function openSiteChatDb(required: string | { filePath: string }, op
  *
  * @complexity O(1) — one connection open plus a fixed number of DDL statements.
  */
-export function openChatDb(required: string | { filePath: string }, options: ChatDbOpenOptions = {}): Database.Database {
+export function openChatDb(required: string | { filePath: string }, options: ChatDbOpenOptions = {}): NativeSqliteDatabase {
   const filePath = typeof required === "string" ? required : required.filePath;
   const sqlite = openChatConnection(filePath, options);
   for (const statement of SQLITE_CHAT_STATEMENTS) sqlite.exec(statement);

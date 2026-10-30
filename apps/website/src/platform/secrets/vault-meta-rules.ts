@@ -1,6 +1,6 @@
 import { VaultError, type VaultJson, type VaultKind, type VaultMeta, type VaultMetaParsers } from "@jini-ai/platform/secrets/credential-sets";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
-import { CUSTOM_CREDENTIAL_CATEGORIES } from "#src/features/custom-credentials/types";
+import { CUSTOM_CREDENTIAL_CATEGORIES } from "#src/contracts/core/custom-credential-categories";
 import { parseApiConnectionMeta } from "./vault-api-connection-meta.js";
 
 /** Tovu's host rules for vault metadata, run inside Jini's complete-shape parsers by `createTovuVaultKinds`.
@@ -88,9 +88,9 @@ function assertDatabaseDestinationMeta({ meta }: { meta: VaultMeta }, _optional 
 
 function assertRunSummary({ run }: { run: VaultMeta | null | undefined }, _optional = {}): void {
   if (!run || typeof run.snapshotAt !== "string" || typeof run.copied !== "boolean") throw invalidMeta();
-  const valid = run.copied
-    ? hasOnlyFields({ record: run, fields: SUCCESS_RUN_FIELDS }) && [run.tableCount, run.rowCount].every(value => isRunCount({ value }))
-    : hasOnlyFields({ record: run, fields: FAILURE_RUN_FIELDS }) && typeof run.code === "string" && typeof run.message === "string";
+  let valid: boolean;
+  if (run.copied) valid = hasOnlyFields({ record: run, fields: SUCCESS_RUN_FIELDS }) && [run.tableCount, run.rowCount].every(value => isRunCount({ value }));
+  else valid = hasOnlyFields({ record: run, fields: FAILURE_RUN_FIELDS }) && typeof run.code === "string" && typeof run.message === "string";
   if (!valid) throw invalidMeta();
 }
 

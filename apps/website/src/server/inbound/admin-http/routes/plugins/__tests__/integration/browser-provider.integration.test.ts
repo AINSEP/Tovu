@@ -7,7 +7,7 @@ import express from "express";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
-import type { AdminChartProviderSnapshot } from "#src/contracts/headless/chart-providers";
+import type { AdminChartProviderSnapshot } from "#src/contracts/headless/index";
 import { registerChartProviderRoutes } from "../../chart-providers.js";
 
 test("step 5: metadata points only to digest-pinned admitted bytes; disable retires metadata and URLs", async (t) => {

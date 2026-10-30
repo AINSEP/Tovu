@@ -1,9 +1,11 @@
+import { sqliteTableInfo } from "#src/platform/db/kernel/sqlite-only";
+import { sqliteForeignKeyCheckedTransaction } from "#src/platform/db/kernel/sqlite-only";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import Database from "better-sqlite3";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { createRawRowSqlitePort } from "#src/platform/db/sqlite/publish-backstop-row.sqlite";
+import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { buildGatewayDeps } from "#src/contracts/core/gated-mutations/composition";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "#src/features/publish-content/bundle-staging";
@@ -21,7 +23,7 @@ test("real import plan returns safe before/after values for raw rows without req
   resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
   registerPublishContentContributor(contributeRawRowPublish());
   const kernel = contentKernel(db);
-  const rows = createRawRowSqlitePort({ kernel });
+  const rows = createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel });
   const live = await rows.read({ table: "p_banner", pk: { id: "one" } }); assert.ok(live);
   const state = { ...live, values: { ...live.values, title: "New footer" } };
   const entity = { entityType: "raw-row", id: 'p_banner:{"id":"one"}', schemaVersion: 1, hashVersion: CONTENT_HASH_VERSION,

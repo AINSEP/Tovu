@@ -3,6 +3,7 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
+import { setImmediate as nextTurn, setTimeout as delay } from "node:timers/promises";
 
 import type { OutboundEmail } from "#src/platform/mail/index";
 import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../helpers/unrun-site-boot.js";
@@ -19,7 +20,7 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
  * member deps, so replacing its `send` after boot captures every outbound message.
  */
 
-const SIGN_IN_TEXT_PREFIX = "Sign in using this link (expires in 15 minutes): https://localhost:3000/auth/magic?token=";
+const SIGN_IN_TEXT_PREFIX = "Sign in using this link (expires in 15 minutes): https://localhost:3000/signin#magic=";
 
 function memberRoute(site: BootedSite, suffix: "sign-in" | "sign-in/complete"): string {
   return `/api/members/v1/workspaces/${site.deps.workspaceId}/${suffix}`;
@@ -51,14 +52,32 @@ function captureMail(site: BootedSite): OutboundEmail[] {
 function tokenFrom(message: OutboundEmail): string {
   const text = message.text ?? "";
   assert.ok(text.startsWith(SIGN_IN_TEXT_PREFIX), `unexpected sign-in mail text: ${text}`);
-  const token = text.slice(SIGN_IN_TEXT_PREFIX.length).split("&")[0];
+  const token = text.slice(SIGN_IN_TEXT_PREFIX.length).split(/[&\s]/)[0];
   assert.match(token, /^[a-f0-9]{64}$/);
   return token;
 }
 
+/** d931e2ec1 returns a fresh opaque challenge for every address, including disabled ones. */
+async function expectAccepted({ response }: { response: Response }, _options = {}): Promise<string> {
+  const body = await expectJson<{ accepted: boolean; challengeId: string }>(response, 200);
+  assert.equal(typeof body.challengeId, "string");
+  assert.match(body.challengeId, /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i);
+  assert.deepEqual(body, { accepted: true, challengeId: body.challengeId });
+  return body.challengeId;
+}
+
+/** Observe detached delivery's actual effects; a deadline fails instead of assuming mail is inline. */
+async function waitUntil({ predicate }: { predicate: () => boolean }, _options = {}): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  while (!predicate() && Date.now() < deadline) await delay(10);
+  assert.ok(predicate(), "detached member delivery must settle before the deadline");
+}
+
 /** Requests a link for `email`, completes it, and returns the raw member session token from the cookie. */
 async function signIn(site: BootedSite, mail: OutboundEmail[], email: string): Promise<{ memberId: string; sessionToken: string }> {
-  assert.deepEqual(await expectJson(await anonymousPost(site, memberRoute(site, "sign-in"), { email }), 200), { accepted: true });
+  const before = mail.length;
+  await expectAccepted({ response: await anonymousPost(site, memberRoute(site, "sign-in"), { email }) });
+  await waitUntil({ predicate: () => mail.length === before + 1 });
   const complete = await anonymousPost(site, memberRoute(site, "sign-in/complete"), { token: tokenFrom(mail[mail.length - 1]) });
   const cookie = complete.headers.get("set-cookie") ?? "";
   const body = await expectJson<{ member: { id: string } }>(complete, 200);
@@ -76,23 +95,27 @@ for (const dialect of SITE_DIALECTS) {
     const { workspaceId } = site.deps;
 
     const requested = await anonymousPost(site, memberRoute(site, "sign-in"), { email: "  Reader@Example.com ", redirectPath: "/members/only" });
-    assert.deepEqual(await expectJson(requested, 200), { accepted: true });
+    const challengeId = await expectAccepted({ response: requested });
+    await waitUntil({ predicate: () => mail.length === 1 });
     assert.equal(mail.length, 1);
     const token = tokenFrom(mail[0]);
     assert.deepEqual(
-      { to: mail[0].to, from: mail[0].from, subject: mail[0].subject, text: mail[0].text, workspaceId: mail[0].workspaceId },
+      { to: mail[0].to, from: mail[0].from, subject: mail[0].subject, workspaceId: mail[0].workspaceId },
       {
         to: { email: "reader@example.com" },
         from: { email: "no-reply@members.local", name: "Members" },
-        subject: "Your sign-in link",
-        text: `${SIGN_IN_TEXT_PREFIX}${token}&redirect=%2Fmembers%2Fonly`,
+        subject: "Your sign-in link and code",
         workspaceId,
       }
     );
 
+    assert.ok(mail[0].text?.includes(`${SIGN_IN_TEXT_PREFIX}${token}&redirect=%2Fmembers%2Fonly`));
+    assert.match(mail[0].text ?? "", /Or enter this one-time code: \d{6}\b/);
+    assert.ok(mail[0].html?.includes(`href="https://localhost:3000/signin#magic=${token}&amp;redirect=%2Fmembers%2Fonly"`));
     const memberBeforeConsume = await site.deps.memberRepo.findByEmail({ workspaceId, email: "reader@example.com" });
     assert.equal(memberBeforeConsume, null, "the request must not create a member");
     const linkRow = await site.deps.magicLinkRepo.findByTokenHash({ workspaceId, tokenHash: sha256(token) });
+    assert.equal(linkRow?.id, challengeId, "the returned handle names the stored hashed challenge");
     assert.deepEqual(
       { purpose: linkRow?.purpose, consumedAt: linkRow?.consumedAt ?? null },
       { purpose: "signin", consumedAt: null },
@@ -132,13 +155,13 @@ for (const dialect of SITE_DIALECTS) {
 
     const replay = await anonymousPost(site, memberRoute(site, "sign-in/complete"), { token });
     assert.equal(replay.headers.get("set-cookie"), null);
-    assert.deepEqual(await expectJson(replay, 401), { error: "sign-in link was already used", code: "MEMBER_AUTH_ERROR" });
+    assert.deepEqual(await expectJson(replay, 401), { error: "invalid credentials", code: "INVALID_CREDENTIALS" });
 
     const forged = await anonymousPost(site, memberRoute(site, "sign-in/complete"), { token: "f".repeat(64) });
-    assert.deepEqual(await expectJson(forged, 401), { error: "sign-in link is invalid", code: "MEMBER_AUTH_ERROR" });
+    assert.deepEqual(await expectJson(forged, 401), { error: "invalid credentials", code: "INVALID_CREDENTIALS" });
   });
 
-  test(`[unrun] member magic link [${dialect}]: known, unknown and disabled emails get byte-identical responses; only the disabled one is not mailed`, async (t) => {
+  test(`[unrun] member magic link [${dialect}]: known, unknown and disabled emails get the same acceptance shape with fresh handles; only the disabled one is not mailed`, async (t) => {
     const site = await bootSite(t, dialect, { configureDeps: configureMemberMail });
     const mail = captureMail(site);
     const { workspaceId } = site.deps;
@@ -147,12 +170,12 @@ for (const dialect of SITE_DIALECTS) {
 
     const known = await anonymousPost(site, memberRoute(site, "sign-in"), { email: "known@example.com" });
     const unknown = await anonymousPost(site, memberRoute(site, "sign-in"), { email: "nobody@example.com" });
-    const knownText = await known.text();
-    const unknownText = await unknown.text();
-    assert.deepEqual([known.status, unknown.status], [200, 200]);
-    assert.equal(unknownText, knownText, "an unregistered email is indistinguishable from a registered one");
-    assert.equal(knownText, JSON.stringify({ accepted: true }));
-    assert.deepEqual(mail.slice(before).map((message) => message.to.email), ["known@example.com", "nobody@example.com"]);
+    const knownChallenge = await expectAccepted({ response: known });
+    const unknownChallenge = await expectAccepted({ response: unknown });
+    assert.notEqual(knownChallenge, unknownChallenge, "handles are fresh regardless of account existence");
+    await waitUntil({ predicate: () => mail.length === before + 2 });
+    assert.deepEqual(mail.slice(before).map((message) => message.to.email).sort(), ["known@example.com", "nobody@example.com"],
+      "detached sends may finish in either order, but both eligible addresses receive one link");
 
     const created = await site.deps.memberRepo.findByEmail({ workspaceId, email: "nobody@example.com" });
     assert.equal(created, null, "an unknown request creates neither account nor principal");
@@ -160,9 +183,19 @@ for (const dialect of SITE_DIALECTS) {
     const knownMember = await site.deps.memberRepo.findByEmail({ workspaceId, email: "known@example.com" });
     await site.deps.memberRepo.save({ ...knownMember!, status: "disabled", version: knownMember!.version + 1, updatedAt: new Date().toISOString() });
     const afterDisable = mail.length;
+    let lookedUpDisabled = false;
+    const findByEmail = site.deps.memberRepo.findByEmail.bind(site.deps.memberRepo);
+    t.mock.method(site.deps.memberRepo, "findByEmail", async (input: { workspaceId: string; email: string }) => {
+      const member = await findByEmail(input);
+      lookedUpDisabled = true;
+      return member;
+    });
     const disabled = await anonymousPost(site, memberRoute(site, "sign-in"), { email: "known@example.com" });
-    assert.equal(disabled.status, 200);
-    assert.equal(await disabled.text(), knownText);
+    const disabledChallenge = await expectAccepted({ response: disabled });
+    assert.equal(new Set([knownChallenge, unknownChallenge, disabledChallenge]).size, 3);
+    await waitUntil({ predicate: () => lookedUpDisabled });
+    await nextTurn(); // The disabled lookup's continuation must finish before asserting no delivery.
+    assert.equal(await site.deps.magicLinkRepo.findById({ workspaceId, id: disabledChallenge }), null);
     assert.equal(mail.length, afterDisable, "a disabled member is never mailed a link");
   });
 
@@ -185,19 +218,21 @@ for (const dialect of SITE_DIALECTS) {
     const mail = captureMail(site);
     const variants = ["limit@example.com", "LIMIT@example.com", " limit@example.com", "Limit@Example.com", "limit@EXAMPLE.com"];
     for (const email of variants) {
-      assert.deepEqual(await expectJson(await anonymousPost(site, memberRoute(site, "sign-in"), { email }), 200), { accepted: true }, email);
+      await expectAccepted({ response: await anonymousPost(site, memberRoute(site, "sign-in"), { email }) });
     }
+    await waitUntil({ predicate: () => mail.length === 5 });
     assert.equal(mail.length, 5);
 
     const limited = await anonymousPost(site, memberRoute(site, "sign-in"), { email: "limit@example.com" });
     const retryAfter = Number(limited.headers.get("retry-after"));
     const body = await expectJson<{ error: string; code: string; details: { retryAfterSeconds: number } }>(limited, 429);
-    assert.deepEqual({ error: body.error, code: body.code }, { error: "too many sign-in requests for this email", code: "RATE_LIMIT_EXCEEDED" });
+    assert.deepEqual(body, { error: "too many member authentication requests", code: "RATE_LIMIT_EXCEEDED", details: { retryAfterSeconds: retryAfter } });
     assert.ok(retryAfter >= 3590 && retryAfter <= 3600, `Retry-After ${retryAfter} is the rest of the one-hour window`);
     assert.equal(body.details.retryAfterSeconds, retryAfter);
     assert.equal(mail.length, 5, "a limited request mails nothing");
 
-    assert.deepEqual(await expectJson(await anonymousPost(site, memberRoute(site, "sign-in"), { email: "other@example.com" }), 200), { accepted: true });
+    await expectAccepted({ response: await anonymousPost(site, memberRoute(site, "sign-in"), { email: "other@example.com" }) });
+    await waitUntil({ predicate: () => mail.length === 6 });
     assert.equal(mail.length, 6);
   });
 

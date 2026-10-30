@@ -7,7 +7,8 @@ export function pinSiteListenerOrigin(
   { env = process.env }: { env?: NodeJS.ProcessEnv } = {},
 ): string {
   const hostname = host && host !== '0.0.0.0' && host !== '::' ? host : 'localhost';
-  const origin = `${scheme}://${hostname.includes(':') ? `[${hostname}]` : hostname}:${port}`;
+  const authorityHost = hostname.includes(':') ? `[${hostname}]` : hostname;
+  const origin = `${scheme}://${authorityHost}:${port}`;
   env.TOVU_SITE_LISTENER_ORIGIN = origin;
   return origin;
 }

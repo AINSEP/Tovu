@@ -8,13 +8,13 @@ import express, { type Express, type Request } from "express";
 import { isPublicPage, registerConsentHttp, type ConsentHttpPorts } from "@jini-ai/cms/consent/express";
 import type { ConsentConfig } from "@jini-ai/cms/consent";
 import { consentRateLimitKey, createConsentFileRecords, createNodeConsentFiles, type ConsentAtomicWriter } from "@jini-ai/cms/consent/node";
+import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 
 import { createRateLimiter, type RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
 import { withSiteConsentDefaultCss } from "#src/features/consent/config";
 import { createSiteConsentRequestPorts } from "#src/features/consent/host";
 import { createSiteConsentConfig, resolveSiteConsentActivation } from "#src/features/consent/settings";
 import { findPublishedPostBySlug } from "#src/features/post/index";
-import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
 import type { RouteDeps } from "#src/server/routes/types";
 import { isStaticExportRequest } from "../routes/site/pages.js";
 import { resolvePublicOrigin, resolveProtocol } from "../routes/oauth/public-origin.js";
@@ -55,7 +55,7 @@ export function resolveSiteConsentOrigin({ request }: { request: Request }, _opt
 /** Bind the engine's atomic-writer port to the site-dir writer (which owns flush/rename/mode). */
 const atomicWrite: ConsentAtomicWriter = async ({ filePath, data }, { createParent, mode, refuseSymlink }) => {
   if (createParent) await fs.mkdir(path.dirname(filePath), { recursive: true, mode: 0o700 });
-  writeJsonFileAtomic({ filePath, data }, { mode, refuseSymlink });
+  writeJsonFileAtomic({ filePath, data, fs: createNodeAtomicFilesystem({}, {}) }, { mode, refuseSymlink });
 };
 
 /** A local single-segment link (/privacy) must name a published page; https links are trusted.
@@ -123,6 +123,13 @@ async function isDefaultOnlyConsent({ deps }: { deps: RouteDeps }, _options = {}
   return (await resolveSiteConsentActivation({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId })).source === "default";
 }
 
+function readHtmlChunk({ chunk, type }: { chunk: unknown; type: string }, _optional = {}): string | undefined {
+  if ((typeof chunk === 'string' || Buffer.isBuffer(chunk)) && (!type || type.includes('text/html'))) {
+    return Buffer.isBuffer(chunk) ? chunk.toString('utf8') : chunk;
+  }
+  return undefined;
+}
+
 /**
  * Register consent for this app. The exporter's crawl (`x-tovu-static-export`) gets the engine's
  * static delivery: explicitly enabled consent returns gated HTML with 200, the banner and a reopen
@@ -159,8 +166,8 @@ export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps 
     // Inspect that output rather than rereading config: lastGood remains Jini's sole authority.
     res.end = function (this: typeof res, chunk?: unknown, encoding?: BufferEncoding | (() => void), callback?: () => void) {
       const type = String(res.getHeader('content-type') ?? '');
-      if ((typeof chunk === 'string' || Buffer.isBuffer(chunk)) && (!type || type.includes('text/html'))) {
-        const html = Buffer.isBuffer(chunk) ? chunk.toString('utf8') : chunk;
+      const html = readHtmlChunk({ chunk, type });
+      if (html !== undefined) {
         let linked = withSiteConsentSettingsLink({ html });
         // Only the delivered consent runtime can release a live-site contribution. Preview,
         // administrative HTML and exports do not inherit the crawling operator's choice.

@@ -1,3 +1,4 @@
+import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 /** Serving-host ownership for admin Themes card captures: one queue (one lazy browser) per served
  * site, the same lifetime and gating `site-preview-host.ts` applies to Sites card captures, reusing
  * that feature's store, queue and Playwright capture rather than a second screenshot stack. */
@@ -27,7 +28,7 @@ export function themePreviewServiceForHost({ binding }: { binding: SiteBinding }
   const existing = hosts.get(binding.dir);
   if (existing) return existing;
   const root = path.join(path.dirname(sitesRoot), "theme-previews", binding.name);
-  const service = createSitePreviewService({ store: createSitePreviewStore({ root }), capture: createSitePreviewCaptureForHost() });
+  const service = createSitePreviewService({ store: createSitePreviewStore({ root }), capture: createSitePreviewCaptureForHost({ imageCodec: new SharpImageTransformer() }) });
   hosts.set(binding.dir, service);
   return service;
 }

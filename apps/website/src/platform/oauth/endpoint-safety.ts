@@ -183,9 +183,9 @@ export async function withTovuOAuthCopy<T>({ call }: { readonly call: () => Prom
   catch (caught) {
     // Guarded transport clipping is already a structured protocol error. Jini wraps fetch
     // failures as unreachable, so retain the bounded-response verdict rather than its wrapper.
-    const error = caught instanceof JiniOAuthError && caught.code === "OAUTH_PROVIDER_UNREACHABLE"
-      && caught.cause instanceof JiniOAuthError && caught.cause.code === "OAUTH_MALFORMED_RESPONSE"
-      ? caught.cause : caught;
+    let error = caught;
+    if (caught instanceof JiniOAuthError && caught.code === "OAUTH_PROVIDER_UNREACHABLE"
+      && caught.cause instanceof JiniOAuthError && caught.cause.code === "OAUTH_MALFORMED_RESPONSE") error = caught.cause;
     if (!(error instanceof JiniOAuthError)) throw error;
     const operatorAction = error.operatorAction.replace("the connection settings", "Settings → External MCP");
     if (operatorAction === error.operatorAction) throw error;

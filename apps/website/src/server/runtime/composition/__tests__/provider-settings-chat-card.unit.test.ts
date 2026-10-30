@@ -104,7 +104,11 @@ async function fixture({ submit, saved, records = [record], reapply, direct = fa
   const pending = registration!.handler({ executionId: "e1", principal: { id: "owner" }, run: { id: "r1" }, input, signal: new AbortController().signal } as unknown as ToolExecutionContext, {
     emitSurface: async (surface) => {
       transcript += JSON.stringify(surface);
-      const html = (surface as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
+      const resource = surface.payload.resource;
+      assert.ok(resource && typeof resource === "object" && "resource" in resource);
+      const content = resource.resource;
+      assert.ok(content && typeof content === "object" && "text" in content && typeof content.text === "string");
+      const html = content.text;
       const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
       if (match) exchangeId = match[1]!;
     },

@@ -43,8 +43,9 @@ export function parseTestOrigins({ origins }: { origins: readonly string[] }): R
   for (const raw of origins) {
     let url: URL;
     try { url = new URL(raw); } catch { throw new TypeError(`test origin '${raw}' is not a URL`); }
-    const exact = (url.protocol === "http:" || url.protocol === "https:") && LOOPBACK_LITERALS.has(url.hostname)
-      && url.port !== "" && raw.replace(/\/$/, "") === url.origin && !url.username && !url.password;
+    const loopbackHttp = (url.protocol === "http:" || url.protocol === "https:") && LOOPBACK_LITERALS.has(url.hostname);
+    const plainOrigin = raw.replace(/\/$/, "") === url.origin && !url.username && !url.password;
+    const exact = loopbackHttp && url.port !== "" && plainOrigin;
     if (!exact) throw new TypeError(`test origin '${raw}' must be http(s)://127.0.0.1:<port> or http(s)://[::1]:<port>, nothing more`);
     parsed.add(url.origin);
   }

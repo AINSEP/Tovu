@@ -2,7 +2,7 @@ import { captureVisitorEvent, visitorAnalyticsProvenance } from "../../visitor-a
 import { FormSubmissionValidationError, FormRateLimitExceededError, FormDefinitionNotFoundError, FormSubmissionTooFastError, type SubmissionAttempts } from "@jini-ai/cms/forms";
 import type { VisitorAnalyticsDeps } from "../../visitor-analytics.js";
 import { parseFormMultipartMiddleware } from "./forms-multipart.js";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
 import express, { type Express } from "express";
 import { createFormSubmitHandler } from "@jini-ai/cms/forms/express";
 import { submitForm, type SubmitFormDeps } from "#src/features/forms/index";

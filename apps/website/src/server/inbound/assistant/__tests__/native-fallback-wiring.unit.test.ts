@@ -1,6 +1,7 @@
 import { tmpdir } from "node:os";
 import { buildAssistantFilesystemNotices } from "../assistant-filesystem-notices.js";
-import { assistantCliPermissions, ASSISTANT_CLI_CAPABILITIES } from "#src/contracts/headless/assistant-subagents-policy";
+import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
+import { ASSISTANT_CLI_CAPABILITIES } from "#src/contracts/headless/index";
 import { getAgentDef } from "@jini-ai/agent-runtime";
 import assert from 'node:assert/strict';
 import test from 'node:test';

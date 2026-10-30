@@ -49,6 +49,7 @@ export interface OutboxRowView {
   readonly event: DomainEvent;
   readonly status: OutboxRecord["status"];
   readonly attempts: number;
+  readonly nextAttemptAt: string;
   readonly lastError?: string;
 }
 
@@ -59,7 +60,7 @@ export class ObservedOutbox implements OutboxPort {
 
   async enqueue(event: DomainEvent): Promise<void> {
     await this.inner.enqueue(event);
-    this.rows.set(event.id, { id: event.id, event, status: "pending", attempts: 0 });
+    this.rows.set(event.id, { id: event.id, event, status: "pending", attempts: 0, nextAttemptAt: event.occurredAt });
   }
 
   async claimPending(input: Parameters<OutboxPort["claimPending"]>[0]): Promise<OutboxRecord[]> {
@@ -75,7 +76,7 @@ export class ObservedOutbox implements OutboxPort {
 
   async markFailed(input: Parameters<OutboxPort["markFailed"]>[0]): Promise<void> {
     await this.inner.markFailed(input);
-    this.update(input.id, { status: input.nextStatus, lastError: input.error });
+    this.update(input.id, { status: input.nextStatus, lastError: input.error, nextAttemptAt: input.nextAttemptAt });
   }
 
   private update(id: string, change: Partial<OutboxRowView>): void {

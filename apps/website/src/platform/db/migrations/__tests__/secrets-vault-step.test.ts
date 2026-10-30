@@ -1,3 +1,5 @@
+import { openSqliteSnapshot } from "#src/platform/db/kernel/drivers/sqlite";
+import { createCoreTableCatalog } from "#src/server/runtime/composition/database-transfer-adapters";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
@@ -251,9 +253,9 @@ test("SQLite ordinary transfer excludes the vault and all restore artifacts whil
     await kernel.execute(sql`INSERT INTO _vault_backup_tovu_migrations VALUES ('restore-only')`);
     await kernel.execute(sql`CREATE TABLE p_demo__articles (id text PRIMARY KEY, title text)`);
     await kernel.execute(sql`INSERT INTO p_demo__articles VALUES ('live','Visible content')`);
-    const source = openSqliteSnapshotSource(sqliteConnectionOf(kernel)!.serialize());
+    const source = openSqliteSnapshotSource({ bytes: sqliteConnectionOf(kernel)!.serialize(), open: data => openSqliteSnapshot({ data }) });
     try {
-      const plan = planSnapshotTables(source);
+      const plan = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) });
       assert.equal(plan.tables.some(table => table.name === "secrets_vault"), false);
       assert.equal(plan.tables.some(table => table.name.startsWith("_vault_backup_")), false);
       assert.ok(plan.tables.some(table => table.name === "p_demo__articles"));

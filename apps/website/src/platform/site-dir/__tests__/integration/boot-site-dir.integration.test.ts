@@ -14,7 +14,8 @@ import { CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";
 import { applyLegacyEntries, readFrozenChain } from "#src/platform/db/migrations/legacy-sqlite";
 import { workspaces } from "#src/platform/db/schema.sqlite";
 import { runtimeSchemaVersion } from "../../schema-guard.js";
-import { bootSiteDir, closeSiteDirBoot } from "../../boot-site-dir.js";
+import { closeSiteDirBoot } from "../../boot-site-dir.js";
+import { bootSiteDir } from "#src/server/runtime/composition/site-dir";
 
 /**
  * @file SPEC-003 C-008 (`bootSiteDir`) — TDD certification, integration tier.

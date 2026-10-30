@@ -345,6 +345,7 @@ test("AG-UI carries only a boolean redaction signal into the daemon context", as
   const contextRef = JSON.parse(JSON.parse(startCall.body).contextRef);
   assert.equal(contextRef.secretRedacted, true);
   assert.equal(contextRef.prompt, "## user\nConnect [token removed]");
+  assert.equal(contextRef.userPrompt, "Connect [token removed]");
 });
 
 test("full round trip: daemon frames -> real AG-UI SSE events, including the interruption sequence", async (t) => {

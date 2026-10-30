@@ -11,12 +11,12 @@ const selection = { sourceSiteId: "source", ids: ["key"], overwrite: false };
 function fixture({ instance = true }: { instance?: boolean } = {}, _options = {}) {
   const calls: unknown[] = [];
   let allowed = true, instanceAllowed = true;
-  const deps = { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
+  const deps: Deps & { localCredentialCopy: NonNullable<Deps["localCredentialCopy"]> } = { workspaceId: "ws", ownerPrincipalId: Promise.resolve("owner"),
     authorize: async () => { calls.push("rbac"); return { allowed, reason: "pin" }; },
     gatedMutations: { gatewayDeps: { authorizeInstance: instance ? async () => { calls.push("instance"); return { allowed: instanceAllowed, reason: "pin" }; } : undefined } } as Deps["gatedMutations"],
     localCredentialCopy: { localHost: true, list: async () => { calls.push("list"); return []; },
       copy: async input => { calls.push(input); return []; } },
-  } satisfies Deps;
+  };
   const app = express(); registerAdminCredentialCopyRoutes({ app, deps });
   return { calls, deps, deny: () => { allowed = false; }, denyInstance: () => { instanceAllowed = false; },
     async request(input: {
@@ -56,7 +56,7 @@ test("copy admission preserves session, workspace, owner, RBAC, instance and cap
 });
 
 test("copy local admission rejects socket, forwarding, URL, Host and Origin mismatches", async () => {
-  const invalid = [
+  const invalid: Parameters<ReturnType<typeof fixture>["request"]>[0][] = [
     { local: "192.0.2.1" }, { remote: "192.0.2.1" }, { local: "" }, { remote: "" },
     { headers: { forwarded: "for=127.0.0.1" } }, { headers: { "x-forwarded-host": "localhost" } },
     { host: "example.test" }, { host: "LOCALHOST:4242" }, { host: "[" }, { protocol: "ftp" }, { origin: "http://localhost:4242" },

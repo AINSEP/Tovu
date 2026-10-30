@@ -38,7 +38,12 @@ function bootHarness(required: {
     console: { error: (message: string) => { messages.push(message); } },
     installUnhandledRejectionGuard: () => { calls.push("rejections"); },
     pinDefaultSiteRoot: () => { calls.push("pin-root"); },
-    installServerLogCapture: () => { calls.push("capture"); },
+    processBuildRelease: () => "tovu@0.0.0-test",
+    telemetryEnvironment: () => "local",
+    installServerLogCapture: (input: { release: string; environment: string }) => {
+      assert.deepEqual({ ...input }, { release: "tovu@0.0.0-test", environment: "local" });
+      calls.push("capture");
+    },
     siteDir: () => "/site",
     serverLogFilePaths: () => ({ server: "/site/server.log", daemon: "/site/daemon.log" }),
     attachServerLogFile: (input: { filePath: string }, options: { alsoRead: string[] }) => {
@@ -47,6 +52,7 @@ function bootHarness(required: {
       calls.push("attach-logs");
     },
     ensureAgentDaemonToken: () => { calls.push("token"); },
+    ensureToolExecToken: () => { calls.push("tool-token"); },
     registerPluginSdkResolver: () => { calls.push("sdk"); },
     runProductionReadinessGateOrExit: async () => { calls.push("production-gate"); },
     warnIfNoSiteKeyAtBoot: () => { calls.push("key-notice"); },
@@ -103,8 +109,8 @@ for (const memory of [true, false]) {
       const boot = bootHarness({ memory, tls });
       await assert.rejects(boot.main(), (error) => error === boot.compositionReached);
       const preparation = memory
-        ? ["rejections", "capture", "token", "sdk", "production-gate", "key-notice"]
-        : ["rejections", "pin-root", "capture", "attach-logs", "token", "sdk", "production-gate", "claim", "sync-warning", "schema", "ensure-key", "key-notice"];
+        ? ["rejections", "capture", "token", "tool-token", "sdk", "production-gate", "key-notice"]
+        : ["rejections", "pin-root", "capture", "attach-logs", "token", "tool-token", "sdk", "production-gate", "claim", "sync-warning", "schema", "ensure-key", "key-notice"];
       assert.deepEqual(boot.calls, [...preparation, tls ? "https" : "http", "reserve", "origin", ...(memory ? [] : ["ready"]), "error-listener"]);
       assert.equal(boot.env.PORT, "4322");
       const response = boot.response();

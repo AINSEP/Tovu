@@ -1,3 +1,5 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
+import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -8,10 +10,10 @@ import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import { SqliteChangeSetRepo } from "../change-set-repo.sqlite.js";
 import { openContentDb } from "../content-db.js";
 import { SqliteTokenStore } from "../gated-mutation-token-repo.sqlite.js";
-import { SqliteMediaProviderCredentialRepo } from "../media-provider-credential-repo.sqlite.js";
+import { SqliteMediaProviderCredentialRepo } from "../../../../features/media/media-provider-credential-repo.sqlite.js";
 import { SqliteMediaRepo } from "../media-repo.sqlite.js";
 import { SqliteOutboxAdapter } from "../outbox-repo.sqlite.js";
-import { SqliteVendorCredentialSetRepo } from "../vendor-credential-repo.sqlite.js";
+import { SqliteVendorCredentialSetRepo } from "../../../../features/vendor-credentials/vendor-credential-repo.sqlite.js";
 import { writeDuringOthersRollback } from "./concurrent-rollback.js";
 
 /**
@@ -33,7 +35,7 @@ function openSeededDb() {
 
 test("publish credentials: insert survives another caller's rollback", async () => {
   const db = openSeededDb();
-  const repo = new SqliteVendorCredentialSetRepo(db);
+  const repo = new SqliteVendorCredentialSetRepo(contentKernel(db));
   const record = {
     workspaceId: WORKSPACE,
     id: "cred-1",
@@ -54,7 +56,7 @@ test("publish credentials: insert survives another caller's rollback", async () 
 
 test("media provider credentials: replaceWorkspace survives another caller's rollback", async () => {
   const db = openSeededDb();
-  const repo = new SqliteMediaProviderCredentialRepo(db);
+  const repo = new SqliteMediaProviderCredentialRepo(contentKernel(db));
   const record = {
     workspaceId: WORKSPACE,
     providerId: "openai",
@@ -145,7 +147,7 @@ test("user purge: the deletes and the audit event survive another caller's rollb
     sessions: db.$client.prepare("SELECT * FROM sessions WHERE principal_id = ?").all(principalId),
   });
   const neighborBefore = snapshot("principal-neighbor");
-  const purge = new SqliteUserPurge(db);
+  const purge = new SqliteUserPurge({ kernel: contentKernel(db), eventValues: outboxEventValues });
   const removed = await writeDuringOthersRollback(db, () =>
     purge.purgeUser({
       workspaceId: WORKSPACE,

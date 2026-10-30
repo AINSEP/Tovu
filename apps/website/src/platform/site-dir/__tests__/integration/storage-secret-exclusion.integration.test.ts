@@ -15,7 +15,7 @@ import { checkTreeFiles, checkTreePath } from "#src/features/publish-content/fil
 import { collectSiteBackupFiles } from "#src/features/site-backup/sources";
 import { duplicateSite } from "../../duplicate-site.js";
 import { ValidationError } from "../../errors.js";
-import { initSite } from "../../init-site.js";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { isPortableSiteEntry, STORAGE_SECRET_FILENAME } from "../../layout.js";
 import { SITE_META_FILENAME } from "../../site-storage.js";
 import { createGitIgnoreFixture } from "./git-ignore.fixture.js";

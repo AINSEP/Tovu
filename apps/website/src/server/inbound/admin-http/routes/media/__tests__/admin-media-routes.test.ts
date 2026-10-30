@@ -237,10 +237,10 @@ test("admin media routes: upload/list/update/trash responses all include publicU
     body: JSON.stringify({ filename: "hero-shot.png", contentType: "image/png", dataBase64: pngBase64Of("fake-png-bytes") }),
   });
   assert.equal(uploadRes.status, 201);
-  const uploadPayload = (await uploadRes.json()) as { media: { id: string; slug: string; publicUrl: string | null } };
+  const uploadPayload = (await uploadRes.json()) as { media: { id: string; slug: string; sha256: string; publicUrl: string | null } };
   assert.equal(
     uploadPayload.media.publicUrl,
-    `/m/${uploadPayload.media.slug}/${CORE_PUBLIC_TRANSFORM_NAME}.v1/image.webp`,
+    `/m/${uploadPayload.media.slug}/${CORE_PUBLIC_TRANSFORM_NAME}.v1/image.webp?v=${uploadPayload.media.sha256.slice(0, 12)}`,
     "the upload response's publicUrl must be keyed by the asset's readable slug, not its id"
   );
 

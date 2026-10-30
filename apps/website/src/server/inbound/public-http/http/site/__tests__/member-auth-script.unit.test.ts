@@ -91,7 +91,7 @@ test("a reset link: the token leaves the address bar before any request, and pos
   const page = boot({ url: "https://site.example/reset-password#token=tok-1", replies: { "POST /reset-password": { status: 200, body: { ok: true } } } });
   await settle();
   assert.equal(page.window.location.href, "https://site.example/reset-password", "fragment stripped on load");
-  assert.deepEqual(page.calls, [], "nothing is posted on load");
+  assert.deepEqual([...page.calls], [], "nothing is posted on load");
   assert.deepEqual(page.visible(), ["reset"]);
   page.fill("member-reset-password", "a");
   page.submit("reset");
@@ -120,7 +120,7 @@ test("a sign-in link waits for Continue, then posts only the token", async () =>
   await settle();
   assert.equal(page.window.location.hash, "");
   assert.deepEqual(page.visible(), ["magic"]);
-  assert.deepEqual(page.calls, [], "never auto-POST a link token");
+  assert.deepEqual([...page.calls], [], "never auto-POST a link token");
   page.submit("magic");
   await settle();
   assert.deepEqual(page.calls.map((c) => c.body), [{ token: "m-1" }]);

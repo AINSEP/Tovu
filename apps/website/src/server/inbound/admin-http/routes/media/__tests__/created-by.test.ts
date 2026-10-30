@@ -1,3 +1,4 @@
+import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -21,7 +22,7 @@ test("admin upload stamps its actor, PATCH preserves it, and list exposes it", a
     mediaRepo: new InMemoryVersionedMediaRepo(), assetBlobRepo: new InMemoryAssetBlobRepo({}),
     assetRenditionRepo: new InMemoryAssetRenditionRepo({}), blobStore: new InMemoryBlobStore(),
     mediaContentTypeStore: new InMemoryMediaContentTypeStore(), transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}),
-    imageTransformer: new InMemoryImageTransformer(),
+    imageTransformer: new InMemoryImageTransformer(), imageCodec: new SharpImageTransformer(),
     removeMedia: async () => { assert.fail("unexpected removal"); },
     forgetRemovedMedia: async () => { assert.fail("unexpected removal"); },
   };

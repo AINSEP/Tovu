@@ -2,7 +2,7 @@ import {
   type DetectedAgent as RuntimeDetectedAgent,
   type RuntimeModelOption,
 } from "@jini-ai/agent-runtime";
-import { createAssistantDetectionCache, listDetectedAssistantAgents, assistantAgentDiscoveryPending } from "#src/assistant/agents";
+import { createAssistantDetectionCache, listDetectedAssistantAgents, assistantAgentDiscoveryPending } from "#src/assistant/agent-discovery";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AssistantExecutionRouteDeps, AssistantExecutionRouteRegistrar } from "./execution-deps.js";

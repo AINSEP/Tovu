@@ -64,6 +64,15 @@ async function call(d: AdminMailActivityDeps, path: string, req: Record<string, 
 
 const idOf = (key: string, to: string) => Buffer.from(JSON.stringify([key, to])).toString("base64url");
 
+test('suppression removal refuses a stale reviewed revision without removing the address', async () => {
+  const removed: unknown[] = [];
+  const reply = await call(deps(['mail.suppressions.manage'], { mailSuppressionAdmin: suppressionRepo(removed) }), REMOVE,
+    { body: { address: 'ann@example.com', scope: 'all', reason: 'Reviewed with the recipient', confirmed: true, revision: 'stale' } }, WS, 'post');
+  assert.deepEqual(reply, { statusCode: 400, jsonBody: { code: 'INVALID_INPUT',
+    error: 'Suppression changed or no reviewed revision was supplied. Review and confirm the current suppression.' } });
+  assert.deepEqual(removed, []);
+});
+
 test("mail-uses answers the readiness report under admin.forms.manage, else 403", async () => {
   const ok = await call(deps(["admin.forms.manage"]), USES);
   assert.equal(ok.statusCode, 200);

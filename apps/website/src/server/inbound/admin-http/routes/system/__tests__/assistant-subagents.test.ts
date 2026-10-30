@@ -4,7 +4,8 @@ import express from "express";
 import { InMemorySettingsRepo, ensureSettingDefinitions, getEffective } from "@jini-ai/core/settings";
 import { ensureExecutionSettingDefinitions } from "#src/assistant/execution-mode-settings";
 import { readAssistantSubagentsEnabled, readAssistantCliPermissions } from "#src/assistant/subagent-settings";
-import { ASSISTANT_SUBAGENTS_NAMESPACE as namespace, ASSISTANT_SUBAGENTS_WRITE_REASON, ASSISTANT_CLI_PERMISSIONS_KEY, assistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
+import { ASSISTANT_SUBAGENTS_NAMESPACE as namespace, ASSISTANT_SUBAGENTS_WRITE_REASON, ASSISTANT_CLI_PERMISSIONS_KEY } from "#src/contracts/headless/index";
+import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
 import { registerAdminAssistantSubagentsRoutes } from "../assistant-subagents.js";
 import { registerAdminSettingsSetRoute } from "../../settings/set.js";
 import { registerAdminSettingsClearRoute } from "../../settings/clear.js";
@@ -16,6 +17,18 @@ import { createCapturingResponse, extractRouteHandler } from "#src/server/__test
 const base = "/api/admin/v1/workspaces/:workspaceId";
 const settingPath = base + "/system/assistant-full-cli";
 type Deps = Parameters<typeof registerAdminAssistantSubagentsRoutes>[0]["deps"];
+
+test("the picker receives the same effective permission mode as the launch gate", async () => {
+  const previous = process.env.TOVU_AGENT_PERMISSION_MODE;
+  process.env.TOVU_AGENT_PERMISSION_MODE = "restricted";
+  try {
+    const f = await fixture();
+    assert.equal(((await f.request("get")).jsonBody as { permissionMode?: string }).permissionMode, "restricted");
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_AGENT_PERMISSION_MODE;
+    else process.env.TOVU_AGENT_PERMISSION_MODE = previous;
+  }
+});
 
 async function fixture() {
   let id = 0;
@@ -54,8 +67,8 @@ test("boot defaults on, registration is idempotent, and reads expose owner edita
   const f = await fixture();
   assert.equal(f.definition.defaultValue, true);
   assert.equal(f.definition.scopes, 2);
-  assert.deepEqual((await f.request("get")).jsonBody, { ...assistantCliPermissions({ enabled: true }), canEdit: true });
-  assert.deepEqual((await f.request("get", settingPath, { principal: "admin" })).jsonBody, { ...assistantCliPermissions({ enabled: false }), unavailableReason: "Only the owner can change agent permissions.", canEdit: false });
+  assert.deepEqual((await f.request("get")).jsonBody, { ...assistantCliPermissions({ enabled: true }), permissionMode: "bypass", canEdit: true });
+  assert.deepEqual((await f.request("get", settingPath, { principal: "admin" })).jsonBody, { ...assistantCliPermissions({ enabled: false }), permissionMode: "bypass", unavailableReason: "Only the owner can change agent permissions.", canEdit: false });
   const before = await f.repo.maxRevisionSeq();
   await ensureExecutionSettingDefinitions({ settingsRepo: f.repo, clock: f.deps.clock, ids: f.deps.idGen,
     principals: { findActiveById: async () => null }, ensureSettingDefinitions }, { systemPrincipalId: "system" });
@@ -112,7 +125,7 @@ test("hosted sites return disabled permissions and reject owner writes", async (
   process.env.TOVU_HOSTED = "1";
   try {
     const f = await fixture();
-    assert.deepEqual((await f.request("get")).jsonBody, { ...assistantCliPermissions({ enabled: false }), canEdit: false, unavailableReason: "Not available on hosted sites" });
+    assert.deepEqual((await f.request("get")).jsonBody, { ...assistantCliPermissions({ enabled: false }), permissionMode: "restricted", canEdit: false, unavailableReason: "Not available on hosted sites" });
     assert.equal((await f.request("put", settingPath, { body: { enabled: true } })).statusCode, 403);
     assert.deepEqual(await f.values(), []);
   } finally {
@@ -128,7 +141,7 @@ test("a local env kill switch locks the owner's switches with a reason instead o
   process.env.TOVU_AGENT_FORBID_BASH = "1";
   try {
     const f = await fixture();
-    assert.deepEqual((await f.request("get")).jsonBody, { ...assistantCliPermissions({ enabled: false }), canEdit: true,
+    assert.deepEqual((await f.request("get")).jsonBody, { ...assistantCliPermissions({ enabled: false }), permissionMode: "bypass", canEdit: true,
       unavailableReason: "Turned off on this computer by TOVU_AGENT_FORBID_BASH." });
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_FORBID_BASH;
@@ -151,7 +164,7 @@ test("workspace, authentication, and permission boundaries fail closed", async (
   assert.equal((await f.request("put", settingPath, { workspaceId: "foreign", body: { enabled: true, riskAcknowledged: true } })).statusCode, 404);
   assert.equal((await f.request("get", settingPath, { principal: null })).statusCode, 500);
   f.deny();
-  assert.deepEqual((await f.request("get", settingPath, { principal: "admin" })).jsonBody, { ...assistantCliPermissions({ enabled: false }), unavailableReason: "Only the owner can change agent permissions.", canEdit: false });
+  assert.deepEqual((await f.request("get", settingPath, { principal: "admin" })).jsonBody, { ...assistantCliPermissions({ enabled: false }), permissionMode: "bypass", unavailableReason: "Only the owner can change agent permissions.", canEdit: false });
   assert.equal((await f.request("put", settingPath, { body: { enabled: true, riskAcknowledged: true } })).statusCode, 403);
   assert.deepEqual(await f.values(), []);
 });
@@ -201,13 +214,13 @@ test("explicit off survives boot, and re-enabling needs no acknowledgment or rec
   await f.request("put", settingPath, { body: { enabled: false } });
   await ensureExecutionSettingDefinitions({ settingsRepo: f.repo, clock: f.deps.clock, ids: f.deps.idGen,
     principals: { findActiveById: async () => null }, ensureSettingDefinitions }, { systemPrincipalId: "system" });
-  assert.deepEqual((await f.request("get")).jsonBody, { ...assistantCliPermissions({ enabled: false }), canEdit: true });
+  assert.deepEqual((await f.request("get")).jsonBody, { ...assistantCliPermissions({ enabled: false }), permissionMode: "bypass", canEdit: true });
   assert.equal((await f.request("put", settingPath, { body: { enabled: true } })).statusCode, 200);
   const receipt = (await f.repo.listActiveDefinitions({ workspaceId: null }))
     .find(def => def.namespace === namespace && def.key === "riskAcknowledgment")!;
   assert.equal(receipt, undefined, "ordinary owner changes require no consent receipt");
   assert.deepEqual((await f.values()).map(row => [row.actor, row.afterJson]), [["owner", assistantCliPermissions({ enabled: false })], ["owner", assistantCliPermissions({ enabled: true })]]);
-  assert.deepEqual((await f.request("get")).jsonBody, { ...assistantCliPermissions({ enabled: true }), canEdit: true });
+  assert.deepEqual((await f.request("get")).jsonBody, { ...assistantCliPermissions({ enabled: true }), permissionMode: "bypass", canEdit: true });
 });
 
 test("boot reconciles an old OFF definition for an install with no stored value", async () => {
@@ -215,7 +228,7 @@ test("boot reconciles an old OFF definition for an install with no stored value"
   await f.repo.saveDefinition({ ...f.definition, defaultValue: false });
   await ensureExecutionSettingDefinitions({ settingsRepo: f.repo, clock: f.deps.clock, ids: f.deps.idGen,
     principals: { findActiveById: async () => null }, ensureSettingDefinitions }, { systemPrincipalId: "system" });
-  assert.deepEqual((await f.request("get")).jsonBody, { ...assistantCliPermissions({ enabled: true }), canEdit: true });
+  assert.deepEqual((await f.request("get")).jsonBody, { ...assistantCliPermissions({ enabled: true }), permissionMode: "bypass", canEdit: true });
 });
 
 test("HTTP read failure stays unknown instead of presenting a false OFF setting", async () => {

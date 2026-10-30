@@ -7,7 +7,7 @@ import { BASE, WS, fixture, INTERNAL_CODE } from '#src/server/__tests__/helpers/
 import { registerAdminFormsPullSubmissionsRoute } from '../pull-submissions.js';
 
 const PATH = `${BASE}/forms/submissions/pull`;
-const REPORT = { message: 'No new submissions.', destinations: [] };
+const REPORT: Awaited<ReturnType<NonNullable<FormsRouteDeps['formSubmissionsPull']>['pull']>> = { ran: true, message: 'No new submissions.', destinations: [], forms: [], totals: { imported: 0, alreadyImported: 0, unmapped: 0, failed: 0 } };
 
 for (const body of [undefined, null, false, 1, 'text', [], {}, { targetId: undefined }, { targetId: 'x' }, { targetId: 'x'.repeat(64) }, { targetId: ' ' }]) {
   test(`pull characterization: forwards optional target from ${JSON.stringify(body)}`, async () => {

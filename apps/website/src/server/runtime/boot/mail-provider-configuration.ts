@@ -1,7 +1,7 @@
 import type { MailProviderModule, MailProviderSetting } from "@jini-ai/platform/mail";
 
 import type { CustomCredentialSetRecord } from "#src/features/custom-credentials/index";
-import type { MailProviderConfiguration, MailProviderConfigurationReport } from "#src/platform/mail/mail-status";
+import type { MailProviderConfiguration, MailProviderConfigurationReport } from "#src/platform/mail/index";
 import { MAIL_CREDENTIAL_CATEGORY, type MailProviderCatalog } from "./mail-provider-catalog.js";
 
 /**

@@ -54,7 +54,9 @@ import {
   a2uiNotPendingBody,
   AGENT_DAEMON_TOKEN_ENV_VAR,
   deliverA2uiAction,
-  getLiveClaudeModels,
+  createLiveModelDiscovery,
+  fetchLiveClaudeModels,
+  type LiveModelDiscovery,
   unionModels,
   isMcpUiToolCallPermitted,
   isTypedSurfaceAnswer,
@@ -278,17 +280,20 @@ function parseEnrichableAgentList(
 /** Enriches one agent's `models`/`modelsSource` with a live discovery call — the `claude` entry
  *  only, unioned into its static fallback list. See {@link respondWithEnrichedAgentList}'s own doc
  *  for the full union/never-replace/never-hard-fail contract this implements. */
-async function enrichAgentWithLiveModels(agent: AgentSummary, routeDeps: RouteDeps, principalId: string): Promise<AgentSummary> {
+async function enrichAgentWithLiveModels(
+  { agent, liveModels, workspaceId, principalId }: { agent: AgentSummary; liveModels: LiveModelDiscovery; workspaceId: string; principalId: string },
+  _options = {},
+): Promise<AgentSummary> {
   if (agent.id !== "claude") return agent;
-  const live = await getLiveClaudeModels(
-    { repo: routeDeps.adminExecutionCredentialRepo, sealer: routeDeps.siteAssistantSecretSealer },
-    { workspaceId: routeDeps.workspaceId, principalId }
-  );
+  const live = await liveModels.getLiveClaudeModels({ workspaceId, principalId });
   if (!live || live.length === 0) return agent;
   return { ...agent, models: unionModels(agent.models ?? [], live), modelsSource: "live" };
 }
 
-async function respondWithEnrichedAgentList(req: Request, res: Response, routeDeps: RouteDeps): Promise<void> {
+async function respondWithEnrichedAgentList(
+  { req, res, routeDeps, liveModels }: { req: Request; res: Response; routeDeps: RouteDeps; liveModels: LiveModelDiscovery },
+  _options = {},
+): Promise<void> {
   const upstream = await forwardToAgentDaemon(req, res, req.method === "GET" || req.method === "HEAD" ? undefined : req.body, { observability: routeDeps.observability });
   if (!upstream) return;
 
@@ -307,7 +312,7 @@ async function respondWithEnrichedAgentList(req: Request, res: Response, routeDe
   }
 
   const principal = getAuthedPrincipal(res);
-  const enriched = await Promise.all(parsed.agents.map((agent) => enrichAgentWithLiveModels(agent, routeDeps, principal.id)));
+  const enriched = await Promise.all(parsed.agents.map((agent) => enrichAgentWithLiveModels({ agent, liveModels, workspaceId: routeDeps.workspaceId, principalId: principal.id })));
 
   res.json({ ...parsed.payload, agents: enriched });
 }
@@ -528,6 +533,13 @@ async function forwardAttachmentUpload(req: Request, res: Response, daemon: Daem
 export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges: SurfaceExchangeStore): ServerModuleHandle {
   // Every proxied daemon call is an outbound span under the admin request that caused it.
   const daemon: DaemonCallOptions = { observability: routeDeps.observability };
+  // Each host owns its cache for its lifetime; unrelated applications cannot share a model slot.
+  const liveModels = createLiveModelDiscovery({
+    repo: routeDeps.adminExecutionCredentialRepo,
+    sealer: routeDeps.siteAssistantSecretSealer,
+    clock: routeDeps.clock,
+    discover: fetchLiveClaudeModels,
+  });
   return {
     name: "assistant",
     registerRoutes: (app: Express) => {
@@ -557,8 +569,8 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       app.post("/api/runs/:runId/messages", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
 
       app.use("/api/agents", requireAdminSession(routeDeps));
-      app.get("/api/agents", (req, res, next) => respondWithEnrichedAgentList(req, res, routeDeps).catch(next));
-      app.post("/api/agents/rescan", (req, res, next) => respondWithEnrichedAgentList(req, res, routeDeps).catch(next));
+      app.get("/api/agents", (req, res, next) => respondWithEnrichedAgentList({ req, res, routeDeps, liveModels }).catch(next));
+      app.post("/api/agents/rescan", (req, res, next) => respondWithEnrichedAgentList({ req, res, routeDeps, liveModels }).catch(next));
 
       // Browser-reachable tool CATALOG enumeration — `search`/`describe` over the same 131-tool
       // registry `buildAssistantToolRegistrations` populates (`tool-catalog-query.ts`), proxied

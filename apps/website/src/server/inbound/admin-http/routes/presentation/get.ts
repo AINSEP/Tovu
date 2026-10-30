@@ -3,9 +3,8 @@ import {
   PresentationSettingsNotFoundError,
   type PresentationSettingsRecord,
 } from "#src/features/presentation/index";
-import { applicableThemeTemplates, findStoredTheme, validThemeIds, type ThemeTemplateKind } from "#src/features/theme/index";
+import { applicableThemeTemplates, findStoredTheme, validThemeIds, isPackageShippedTheme, type ThemeTemplateKind } from "#src/features/theme/index";
 import { themeCardPreviewUrl } from "#src/features/theme/theme-preview-image";
-import { isPackageShippedTheme } from "#src/features/theme/theme-files";
 import { themePreviewServiceForHost } from "#src/server/runtime/lifecycle/theme-preview-host";
 import { registerAdminThemePreviewRoute } from "../themes/preview.js";
 import { toAdminPresentationResponse } from "#src/server/inbound/admin-http/http/presentation";

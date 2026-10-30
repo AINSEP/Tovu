@@ -17,8 +17,9 @@ import { createNativeApprovalMemory } from "#src/contracts/core/native-approval-
 import { createLiveRunTracker } from "#src/assistant/agent-session-preset";
 import { readChatPermanentDeletesPolicy } from "#src/assistant/permanent-delete-settings";
 import { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "#src/assistant/permanent-delete-tool-gate";
-import { isChatToolAllowed } from "#src/contracts/headless/assistant-permanent-deletes-policy";
-import { createAutomaticPluginRuns } from "#src/assistant/automatic-agent-plugins";
+import { isChatToolAllowed } from "#src/assistant/assistant-permanent-deletes-policy";
+import { askAgentPluginChoice } from "#src/assistant/ask-choice-tool";
+import { createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic-agent-plugins";
 
 
 /** Execute the real daemon's base construction and installed-extension seam. Federation is
@@ -47,7 +48,7 @@ export async function buildDaemonToolSurface(routeDeps: NewsletterRouteDeps): Pr
   const automaticPlugins = daemonVariableStatement(daemonSource.statements, "automaticPluginRuns");
   const automaticIndex = daemonSource.statements.indexOf(automaticPlugins);
   await evaluateDaemonStatements(daemonSource.statements.slice(automaticIndex, automaticIndex + 2), {
-    registry, routeDeps, createAutomaticPluginRuns,
+    registry, routeDeps, createAutomaticPluginRuns, askAgentPluginChoice,
     surfaceExchanges,
   });
   const statements = daemonFunction("start").body!.statements;

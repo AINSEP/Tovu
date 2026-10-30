@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
-import { InMemoryPostRepo, type PostRecord } from "#src/features/post/index";
+import { InMemoryPostRepo, type PublicPostRecord } from "#src/features/post/index";
 import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { renderViaTemplate } from "../../inbound/public-http/routes/site/pages.js";
@@ -13,9 +13,9 @@ const marker = `<p class="post-author" data-embed-config='{"type":"post-author"}
 const content = `<div data-embed-config='{"type":"content"}'></div>`;
 
 /** Render through the real template pipeline, with an injected in-memory post repository. */
-async function render(required: { body: string; author?: string | null; showAuthor?: boolean; partials?: Record<string, string>; preview?: boolean }, optional: { otherPost?: Partial<PostRecord> } = {}): Promise<string> {
+async function render(required: { body: string; author?: string | null; showAuthor?: boolean; partials?: Record<string, string>; preview?: boolean }, optional: { otherPost?: Partial<PublicPostRecord> } = {}): Promise<string> {
   const deps = createRouteDeps();
-  const post: PostRecord = buildPostRecord({
+  const post: PublicPostRecord = buildPostRecord({
     workspaceId: deps.workspaceId, title: "Paris event tips", author: required.author === undefined ? "Annie Lee" : required.author,
     showAuthor: required.showAuthor ?? true,
     bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Post body" }] }] },

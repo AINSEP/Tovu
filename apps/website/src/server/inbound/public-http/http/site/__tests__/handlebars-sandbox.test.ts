@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PostRecord } from "#src/features/post/index";
+import type { PublicPostRecord } from "#src/features/post/index";
 import { renderHandlebarsInSandbox } from "../handlebars-sandbox.js";
 import type { SiteRenderContext } from "../render.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
@@ -19,7 +19,7 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
  * refuse them, and the worker is the only thing standing between them and the server process.
  */
 
-function posts(count: number): PostRecord[] {
+function posts(count: number): PublicPostRecord[] {
   return Array.from({ length: count }, (_, i) => buildPostRecord({
     id: `p${i}`,
     workspaceId: "w1",

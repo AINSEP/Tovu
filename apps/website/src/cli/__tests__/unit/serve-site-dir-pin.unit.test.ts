@@ -132,6 +132,7 @@ test("tovu serve <dir>: the sites agent-tool deps built from the daemon's own bi
 
   const resolved = resolveSitesDeps({
     workspaceId: "ws-1",
+    createSite: async () => { throw new Error("unexpected site creation"); },
     authorize: async () => ({ allowed: true, reason: "test" }),
     siteBinding: describeSiteBinding({ env: childEnv, cwd: process.cwd() }),
   });

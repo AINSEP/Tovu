@@ -10,8 +10,10 @@ import {
   closeSqliteConnection as jiniCloseSqliteConnection,
   type SqliteKernel,
 } from "@jini-ai/db/kernel/sqlite";
-import type { SqliteSyncOpener } from "@jini-ai/db/sqlite";
+import type { SnapshotClient } from "@jini-ai/db/transfer";
 import type { StorageKernel } from "@jini-ai/db/kernel";
+
+export type NativeSqliteDatabase = Database.Database;
 
 export type { SqliteKernel } from "@jini-ai/db/kernel/sqlite";
 
@@ -43,4 +45,15 @@ export function sqliteConnectionOf<DB>(kernel: StorageKernel<DB>): Database.Data
 }
 
 /** Host-owned native opener reused by content/chat bootstraps; Jini owns the opener contract. */
-export const openNativeSqlite: SqliteSyncOpener<Database.Database> = (filePath, options) => new Database(filePath, options);
+export const openNativeSqlite: (filePath: string, options?: Database.Options) => Database.Database = (filePath, options = {}) => new Database(filePath, options);
+
+/** Bind the existing transfer snapshot contract at the native driver seam. No lifecycle is duplicated.
+ * @complexity O(snapshot bytes), delegated to the SQLite deserializer. Native open errors propagate. */
+export function openSqliteSnapshot({ data }: { data: Buffer }, _options = {}): SnapshotClient {
+  const database = new Database(data, { readonly: true });
+  return {
+    // The snapshot port iterates only raw() rows; keep their cells typed as arrays at the driver seam.
+    prepare: (sql: string) => database.prepare<unknown[], unknown[]>(sql),
+    close: () => database.close(),
+  };
+}

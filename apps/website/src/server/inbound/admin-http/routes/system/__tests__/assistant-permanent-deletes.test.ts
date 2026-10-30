@@ -4,7 +4,7 @@ import express from "express";
 import { InMemorySettingsRepo, ensureSettingDefinitions, getEffective } from "@jini-ai/core/settings";
 import { ensureExecutionSettingDefinitions } from "#src/assistant/execution-mode-settings";
 import { readAssistantPermanentDeletesPolicy } from "#src/assistant/permanent-delete-settings";
-import { ASSISTANT_PERMANENT_DELETES_NAMESPACE as namespace, PERMANENT_DELETE_TOOLS } from "#src/contracts/headless/assistant-permanent-deletes-policy";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE as namespace, PERMANENT_DELETE_TOOLS } from "#src/contracts/headless/index";
 import { registerAdminAssistantPermanentDeletesRoutes } from "../assistant-permanent-deletes.js";
 import { registerAdminSettingsSetRoute } from "../../settings/set.js";
 import { registerAdminSettingsClearRoute } from "../../settings/clear.js";

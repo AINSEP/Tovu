@@ -345,7 +345,7 @@ test("path traversal (no matching plugin, raw wire request): DELETE .../plugins/
   }
 });
 
-test("path traversal (malicious manifest id): a discovered-but-invalid site record whose manifest id is a traversal path is refused 400 PLUGIN_ID_INVALID — never deletes outside installDir", async (t) => {
+test("path traversal: folder-bound discovery cannot hide an unsafe-record uninstall path-guard regression", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-plugin-uninstall-traversal-malicious-"));
   const installDir = path.join(root, "plugins");
   // A file OUTSIDE installDir a successful traversal would be able to reach — must survive.
@@ -355,11 +355,10 @@ test("path traversal (malicious manifest id): a discovered-but-invalid site reco
     await mkdir(installDir, { recursive: true });
     await writeFile(canaryFile, "must survive\n", "utf8");
 
-    // A real folder (safe name) whose MANIFEST declares an unsafe `id` — discovery.ts reads `id`
-    // from the manifest first, falling back to the folder name only when the manifest omits it
-    // (discovery.ts's own `discoverOneSiteCandidate`), so this candidate is discovered with
-    // `id: maliciousId`, `status: "invalid"` (EC-01: id must equal folder name) — but still present
-    // in the discovery array (discovery never drops an invalid candidate, only marks it).
+    // A real folder whose manifest declares an unsafe id. Jini 6cb5190b8 binds discovery ids to
+    // folders, retaining an invalid candidate without letting its manifest claim another slot.
+    // Verify that protection, then inject the unsafe record at the discovery port: the independent
+    // uninstall guard must still refuse it rather than turn this test into a not-found check.
     const versionDir = path.join(installDir, "innocuous-folder-name", "1.0.0");
     await mkdir(path.join(versionDir, "server"), { recursive: true });
     await writeFile(path.join(versionDir, "server", "index.mjs"), "export default {};\n", "utf8");
@@ -381,12 +380,20 @@ test("path traversal (malicious manifest id): a discovered-but-invalid site reco
     );
 
     const deps = createRouteDeps({ installDir });
+    const records = await deps.discoverPlugins();
+    const candidate = records.find(record => record.id === "innocuous-folder-name");
+    assert.ok(candidate, "the malicious-manifest fixture must surface under its folder id");
+    assert.equal(candidate.status, "invalid");
+    assert.ok(candidate.errors.some(error => error.code === "ID_FOLDER_MISMATCH"));
+    assert.equal(records.some(record => record.id === maliciousId), false);
+    t.mock.method(deps, "discoverPlugins", async () => [{ ...candidate, id: maliciousId }]);
+    const remove = t.mock.method(deps, "removePlugin");
     const app = createApp(deps);
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     const pluginsBase = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/plugins`;
 
-    // Precondition: discovery really does surface this record under the malicious id (otherwise
-    // this test would only be proving the earlier, easier not-found gate, not the traversal guard).
+    // Precondition: the injected record really reaches the route (otherwise this would only
+    // prove the earlier not-found gate, not the traversal guard).
     const listResponse = await fetch(pluginsBase, { headers: { cookie } });
     const listed = (await listResponse.json()) as { plugins: Array<{ id: string; status: string; source: string }> };
     const maliciousRecord = listed.plugins.find((p) => p.id === maliciousId);
@@ -398,6 +405,7 @@ test("path traversal (malicious manifest id): a discovered-but-invalid site reco
     const body = (await response.json()) as { code?: string };
     assert.equal(response.status, 400, `expected 400 PLUGIN_ID_INVALID, got ${response.status}: ${JSON.stringify(body)}`);
     assert.equal(body.code, "PLUGIN_ID_INVALID");
+    assert.equal(remove.mock.callCount(), 1, "the request must reach the real removal path guard");
 
     assert.equal(await existsOnDisk(canaryFile), true, "a file outside installDir must never be reachable by an uninstall attempt");
     assert.equal(

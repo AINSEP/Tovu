@@ -7,11 +7,11 @@ import { loadInstalledSkillToolSources, buildSkillToolRegistrations } from "#src
 import type { SkillsRouteRegistrar } from "./deps.js";
 
 function hasUploadedSkillFiles(fields: Record<string, unknown>, _options = {}): fields is Record<string, unknown> & { files: { path: string; contentBase64: string }[] } {
-  return Array.isArray(fields.files) && fields.files.every(f =>
-    f && typeof f === "object"
-    && typeof f.path === "string"
-    && typeof f.contentBase64 === "string"
-    && Object.keys(f).every(key => ["path", "contentBase64"].includes(key)));
+  return Array.isArray(fields.files) && fields.files.every(f => {
+    if (!f || typeof f !== "object") return false;
+    return typeof f.path === "string" && typeof f.contentBase64 === "string"
+      && Object.keys(f).every(key => ["path", "contentBase64"].includes(key));
+  });
 }
 
 function installationInput(body: unknown, workspaceId: string): SkillInstallInput {

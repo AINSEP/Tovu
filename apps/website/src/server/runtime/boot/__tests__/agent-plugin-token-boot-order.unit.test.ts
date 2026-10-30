@@ -1,3 +1,4 @@
+import * as externalMcpStore from "#src/assistant/mcp-services";
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
@@ -80,7 +81,7 @@ test("default boot adapters preserve a failed onboarding token over a conflictin
   fs.writeFileSync(pendingFile, JSON.stringify({ version: 1, tokens: { supabase: sealed } }));
   let failImport = true;
   const realDeps = {
-    workspaceId: "ws-boot-token", clock, externalMcpServerRepo: repo,
+    workspaceId: "ws-boot-token", clock, externalMcpServerRepo: repo, externalMcpStore,
     siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring,
     resolveInstalledPlugin: async () => {
       if (failImport) { failImport = false; throw new Error("transient plugin read failure"); }

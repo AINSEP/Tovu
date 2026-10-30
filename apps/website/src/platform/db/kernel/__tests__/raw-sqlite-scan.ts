@@ -28,6 +28,10 @@ const ALLOWED: ReadonlyMap<string, string> = new Map([
     "checksum-pinned vault migration: SQLite parent rebuild and pointer triggers; frozen like 0006"],
   ["apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts",
     "checksum-pinned vault migration: SQLite cannot alter a CHECK, so the vault is rebuilt like 0012; frozen like 0006"],
+  ["apps/website/src/platform/db/migrations/project/0000_project_vault.ts",
+    "checksum-pinned project vault DDL (owner 2026-10-25), frozen like 0012; preserve recorded checksums"],
+  ["apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts",
+    "checksum-pinned project vault CHECK rebuild (owner 2026-10-25), frozen like 0020; preserve recorded checksums"],
 ]);
 
 const RULES: ReadonlyArray<{ id: string; pattern: RegExp }> = [

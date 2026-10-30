@@ -34,7 +34,7 @@ export async function openSiteContentDb(required: string | { dbPath: string }, o
   let open = true;
   try {
     const recovery = await recoverIncompleteDataModuleMigrations({
-      store: db,
+      store: contentKernel(db),
       restoreSnapshots: (entries) => {
         closeSqliteConnection(db);
         open = false;

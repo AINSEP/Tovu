@@ -2,7 +2,7 @@ import { createInterface } from "node:readline";
 import { Writable } from "node:stream";
 
 import { ValidationError } from "../../platform/site-dir/errors.js";
-import { initSite } from "../../platform/site-dir/init-site.js";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { readSiteDir } from "../../platform/site-dir/read-site-dir.js";
 import type { SiteStorage } from "../../platform/site-dir/types.js";
 import { resolveNewSiteAdminPassword } from "../../platform/site-dir/new-site-owner.js";
@@ -164,9 +164,10 @@ async function readAndCheckInitTokens({ input, createInput }: {
   createInput: Awaited<ReturnType<typeof readCreateInput>>;
 }, _options: Record<string, never> = {}): Promise<Record<string, string>> {
   // Read and checked BEFORE the site is made: a rejected token creates nothing.
-  const tokens = input.createInputStdin
-    ? await readNewSiteAgentPluginTokensFromStdin(async () => JSON.stringify(createInput.agentPluginTokens ?? {}))
-    : input.agentPluginTokensStdin ? await readNewSiteAgentPluginTokensFromStdin(input.readAgentPluginTokens) : {};
+  let tokens: Record<string, string>;
+  if (input.createInputStdin) tokens = await readNewSiteAgentPluginTokensFromStdin(async () => JSON.stringify(createInput.agentPluginTokens ?? {}));
+  else if (input.agentPluginTokensStdin) tokens = await readNewSiteAgentPluginTokensFromStdin(input.readAgentPluginTokens);
+  else tokens = {};
   if (Object.keys(tokens).length > 0) await assertNewSiteAgentPluginTokensAccepted(tokens, input.checkAgentPluginToken ?? defaultNewSiteAgentPluginTokenCheck());
   return tokens;
 }
