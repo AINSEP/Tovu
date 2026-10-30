@@ -120,6 +120,23 @@ function toDetectedAgent({ def, launch, modelResult }: {
     ...(modelResult.defaultModelResolution ? { defaultModelResolution: modelResult.defaultModelResolution } : {}) };
 }
 
+/** The optional def/model-derived summary fields, split out of {@link projectAssistantAgent} to keep it
+ * under the shop complexity ceiling.
+ * @complexity O(1). */
+function optionalSummaryFields({ def, modelResult }: {
+  def: AssistantAgentDefs[number];
+  modelResult: Awaited<ReturnType<AgentModelProber>>;
+}): Partial<AssistantAgentSummary> {
+  const { failureHints } = def;
+  const { catalog, defaultModelResolution } = modelResult;
+  return {
+    ...(failureHints ? { failureHints } : {}),
+    ...(catalog ? { modelCatalog: catalog } : {}),
+    ...(defaultModelResolution ? { defaultModelResolution } : {}),
+    ...(def.supportsConcreteModelSelection !== undefined ? { supportsConcreteModelSelection: def.supportsConcreteModelSelection } : {}),
+  };
+}
+
 /** The same projection serves cheap PATH-only snapshots and completed live discovery. */
 function projectAssistantAgent({ def, launch, modelResult }: {
   def: AssistantAgentDefs[number];
@@ -127,19 +144,15 @@ function projectAssistantAgent({ def, launch, modelResult }: {
   modelResult: Awaited<ReturnType<AgentModelProber>>;
 }): AssistantAgentSummary {
   const available = Boolean(launch.launchPath);
-  const { failureHints } = def;
-  const { models, source, catalog, defaultModelResolution } = modelResult;
+  const { models, source } = modelResult;
   return {
     id: def.id,
     name: def.name,
-    ...(failureHints ? { failureHints } : {}),
     available,
     supportsCustomModel: def.supportsCustomModel,
     models,
     modelsSource: source,
-    ...(catalog ? { modelCatalog: catalog } : {}),
-    ...(defaultModelResolution ? { defaultModelResolution } : {}),
-    ...(def.supportsConcreteModelSelection !== undefined ? { supportsConcreteModelSelection: def.supportsConcreteModelSelection } : {}),
+    ...optionalSummaryFields({ def, modelResult }),
     // See `runtimeSupportsExternalTools`'s own doc (`@jini-ai/agent-runtime`'s `registry.ts`):
     // the single derivation point for "can this runtime receive Tovu/Jini tools at all,"
     // keyed off the def's own `externalMcpInjection` declaration rather than a hardcoded
