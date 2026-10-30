@@ -1,0 +1,182 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/chat
+
+ ❯ src/react/components/__tests__/MessageRow.test.tsx (66 tests | 1 failed) 1290ms
+   × MessageRow > keeps one ticking activity line through queue acceptance, consumption and a transient stream disconnect 27ms
+     → Unable to find an element with the text: Thinking… 3 s. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"jini-message jini-message-user"[39m
+      [33mdata-agent-label[39m=[32m"A message from the user, sent while the agent was working"[39m
+      [33mdata-agent-role[39m=[32m"region"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"jini-message-user__queued"[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mQueued — read after the current step[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"jini-message-content"[39m
+      [36m>[39m
+        [0mfollow up[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"jini-message-actions jini-message-actions--user"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Copy message"[39m
+          [33mclass[39m=[32m"jini-message-action-btn"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mfocusable[39m=[32m"false"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"1.6"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"14"[39m
+          [36m>[39m
+            [36m<rect[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mrx[39m=[32m"2"[39m
+              [33mry[39m=[32m"2"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mx[39m=[32m"8"[39m
+              [33my[39m=[32m"8"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+        [36m<span[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mclass[39m=[32m"jini-message-copy-status"[39m
+        [36m/>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"jini-message jini-message-assistant"[39m
+      [33mdata-agent-element[39m=[32m"chat-message-relay-clock"[39m
+      [33mdata-agent-label[39m=[32m"A reply from the assistant"[39m
+      [33mdata-agent-role[39m=[32m"region"[39m
+      [33mdata-message-id[39m=[32m"relay-clock"[39m
+      [33mdata-run-status[39m=[32m"running"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33maria-live[39m=[32m"off"[39m
+        [33mclass[39m=[32m"jini-message-pending jini-run-activity"[39m
+      [36m>[39m
+        [0mThinking… 0 s[0m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/react/components/__tests__/MessageRow.test.tsx > MessageRow > keeps one ticking activity line through queue acceptance, consumption and a transient stream disconnect
+TestingLibraryElementError: Unable to find an element with the text: Thinking… 3 s. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"jini-message jini-message-user"[39m
+      [33mdata-agent-label[39m=[32m"A message from the user, sent while the agent was working"[39m
+      [33mdata-agent-role[39m=[32m"region"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"jini-message-user__queued"[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mQueued — read after the current step[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"jini-message-content"[39m
+      [36m>[39m
+        [0mfollow up[0m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"jini-message-actions jini-message-actions--user"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Copy message"[39m
+          [33mclass[39m=[32m"jini-message-action-btn"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mfocusable[39m=[32m"false"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"1.6"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"14"[39m
+          [36m>[39m
+            [36m<rect[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mrx[39m=[32m"2"[39m
+              [33mry[39m=[32m"2"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mx[39m=[32m"8"[39m
+              [33my[39m=[32m"8"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+        [36m<span[39m
+          [33maria-live[39m=[32m"polite"[39m
+          [33mclass[39m=[32m"jini-message-copy-status"[39m
+        [36m/>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"jini-message jini-message-assistant"[39m
+      [33mdata-agent-element[39m=[32m"chat-message-relay-clock"[39m
+      [33mdata-agent-label[39m=[32m"A reply from the assistant"[39m
+      [33mdata-agent-role[39m=[32m"region"[39m
+      [33mdata-message-id[39m=[32m"relay-clock"[39m
+      [33mdata-run-status[39m=[32m"running"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33maria-live[39m=[32m"off"[39m
+        [33mclass[39m=[32m"jini-message-pending jini-run-activity"[39m
+      [36m>[39m
+        [0mThinking… 0 s[0m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/react/components/__tests__/MessageRow.test.tsx:120:21
+    118|       const queued: AgentEvent = { kind: 'ext', name: 'user_message', …
+    119|       rerender(<MessageRow message={{ ...message, events: [queued] }} …
+    120|       expect(screen.getByText('Thinking… 3 s')).toBeInTheDocument();
+       |                     ^
+    121|       expect(container.querySelectorAll('.jini-run-activity')).toHaveL…
+    122|       act(() => { vi.advanceTimersByTime(5_000); });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 65 passed (66)
+   Start at  08:27:08
+   Duration  8.90s (transform 3.92s, setup 170ms, collect 6.51s, tests 1.29s, environment 434ms, prepare 96ms)
+

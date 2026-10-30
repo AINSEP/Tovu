@@ -4,3 +4,11 @@ jini-test-scripts exit=1
 jini-vitest-agent-runtime exit=0
 jini-vitest-daemon exit=0
 jini-vitest-chat exit=1
+jini-vitest-db exit=0
+jini-vitest-cms exit=1
+jini-vitest-mcp exit=0
+jini-vitest-ui exit=0
+jini-vitest-user-management exit=0
+jini-vitest-provider-plugins exit=0
+jini-vitest-plugin-catalog exit=0
+ALLDONE

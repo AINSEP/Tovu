@@ -1,0 +1,1828 @@
+✔ U-002-B1: confirmRestore rejects and never calls gateway.confirm() when disclosureAcknowledged is missing (1.3798ms)
+✔ U-002-B1: confirmRestore rejects when disclosureAcknowledged is a falsy non-true value (e.g. the string 'true') (0.281593ms)
+✔ U-002-B1/ORD1: confirmRestore forwards to gateway.confirm() only when disclosureAcknowledged===true AND the planId was minted by a prior planRestore call (0.944336ms)
+✔ confirmRestore preserves the gateway's rejection of a mismatched plan hash (0.280332ms)
+✔ U-002-B1 (adversarial): disclosureAcknowledged===true but planId was NEVER minted by this server's own planRestore — Recovery must not bypass the gateway's own provenance rejection (0.294492ms)
+✔ INV-02: a client that bypasses its own UI gate and calls confirmRestore directly, without ever having rendered the disclosure, still cannot mint a token (0.178753ms)
+✔ U-003-B1/ORD1: planRestore calls getCapabilities() fresh and delegates to the gateway when costClass is not 'unavailable' (2.377616ms)
+✔ U-003-B1/ORD1 (EC-05): given costClass is fresh-rechecked as 'unavailable', planRestore refuses to reach the gateway at all, even if a stale cached value elsewhere said 'cheap' (0.32525ms)
+✔ AC-13: a successful plan() preview includes the target schema version+tag, quiesceIntegrity note, and cost/disk estimate (0.470702ms)
+✔ AC-06: costClass 'expensive' still reaches the gateway (only 'unavailable' short-circuits) (0.21737ms)
+✔ AC-10: createRestorePoint succeeds without any plan()/confirm() step or minted token (1.462467ms)
+✔ AC-11: authorize() runs before the idempotency short-circuit, even on the second identical call (4.352212ms)
+✔ createRestorePoint is rejected FORBIDDEN and writes nothing when the caller is unauthorized (0.314376ms)
+✔ createRestorePoint rejects with RESTORE_OPERATION_IN_FLIGHT when a restore or migration is already running (REQ-13 extends to creation via onBeforeCreateOrExecute) (0.234092ms)
+✔ recovery_resolve_deep_link: a non-object input is a ToolInputError (400), not a bare Error (redacted 500) (606.494005ms)
+✔ recovery_resolve_deep_link: a malformed envelope field is a ToolInputError (400), not a bare Error (redacted 500) (297.302161ms)
+✔ recovery_resolve_deep_link: malformed correlationId is an input error naming that field (250.48155ms)
+✔ recovery_resolve_deep_link: malformed siteId is an input error naming that field (621.320157ms)
+✔ recovery_resolve_deep_link: malformed drift is an input error naming that field (350.46252ms)
+✔ recovery_resolve_deep_link: malformed intent is an input error naming that field (238.265947ms)
+✔ recovery_resolve_deep_link: malformed issuedAt is an input error naming that field (253.347997ms)
+✔ recovery_resolve_deep_link: malformed ledgerEventId is an input error naming that field (169.857102ms)
+✔ recovery_resolve_deep_link: malformed restorePointId is an input error naming that field (344.642638ms)
+✔ admin.redirects.manage is checked before any dialog is raised, and a denied principal never sees one (11.748692ms)
+✔ a nonexistent redirect id is refused before any dialog is raised (0.866634ms)
+✔ list/get/hits registrations forward filters and rule identity and return stored data (10.403347ms)
+✔ create/update/import registrations persist the supplied fields and actor (9.790427ms)
+✔ redirects_list: a denied principal leaves all rules unchanged (5.346883ms)
+✔ redirects_get: a denied principal leaves all rules unchanged (0.789364ms)
+✔ redirects_get_hits: a denied principal leaves all rules unchanged (1.439212ms)
+✔ redirects_create: a denied principal leaves all rules unchanged (0.679172ms)
+✔ redirects_update: a denied principal leaves all rules unchanged (3.408587ms)
+✔ redirects_import: a denied principal leaves all rules unchanged (1.39242ms)
+✔ n06: reversible removal runs without a confirmation channel (1.121499ms)
+✔ Bug B: redirects_tombstone moves a rule to the Trash — redirects_list drops it, redirects_update status 'active' brings it back (5.005599ms)
+✔ Bug B: the tool text says what removal does — Trash, off the list, restorable — and no longer calls it a disable (1.497733ms)
+✔ the redirects barrel exports exactly the SQLite repo, tables and phase-handler registrar (2.395345ms)
+✔ a superseded composition's disposer does not revoke the newer composition's redirects (3.091803ms)
+✔ the live composition's disposer still revokes it, idempotently (0.713109ms)
+✔ registered phases forward the request context and reserve pre-content for override rules (5.396948ms)
+[routing] a pre_content resolver failed for /x — skipping it TypeError: The database connection is not open
+    at Object.resolve (/home/user/Tovu/apps/website/src/features/redirects/__tests__/phase-handler.error-isolation.test.ts:25:15)
+    at preContentHandler (/home/user/Tovu/apps/website/src/features/redirects/phase-handler.ts:63:39)
+    at runPhase (/home/user/Jini/packages/cms/src/routing/routing.ts:491:25)
+    at runPreContentPhase (/home/user/Jini/packages/cms/src/routing/routing.ts:561:12)
+    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/redirects/__tests__/phase-handler.error-isolation.test.ts:30:22)
+    at Test.runInAsyncScope (node:async_hooks:227:14)
+    at Test.run (node:internal/test_runner/test:1402:25)
+    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+[routing] a post_content resolver failed for /x — skipping it TypeError: The database connection is not open
+    at Object.resolve (/home/user/Tovu/apps/website/src/features/redirects/__tests__/phase-handler.error-isolation.test.ts:25:15)
+    at postContentHandler (/home/user/Tovu/apps/website/src/features/redirects/phase-handler.ts:71:39)
+    at runPhase (/home/user/Jini/packages/cms/src/routing/routing.ts:491:25)
+    at runPostContentPhase (/home/user/Jini/packages/cms/src/routing/routing.ts:574:12)
+    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/redirects/__tests__/phase-handler.error-isolation.test.ts:31:22)
+    at async Test.run (node:internal/test_runner/test:1409:7)
+    at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+✔ a redirects resolver that throws is isolated in both phases — Redirects opts into skip (38.986877ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ a second site's request never runs the first site's phase handler, and the first site's CLOSED database can no longer 500 it (6243.237016ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ the disposer registerRedirectsPhaseHandlers returns revokes the live registration outright (2114.452228ms)
+✔ wiring characterization (not a security contract): swapping RouteDeps.redirectRepo after createRouteDeps() does NOT change which repo the redirect resolver consults at request time — it is bound by object identity at construction, unlike postRepo (624.023083ms)
+✔ pack(): pinned contentHash, schemaVersion and packed state per redirect; disabled rows skipped (11.458832ms)
+✔ inspect(): the destination's hash equals the pinned pack hash (3.88415ms)
+✔ pack(): wildcard state, title and independently calculated content hash are pinned (2.876323ms)
+✔ precheck(): exact reason strings (3.562112ms)
+✔ apply(): exact blocked text; unwired throws naming the port (3.236398ms)
+✔ apply(): a vanished destination row is a conflict (text changes to changedSincePlan by the plan) (0.72198ms)
+✔ apply(): update keeps the destination row id as changeSetId and ignores the synthetic title (3.035271ms)
+✔ pack() yields nothing when redirectsWriteDeps is absent (2.934803ms)
+✔ pack() skips a disabled (tombstoned) row and packs an active one, keyed by natural key (4.933111ms)
+✔ pack() packs a plain-English title so the Publish dialog never falls back to a short id (1.939623ms)
+✔ inspect() resolves an existing destination row by natural key, not by the per-install row id (1.737942ms)
+✔ inspect() returns null for a malformed id, a missing row, or an absent redirectsWriteDeps (0.357818ms)
+✔ precheck() rejects a loop with the exact chokepoint message text (1.07327ms)
+✔ precheck() reports a message rather than throwing when redirectsWriteDeps is absent (0.524912ms)
+✔ apply() creates a 301 redirect and carries all transferred fields including override (1.018832ms)
+✔ apply() creates a 302 redirect and carries all transferred fields including override (1.416425ms)
+✔ apply() creates a 307 redirect and carries all transferred fields including override (0.962841ms)
+✔ apply() creates a 308 redirect and carries all transferred fields including override (0.545867ms)
+✔ apply() updates an existing destination row, re-resolved by natural key (1.227138ms)
+✔ apply() throws loudly (not a row downgrade) when redirectsWriteDeps is absent (1.192374ms)
+✔ apply() downgrades a refused write (disallowed target) to a blocked row instead of aborting the run (0.885033ms)
+✔ apply() reports a conflict when the destination row disappeared between plan and apply (0.50413ms)
+✔ apply() preserves a concurrent natural-key redirect edit and rejects a repeated stale request (1.240652ms)
+✔ precheck() names a malformed natural key instead of validating fields (0.581726ms)
+✔ apply() refuses a malformed natural key loudly before any write (0.56318ms)
+✔ apply() updating a row from a bundle with no status keeps the redirect active (0.45491ms)
+✔ redirects_get: an unknown id tells the model REDIRECTS_NOT_FOUND, not a redacted internal error (5.805865ms)
+✔ redirects_get_hits: an unknown id tells the model REDIRECTS_NOT_FOUND, not a redacted internal error (1.29662ms)
+✔ redirects_update: an unknown id tells the model REDIRECTS_NOT_FOUND, not a redacted internal error (1.077139ms)
+✔ redirects_tombstone: an unknown id tells the model REDIRECTS_NOT_FOUND, not a redacted internal error (1.091836ms)
+✔ redirects_create: an invalid pattern is REDIRECTS_VALIDATION with the chokepoint's own reason (3.268288ms)
+✔ redirects_create: an off-site target is REDIRECTS_TARGET_NOT_ALLOWED (3.44426ms)
+✔ redirects_create: a duplicate active rule is REDIRECTS_CONFLICT (3.587367ms)
+✔ redirects_create: a cycle is REDIRECTS_LOOP naming the rule that would close it (2.45872ms)
+✔ redirects_list: a permission denial is REDIRECTS_FORBIDDEN, not a redacted internal error (2.66226ms)
+✔ redirects_get: a permission denial is REDIRECTS_FORBIDDEN, not a redacted internal error (1.167671ms)
+✔ redirects_get_hits: a permission denial is REDIRECTS_FORBIDDEN, not a redacted internal error (0.475101ms)
+✔ redirects_create: a permission denial is REDIRECTS_FORBIDDEN, not a redacted internal error (0.33153ms)
+✔ redirects_update: a permission denial is REDIRECTS_FORBIDDEN, not a redacted internal error (0.354408ms)
+✔ redirects_tombstone: a permission denial is REDIRECTS_FORBIDDEN, not a redacted internal error (0.327078ms)
+✔ redirects_import: a permission denial is REDIRECTS_FORBIDDEN, not a redacted internal error (0.515272ms)
+✔ an unlisted infrastructure error stays redacted (not reclassified as a ToolInputError) (1.675737ms)
+✔ redirects_import: an infrastructure failure on one rule reports a fixed message, never the raw internal text (2.638252ms)
+✔ redirects_import: a listed domain failure still reports its own actionable message (1.149806ms)
+✔ redirects_list refuses an off-enum status, source or matchType naming the allowed values, before reading (0.904371ms)
+✔ TW2-L302: featured media and absent covers preserve the original post identity (1.303348ms)
+✔ TW2-L302: library cover projects only featuredMediaId, preserving stored SEO and the raw row (1.101196ms)
+✔ TW2-L302: external cover treats missing, malformed, scalar, null and array SEO as empty overrides (1.221724ms)
+✔ TW2-L302: truthy OG overrides win; falsy overrides use the external cover and retain other keys (0.316226ms)
+✔ TW2-L302: empty media id uses URL fallback; missing URL omits a falsy OG override (0.246623ms)
+✔ featfallback: body cover reaches OG/Twitter/JSON-LD, featured wins, empty posts emit no broken image (16.0941ms)
+✔ featfallback: HTML media and img use the library, overrides win and body cover outranks site default (16.875641ms)
+✔ featfallback: skip video/trashed media; absolute HTTPS external body URLs reach OG and Twitter but not JSON-LD (13.938076ms)
+✔ an invalid ref, a missing asset and a trashed asset are all skipped; the live asset becomes the cover (33.000181ms)
+✔ a body whose only media ref is unusable resolves no library cover (0.81009ms)
+✔ withCoverReadDeps on a missing entry returns the deps untouched with no cover (1.613844ms)
+✔ withCoverReadDeps binds a read-only post port that serves the projected row (0.76375ms)
+✔ no raw row, or an image that is not an override, leaves the meta as evaluated (4.588884ms)
+✔ a stored ogImage override keeps the override label (0.513776ms)
+✔ a projected cover with no stored override (absent, empty or malformed SEO) is relabelled content (0.640025ms)
+✔ createSeoDeps: siteTitle counts only an explicit workspace title, never the registered default (9.525223ms)
+✔ createSeoDeps: static bindings, clock/transform receivers and public-access decision (2.138917ms)
+✔ createSeoDeps: liveness and url ports delegate to the scheduled-publish and routing owners (0.84264ms)
+✔ createSeoDeps: dispatch drains the outbox through the host outbox worker (5.019242ms)
+✔ createSeoPostPort: every port method calls through the host repo with its receiver intact (1.489034ms)
+✔ ensureSeoSettingDefinitions: idempotent — calling twice registers exactly 8 definitions, not 16 (11.223251ms)
+✔ getSeoSettings: resolves schema defaults with zero writes (behavior.spec.md §3) (81.839512ms)
+✔ setSeoSettings: PUT valid settings, GET round-trips them (AC-24) (10.745737ms)
+✔ setSeoSettings: titleTemplate without %s is rejected, zero settings changed (AC-25) (1.587807ms)
+✔ setSeoSettings: titleTemplate containing %s twice is accepted (1.039598ms)
+✔ setSeoSettings: a 500-char titleTemplate (containing %s) is accepted (1.242276ms)
+✔ setSeoSettings: a 501-char titleTemplate is rejected (0.927895ms)
+✔ setSeoSettings: robotsRules with exactly 50 entries is accepted (1.864648ms)
+✔ setSeoSettings: robotsRules with 51 entries is rejected, zero settings changed (1.135347ms)
+✔ setSeoSettings: defaultRobots decomposes into 2 booleans and recomposes on read (1.238266ms)
+✔ setSeoSettings: no baseUrl/seo.base_url-shaped field exists anywhere in SeoSettings (INV-07) (1.197358ms)
+✔ setSeoSettings: unauthorized write is rejected FORBIDDEN with zero writes (1.054549ms)
+✔ setSeoSettings: the caller needs only admin.seo.manage in the target workspace (0.916053ms)
+✔ setSeoSettings: defaultDescription is validated, written, and round-trips (1.164075ms)
+✔ setSeoSettings: non-string defaultDescription is rejected (0.676006ms)
+✔ setSeoSettings: a 501-char defaultDescription is rejected (0.548125ms)
+✔ setSeoSettings: a null defaultDescription bypasses validation and reads back as undefined (the '' sentinel) (1.093283ms)
+✔ setSeoSettings: defaultOgImage is validated, written, and round-trips (0.943869ms)
+✔ setSeoSettings: non-string defaultOgImage is rejected (0.653868ms)
+✔ setSeoSettings: a 2049-char defaultOgImage is rejected (0.488418ms)
+✔ setSeoSettings: a null defaultOgImage bypasses validation and reads back as undefined (0.945941ms)
+✔ setSeoSettings: twitterSite is validated as a bounded string, written, and round-trips (0.784284ms)
+✔ setSeoSettings: a non-string twitterSite is rejected, titleTemplate is left unchanged (all-or-nothing) (1.125556ms)
+✔ setSeoSettings: a 101-char twitterSite is rejected (2.920632ms)
+✔ setSeoSettings: an empty patch is rejected (3.634665ms)
+✔ setSeoSettings: an unknown patch key is rejected, zero settings changed (0.888243ms)
+✔ setSeoSettings: a null twitterSite is written as the '' sentinel and reads back as undefined (1.890858ms)
+✔ setSeoSettings: a defaultRobots patch missing the 'nofollow' boolean is rejected (0.563251ms)
+✔ setSeoSettings: a non-boolean sitemapEnabled is rejected (0.464762ms)
+✔ setSeoSettings: a non-array robotsRules is rejected (0.466271ms)
+✔ setSeoSettings: a robots rule missing userAgent is rejected (8.588495ms)
+✔ setSeoSettings: a robots rule with a blank userAgent is rejected (0.605566ms)
+✔ setSeoSettings: a robots rule with a non-array 'allow' is rejected (0.66896ms)
+✔ setSeoSettings: a robots rule with a non-array 'disallow' is rejected (0.639521ms)
+✔ setSeoSettings: a robots rule 'allow' with 101 entries is rejected (0.765947ms)
+✔ setSeoSettings: a robots rule 'allow' with exactly 100 entries is accepted (1.804534ms)
+✔ getSeoSettings: with no registered definitions every key falls back to its safe default (0.431543ms)
+✔ setSeoSettings: an ISO-only clock is adapted, and a robots change invalidates the sitemap once (1.291502ms)
+✔ SEO writes rebuild the sitemap when noindex is disabled or cleared and canonical is changed or cleared (26.499864ms)
+✔ the production app registers sitemap invalidation for each entry lifecycle event independently (6577.546565ms)
+✔ publish -> entry.published -> sitemap cache invalidated (16.979104ms)
+✔ unpublish -> entry.unpublished -> sitemap cache invalidated (8.825197ms)
+✔ published -> published edit -> entry.updated -> sitemap cache invalidated (10.258731ms)
+✔ create directly as published -> entry.published -> sitemap cache invalidated (8.799511ms)
+✔ draft -> draft edit emits no event and the cache stays untouched (3.964284ms)
+✔ buildSitemap end-to-end: with TOVU_PUBLIC_URL configured, loc is absolute in production (2026-09-18) (145.147591ms)
+✔ buildSitemap end-to-end: with nothing configured, loc stays a safe relative path in production -- never localhost (111.803952ms)
+✔ setEntrySeoOverrides appends a post_revisions row, attributed to the real caller — SEO edits must not escape the ledger (6.041714ms)
+✔ setEntrySeoOverrides's revision chains after a prior revision, like any other post write (1.406671ms)
+✔ setEntrySeoOverrides: memory transaction rolls the row and ledger back when revision append fails (1.725047ms)
+✔ setEntrySeoOverrides: sqlite transaction rolls the row and ledger back when revision append fails (264.588986ms)
+✔ setEntrySeoOverrides: PUT-then-GET round trip persists into posts.seo_ext_json via the real SQLite adapter (301.38857ms)
+✔ setEntrySeoOverrides: entry-not-found against the real SQLite adapter rejects SeoEntryNotFoundError (172.943359ms)
+✔ setEntrySeoOverrides: SQLite retries a stale read and preserves the competing content and SEO save (124.854834ms)
+✔ no filters returns everything oldest first with counts (7.628964ms)
+✔ level is a minimum severity (0.645056ms)
+✔ sinceIso is inclusive and contains is case-insensitive (0.403592ms)
+✔ limit keeps the NEWEST matches and reports truncation (0.413783ms)
+✔ capturing false is passed through so an empty list is not read as no errors (0.931206ms)
+✔ parse accepts tool JSON and HTTP query strings alike (1.039226ms)
+✔ parse rejects each unusable field with a message naming it (1.109593ms)
+✔ returns the filtered lines through the shared readServerLogs (4.226747ms)
+✔ an unusable filter is a ToolInputError naming the field (1.374808ms)
+✔ unexpected failures reading a filter propagate unchanged without reading logs (0.690932ms)
+✔ omitting the source reads the attached process log (9.108613ms)
+✔ permission denial precedes reading any log line (0.806912ms)
+✔ descriptor is read-only with derived none risk (0.63214ms)
+✔ description names every schema field and its exact bounds (0.856232ms)
+✔ registers the three Chat settings → Display keys per operator with the owner's defaults (9.160213ms)
+✔ keys match the admin's ledger names (0.370783ms)
+✔ an operator with no stored row reads the defaults from the default layer (4.638673ms)
+✔ registers the admin theme per operator, defaulting to classic (3.64184ms)
+✔ registers per-operator admin-theme accents as a separate appearance object (1.363152ms)
+✔ registering again on the next boot leaves the definitions unchanged (5.559126ms)
+✔ Agent plugins defaults Auto and supports independent per-person values (3.55586ms)
+✔ assistant runtime preference: preferSubagents is a per-person boolean defaulting ON (1.652941ms)
+✔ assistant runtime preference: useClaudeInChrome is a per-person boolean defaulting ON (6.092802ms)
+✔ reply length defaults to Normal, validates its enum and persists independently per person (3.353086ms)
+✔ unrelated and missing definitions bypass chat authorization (11.910547ms)
+✔ chat scope and entitlement fail before discovery (7.654927ms)
+✔ empty localCli.model repairs an axis without inventory or a valid sibling (4.615121ms)
+✔ empty localCli.reasoning repairs an axis without inventory or a valid sibling (0.776923ms)
+✔ agent  is rejected before inventory (4.794811ms)
+✔ agent null is rejected before inventory (0.796759ms)
+✔ agent 42 is rejected before inventory (0.477275ms)
+✔ missing inventory and runtime refusals propagate (7.109501ms)
+✔ snapshot binds model "default" and only binds concrete Default for default choices (7.225929ms)
+✔ snapshot binds model "model-a" and only binds concrete Default for default choices (1.770087ms)
+✔ clear validates inherited defaults and binds unresolved Default as null (1.896329ms)
+✔ canonical aliases bind the chat axis while registered unrelated settings bypass it (7.292167ms)
+✔ a chat axis with no registered definition reads as empty in the bound snapshot (1.078928ms)
+✔ clearing an axis whose inherited default is null binds it as empty (0.738258ms)
+✔ G15 T3: B removes while A holds a stale save snapshot; A's save keeps B's removal (330.264075ms)
+✔ G15 T3: concurrent adds merge both bindings after the stale writer retries (256.429882ms)
+✔ G15 T3: retrying an edit of the binding B removed refuses instead of resurrecting it (192.536628ms)
+✔ G15 T3: a stale removal keeps the binding another panel added (215.327196ms)
+✔ G15 T3: a stale owner write rolls back its revision and leaves the committed value intact (387.345951ms)
+✔ a save whose expected snapshot still matches the stored bindings goes through (3.281351ms)
+✔ a save from a stale snapshot is refused with the conflict error and nothing is stored (0.773513ms)
+✔ every other member passes through: methods bound to the real repo, data members as-is (0.274156ms)
+(node:24828) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24828) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ writeFormDeliveryBindings saves the cleaned list through the host settings chokepoint (157.09077ms)
+✔ a config key named like a secret is refused at any depth, naming the field and the fix (2.726067ms)
+✔ a credential-shaped value under an innocent key is refused without repeating the value (1.32598ms)
+✔ the newer secret key names are refused: private/access keys, credential(s), auth/authorization, passphrase, pwd (0.738855ms)
+✔ ordinary keys that only contain a shorter word stay allowed (author, authorName) (0.946539ms)
+✔ an HTTP Basic credential or a URL with user:pass@ is refused as a config value (0.500524ms)
+✔ plain words after Basic and URLs without a password stay allowed (0.241903ms)
+✔ bindingId, adapterId and connectionRef holding a credential-shaped value are refused without repeating it (5.87096ms)
+✔ a secret smuggled as an extra top-level binding field is refused, not silently dropped (0.393367ms)
+✔ a repeated bindingId is refused, since the job index would abort the whole delivery plan (0.349606ms)
+✔ at most 100 bindings are accepted (2.389653ms)
+✔ at most 1000 formIds per binding are accepted (4.136749ms)
+✔ the validating write refuses a secret-carrying list before the ledger is touched (6.83058ms)
+✔ the host settings chokepoint (generic settings route and tools) refuses the same list (4.776679ms)
+✔ ensureFormDeliverySettings registers deliveryBindings defaulting to no bindings and autoPull defaulting to on (6.389913ms)
+✔ registering again keeps an owner's stored values (14.924086ms)
+✔ automatic pull reads as on when the definition was never registered (0.461041ms)
+✔ automatic pull reads the stored value fresh on every call (1.157546ms)
+✔ delivery bindings read as none when the definition was never registered (0.369122ms)
+✔ a valid list written through the host chokepoint is stored as written and read back parsed (9.208698ms)
+✔ a stored list that breaks a rule (written past the host chokepoint) is refused when read for planning (16.787996ms)
+✔ enforceFormDeliveryBindingsWrite returns any other setting's input untouched, even a list a binding parser would refuse (8.402639ms)
+✔ enforceFormDeliveryBindingsWrite returns a valid bindings write as the same input, value not rewritten (3.021166ms)
+✔ enforceFormDeliveryBindingsWrite refuses an invalid bindings write with the parser's message (0.721704ms)
+✔ the host chokepoint still applies the site title rule next to the bindings rule (0.880621ms)
+✔ an empty list is valid and means no destinations (0.151829ms)
+✔ a value that is not a list is refused (0.40398ms)
+✔ a list entry that is not an object is refused, naming its 1-based position (0.372808ms)
+✔ enabled must be a boolean (0.284207ms)
+✔ bindingId, adapterId and connectionRef must be non-empty strings of at most 256 characters (0.541882ms)
+✔ formIds absent means every form and is left out of the result; an empty list means none and is kept (0.25989ms)
+✔ formIds that is not a list is refused, saying to omit it for every form (0.240775ms)
+✔ every formIds entry must be a bounded non-empty string (1.417615ms)
+✔ a credential-shaped formIds entry is refused without repeating it (0.300373ms)
+✔ config must be an object; {} is the empty config (0.40841ms)
+✔ a credential-shaped string inside a config list is refused at its indexed path (0.356884ms)
+✔ an HTTP Basic prefix whose base64 decodes without a colon is an ordinary value (0.324659ms)
+✔ an unknown field name longer than 80 characters is quoted cut short (0.192949ms)
+✔ the parsed config is a deep copy: later changes to the input never reach it (0.246067ms)
+✔ the first broken rule is reported for the binding where it occurs (0.251603ms)
+✔ property: any list of well-formed bindings with non-secret config parses to an equal list (18.829165ms)
+✔ a raw vendor-prefixed token under an innocent config key is accepted (reported, not fixed) (1.560377ms)
+✔ an ensured receiver setting reads back its 'auto' default (2.425496ms)
+✔ a missing definition, or a non-string stored default, reads as undefined (0.522091ms)
+✔ readMailProviderSetting is null while never stored, and when the definition is not registered (3.100931ms)
+✔ writeMailProviderSetting stores both lanes, including an explicit unconfigured value (2.464454ms)
+✔ a malformed stored provider reads as both lanes unconfigured, never as unset (2.131485ms)
+✔ parseMailProviderSetting accepts lane ids and null, refuses everything else (0.46254ms)
+✔ parseMailTestMode: redirect needs an address; anything unknown is off (0.282795ms)
+✔ readMailTestMode defaults to off and reads a stored mode fresh (0.754997ms)
+✔ ensureMailSenderSettings registers core.mail.senderEmail and senderName, both defaulting to empty (2.959886ms)
+✔ readMailSenderSetting reads nothing configured from the registered defaults (1.558355ms)
+✔ readMailSenderSetting reads nothing configured when the definitions were never registered (0.530146ms)
+✔ readMailSenderSetting returns the saved address and display name, trimmed (3.207282ms)
+✔ readMailSenderSetting leaves a blank value out, so an address alone reads without a name (1.136923ms)
+✔ readMailSenderSetting is scoped to the workspace it is asked about (0.96864ms)
+✔ an active principal of the asked workspace resolves to its id only (3.366762ms)
+✔ a missing principal never becomes a settings target (0.408926ms)
+✔ a disabled principal never becomes a settings target (0.369188ms)
+✔ a row from another workspace is refused even when the repository returns it (0.254525ms)
+✔ a row under a different id is refused even when the repository returns it (0.457201ms)
+✔ only allowlisted, non-secret workspace values pack; secrets, user values, crawl controls and other namespaces never do (398.996288ms)
+✔ a share image URL on this computer does not pack, and a hand-made one is refused (540.63679ms)
+✔ the destination refuses a bundle naming a setting outside the allowlist, and never writes it (347.61303ms)
+✔ settings round-trip: created, then unchanged; the ledger records the write; a live edit is a conflict (487.33972ms)
+✔ a setting cleared on the source clears on the live site through the ledger, then re-plans unchanged (420.046519ms)
+✔ a cleared setting the live site never had lands as a clear too; a never-set one packs nothing (327.462288ms)
+✔ a title the destination's bounds reject is blocked, not written (434.160984ms)
+✔ active theme: a missing theme folder is refused; once it is there the switch lands and re-plans unchanged (453.700309ms)
+✔ active theme: the row is named by the theme's theme.json name, without touching its state or hash (334.154065ms)
+✔ active theme: a blank theme.json name is no display name, and an invalid theme folder is not an installed tree (432.505932ms)
+✔ active theme: only the 'site' row exists, and an unparsable updatedAt inspects as version 0 (408.864484ms)
+✔ active theme: a destination with no presentation row is refused cleanly (370.563996ms)
+✔ active theme: a denied theme.set cannot switch an installed theme (258.67076ms)
+✔ share-image local detection rejects malformed absolute URLs and every supported local host (0.468399ms)
+✔ share-image references carry only UUID media identities, and other settings never add references (376.772257ms)
+✔ a share image targeting this computer is refused again at apply without writing a value or revision (322.296396ms)
+✔ allowlisted settings still refuse ineligible definitions: {"secret":true} (278.147349ms)
+✔ allowlisted settings still refuse ineligible definitions: {"scopes":4} (407.063062ms)
+✔ allowlisted settings still refuse ineligible definitions: {"status":"deprecated"} (640.09372ms)
+✔ an allowlisted setting with no destination definition is refused (598.415653ms)
+✔ an omitted incoming setting value is written as null through the revision ledger (321.260353ms)
+✔ a raw DELETE on a workspace holding a setting_values_workspace row is rejected by the RESTRICT FK (AC-13/EC-07) (456.646095ms)
+✔ a raw DELETE on a workspace holding a setting_values_user row is rejected by the RESTRICT FK (AC-13/EC-07) (289.668182ms)
+✔ PURGE_REQUIRED is resolved by running the purge service first: after purgeTenantSettings clears a workspace's rows, the raw DELETE succeeds (155.180719ms)
+✔ [InMemorySettingsRepo] saveDefinition + findActiveDefinition round-trips (2.281457ms)
+✔ [InMemorySettingsRepo] a retyped definition's coercionTag round-trips as the bare tag (0.361981ms)
+✔ [InMemorySettingsRepo] findActiveDefinition returns null for an unknown key (0.996776ms)
+✔ [InMemorySettingsRepo] global/workspace/user value save+get round-trip independently (0.803241ms)
+✔ [InMemorySettingsRepo] appendRevision assigns a monotonically increasing seq and listRevisions returns ascending order (1.210559ms)
+✔ [InMemorySettingsRepo] listRevisionsSince does not let another workspace's writes crowd a page (1.372211ms)
+✔ [InMemorySettingsRepo] listRevisionsSince still returns platform-wide revisions to every workspace (0.31238ms)
+✔ [InMemorySettingsRepo] listRevisionsSince still honours sinceSeq and limit under the workspace predicate (0.351897ms)
+✔ [InMemorySettingsRepo] deleteWorkspaceValue/deleteUserValue remove exactly the targeted row (0.983876ms)
+✔ [InMemorySettingsRepo] listUserValuesByWorkspace returns every principal's rows for a workspace, none from another workspace (0.728292ms)
+✔ [InMemorySettingsRepo] a second overlapping transaction never silently joins the first (0.370772ms)
+✔ [InMemorySettingsRepo] transaction runs the callback and returns its result (0.423922ms)
+✔ [InMemorySettingsRepo] a failed transaction rolls back EVERY write it made, not just the last (0.641526ms)
+✔ [InMemorySettingsRepo] a transaction that succeeds after an earlier one failed still commits (0.226812ms)
+✔ [SqlSettingsRepo [sqlite]] saveDefinition + findActiveDefinition round-trips (250.452614ms)
+✔ [SqlSettingsRepo [sqlite]] a retyped definition's coercionTag round-trips as the bare tag (171.623938ms)
+✔ [SqlSettingsRepo [sqlite]] findActiveDefinition returns null for an unknown key (158.899172ms)
+✔ [SqlSettingsRepo [sqlite]] global/workspace/user value save+get round-trip independently (218.310389ms)
+✔ [SqlSettingsRepo [sqlite]] appendRevision assigns a monotonically increasing seq and listRevisions returns ascending order (384.541678ms)
+✔ [SqlSettingsRepo [sqlite]] listRevisionsSince does not let another workspace's writes crowd a page (373.208377ms)
+✔ [SqlSettingsRepo [sqlite]] listRevisionsSince still returns platform-wide revisions to every workspace (142.100394ms)
+✔ [SqlSettingsRepo [sqlite]] listRevisionsSince still honours sinceSeq and limit under the workspace predicate (439.845587ms)
+✔ [SqlSettingsRepo [sqlite]] deleteWorkspaceValue/deleteUserValue remove exactly the targeted row (175.194953ms)
+✔ [SqlSettingsRepo [sqlite]] listUserValuesByWorkspace returns every principal's rows for a workspace, none from another workspace (229.93733ms)
+✔ [SqlSettingsRepo [sqlite]] a second overlapping transaction never silently joins the first (214.966114ms)
+✔ [SqlSettingsRepo [sqlite]] transaction runs the callback and returns its result (215.787626ms)
+✔ [SqlSettingsRepo [sqlite]] a failed transaction rolls back EVERY write it made, not just the last (150.789786ms)
+✔ [SqlSettingsRepo [sqlite]] a transaction that succeeds after an earlier one failed still commits (308.802515ms)
+✔ [SqlSettingsRepo [pglite]] saveDefinition + findActiveDefinition round-trips (10050.851496ms)
+✔ [SqlSettingsRepo [pglite]] a retyped definition's coercionTag round-trips as the bare tag (68.515033ms)
+✔ [SqlSettingsRepo [pglite]] findActiveDefinition returns null for an unknown key (73.311874ms)
+✔ [SqlSettingsRepo [pglite]] global/workspace/user value save+get round-trip independently (84.785222ms)
+✔ [SqlSettingsRepo [pglite]] appendRevision assigns a monotonically increasing seq and listRevisions returns ascending order (92.335197ms)
+✔ [SqlSettingsRepo [pglite]] listRevisionsSince does not let another workspace's writes crowd a page (411.439868ms)
+✔ [SqlSettingsRepo [pglite]] listRevisionsSince still returns platform-wide revisions to every workspace (119.541206ms)
+✔ [SqlSettingsRepo [pglite]] listRevisionsSince still honours sinceSeq and limit under the workspace predicate (52.111449ms)
+✔ [SqlSettingsRepo [pglite]] deleteWorkspaceValue/deleteUserValue remove exactly the targeted row (116.34469ms)
+✔ [SqlSettingsRepo [pglite]] listUserValuesByWorkspace returns every principal's rows for a workspace, none from another workspace (84.868519ms)
+✔ [SqlSettingsRepo [pglite]] a second overlapping transaction never silently joins the first (39.008297ms)
+✔ [SqlSettingsRepo [pglite]] transaction runs the callback and returns its result (65.73938ms)
+✔ [SqlSettingsRepo [pglite]] a failed transaction rolls back EVERY write it made, not just the last (51.483257ms)
+✔ [SqlSettingsRepo [pglite]] a transaction that succeeds after an earlier one failed still commits (54.067882ms)
+✔ SqliteSettingsRepo: saveDefinition + findActiveDefinition round-trip through real SQLite (258.848079ms)
+✔ SqliteSettingsRepo: set() writes exactly one value row + one revision row in the real DB (AC-07) (289.688919ms)
+✔ SqliteSettingsRepo: transaction rolls back the value write when a later step in the same transaction throws (INV-01 atomicity proof) (158.19186ms)
+✔ SqliteSettingsRepo: workspace-scoped value from one workspace never leaks into another's read (129.736966ms)
+✔ SqliteSettingsRepo: a legacy row holding a bare coercer tag still reads back as that tag (163.99906ms)
+✔ definition lookup prefers the active version, otherwise the newest retired version, and exact versions never fall back (184.146232ms)
+✔ active definitions partition platform and workspace aliases, excluding tombstones from lists (209.006578ms)
+✔ legacy valid JSON coercion values that are not strings are retained verbatim (195.781473ms)
+✔ user and workspace lists retain their full value records and exclude other tenants and principals (410.633702ms)
+✔ cleared values store SQL NULL while a set JSON null stays serialized, including on upsert (240.251783ms)
+✔ invalid workspace without a workspace is rejected before any value is written (126.677213ms)
+✔ invalid user without a workspace is rejected before any value is written (168.453065ms)
+✔ invalid user without a principal is rejected before any value is written (243.531725ms)
+✔ revision heads start at zero and round-trip both before and after JSON on a clear (146.620891ms)
+✔ settings_set_value cannot change the assistant's subagent grant, even with full settings permissions (6.618059ms)
+✔ settings_clear_value cannot change the assistant's subagent grant, even with full settings permissions (0.956079ms)
+✔ normal setting runs directly and both writes are durable, not readOnly (2.343867ms)
+✔ settings approval renders previous and new objects as a field diff (8.42003ms)
+✔ chat selection approval passes the resulting selection as structured data (6.097238ms)
+✔ chat selection refuses a missing composed inventory before confirmation or writing (0.910427ms)
+✔ settings_set_value refuses credential status missing before confirmation (1.069316ms)
+✔ settings_set_value refuses credential status missing after confirmation (1.718617ms)
+✔ settings_clear_value refuses credential status missing before confirmation (0.685971ms)
+✔ settings_clear_value refuses credential status missing after confirmation (5.447369ms)
+✔ settings_set_value refuses credential status unknown before confirmation (1.035732ms)
+✔ settings_set_value refuses credential status unknown after confirmation (1.495507ms)
+✔ settings_clear_value refuses credential status unknown before confirmation (5.558138ms)
+✔ settings_clear_value refuses credential status unknown after confirmation (1.476712ms)
+✔ settings_set_value refuses credential status undefined before confirmation (2.114634ms)
+✔ settings_set_value refuses credential status undefined after confirmation (1.294705ms)
+✔ settings_clear_value refuses credential status undefined before confirmation (7.569643ms)
+✔ settings_clear_value refuses credential status undefined after confirmation (1.562449ms)
+✔ settings_set_value runtime entitlement is checked before confirmation (0.680807ms)
+✔ settings_set_value runtime entitlement is checked after confirmation (1.29599ms)
+✔ settings_clear_value runtime entitlement is checked before confirmation (0.30593ms)
+✔ settings_clear_value runtime entitlement is checked after confirmation (3.69794ms)
+✔ chat clear validates the inherited model before opening a card (1.390164ms)
+✔ chat clear binds the inherited result even if both inherited choices are valid (6.474123ms)
+✔ chat Default consent is invalidated when its concrete model changes (1.427444ms)
+✔ chat confirmed empty localCli.model resets independently of stale sibling axes (33.060713ms)
+✔ chat confirmed empty localCli.reasoning resets independently of stale sibling axes (20.867662ms)
+✔ chat agent/model/effort writes wait for cards, persist only for the caller and are readable after reload (15.683001ms)
+✔ chat refuses unknown ids with the dynamic list and never opens a card or writes (0.778075ms)
+✔ chat cancel cannot approve a model change (1.250839ms)
+✔ chat typed cannot approve a model change (17.286465ms)
+✔ chat refuses workspace selection edits and headless user edits (0.943229ms)
+✔ chat rejects a dependent runtime change while its model card is open (1.294801ms)
+✔ chat model clear asks every time and only clears the caller's layer (6.507518ms)
+✔ chat revalidates the live catalog after confirmation (1.905977ms)
+✔ a protected alias cannot bypass chat catalog checks or use a remembered grant (22.084816ms)
+✔ settings_set_value core.execution.localCli.permissionLevel refuses headless writes and model consent (0.801081ms)
+✔ settings_clear_value core.execution.localCli.permissionLevel refuses headless writes and model consent (0.404934ms)
+✔ settings_set_value core.execution.mode refuses headless writes and model consent (0.485839ms)
+✔ settings_clear_value core.execution.mode refuses headless writes and model consent (0.39272ms)
+✔ settings_set_value core.execution.byok.protocol refuses headless writes and model consent (0.90307ms)
+✔ settings_clear_value core.execution.byok.protocol refuses headless writes and model consent (0.494294ms)
+✔ settings_set_value core.execution.byok.providerId refuses headless writes and model consent (0.737956ms)
+✔ settings_clear_value core.execution.byok.providerId refuses headless writes and model consent (0.333378ms)
+✔ settings_set_value core.execution.byok.baseUrl refuses headless writes and model consent (0.511553ms)
+✔ settings_clear_value core.execution.byok.baseUrl refuses headless writes and model consent (0.542459ms)
+✔ settings_set_value core.execution.localCli.agentId refuses headless writes and model consent (0.60802ms)
+✔ settings_clear_value core.execution.localCli.agentId refuses headless writes and model consent (0.426715ms)
+✔ real card confirm reaches the held call; only confirm mutates execution settings (6.712565ms)
+✔ real card cancel reaches the held call; only confirm mutates execution settings (0.793313ms)
+✔ real card typed reaches the held call; only confirm mutates execution settings (0.48208ms)
+✔ clear runtime override waits for a human and falls back to default (7.510973ms)
+✔ host site-title validation is honored by generic writes (0.942986ms)
+✔ core.execution.byok.protocol is writable after a human click (0.96747ms)
+✔ core.execution.localCli.permissionLevel is writable after a human click (0.73ms)
+✔ visitor-facing assistant requires saved credential readiness before its ordinary site-setting write (2.732871ms)
+✔ aborting a held card closes it without a write (1.333646ms)
+✔ settings_set_value: real callback route delivers confirm to the held card without executing again (2.220247ms)
+✔ settings_set_value: real callback route delivers cancel to the held card without executing again (1.01862ms)
+✔ settings_set_value: real callback route delivers typed to the held card without executing again (0.767808ms)
+✔ settings_clear_value: real callback route delivers confirm to the held card without executing again (0.98936ms)
+✔ settings_clear_value: real callback route delivers cancel to the held card without executing again (1.023706ms)
+✔ settings_clear_value: real callback route delivers typed to the held card without executing again (0.925021ms)
+✔ ordinary execution preference byok.model sets and clears without a confirmation channel (0.987613ms)
+✔ ordinary execution preference byok.maxTokens sets and clears without a confirmation channel (0.632441ms)
+✔ core.privacy.telemetry.metrics is an ordinary edit without a card (0.321691ms)
+✔ core.instructions.custom is an ordinary edit without a card (0.211051ms)
+✔ execution escalation asks once per plugin digest and saved grants do not bypass current authorization (2.289363ms)
+✔ a plugin identity changed during the human wait cannot change execution settings (0.881646ms)
+✔ the invoking plugin's saved enable grant also covers execution settings without another ask (0.577321ms)
+✔ settings_set_value cannot widen permanent-delete access or forge its acknowledgment (0.382337ms)
+✔ settings_set_value cannot widen permanent-delete access or forge its acknowledgment (0.186301ms)
+✔ settings_clear_value cannot widen permanent-delete access or forge its acknowledgment (0.23921ms)
+✔ settings_clear_value cannot widen permanent-delete access or forge its acknowledgment (0.245186ms)
+✔ normalization: registered dotted core.site.title succeeds; two registered splits fail without writing (17.816268ms)
+✔ delegated normalization: dotted settings persist once and an ambiguous registered split refuses without a revision (775.375357ms)
+✔ Agent plugins user writes and clears always ask, even with a saved plugin grant (4.677766ms)
+✔ Agent plugins workspace writes and clears always ask, even with a saved plugin grant (3.992337ms)
+✔ core.interface.useClaudeInChrome asks a human every time, even with a saved plugin grant (10.159001ms)
+✔ core.forms.deliveryBindings asks a human every time and writes nothing on decline (3.859133ms)
+✔ core.forms.receiver asks a human every time and writes nothing on decline (2.101785ms)
+✔ core.forms.receiver cleared by an agent asks a human every time, even with a saved plugin grant (0.594282ms)
+✔ a confirmed agent write of delivery bindings with a secret in config is still refused by the host chokepoint, and nothing is stored (2.668798ms)
+✔ settings_set_value cannot bypass cookie consent confirmation through legacy scalar settings (0.479393ms)
+✔ settings_clear_value cannot bypass cookie consent confirmation through legacy scalar settings (0.385279ms)
+✔ settings_set_value cannot change core.mail.provider; only the approval-gated mail tool can (0.581228ms)
+✔ settings_clear_value cannot change core.mail.provider; only the approval-gated mail tool can (0.282338ms)
+✔ settings_set_value cannot change core.mail.testMode; only the approval-gated mail tool can (0.270447ms)
+✔ settings_clear_value cannot change core.mail.testMode; only the approval-gated mail tool can (0.198373ms)
+✔ a host's extra denied namespace is refused, and with no injected writer the host settings chokepoint stores the value (1.638389ms)
+✔ registers core.site.timezone as a per-workspace string setting defaulting to UTC, idempotently (3.244418ms)
+✔ an owner-set workspace zone wins over the creation zone (37.018012ms)
+✔ an owner's explicit UTC also wins over the creation zone (0.945715ms)
+✔ without an owner value, the zone detected at site creation applies, else UTC (0.803885ms)
+✔ an invalid owner value falls through to the creation zone; an invalid creation zone falls to UTC (6.775161ms)
+✔ an unregistered definition or a failing settings read never throws: the creation zone, else UTC (1.149829ms)
+✔ createSiteTimeZonePort binds the resolver to its deps for the render ports (1.030911ms)
+✔ in-memory: lists every recorded, unresolved workspace, sorted by id (2.372029ms)
+✔ in-memory: isPending is true only for a recorded, unresolved workspace (0.425253ms)
+✔ in-memory: markPreserved resolves one workspace, leaves the rest pending, and is a no-op when repeated or unrecorded (0.429054ms)
+✔ sqlite: lists every recorded, unresolved workspace, sorted by id (548.431349ms)
+✔ sqlite: isPending is true only for a recorded, unresolved workspace (115.123853ms)
+✔ sqlite: markPreserved resolves one workspace, leaves the rest pending, and is a no-op when repeated or unrecorded (136.202963ms)
+✔ pglite: lists every recorded, unresolved workspace, sorted by id (9726.819227ms)
+✔ pglite: isPending is true only for a recorded, unresolved workspace (33.808211ms)
+✔ pglite: markPreserved resolves one workspace, leaves the rest pending, and is a no-op when repeated or unrecorded (70.22948ms)
+✔ SQLite title preservation uses the kernel composed from a content DB for reads and writes (464.786262ms)
+✔ SQLite title preservation uses the kernel composed from a kernel for reads and writes (320.059371ms)
+✔ AC-14 (REQ-08): a padded title is stored, returned and read back trimmed (37.054711ms)
+✔ REQ-08: both bounds apply after trimming, so 1 and 200 characters are accepted (3.082716ms)
+✔ AC-14 (REQ-08): an empty, blank or 201-character title is rejected with a validation error and nothing stored changes (3.716533ms)
+✔ REQ-08 is scoped to core.site.title: a sibling key and a same-named key in another namespace store a blank value untouched (1.60591ms)
+✔ REQ-08 leaves a non-string title to the definition schema's own rejection (1.159493ms)
+✔ public assistant enable policy missing is enforced before persistence (4.704035ms)
+✔ public assistant enable policy deny is enforced before persistence (7.440548ms)
+✔ public assistant enable policy allow is enforced before persistence (1.328365ms)
+✔ public assistant enable policy throw is enforced before persistence (0.883435ms)
+✔ core.comments/provider is refused at the chokepoint unless written by the comments selection store (comments.configure) (1.530472ms)
+✔ core.theme/previewSwitcher fails closed when no theme write policy is composed (0.754849ms)
+✔ the theme preview switcher write is refused without its policy and goes through the policy's prepared write (3.47685ms)
+✔ enabling an unrelated boolean (another site.assistant key, or a global setting) never consults the assistant policy (2.557173ms)
+✔ host title policy preserves the package revision guard and rolls back stale writes (1.307065ms)
+preserveLegacySiteTitles: pinned=1 skipped=0 failed=0
+preserveLegacySiteTitles: pinned=1 skipped=0 failed=0
+preserveLegacySiteTitles: pinned=0 skipped=1 failed=0
+preserveLegacySiteTitles: pinned=0 skipped=1 failed=0
+preserveLegacySiteTitles: pinned=1 skipped=0 failed=1
+preserveLegacySiteTitles: pinned=1 skipped=0 failed=0
+preserveLegacySiteTitles: pinned=0 skipped=0 failed=1
+preserveLegacySiteTitles: pinned=1 skipped=0 failed=0
+preserveLegacySiteTitles: pinned=0 skipped=0 failed=1
+preserveLegacySiteTitles: pinned=0 skipped=1 failed=0
+✔ AC-07 (REQ-06, REQ-11): a pending workspace is pinned to Tovu Demo Site through set, with exactly one system revision (8.950119ms)
+✔ AC-08 (REQ-06): after an owner reset, later preservation runs append no system revision, and the site renders its no-owner-title value (2.463358ms)
+✔ INV-02 (REQ-06): a still-pending workspace whose value row is cleared (the pin wrote, then the process died before marking it) is skipped, never re-pinned (1.56151ms)
+✔ AC-09 (REQ-06, INV-02): an owner title set before preservation runs is kept, and the workspace is reported skipped (1.083004ms)
+✔ AC-17 (REQ-11, REQ-07): a pin write that throws for one of two workspaces fails only that one, logs its id, and it keeps rendering Tovu Demo Site (2.909616ms)
+✔ REQ-11: with core.site/title not registered, every pending workspace is reported failed and stays pending (0.675989ms)
+✔ REQ-06: with nothing pending, preservation writes nothing (0.53089ms)
+✔ REQ-05 (AC-06): a workspace that was never pending, with no owner title, renders the site display name (0.758154ms)
+✔ REQ-05 (EC-03): with no site directory, the no-owner-title value falls back to workspaces.name (1.046714ms)
+✔ REQ-07 (AC-12): a pending workspace with no owner title renders Tovu Demo Site, never its display name (0.750638ms)
+✔ REQ-07: before core.site/title is registered, a workspace renders Tovu Demo Site (0.30064ms)
+✔ REQ-03 (AC-04): an owner title wins over a pending marker and over the display name (1.422735ms)
+✔ REQ-09: an unusable owner value renders the no-owner-title value: the display name when resolved, Tovu Demo Site while pending (1.246061ms)
+✔ REQ-09: a blank display name falls back to workspaces.name, and a blank workspace name to Tovu Demo Site (0.500065ms)
+✔ REQ-09 (AC-16): a settings read, a marker read, or a name read that throws resolves Tovu Demo Site (1.042237ms)
+✔ REQ-07: the pending marker is read before the value, so a pin that lands mid-render still renders Tovu Demo Site (0.765968ms)
+✔ REQ-13 (AC-22): the display name is read at every resolution, so a rename renders with the same deps, and a pending pin or an owner title still wins (0.52586ms)
+✔ REQ-09 (REQ-13): a display-name read that throws resolves Tovu Demo Site (0.432077ms)
+✔ a committed pin with a failed preservation marker is resolved on retry without a second revision (1.341227ms)
+✔ REQ-08: title normalization accepts trimmed bounds and rejects non-string values (5.878576ms)
+✔ preservation markers default to empty, deduplicate and sort ids, and resolve idempotently (2.355625ms)
+✔ REQ-05: renderable configured and workspace names are trimmed before rendering (0.516466ms)
+✔ lists exact language codes and existing setter coordinates after checking permission (5.388066ms)
+✔ denied permission returns no locale data (0.871436ms)
+✔ rejects arguments and malformed input before authorization (1.062598ms)
+✔ returned options cannot mutate the catalog used by later calls (0.297139ms)
+✔ registration is read-only with derived risk none and an empty closed schema (0.504016ms)
+✔ closed input retains only valid partial updates and rejects forged approval and authority fields (5.556758ms)
+✔ tier table covers publication, public reads, reductions, restoring defaults and above-default reductions (0.983295ms)
+✔ every positive reduction is direct even for an enabled external tool above defaults (13.253322ms)
+✔ boot reconciles visitor-tools.manage to existing owner/admin policies, idempotently, without granting editor/viewer (29.987841ms)
+✔ exactly four closed category tools expose metadata and the configure callback uses the existing redemption channel (29.897892ms)
+✔ built-in read mode changes, external Off, restoring defaults and reductions need no card or emitter (124.567533ms)
+✔ every external enable and above-default increase shows one fresh, non-rememberable card with exact publication disclosure (25.483952ms)
+✔ chat can list and repair an unreadable policy without any confirmation channel (4.71541ms)
+✔ cancellation, expiration, abort and missing interactive channel never publish (6.763168ms)
+✔ model input mutations and forged confirmation fields cannot substitute a different publication (4.051336ms)
+✔ a competing page edit while a card is open returns a reload result; no approved overwrite (3.233141ms)
+✔ revoked permission and mutated source contracts are checked again after the click (3.346611ms)
+✔ deferred save/delete check permissions and refuse unknown fields without writing; invalid input and missing composition are actionable (4.562663ms)
+✔ list combines source eligibility, frozen upgrade defaults, configured choices and unavailable entries without enabling them (18.166696ms)
+✔ single and site patches preserve other dimensions, merge atomically, and gate mixed source exposure once (28.590671ms)
+✔ unavailable sources never join site enable; unknown ids and an empty catalog refuse without writes (2.140433ms)
+✔ prepared concurrent edits and catalog changes cannot silently overwrite or retarget an approval (1.826392ms)
+✔ permission is fresh on list, prepare and apply; missing definitions remain infrastructure failures (1.423631ms)
+✔ catalog bounds reject ambiguous identities; overflow reclaims only unavailable Off entries (15.261224ms)
+✔ corrupt, future and oversized policies list as invalid/Off and accept only a revisioned site Off repair (6.050418ms)
+✔ invalid policy repair also works when every source has disappeared (0.905ms)
+✔ overlapping applies on the same prepared revision commit exactly one policy and ledger revision (1.378039ms)
+✔ registered empty policy preserves defaults; only the dedicated service can save a choice (23.159076ms)
+✔ the host reset still clears unrelated namespaces through the existing settings owner (8.094636ms)
+✔ invalid input and wrong scope cannot reach the ledger (10.680921ms)
+✔ revision CAS accepts the unset snapshot and rolls back both value and revision on stale writes (7.157572ms)
+✔ revision-only CAS refuses a stale corrupt row and can repair it at the real row seq (2.18011ms)
+✔ unexpected transaction and snapshot failures propagate rather than becoming reloads or invalid policies (1.137187ms)
+✔ the revision adapter preserves methods/metadata and compares only after appendRevision acquires the ledger lock (0.932006ms)
+✔ aliases cannot bypass set, clear or namespace reset (1.575135ms)
+✔ stored JSON corruption, missing definitions, and repo failures all fail closed (2.860372ms)
+✔ a real yazl share ZIP streams its bytes back through the adapter (39.624277ms)
+✔ the adapter forces strict filenames on top of the reader's own yauzl options (4.321323ms)
+✔ the adapter delegates opening an entry stream and closing the archive to yauzl (4.698558ms)
+✔ an entry whose local header agrees with the central entry passes through (1.852899ms)
+✔ a negative local header offset is refused as a header disagreement (4.372099ms)
+✔ a local header offset without 30 header bytes after it is refused before any read (4.181861ms)
+✔ a local header with the wrong signature is refused (2.496787ms)
+✔ local general-purpose flags that differ from the central entry are refused (55.136802ms)
+✔ a local compression method that differs from the central entry is refused (3.845947ms)
+✔ a local filename that differs from the central filename is refused (4.090366ms)
+✔ a header disagreement is reported before the local extra-field bounds (3.524744ms)
+✔ local extra fields that run past the archive end are refused as truncated (1.494167ms)
+✔ local extra fields that end exactly at the archive end pass through (1.454503ms)
+✔ a malformed local extra field surfaces yauzl's own parse error (5.360289ms)
+✔ general-purpose flag 1 (encryption or masked headers) is refused (7.755356ms)
+✔ general-purpose flag 64 (encryption or masked headers) is refused (1.702366ms)
+✔ general-purpose flag 8192 (encryption or masked headers) is refused (1.210986ms)
+✔ a symlink file type is refused (5.165471ms)
+✔ a block device file type is refused (15.989591ms)
+✔ a fifo file type is refused (1.119333ms)
+✔ an entry with no Unix file type passes through (1.331603ms)
+✔ a central extra field 0xd is refused (14.15979ms)
+✔ a local extra field 0xd is refused (4.002938ms)
+✔ a central extra field 0x756e is refused (2.907513ms)
+✔ a local extra field 0x756e is refused (3.407257ms)
+✔ a central extra field 0x7075 is refused (0.76931ms)
+✔ a local extra field 0x7075 is refused (7.764087ms)
+✔ a central extra field 0x9901 is refused (4.115056ms)
+✔ a local extra field 0x9901 is refused (1.319335ms)
+✔ a directory name with a nonzero size is refused (4.172644ms)
+✔ a directory name carrying a regular-file mode is refused (1.481787ms)
+✔ a file name carrying a directory mode is refused (1.151371ms)
+✔ an empty directory entry with a directory or untyped mode passes through (3.700803ms)
+✔ each entry is checked against its own local header offset (2.419461ms)
+✔ input with null is refused as a source error (3.959157ms)
+✔ input with a string is refused as a source error (0.250289ms)
+✔ input with an array is refused as a source error (0.396205ms)
+✔ input with an unknown key is refused as a source error (0.16809ms)
+✔ input with both sources is refused as a source error (0.794926ms)
+✔ input with no source is refused as a source error (0.182152ms)
+✔ an array carrying a url property is refused as a source error (4.190748ms)
+✔ displayName 42 is refused (0.294089ms)
+✔ displayName "  " is refused (0.30801ms)
+✔ displayName "xxxxxxxxxxx is refused (0.315419ms)
+✔ requestId 7 is refused (0.399456ms)
+✔ requestId "" is refused (0.182173ms)
+✔ requestId "has space" is refused (0.178837ms)
+✔ requestId "xxxxxxxxxxx is refused (0.074333ms)
+✔ url 42 is refused as not an HTTPS share URL (0.176176ms)
+✔ url "https://a.examp is refused as not an HTTPS share URL (0.075554ms)
+✔ url "not a url" is refused as not an HTTPS share URL (0.118304ms)
+✔ url http://a.example/x.zip is refused for scheme, credentials or fragment (0.125912ms)
+✔ url https://user@a.example/x.zip is refused for scheme, credentials or fragment (0.080574ms)
+✔ url https://:pw@a.example/x.zip is refused for scheme, credentials or fragment (0.122685ms)
+✔ url https://a.example/x.zip#frag is refused for scheme, credentials or fragment (0.187173ms)
+✔ uploadId 7 is refused (0.206735ms)
+✔ uploadId "../../etc/passw is refused (0.107518ms)
+✔ uploadId "0F8FAD5B-D9CB-4 is refused (0.138581ms)
+✔ a URL source is normalised to its href and optional fields are kept only when given (0.716215ms)
+✔ an upload over the archive cap is refused with the upload cap message (2289.580617ms)
+✔ a fifth staged payload is refused with the staging budget message (2407.233155ms)
+✔ low private staging space is refused with the staging space message (1432.521119ms)
+✔ a URL import checks the staging budget; an upload import does not (11731.837209ms)
+✔ a request id reused for another source is refused (12501.857811ms)
+✔ a consumed upload is refused and recorded on the failed row (11058.161028ms)
+✔ an already-aborted caller signal fails the import before anything is fetched (2406.524239ms)
+✔ the download request is a bounded identity GET of the share URL (11892.884734ms)
+✔ a download with a non-200 status is refused as a failed download (1274.318555ms)
+✔ a download with no body is refused as a failed download (1998.006196ms)
+✔ a download with a truncated body is refused as a failed download (1495.052955ms)
+✔ a download with content type {} is refused (1305.365813ms)
+✔ a download with content type {"content-type":""} is refused (1791.849314ms)
+✔ a download with content type {"content-type":"text/html"} is refused (2879.60345ms)
+✔ an archive reader error that is not a share refusal is recorded with the generic message (2352.282898ms)
+✔ the imported site name comes from the archive unless a display name was given (17401.313043ms)
+✔ site_imported fires exactly once after owner commit, including a repeated completion (11930.907217ms)
+✔ site_imported stays silent when creating the imported site fails (10544.952893ms)
+✔ owner setup on a failed import is refused as not awaiting setup (10992.088907ms)
+✔ owner password undefined is refused (10526.261328ms)
+✔ owner password tovu-dev is refused (12340.270271ms)
+✔ low sites-home space is refused with the sites-home message (9631.222714ms)
+✔ an already-aborted owner setup is refused before the row is marked creating (11016.112599ms)
+✔ a failed site creation is rolled back and recorded (9443.658467ms)
+✔ a created site started with no admin URL records its start outcome (10478.162639ms)
+✔ a created site started with a supervisor error records its start outcome (10908.238108ms)
+✔ a created site started with an admin URL records its start outcome (10652.73184ms)
+✔ a pending import view carries the default setup URL and owner instructions (9874.982938ms)
+✔ progress reports every stored status in order (10315.504545ms)
+✔ a replayed request id returns the original import without starting another (9188.536698ms)
+✔ a second operation while one holds the import lane is refused as busy (2242.801122ms)
+✔ B CLI reuses the authenticated route and keeps credentials out of the request body (9.310514ms)
+✔ CLI rejects unsafe admin origin not a URL before reading credentials (0.820221ms)
+✔ CLI rejects unsafe admin origin ftp://admin.example before reading credentials (0.304143ms)
+✔ CLI rejects unsafe admin origin http://public.example before reading credentials (7.37036ms)
+✔ CLI rejects unsafe admin origin http://localhost before reading credentials (1.749178ms)
+✔ CLI rejects unsafe admin origin http://192.168.1.1 before reading credentials (0.445791ms)
+✔ CLI rejects unsafe admin origin https://user@admin.example before reading credentials (0.245513ms)
+✔ CLI rejects unsafe admin origin https://:pass@admin.example before reading credentials (0.223638ms)
+✔ CLI rejects unsafe admin origin https://admin.example/path before reading credentials (0.193944ms)
+✔ CLI rejects unsafe admin origin https://admin.example/?q=x before reading credentials (29.022444ms)
+✔ CLI rejects unsafe admin origin https://admin.example/#x before reading credentials (0.399779ms)
+✔ CLI requires workspace before reading credentials (0.374323ms)
+✔ CLI refuses malformed request/auth  (0.220395ms)
+✔ CLI refuses malformed request/auth { (0.123217ms)
+✔ CLI refuses malformed request/auth null (0.191108ms)
+✔ CLI refuses malformed request/auth [] (0.140303ms)
+✔ CLI refuses malformed request/auth 1 (0.090506ms)
+✔ CLI refuses malformed request/auth "text" (0.100295ms)
+✔ CLI refuses malformed request/auth {} (0.203277ms)
+✔ CLI refuses malformed request/auth {"authorization":3} (0.146006ms)
+✔ CLI refuses malformed request/auth {"authorization":"Basic key"} (0.461334ms)
+✔ CLI refuses malformed request/auth {"authorization":"Bearer "} (0.128474ms)
+✔ CLI refuses malformed request/auth {"authorization":"Bearer key\r\ninjected"} (0.158538ms)
+✔ CLI refuses malformed request/auth {"authorization":"Bearer xxxxxxxxxxxxxxxxxxxx (0.350781ms)
+✔ CLI admits http://127.0.0.1:3010 and preserves response null (0.716404ms)
+✔ CLI admits http://127.0.0.1:3010 and preserves response false (0.300312ms)
+✔ CLI admits http://127.0.0.1:3010 and preserves response "done" (0.155068ms)
+✔ CLI admits http://127.0.0.1:3010 and preserves response {} (0.123024ms)
+✔ CLI admits http://127.0.0.1:3010 and preserves response {"setupUrl":4} (0.100901ms)
+✔ CLI admits http://127.0.0.1:3010 and preserves response {"setupUrl":"https://setup.example/owner"} (0.170678ms)
+✔ CLI admits http://[::1]:3010 and preserves response null (0.24512ms)
+✔ CLI admits http://[::1]:3010 and preserves response false (0.713963ms)
+✔ CLI admits http://[::1]:3010 and preserves response "done" (0.217477ms)
+✔ CLI admits http://[::1]:3010 and preserves response {} (0.135873ms)
+✔ CLI admits http://[::1]:3010 and preserves response {"setupUrl":4} (0.098067ms)
+✔ CLI admits http://[::1]:3010 and preserves response {"setupUrl":"https://setup.example/owner"} (0.109914ms)
+✔ B guarded HTTPS import pins public download, refuses private initial/redirect peers, propagates caps and cancellation (11605.909488ms)
+✔ B truncated/unknown-completeness downloads and oversized uploads fail without registering sites (2234.964412ms)
+✔ B download admits only ZIP/binary MIME and still verifies ZIP bytes (24813.73623ms)
+✔ failed HTTP status or missing binary body records a failed import without staging a site (2260.116145ms)
+✔ input boundary refuses malformed source/options null (2.928002ms)
+✔ input boundary refuses malformed source/options undefined (0.401198ms)
+✔ input boundary refuses malformed source/options [] (3.728252ms)
+✔ input boundary refuses malformed source/options false (0.252463ms)
+✔ input boundary refuses malformed source/options "url" (4.112849ms)
+✔ input boundary refuses malformed source/options {"url":1} (5.674215ms)
+✔ input boundary refuses malformed source/options {"url":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (0.358095ms)
+✔ input boundary refuses malformed source/options {"url":"not a URL"} (0.255984ms)
+✔ input boundary refuses malformed source/options {"url":"https://:password@example.com"} (0.346372ms)
+✔ input boundary refuses malformed source/options {"url":"https://example.com/#fragment"} (0.381569ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":null} (0.248808ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":4} (0.219217ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":""} (0.173116ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":" "} (0.127749ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":"xxxxxxxxx (0.210603ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":null} (0.267125ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":4} (0.139655ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":""} (0.227939ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":"bad space"} (0.247075ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":"xxxxxxxxxxx (0.242572ms)
+✔ input boundary refuses malformed source/options {"uploadId":null} (0.285832ms)
+✔ input boundary refuses malformed source/options {"uploadId":1} (0.109312ms)
+✔ input boundary refuses malformed source/options {"uploadId":"bad-id"} (0.15049ms)
+✔ input boundary refuses malformed source/options {"uploadId":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"} (0.13058ms)
+✔ source boundary accepts bounded optional metadata and normalizes HTTPS URLs (9.769622ms)
+✔ registry protects principal boundaries, invalid identifiers, unreadable history and private permissions (1873.779109ms)
+✔ registry expires only old staged payloads and pending owner rows, retaining ready history and corrupt evidence (1696.452823ms)
+✔ upload budget refuses a fifth payload and low disk space before retaining bytes (1035.972606ms)
+✔ upload metadata failure removes the private ZIP and releases the transfer lock (1093.018672ms)
+✔ in-flight import rejects another operation, then releases its lane on verification failure (1697.718151ms)
+✔ a consumed upload cannot create a second import, while request replay is idempotent and source-bound (6663.562926ms)
+✔ unfinished creation without an allocation is classified as failed only under the lane lock (1378.656349ms)
+✔ owner creation remains ready and idempotent after no URL (9247.059011ms)
+✔ owner creation remains ready and idempotent after supervisor error (8701.133258ms)
+✔ owner creation checks volume space before allocating and keeps staged data for retry (9500.796221ms)
+✔ B hard interruption allocated reconciles under locks: inSite (10941.494648ms)
+✔ B hard interruption restored reconciles under locks: inSite (10328.791664ms)
+✔ B hard interruption before-register reconciles under locks: inSite (10799.146858ms)
+✔ B hard interruption registered reconciles under locks: inSite (10708.956424ms)
+✔ B hard interruption allocated reconciles under locks: appData (10198.283125ms)
+✔ B hard interruption restored reconciles under locks: appData (10976.891517ms)
+✔ B hard interruption before-register reconciles under locks: appData (10208.233049ms)
+✔ B hard interruption registered reconciles under locks: appData (11807.577111ms)
+▶ package filename exceptions require the exact content-addressed root on export and import
+  ✔ themes/site/mcp.json (1535.297485ms)
+  ✔ plugins/portable/package/mcp.json (1408.094493ms)
+  ✔ themes/site/tovu-credential-schemes.json (1280.763296ms)
+  ✔ agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/mcp.json (1133.286648ms)
+  ✔ agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/mcp.json (1107.222598ms)
+  ✔ agent-plugins/ws/ws/portable/package/sha256/gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg/mcp.json (1115.864533ms)
+  ✔ themes/agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/mcp.json (955.922018ms)
+  ✔ agent-plugins/ws/mcp.json/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/plugin.json (1042.926894ms)
+  ✔ agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/.npmrc (1134.042549ms)
+  ✔ agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/nested/private-key.pem (1489.322306ms)
+  ✔ agent-plugins/ws/ws/portable/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/vendor-credentials.json (2003.205529ms)
+✔ package filename exceptions require the exact content-addressed root on export and import (14211.128468ms)
+▶ import refuses exactly what export refuses inside a site plugin package
+  ✔ mcp.json (1353.670655ms)
+  ✔ tovu-credential-schemes.json (1721.725962ms)
+  ✔ vendor-credentials.json (1458.344409ms)
+✔ import refuses exactly what export refuses inside a site plugin package (4536.309679ms)
+✔ an installed site plugin's data/ folder stays out of the export, which then imports cleanly (7538.623059ms)
+✔ the fixture's installed site plugin is a package Jini's own installer accepts (1509.842644ms)
+✔ a supplied site plugin manifest is installed as given: a stale integrity hash keeps the plugin out (1510.360179ms)
+▶ package manifest filename exceptions preserve secret scanning on export and import
+  ✔ mcp.json (1765.955484ms)
+  ✔ tovu-credential-schemes.json (1862.278171ms)
+✔ package manifest filename exceptions preserve secret scanning on export and import (3629.900237ms)
+▶ B malicious ZIP matrix: no registered/partial site and no mutation to an existing site
+  ✔ path "../outside" (42.198355ms)
+  ✔ path "/absolute" (35.035636ms)
+  ✔ path "C:/drive" (25.914045ms)
+  ✔ path "//server/share" (22.956023ms)
+  ✔ path "uploads/a\\b" (20.397184ms)
+  ✔ path "uploads/a\u0000b" (27.17049ms)
+  ✔ path "uploads/%2e%2e/a" (22.656273ms)
+  ✔ path "uploads/a." (60.975978ms)
+  ✔ path "uploads/CON.txt" (139.650383ms)
+  ✔ path "uploads/é.txt" (50.109702ms)
+  ✔ path "uploads/Ｆ.txt" (37.54988ms)
+  ✔ duplicate (37.640161ms)
+  ✔ case alias (40.589446ms)
+  ✔ ancestor alias (42.210854ms)
+  ✔ file-directory collision (29.516864ms)
+  ✔ Unicode case expansion alias (39.327597ms)
+  ✔ reverse ancestor alias (36.62711ms)
+  ✔ reverse Unicode expansion (83.371551ms)
+  ✔ Unicode final sigma ancestor (58.748285ms)
+  ✔ compatibility ancestor (36.771533ms)
+  ✔ symlink (25.669288ms)
+  ✔ fifo (23.355631ms)
+  ✔ device (22.433528ms)
+  ✔ encrypted (28.039892ms)
+  ✔ hardlink extra field (47.830195ms)
+  ✔ scopes (44.338866ms)
+  ✔ version (51.762337ms)
+  ✔ profile (32.895012ms)
+  ✔ format version (41.426942ms)
+  ✔ schema (39.93322ms)
+  ✔ media hash (78.693785ms)
+  ✔ hash (34.698718ms)
+  ✔ size (138.868501ms)
+  ✔ missing inventory (51.285823ms)
+  ✔ unlisted file (26.162654ms)
+  ✔ unreferenced upload (31.996504ms)
+  ✔ unlisted directory (113.530545ms)
+  ✔ missing file (40.36151ms)
+  ✔ private file (37.487212ms)
+  ✔ media hash differs from database (66.76891ms)
+  ✔ 2 MiB manifest cap (63.151814ms)
+  ✔ 2,000 entry cap (768.483044ms)
+  ✔ declared ZIP bomb (39.310413ms)
+  ✔ aggregate expanded cap (44.170242ms)
+  ✔ actual expanded ZIP bomb (40.117289ms)
+✔ B malicious ZIP matrix: no registered/partial site and no mutation to an existing site (5136.778424ms)
+✔ B untrusted schema objects and partial restore errors leave no site, including app-data DBs (32713.615952ms)
+▶ verifier refuses malformed manifest contracts before invoking the database owner
+  ✔ missing schema (21.586769ms)
+  ✔ wrong schema index (20.324418ms)
+  ✔ missing database (15.579436ms)
+  ✔ wrong database path (17.410293ms)
+  ✔ non-array files (29.662309ms)
+  ✔ empty name (20.414505ms)
+  ✔ non-string name (14.228565ms)
+  ✔ long name (15.185096ms)
+  ✔ null file (16.558799ms)
+  ✔ non-string path (24.785312ms)
+  ✔ fractional size (101.504824ms)
+  ✔ negative size (34.532718ms)
+  ✔ bad hash (17.608453ms)
+  ✔ manifest lists itself (20.880734ms)
+  ✔ unrecognized scope (18.286732ms)
+  ✔ missing settings inventory (16.176475ms)
+  ✔ oversized manifest inventory (16.955943ms)
+✔ verifier refuses malformed manifest contracts before invoking the database owner (1624.3966ms)
+▶ share preflight independently rejects disagreeing local headers and ambiguous directory metadata
+  ✔ local signature (2.475809ms)
+  ✔ local flags (1.723317ms)
+  ✔ local compression (1.43354ms)
+  ✔ local filename (1.095895ms)
+  ✔ truncated extra fields (1.252036ms)
+  ✔ nonempty directory (1.254937ms)
+  ✔ regular file named directory (1.542322ms)
+  ✔ directory named file (1.887471ms)
+✔ share preflight independently rejects disagreeing local headers and ambiguous directory metadata (15.224933ms)
+✔ B successfully strips hostile schema-valid accounts, sessions and secrets before and after owner setup (6622.918101ms)
+✔ B refuses a schema-valid archive with multiple workspaces without staging or creating a site (5352.560889ms)
+(node:15162) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15162) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ the registry's store reports a lock timeout as a busy import registry under the Site imports prefix (21.27908ms)
+✔ the registry directory is created private and resolved to an absolute path (6.87213ms)
+✔ an existing registry directory is tightened to owner-only (1.042753ms)
+✔ an id that is not a lowercase UUID is refused before touching disk ("../x") (2.208848ms)
+✔ an id that is not a lowercase UUID is refused before touching disk ("AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA") (1.06866ms)
+✔ an id that is not a lowercase UUID is refused before touching disk ("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaax") (1.054375ms)
+✔ an id that is not a lowercase UUID is refused before touching disk ("") (0.880804ms)
+✔ upload and stage paths are fixed names inside the registry (0.984576ms)
+✔ upload and stage paths refuse an invalid id (0.876166ms)
+✔ a stored record reads back for its principal and is written owner-only (4.89223ms)
+✔ a missing record is not found (1.09404ms)
+✔ another principal's record is not found (3.1335ms)
+✔ an unreadable record is refused and left untouched (1.58241ms)
+✔ history lists only import records, newest first, for every principal by default (15.538887ms)
+✔ history lists a record once when a non-JSON file shares its id and name length (3.814857ms)
+✔ history filters by principal (4.98688ms)
+✔ a null history record is skipped (1.705323ms)
+✔ a history entry that vanished before it was read (dangling link) is skipped (1.349805ms)
+✔ an unreadable history record refuses the listing (1.179819ms)
+✔ a fresh upload reads back for its principal (3.683626ms)
+✔ an upload exactly one hour old is still available (2.780237ms)
+✔ an upload older than one hour has expired (3.185573ms)
+✔ another principal's upload is not found (2.320397ms)
+✔ a missing upload is not found (0.916527ms)
+✔ an unreadable upload is reported as not found (1.049611ms)
+✔ the transfer lane returns its run's result and releases the lock (159.33828ms)
+✔ the transfer lane runs one transfer at a time (65.016945ms)
+✔ expiry removes an upload older than one hour with its payload (4.703539ms)
+✔ T25: interrupted verification and orphaned payloads release the staging budget without discarding live owner setup (31.826936ms)
+✔ expiry keeps an upload exactly one hour old (3.491089ms)
+✔ expiry keeps an unreadable upload and ignores upload files with a foreign name (1.738343ms)
+✔ expiry fails an owner setup past its deadline and removes its stage (20.209273ms)
+✔ expiry keeps an owner setup at its deadline (2.168634ms)
+✔ expiry leaves a past-deadline record in any other status alone (6.373589ms)
+✔ expiry skips unreadable records and foreign files (6.466207ms)
+✔ expiry crashes on a null upload row (reported, not fixed) (2.131099ms)
+✔ expiry crashes on a null import record (reported, not fixed) (1.594403ms)
+✔ staging writes the projected database, every verified file and the inventory, all private (26.601477ms)
+✔ staging refuses a stage folder that already exists (2.128567ms)
+✔ staging refuses an unsafe file path before writing it (2.69318ms)
+✔ custom code that lands switched off gets one warning per unit; trusted, live and edited code do not (19.220183ms)
+✔ uploads are restored into the live site (13.501314ms)
+✔ settings files are never restored, live or quarantined (7.604431ms)
+✔ plugins/custom/plugin.json is quarantined, never placed live (9.481367ms)
+✔ overrides/custom.html is quarantined, never placed live (8.69727ms)
+✔ skills/s/SKILL.md is quarantined, never placed live (8.6938ms)
+✔ agent-plugins/ws/w/activations.json is quarantined, never placed live (10.45552ms)
+✔ themes/code/site/index.ts is quarantined, never placed live (10.013435ms)
+✔ a static theme of supported assets is placed live and replaces the existing tree (13.300305ms)
+✔ a declarative theme tree without a theme.json is still placed live (9.052741ms)
+✔ an unsupported file extension quarantines the whole theme tree (9.657887ms)
+✔ a quarantined theme's existing live tree is left in place (13.624501ms)
+✔ a theme manifest with a tier that differs from its folder quarantines the theme (9.956778ms)
+✔ a theme manifest with malformed JSON quarantines the theme (10.637516ms)
+✔ a theme manifest with a null manifest quarantines the theme (10.319822ms)
+✔ a theme manifest with a compiled declarative build quarantines the theme (11.983921ms)
+✔ a theme manifest with a compiled build without a source folder quarantines the theme (9.355435ms)
+✔ a theme manifest with a source folder outside the theme quarantines the theme (9.246079ms)
+✔ a theme manifest with an unsafe source folder quarantines the theme (13.799835ms)
+✔ a theme manifest with compiled output the theme owner rejects quarantines the theme (28.174584ms)
+✔ a build that is not compiled is treated as a plain asset theme (13.636647ms)
+✔ compiled output goes live while its authored source stays quarantined (17.579998ms)
+✔ a compiled source folder written with a trailing slash fails the share path policy and quarantines the theme (12.602617ms)
+✔ an active theme that was not placed live falls back to the starter theme (19.692607ms)
+✔ restore refuses to overwrite an existing database file (3.537458ms)
+✔ restore refuses to overwrite an existing site file (4.183244ms)
+✔ a database without presentation settings fails the restore after closing the database (3.507788ms)
+✔ the containment guard refuses a path that escapes the root even if the path policy let it through (1.112648ms)
+✔ B source boundary rejects paths, both/neither sources, credentials and password fields (2.35141ms)
+✔ B import/list authorization happens before any backend effect and binds the principal (2.133596ms)
+✔ import adapters reject list fields and preserve coded failures while propagating unexpected errors (1.933028ms)
+✔ v2 returns a fresh projection and maps the single media copy to its blob key (13.441809ms)
+✔ v1 and incompatible identities refuse before the database owner (7.375782ms)
+✔ unlisted, missing, self-listed and duplicate files refuse (2.839928ms)
+✔ private paths, path traversal, aliases and file/directory collisions refuse (5.057986ms)
+✔ declared and expanded sizes are bounded before buffering (30.73726ms)
+✔ database and media edits refuse while code edits warn and quarantine the whole unit (76.299918ms)
+✔ source credentials refuse even in otherwise editable code (6.200741ms)
+✔ a credential in an imported agent-plugin package names its archive path, not the scan path (2.715028ms)
+✔ projection media and document admission cannot be granted by ZIP checksums (3.034023ms)
+✔ the sanitizer receives the archived database snapshot and the caller's abort signal (2.367843ms)
+✔ every recognised portable root and the settings file are admitted (2.783166ms)
+✔ the database snapshot is exempt from the content secret scan (1.503048ms)
+✔ a site name of exactly 200 characters is accepted (1.180822ms)
+✔ a directory entry with listed files below it is accepted (1.510132ms)
+✔ an already-aborted signal stops before the archive is read (0.43212ms)
+✔ an abort between metadata entries stops the first pass (0.620245ms)
+✔ an abort while the manifest streams stops the bounded read (0.777602ms)
+✔ an abort while a listed file streams stops the second pass (1.169708ms)
+✔ an abort before document admission stops the document loop (1.991004ms)
+✔ an archive over 300 MiB is refused before any entry is read (2.18955ms)
+✔ the 2,001st entry is refused (96.123537ms)
+✔ a symlink entry is refused (1.238353ms)
+✔ a hardlink entry is refused (0.432731ms)
+✔ a device entry is refused (0.521519ms)
+✔ a fifo entry is refused (0.376669ms)
+✔ an unsafe entry path is refused by the path claim (0.565001ms)
+✔ a repeated directory is refused (0.685702ms)
+✔ a directory after a file of the same name is refused (5.812785ms)
+✔ a file after a directory of the same name is refused (0.688582ms)
+✔ an absent declared size is refused (0.489775ms)
+✔ an negative declared size is refused (0.289638ms)
+✔ an fractional declared size is refused (0.298603ms)
+✔ a declared file over 64 MiB is refused from metadata alone (0.369951ms)
+✔ a manifest stream longer than the 2 MiB manifest cap is refused as a possible ZIP bomb (0.651552ms)
+✔ a manifest stream shorter than its declared size is refused (0.304613ms)
+✔ an archive without the root manifest is refused (0.287995ms)
+✔ a manifest that is not JSON is refused (0.415623ms)
+✔ a manifest with a null manifest is refused (0.321141ms)
+✔ a manifest with a numeric manifest is refused (0.252372ms)
+✔ a manifest with format version 1 is refused (0.386171ms)
+✔ a manifest with the backup profile is refused (0.265917ms)
+✔ a manifest with a missing schema is refused (0.261659ms)
+✔ a manifest with another schema index is refused (0.406632ms)
+✔ a manifest with another schema tag is refused (0.293925ms)
+✔ a manifest with a missing scope is refused (0.262624ms)
+✔ a manifest with a non-array file list is refused (0.502145ms)
+✔ a manifest with a 2,000-record file list is refused (1.826336ms)
+✔ a manifest with a non-array media list is refused (0.317988ms)
+✔ a manifest with a non-array plugin list is refused (0.269623ms)
+✔ a manifest with a missing site is refused (0.294171ms)
+✔ a manifest with a non-string site name is refused (0.291919ms)
+✔ a manifest with a blank site name is refused (2.618372ms)
+✔ a manifest with a 201-character site name is refused (0.311075ms)
+✔ a manifest file list with a null record is refused (0.611467ms)
+✔ a manifest file list with a non-string path is refused (0.364349ms)
+✔ a manifest file list with a fractional size is refused (0.512535ms)
+✔ a manifest file list with a negative size is refused (0.355932ms)
+✔ a manifest file list with a missing size is refused (0.382351ms)
+✔ a manifest file list with an uppercase hash is refused (0.365552ms)
+✔ a manifest file list with a missing hash is refused (0.322819ms)
+✔ an unsafe manifest path is refused by the share path policy (0.437167ms)
+✔ a repeated manifest path is refused (0.363887ms)
+✔ a manifest that lists itself is refused (0.454266ms)
+✔ the manifest path "unknown/content.txt" is refused as outside the v2 tree (0.355029ms)
+✔ the manifest path "settings/other.json" is refused as outside the v2 tree (0.275117ms)
+✔ the manifest path "themes" is refused as outside the v2 tree (0.400039ms)
+✔ the manifest path "uploads/chat-attachments/a.png" is refused as outside the v2 tree (0.298996ms)
+✔ the manifest path "database/content.db" is refused as outside the v2 tree (0.32076ms)
+✔ a manifest without the database record is refused (0.462136ms)
+✔ a suspicious manifest path is refused as private (0.447922ms)
+✔ a manifest listing more files than the archive holds is refused (0.468091ms)
+✔ a directory with no listed file below it is refused (0.383681ms)
+✔ an archive file missing from the manifest is refused while reading content (0.748053ms)
+✔ a data file whose declared size differs from the manifest is refused (0.706854ms)
+✔ data content whose SHA-256 differs from the manifest is refused (0.593087ms)
+✔ a content stream longer than its declared size is refused as a possible ZIP bomb (0.530897ms)
+✔ a content stream shorter than its declared size is refused (0.591088ms)
+✔ credential-shaped content in a listed file is refused (0.927002ms)
+✔ archive media the projected database does not reference is refused (0.647342ms)
+✔ a referenced media key that is not a safe path is refused (0.776379ms)
+✔ referenced media missing from the archive is refused (0.744282ms)
+✔ a missing media blob that backs a document is refused as a document blob (0.679101ms)
+✔ a valid Library document is admitted (0.915317ms)
+✔ a document whose blob is not in the archive is refused (0.723043ms)
+✔ a document whose blob hash differs is refused (0.928309ms)
+✔ a document the upload policy rejects is refused with the policy's reason (1.072918ms)
+✔ a remapped destination that is not a safe path is refused (1.140375ms)
+✔ a remap onto different bytes already at the destination is refused (0.891013ms)
+✔ a remap moves the bytes to the destination key and drops the source key (1.046833ms)
+✔ the projected database counts toward the 300 MiB expanded cap (7.766805ms)
+✔ a document refused with a non-Error value is reported with the generic ingress reason (0.34698ms)
+✔ the document admission port receives the original filename and the verified bytes (0.222847ms)
+✔ verified media moves only after hash checks, and conflicting destination claims refuse (20.942052ms)
+✔ two media items sharing exact bytes may share the recipient blob (4.929663ms)
+✔ B valid archive and recipient-only owner: inSite (12827.087727ms)
+✔ B valid archive and recipient-only owner: appData (13124.104904ms)
+✔ B compiled static output renders through the theme owner while authored build source remains quarantined (7513.917826ms)
+✔ restore quarantines malformed, executable and unsafe compiled theme variants while preserving ordinary static assets (1289.517526ms)
+[agent-plugins:migration-complete] /tmp/tovu-v2-prAzZQ/source/agent-plugins/ws/ws
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+[agent-plugins:migration-complete] /tmp/tovu-v2-prAzZQ/copy/agent-plugins/ws/workspace-local
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+✔ v2 tree, one public media copy per item, no secrets and full content round-trip (2233.086762ms)
+[agent-plugins:migration-complete] /tmp/tovu-v2-8MQaPk/source/agent-plugins/ws/ws
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+[agent-plugins:migration-complete] /tmp/tovu-v2-8MQaPk/overrides-copy/agent-plugins/ws/workspace-local
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+✔ a theme named overrides and the site's theme overrides both round-trip without colliding (1488.604297ms)
+[agent-plugins:migration-complete] /tmp/tovu-v2-BssbLM/source/agent-plugins/ws/ws
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+[agent-plugins:migration-complete] /tmp/tovu-v2-BssbLM/plugin-copy/agent-plugins/ws/workspace-local
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+✔ a site plugin ships only its installed package, which import keeps off outside Jini's install dir (1252.43278ms)
+[agent-plugins:migration-complete] /tmp/tovu-v2-mq6Aub/source/agent-plugins/ws/ws
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+✔ one Finder wrapper and metadata import; two wrappers and files outside the wrapper refuse (884.180508ms)
+[agent-plugins:migration-complete] /tmp/tovu-v2-4FxhnF/source/agent-plugins/ws/ws
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+[agent-plugins:migration-complete] /tmp/tovu-v2-4FxhnF/edited/agent-plugins/ws/workspace-local
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+✔ edited plugin and theme import with a warning and the whole unit kept off (1098.199877ms)
+[agent-plugins:migration-complete] /tmp/tovu-v2-alN4eR/source/agent-plugins/ws/ws
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+[agent-plugins:migration-complete] /tmp/tovu-v2-alN4eR/skew/agent-plugins/ws/workspace-local
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+[agent-plugins:migration-complete] /tmp/tovu-v2-alN4eR/fresh/agent-plugins/ws/workspace-local
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+Plugin 'demo' has no publisher-qualified id; using 'unknown/demo'.
+✔ a built-in shipped by a different Tovu version keeps this install's own state; the imported copy stays off with a warning (1117.173632ms)
+✔ the real public raster transformer strips GPS/EXIF before archive selection (55.036604ms)
+✔ L3 local: share/import preserves private documents and deduplicates blobs (8763.470341ms)
+✔ L3 s3: share/import preserves private documents and deduplicates blobs (7669.144941ms)
+✔ L3 import explicitly rejects missing document before creating a site (7266.441167ms)
+✔ L3 import explicitly rejects corrupt document before creating a site (8052.077343ms)
+✔ L3 import explicitly rejects invalid-json document before creating a site (7035.82357ms)
+✔ L3 import explicitly rejects invalid-docx document before creating a site (6784.924734ms)
+✔ L3 import explicitly rejects bad-key document before creating a site (7054.346192ms)
+✔ L3 a v1 archive is refused without creating a site (1055.634806ms)
+✔ L3 document-first deduplication strips mixed blob uploader attribution (active) (1010.745131ms)
+✔ L3 document-first deduplication strips mixed blob uploader attribution (trashed) (1255.833517ms)
+✔ L3 rejects invented manifest identity 13 (1056.907647ms)
+✔ L3 rejects invented manifest identity 14 (1188.649799ms)
+✔ L3 forged ordinary rendition cannot expose a private document through anonymous media retrieval (6491.013189ms)
+✔ L3 genuine pre-L3 share omits Trash and orphan payloads but rejects arbitrary uploads (7041.711359ms)

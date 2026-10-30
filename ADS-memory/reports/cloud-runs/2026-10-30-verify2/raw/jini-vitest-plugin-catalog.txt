@@ -1,0 +1,30 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugin-catalog
+
+npm notice
+npm notice package: @jini-ai/plugin-catalog@0.7.0
+npm notice Tarball Contents
+npm notice 11.3kB LICENSE
+npm notice 256B NOTICE
+npm notice 2.0kB README.md
+npm notice 2.7kB catalog.json
+npm notice 844B package.json
+npm notice Tarball Details
+npm notice name: @jini-ai/plugin-catalog
+npm notice version: 0.7.0
+npm notice filename: jini-ai-plugin-catalog-0.7.0.tgz
+npm notice package size: 5.8 kB
+npm notice unpacked size: 17.1 kB
+npm notice shasum: dcc49537b14d8912727f24c125689e292168ad5b
+npm notice integrity: sha512-3t1jIYQQnjBKF[...]U2/wrFZGb4b2w==
+npm notice total files: 5
+npm notice
+ ✓ __tests__/catalog.test.ts (20 tests) 541ms
+   ✓ standalone plugin catalog > packs only metadata and documentation into the actual npm tarball 491ms
+
+ Test Files  1 passed (1)
+      Tests  20 passed (20)
+   Start at  08:22:40
+   Duration  1.07s (transform 174ms, setup 0ms, collect 203ms, tests 541ms, environment 0ms, prepare 108ms)
+

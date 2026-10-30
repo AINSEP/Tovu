@@ -1,0 +1,40 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/cms
+
+ ❯ src/navigation/__tests__/tool-registrations.test.ts (33 tests | 1 failed) 87ms
+   × alias collisions (id, menuId) fail before authorization or mutation 25ms
+     → The expression evaluated to a falsy value:
+
+  ok(error instanceof ToolInputError)
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/navigation/__tests__/tool-registrations.test.ts > alias collisions (id, menuId) fail before authorization or mutation
+AssertionError: The expression evaluated to a falsy value:
+
+  ok(error instanceof ToolInputError)
+
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ Object.<anonymous> src/navigation/__tests__/tool-registrations.test.ts:170:14
+    168|     deps.authorize = async () => { authorizations++; return { allowed:…
+    169|     await assert.rejects(() => normalizedUpdate({ deps, input: { ...ta…
+    170|       assert.ok(error instanceof ToolInputError);
+       |              ^
+    171|       assert.match(error.message, /Conflicting inputs.*Send only 'id'/…
+    172|       assert.equal(error.message.includes("private-menu-id"), false);
+ ❯ src/navigation/__tests__/tool-registrations.test.ts:169:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 32 passed (33)
+   Start at  08:27:18
+   Duration  1.24s (transform 496ms, setup 0ms, collect 692ms, tests 87ms, environment 0ms, prepare 108ms)
+
