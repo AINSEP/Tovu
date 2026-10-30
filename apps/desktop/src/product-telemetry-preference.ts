@@ -1,7 +1,8 @@
 /** Install consent shares the existing durable desktop preferences, never site settings. */
 import { randomUUID } from 'node:crypto';
 import { readJsonFile, withFileLock, writeJsonFileAtomic } from './durable-json-file.ts';
-import { createProductConsentReader, type ProductConsent } from '../../website/src/server/runtime/composition/product-telemetry.ts';
+import { createProductConsentReader } from '../../website/src/server/runtime/composition/product-telemetry.ts';
+import type { ProductConsent } from '@tovu/contracts/product-telemetry';
 
 export { createProductConsentReader };
 export interface ProductTelemetryPreference extends ProductConsent { decidedAt: string | null }

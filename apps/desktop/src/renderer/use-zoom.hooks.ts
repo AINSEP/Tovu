@@ -218,7 +218,7 @@ export function useZoom(
   activeGuestId: string | null,
   { bridge = runnerInventoryBridge(), storage = shellZoomStorage }: {
     /** The bridge port; defaults to the preload's `window.tovuRunner`. */
-    bridge?: RunnerInventoryBridge | undefined;
+    bridge?: RunnerInventoryBridge;
     /** Where per-site zoom levels persist; defaults to {@link shellZoomStorage}, the shell's own
      *  `localStorage` resolved lazily. */
     storage?: ZoomStorage;

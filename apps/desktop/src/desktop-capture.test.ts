@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EventEmitter } from 'node:events';
 import type { BrowserWindow } from 'electron';
+import { createElectronUrlCapturePool } from '@jini-ai/desktop-host/electron';
 import { desktopCaptureWindowFactory, startDesktopCaptureBridge } from './desktop-capture.ts';
 
 test('capture bindings deny popups/permissions/downloads and expose awaited session cleanup', async () => {
@@ -191,7 +192,7 @@ test('the returned window adapts every Jini call onto the native window and page
 test('the capture bridge refuses a non-loopback URL before any window opens, and sends loopback URLs to the native factory', async () => {
   const { renderBridgeFromEnv } = await import('@jini-ai/desktop-host/render-bridge');
   let windows = 0;
-  const bridge = await startDesktopCaptureBridge({ createWindow: () => { windows++; throw new Error('no native window in tests'); } });
+  const bridge = await startDesktopCaptureBridge({ createWindow: () => { windows++; throw new Error('no native window in tests'); }, capturePool: createElectronUrlCapturePool({}) });
   try {
     const client = renderBridgeFromEnv({ env: bridge.env });
     assert.ok(client);

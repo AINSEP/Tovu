@@ -90,9 +90,9 @@ export function useSitePreview(
     const plan = previewFetchPlan(id, previewVersion, getBridge());
     if (plan.kind === 'clear') {
       setUrl(null);
-      return;
+      return undefined;
     }
-    if (plan.kind === 'skip') return;
+    if (plan.kind === 'skip') return undefined;
 
     let cancelled = false;
     plan.bridge

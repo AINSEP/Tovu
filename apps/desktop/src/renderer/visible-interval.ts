@@ -11,7 +11,7 @@
 
 /** The slice of `document` this reads. */
 export interface VisibilitySource {
-  readonly visibilityState: DocumentVisibilityState;
+  readonly visibilityState: "hidden" | "visible";
   addEventListener(type: "visibilitychange", listener: () => void): void;
   removeEventListener(type: "visibilitychange", listener: () => void): void;
 }
@@ -37,7 +37,7 @@ const WINDOW_TIMERS: IntervalTimers = {
 export function startVisibleInterval(
   tick: () => void,
   periodMs: number,
-  doc: VisibilitySource = document,
+  doc: VisibilitySource = (globalThis as unknown as { document: VisibilitySource }).document,
   timers: IntervalTimers = WINDOW_TIMERS,
 ): () => void {
   let handle: unknown = null;
@@ -49,7 +49,7 @@ export function startVisibleInterval(
     handle = null;
   };
   const onVisibility = () => {
-    if (doc.visibilityState === "hidden") return halt();
+    if (doc.visibilityState === "hidden") { halt(); return; }
     if (handle !== null) return;
     tick();
     run();

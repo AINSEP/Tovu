@@ -6,6 +6,8 @@
   "description": "Electron shell around the same Tovu the web mode serves. Additive: nothing outside this directory knows it exists.",
   "main": "main.ts",
   "scripts": {
+    "predev": "npm --prefix ../../packages/contracts run build",
+    "prebuild": "npm --prefix ../../packages/contracts run build",
     "dev": "electron .",
     "attach": "electron .",
     "build": "npm run build:preload && npm run build:renderer",
@@ -17,10 +19,14 @@
     "test": "node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test \"src/*.test.ts\" \"src/!(renderer|contracts)/**/*.test.ts\" && node --import tsx --test \"src/renderer/**/*.test.ts\" \"src/contracts/**/*.test.ts\"",
     "gates": "node scripts/check-gates.ts",
     "smoke:packaged-chat": "node scripts/smoke-packaged-chat.ts",
+    "release:inputs": "node ../../development/scripts/check-no-linked-jini.mjs && cd ../.. && node development/scripts/check-no-linked-jini.mjs",
+    "prestage": "npm run release:inputs",
+    "prepackage": "npm run release:inputs",
     "stage": "node scripts/stage-payload.ts && node scripts/stage-website-shared.ts",
     "package": "npm run gates && npm run build && npm run stage && electron-builder --mac && node scripts/verify-package.ts && node scripts/smoke-native.ts --platform-dir release && node scripts/smoke-bridge.ts --platform-dir release"
   },
   "dependencies": {
+    "@tovu/contracts": "file:../../packages/contracts",
     "@cfworker/json-schema": "^4.1.1",
     "@jini-ai/agent-runtime": "^0.6.12",
     "@jini-ai/chat": "^0.6.12",

@@ -953,3 +953,45 @@ test("stageBundledNpm returns the staged file count and on-disk byte size", () =
   assert.equal(result.fileCount, 5);
   assert.equal(result.bytes, diskBytes(outDir));
 });
+
+
+test("declared closure includes required peers and installed optionals, but excludes development and optional-peer plugins", t => {
+  const tmp = tempDir();
+  t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
+  const source = path.join(tmp, "source");
+  const modules = path.join(source, "node_modules");
+  const selected = "@jini-ai/plugin-observability-sentry";
+  const unused = "@jini-ai/plugin-analytics-posthog";
+  writePackage(source);
+  fs.writeFileSync(path.join(source, "package.json"), JSON.stringify({
+    dependencies: { runtime: "1", "absent-optional": "1" },
+    peerDependencies: { requiredPeer: "1", [unused]: "1" },
+    peerDependenciesMeta: { [unused]: { optional: true } },
+    optionalDependencies: { [selected]: "1", "absent-optional": "1" },
+    devDependencies: { [unused]: "1" },
+  }));
+  for (const name of ["runtime", "requiredPeer", selected, unused]) writePackage(path.join(modules, name));
+  fs.writeFileSync(path.join(modules, "runtime/package.json"), JSON.stringify({ peerDependencies: { requiredPeer: "1" } }));
+  // A required peer cycles back to an already visited runtime package.
+  writePackage(path.join(modules, "requiredPeer"), { runtime: "1" });
+  assert.deepEqual(declaredDependencies(source), ["runtime", "requiredPeer", selected]);
+  const outDir = path.join(tmp, "out");
+  assert.equal(stageTransitiveDependencies({ roots: [source], outDir }), 3);
+  assert.deepEqual(fs.readdirSync(path.join(outDir, "node_modules/@jini-ai")), ["plugin-observability-sentry"]);
+  assert.doesNotThrow(() => assertClosureComplete({ outDir }));
+  // The closure check must also refuse a lost required peer after copying/stripping.
+  fs.rmSync(path.join(outDir, "node_modules/requiredPeer"), { recursive: true });
+  assert.throws(() => assertClosureComplete({ outDir }), /runtime -> requiredPeer/);
+});
+
+test("a missing required dependency or peer refuses staging instead of shipping an incomplete root", t => {
+  const tmp = tempDir();
+  t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
+  for (const field of ["dependencies", "peerDependencies"]) {
+    const source = path.join(tmp, field);
+    writePackage(source);
+    fs.writeFileSync(path.join(source, "package.json"), JSON.stringify({ [field]: { "missing-required": "1" } }));
+    assert.throws(() => stageTransitiveDependencies({ roots: [source], outDir: path.join(tmp, "out") }),
+      { message: `Unresolved runtime dependency: ${source} -> missing-required` });
+  }
+});

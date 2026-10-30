@@ -64,7 +64,8 @@ function themePreviewFrame({ frame }: { frame: unknown }, _options = {}): ThemeP
  */
 function hasPreviewRevision(input: { frame: unknown }, _options = {}): input is { frame: { revision: string } } {
   const { frame } = input;
-  return !!frame && typeof frame === 'object' && 'revision' in frame && typeof frame.revision === 'string' && /^[\w-]{1,100}$/.test(frame.revision);
+  if (!frame || typeof frame !== 'object' || !('revision' in frame)) return false;
+  return typeof frame.revision === 'string' && /^[\w-]{1,100}$/.test(frame.revision);
 }
 
 export interface SiteThemePreviewPorts {

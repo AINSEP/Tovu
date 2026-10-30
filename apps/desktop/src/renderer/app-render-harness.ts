@@ -27,19 +27,16 @@ registerHooks({
 
 const { JSDOM } = createRequire(import.meta.url)('jsdom');
 export const dom = new JSDOM('<!doctype html><body></body>', { url: 'http://localhost/', pretendToBeVisual: true });
-const resizeCallbacks = new Set<() => void>();
-class RecordingResizeObserver {
-  private readonly callback: () => void;
-  constructor(callback: () => void) { this.callback = callback; }
-  observe() { resizeCallbacks.add(this.callback); }
-  disconnect() { resizeCallbacks.delete(this.callback); }
+class InertResizeObserver {
+  observe() {}
+  disconnect() {}
 }
 dom.window.HTMLElement.prototype.scrollIntoView = function scrollIntoView() {};
 dom.window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
 Object.assign(globalThis, {
   window: dom.window, document: dom.window.document, localStorage: dom.window.localStorage,
   requestAnimationFrame: dom.window.requestAnimationFrame, cancelAnimationFrame: dom.window.cancelAnimationFrame,
-  ResizeObserver: RecordingResizeObserver, IS_REACT_ACT_ENVIRONMENT: true,
+  ResizeObserver: InertResizeObserver, IS_REACT_ACT_ENVIRONMENT: true,
   // `npm test` runs renderer tests under tsx's classic JSX transform (see `icons.test.ts`).
   React,
 });

@@ -1,4 +1,4 @@
-/** Coverage for the missing-folder Locate button: performLocate's decisions and the real hook's
+/** Coverage for the missing-folder Locate button: performSiteFolderAction's decisions and the real hook's
  * pending, error, retry and record-delivery flow through React and a controlled desktop bridge. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -6,44 +6,44 @@ import { createRequire } from 'node:module';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { performLocate, useSiteLocate } from './use-site-locate.hooks.js';
+import { performSiteFolderAction, useSiteLocate } from './use-site-locate.hooks.js';
 import type { SiteRecord } from '../contracts/project.js';
 
 const FOUND = { id: '/sites/tovu-dev', folderMissing: false } as unknown as SiteRecord;
 
 test('a located folder resolves with main\'s record at its new id', async () => {
   const asked: string[] = [];
-  const result = await performLocate('/sites/tovu-com', {
+  const result = await performSiteFolderAction({ id: '/sites/tovu-com', bridge: {
     locateSite: async (id) => {
       asked.push(id);
       return FOUND;
     },
-  });
+  } });
   assert.deepEqual(asked, ['/sites/tovu-com']);
   assert.deepEqual(result, { record: FOUND });
 });
 
 test('a refusal containing a filesystem path becomes the card\'s recovery instruction', async () => {
-  const result = await performLocate('/sites/x', {
+  const result = await performSiteFolderAction({ id: '/sites/x', bridge: {
     locateSite: async () => {
       throw new Error('/tmp/y is not a complete Tovu site (empty). Pick the folder that holds this website.');
     },
-  });
+  } });
   assert.deepEqual(result, { error: 'Could not add this website. Check the folder and try again.' });
 });
 
 test('a cancelled picker is not an error to show', async () => {
-  const result = await performLocate('/sites/x', {
+  const result = await performSiteFolderAction({ id: '/sites/x', bridge: {
     locateSite: async () => {
       throw new Error("Error invoking remote method 'runner:sites:locate': Error: No folder was chosen.");
     },
-  });
+  } });
   assert.deepEqual(result, {});
 });
 
 test('a non-Error rejection is stringified, and a missing bridge says so', async () => {
-  assert.deepEqual(await performLocate('/s', { locateSite: () => Promise.reject('boom') }), { error: 'boom' });
-  assert.deepEqual(await performLocate('/s', undefined), { error: 'The desktop bridge is unavailable.' });
+  assert.deepEqual(await performSiteFolderAction({ id: '/s', bridge: { locateSite: () => Promise.reject('boom') } }), { error: 'boom' });
+  assert.deepEqual(await performSiteFolderAction({ id: '/s', bridge: undefined }), { error: 'The desktop bridge is unavailable.' });
 });
 
 // F2.3/F6.2: run the hook's real state transitions and delivery callback, including a retry.

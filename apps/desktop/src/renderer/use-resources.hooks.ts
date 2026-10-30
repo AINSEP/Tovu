@@ -40,7 +40,7 @@ export function useResources({ panelOpen }: ResourcesRequest, { ports = browserP
   const inFlight = useRef<Promise<ResourcesSnapshot | null> | null>(null);
   useEffect(() => {
     const bridge = ports.getBridge();
-    if (!bridge?.getResources) return;
+    if (!bridge?.getResources) return undefined;
     let active = true;
     let pending = false;
     let visibilityVersion = 0;

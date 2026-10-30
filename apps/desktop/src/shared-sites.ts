@@ -39,7 +39,11 @@ export function desktopAppDataDir(
   { appDataDir, env, cwd, platform }: { appDataDir?: string; env: NodeJS.ProcessEnv; cwd: string; platform?: NodeJS.Platform }, _options = {},
 ): string | undefined {
   // The inherited override also reaches CLI/MCP callers without an Electron app instance.
-  return appDataDir ?? (env.TOVU_DESKTOP_USER_DATA_DIR?.trim() ? (platform === "win32" ? path.win32 : path).resolve(cwd, env.TOVU_DESKTOP_USER_DATA_DIR.trim()) : undefined);
+  if (appDataDir !== undefined && appDataDir !== null) return appDataDir;
+  const inherited = env.TOVU_DESKTOP_USER_DATA_DIR?.trim();
+  if (!inherited) return undefined;
+  const paths = platform === "win32" ? path.win32 : path;
+  return paths.resolve(cwd, inherited);
 }
 
 /** The released 0.1.14 default nested sites in Documents/Tovu/sites; desktop startup moves them back up.
@@ -185,7 +189,10 @@ export function attachRunningSite({ workspace, dir }: { workspace: SitesWorkspac
   const timers = new Set<ReturnType<typeof setInterval>>();
   return { external: true as const, pid: running.pid, port: running.port, origin, adminUrl: `${origin}/admin/`,
     workspaceId: "", schemaVersion: 0, bootToken: null,
-    async stop() { for (const timer of timers) clearInterval(timer); timers.clear(); },
+    async stop() {
+      for (const timer of timers) clearInterval(timer);
+      timers.clear();
+    },
     onExit(listener: (exit: { code: number | null; signal: NodeJS.Signals | null }) => void) {
       const timer = setInterval(() => {
         const current = workspace.running({ path: dir }).read({});

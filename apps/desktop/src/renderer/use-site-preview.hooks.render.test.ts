@@ -76,6 +76,10 @@ test('with no bridge there is nothing to ask, so nothing is shown', async (t) =>
 });
 
 test('two sites that share a version number each fetch their own capture', async (t) => {
+  // Regression: if the dependency array narrowed to `[previewVersion]` alone, two different sites
+  // sharing a version number (a filesystem mtime, which need not be monotonic) would keep showing
+  // whichever site fetched first. Render the hook to observe the id-change refetch directly;
+  // keep the injected `getBridge` port stable so only the id change can trigger it.
   const fake = previewBridge();
   let id = '/sites/a';
   const hook = renderHook(t, () => useSitePreview({ id, previewVersion: 7 }, { getBridge: fake.getBridge }));

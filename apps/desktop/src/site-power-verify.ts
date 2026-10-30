@@ -83,7 +83,8 @@ function statusUnderMenu(menu: Box, details: Box, status: Box): Claim {
  */
 export function layoutClaims(state: CardState | null): LayoutClaims {
   const layout = state === null ? null : state.layout;
-  if (!layout || !layout.name || !layout.menu || !layout.details || !layout.status) return NO_LAYOUT;
+  if (!layout) return NO_LAYOUT;
+  if (!layout.name || !layout.menu || !layout.details || !layout.status) return NO_LAYOUT;
   return {
     onNameRow: onNameRow(layout.name, layout.menu),
     powerUnderText: powerUnderText(layout.details, layout.status, layout.power),

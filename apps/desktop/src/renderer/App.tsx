@@ -48,6 +48,14 @@ const THEMES: readonly ThemePreference[] = ['light', 'system', 'dark'];
 // Admin first because that is where a workspace opens. See `SiteWorkspace` for why.
 const SITE_SURFACES: readonly SiteSurface[] = ['admin', 'site'];
 
+function appScreen({ appearanceOpen, showSitesHome, isCreating, activeId }: {
+  appearanceOpen: boolean; showSitesHome: boolean; isCreating: boolean; activeId: RunnerSectionId;
+}, _options = {}) {
+  if (appearanceOpen) return 'appearance';
+  if (!showSitesHome) return null;
+  return isCreating ? 'create_website' : activeId;
+}
+
 // "Import site" opens a site's own admin on its Import & Export > Import tab; hidden when there is no site.
 function createImportSiteAction(
   { projects, openProjectTab }: {
@@ -157,7 +165,7 @@ export function App({
 
   const runningCount = countRunningSites(projects);
   const active = findSection(activeId);
-  useProductScreen({ screen: appearanceOpen ? 'appearance' : showSitesHome ? (isCreating ? 'create_website' : activeId) : null });
+  useProductScreen({ screen: appScreen({ appearanceOpen, showSitesHome, isCreating, activeId }) });
 
   return (
     <ResourcesMonitor projects={projects} onSiteUpdated={applySiteRecord}>
@@ -287,7 +295,9 @@ function FindBar({ find }: { find: FindInPage }) {
           if (event.key === 'Escape') {
             event.preventDefault();
             find.close();
-          } else if (event.key === 'Enter') {
+            return;
+          }
+          if (event.key === 'Enter') {
             event.preventDefault();
             if (event.shiftKey) find.previous();
             else find.next();
@@ -701,6 +711,21 @@ function SiteWorkspace({
   const combinedGuestRef = useComposedGuestRef(guestRef, registerGuest, project.id, (node) => registerZoomGuest(project.id, node));
   const running = workspace.running;
 
+  const startPanel = running ? (
+    // The registry row still says `running` — nothing crashed for a poll to catch — but the
+    // guest just told us, as a fact rather than a guess, that its main frame would not load.
+    // Nothing is left running underneath worth preserving, so this replaces the guest outright
+    // rather than overlaying it the way `stalled` does above.
+    <SiteStartPanel
+      project={project}
+      body={`${project.displayName} isn't answering on port ${project.port}. It may still be running, but stuck.`}
+      onStarted={workspace.recover}
+      onSiteUpdated={onSiteUpdated}
+    />
+  ) : (
+    <SiteStartPanel project={project} body={workspace.attachError ?? (project.externalUrl ? "Connecting to the server already running in the other app…" : undefined)} onSiteUpdated={onSiteUpdated} />
+  );
+
   return (
     <section
       className={`workspace ${running ? 'is-running' : ''} ${hidden ? 'is-hidden' : ''}`}
@@ -819,20 +844,7 @@ function SiteWorkspace({
             </div>
           )}
         </div>
-      ) : running ? (
-        // The registry row still says `running` — nothing crashed for a poll to catch — but the
-        // guest just told us, as a fact rather than a guess, that its main frame would not load.
-        // Nothing is left running underneath worth preserving, so this replaces the guest outright
-        // rather than overlaying it the way `stalled` does above.
-        <SiteStartPanel
-          project={project}
-          body={`${project.displayName} isn't answering on port ${project.port}. It may still be running, but stuck.`}
-          onStarted={workspace.recover}
-          onSiteUpdated={onSiteUpdated}
-        />
-      ) : (
-        <SiteStartPanel project={project} body={workspace.attachError ?? (project.externalUrl ? "Connecting to the server already running in the other app…" : undefined)} onSiteUpdated={onSiteUpdated} />
-      )}
+      ) : startPanel}
     </section>
   );
 }
@@ -1325,7 +1337,9 @@ function ThemeControl({
   return (
     <div className="themer" role="group" aria-labelledby="settings-theme-label">
       {THEMES.map((option) => {
-        const label = option === 'light' ? 'Light' : option === 'system' ? 'System' : 'Dark';
+        let label = 'Dark';
+        if (option === 'light') label = 'Light';
+        if (option === 'system') label = 'System';
         return (
           <button
             type="button"

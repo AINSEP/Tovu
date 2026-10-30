@@ -42,13 +42,12 @@
  * ## Shape
  *
  * Every precondition, staging step and summary line lives in `../src/stage-payload-run.ts`, tested
- * there against real temporary trees; this file only binds the real filesystem, `npm ls`, the
+ * there against real temporary trees; this file only binds the real filesystem, the
  * staging steps, the environment and the output streams.
  *
  * Usage: node scripts/stage-payload.ts [--repo-root <checkout>]   (default: this checkout)
  * Exit codes: 0 = payload and bundled npm staged; 1 = a precondition or staged-tree check refused.
  */
-import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -56,6 +55,7 @@ import { fileURLToPath } from "node:url";
 import { assertDistImportsDeclared } from "../src/dist-import-check.ts";
 import {
   assertClosureComplete,
+  declaredDependencies,
   diskBytes,
   newestMtime,
   pruneNativePrebuilds,
@@ -73,11 +73,10 @@ const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
 process.exitCode = stagePayloadCli({ argv: process.argv.slice(2), desktopDir }, {
   fs: { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, unlinkSync },
   steps: {
-    stagePayloadFiles, stageDir, stageTransitiveDependencies, stripNonRuntimeFiles, pruneNativePrebuilds,
+    declaredDependencies, stagePayloadFiles, stageDir, stageTransitiveDependencies, stripNonRuntimeFiles, pruneNativePrebuilds,
     assertClosureComplete, assertDistImportsDeclared, stageBundledNpm, diskBytes, newestMtime,
   },
   shells: STAGED_SHELLS,
-  execFileSync,
   env: process.env,
   host: process,
   stdout: process.stdout,
