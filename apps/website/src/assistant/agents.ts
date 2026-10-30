@@ -146,6 +146,8 @@ function projectAssistantAgent({ def, launch, modelResult }: {
     // runtime-id list here.
     supportsTools: runtimeSupportsExternalTools({ def }),
     supportsNativeToolAccess: def.supportsNativeToolAccess === true,
+    ...(def.fullCliAccessOnly ? { fullCliAccessOnly: true } : {}),
+    ...(def.fullCliAccessNote ? { fullCliAccessNote: def.fullCliAccessNote } : {}),
     // See `AssistantAgentSummary.carriesOwnMemory`'s own doc — either resume mechanism means
     // the CLI itself, not this transport, owns the def's multi-turn memory.
     carriesOwnMemory: Boolean(def.resumesSessionViaCli) || Boolean(def.resumesSessionViaAcpLoad),

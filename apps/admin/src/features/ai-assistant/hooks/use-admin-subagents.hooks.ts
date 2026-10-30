@@ -61,6 +61,7 @@ export function useDockAgentPermissions(required: { t: (key: string) => string; 
   // Reuse the effective server snapshot that drives the switches; changing a limit updates
   // preflight immediately, while the executor remains the authority at launch.
   const nativeToolPolicy: NativeToolPolicyInput | undefined = state.settings && !state.loadError ? {
+    canGrantFullCliAccess: access.canEdit,
     nativeToolAccess: view.capabilities.some(item => item.enabled),
     cliParity: view.capabilities.some(item => item.enabled),
     permissionMode: state.settings.permissionMode ?? "restricted",

@@ -1,9 +1,11 @@
+import { verifyJsonAgentInstall } from "@jini-ai/mcp";
 import { buildAssistantFilesystemNotices } from "./assistant-filesystem-notices.js";
 import { buildLibrarySaveAttachmentTool, buildListPendingChatAttachmentsTool, buildPromoteChatAttachmentTool, MEDIA_PROMOTE_CHAT_ATTACHMENT_TOOL_ID } from "#src/features/media/attachment-tools";
 import { createDocumentArchiveReader } from "#src/features/media/document-archive";
 import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import { createAutomaticPluginRuns } from "../../../features/agent-plugins/automatic-agent-plugins.js";
 import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
+import { resolveNativeToolPolicy, assessNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { assistantCliPermissions } from "#src/assistant/runtime-settings";
@@ -1358,8 +1360,15 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       ? await readAssistantCliPermissions({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
         settingsReady: routeDeps.settingsUiTabsReady, workspaceId: routeDeps.workspaceId, principalId: principal.id }, {})
       : assistantCliPermissions({ enabled: false });
-    const { capabilities: nativeCapabilities } = resolveAssistantCliPermissions({ isOwner, env: process.env,
-      settings }, { hostSignals });
+    const def = getAgentDef({ id: sessionBinding.agentId });
+    const canGrantFullCliAccess = resolveFullCliAccess({ isOwner, env: process.env }, { hostSignals });
+    const policy = resolveNativeToolPolicy({ def: def ?? {}, policy: { canGrantFullCliAccess,
+      nativeCapabilities: resolveAssistantCliPermissions({ isOwner, env: process.env, settings }, { hostSignals }).capabilities } });
+    if (def?.fullCliAccessOnly) {
+      const reason = assessNativeToolPolicy({ def, policy });
+      if (reason) { await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: reason }, {}); return; }
+    }
+    const nativeCapabilities = assistantCliPermissions({ enabled: false, capabilities: policy.nativeCapabilities ?? {} }).capabilities;
     const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
     if (sessionBinding.agentId === 'claude' && process.platform === 'win32' && nativeCapabilities.shell) {
       console.warn('[agent-daemon] shell is not folder-limited on this platform');
@@ -1383,6 +1392,19 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     // Owner 2026-10-27: the folder picked with the composer's folder control is readable, never writable.
     const pickedFolder = getCustomFsRoot(routeDeps.workspaceId, { siteDir: routeDeps.siteBinding.dir });
     const runGuidance = pickedFolder ? { ...runtimeLaunch.guidance, pickedFolder } : runtimeLaunch.guidance;
+    if (def?.externalMcpInjection === 'env-passthrough') {
+      try {
+        await verifyJsonAgentInstall({ agentId: def.id, spec: { command: bridgeInjection.command,
+          args: [...(bridgeInjection.args ?? [])], env: { ...bridgeInjection.env } },
+          ctx: { home: homedir(), platform: process.platform, serverName: 'jini' },
+          readFile: ({ path }) => readFile(path, 'utf8') });
+      } catch (error) {
+        await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: (error as Error).message }, {}); return;
+      }
+    }
+    if (def?.fullCliAccessNote) await runLifecycle.emit({ runId: run.id, input: {
+      event: 'agent', data: { type: 'status', label: 'full_cli_access', detail: def.fullCliAccessNote },
+    } });
     const executeRun = () => agentExecutor.run({
       runId: run.id,
       agentId: sessionBinding.agentId,
@@ -1393,8 +1415,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       cwd: routeDeps.siteBinding.dir,
     }, {
       filesystemRoot: routeDeps.siteBinding.dir,
-      permissionMode: resolvePermissionMode(),
+      permissionMode: policy.permissionMode ?? resolvePermissionMode(),
       nativeToolAccess,
+      canGrantFullCliAccess,
       nativeCapabilities,
       cliParity: nativeToolAccess,
       ...(parityEnv ? { env: parityEnv } : {}),

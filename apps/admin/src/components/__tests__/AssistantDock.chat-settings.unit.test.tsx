@@ -123,7 +123,7 @@ describe("AssistantDock Chat settings", () => {
   it("passes the effective current CLI limits to the picker before a message is sent", async () => {
     render(<AssistantDock useChats={fakeChats} />);
     await waitFor(() => expect(chatPaneSpy.mock.lastCall?.[0].nativeToolPolicy).toEqual({
-      nativeToolAccess: true, cliParity: true, permissionMode: "bypass", nativeCapabilities: {
+      canGrantFullCliAccess: true, nativeToolAccess: true, cliParity: true, permissionMode: "bypass", nativeCapabilities: {
         shell: true, fileWrite: true, userMcp: false, subagents: true,
         userSettings: true, web: true, workflows: true, loginEnvironment: true,
       },

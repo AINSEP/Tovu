@@ -9,6 +9,7 @@ export const SUBAGENT_DANGERS = [
 ] as const;
 import type { AssistantCliPermissions } from "@tovu/headless";
 export interface AssistantSubagentsSettings {
+  /** canEdit identifies a local owner; unavailableReason can still lock full access on this machine. */
   enabled: boolean; canEdit: boolean; capabilities?: AssistantCliPermissions["capabilities"]; unavailableReason?: string;
   /** Effective launch mode; older responses remain unknown and preflight fails closed. */
   permissionMode?: "bypass" | "restricted";

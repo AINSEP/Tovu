@@ -154,3 +154,60 @@ test('the real launch snapshot carries each independent OFF choice into Claude a
     if (key === 'loginEnvironment') assert.equal(input.env, undefined);
   }
 });
+
+test('Antigravity gets full access with every workspace switch off for the eligible owner, and one run note', async () => {
+  const events: unknown[] = [];
+  let bridgeChecked = false;
+  const input = await captureDaemonRun({ prompt: 'Hello' }, { request: { agentId: 'antigravity' }, bindings: {
+    routeDeps: { ownerPrincipalId: Promise.resolve('daemon-test-principal'), workspaceId: 'w', siteBinding: { dir: '/site' }, toolAttemptAuditSink: { append: async () => {} } },
+    readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: false }),
+    verifyJsonAgentInstall: async () => { bridgeChecked = true; },
+  }, lifecycle: { waitForTerminal: () => new Promise(() => {}), emit: async (event: unknown) => { events.push(event); } } });
+  assert.equal(input.canGrantFullCliAccess, true);
+  assert.equal(input.nativeToolAccess, true);
+  assert.equal(input.cliParity, true);
+  assert.equal(input.permissionMode, 'bypass');
+  assert.deepEqual(input.nativeCapabilities, Object.fromEntries(ASSISTANT_CLI_CAPABILITIES.map(({ key }) => [key, true])));
+  assert.equal(input.disallowedTools?.includes('Read(//**/.tovu/**)'), true);
+  assert.equal(input.env?.PATH, '/test/login-shell');
+  assert.equal(bridgeChecked, true);
+  assert.deepEqual(events, [{ runId: 'daemon-test-run', input: { event: 'agent', data: { type: 'status', label: 'full_cli_access',
+    detail: 'Gemini (Antigravity) always runs with full access to this computer, like running it in your own terminal. Pick Claude or Codex if you want the tool limits.' } } }]);
+});
+
+test('Antigravity refuses non-owner, hosted and locally locked launches before bridge setup', async () => {
+  for (const policy of [
+    { ownerPrincipalId: 'another-admin', env: {} },
+    { ownerPrincipalId: 'daemon-test-principal', env: { TOVU_RUNTIME_MODE: 'production' } },
+    { ownerPrincipalId: 'daemon-test-principal', env: { TOVU_AGENT_FORBID_BASH: '1' } },
+  ]) {
+    await assert.rejects(captureDaemonRun({ prompt: 'Hello', canGrantFullCliAccess: true }, { request: { agentId: 'antigravity' }, bindings: {
+      routeDeps: { ownerPrincipalId: Promise.resolve(policy.ownerPrincipalId), siteBinding: { dir: '/site' } },
+      process: { env: policy.env, cwd: () => '/site' },
+      verifyJsonAgentInstall: async () => { assert.fail('ineligible runs must not prepare the bridge'); },
+    } }), /Only the owner can change Full CLI access\./);
+  }
+});
+
+test('a broken Antigravity bridge reports its repair message before dispatch', async () => {
+  const message = 'Run "mcp install antigravity" to repair the bridge entry';
+  await assert.rejects(captureDaemonRun({ prompt: 'Hello' }, { request: { agentId: 'antigravity' }, bindings: {
+    routeDeps: { ownerPrincipalId: Promise.resolve('daemon-test-principal'), siteBinding: { dir: '/site' }, toolAttemptAuditSink: { append: async () => {} } },
+    verifyJsonAgentInstall: async () => { throw new Error(message); },
+  } }), /mcp install antigravity/);
+});
+
+test('Claude and Codex retain the owner’s workspace limits rather than receiving full-only projection', async () => {
+  for (const agentId of ['claude', 'codex']) {
+    const input = await captureDaemonRun({ prompt: 'Hello' }, { request: { agentId }, bindings: {
+      routeDeps: { ownerPrincipalId: Promise.resolve('daemon-test-principal'), siteBinding: { dir: '/site' }, toolAttemptAuditSink: { append: async () => {} } },
+      readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: false }),
+      verifyJsonAgentInstall: async () => { assert.fail('run-scoped MCP adapters keep their existing path'); },
+    } });
+    assert.equal(input.nativeToolAccess, false);
+    assert.equal(input.cliParity, false);
+    assert.deepEqual(input.nativeCapabilities, assistantCliPermissions({ enabled: false }).capabilities);
+    assert.equal(input.disallowedTools?.includes('Bash'), true);
+    assert.equal(input.disallowedTools?.includes('Read(//**/.tovu/**)'), true);
+  }
+});
