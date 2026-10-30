@@ -1,10 +1,10 @@
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
-import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy.js";
+import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy";
 import { anonymousMemberAccess } from "#src/assistant/site/__tests__/member-access.fixture";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
-import { agentPluginActivations } from "#src/features/agent-plugins/activation-effects.js";
+import { agentPluginActivations } from "#src/features/agent-plugins/activation-effects";
 const { readAgentPluginActivations, setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { chmod, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
@@ -19,10 +19,10 @@ import { TOVU_CAPABILITY_CARDS, resolveSiteGuideEngine } from "#src/server/runti
 import { createSiteCapabilityRegistry } from "#src/assistant/site/capability-registry";
 import { InMemoryPostRepo, listPublishedPosts } from "#src/features/post/index";
 import { publicCapabilityCard } from "#src/assistant/site/capability-card";
-import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout.js";
-import { resolveAgentPluginRefs, listInstalledPlugins } from "#src/features/agent-plugins/lifecycle.js";
-import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, seedBundledAgentPlugins } from "#src/features/agent-plugins/lifecycle.js";
-import { loadAgentPluginSearchCandidates, loadInstalledAgentPluginToolSources, registerInstalledAgentPluginTools } from "#src/features/agent-plugins/tool-registrations.js";
+import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
+import { resolveAgentPluginRefs, listInstalledPlugins } from "#src/features/agent-plugins/lifecycle";
+import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, seedBundledAgentPlugins } from "#src/features/agent-plugins/lifecycle";
+import { loadAgentPluginSearchCandidates, loadInstalledAgentPluginToolSources, registerInstalledAgentPluginTools } from "#src/features/agent-plugins/tool-registrations";
 
 /**
  * @file The end-to-end proof that "bundled but inactive" is a real, enforced condition — not a
