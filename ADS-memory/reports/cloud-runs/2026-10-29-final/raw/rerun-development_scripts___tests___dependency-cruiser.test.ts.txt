@@ -1,0 +1,21 @@
+✖ deep-import rules exempt tests and current composition, retaining other production boundaries (64.361977ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 452.205962
+
+✖ failing tests:
+
+test at development/scripts/__tests__/dependency-cruiser.test.ts:1:247
+✖ deep-import rules exempt tests and current composition, retaining other production boundaries (64.361977ms)
+  SyntaxError [Error]: Unexpected end of JSON input
+      at JSON.parse (<anonymous>)
+      at TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/dependency-cruiser.test.ts:61:23)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)

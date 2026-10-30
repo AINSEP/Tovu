@@ -1,0 +1,715 @@
+classify-coverage-gaps — running live complexity scan (npx eslint, src/server/routes)...
+
+classify-coverage-gaps — 443 file(s) below tier threshold, 491 scanned:
+
+ARCHITECTURE_DEBT (186) — refactor before chasing coverage:
+  - apps/website/src/server/inbound/admin-http/routes/forms/delete-submission.ts: unit 77.14% branch, integration 77.14% branch
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/media/list.ts: unit 67.39% branch, integration 67.39% branch
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/media/upload.ts: unit 67.52% branch, integration 67.52% branch
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/pages/delete.ts: unit 81.82% branch, integration 81.82% branch
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/pages/get-by-id.ts: unit 63.64% branch, integration 63.64% branch
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/pages/update-html.ts: unit 68.33% branch, integration 68.33% branch
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/plugins/preview.ts: unit 88.76% branch, integration 88.76% branch
+      [complexity] Function 'parsePreviewDraft' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/plugins/provider-settings.ts: unit 92.86% branch, integration 92.86% branch
+      [complexity] Arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/plugins/set-enabled.ts: unit 78.86% branch, integration 78.86% branch
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/presentation/get.ts: unit 72.73% branch, integration 72.73% branch
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/publish-content/backstop.ts: unit 87.68% branch, integration 87.68% branch
+      [complexity] Async function 'handleUndoRequest' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/publish-content/blob-get.ts: unit 80.65% branch, integration 80.65% branch
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/publish-content/blob-put.ts: unit 75.68% branch, integration 75.68% branch
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/sites/sites-home.ts: unit 91.47% branch, integration 91.47% branch
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/server/inbound/admin-http/routes/skills/manage.ts: unit 83.54% branch, integration 83.54% branch
+      [complexity] Function 'installationInput' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/system/assistant-owner-grant.ts: unit 85.00% branch, integration 85.00% branch
+      [complexity] Async method 'handle' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/system/custom-credentials.ts: unit 65.04% branch, integration 65.04% branch
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts: unit 67.66% branch, integration 67.66% branch
+      [complexity] Function 'parsePublishRequestBody' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/system/site-key.ts: unit 75.48% branch, integration 75.48% branch
+      [complexity] Function 'ensuredSiteKeyResult' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts: unit 81.43% branch, integration 81.43% branch
+      [complexity] Function 'readShareJobId' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/themes/duplicate.ts: unit 91.67% branch, integration 91.67% branch
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/widgets/preview-render.ts: unit 90.00% branch, integration 90.00% branch
+      [complexity] Async function 'renderWidgetPreview' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/widgets/preview.ts: unit 95.24% branch, integration 95.24% branch
+      [complexity] Function 'parseWidgetPreviewBody' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/widgets/update.ts: unit 84.00% branch, integration 84.00% branch
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/public-http/routes/members/me.ts: unit 79.55% branch, integration 79.55% branch
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/public-http/routes/members/oidc-callback.ts: unit 81.13% branch, integration 81.13% branch
+      [complexity] Function 'callbackParams' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts: unit 70.75% branch, integration 70.75% branch
+      [complexity] Function 'asChallengeResponse' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/public-http/routes/site/pages.ts: unit 78.24% branch, integration 78.24% branch
+      [complexity] Async function 'finalizePublicPageHtml' has a complexity of 10. Maximum allowed is 9.
+  - apps/site-chat/src/loader-host.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'prepareSiteChatLoadIntent' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/assistant/ask-choice-tool.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'buildAskChoiceFormSurface' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/assistant/content-read-tool.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'cardDispatch' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/assistant/content-target-inputs.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'contentTarget' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/assistant/credential-chat-intake.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'redactAdminRunContextRef' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/assistant/credential-store-fields.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'credentialWriteFields' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/assistant/execution-credential-store.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'executionMetadata' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'setExecutionCredential' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/assistant/external-mcp-store.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/assistant/mcp-ui-tool-calls-route.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'parseMcpUiToolCallRequest' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/assistant/site/visitor-confirmations.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async method 'request' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/assistant/site/visitor-executor.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async method 'invoke' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/assistant/tool-approval-policy.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'federatedApprovalClassFor' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/assistant/tool-search-keywords.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'readBundledToolKeywords' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/agent-plugins/access-token-tool.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'saveSubmittedAccessToken' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/agent-plugins/analytics-provider-registry.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'parseDescriptor' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/agent-plugins/apply-connect-defaults.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/agent-plugins/apply-tool-renames.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'renameRowTools' has a complexity of 10. Maximum allowed is 9.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/agent-plugins/connect-tool.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'connectDeclaredApiConnectionOrRefuse' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/agent-plugins/credential-cards.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Arrow function has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'validateCardFields' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/agent-plugins/descriptor-i18n.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'parseLocaleTranslations' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/agent-plugins/host-signals.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'parseHostSignalDeclaration' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/agent-plugins/install-tool.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'installBundledPlugin' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/agent-plugins/mail-adapter-registry.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'parseDescriptor' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'parseDescriptorV2' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/agent-plugins/memory.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'discoverSiteWorkspaceIds' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/agent-plugins/new-site-agent-plugin-tokens.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'parseNewSiteAgentPluginTokens' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/agent-plugins/tool-registrations.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+      [complexity] Async function 'readPluginSkillGuidance' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/analytics/tool-registrations.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'validateRecentHitsOptions' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/api-connections/contribution.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'parseClient' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'parseApiConnectionsFile' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/asset-transfer/copy-tool.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'prepare' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/comments/builtin-provider.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'threadOrder' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/consent/readiness.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'inventoryItem' has a complexity of 10. Maximum allowed is 9.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/consent/service.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/consent/validation.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'parseConsentConfig' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'consentConfigProblems' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/content-duplication/tool-registrations.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/custom-credentials/credential-copy-tool.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'copyFailure' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/custom-credentials/credential-recovery.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/custom-credentials/credential-save-tool.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'selectSave' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'routeSave' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/custom-credentials/provider-settings-card.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'choiceFields' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'secretFieldOf' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/custom-credentials/store.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'toSummary' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/custom-credentials/tool-registrations.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'probeCardBeforeSave' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'saveCreateCard' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'loadCreateCredentialProviders' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/custom-credentials/vault-repo.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'customVaultRecord' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/database-transfer/destination-store.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async method 'recordRun' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/deployments/deploy-config-registry.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'readPublishMetadata' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/deployments/deploy-ops/run-ops.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'normalizeResponse' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'runDeployOps' has a complexity of 10. Maximum allowed is 9.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/deployments/deploy-ops/secrets.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'runSetSecret' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/deployments/deploy-ops/tool-registrations.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'valueSource' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/deployments/deploy-targets/registry.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'parseDescriptor' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'parseCredentialSpec' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'parseFieldSpec' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'parseHelpCopy' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'parseCredentialDetails' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/deployments/publish-agent-tools.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+      [complexity] Arrow function has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async method 'deployment_execute_static_publish' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/deployments/publish-credentials/store.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'updatedConnection' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/deployments/static-publish/adapter.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'publishStaticSiteSteps' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/deployments/static-publish/inspection.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'inspectStaticPublish' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/deployments/static-publish/verify.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'computeVerificationResult' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/email-templates/render.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'readTemplateDeclarations' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/entries/public-list.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'parseCollectionListConfig' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/external-mcp/tool-registrations.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'buildSaveExternalMcpServerInputFromFormParams' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'probeSavedExternalMcpConfiguration' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/form-destinations/registry.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'receiveOptionsReason' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/fs-files/write-files.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'requirePickedFolder' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/identity/api-key-secret.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'parseStoredHash' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/identity/delete-user-service.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'assertUserAccountAction' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/image-transform/image-ops.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'resizedSides' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/mail-status/test-send.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'planMailTestSend' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'performMailTestSend' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/mail/attempts.repo.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/media-generation/media-provider-registry.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'parseDescriptor' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/media/tool-registrations.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/media/view-video-tool.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'assertEveryAndStart' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/member-login/oidc-login.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'openLoginEmailContinuation' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/members/write-service.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async method 'deliver' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'consumeMemberChallenge' has a complexity of 10. Maximum allowed is 9.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/newsletter/delivery/tool-registrations.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async method 'run' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/object-storage/registry.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'descriptorMetadata' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/pages/html-document-store.memory.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async method 'write' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/plugin-runtime/admin-response.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'toAdminPluginResponse' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/plugin-runtime/install-source.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'readPluginInstallRequest' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/plugins/data-module.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'declareDataModule' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/post/publish-content.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async method 'validate' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/post/tool-registrations.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'duplicatePostOrPage' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/project-keys/service.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'savedKeyIdentity' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/publish-content/backstop-preview.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'previewRow' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'previewFile' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/publish-content/backstop-service.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'readBackstopMetadata' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'checkBackstopSelection' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/publish-content/disconnect-tool.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async method 'publish_content_disconnect' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/publish-content/media-references.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/publish-content/peer-transport.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'peerBodyRefusalReason' has a complexity of 10. Maximum allowed is 9.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/publish-content/peers.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async method 'write' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/publish-content/planner.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'attachReferencedBy' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/publish-content/publish-tool.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'completedResult' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/publish-content/raw-file-contributor.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'check' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'undoRawFile' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/publish-content/raw-row-contributor.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'checkShape' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'packSelected' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/publish-content/repo-handler.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'precheckAddress' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'apply' has a complexity of 10. Maximum allowed is 9.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/publish-trust/provisioning.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/publish-trust/revocations.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'parseRevocationEntry' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/settings/tool-registrations.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/settings/visitor-tools-configure.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'parseVisitorToolsConfigure' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/site-backup/archive-extensions.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/site-backup/share-file-policy.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'claimSharePath' has a complexity of 10. Maximum allowed is 9.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/site-backup/share-registry.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async method 'findToken' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/site-backup/sources.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+      [complexity] Async function 'collectSiteBackupFiles' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'readDiskFile' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/site-export/media-original-urls.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'localOriginalPaths' has a complexity of 10. Maximum allowed is 9.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/site-export/theme-preview-report.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'themePreviewExportSize' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/source-control/commit-site.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'commitSiteToSourceControl' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/source-control/provider-registry.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'loadBundledSourceControlProviderRegistry' has a complexity of 10. Maximum allowed is 9.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/source-control/store.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'updateSourceControlCredential' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/source-control/tool-registrations.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/taxonomy/publish-term-ids.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'prepareTermSync' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/theme/active-theme.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'resolveActiveTheme' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/theme/duplicate-theme.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+      [complexity] Function 'duplicateTheme' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/theme/preview-refresh.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'validatePreviewPath' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/theme/preview-switcher-html.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'rewriteNavigation' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/theme/set-active-theme-tool.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'applyActiveTheme' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/theme/static-render.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'renderMenuItem' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Method 'resolve' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/theme/tool-registrations.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'themeReadSelection' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/trash/table-adapter.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/web-screenshot/playwright-page-capture.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async method 'capture' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/web-screenshot/web-screenshot.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'readWebScreenshotInput' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'buildCaptureResult' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'run' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/features/webmcp/published-html.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/features/widgets/tool-registrations.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'toModelFacingWidgetsError' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'resolveWidgetPlacementView' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/dev-auth.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'currentCredential' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/publish-trust-auth.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'requirePublishTrustMiddleware' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/admin-http/routes/system/site-imports.integration.test.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 11 to the 9 allowed.
+  - apps/website/src/server/inbound/assistant/agent-daemon-server.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+      [complexity] Async function 'resolveSessionBinding' has a complexity of 10. Maximum allowed is 9.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+      [complexity] Async function 'launchAgentRun' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/assistant/durable-run-routes.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'start' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/assistant/early-run-session.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'sessionIdFromRunEvent' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/public-http/http/shared/post.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'toHeadlessPost' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/public-http/http/site/form-render.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'decodeFormSubmissionResultFromQuery' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/public-http/http/site/render.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+      [complexity] Function 'renderVideoTag' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'resolvePageBodyEmbed' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'renderWidgetMediaImage' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'pageShell' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/public-http/middleware/canonical-site-host.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'aliasDestination' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/public-http/middleware/site-consent.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'readSiteConsentPolicy' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/public-http/middleware/theme-preview-switcher.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'preparePreviewPage' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/public-http/middleware/theme-static-assets.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/inbound/shared/trust-proxy.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'resolveTrustProxySetting' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/boot/local-owner-signin.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'resolveLocalOwnerSignIn' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'allowsLocalOwnerSignInRequest' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/boot/mail-provider-catalog.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'resolveMailDomainReadCredential' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/boot/site-key-boot-notice.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'warnIfNoSiteKeyAtBoot' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/app.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'createRouteDeps' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'createApp' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/browser-analytics-http.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/content-events.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async method 'handler' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/deps.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'openCompositionStore' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'composeSiteRouteDeps' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/domain-dns-adapters.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+      [complexity] Async method 'query' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/local-credential-copy.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'createLocalCredentialCopy' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/modules/assistant-byok.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'finishFailedTurn' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/modules/assistant-daemon-client.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async method 'runStatus' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'createAssistantRunFinalizer' has a complexity of 10. Maximum allowed is 9.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/server/runtime/composition/modules/assistant.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'proxyMcpUiToolCall' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/open-site-store.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'openPgliteSiteStore' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/peer-site-reads.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/permanent-delete-deps.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+      [complexity] Async arrow function has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/plugin-credential-cards.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'ownsDestination' has a complexity of 10. Maximum allowed is 9.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/server/runtime/composition/plugin-host.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/server/runtime/composition/plugin-runtime.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'composePluginRuntime' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'performPluginAttachment' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'loadProviderPlugins' has a complexity of 10. Maximum allowed is 9.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/server/runtime/composition/product-telemetry.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'errorContext' has a complexity of 10. Maximum allowed is 9.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/server/runtime/composition/provider-plugins.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Arrow function has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'composePorts' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'bootProviderPlugins' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'replaceSlot' has a complexity of 10. Maximum allowed is 9.
+      [sonarjs/cognitive-complexity] Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed.
+  - apps/website/src/server/runtime/composition/provider-settings-save.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'declaredProviderSettingFields' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Function 'nextProviderConfig' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'providerSettingsStatus' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/site-cookie-consent.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'selectCookieConsent' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/site-guide-tools.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'readSiteGuideInput' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/storage-secret.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Async function 'readSealedConnectionString' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/vault-boot.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'normalizedEnvelope' has a complexity of 10. Maximum allowed is 9.
+      [complexity] Async function 'validateCurrentRecord' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/composition/vault-legacy-codecs.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'decodeSecretsVaultCustomV1' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/lifecycle/close-store-on-shutdown.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'closeStoreOnShutdown' has a complexity of 10. Maximum allowed is 9.
+  - apps/website/src/server/runtime/lifecycle/daemon-supervisor.ts: unit no coverage record on either tier (never loaded by any src/server test), integration no coverage record on either tier (never loaded by any src/server test)
+      [complexity] Function 'bindDaemonSupervisor' has a complexity of 10. Maximum allowed is 9.
+
+TEST_GAP (257) — clean complexity, write the missing test(s):
+  - apps/website/src/server/inbound/admin-http/routes/agent-plugins/admin-surfaces.ts: unit 86.96% branch, integration 86.96% branch
+  - apps/website/src/server/inbound/admin-http/routes/agent-plugins/files.ts: unit 80.00% branch, integration 80.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/agent-plugins/install-response.ts: unit 85.37% branch, integration 85.37% branch
+  - apps/website/src/server/inbound/admin-http/routes/agent-plugins/memory.ts: unit 88.00% branch, integration 88.00% branch
+  - apps/website/src/server/inbound/admin-http/routes/agent-plugins/set-enabled.ts: unit 77.61% branch, integration 77.61% branch
+  - apps/website/src/server/inbound/admin-http/routes/analytics/recent-hits.ts: unit 86.96% branch, integration 86.96% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/api-keys/create-principal.ts: unit 81.82% branch, integration 81.82% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/api-keys/issue.ts: unit 91.67% branch, integration 91.67% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/api-keys/revoke.ts: unit 90.00% branch, integration 90.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/assistant/delete-execution-credential.ts: unit 88.89% branch, integration 88.89% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/assistant/delete-site-credential.ts: unit 78.57% branch, integration 78.57% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/assistant/detect-agents.ts: unit 76.74% branch, integration 76.74% branch
+  - apps/website/src/server/inbound/admin-http/routes/assistant/get-chat-attachment.ts: unit 72.73% branch, integration 72.73% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/assistant/get-execution-credential.ts: unit 88.89% branch, integration 88.89% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/assistant/get-settings.ts: unit 78.57% branch, integration 78.57% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/assistant/get-site-credential.ts: unit 84.62% branch, integration 84.62% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/assistant/list-models.ts: unit 89.13% branch, integration 89.13% branch
+  - apps/website/src/server/inbound/admin-http/routes/assistant/put-execution-credential.ts: unit 87.80% branch, integration 87.80% branch
+  - apps/website/src/server/inbound/admin-http/routes/assistant/put-settings.ts: unit 80.95% branch, integration 80.95% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/assistant/put-site-credential.ts: unit 78.57% branch, integration 78.57% branch
+  - apps/website/src/server/inbound/admin-http/routes/assistant/stored-credential-probe.ts: unit 94.29% branch, integration 94.29% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/assistant/test-agent.ts: unit 76.74% branch, integration 76.74% branch
+  - apps/website/src/server/inbound/admin-http/routes/assistant/test-connection.ts: unit 82.00% branch, integration 82.00% branch
+  - apps/website/src/server/inbound/admin-http/routes/assistant/visitor-tools.ts: unit 86.84% branch, integration 86.84% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/change-sets/get.ts: unit 80.95% branch, integration 80.95% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/change-sets/list.ts: unit 91.67% branch, integration 91.67% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/change-sets/revert.ts: unit 65.91% branch, integration 65.91% branch
+  - apps/website/src/server/inbound/admin-http/routes/comments/get-settings.ts: unit 92.86% branch, integration 92.86% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/comments/moderate.ts: unit 67.57% branch, integration 67.57% branch
+  - apps/website/src/server/inbound/admin-http/routes/comments/moderation-queue.ts: unit 78.57% branch, integration 78.57% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/comments/put-settings.ts: unit 80.00% branch, integration 80.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/commerce/status.ts: unit 92.31% branch, integration 92.31% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/content-types/lifecycle.ts: unit 65.38% branch, integration 65.38% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/content-types/list.ts: unit 90.00% branch, integration 90.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/content-types/register.ts: unit 87.50% branch, integration 87.50% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/content-types/update-fields.ts: unit 79.17% branch, integration 79.17% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/content-types/write-error-status.ts: unit 92.59% branch, integration 92.59% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/database/migrate-forward.ts: unit 81.67% branch, integration 81.67% branch
+  - apps/website/src/server/inbound/admin-http/routes/database/restore-points.ts: unit 77.91% branch, integration 77.91% branch
+  - apps/website/src/server/inbound/admin-http/routes/database/timeline.ts: unit 87.50% branch, integration 87.50% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/entries/create.ts: unit 78.38% branch, integration 78.38% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/entries/lifecycle.ts: unit 82.61% branch, integration 82.61% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/entries/list.ts: unit 85.71% branch, integration 85.71% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/entries/update.ts: unit 88.89% branch, integration 88.89% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/entries/write-error-status.ts: unit 92.86% branch, integration 92.86% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/external-mcp/admissions.ts: unit 68.75% branch, integration 68.75% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/external-mcp/delete.ts: unit 66.67% branch, integration 66.67% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/external-mcp/guard.ts: unit 87.50% branch, integration 87.50% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/external-mcp/list.ts: unit 83.33% branch, integration 83.33% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/external-mcp/oauth.ts: unit 75.65% branch, integration 75.65% branch
+  - apps/website/src/server/inbound/admin-http/routes/external-mcp/probe.ts: unit 75.86% branch, integration 75.86% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/external-mcp/put.ts: unit 72.41% branch, integration 72.41% branch
+  - apps/website/src/server/inbound/admin-http/routes/external-mcp/tool-approvals.ts: unit 84.38% branch, integration 84.38% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/forms/create.ts: unit 82.86% branch, integration 82.86% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/forms/get-by-id.ts: unit 79.17% branch, integration 79.17% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/forms/get-submission.ts: unit 75.68% branch, integration 75.68% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/forms/list-submissions.ts: unit 76.36% branch, integration 76.36% branch
+  - apps/website/src/server/inbound/admin-http/routes/forms/list.ts: unit 80.00% branch, integration 80.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/forms/update.ts: unit 72.58% branch, integration 72.58% branch
+  - apps/website/src/server/inbound/admin-http/routes/fs-files/custom-root.ts: unit 75.51% branch, integration 75.51% branch
+  - apps/website/src/server/inbound/admin-http/routes/fs-files/folder-picker.ts: unit 95.83% branch, integration 95.83% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/integrations/create.ts: unit 92.59% branch, integration 92.59% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/integrations/delete.ts: unit 85.71% branch, integration 85.71% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/integrations/deliveries.ts: unit 89.29% branch, integration 89.29% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/integrations/list.ts: unit 79.31% branch, integration 79.31% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/integrations/pause.ts: unit 89.29% branch, integration 89.29% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/media/byte-size.ts: unit 87.50% branch, integration 87.50% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/media/delete.ts: unit 91.18% branch, integration 91.18% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/media/original.ts: unit 81.63% branch, integration 81.63% branch
+  - apps/website/src/server/inbound/admin-http/routes/media/parse.ts: unit 88.33% branch, integration 88.33% branch
+  - apps/website/src/server/inbound/admin-http/routes/media/replace.ts: unit 85.29% branch, integration 85.29% branch
+  - apps/website/src/server/inbound/admin-http/routes/media/route-guards.ts: unit 88.46% branch, integration 88.46% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/media/stored-media-response.ts: unit 87.50% branch, integration 87.50% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/media/text.ts: unit 86.89% branch, integration 86.89% branch
+  - apps/website/src/server/inbound/admin-http/routes/media/trash.ts: unit 77.55% branch, integration 77.55% branch
+  - apps/website/src/server/inbound/admin-http/routes/media/update.ts: unit 71.43% branch, integration 71.43% branch
+  - apps/website/src/server/inbound/admin-http/routes/media/where-used.ts: unit 94.12% branch, integration 94.12% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/members/delete.ts: unit 88.89% branch, integration 88.89% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/members/disable.ts: unit 72.00% branch, integration 72.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/members/get-by-id.ts: unit 84.21% branch, integration 84.21% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/members/list.ts: unit 93.10% branch, integration 93.10% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/members/request-magic-link.ts: unit 81.82% branch, integration 81.82% branch
+  - apps/website/src/server/inbound/admin-http/routes/menus/assign-location.ts: unit 80.30% branch, integration 80.30% branch
+  - apps/website/src/server/inbound/admin-http/routes/menus/create.ts: unit 68.63% branch, integration 68.63% branch
+  - apps/website/src/server/inbound/admin-http/routes/menus/delete.ts: unit 85.71% branch, integration 85.71% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/menus/get-by-id.ts: unit 90.91% branch, integration 90.91% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/menus/list.ts: unit 78.57% branch, integration 78.57% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/menus/update-tree.ts: unit 65.69% branch, integration 65.69% branch
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/archive-list.ts: unit 81.82% branch, integration 81.82% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/cancel-campaign.ts: unit 84.62% branch, integration 84.62% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/create-campaign.ts: unit 72.97% branch, integration 72.97% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/create-list.ts: unit 88.89% branch, integration 88.89% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/create-subscription.ts: unit 80.00% branch, integration 80.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/get-campaign.ts: unit 81.82% branch, integration 81.82% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/import-subscriptions.ts: unit 89.29% branch, integration 89.29% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/list-campaigns.ts: unit 90.00% branch, integration 90.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/list-send-log.ts: unit 90.91% branch, integration 90.91% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/list-subscriptions.ts: unit 78.57% branch, integration 78.57% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/pause-campaign.ts: unit 91.67% branch, integration 91.67% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/remove-subscription.ts: unit 86.67% branch, integration 86.67% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/resume-campaign.ts: unit 91.67% branch, integration 91.67% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/schedule-campaign.ts: unit 72.97% branch, integration 72.97% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/send-campaign.ts: unit 82.35% branch, integration 82.35% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/send-test-campaign.ts: unit 92.86% branch, integration 92.86% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/newsletter/update-campaign.ts: unit 71.95% branch, integration 71.95% branch
+  - apps/website/src/server/inbound/admin-http/routes/pages/create.ts: unit 76.14% branch, integration 76.14% branch
+  - apps/website/src/server/inbound/admin-http/routes/pages/list.ts: unit 73.33% branch, integration 73.33% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/pages/update.ts: unit 71.00% branch, integration 71.00% branch
+  - apps/website/src/server/inbound/admin-http/routes/plugins/chart-providers.ts: unit 85.19% branch, integration 85.19% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/plugins/files.ts: unit 86.96% branch, integration 86.96% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/plugins/install.ts: unit 84.02% branch, integration 84.02% branch
+  - apps/website/src/server/inbound/admin-http/routes/plugins/list.ts: unit 85.29% branch, integration 85.29% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/plugins/uninstall.ts: unit 69.77% branch, integration 69.77% branch
+  - apps/website/src/server/inbound/admin-http/routes/posts/autosave.ts: unit 77.86% branch, integration 77.86% branch
+  - apps/website/src/server/inbound/admin-http/routes/posts/create.ts: unit 78.87% branch, integration 78.87% branch
+  - apps/website/src/server/inbound/admin-http/routes/posts/delete.ts: unit 71.93% branch, integration 71.93% branch
+  - apps/website/src/server/inbound/admin-http/routes/posts/get-by-id.ts: unit 65.00% branch, integration 65.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/posts/list.ts: unit 78.57% branch, integration 78.57% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/posts/template-preview-render.ts: unit 74.36% branch, integration 74.36% branch
+  - apps/website/src/server/inbound/admin-http/routes/posts/template-preview.ts: unit 73.85% branch, integration 73.85% branch
+  - apps/website/src/server/inbound/admin-http/routes/posts/update.ts: unit 65.14% branch, integration 65.14% branch
+  - apps/website/src/server/inbound/admin-http/routes/presentation/patch-active-theme.ts: unit 77.55% branch, integration 77.55% branch
+  - apps/website/src/server/inbound/admin-http/routes/presentation/rescan-themes.ts: unit 83.33% branch, integration 83.33% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/publish-content/apply-report.ts: unit 84.62% branch, integration 84.62% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/publish-content/blobs-probe.ts: unit 75.00% branch, integration 75.00% branch
+  - apps/website/src/server/inbound/admin-http/routes/publish-content/bundle-create.ts: unit 70.90% branch, integration 70.90% branch
+  - apps/website/src/server/inbound/admin-http/routes/publish-content/capabilities.ts: unit 87.10% branch, integration 87.10% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/publish-content/destination.ts: unit 81.71% branch, integration 81.71% branch
+  - apps/website/src/server/inbound/admin-http/routes/publish-content/export.ts: unit 66.67% branch, integration 66.67% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/publish-content/import-errors.ts: unit 84.38% branch, integration 84.38% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/publish-content/import.ts: unit 62.67% branch, integration 62.67% branch
+  - apps/website/src/server/inbound/admin-http/routes/publish-content/peer-transport.ts: unit 72.90% branch, integration 72.90% branch
+  - apps/website/src/server/inbound/admin-http/routes/publish-content/peers.ts: unit 85.42% branch, integration 85.42% branch
+  - apps/website/src/server/inbound/admin-http/routes/publish-content/route-helpers.ts: unit 85.23% branch, integration 85.23% branch
+  - apps/website/src/server/inbound/admin-http/routes/recovery/restore-points.ts: unit 88.89% branch, integration 88.89% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/recovery/restore.ts: unit 77.42% branch, integration 77.42% branch
+  - apps/website/src/server/inbound/admin-http/routes/recovery/status.ts: unit 81.82% branch, integration 81.82% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/redirects/create.ts: unit 79.59% branch, integration 79.59% branch
+  - apps/website/src/server/inbound/admin-http/routes/redirects/get-by-id.ts: unit 77.78% branch, integration 77.78% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/redirects/hits.ts: unit 88.24% branch, integration 88.24% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/redirects/import.ts: unit 87.50% branch, integration 87.50% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/redirects/list.ts: unit 70.83% branch, integration 70.83% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/redirects/shared.ts: unit 94.74% branch, integration 94.74% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/redirects/tombstone.ts: unit 83.33% branch, integration 83.33% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/redirects/update.ts: unit 70.97% branch, integration 70.97% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/seo/get-settings.ts: unit 83.33% branch, integration 83.33% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/seo/put-entry.ts: unit 83.78% branch, integration 83.78% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/seo/put-settings.ts: unit 78.95% branch, integration 78.95% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/settings/assistant-subagents-access.ts: unit 86.18% branch, integration 86.18% branch
+  - apps/website/src/server/inbound/admin-http/routes/settings/clear.ts: unit 74.42% branch, integration 74.42% branch
+  - apps/website/src/server/inbound/admin-http/routes/settings/events.ts: unit 86.59% branch, integration 86.59% branch
+  - apps/website/src/server/inbound/admin-http/routes/settings/get-effective.ts: unit 66.67% branch, integration 66.67% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/settings/get-raw.ts: unit 80.00% branch, integration 80.00% branch
+  - apps/website/src/server/inbound/admin-http/routes/settings/register-definitions.ts: unit 75.86% branch, integration 75.86% branch
+  - apps/website/src/server/inbound/admin-http/routes/settings/reset.ts: unit 82.14% branch, integration 82.14% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/settings/set.ts: unit 69.44% branch, integration 69.44% branch
+  - apps/website/src/server/inbound/admin-http/routes/settings/shared.ts: unit 85.23% branch, integration 85.23% branch
+  - apps/website/src/server/inbound/admin-http/routes/site/profile.ts: unit 77.50% branch, integration 77.50% branch
+  - apps/website/src/server/inbound/admin-http/routes/sites/local-sites.ts: unit 75.00% branch, integration 75.00% branch
+  - apps/website/src/server/inbound/admin-http/routes/sites/site-previews.ts: unit 94.29% branch, integration 94.29% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/skills/files.ts: unit 85.00% branch, integration 85.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/skills/list.ts: unit 80.00% branch, integration 80.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/system/assistant-daemon.ts: unit 87.50% branch, integration 87.50% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/system/browser-telemetry.ts: unit 90.79% branch, integration 90.79% branch
+  - apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts: unit 81.82% branch, integration 81.82% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts: unit 70.37% branch, integration 70.37% branch
+  - apps/website/src/server/inbound/admin-http/routes/system/export-site.ts: unit 77.59% branch, integration 77.59% branch
+  - apps/website/src/server/inbound/admin-http/routes/system/mail-status.ts: unit 87.50% branch, integration 87.50% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/system/module-status.ts: unit 84.62% branch, integration 84.62% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/system/observability-status.ts: unit 71.43% branch, integration 71.43% branch
+  - apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts: unit 70.56% branch, integration 70.56% branch
+  - apps/website/src/server/inbound/admin-http/routes/system/server-logs.ts: unit 80.77% branch, integration 80.77% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/system/site-backups.ts: unit 95.65% branch, integration 95.65% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/system/site-imports.ts: unit 93.26% branch, integration 93.26% branch
+  - apps/website/src/server/inbound/admin-http/routes/system/sites.ts: unit 67.78% branch, integration 67.78% branch
+  - apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts: unit 73.47% branch, integration 73.47% branch
+  - apps/website/src/server/inbound/admin-http/routes/system/tool-gaps.ts: unit 78.57% branch, integration 78.57% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/taxonomy/assign-terms.ts: unit 78.82% branch, integration 78.82% branch
+  - apps/website/src/server/inbound/admin-http/routes/taxonomy/create-taxonomy.ts: unit 93.75% branch, integration 93.75% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/taxonomy/create-term.ts: unit 80.00% branch, integration 80.00% branch
+  - apps/website/src/server/inbound/admin-http/routes/taxonomy/delete-taxonomy.ts: unit 76.47% branch, integration 76.47% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/taxonomy/delete-term.ts: unit 80.00% branch, integration 80.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/taxonomy/list.ts: unit 90.00% branch, integration 90.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/taxonomy/merge-term.ts: unit 86.15% branch, integration 86.15% branch
+  - apps/website/src/server/inbound/admin-http/routes/taxonomy/rename-term.ts: unit 94.74% branch, integration 94.74% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/themes/explore.ts: unit 75.96% branch, integration 75.96% branch
+  - apps/website/src/server/inbound/admin-http/routes/themes/list.ts: unit 88.37% branch, integration 88.37% branch
+  - apps/website/src/server/inbound/admin-http/routes/trash/items.ts: unit 80.23% branch, integration 80.23% branch
+  - apps/website/src/server/inbound/admin-http/routes/trash/list.ts: unit 72.22% branch, integration 72.22% branch
+  - apps/website/src/server/inbound/admin-http/routes/trash/purge.ts: unit 81.43% branch, integration 81.43% branch
+  - apps/website/src/server/inbound/admin-http/routes/trash/restore.ts: unit 76.61% branch, integration 76.61% branch
+  - apps/website/src/server/inbound/admin-http/routes/users/assign-role.ts: unit 68.29% branch, integration 68.29% branch
+  - apps/website/src/server/inbound/admin-http/routes/users/attach-policy.ts: unit 65.00% branch, integration 65.00% branch
+  - apps/website/src/server/inbound/admin-http/routes/users/create-policy.ts: unit 88.00% branch, integration 88.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/users/create-role.ts: unit 87.50% branch, integration 87.50% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/users/create.ts: unit 79.59% branch, integration 79.59% branch
+  - apps/website/src/server/inbound/admin-http/routes/users/delete-policy.ts: unit 81.48% branch, integration 81.48% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/users/delete-role.ts: unit 81.48% branch, integration 81.48% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/users/delete.ts: unit 83.33% branch, integration 83.33% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/users/disable.ts: unit 87.23% branch, integration 87.23% branch
+  - apps/website/src/server/inbound/admin-http/routes/users/enable.ts: unit 83.33% branch, integration 83.33% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/users/list-policies.ts: unit 85.71% branch, integration 85.71% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/users/list-policy-permissions.ts: unit 94.74% branch, integration 94.74% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/users/list-roles.ts: unit 92.31% branch, integration 92.31% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/users/list.ts: unit 88.64% branch, integration 88.64% branch
+  - apps/website/src/server/inbound/admin-http/routes/users/remove-policy-permission.ts: unit 75.38% branch, integration 75.38% branch
+  - apps/website/src/server/inbound/admin-http/routes/users/reset-password.ts: unit 71.15% branch, integration 71.15% branch
+  - apps/website/src/server/inbound/admin-http/routes/users/update-role.ts: unit 79.31% branch, integration 79.31% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/users/update.ts: unit 73.91% branch, integration 73.91% branch
+  - apps/website/src/server/inbound/admin-http/routes/users/write-policy-permission.ts: unit 54.55% branch, integration 54.55% branch
+  - apps/website/src/server/inbound/admin-http/routes/widgets/agent-tools.ts: unit 80.31% branch, integration 80.31% branch
+  - apps/website/src/server/inbound/admin-http/routes/widgets/create.ts: unit 76.60% branch, integration 76.60% branch
+  - apps/website/src/server/inbound/admin-http/routes/widgets/embed-insert.ts: unit 75.00% branch, integration 75.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/widgets/embed-remove.ts: unit 92.86% branch, integration 92.86% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/widgets/get-by-id.ts: unit 90.91% branch, integration 90.91% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/widgets/list.ts: unit 89.47% branch, integration 89.47% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/widgets/region-bind.ts: unit 72.00% branch, integration 72.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/widgets/region-get.ts: unit 80.00% branch, integration 80.00% branch
+  - apps/website/src/server/inbound/admin-http/routes/widgets/region-mutate-placements.ts: unit 86.67% branch, integration 86.67% branch
+  - apps/website/src/server/inbound/admin-http/routes/widgets/regions-list.ts: unit 76.19% branch, integration 76.19% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/widgets/trash.ts: unit 90.00% branch, integration 90.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/workspace/create.ts: unit 80.00% branch, integration 80.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/workspace/delete.ts: unit 87.88% branch, integration 87.88% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/workspace/get.ts: unit 82.35% branch, integration 82.35% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/workspace/list.ts: unit 80.00% branch, integration 80.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/admin-http/routes/workspace/update.ts: unit 80.85% branch, integration 80.85% branch
+  - apps/website/src/server/inbound/public-http/routes/agent-plugin-surfaces/export-files.ts: unit 78.18% branch, integration 78.18% branch
+  - apps/website/src/server/inbound/public-http/routes/agent-plugin-surfaces/files.ts: unit 91.30% branch, integration 91.30% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/api-connections/oauth-callback.ts: unit 75.96% branch, integration 75.96% branch
+  - apps/website/src/server/inbound/public-http/routes/content/posts/get-by-slug.ts: unit 79.17% branch, integration 79.17% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/members/complete-sign-in.ts: unit 72.41% branch, integration 72.41% branch
+  - apps/website/src/server/inbound/public-http/routes/members/oidc-deps.ts: unit 85.88% branch, integration 85.88% branch
+  - apps/website/src/server/inbound/public-http/routes/members/oidc-start.ts: unit 72.22% branch, integration 72.22% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/members/oidc-verify-email.ts: unit 80.77% branch, integration 80.77% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/members/reset-password.ts: unit 92.31% branch, integration 92.31% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/members/sign-in.ts: unit 75.00% branch, integration 75.00% branch
+  - apps/website/src/server/inbound/public-http/routes/members/sign-out.ts: unit 80.00% branch, integration 80.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/members/unlink-identity.ts: unit 78.79% branch, integration 78.79% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/oauth/callback-page.ts: unit 76.19% branch, integration 76.19% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/oauth/public-origin.ts: unit 75.86% branch, integration 75.86% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/ops/health.ts: unit 90.00% branch, integration 90.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/plugin-contributions.ts: unit 85.40% branch, integration 85.40% branch
+  - apps/website/src/server/inbound/public-http/routes/site-assistant-confirm.ts: unit 89.09% branch, integration 89.09% branch
+  - apps/website/src/server/inbound/public-http/routes/site-share.ts: unit 83.87% branch, integration 83.87% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/site/analytics-ingest.ts: unit 86.25% branch, integration 86.25% branch
+  - apps/website/src/server/inbound/public-http/routes/site/comments-submit.ts: unit 73.20% branch, integration 73.20% branch
+  - apps/website/src/server/inbound/public-http/routes/site/feed.ts: unit 85.71% branch, integration 85.71% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/site/forms-multipart.ts: unit 81.63% branch, integration 81.63% branch
+  - apps/website/src/server/inbound/public-http/routes/site/forms-submit.ts: unit 90.32% branch, integration 90.32% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/site/llms.ts: unit 88.24% branch, integration 88.24% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts: unit 83.99% branch, integration 83.99% branch
+  - apps/website/src/server/inbound/public-http/routes/site/member-pages.ts: unit 90.91% branch, integration 90.91% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/site/products.ts: unit 76.00% branch, integration 76.00% branch
+  - apps/website/src/server/inbound/public-http/routes/site/robots.ts: unit 88.89% branch, integration 88.89% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/site/search.ts: unit 78.29% branch, integration 78.29% branch
+  - apps/website/src/server/inbound/public-http/routes/site/sitemap.ts: unit 80.00% branch, integration 80.00% branch  [small file — check DA hit counts before assuming this is a real gap]
+  - apps/website/src/server/inbound/public-http/routes/site/store.ts: unit 82.61% branch, integration 82.61% branch
+
+exit=0

@@ -1,0 +1,2 @@
+All-files: 3096 files; 1049 NEVER-LOADED; lines 284775/319331 (89.18%)
+exit=0 secs=9

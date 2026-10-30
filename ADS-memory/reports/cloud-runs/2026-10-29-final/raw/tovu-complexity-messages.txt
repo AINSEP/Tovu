@@ -1,0 +1,4 @@
+apps/admin/src/lib/api.ts:693 [warn] sonarjs/redundant-type-aliases: Remove this redundant type alias and replace its occurrences with "AdminPublishCredentialProviderId".
+apps/admin/src/lib/api.ts:818 [warn] sonarjs/redundant-type-aliases: Remove this redundant type alias and replace its occurrences with "string".
+apps/admin/src/lib/api.ts:1014 [warn] sonarjs/redundant-type-aliases: Remove this redundant type alias and replace its occurrences with "string".
+apps/desktop/src/stage-payload-run.ts:120 [warn] sonarjs/too-many-break-or-continue-in-loop: Reduce the total number of "break" and "continue" statements in this loop to use one at most.

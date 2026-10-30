@@ -1,0 +1,6 @@
+
+> tovu@0.1.0 coverage:all-files
+> node --import tsx development/scripts/coverage-all-files.ts
+
+Coverage report unavailable: Usage: --repo <root> --coverage <file>... --out <dir> [--root <dir>...] [--exclude <dir>...]
+exit=0 secs=1

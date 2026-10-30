@@ -5,3 +5,4 @@
 - 01:39:21 push: shards 1,3 done; typecheck/boundaries/architecture/madge/complexity/Jini vitest+pack done; admin vitest + desktop tests running; shards 2,4,5 running
 - 02:20:41 push: shards 1,2,3,5 done; 4,6,7 running, 8 queued; admin vitest (1 flaky fail) + desktop tests done
 - 02:29:05 shards 1-6 done (reruns of failing files done; render-form fixed by chromium symlink -1248). Shards 7,8 running; then merge lcov + coverage steps + RESULTS.md
+- 03:05:19 DONE: all steps complete (see RESULTS.md §5 for what was cut). Local package.json override left UNCOMMITTED by design.
