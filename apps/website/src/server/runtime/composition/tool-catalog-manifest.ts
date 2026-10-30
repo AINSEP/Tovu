@@ -86,7 +86,7 @@ import { contributeFsFilesTools } from "#src/features/fs-files/tool-registration
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
 import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
-import { contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
+import { buildRegistrations as buildPluginsInstallRegistrations, contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
 import { contributePluginSourceTools } from '#src/features/plugin-runtime/source-tools';
 import { contributeSkillsInstallTools } from "#src/features/skills/install-tool";
 import { toPublishContentDeps } from "../../inbound/admin-http/routes/publish-content/deps.js";
@@ -445,9 +445,14 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeEmailTemplatesTools() });
   const plugins = contributePluginsTools();
   contributions.contributors.register({ contribution: { ...plugins, build: (deps, surfaces) => plugins.build({ ...deps,
-    pluginHost: deps.pluginHost ?? createTovuPluginHost({ deps }),
+    pluginHost: deps.pluginHost ?? createTovuPluginHost({ deps: { ...deps,
+      mcp: { ...deps.mcp, notifyRosterChanged: () => deps.notifyRosterChanged() },
+    } }),
   }, surfaces) } });
-  contributions.contributors.register({ contribution: { ...contributePluginsInstallTools({ readInstallAttachment }), build: (deps, surfaces) => contributePluginsInstallTools({ readInstallAttachment }).build({ ...deps, hostSignals: resolveHostSignals({ env: process.env }) }, surfaces) } });
+  contributions.contributors.register({ contribution: { ...contributePluginsInstallTools({ readInstallAttachment }), build: deps => buildPluginsInstallRegistrations({ ...deps, readInstallAttachment,
+    // Bind directly: the contributor's dependency spread would freeze this call-time fact.
+    get hostSignals() { return resolveHostSignals({ env: process.env }); },
+  }) } });
   contributions.contributors.register({ contribution: contributePluginSourceTools() });
   const agentPluginsInstall = contributeAgentPluginsInstallTools({ readInstallAttachment,
     pluginInstallSource: { readRequest: readPluginInstallRequest, readArchive: readPluginInstallArchive },

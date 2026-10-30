@@ -35,7 +35,7 @@ async function install(required) {
 for (const oldId of ['cloudflare-pages', 'deploy']) for (const state of ['trusted', 'untrusted', 'disabled', 'absent']) test(`${oldId} retained after failed retirement; successor ${state} yields at most one Pages owner`, async () => {
   const root = await mkdtemp(path.join(tmpdir(), 'cloudflare-contribution-'));
   try {
-    const layout = resolveAgentPluginLayout({ cwd: root, env: {} });
+    const layout = resolveAgentPluginLayout({ siteDir: root }, { env: {} });
     const owner = createTovuAgentPluginLifecycle({ layout });
     const workspaceId = 'workspace';
     await install({ owner, layout, workspaceId, pluginId: oldId, trusted: true, enabled: true });

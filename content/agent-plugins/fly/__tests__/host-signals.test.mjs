@@ -36,11 +36,11 @@ test("Fly's host declaration is plain manifest data, synchronously readable befo
 for (const app of [undefined, "", " ", "0", "app"]) for (const machine of [undefined, "", " ", "0", "machine"]) for (const alloc of [undefined, "", " ", "0", "alloc"]) {
   test(`Fly APP/MACHINE/ALLOC policy matrix ${JSON.stringify([app, machine, alloc])}`, () => {
     const env = { FLY_APP_NAME: app, FLY_MACHINE_ID: machine, FLY_ALLOC_ID: alloc, TOVU_AGENT_PERMISSION_MODE: "bypass" };
-    const hostSignals = resolveBundledHostSignals({ env }, { sourceRoot });
+    const hostSignals = resolveBundledHostSignals({ env, bundledSourceRoot: sourceRoot });
     const options = { hostSignals };
     const restricted = !!(app || machine || alloc);
     assert.equal(resolveTrustProxySetting({ env }, options), app ? 1 : false);
-    assert.equal(createSitePluginPolicy({ env }, options).localInstallEnabled({}, {}), !app);
+    assert.equal(createSitePluginPolicy({ env, ...options }).localInstallEnabled({}, {}), !app);
     assert.equal(isHostedAssistantRuntime({ env }, options), restricted);
     assert.equal(resolveFullCliAccess({ isOwner: true, env, setting: true }, options), !restricted);
     assert.equal(resolveAgentPermissionMode({ env }, options), restricted ? "restricted" : "bypass");
@@ -68,15 +68,15 @@ test("packaged desktop and plugin-install opt-in preserve their separate excepti
   for (const app of ["", "app"]) for (const machine of ["", "machine"]) for (const alloc of ["", "alloc"]) for (const optIn of [undefined, "1"]) {
     const env = { NODE_ENV: "production", ELECTRON_RUN_AS_NODE: "1", TOVU_DESKTOP_OWNER_PID: "42",
       FLY_APP_NAME: app, FLY_MACHINE_ID: machine, FLY_ALLOC_ID: alloc, TOVU_PLUGIN_LOCAL_INSTALL: optIn };
-    const options = { hostSignals: resolveBundledHostSignals({ env }, { sourceRoot }) };
-    assert.equal(createSitePluginPolicy({ env }, options).localInstallEnabled({}, {}), !app || optIn === "1");
+    const options = { hostSignals: resolveBundledHostSignals({ env, bundledSourceRoot: sourceRoot }) };
+    assert.equal(createSitePluginPolicy({ env, ...options }).localInstallEnabled({}, {}), !app || optIn === "1");
     assert.equal(resolveFullCliAccess({ isOwner: true, env }, options), !(app || machine || alloc));
   }
 });
 
 test("boot labels, ordering and full warning bytes stay identical, including incidental advice", () => {
   const env = { NODE_ENV: "production", KUBERNETES_SERVICE_HOST: "private-k8s", FLY_APP_NAME: "private-app" };
-  const hostSignals = resolveBundledHostSignals({ env }, { sourceRoot });
+  const hostSignals = resolveBundledHostSignals({ env, bundledSourceRoot: sourceRoot });
   const deploymentSignals = detectDeploymentSignals({ env }, { hostSignals, pathExists: () => true });
   assert.deepEqual(deploymentSignals, ["NODE_ENV=production", "container (/.dockerenv)", "container (/run/.containerenv)", "Kubernetes (KUBERNETES_SERVICE_HOST)", "Fly.io (FLY_APP_NAME)"]);
   assert.deepEqual(collectBootReadinessWarnings({ env, mode: "local", deploymentSignals, agentPermissionMode: "restricted" }, { hostSignals }), [
@@ -103,8 +103,8 @@ function assertHeadConsumers({ env, hostSignals, pathExists }, _optional = {}) {
   assert.equal(isHostedAssistantRuntime({ env }, options), expected.nativeRestricted);
   assert.equal(resolveFullCliAccess({ isOwner: true, setting: true, env }, options), expected.fullCliAccess);
   assert.equal(resolveAgentPermissionMode({ env }, options), expected.permissionMode);
-  assert.equal(createSitePluginPolicy({ env }, options).localInstallEnabled({}, {}), expected.localInstallEnabled);
-  assert.equal(sitePluginLocalInstallEnabled({ env }, options), expected.localInstallEnabled);
+  assert.equal(createSitePluginPolicy({ env, ...options }).localInstallEnabled({}, {}), expected.localInstallEnabled);
+  assert.equal(sitePluginLocalInstallEnabled({ env, ...options }), expected.localInstallEnabled);
   const permissions = resolveAssistantCliPermissions({ isOwner: true, env, settings: { enabled: true } }, options);
   assert.equal(permissions.enabled, expected.fullCliAccess);
   assert.deepEqual(permissions.capabilities, Object.fromEntries([
@@ -172,7 +172,7 @@ for (const [name, ports] of resolutionCases) {
   test(`${name}: 4,500 combinations match frozen HEAD for every consumer`, () => {
     let combinations = 0;
     for (const env of headEnvironmentMatrix({})) {
-      const hostSignals = resolveBundledHostSignals({ env }, ports);
+      const hostSignals = resolveBundledHostSignals({ env, get bundledSourceRoot() { return ports.productRoot ? ports.productRoot() : ports.sourceRoot; } }, { readDeclaration: ports.readDeclaration });
       assertHeadConsumers({ env, hostSignals, pathExists: () => true });
       combinations++;
     }
@@ -190,7 +190,7 @@ for (const [name, ports] of resolutionCases) {
       ...["TOVU_AGENT_FULL_CLI_ACCESS", "TOVU_AGENT_NATIVE_FALLBACKS", "TOVU_AGENT_FORBID_BASH"].flatMap(key =>
         ["0", "false", "1"].map(value => ({ [key]: value }))),
     ]) {
-      const hostSignals = resolveBundledHostSignals({ env }, ports);
+      const hostSignals = resolveBundledHostSignals({ env, get bundledSourceRoot() { return ports.productRoot ? ports.productRoot() : ports.sourceRoot; } }, { readDeclaration: ports.readDeclaration });
       for (const pathExists of [() => false, marker => marker === "/.dockerenv"]) {
         assertHeadConsumers({ env, hostSignals, pathExists });
       }
@@ -206,7 +206,7 @@ test("missing/malformed on-disk declarations preserve HEAD rather than silently 
   const env = { FLY_APP_NAME: "app", FLY_MACHINE_ID: "machine", FLY_ALLOC_ID: "alloc" };
   for (const text of [undefined, "{", manifestText({ hostSignals: "not an array" })]) {
     if (text !== undefined) writeFileSync(path.join(emptyRoot, "fly/plugin.json"), text);
-    assertHeadConsumers({ env, hostSignals: resolveBundledHostSignals({ env }, { sourceRoot: emptyRoot }), pathExists: () => false });
+    assertHeadConsumers({ env, hostSignals: resolveBundledHostSignals({ env, bundledSourceRoot: emptyRoot }), pathExists: () => false });
   }
 });
 

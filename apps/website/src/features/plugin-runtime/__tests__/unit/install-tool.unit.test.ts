@@ -122,17 +122,6 @@ test("an enabled site with no installer bound reports installs as off", async ()
   assert.deepEqual(result, { installed: false, reason: "PLUGIN_LOCAL_INSTALL_DISABLED", note: "Nothing was installed: local plugin installs are off on this server. The owner has to start Tovu with TOVU_PLUGIN_LOCAL_INSTALL=1 first." });
 });
 
-test("with no env injected the gate reads process.env at call time", async (t) => {
-  const before = process.env.FLY_APP_NAME;
-  t.after(() => { if (before === undefined) delete process.env.FLY_APP_NAME; else process.env.FLY_APP_NAME = before; });
-  const installer = fakeInstaller();
-  const registration = tool({ workspaceId: "ws-1", authorize: async () => ({ allowed: true, reason: "matched" }), pluginInstaller: installer.port });
-  process.env.FLY_APP_NAME = "hosted-site";
-  const result = await registration.handler(ctx(FOLDER), {}) as { reason: string };
-  assert.equal(result.reason, "PLUGIN_LOCAL_INSTALL_DISABLED");
-  assert.equal(installer.previews.length, 0);
-});
-
 test("an injected policy that allows installs wins over a hosted environment", async () => {
   const installer = fakeInstaller();
   const result = await run(deps({ pluginInstaller: installer.port, env: { FLY_APP_NAME: "hosted-site" }, pluginSourcePolicy: { localInstallEnabled: () => true, confirmEnable: () => true } }), FOLDER) as { installed: boolean };

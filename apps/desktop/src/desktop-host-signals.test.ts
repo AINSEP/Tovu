@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import path from "node:path";
 import { resolveDesktopHostSignals } from "./desktop-host-signals.ts";
+import { bundledAgentPluginsDir } from "../../website/src/server/runtime/composition/site-paths.ts";
 
 const empty = { hosted: false, nativeToolsRestricted: false, trustProxyHops: undefined, labels: [] };
 
@@ -16,7 +17,8 @@ for (const resourcesPath of ["", "/resources"]) for (const present of [false, tr
       pathExists: file => { probes++; assert.equal(file, payload); return present; },
       resolveSignals: (required, optional) => {
         assert.equal(required.env, env);
-        assert.deepEqual(optional, { sourceRoot: resourcesPath && present ? payload : undefined });
+        assert.equal(required.bundledSourceRoot, resourcesPath && present ? payload : bundledAgentPluginsDir({}, { env }));
+        assert.equal(optional, undefined);
         return empty;
       },
     }), empty);

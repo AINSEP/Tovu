@@ -29,6 +29,7 @@ import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, recordBundledAgentPluginDigests }
 import { bundledContributionSources } from '#src/features/agent-plugins/bundled-contribution-sources';
 import { buildPluginsRegistrations, type PluginsToolDeps } from '#src/features/plugin-runtime/tool-registrations';
 import { loadEnabledPluginCapabilityToolSources, buildPluginCapabilityToolRegistrations } from '#src/features/plugin-runtime/capability-tool-registrations';
+import { requiredPostReader } from '#src/features/plugin-runtime/__tests__/fixtures/plugin-post-read';
 import { buildToolCatalogQuery } from '#src/assistant/tool-catalog-query';
 import { InMemoryChangeSetRepo } from '#src/contracts/core/commands/index';
 
@@ -168,7 +169,7 @@ test('search_tools indexes a site plugin keyword and provides capability', async
   await ctx.deps.pluginActivationRepo.save({ workspaceId: 'site', pluginId: 'word-count', version: "1.0.0", enabled: true, updatedAt: '2026-10-09T00:00:00.000Z' });
   const sources = await loadEnabledPluginCapabilityToolSources({ workspaceId: 'site', discoverPlugins: ctx.deps.discoverPlugins, pluginActivationRepo: ctx.deps.pluginActivationRepo });
   const registry = createToolRegistry({});
-  for (const row of buildPluginCapabilityToolRegistrations({ sources: sources, deps: { ...ctx.deps, postRepo: {} as never }, withExtensionApprovalPolicy })) registry.register(row);
+  for (const row of buildPluginCapabilityToolRegistrations({ sources: sources, deps: { ...ctx.deps, postRead: requiredPostReader({ repo: { findById: async () => assert.fail('catalog search must not read posts') } }) }, withExtensionApprovalPolicy })) registry.register(row);
   const catalog = buildToolCatalogQuery(registry);
   assert.deepEqual(catalog.search({ query: 'content-metrics' }, { limit: 10 }).map(row => row.id), ['plugin_capability_word_count']);
   assert.deepEqual(catalog.search({ query: 'reading-time' }, { limit: 10 }).map(row => row.id), ['plugin_capability_word_count']);

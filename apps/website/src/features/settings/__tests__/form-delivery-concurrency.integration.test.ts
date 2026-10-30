@@ -51,6 +51,7 @@ async function fixture(required: { t: TestContext; initial?: readonly FormDelive
   const read = () => readFormDeliveryBindings({ settingsRepo: repo, workspaceId: WORKSPACE });
   let pendingRead: { captured: ReturnType<typeof barrier>; resume: ReturnType<typeof barrier> } | undefined;
   const bindings: FormDeliveryBindingsStore = {
+    isConflict: ({ error }) => error instanceof FormDeliveryBindingsConflictError,
     async read() {
       const snapshot = await read();
       const paused = pendingRead;

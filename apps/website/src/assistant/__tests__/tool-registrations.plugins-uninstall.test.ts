@@ -17,11 +17,13 @@ import {
 } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import { mcpTestPort } from "../../features/agent-plugins/__tests__/fixtures/connection-service-ports.js";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import { type AgentToolDefinition as PluginsAgentToolDefinition } from "@jini-ai/core";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../__tests__/support/plugin-tool-host.js";
+import type { TovuPluginHostDeps } from "../../server/runtime/composition/plugin-host.js";
 // S4 (2026-09-24) fixtures — case (a) below installs a REAL Agent Plugin on disk to prove the
 // 'agent-plugin' family branch, the same way `mcp-ui-tool-calls-route.agent-plugins-uninstall.
 // integration.test.ts` (now retargeted to this same tool) already did for the deleted standalone tool.
@@ -79,19 +81,20 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
   const authorizeCalls: Array<Record<string, unknown>> = [];
   const uninstallCalls: string[] = [];
   const pluginActivationRepo = new InMemoryPluginActivationRepo();
-  // `PluginsToolDeps` grew an external-MCP slice when `plugins_set_enabled` started provisioning an
+  // The plugin host needs an external-MCP port because `plugins_set_enabled` provisions an
   // Agent Plugin's declared remote servers. `plugins_uninstall` never touches it, but this literal is
   // typed as the whole interface on purpose — a real one, not a cast, so this suite keeps failing to
   // compile the day the tool under test needs a dependency nobody wired here.
   const keyring = new InMemoryKeyring();
+  const clock = createFakeClock({ startIso: NOW });
 
-  const deps: PluginsToolDeps = testSiteLayoutContext({ ...siteLayouts.deps,
+  const deps: PluginsToolDeps & TovuPluginHostDeps = testSiteLayoutContext({ ...siteLayouts.deps,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
     },
     workspaceId: WORKSPACE_ID,
-    clock: createFakeClock({ startIso: NOW }),
+    clock,
     idGen: { newId: () => "id-1" },
     changeSets: new InMemoryChangeSetRepo(),
     // The delivery half is never exercised here (`plugins_uninstall` enqueues nothing) but is
@@ -106,9 +109,7 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
       uninstallCalls.push(required.id);
       return { ok: true, version: null };
     },
-    externalMcpServerRepo: new InMemoryExternalMcpServerRepo(),
-    siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
-    siteAssistantSecretKeyring: keyring,
+    mcp: mcpTestPort({ repo: new InMemoryExternalMcpServerRepo(), sealer: new AesGcmSecretSealer(keyring), keyring, clock }),
   });
 
   return { deps, authorizeCalls, uninstallCalls, pluginActivationRepo };

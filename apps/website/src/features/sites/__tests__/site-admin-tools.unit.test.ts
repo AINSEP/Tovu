@@ -9,6 +9,7 @@ import type { SiteListEntry } from "#src/platform/site-dir/index";
 import type { SitesToolDeps } from "../deps.js";
 import { SITE_SWITCH_RESTART_INSTRUCTIONS, SITE_SWITCH_RESTARTING_NOTICE } from "../site-admin.js";
 import { buildSitesRegistrations } from "../tool-registrations.js";
+import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 
 /**
  * @file `sites_create_site` / `sites_switch_site` — the chat half of the admin Sites screen's
@@ -39,6 +40,7 @@ interface Fake {
 function fake(options: { allow?: boolean; switcherEnabled?: boolean; switcherCompatible?: boolean } = {}): Fake {
   const state: Fake = { creates: [], persists: [], authorizeCalls: 0, deps: undefined as never };
   state.deps = {
+    bundledSourceRoot: bundledAgentPluginsDir(),
     workspaceId: "ws-sites",
     authorize: async () => (state.authorizeCalls++, { allowed: options.allow ?? true, reason: options.allow === false ? "denied" : "matched" }),
     isSiteSwitcherEnabled: () => options.switcherEnabled ?? true,

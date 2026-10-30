@@ -306,27 +306,44 @@ test("omitted-kind listing filters both public kinds before one global limit in 
 });
 
 test("search aliases query through the execution gate and batch items; conflicting spellings never read", async () => {
-  const { card, reads } = fixture({ rows: [record({ id: "match", title: "Alpha" }), record({ id: "other" })] });
+  const { registration, card, reads } = fixture({ rows: [record({ id: "match", title: "Alpha" }), record({ id: "other" })] });
   const expected = { posts: [{ id: "match" }], total: 1, hasMore: false };
-  for (const filter of [{ query: "aLpHa" }, { search: "aLpHa" }]) {
-    const result = await executeRegisteredTool({ registration: card, input: { ...filter, fields: [] } });
-    assert.equal(result.status, "completed", JSON.stringify(result));
-    assert.deepEqual((result.output as typeof expected).posts, expected.posts);
-    assert.equal((result.output as typeof expected).total, 1);
+  // Jini c936b4a68 coalesces agreeing aliases; the legacy tool and merged card share that gate.
+  for (const tool of [registration, card]) {
+    for (const filter of [{ query: "aLpHa" }, { search: "aLpHa" }, { query: "aLpHa", search: "aLpHa" }]) {
+      const result = await executeRegisteredTool({ registration: tool, input: { ...filter, fields: [] } });
+      assert.equal(result.status, "completed", JSON.stringify(result));
+      assert.deepEqual((result.output as typeof expected).posts, expected.posts);
+      assert.equal((result.output as typeof expected).total, 1);
+    }
   }
   const batch = withBatchInput({ registration: card, tool: { toolId: card.descriptor.id } });
-  const result = await executeRegisteredTool({ registration: batch, input: { items: [{ search: "alpha", fields: [] }, { query: "alpha", fields: [] }] } });
+  const result = await executeRegisteredTool({ registration: batch, input: { items: [{ search: "alpha", fields: [] }, { query: "alpha", fields: [] }, { query: "alpha", search: "alpha", fields: [] }] } });
   assert.equal(result.status, "completed", JSON.stringify(result));
   const output = result.output as BatchResult;
-  assert.deepEqual([output.total, output.succeeded, output.failed], [2, 2, 0]);
+  assert.deepEqual([output.total, output.succeeded, output.failed], [3, 3, 0]);
   for (const item of output.results) {
     assert.ok(item.ok);
     assert.deepEqual((item.result as typeof expected).posts, expected.posts);
   }
   const before = reads.length;
-  const collision = await executeRegisteredTool({ registration: card, input: { query: "alpha", search: "alpha" } });
-  assert.equal(collision.status, "failed");
-  assert.equal(collision.errorKind, "validation");
+  for (const tool of [registration, card]) {
+    for (const input of [{ query: "alpha", search: "other" }, { search: "other", query: "alpha" }]) {
+      const collision = await executeRegisteredTool({ registration: tool, input });
+      assert.equal(collision.status, "failed");
+      assert.equal(collision.errorKind, "validation");
+      assert.match(collision.error ?? "", /Conflicting inputs/);
+      assert.equal(reads.length, before);
+    }
+  }
+  const conflictingBatch = await executeRegisteredTool({ registration: batch, input: { items: [{ query: "alpha", search: "other" }] } });
+  const rejected = conflictingBatch.output as BatchResult;
+  assert.deepEqual([rejected.total, rejected.succeeded, rejected.failed], [1, 0, 1]);
+  assert.equal(rejected.outcome, "error");
+  assert.equal(rejected.isError, true);
+  const rejection = rejected.results[0];
+  assert.ok(rejection && !rejection.ok);
+  assert.match(rejection.error, /Conflicting inputs/);
   assert.equal(reads.length, before);
 });
 

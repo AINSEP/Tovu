@@ -106,6 +106,7 @@ function duplicateDeps(fixture: ReturnType<typeof setupTrees>, calls: Array<{ so
 test("site dependency resolution defaults to the shared site-dir implementations and the served binding's base", async (t) => {
   const fixture = setupTrees(t);
   const resolved = resolveSitesDeps({
+    bundledSourceRoot: bundledAgentPluginsDir(),
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "test" }),
     createSite: async () => assert.fail("unexpected site creation"),

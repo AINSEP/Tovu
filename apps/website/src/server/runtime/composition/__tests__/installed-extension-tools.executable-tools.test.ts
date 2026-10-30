@@ -78,8 +78,8 @@ test("a write tool asks through the process's confirmation transport, with the p
   const transport = surfaces();
   await register({ agentPluginTools: hostWith(loadAcme), surfaces: transport, executablePluginToolRegistry: registry });
   const call = await startConfirmingCall({ executor: createToolExecutor({ registry }), surfaces: transport }, WRITE, input);
-  assert.deepEqual(call.rows, [["Connection ref", "conn-1"], ["Table", "Leads"], ["Values", "a"], ["Account", "alice@acme.test"], ["Affects", "table Leads"]]);
-  assert.deepEqual(call.rows.map(([label]) => label), ["Connection ref", "Table", "Values", "Account", "Affects"]);
+  assert.deepEqual(call.rows, [["Account", "alice@acme.test"], ["Affects", "table Leads"], ["Connection ref", "conn-1"], ["Table", "Leads"], ["Values", "a"]]);
+  assert.deepEqual(call.rows.map(([label]) => label), ["Account", "Affects", "Connection ref", "Table", "Values"]);
   assert.equal(call.answer("cancel").ok, true, "the card's exchange lives on the transport the composition was given");
   assert.equal((await call.pending).status, "completed");
 });

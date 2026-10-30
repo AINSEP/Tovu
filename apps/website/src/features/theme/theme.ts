@@ -900,6 +900,7 @@ export function discoverThemes(
     .filter((name) => {
       if (exclude?.includes(name)) return false;
       if (name.startsWith(MIGRATION_STAGING_DIR_PREFIX)) return false;
+      if (name.startsWith(".")) return false;
       if (name === PUBLISH_STAGING_DIR || name === PUBLISH_PREVIOUS_DIR) return false;
       const full = join(dir, name);
       return statSync(full).isDirectory();

@@ -74,7 +74,7 @@ export async function createPluginInstallFixtures(
             // uninstall as plugins_uninstall, with an explicitly isolated layout and one QA id.
             const { resolveAgentPluginLayout } = await import("../../../apps/website/src/features/agent-plugins/layout.js");
             const { uninstallAgentPlugin } = await import("../../../apps/website/src/features/agent-plugins/lifecycle.js");
-            const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(site.siteDir, "agent-plugins") } });
+            const layout = resolveAgentPluginLayout({ siteDir: site.siteDir }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(site.siteDir, "agent-plugins") } });
             await uninstallAgentPlugin({ layout, workspaceId: WORKSPACE, pluginId: ids.agent });
           }
         }

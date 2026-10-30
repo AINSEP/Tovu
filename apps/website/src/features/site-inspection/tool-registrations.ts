@@ -97,7 +97,7 @@ function isShapeRejection(error: unknown): boolean {
  * @throws ToolInputError before rendering; no input mutation or I/O. @complexity O(1).
  */
 function normalizePublishedPageInput({ input }: { input: Readonly<Record<string, unknown>> }, _options = {}) {
-  if (Object.hasOwn(input, "context")) throw new ToolInputError({ message: "fetch_published_page: context is not supported. Use find for matching snippets, or maxBytes to bound the body; for editable source use pages_read_html. Resend without context." });
+  if (Object.hasOwn(input, "context")) throw new ToolInputError({ message: "fetch_published_page: context is not supported. Use find for matching snippets, or maxBytes to bound the body; for editable source use pages_read_html. Send again without context." });
   return { input, notes: [] };
 }
 

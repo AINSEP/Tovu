@@ -20,6 +20,7 @@ import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createIssuedTokenMemories, defineAgentPluginToolContribution } from '@jini-ai/agent-plugins/lifecycle/tools';
 
 import { applyToolApprovalPolicy } from '../../../../apps/website/src/assistant/tool-approval-policy.ts';
+import { withExtensionApprovalPolicy } from '../../../../apps/website/src/assistant/assistant-tool-approval-policy.ts';
 import { registerAgentPluginExecutableTools } from '../../../../apps/website/src/features/agent-plugins/executable-tools/register.ts';
 
 export const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -77,6 +78,7 @@ export async function bootPluginTools({ fake }) {
   const registry = createToolRegistry({});
   const items = await loadPluginTools();
   const registered = await registerAgentPluginExecutableTools({
+    withExtensionApprovalPolicy,
     registry, workspaceId: WORKSPACE, authorize: async () => ({ allowed: true, reason: 'test' }),
     host: { loadContributions: async () => ({ items, refusals: [] }), connections: connectionsFor(tokenRequests), http: httpPortOver(fake), limiter: { check: async () => ({ allowed: true }) }, state: () => SHEETS_ON, apiOrigins: declaredApiOrigins, issuedTokens: createIssuedTokenMemories() },
     isActive: async () => true,

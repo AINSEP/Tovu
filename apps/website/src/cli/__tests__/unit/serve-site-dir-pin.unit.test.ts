@@ -13,6 +13,7 @@ import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databa
 import { resolveSiteRoot } from "../../../platform/site-dir/site-root.js";
 import { describeSiteBinding } from "../../../platform/site-dir/site-registry.js";
 import { resolveSitesDeps } from "../../../features/sites/deps.js";
+import { bundledAgentPluginsDir } from "../../../server/runtime/composition/site-paths.js";
 
 /**
  * @file `tovu serve <dir>` must leave ONE answer to "where is this site?" behind — the 2026-09-07
@@ -131,6 +132,7 @@ test("tovu serve <dir>: the sites agent-tool deps built from the daemon's own bi
   const childEnv = { ...apiEnv, ...buildDaemonSpawnEnvOverrides({ workspaceId: "ws-1", siteDir: TARGET, daemonPortOverride: undefined }) };
 
   const resolved = resolveSitesDeps({
+    bundledSourceRoot: bundledAgentPluginsDir(),
     workspaceId: "ws-1",
     createSite: async () => { throw new Error("unexpected site creation"); },
     authorize: async () => ({ allowed: true, reason: "test" }),

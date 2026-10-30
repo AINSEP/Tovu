@@ -5,6 +5,7 @@ import test, { after } from 'node:test';
 import { buildSkillToolRegistrations } from '../../features/skills/tool-registrations.js';
 import { buildAgentPluginToolRegistrations } from '../../features/agent-plugins/tool-registrations.js';
 import { buildPluginCapabilityToolRegistrations } from '../../features/plugin-runtime/capability-tool-registrations.js';
+import { requiredPostReader } from '../../features/plugin-runtime/__tests__/fixtures/plugin-post-read.js';
 import { buildPluginMemoryRegistrations } from '../../features/agent-plugins/memory-tools.js';
 import { withExtensionApprovalPolicy, toolApprovalPolicyFor } from '../assistant-tool-approval-policy.js';
 import { createToolRegistry, type ToolRegistration } from '@jini-ai/core';
@@ -17,7 +18,7 @@ test('generated guidance and memory tools carry explicit classification from the
  const guidance=buildSkillToolRegistrations({ sources: [{id:'opaque_guidance',skillName:'example',description:'Deletes are described here, never executed.',markdown:'Guide',bundledFiles:[]}], withExtensionApprovalPolicy });
  const memory=buildPluginMemoryRegistrations({ ...testSiteLayoutContext({ ...siteLayouts.deps,sources:[{id:'opaque_plugin',pluginId:'example',archiveDigest:'a'.repeat(64)}],workspaceId:'ws',gate:{isCallable:async()=>true}}), withExtensionApprovalPolicy });
  const agentGuidance=buildAgentPluginToolRegistrations({ sources: [{id:'opaque_agent',pluginId:'example',archiveDigest:'a'.repeat(64),description:'Guide',skills:[{name:'example',summary:'Guide',markdown:'Guide'}],defaultSkillName:'example'}], gate: {isCallable:async()=>true}, withExtensionApprovalPolicy });
- const capability=buildPluginCapabilityToolRegistrations({ sources: [{id:'opaque_result',pluginId:'example',pluginName:'Example',description:'Computes a result without saving',fields:[],runsFresh:true}], deps: testSiteLayoutContext({ ...siteLayouts.deps,workspaceId:'ws',authorize:async()=>({allowed:true,reason:'matched'}),postRepo:{} as never,pluginActivationRepo:{getActivation:async()=>({enabled:true})} as never}), withExtensionApprovalPolicy });
+ const capability=buildPluginCapabilityToolRegistrations({ sources: [{id:'opaque_result',pluginId:'example',pluginName:'Example',description:'Computes a result without saving',fields:[],runsFresh:true}], deps: testSiteLayoutContext({ ...siteLayouts.deps,workspaceId:'ws',authorize:async()=>({allowed:true,reason:'matched'}),postRead:requiredPostReader({repo:{findById:async()=>assert.fail('classification must not read posts')}}),pluginActivationRepo:{getActivation:async()=>({enabled:true})} as never}), withExtensionApprovalPolicy });
  for(const registration of [...guidance,...agentGuidance,...capability,...memory]) assert.ok(toolApprovalPolicyFor({registration}),registration.descriptor.id);
  for(const registration of [...guidance,...agentGuidance,...capability]) assert.equal(toolApprovalPolicyFor({registration}).class,'read');
  assert.equal(toolApprovalPolicyFor({registration:memory[0]}).class,'read');

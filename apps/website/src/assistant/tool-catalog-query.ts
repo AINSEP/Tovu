@@ -137,7 +137,7 @@ export function buildToolCatalogQuery(
     },
     describe({ id }) {
       refresh();
-      return snapshot.query.describe({ id }) ?? (id === "content_read" ? snapshot.family : null);
+      return snapshot.query.describe({ id }) ?? (id.split(".", 1)[0] === snapshot.family?.id ? snapshot.family : null);
     },
   };
 }

@@ -2,6 +2,7 @@ import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
+import { mcpTestPort, credentialTestPort } from "../fixtures/connection-service-ports.js";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
 import { agentPluginActivations } from "../../activation-effects.js";
@@ -524,14 +525,16 @@ test("the registered connect handler resolves a real installed plugin and recogn
     const clock = { nowMs: () => Date.parse("2026-09-29T00:00:00.000Z") };
     const plugin = await defaultResolveInstalledAgentPlugin({ workspaceId: WORKSPACE_A, pluginId: "supabase", agentPluginLayout: testSiteLayoutContext({}).agentPluginLayout });
     assert.ok(plugin);
-    await provisionAgentPluginMcpServers({ repo, keyring, sealer, clock }, { workspaceId: WORKSPACE_A, pluginId: "supabase", servers: plugin.servers, principalId: "owner" });
+    const mcp = mcpTestPort({ repo, keyring, sealer, clock });
+    await provisionAgentPluginMcpServers(mcp, { workspaceId: WORKSPACE_A, pluginId: "supabase", servers: plugin.servers, principalId: "owner" });
     const row = (await repo.findByServerId({ workspaceId: WORKSPACE_A, serverId: "supabase" }))!;
     await repo.upsert({ ...row, oauthStatus: "connected" });
     const registrations = buildAgentPluginConnectRegistrations(testSiteLayoutContext({
-      workspaceId: WORKSPACE_A, externalMcpServerRepo: repo, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring, clock,
+      workspaceId: WORKSPACE_A, mcp, clock,
+      credentials: credentialTestPort({ httpClient: { send: async () => assert.fail("an MCP plugin connect never probes a token") } }),
+      preferences: { locale: async () => "en" },
       authorize: async () => ({ allowed: true, reason: "test" }),
-      customCredentialsHttpClient: { send: async () => assert.fail("an MCP plugin connect never probes a token") },
-      externalMcpOAuth: { beginConnect: async () => assert.fail("a saved sign-in must not start another"), completeAuthorizationCallback: async () => assert.fail("no callback"), pollDeviceAuthorization: async () => assert.fail("no device flow"), disconnect: async () => assert.fail("no disconnect"), reportAuthFailure: async () => assert.fail("no auth failure"), tokenResolver: { resolveAccessToken: async () => assert.fail("no token resolve") } },
+      externalMcpOAuth: { beginConnect: async () => assert.fail("a saved sign-in must not start another"), isValidationError: () => false },
     }), { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
     const connect = registrations.find(registration => registration.descriptor.id === "agent_plugin_connect");
     assert.ok(connect);

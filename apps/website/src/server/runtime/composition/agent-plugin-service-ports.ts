@@ -69,7 +69,7 @@ export function composeAgentPluginConnectServices(required: {
   httpClient: HttpClientPort; loadCards?: LoadPluginCredentialCards;
   externalMcpOAuth?: Pick<ExternalMcpOAuthService, 'beginConnect'>;
   apiConnections?: { host: ApiConnectionHost };
-}, _options = {}): { credentials: PluginCredentialsPort; externalMcpOAuth?: AgentPluginOAuthPort; apiConnections?: AgentPluginApiConnectionsPort } {
+}, _options = {}): { credentials: PluginCredentialsPort; externalMcpOAuth: AgentPluginOAuthPort | undefined; apiConnections: AgentPluginApiConnectionsPort | undefined } {
   const { externalMcpOAuth, apiConnections } = required;
   return {
     credentials: composePluginCredentials(required),

@@ -1,4 +1,4 @@
-import * as externalMcpStore from "../../../../apps/website/src/features/external-mcp/external-mcp-store.js";
+import { mcpTestPort, credentialTestPort } from "../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/connection-service-ports.ts";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
@@ -20,6 +20,7 @@ import { createCustomCredential, resolveCustomCredentialByLabel } from "../../..
 import { InMemoryExternalMcpServerRepo } from "../../../../apps/website/src/features/external-mcp/external-mcp-store.memory.js";
 import { InMemoryKeyring } from "../../../../apps/website/src/features/webhooks/keyring.memory.ts";
 import { resolveAgentPluginLayout } from "../../../../apps/website/src/features/agent-plugins/layout.ts";
+import { resolveSiteRoot } from "../../../../apps/website/src/platform/site-dir/index.ts";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -121,7 +122,7 @@ test("the Full access card is the plugin's own, saves to the account connection,
   assert.deepEqual(card.usedFor, ["Adds and verifies your email domain", "Manages contacts and broadcasts", "Manages email templates and reads email activity and account usage", "Sends one-off emails you request"]);
   // agent-plugin-token on "resend" seals it on the MCP row, apart from the site's sending key.
   assert.deepEqual({ saveKind: card.saveKind, saveTarget: card.saveTarget, helpUrl: card.helpUrl }, { saveKind: "agent-plugin-token", saveTarget: "resend", helpUrl: "https://resend.com/api-keys" });
-  const form = JSON.stringify(buildAgentPluginAccessTokenForm({ pluginDisplayName: "Resend", helpUrl: card.helpUrl, credentialCard: card }));
+  const form = JSON.stringify(buildAgentPluginAccessTokenForm({ credentials: credentialTestPort({}), pluginDisplayName: "Resend", helpUrl: card.helpUrl, credentialCard: card }));
   assert.match(form, /Connect Resend with a Full access key/);
   assert.match(form, /Create API Key.*Full access/);
   assert.match(form, /keeps your site's sending key/);
@@ -162,18 +163,19 @@ async function saveAccountKey({ toolId }, _optional = {}) {
   const requests = [];
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: idGen, defaultChannel: "mcp-ui" }) };
   const deps = {
-    workspaceId, agentPluginLayout: resolveAgentPluginLayout(), clock,
+    workspaceId, agentPluginLayout: resolveAgentPluginLayout({ siteDir: resolveSiteRoot() }), clock,
     authorize: async () => ({ allowed: true, reason: "fixture" }),
-    externalMcpServerRepo: repo, externalMcpStore, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring,
+    mcp: mcpTestPort({ repo, sealer, keyring, clock }),
+    credentials: credentialTestPort({ loadCards: async () => [card], httpClient: { send: async request => { requests.push(request); return { status: 200, headers: {}, bodyText: "[]" }; } } }),
+    preferences: { locale: async () => "en" },
     resolveInstalledPlugin: async id => id === "resend" ? { servers: { resend: server } } : null,
-    loadPluginCredentialCards: async () => [card],
-    externalMcpOAuth: { beginConnect: async () => { throw new Error("token-only account must not start OAuth"); } },
-    customCredentialsHttpClient: { send: async request => { requests.push(request); return { status: 200, headers: {}, bodyText: "[]" }; } },
+    externalMcpOAuth: { beginConnect: async () => { throw new Error("token-only account must not start OAuth"); }, isValidationError: () => false },
     isPluginOffByOperator: async () => false, switchPluginOn: async () => true,
     onConnected: async () => undefined,
+    notifyRosterChanged: async () => undefined,
   };
   // Model a provisioned older declaration: reconciliation must retain the operator's grants.
-  await provisionAgentPluginMcpServers({ repo, sealer, keyring, clock }, {
+  await provisionAgentPluginMcpServers(deps.mcp, {
     workspaceId, pluginId: "resend", servers: { resend: { ...server, tovuAuthMode: "oauth" } }, principalId: "operator",
   });
   const oldRow = await repo.findByServerId({ workspaceId, serverId: "resend" });

@@ -832,7 +832,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         query: {
           type: "string",
           aliases: ["search"],
-          description: "Case-insensitive substring of title or slug (alias: search). Applied over the loaded list before limit; total counts matches. Supply query or search, never both.",
+          description: "Case-insensitive substring of title or slug (alias: search). Applied over the loaded list before limit; total counts matches. If both query and search are supplied, their values must agree.",
         },
         status: {
           type: "string",

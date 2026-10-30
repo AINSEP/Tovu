@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { resolveBundledHostSignals } from "../../website/src/features/agent-plugins/host-signals.ts";
+import { bundledAgentPluginsDir } from "../../website/src/server/runtime/composition/site-paths.ts";
 import type { HostSignals } from "../../website/src/contracts/core/host-signals.ts";
 
 /**
@@ -22,5 +23,7 @@ export function resolveDesktopHostSignals(
     const payload = path.join(resourcesPath, "tovu", "dist", "content", "agent-plugins");
     if (pathExists(payload)) sourceRoot = payload;
   }
-  return resolveSignals(required, { sourceRoot });
+  return resolveSignals({ ...required,
+    get bundledSourceRoot() { return sourceRoot ?? bundledAgentPluginsDir({}, { env: required.env }); },
+  });
 }

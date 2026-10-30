@@ -130,7 +130,7 @@ export function findThemeOrThrow(routeDeps: ThemeToolDeps, themeId: string): Dis
   const theme = routeDeps.themes.find((t) => t.manifest.id === themeId);
   if (!theme) {
     const known = routeDeps.themes.map((t) => t.manifest.id).join(", ") || "(none discovered)";
-    throw new ThemeNotFoundError(`theme '${themeId}' was not found — discovered themes are: ${known}`);
+    throw new ThemeNotFoundError(`theme '${themeId}' was not found — discovered themes are: ${known}. Create it first with theme_duplicate, then retry.`);
   }
   return theme;
 }

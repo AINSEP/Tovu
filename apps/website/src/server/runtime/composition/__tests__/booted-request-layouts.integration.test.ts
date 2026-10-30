@@ -135,7 +135,7 @@ test("admin memory and file handlers consume A's binding when env points at B", 
 }));
 
 for (const { resolve, key, folder } of [
-  { resolve: resolveAgentPluginLayout, key: "TOVU_AGENT_PLUGINS_DIR", folder: "agent-plugins" },
+  { resolve: ({ siteDir, env }: { siteDir: string; env: NodeJS.ProcessEnv }) => resolveAgentPluginLayout({ siteDir }, { env }), key: "TOVU_AGENT_PLUGINS_DIR", folder: "agent-plugins" },
   { resolve: resolveSkillLayout, key: "TOVU_SKILLS_DIR", folder: "skills" },
 ]) {
   test(`${folder}: explicit boot binding wins over ambient site while overrides stay validated`, () => {

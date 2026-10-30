@@ -6,6 +6,7 @@ import * as tokenCatalog from '#src/features/agent-plugins/new-site-agent-plugin
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import type { AdminSitesDeps } from '../../sites.js';
+import { bundledAgentPluginsDir } from '#src/server/runtime/composition/site-paths';
 
 const catalogReads: unknown[] = [];
 mock.module('#src/features/agent-plugins/new-site-agent-plugin-tokens', { namedExports: { ...tokenCatalog,
@@ -24,7 +25,7 @@ test('sites uses the bundled token catalog when no catalog port override is supp
   const { res, capture } = createCapturingResponse(); res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'get', `${ROOT}/token-sign-in-plugins`)({ params: { workspaceId: 'ws' } }, res);
   assert.deepEqual(capture, { statusCode: 200, jsonBody: { plugins: [] } });
-  assert.deepEqual(catalogReads, [[]]);
+  assert.deepEqual(catalogReads, [[{ bundledSourceRoot: bundledAgentPluginsDir() }]]);
 });
 
 for (const active of ['alpha', 'beta']) {
