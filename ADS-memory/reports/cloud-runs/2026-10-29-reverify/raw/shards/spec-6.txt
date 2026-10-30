@@ -6756,3 +6756,1260 @@ vault boot coverage {
 ✔ source-control-credentials: unavailable hosts cannot be created but pre-existing opaque rows stay listed and removable (586.39562ms)
 ✔ source-control providers: lists the example-git plugin's host with its declared credential form; a bare principal gets 403 (767.537679ms)
 ✔ source-control-credentials: credential-only permission allows every verb and publish-only permission denies every verb (841.23742ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+✔ W-004: a widget bound into a theme-declared region renders on a real GET / request (1089.553667ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+✔ W-004: a theme with NO declared regions renders the home page with no widget-region markup at all (back-compat — every theme without `regions` in theme.json today) (694.232273ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+✔ W-004: a disabled placement (enabled:false) does not render publicly, even though it's still in the region's placement list (619.964591ms)
+✔ index.ts main(): the content.db schema guard and site key run before the composition root opens the database (2.513408ms)
+✔ index.ts main(): a refusing schema guard stops a disk boot before site-key preparation or store opening (171.295564ms)
+✔ createSiteRouteDeps: storage choice, then hydration, then the store open (the recovering site opener), then the chat sweep (3.214856ms)
+✔ openSiteContentDb: crash recovery runs on the fresh connection before the migrations, and the store is prepared after them (0.456643ms)
+✔ createSiteRouteDeps prelude: store open, then the awaited workspace, deny store and orphan check, all before the first fire-and-forget boot promise (2.838538ms)
+✔ createSiteRouteDeps body: every repo is built from the kernels; the engine-bound rest comes from storeBoundServicesFor (3.040435ms)
+✔ drainBootReadiness waits for identityReady (25.526694ms)
+✔ drainBootReadiness waits for settingsReady (6.952146ms)
+✔ drainBootReadiness waits for seoReady (1.191971ms)
+✔ drainBootReadiness waits for commentsReady (9.455919ms)
+✔ drainBootReadiness waits for commentsSettingsReady (1.105682ms)
+✔ drainBootReadiness waits for executionSettingsReady (0.898002ms)
+✔ drainBootReadiness waits for settingsUiTabsReady (4.891228ms)
+✔ drainBootReadiness waits for analyticsSettingsReady (0.931391ms)
+✔ drainBootReadiness waits for siteTitleReady (0.706437ms)
+✔ drainBootReadiness waits for pluginRuntimeReady (0.910806ms)
+✔ drainBootReadiness waits for legacyPublishCredentialsReady (0.623759ms)
+✔ malformed cookie % remains a value for the authentication gate to reject (7.008596ms)
+✔ malformed cookie %E0%A4%A remains a value for the authentication gate to reject (0.532556ms)
+✔ malformed cookie %GG remains a value for the authentication gate to reject (0.362335ms)
+✔ request cookies decode once, preserve embedded equals and use the first duplicate (0.444626ms)
+✔ embedded admin assets win over dev proxy and fall back to the SPA for missing paths (146.970582ms)
+✔ built admin serves real files and deep SPA paths serve index.html (66.394083ms)
+[plugin-runtime] 'word-count' hook refused a request: provider request failed; token=sk-live-123
+✔ sendPluginHookFailedError: a PluginHookFailedError is mapped to 500 with code PLUGIN_HOOK_FAILED and the plugin id (8.812598ms)
+✔ sendPluginHookFailedError: any other error is left unhandled (writes nothing, returns false) (0.446996ms)
+[plugin-runtime] 'throwing-plugin' hook refused a request: plugin 'throwing-plugin' content.entry.beforeSave filter failed: boom
+✔ HTTP: creating a post through a throwing beforeSave filter returns 500 PLUGIN_HOOK_FAILED, not a bare 'internal error' (1191.386974ms)
+[plugin-runtime] 'throwing-plugin' hook refused a request: update filter failed: boom
+[plugin-runtime] 'seo' hook refused a request: plugin 'seo' content.entry.beforeSave filter failed: token=sk-live-123
+✔ HTTP: updating a post through a throwing beforeSave filter returns PLUGIN_HOOK_FAILED and leaves the stored post unchanged (693.335488ms)
+✔ widgetErrorToResponse: a hook refusal behind a widget embed/tool route is PLUGIN_HOOK_FAILED naming the plugin, not a bare 500 (1.445524ms)
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+[plugins] Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+✔ AGENT_PLUGIN_INSTALL_ZIP: a folder zip installs switched off; the same bytes again are a no-op (1422.018098ms)
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+[plugins] Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+✔ AGENT_PLUGIN_INSTALL_ZIP: a different package under an installed name is refused (1020.299557ms)
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+✔ AGENT_PLUGIN_INSTALL_ZIP: omitted display metadata is returned as explicit nulls (829.47459ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: an invalid replace value refuses an otherwise valid upload (357.643482ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: bad uploads are refused in plain words and install nothing (460.594121ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: input checks, auth, and permission (830.807997ms)
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+[plugins] Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+✔ AGENT_PLUGIN_INSTALL_ZIP: replace=true upgrades the same plugin id and reports the new disabled row (1453.818723ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: compressed HTTP bodies are refused by the raw parser (598.136325ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: body size limit returns the actionable 413 before installation (1477.556345ms)
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+[plugins] Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+✔ AGENT_PLUGIN_INSTALL_ZIP: an enabled plugin cannot be replaced (834.923035ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: an unreadable activation record refuses installation without rewriting it (596.539488ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: a host layout failure returns a redacted internal error (439.398672ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: expanded file limit has an actionable refusal (1092.127083ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: expanded entries limit has an actionable refusal (3798.987846ms)
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+[agent-plugins] install/update request failed AgentPluginInstallError: failed to publish the extracted package to '/tmp/tovu-agent-plugin-install-zip-test-ygS5Zj/ws/workspace-local/note-taker/package/sha256/c5afc4aca0ec54dd793558890abea43d0ae18aeda92ea5347a4e9e52055d7ed8'
+    at publish (/home/user/Jini/packages/agent-plugins/src/lifecycle/install.ts:564:15)
+    at async publishPackage (/home/user/Jini/packages/agent-plugins/src/lifecycle/install.ts:327:9)
+    ... 6 lines matching cause stack trace ...
+    at async installUploadedAgentPlugin (/home/user/Tovu/apps/website/src/features/agent-plugins/install-upload.ts:204:18)
+    at async installHandler (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/agent-plugins/install.ts:115:22) {
+  code: 'PUBLISH_FAILED',
+  [cause]: Error: ENOTDIR: not a directory, rename '/tmp/tovu-agent-plugin-install-zip-test-ygS5Zj/ws/workspace-local/staging/install-qJsSCG/root' -> '/tmp/tovu-agent-plugin-install-zip-test-ygS5Zj/ws/workspace-local/note-taker/package/sha256/c5afc4aca0ec54dd793558890abea43d0ae18aeda92ea5347a4e9e52055d7ed8'
+      at async Module.rename (node:internal/fs/promises:1491:10)
+      at async publish (/home/user/Jini/packages/agent-plugins/src/lifecycle/install.ts:560:7)
+      at async publishPackage (/home/user/Jini/packages/agent-plugins/src/lifecycle/install.ts:327:9)
+      at async run (/home/user/Tovu/apps/website/src/features/agent-plugins/install-upload.ts:223:23)
+      at async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:293:19)
+      at async run (/home/user/Jini/packages/agent-plugins/src/lifecycle/install.ts:340:27)
+      at async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:293:19)
+      at async runHeldAsync (/home/user/Jini/packages/platform/src/fs/file-lock.ts:293:19)
+      at async Object.installAgentPlugin (/home/user/Jini/packages/agent-plugins/src/lifecycle/install.ts:344:14)
+      at async installUploadedAgentPlugin (/home/user/Tovu/apps/website/src/features/agent-plugins/install-upload.ts:204:18) {
+    errno: -20,
+    code: 'ENOTDIR',
+    syscall: 'rename',
+    path: '/tmp/tovu-agent-plugin-install-zip-test-ygS5Zj/ws/workspace-local/staging/install-qJsSCG/root',
+    dest: '/tmp/tovu-agent-plugin-install-zip-test-ygS5Zj/ws/workspace-local/note-taker/package/sha256/c5afc4aca0ec54dd793558890abea43d0ae18aeda92ea5347a4e9e52055d7ed8'
+  }
+}
+✔ AGENT_PLUGIN_INSTALL_ZIP: a blocked publish destination is an internal install failure with no path leak (896.463497ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: a missing expectedSha256 is a validation error (417.242173ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: a repeated expectedSha256 is a validation error (384.343832ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: an uppercase expectedSha256 is a validation error (407.901516ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: permission is checked before any input validation (637.766695ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: the digest is checked before the content type (547.204963ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: the content type is checked before replace (926.695301ms)
+✔ AGENT_PLUGIN_INSTALL_ZIP: the body is parsed before replace is checked (533.721661ms)
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+[plugins] Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+✔ AGENT_PLUGIN_INSTALL_ZIP: replace=false keeps refusing a different package under an installed name (821.37581ms)
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+✔ AGENT_PLUGIN_INSTALL_ZIP: the install runs under the plugin host's identity admission (1023.429894ms)
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+✔ AGENT_PLUGIN_INSTALL_ZIP: without a plugin host the upload still installs switched off (938.003784ms)
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+[plugins] Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+✔ AGENT_PLUGIN_UPDATE_ZIP: a newer package replaces the installed revision through the composed settings snapshot (840.302722ms)
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+[plugins] Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+[plugins] Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+✔ AGENT_PLUGIN_UPDATE_ZIP: lifecycle refusals are 409 with the owner's code and change nothing (1288.915206ms)
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+[plugins] Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+✔ AGENT_PLUGIN_UPDATE_ZIP: a bundled plugin is refused with 409 PLUGIN_BUNDLED (948.632724ms)
+✔ AGENT_PLUGIN_UPDATE_ZIP: the URL plugin id and expectedOldDigest are validated before the body is read (841.370595ms)
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+✔ AGENT_PLUGIN_UPDATE_ZIP: the upload digest is still checked like an install (1048.048504ms)
+✔ AGENT_PLUGIN_UPDATE_ZIP: permission is checked before the update target (1024.34946ms)
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+[agent-plugins] install/update request failed Error: Agent Plugin update is unavailable: the host did not bind the plugin settings snapshot owner.
+    at updateUploadedAgentPlugin (/home/user/Tovu/apps/website/src/features/agent-plugins/install-upload.ts:254:32)
+    at installUploadedAgentPlugin (/home/user/Tovu/apps/website/src/features/agent-plugins/install-upload.ts:199:12)
+    at async installHandler (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/agent-plugins/install.ts:115:22)
+Plugin 'note-taker' has no publisher-qualified id; using 'unknown/note-taker'.
+✔ AGENT_PLUGIN_UPDATE_ZIP: a host without the settings snapshot owner answers a redacted 500 and changes nothing (812.626898ms)
+✔ AGENT_PLUGIN_UPDATE_ZIP: the composed settings snapshot is the plugin's setting keys and revisions, never a value (262.140729ms)
+✔ API-key principal create redacts a persistence failure after a valid request (73.447988ms)
+✔ API-key issuance redacts an unexpected target lookup failure (6.632701ms)
+✔ API-key revoke redacts an unexpected key lookup failure (7.647436ms)
+✔ revoking an unknown key returns RESOURCE_NOT_FOUND rather than a success receipt (4.486663ms)
+✔ API-key revoke: `req.params.id ?? ""` fallback, forced via a direct handler call, looks up the empty id and answers the ordinary not-found (1.439213ms)
+✔ resolveTestAgentOutcome: authStatus 'missing' with an explicit authMessage returns ok:false with that exact message (9.779192ms)
+✔ resolveTestAgentOutcome: authStatus 'missing' with no authMessage falls back to a generic not-authenticated message (0.530413ms)
+✔ resolveTestAgentOutcome: authStatus 'unknown' returns ok:true but says sign-in status could not be verified (0.654691ms)
+✔ resolveTestAgentOutcome: a requested model absent from the agent's real model list returns ok:false, not silently accepted (0.48579ms)
+✔ resolveTestAgentOutcome: a requested model present in the agent's model list returns ok:true naming it (10.164731ms)
+✔ resolveTestAgentOutcome: no model requested returns ok:true with the plain installed-and-authenticated message (0.470789ms)
+✔ resolveTestAgentOutcome: authStatus undefined (adapter declares no probe result) is treated the same as 'ok' (0.35248ms)
+✔ resolveTestAgentOutcome: a model requested against an agent with an EMPTY model list is not treated as a mismatch (models?.length guard) (0.349112ms)
+[consent-admin] operation failed
+✔ GET consent/settings: permission, workspace and storage failures (285.313323ms)
+[consent-admin] operation failed
+✔ GET consent/readiness: permission, workspace and storage failures (311.897338ms)
+[consent-admin] operation failed
+✔ POST consent/dry-run: permission, workspace and storage failures (279.682853ms)
+[consent-admin] operation failed
+✔ POST consent/preview: permission, workspace and storage failures (233.658535ms)
+[consent-admin] operation failed
+✔ PUT consent/settings: permission, workspace and storage failures (153.183712ms)
+[consent-admin] operation failed
+✔ POST consent/publish: permission, workspace and storage failures (164.085646ms)
+✔ all consent routes reject anonymous sessions and principals with no grants at the real admin gate (1063.018742ms)
+SyntaxError: Unexpected token 'n', "null" is not valid JSON
+    at JSON.parse (<anonymous>)
+    at createStrictSyntaxError (/home/user/Tovu/node_modules/body-parser/lib/types/json.js:165:10)
+    at parse (/home/user/Tovu/node_modules/body-parser/lib/types/json.js:86:15)
+    at /home/user/Tovu/node_modules/body-parser/lib/read.js:128:18
+    at AsyncResource.runInAsyncScope (node:async_hooks:227:14)
+    at invokeCallback (/home/user/Tovu/node_modules/raw-body/index.js:238:16)
+    at done (/home/user/Tovu/node_modules/raw-body/index.js:227:7)
+    at IncomingMessage.onEnd (/home/user/Tovu/node_modules/raw-body/index.js:287:7)
+    at IncomingMessage.emit (node:events:514:28)
+    at endReadableNT (node:internal/streams/readable:1783:12)
+✔ dry-run accepts a candidate without persisting; unknown fields and missing tokens are rejected (356.4521ms)
+✔ a permission revoked between the route gate and the service re-check is a fixed 403, not a 503 (148.460678ms)
+✔ dry-run and preview refuse a non-string path; preview renders a supplied candidate config for a real path (186.308256ms)
+✔ publish without a draft id is a 400 naming the missing draft, and nothing is published (465.489002ms)
+✔ a hand-built request with no :workspaceId is 404 before authorization (direct invoke) (301.981647ms)
+✔ runtime provenance marks arbitrary connection names built-in and refuses removal (536.034201ms)
+✔ an 'admin' in the seed vintage this repo SHIPS can change the custom root — the gate must not be a permission that workspace's policy never got (242.657017ms)
+✔ the 'owner' clears the gate too — on its '*' wildcard, without any row being written to its policy (65.295037ms)
+✔ an 'editor' can still SEE which folder is set but can no longer change it (71.343059ms)
+✔ a 'viewer' is refused both writing verbs (75.83444ms)
+✔ the backfill reaches ONLY the admin policy — it never invents rows for editor, viewer, or the permissions this workspace deliberately lacks (41.27369ms)
+✔ admin media routes: upload -> list -> update -> trash -> purge ladder (owner) (987.383413ms)
+✔ admin media routes: upload/list/update/trash responses all include publicUrl, keyed by the asset's slug (readable-slugs S5a) (381.124725ms)
+✔ admin media routes: upload rejects a disallowed content type with 400 (461.50422ms)
+✔ admin media routes: 404s for an unknown workspace id and an unknown media id (522.322716ms)
+✔ update: 404s for a wrong workspace id on the PATCH route itself (not just the trash route) (461.262389ms)
+✔ update: 404 MediaNotFoundError for a PATCH against a media id that does not exist (392.499653ms)
+✔ update: 400 MediaValidationError for a non-positive-integer width (552.51586ms)
+✔ update: width/height/cssClass round-trip through their full undefined/null/value contract (parseOptionalNullableField's two branches) (703.184154ms)
+✔ update: an unexpected repo failure surfaces as the generic 500 (sendPostUpdateError-style default branch, via a real save() failure) (694.705488ms)
+✔ SPEC-021 REQ-39/OQ-01: a principal with zero grants is denied 403 with the route's specific media.* permission named, on every one of the 5 routes (765.023459ms)
+✔ T-media-list: list.ts is gated by media.read specifically — that grant alone succeeds (589.66398ms)
+✔ T-media-upload: upload.ts is gated by media.upload specifically — that grant alone succeeds (532.254369ms)
+✔ T-media-update: update.ts is gated by media.update specifically — that grant alone succeeds (647.577883ms)
+✔ T-media-trash: trash.ts is gated by media.delete specifically — that grant alone succeeds (716.160436ms)
+✔ T-media-delete: delete.ts (hard purge) requires media.delete.force specifically — media.delete alone is denied, media.delete.force succeeds (760.818192ms)
+✔ admin media routes: delete returns 404 for wrong workspace id and non-existent media, and 500 on unexpected error (506.653034ms)
+✔ update media: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call (257.632246ms)
+✔ update media: `req.params.mediaId ?? ""` fallback (both the authorize() entityId and the update input id), forced via a direct handler call past auth with a real seeded principal (337.384849ms)
+✔ update media: `parseMediaMetadataPatch`'s `(rawBody ?? {})` fallback, forced via a direct handler call with req.body omitted entirely (544.640448ms)
+✔ trashing a media asset indexes it for the Trash screen; purging it drops the index row (592.482112ms)
+✔ hard purge refuses indexed references even with force permission, and lookup errors preserve the asset (514.103803ms)
+✔ media original route: happy path — a real PNG serves 200 with the sniffed content type and the exact uploaded bytes (925.984196ms)
+✔ media original route: sniffs each supported format from real bytes, independent of the declared upload contentType (408.541414ms)
+✔ media original route: an HTML payload declared as image/png at upload is served as application/octet-stream with Content-Disposition: attachment, never as text/html (359.418356ms)
+✔ media original route: an SVG payload declared as image/png at upload is sanitized and served inline with SVG security headers (1324.463882ms)
+✔ media original route: Range requests — full body without a Range header, exact slices with one, 416 when unsatisfiable, and full body for malformed/multi-range headers (392.437588ms)
+✔ media original route: no session cookie -> 401, never revealing whether the asset exists (399.076871ms)
+✔ media original route: a media id belonging to a different workspace 404s — never leaks another workspace's asset (324.7167ms)
+✔ media original route: a trashed asset responds 410 no-store, mirroring the public rendition route's gone mapping (393.010374ms)
+✔ media original route: an unknown media id (but real workspace) 404s (357.514735ms)
+✔ media original route: an unknown workspace id in the URL 404s before any authorization check (520.46342ms)
+✔ media original route: an authenticated principal with zero grants is denied 403 naming media.read, before any media/blob lookup runs (627.206356ms)
+✔ media trash: denial writes the exact 403 body for media.delete and names the asset to authorize (590.806374ms)
+✔ media trash: an unknown asset is 404 before any removal (396.229146ms)
+✔ media trash: success returns the re-read trashed asset with its recorded type, public URL and size (215.438011ms)
+✔ media trash: an unknown stored size and public URL are reported as null (278.147051ms)
+✔ media trash: an unexpected repository failure is a private 500 (366.201583ms)
+✔ media trash: a hand-built request with no params falls back to an empty workspace id and 404s (179.861334ms)
+✔ media trash: a hand-built request with no media id authorizes and looks up the empty id (244.894556ms)
+✔ members get: authorization failure is private and does not become a success (606.156519ms)
+✔ members get: denied permission stops before reaching repositories (422.505201ms)
+✔ members get: workspace isolation precedes authorization (468.790142ms)
+✔ members get: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (306.256241ms)
+✔ members list: authorization failure is private and does not become a success (268.395467ms)
+✔ members list: denied permission stops before reaching repositories (368.504853ms)
+✔ members list: workspace isolation precedes authorization (288.809798ms)
+✔ members list: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (211.452249ms)
+✔ members magic link: authorization failure is private and does not become a success (190.341787ms)
+✔ members magic link: denied permission stops before reaching repositories (249.933271ms)
+✔ members magic link: workspace isolation precedes authorization (284.890348ms)
+✔ members magic link: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (242.79917ms)
+✔ member get: a missing record is 404; an unavailable repository is 500 (522.894745ms)
+✔ members list normalizes pagination (absent) (196.446563ms)
+✔ members list normalizes pagination ?limit=no (276.402105ms)
+✔ members list normalizes pagination ?limit=Infinity (213.825788ms)
+✔ members list normalizes pagination ?limit=0 (240.703199ms)
+✔ members list normalizes pagination ?limit=-1 (212.370439ms)
+✔ members list normalizes pagination ?limit=2&afterId=previous (290.403133ms)
+✔ members list normalizes pagination ?limit[x]=2&afterId[x]=bad (212.414021ms)
+✔ magic link: absent body is validation failure without consuming email rate budget (202.119419ms)
+✔ members disable: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (227.439736ms)
+✔ members disable: `req.params.memberId ?? ""` fallback, forced via a direct handler call, resolves the empty id to the ordinary not-found (201.830881ms)
+✔ members get: `req.params.memberId ?? ""` fallback, forced via a direct handler call, resolves the empty id to the ordinary not-found (317.537607ms)
+✔ cancel-campaign: mismatched workspaceId 404s (592.219578ms)
+✔ cancel-campaign: forbidden 403s when unauthorized (304.111107ms)
+✔ cancel-campaign: successful cancel transitions draft campaign to canceled (379.323586ms)
+✔ cancel-campaign: not found campaign returns 404 (256.988877ms)
+✔ cancel-campaign: invalid state transition returns 409 conflict (295.208902ms)
+✔ cancel-campaign: generic unexpected error maps to 500 (302.912151ms)
+✔ cancel-campaign: scheduled can be canceled, with durable state checked (244.946299ms)
+✔ cancel-campaign: sending cannot be canceled, with durable state checked (293.866619ms)
+✔ cancel-campaign: paused cannot be canceled, with durable state checked (269.849416ms)
+✔ cancel-campaign: sent cannot be canceled, with durable state checked (314.837062ms)
+✔ cancel-campaign: canceled cannot be canceled, with durable state checked (401.862912ms)
+✔ cancel-campaign: undefined workspaceId fallback via direct handler invocation (430.636866ms)
+✔ pause-campaign: mismatched workspaceId 404s (647.71164ms)
+✔ pause-campaign: forbidden 403s when unauthorized (287.253668ms)
+✔ pause-campaign: successful pause transitions sending campaign to paused (443.722842ms)
+✔ pause-campaign: not found campaign returns 404 (394.853067ms)
+✔ pause-campaign: invalid state transition returns 409 conflict (386.471533ms)
+✔ pause-campaign: generic unexpected error maps to 500 (380.473696ms)
+✔ pause-campaign: undefined workspaceId fallback via direct handler invocation (244.728837ms)
+✔ page delete losing its version compare-and-set is 409 and leaves the page intact (520.910697ms)
+✖ page delete compensates a failed audit write using its captured page (289.564501ms)
+✔ PLUGIN_UNINSTALL authz: a signed-in principal without admin.plugins.enable is 403 and the plugin stays installed; the owner can still remove it (1410.94483ms)
+✔ PLUGIN_UNINSTALL: a workspace id that is not this site's is 404 before discovery or removal (138.605112ms)
+✔ PLUGIN_UNINSTALL: an unmapped discovery failure is the opaque 500 INTERNAL_ERROR envelope (26.144463ms)
+✔ PLUGIN_UNINSTALL: `req.params.workspaceId ?? ""` fallback, via a hand-built request with no params, is the workspace 404 (1.422643ms)
+✔ PLUGIN_UNINSTALL: `req.params.pluginId ?? ""` fallback names no discovered plugin and is 404 PLUGIN_NOT_FOUND without removing anything (0.965656ms)
+✔ PLUGIN_FILES: an unmapped listing failure is the opaque 500 INTERNAL_ERROR envelope, never the raw message (16.245182ms)
+✔ PLUGIN_FILES: `req.params.workspaceId ?? ""` fallback, via a hand-built request with no params, is the workspace 404 (5.218181ms)
+✔ PLUGIN_FILES: `req.params.pluginId ?? ""` fallback matches no discovered plugin and is 404 PLUGIN_NOT_FOUND without reading files (0.772588ms)
+[theme] static page 'listing-preview/page' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'listing-preview/page' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'listing-preview/page' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'listing-preview/page' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'listing-preview/page' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'listing-preview/page' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static theme 'listing-preview' ships none of 'pages-default.html', 'page-shell.html'; untemplated html Pages render in Tovu's generic chrome instead of this theme's own document
+[theme] static page 'listing-preview/page' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'listing-preview/page' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'listing-preview/page' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'listing-preview/page' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'listing-preview/page' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ draft homepage preview resolves an unsaved 24-post listing and its See more button without writes (338.823709ms)
+✔ a full final 24-post batch has no See more button (262.176171ms)
+✔ preview without a post-list keeps the existing output and performs no listing read (333.052533ms)
+✔ preview fills a batch after excluding gated, corrupt, draft, scheduled and Page rows (279.94887ms)
+✔ preview resolves plain, keyed and paged listings from the same assembled draft document (239.2297ms)
+✔ editor Preview route includes the draft listing and retains no-store and its sandbox CSP (339.151474ms)
+✔ content_post_preview returns real list cards and See more for an unsaved page (243.610771ms)
+✔ preview preserves keyed listing numbers and JSON card batch URLs (336.025575ms)
+✔ preview with no published posts retains the authored listing fallback (401.02169ms)
+✔ listing read failures propagate without saving the pending preview (316.951223ms)
+✔ UI status is owner/built-in-admin and session only, even when a custom admin has the permission (130.639595ms)
+✔ Check may omit the human address, but Send cannot; missing schema stops Check before transport (94.959093ms)
+✔ destination Undo summary exposes item names but no inverses or private snapshots (76.278399ms)
+✔ GET .../export labels the bundle with the workspace id when the workspace row is missing (553.46428ms)
+✔ GET .../export with no principal (requireAdminSession did not run) is the fixed 500 before any byte is streamed (306.2061ms)
+✔ GET .../export from a publishing credential is the exact 403, never an empty bundle (242.630894ms)
+✔ GET .../peers maps PublishContentPeerValidationError to 400 VALIDATION_ERROR with its own message (620.795139ms)
+✔ GET .../peers maps PublishContentPeerDuplicateLabelError to 409 DUPLICATE_LABEL with its own message (383.263975ms)
+✔ GET .../peers maps PublishContentPeerNotFoundError to 404 PEER_NOT_FOUND with its own message (244.207071ms)
+✔ GET .../peers maps PublishContentPeerSecretStoreUnconfiguredError to 503 SECRET_STORE_UNCONFIGURED with its own message (381.42566ms)
+✔ GET .../peers answers an untyped failure with a fixed 500 that never echoes its message (272.617396ms)
+✔ a typed error this route does not map (credential missing) is still the fixed 500 (421.67488ms)
+✔ GET .../peers lists the saved peers (429.799189ms)
+✔ PATCH .../peers/:peerId answers a store failure through the same mapping (388.043744ms)
+✔ DELETE .../peers/:peerId answers a store failure through the same mapping (261.811541ms)
+✔ a missing principal (requireAdminSession did not run) is the fixed 500 on every peers route (377.089848ms)
+✔ POST with no parsed body reads as empty fields and is refused as a validation error (445.708874ms)
+✔ PATCH with no parsed body changes nothing and answers the unchanged peer (274.213772ms)
+✔ PATCH forwards each present key and leaves absent ones alone (409.529972ms)
+✔ get-entry: mismatched workspaceId 404s (495.376454ms)
+✔ get-entry: forbidden 403s (395.635907ms)
+✔ get-entry: unknown entry 404s (SEO_ENTRY_NOT_FOUND) (316.446081ms)
+✔ get-entry: valid entry returns effective SEO meta (200) (509.012201ms)
+✔ get-entry: unexpected repo error returns 500 (INTERNAL_ERROR) (671.503691ms)
+✔ get-entry: library body cover reports its effective source without changing storage (788.566511ms)
+✔ get-entry: external body cover reports its effective source without changing storage (649.701657ms)
+✔ get-entry: override body cover reports its effective source without changing storage (548.592975ms)
+✔ get-entry: workspaceId and entryId undefined fallbacks via direct handler execution (272.419456ms)
+✔ a generic provider write returns 403 and leaves comments disabled (10.148188ms)
+✔ a settings-only principal cannot reactivate comments by clearing the provider over HTTP (3.069351ms)
+✔ an alias of the provider key is refused for clear, and for a reset of the alias's namespace (3.481191ms)
+✔ a reset whose keys include the canonical provider is refused; one that clears no provider key is unchanged (6.103304ms)
+✔ other settings in other namespaces still clear and reset normally (2.862646ms)
+✔ the host clear export refuses the provider for any caller (2.655477ms)
+✔ the agent's settings_clear_value cannot reactivate comments, even with full settings permissions (2.946562ms)
+✔ the host clear export still clears every other setting through the package (2.242092ms)
+✔ the reset guard falls back to the authorized workspace, and a workspace-less clear check reads the platform partition (3.637086ms)
+✔ the host service's set delegates to an injected composed writer, which keeps its own provider refusal (1.265909ms)
+✔ an enable-shaped true value for a setting that does not exist is refused as not found, never as assistant readiness (2.26113ms)
+✔ the chokepoint resolves a global write, or a workspace write naming no workspace, in the platform partition, so the provider is still refused (1.062419ms)
+✔ parseSections: absent or blank means every section (undefined), never an empty selection (1.603087ms)
+✔ parseSections: trims names and merges a repeated ?sections= param in order (1.157374ms)
+✔ parseSections: an unknown name or a non-string (nested query object) is refused (0.758885ms)
+✔ parsePageLimit: accepts 1 and 200 inclusive, refuses 201, a repeated param, and absence is undefined (0.395554ms)
+✔ GET site/profile: pageLimit caps the pages section's items while total still counts every page (1401.195507ms)
+✔ Sites snapshot exposes the injected host and Trash; trashing the default restores the serving default (12.940127ms)
+✔ boot defaults on, registration is idempotent, and reads expose owner editability (69.580751ms)
+✔ owner enable and disable are audited and a separate daemon read sees the current grant (31.912497ms)
+✔ a non-owner with all settings permissions cannot enable OR disable (1.996364ms)
+✔ one capability override is persisted for this owner/site and observed by the next launch (20.977214ms)
+✔ unknown or malformed per-capability values never create a revision (29.773047ms)
+✔ hosted sites return disabled permissions and reject owner writes (13.551747ms)
+✔ a local env kill switch locks the owner's switches with a reason instead of snapping back (15.6684ms)
+✔ malformed writes never create a revision (26.547905ms)
+✔ workspace, authentication, and permission boundaries fail closed (77.593754ms)
+✔ generic set, clear, reset and definition edits cannot bypass the owner setting route (8.17199ms)
+✔ generic mutations also refuse an alias to the protected grant, including reset (2.912917ms)
+✔ missing values default on, while unavailable or malformed reads deny delegation (7.094684ms)
+✔ explicit off survives boot, and re-enabling needs no acknowledgment or receipt (51.426669ms)
+✔ boot reconciles an old OFF definition for an install with no stored value (30.083142ms)
+✔ HTTP read failure stays unknown instead of presenting a false OFF setting (1.626902ms)
+✔ publish update omits undefined fields, preserves false/empty values and verifies only a supplied connection (44.40735ms)
+✔ publish update passes explicit invalid values to store validation and keeps missing-row and auth refusals (33.295014ms)
+✔ publish update invalidates cached compatibility only when worksFor changes eligibility (14.068708ms)
+✔ account-label healing failure returns 500 after saving and logs only a safe code (15.943855ms)
+✔ publish list and delete map an unexpected store failure to a fixed 500 that logs only a safe code (6.89736ms)
+✔ publish list still answers when the after-response account-label heal cannot load deploy targets (37.154685ms)
+✔ publish create reports no verification when the new row vanished before it could be verified (9.966927ms)
+[system/sites] unexpected error listing sites Error: pin
+    at authorize (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/sites.tw4.pins.test.ts:85:61)
+    at authorizeOrRespond (/home/user/Tovu/apps/website/src/server/inbound/admin-http/authorize-guard.ts:56:28)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/sites.ts:326:32)
+    at Object.request (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/sites.tw4.pins.test.ts:32:49)
+    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/sites.tw4.pins.test.ts:86:35)
+    at async Test.run (node:internal/test_runner/test:1409:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+[system/sites] unexpected error creating a site Error: pin
+    at authorize (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/sites.tw4.pins.test.ts:85:61)
+    at authorizeOrRespond (/home/user/Tovu/apps/website/src/server/inbound/admin-http/authorize-guard.ts:56:28)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/sites.ts:379:32)
+    at Object.request (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/sites.tw4.pins.test.ts:32:49)
+    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/sites.tw4.pins.test.ts:86:35)
+    at async Test.run (node:internal/test_runner/test:1409:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+[system/sites] unexpected error creating a site Error: pin creation failure
+    at Object.createSite (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/sites.tw4.pins.test.ts:145:55)
+    at createSiteForOwner (/home/user/Tovu/apps/website/src/features/sites/site-admin.ts:216:32)
+    at async <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/sites.ts:393:23)
+    at async Object.request (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/sites.tw4.pins.test.ts:32:5)
+    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/__tests__/sites.tw4.pins.test.ts:146:20)
+    at async Test.run (node:internal/test_runner/test:1409:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✔ listing pins capabilities: enabled=true, compatible=true, restart=null, overridden=true (31.163468ms)
+✔ listing pins capabilities: enabled=true, compatible=true, restart=null, overridden=false (10.311715ms)
+✔ listing pins capabilities: enabled=true, compatible=true, restart={}, overridden=true (8.47496ms)
+✔ listing pins capabilities: enabled=true, compatible=true, restart={}, overridden=false (11.868775ms)
+✔ listing pins capabilities: enabled=true, compatible=true, restart={"canSwitchSite":false}, overridden=true (2.913157ms)
+✔ listing pins capabilities: enabled=true, compatible=true, restart={"canSwitchSite":false}, overridden=false (2.305754ms)
+✔ listing pins capabilities: enabled=true, compatible=false, restart=null, overridden=true (11.982888ms)
+✔ listing pins capabilities: enabled=true, compatible=false, restart=null, overridden=false (5.949374ms)
+✔ listing pins capabilities: enabled=true, compatible=false, restart={}, overridden=true (5.85773ms)
+✔ listing pins capabilities: enabled=true, compatible=false, restart={}, overridden=false (6.793617ms)
+✔ listing pins capabilities: enabled=true, compatible=false, restart={"canSwitchSite":false}, overridden=true (7.238585ms)
+✔ listing pins capabilities: enabled=true, compatible=false, restart={"canSwitchSite":false}, overridden=false (5.694335ms)
+✔ listing pins capabilities: enabled=false, compatible=true, restart=null, overridden=true (3.053875ms)
+✔ listing pins capabilities: enabled=false, compatible=true, restart=null, overridden=false (3.294702ms)
+✔ listing pins capabilities: enabled=false, compatible=true, restart={}, overridden=true (2.972761ms)
+✔ listing pins capabilities: enabled=false, compatible=true, restart={}, overridden=false (5.532667ms)
+✔ listing pins capabilities: enabled=false, compatible=true, restart={"canSwitchSite":false}, overridden=true (2.745372ms)
+✔ listing pins capabilities: enabled=false, compatible=true, restart={"canSwitchSite":false}, overridden=false (3.11546ms)
+✔ listing pins capabilities: enabled=false, compatible=false, restart=null, overridden=true (9.813328ms)
+✔ listing pins capabilities: enabled=false, compatible=false, restart=null, overridden=false (2.89506ms)
+✔ listing pins capabilities: enabled=false, compatible=false, restart={}, overridden=true (2.586212ms)
+✔ listing pins capabilities: enabled=false, compatible=false, restart={}, overridden=false (2.168592ms)
+✔ listing pins capabilities: enabled=false, compatible=false, restart={"canSwitchSite":false}, overridden=true (2.752196ms)
+✔ listing pins capabilities: enabled=false, compatible=false, restart={"canSwitchSite":false}, overridden=false (2.713133ms)
+✔ listing without previews preserves registered rows and strips running private fields (3.44637ms)
+✔ listing and create keep workspace, permission and exception responses (30.956849ms)
+✔ create pins name validation, raw fields, gate refusals and feature refusals (29.955673ms)
+✔ listing without a host keeps management unavailable even when the injected capability is on (4.406485ms)
+✔ create forwards checked tokens and the new site's key to the explicit sealer port (4.119608ms)
+✔ create reports unexpected creation errors as internal (4.315392ms)
+✔ token sign-in plugins and activate 404 an absent workspace param; activate reads an absent name as '' (2.708423ms)
+✔ token sign-in plugins and activate hide unexpected failures behind a logged generic 500 (2.526373ms)
+✔ trashing the persisted next-launch site re-points the default at the served site; any other site leaves it (3.039001ms)
+✔ without an injected persister, trashing the persisted site writes the served site as the next-launch default (8.805717ms)
+✔ B raw upload and setup routes reject unauthorized principals, machine credentials and foreign origins (265.156146ms)
+✔ import routes preserve principal/source contracts and sanitize failures across endpoints (250.023896ms)
+✔ upload admission rejects a concurrent body and releases the lane when the first response closes (25.967663ms)
+✔ raw parser refuses compressed uploads, clears admission and reports the real byte cap (1500.518588ms)
+✔ disconnecting during import cancels the backend signal (53.69822ms)
+✔ a stalled upload is dropped by the idle timeout and frees the single upload lane (78.087761ms)
+✔ a stalled upload is dropped by the whole-upload deadline and frees the single upload lane (73.294023ms)
+✔ a client that aborts mid-body during owner setup cancels the backend signal (27.791137ms)
+✔ upload admission failures and a refused owner gate on POST answer without reaching the backend (28.257364ms)
+✔ PUT into a built theme's generated tree is refused with GENERATED_READONLY, disk untouched (177.590115ms)
+✔ PUT into a built theme's sourceDir or theme.json still works (44.253692ms)
+✔ PUT of a NON-framework extension into sourceDir is still refused — the bypass is a bounded allowlist, not 'anything in sourceDir' (46.537344ms)
+✔ PUT of attacker-controlled markup as .html/.svg/.js into sourceDir is refused, even though those extensions ARE writable elsewhere in a theme (49.885461ms)
+✔ PUT of .css/.json/.md/.txt into sourceDir still works — the narrowed allowlist isn't overly strict (67.702688ms)
+✔ renaming a compiled theme's sourceDir file to a DIFFERENT extension is refused (would launder vetted bytes into an unvetted extension) (46.177785ms)
+✔ renaming ANY theme's file to a different extension is refused, not just a compiled theme's sourceDir (the same rule applies uniformly) (26.308762ms)
+✔ reset on a built theme's generated file restores the WHOLE generated tree atomically, reporting every restored path (29.789023ms)
+✔ reset on a built theme's sourceDir file still resets that ONE file (existing per-file behavior) (24.731312ms)
+✔ reset on an AUTHORED theme's file is unaffected — still scope:file, existing behavior (10.827053ms)
+✔ copy into a built theme's generated tree is refused (17.126404ms)
+✔ copy within a built theme's sourceDir still works (20.584207ms)
+✔ rename inside a built theme's generated tree is refused (10.935324ms)
+✔ rename inside a built theme's sourceDir still works (17.029956ms)
+✔ renaming a non-framework-extension file already sitting in sourceDir is still refused (same bounded allowlist as PUT) (18.275038ms)
+✔ an authored theme's PUT/copy/rename are completely unaffected by any of this (26.412152ms)
+✔ PUT into preview/ is refused even on the sourceDir branch — the generated-dir gate must not depend on which of PUT's two disjoint rules applies (16.044435ms)
+✔ PUT cannot reach preview/ through a traversal segment — isGeneratedThemePath compares the RAW path, the write path normalizes it (21.223622ms)
+✔ PUT with a non-string content field 400s INVALID_BODY (150.755455ms)
+✔ PUT with content missing entirely 400s INVALID_BODY (undefined is not a string) (28.002393ms)
+✔ PUT of an .svg (asset group) on an ordinary theme succeeds -- isThemeFileWritable is true for 'asset' (29.561504ms)
+✔ PUT of a .js file (script group) on an ordinary theme succeeds -- 2026-08-29 owner ask reversed the 2026-08-11 READ_ONLY_GROUPS exclusion; CONTENT_EDIT_LOCKED_GROUPS no longer includes 'script' (26.119125ms)
+✔ PUT of a .md file ('other' group) on an ordinary theme is refused 403 -- CONTENT_EDIT_LOCKED_GROUPS still covers 'other' (56.387384ms)
+✔ PUT of theme.json on a COMPILED theme succeeds via the general isThemeFileWritable path, not the sourceDir extension allowlist (17.475351ms)
+✔ PUT of a WRITABLE-extension path that still escapes the theme folder via traversal 400s ThemePathError, not 403 -- the group/generated checks pass, but the write itself is refused by containment (20.89089ms)
+✔ PUT over an existing file past the 1 MB text-read limit, without overwriteOversized, 400s and leaves its bytes on disk (21.660873ms)
+✔ PUT over an oversized file with overwriteOversized as the STRING 'true' is still refused -- only the boolean true opts in (27.82078ms)
+✔ PUT over an oversized file with overwriteOversized: true replaces it (31.104813ms)
+✔ PUT over an existing file of exactly 1 MB succeeds without the flag -- GET /file can still read it (10.544881ms)
+✔ PUT that fails for a reason OTHER than ThemePathError 500s via sendThemeFileError's generic branch (19.05491ms)
+✔ fileExtension: a path with no dot after the last slash has no extension (2.003379ms)
+✔ fileExtension: a dotfile/directory-with-a-dot before the last slash still has no extension (0.262639ms)
+✔ fileExtension: a real extension is lowercased and returned with its leading dot (0.178479ms)
+✔ nextAvailableFileName: a desired path with no existing collision is returned unchanged (0.238434ms)
+✔ nextAvailableFileName: a colliding path with an extension gets a numeric suffix before the extension (0.366327ms)
+✔ nextAvailableFileName: a colliding path with NO extension gets a numeric suffix appended directly (no dangling dot) (0.177731ms)
+✔ bodyRecord: a nullish body coerces to an empty object (0.985481ms)
+✔ bodyRecord: a real object body passes through unchanged (0.439373ms)
+✔ bodyStringField: a missing field defaults to the empty string (0.696925ms)
+✔ bodyStringField: a present field is coerced to a string (0.621842ms)
+✔ reloadTheme: a themeId with no matching entry in deps.themes is a silent no-op (0.245018ms)
+✔ renameThemeFileIfChanged: a destPath that resolves generated-readonly 409s -- provably unreachable through the real rename ROUTE (destPath always shares sourcePath's own already-editable directory, per this function's own comment), exercised directly by deliberately passing a destPath in a DIFFERENT directory than the route itself would ever construct (0.67336ms)
+✔ L255 workspace guards precede auth and body validation on both routes (10.691474ms)
+✔ L255 move rejects every malformed type and id without a port call (1.747813ms)
+✔ L255 move maps every owned outcome and blocked message without an entry-screen gate (7.649067ms)
+✔ L255 move preserves kind denial and masks unexpected failures (1.450401ms)
+✔ L255 restore entry denial precedes malformed selection validation (0.835757ms)
+✔ L255 restore rejects every invalid selection and entry before restoring any row (3.883052ms)
+✔ L255 restore preserves ordering, duplicate entries, whitespace, per-row gates and all outcomes (2.119151ms)
+✔ L255 restore accepts the maximum selection and returns 200 when all rows are forbidden (3.717506ms)
+✔ DELETE_POLICY route: 404 when workspaceId does not match (941.029825ms)
+✔ DELETE_POLICY route: direct invoke fallback for nullish params.workspaceId (412.533052ms)
+✔ DELETE_POLICY route: direct invoke fallback for nullish params.policyId (619.298799ms)
+✔ DELETE_POLICY route: 204 deletes an unused custom policy (391.345742ms)
+✔ DELETE_POLICY route: 403 FORBIDDEN when caller lacks role.manage (393.127712ms)
+✔ DELETE_POLICY route: 400 VALIDATION_ERROR when target is a built-in policy (353.294519ms)
+✔ DELETE_POLICY route: a frozen custom policy and a role-referenced policy survive refusal (349.331952ms)
+✔ DELETE_POLICY route: 409 RESOURCE_CONFLICT when the policy is still attached to a principal (520.517087ms)
+✔ DELETE_POLICY route: 404 RESOURCE_NOT_FOUND for a nonexistent policyId (388.895845ms)
+✔ DELETE_POLICY route: 500 internal error when an unexpected error is thrown (265.832517ms)
+✔ policy and role lists scope repository reads and project custom and built-in flags (8.046359ms)
+✔ missing policy returns RESOURCE_NOT_FOUND without listing orphan permission rows (0.93406ms)
+✔ permission list retains constraint and resource fields from the selected policy only (0.916891ms)
+✔ list repository failures return generic 500 without leaking storage details (1.163328ms)
+✔ wrong workspace returns 404 before any repository access (0.706411ms)
+✔ denied role.manage returns the standard 403 before any repository access (0.667317ms)
+✔ absent workspaceId param falls back to empty string and 404s on every list route (0.533827ms)
+✔ absent policyId param falls back to empty string and looks up policy '' (0.627837ms)
+✔ embed insert rejects a missing or mistyped version or widget id before touching the host (9.016846ms)
+✔ embed insert rejects a foreign workspace before authorization or mutation (0.896786ms)
+✔ workspace reads project exactly the bound row despite another row in storage (4.901021ms)
+✔ missing bound workspace is an empty list, a get 404, and an update RESOURCE_NOT_FOUND (1.393529ms)
+✔ name-only and slug-only PATCH preserve the other field in storage and subsequent reads (1.221114ms)
+✔ unexpected repository failure maps to generic 500 in list, get and update (0.995292ms)
+✔ empty PATCH maps validation to 400 and slug collision maps conflict to 409 without persisting (0.843964ms)
+✔ agent-daemon-server.ts creates its run lifecycle with dropEventsOnEviction (5.683945ms)
+✔ agent-daemon-server.ts keeps the event log on its bounded defaults (0.628489ms)
+▶ resolveSessionBinding — which stored session a run resumes
+  ✔ an ordinary turn resumes the conversation's stored session (205.859046ms)
+  ✔ reconstruction recovery never resumes the stored session and mints a fresh one (125.419082ms)
+  ✔ native recovery resumes the recovery session instead of the stored one (76.500419ms)
+  ✔ native recovery without a recovery session starts cold (82.018401ms)
+  ✔ the run's own agent keys the session lookup and is the agent launched (70.410636ms)
+  ✔ a run that names no agent uses the default agent (58.198941ms)
+  ✔ a run outside any conversation never reads or writes a session (30.175477ms)
+✔ resolveSessionBinding — which stored session a run resumes (656.069807ms)
+▶ resolveSessionBinding — concurrency gate
+  ✔ a concurrent live run refuses a memory-carrying agent that would lose its stored history (36.803785ms)
+  ✔ a concurrent live run with nothing stored starts cold under a minted id (81.082377ms)
+✔ resolveSessionBinding — concurrency gate (122.708064ms)
+▶ resolveSessionBinding — where the minted id is persisted
+  ✔ a non-durable cold start persists the minted id to the conversation's session store (51.290778ms)
+  ✔ a durable cold start captures the minted id on its attempt, unconfirmed, not in the session store (69.292409ms)
+  ✔ a failed dispatch-time write is logged and the run still starts (58.550785ms)
+  ✔ a resumed turn mints and persists nothing (21.409022ms)
+✔ resolveSessionBinding — where the minted id is persisted (201.540863ms)
+▶ onStarted continuation — durable attempt ownership
+  ✔ a queued durable attempt still owns its answer and starts (67.523231ms)
+  ✔ a missing durable attempt is refused (52.851907ms)
+  ✔ a cancelled durable attempt is refused (34.160518ms)
+  ✔ a durable attempt whose answer already finished is refused (37.602535ms)
+  ✔ a durable attempt with no run status is refused (54.312421ms)
+  ✔ a durable message id without a durable ledger skips the ownership check (110.948272ms)
+✔ onStarted continuation — durable attempt ownership (358.033484ms)
+▶ onStarted continuation — early stops and prompt assembly
+  ✔ a refused attachment claim stops before the executor (1000.926104ms)
+  ✔ a refused plugin prefix stops before the executor (1002.024445ms)
+  ✔ the automatic plugin prefix joins the pinned plugin prefix ahead of the prompt (59.509302ms)
+  ✔ the automatic preflight receives the durable message id and the user's own words (66.168762ms)
+  ✔ the automatic preflight falls back to the prompt and omits the message id for a non-durable run (72.979293ms)
+  ✔ an unavailable automatic preflight is warned about and the run starts without it (87.566849ms)
+  ✔ a run outside any conversation never starts the automatic preflight (38.712786ms)
+  ✔ a cold start of a memory-carrying agent replaces the tail prompt with the cold-start context (19.604269ms)
+  ✔ a resumed turn keeps its tail prompt even when a cold-start context is sent (32.811466ms)
+  ✔ a cold start of an agent without its own memory keeps the prompt it was sent (69.422385ms)
+  ✔ a cold start without a cold-start context keeps the prompt it was sent (22.994022ms)
+✔ onStarted continuation — early stops and prompt assembly (2476.708625ms)
+▶ agentAcceptsHostMintedSessionId — which defs the host may mint a session id for
+  ✔ claude accepts a host-minted session id (1.368045ms)
+  ✔ codex does NOT — it is capture-style, the CLI mints its own id (0.474417ms)
+  ✔ opencode does NOT — also capture-style (0.236429ms)
+  ✔ amr does NOT — ACP `session/load` resume, whose handle is the ACP session, not a CLI flag (0.169522ms)
+  ✔ an unknown agent id does NOT — fails closed, same default as agentCarriesOwnMemory (0.233918ms)
+  ✔ every def this returns true for actually consumes newSessionId in its own buildArgs (1.13066ms)
+✔ agentAcceptsHostMintedSessionId — which defs the host may mint a session id for (9.586744ms)
+▶ resolveHostMintedSessionId — when a fresh id is minted at dispatch
+  ✔ mints on a cold start for a specify-style agent in a known conversation (0.719318ms)
+  ✔ does not mint when this run is resuming — the stored id already binds the conversation (0.282713ms)
+  ✔ does not mint for a capture-style agent — the CLI owns the id (0.342833ms)
+  ✔ does not mint without a conversation id — there is nothing to file the binding under (0.365307ms)
+  ✔ mints a DISTINCT id per call — two cold conversations must not share one CLI session (0.234098ms)
+✔ resolveHostMintedSessionId — when a fresh id is minted at dispatch (6.865211ms)
+▶ resolveNewSessionField — the AgentExecutor.run() spread
+  ✔ carries the minted id (6.499101ms)
+  ✔ is an EMPTY object for null — not `{ newSessionId: undefined }` (0.2513ms)
+✔ resolveNewSessionField — the AgentExecutor.run() spread (6.957877ms)
+✔ resolveCapabilityManifestArm defaults to off with no env var (1.791439ms)
+✔ resolveCapabilityManifestArm falls back to off for an unrecognized value (0.242498ms)
+✔ resolveCapabilityManifestArm reads passive, gate and mandate exactly (0.271717ms)
+✔ buildCapabilityManifestPrefix('off') is empty — matches today's behavior exactly (0.173896ms)
+✔ an 'off' prefix leaves the assembled prompt byte-for-byte unchanged (0.185955ms)
+✔ buildCapabilityManifestPrefix('passive') is exactly the manifest text, no gate instruction (3.954346ms)
+✔ buildCapabilityManifestPrefix('gate') is the manifest text PLUS the imperative instruction (8.96195ms)
+✔ buildCapabilityManifestPrefix('mandate') is the manifest text PLUS an unconditional first-turn instruction (0.379371ms)
+✔ the mandate instruction carries NO precondition — this is the whole reason it exists (0.314043ms)
+✔ the mandate instruction closes the two escape routes real runs actually took (0.418593ms)
+✔ manifest text names the search surface and the fallback bucket (0.182083ms)
+✔ manifest text never points the agent at the removed capability_search tool (5.786217ms)
+✔ manifest text is phrased as a pointer to a search vocabulary, never an existence claim (0.315223ms)
+✔ the complete mandate instruction keeps its unconditional scope and both escape-route prohibitions (0.207453ms)
+✔ the agent daemon boots and listens — no import cycle on its entry path (17364.743688ms)
+✔ the real agent daemon closes gracefully on the sidecar's stdin EOF (20836.327929ms)
+▶ resolveStoredSessionId
+  ✔ an ordinary turn resumes the conversation's stored session (1.324281ms)
+  ✔ reconstruction never resumes, even with a stored or recovery session (0.230749ms)
+  ✔ native recovery resumes the recovery session over the stored one (0.237258ms)
+  ✔ native recovery without a recovery session resumes nothing (0.216057ms)
+✔ resolveStoredSessionId (7.782397ms)
+▶ agentReceivesImageAttachments
+  ✔ native image delivery → true (4.749412ms)
+  ✔ prompt-path image delivery → true (0.203905ms)
+  ✔ a stream-json prompt → true (0.185964ms)
+  ✔ unsupported delivery with a text prompt → false (0.262952ms)
+  ✔ a definition naming neither → false (0.193051ms)
+  ✔ an unknown agent → false (2.277826ms)
+  ✔ an absent definition → false (0.285492ms)
+✔ agentReceivesImageAttachments (8.884959ms)
+▶ durableAttemptOwnsAnswer
+  ✔ an uncancelled queued attempt owns its answer (0.490796ms)
+  ✔ an uncancelled running attempt owns its answer (0.193684ms)
+  ✔ a missing attempt does not own its answer (0.169038ms)
+  ✔ a cancelled attempt does not own its answer even while running (0.144573ms)
+  ✔ an attempt whose message is succeeded does not own its answer (0.107044ms)
+  ✔ an attempt whose message is failed does not own its answer (0.070381ms)
+  ✔ an attempt whose message is canceled does not own its answer (0.07239ms)
+  ✔ an attempt whose message is undefined does not own its answer (0.123313ms)
+✔ durableAttemptOwnsAnswer (1.801786ms)
+▶ selectRunHistoryPrompt
+  ✔ a memory-carrying cold start takes the full cold-start context (0.215261ms)
+  ✔ a resumed turn keeps the tail prompt (0.110844ms)
+  ✔ a cold start without a cold-start context keeps the tail prompt (0.110896ms)
+  ✔ an agent without its own memory keeps the tail prompt (0.1019ms)
+✔ selectRunHistoryPrompt (0.738021ms)
+✔ baseline: the boxed text-input rule skips checkbox, radio, range and file, and covers select (3.797652ms)
+✔ baseline: switch, group, range, file and help rules exist and use only tokens every theme defines (1.804648ms)
+✔ baseline: the fieldset option-label rule that sets display keeps the [hidden] guard (0.324524ms)
+✔ baseline: a single-line select draws its own currentColor chevron with end padding, mirrored in RTL, native under forced colors (0.293411ms)
+✔ tovu-theme: both copies agree, skip range/file in the boxed rule, and style the switch after the checkbox size rule (21.043801ms)
+✔ range readout: adds one hidden-from-AT output after each unwired form slider and follows input events (1.100373ms)
+✔ range readout: an id-less slider still gets a readout, without a dangling for attribute (0.381528ms)
+✔ render: the readout script ships only with forms that have a range field, in Builder and HTML mode (6.821739ms)
+✔ Handlebars forwards explicit resource limits to the real worker, including an effective stack limit (1778.596352ms)
+✔ knownHelpersOnly prevents invocation of a real registered helper outside the allowlist (1633.579886ms)
+✔ foldPageHead: folds registered contributors' elements in ascending priority order (4.40047ms)
+✔ foldPageHead: dedups by HeadElementKey — the element with the numerically highest priority wins (0.794755ms)
+✔ foldPageHead: same-priority collision — the later-registered contributor's element wins (§6.1) (0.771952ms)
+✔ foldPageHead: equal contributor priorities preserve registration order for collisions (0.450592ms)
+✔ foldPageHead: contributors receive the page context and execute by priority, independently of element order (2.194779ms)
+✔ foldPageHead: a throwing contributor's output is dropped; the fold itself never throws and other contributors still render (0.569252ms)
+✔ foldPageHead: different keys are never deduped (e.g. two distinct jsonld @types both survive) (1.418596ms)
+✔ registerPageHeadContributor: multiple registered contributors both fold (1.889625ms)
+✔ serializeHeadElements: renders one case per HeadElement kind, escaped (5.506696ms)
+✔ serializeHeadElements: never string-concatenates jsonld — the payload round-trips through JSON.stringify (0.568134ms)
+✔ serializeHeadElements: an apostrophe is escaped, so a single-quoted attribute added later cannot be broken out of (5.933564ms)
+✔ serializeHeadElements: escaping this module's five entities agrees with its four sibling copies, character for character (0.417526ms)
+✔ serializeHeadElements: a link's optional type and title render as escaped attributes (RSS auto-discovery) (0.388908ms)
+✔ foldPageHead: an RSS alternate link does not collide with an hreflang-free canonical or another alternate type (0.273888ms)
+✔ foldPageHead: alternate languages survive together and serialize their hreflang (4.433689ms)
+✔ renderSite renders the live themes/handlebars/ledger home page: header/footer components, entry rows, escaped titles, no leftover Handlebars syntax (613.818161ms)
+✔ renderSite renders the live ledger entry (post) page: content injected raw, title escaped in body and in the shell (477.289673ms)
+✔ renderSite escapes a hostile post title rather than emitting it as markup (autoescaping is on, mirroring Liquid's outputEscape) (371.694762ms)
+✔ renderSite falls back to the minimal built-in body (never 500s) when a handlebars theme's source is hostile at render time (368.095922ms)
+✔ renderSite falls back rather than throwing when a handlebars template is a syntax error (322.750319ms)
+✔ renderSite falls back when a handlebars theme has no template for the requested route (partial theme never 500s) (7.312561ms)
+✔ renderSite (Handlebars tier): {{render_block region="footer"}} resolves the same widget list over the same seam the Liquid tier uses (ADR-047 §2a) (359.084571ms)
+✔ renderSite (Handlebars tier): an unknown component id degrades to a comment, not a crash (412.590935ms)
+✔ both logic tiers see the identical render-data contract — the same fields resolve in Liquid and in Handlebars (546.830279ms)
+✔ both logic tiers date a post by its go-live time (publishAt) when it has one, in the list and on the post page — owner decision 2026-10-05 (1436.580366ms)
+✔ both sandbox wrappers resolve TOVU_THEME_RENDER_TIMEOUT_MS through the SAME shared implementation, not a private copy (1.196786ms)
+✔ TOVU_THEME_RENDER_TIMEOUT_MS is parsed strictly, never by parseInt's prefix rule (1.616706ms)
+✔ a real render without explicit options uses the live environment timeout (209.672617ms)
+✔ source worker setup preserves stdin stat failures other than EBADF (317.053963ms)
+✔ compiled JavaScript runs both real template workers and reports missing-entry and silent-exit failures without a TS loader (1125.042356ms)
+✔ a worker that exits without posting a message or throwing rejects with the exact exit-code message, per engine label (196.919049ms)
+✔ a sandbox worker does not write its own V8 coverage profile into the directory NODE_V8_COVERAGE names (261.980013ms)
+✔ consent origin uses only same-scheme, same-port loopback Host aliases (3.020021ms)
+✔ active and preview theme script sources survive rejection without a theme exemption list (337.670197ms)
+✔ the real preview-switcher banner script mounts its shadow UI after reject (415.984718ms)
+✔ react: host chat and WebMCP work before choice and after reject; external widgets stay gated (187.898362ms)
+✔ vanilla: host chat and WebMCP work before choice and after reject; external widgets stay gated (107.701686ms)
+✔ serving gate forwards a rejected status read exactly once without rejecting its middleware promise (7.109383ms)
+✔ serving gate completes a rejected status request with 500 through Express's error handler (20.135663ms)
+✔ admin session forwards failed identity initialization instead of dropping its rejected promise (1.135098ms)
+✔ publishing gate refuses a failed grants read without hanging or authenticating (2.373388ms)
+✔ publishing gate refuses a failed revocations read without hanging or authenticating (5.396998ms)
+✔ T1: serves declared PNG unchanged and CSS; denies template/traversal/disabled and limits before I/O (115.951958ms)
+✔ T1: SVG navigation is sandboxed, nosniff and never serves undeclared files (24.215089ms)
+✔ T1: a declared asset with a non-CSS/PNG/SVG extension is refused without a read (18.551625ms)
+✔ GET /identity on a keyless instance answers 503 instead of hanging (5.705251ms)
+✔ POST /challenge on a keyless instance answers 503 instead of hanging (1.120077ms)
+✔ POST /session with an active grant on a keyless instance answers 503 instead of hanging (0.632788ms)
+✔ T43: a keyless session response does not disclose whether the source has a grant (0.625854ms)
+✔ POST /session answers 500 rather than hanging when the grant store throws (0.598419ms)
+✔ POST /session refuses malformed nonce even when the grant store is unavailable (0.748926ms)
+✔ POST /session refuses malformed sourceInstallationId even when the grant store is unavailable (0.376717ms)
+✔ POST /session refuses malformed generation even when the grant store is unavailable (7.867689ms)
+✔ POST /session refuses malformed capabilities even when the grant store is unavailable (0.995951ms)
+✔ POST /session refuses malformed signatureB64u even when the grant store is unavailable (0.566364ms)
+✔ POST /session rate limits repeated refused handshakes from the same IP (2.120261ms)
+✔ a keyed instance refuses malformed responses and expired grants with the fixed envelope (4.362627ms)
+✔ keyed challenge requests hit the per-IP ceiling without minting another nonce (8.07583ms)
+✔ keyed GET /identity reports the origin the caller reached, and an empty origin when no Host header arrived (0.421101ms)
+✔ analytics-ingest: a real pageview beacon through the composed app always 204s and lands in the sink (1475.975325ms)
+✔ analytics-ingest: an event beacon with props round-trips through the real app (745.818492ms)
+✔ analytics-ingest: a string referrer is normalized into referrerHost (463.447167ms)
+✔ analytics-ingest: kind:'event' with a non-string eventName still records as an event, eventName null (555.647491ms)
+✔ analytics-ingest: an unrecognized kind value falls back to pageview through the real app (396.253791ms)
+✔ analytics-ingest: malformed/missing body never 500s and never leaks any error (393.973904ms)
+✔ analytics-ingest: a literal null eventProps is dropped through the real app, not treated as a valid object (369.18243ms)
+✔ analytics-ingest: a caller with no User-Agent/Accept-Language still 204s through the real app and classifies as unknown device (533.12077ms)
+✔ analytics-ingest: `req.ip ?? req.socket.remoteAddress ?? ""` double fallback, forced via a direct handler call on the REAL composed app with both left undefined -- still 204s and the hit still lands (674.62575ms)
+✔ analytics-ingest: a real DNT:true beacon is excluded end-to-end (never reaches the sink), still 204s (537.682009ms)
+✔ analytics-ingest: a sink that throws is swallowed by the real app too — still 204s (381.239194ms)
+✔ a members-only post's featured image is a 404 private no-store for an anonymous caller (1126.752734ms)
+✔ a public post's featured image keeps the asset ungated with bare-id revalidation (1667.656966ms)
+✔ a library document is never served on the rendition route, even unreferenced (508.716959ms)
+✔ a library document is never served on the original route (610.075607ms)
+✔ an active saved widget placed in a gated post gates the media it shows (487.340495ms)
+✔ a trashed saved widget does not render, so it gates nothing (577.328387ms)
+✔ a malformed saved widget does not render, so it gates nothing (597.894675ms)
+✔ a soft-deleted saved widget row does not render, so it gates nothing (389.237359ms)
+✔ a saved widget placed by its slug gates the media it shows (437.819736ms)
+✔ saved widgets are not listed when no live entry places a widget (443.761197ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'tz-test-theme/blog' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ post-previews cards date a post by the site's calendar day (1138.295389ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'tz-test-theme/blog' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ a content marker's post header dates the post by the site's calendar day (717.610942ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'tz-test-theme/blog' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'tz-test-theme/blog' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ the composed app reads core.site.timezone: unset renders UTC, an owner value renders that zone (1385.720744ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-liquid', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-liquid', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-liquid', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-liquid', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-liquid', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-liquid', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-liquid', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tz-liquid', which is whichever theme discovery happened to list first
+✔ a Liquid theme's home list and post page show dateShort and | date: in the site's zone; post.date stays the instant (4420.244063ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-menu-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-menu-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-menu-test-theme/about' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /about: a static theme's own menu marker resolves through a real seeded menu, exercising every NavTarget kind (991.090568ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-menu-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-menu-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-menu-test-theme/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /: the home route's own resolveStaticMenusForRender call also resolves a real menu marker on theme.pages.index (578.012238ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-menu-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-menu-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-menu-test-theme/about' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /about: a marker naming the menu's raw id (not its slug) falls back to findById — a theme marker predating the 2026-08-10 slug convention (701.178371ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-menu-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-menu-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-menu-test-theme/about' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /about: a marker naming a menu id that matches nothing (bad slug AND bad id) degrades to no entry, not a crash (589.018787ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-sentinel-sidebar-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-sentinel-sidebar-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-sentinel-sidebar-test-theme/doc-a' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-sentinel-sidebar-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-sentinel-sidebar-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-sentinel-sidebar-test-theme/doc-b' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /doc-a and /doc-b: the reserved docs-sidebar sentinel resolves to a DIFFERENT menu per page, never the other page's (717.731503ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-sentinel-sidebar-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-sentinel-sidebar-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-sentinel-sidebar-test-theme/doc-a' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /doc-a: the docs-sidebar sentinel degrades to the theme's authored fallback when no menu exists at the convention slug (568.246185ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-section-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-section-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-docs-section-test-theme/quickstart' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /quickstart: docs-section resolves to the header nav's Docs subtree only, with the current page and its group marked (596.470672ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-section-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-section-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-docs-section-test-theme/install' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /install: docs-section marks Install (not Quickstart) as current on that page (569.56646ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-section-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-section-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-docs-section-test-theme/quickstart' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /quickstart: docs-section resolves when the header nav menu's slug is NOT the literal 'menu-header-nav' — real seed data's slug is 'header-nav', only its id is 'menu-header-nav' (469.98289ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-section-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-section-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-docs-section-test-theme/quickstart' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /quickstart: docs-section degrades to the theme's authored fallback when menu-header-nav has no item linking to /docs (523.366038ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-section-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-section-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-docs-section-test-theme/quickstart' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /quickstart: docs-section degrades to the theme's authored fallback when menu-header-nav does not exist at all (570.789987ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-pager-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-pager-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-docs-pager-test-theme/quickstart' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /quickstart: docs-prev-next has no Previous (first page in the subtree) and Next is Install (397.68174ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-pager-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-pager-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-docs-pager-test-theme/install' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /install: docs-prev-next crosses the group boundary — Previous is Quickstart (same group), Next is Pages (next group) (501.520444ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-pager-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-docs-pager-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-docs-pager-test-theme/not-a-doc-page' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'static-menu-test-theme/about' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'static-menu-test-theme/about' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'static-docs-section-test-theme/quickstart' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'static-docs-pager-test-theme/install' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'static-docs-pager-test-theme/not-a-doc-page' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'static-menu-test-theme/about' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'static-sentinel-sidebar-test-theme/doc-a' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'static-docs-section-test-theme/quickstart' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'static-docs-pager-test-theme/not-a-doc-page' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'static-menu-test-theme/about' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'static-menu-test-theme/about' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'static-menu-test-theme/about' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'static-menu-test-theme/about' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'static-docs-section-test-theme/quickstart' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /not-a-doc-page: docs-prev-next degrades to the theme's authored fallback when the current page is not itself in the Docs subtree (426.400581ms)
+✔ menu resolution renders exact links for slugs and legacy ids without HTTP (255.557611ms)
+✔ reserved menu markers preserve authored fallback and mark the correct group and pager links (182.748622ms)
+✔ static menu assignment and reassignment shadow legacy names, preserve HTML and isolate workspaces (224.00167ms)
+✔ Docs header-derived markers follow the assigned header menu (271.893592ms)
+✔ rejectOversizedJsonBody calls next() and does not respond when the body is under the cap (13.65945ms)
+✔ rejectOversizedJsonBody responds 413 PAYLOAD_TOO_LARGE and does not call next() when the body exceeds the cap (1.357881ms)
+✔ rejectOversizedJsonBody treats an undefined body as zero-size (never throws) (0.419891ms)
+✔ rejectOversizedJsonBody accepts a body exactly at the byte boundary (0.277753ms)
+✔ rejectOversizedJsonBody accepts the exact UTF-8 byte cap and rejects one byte over it (0.489675ms)
+[agent-plugins] could not apply this site's pending access tokens: disk went away
+[agent-plugins] could not connect 'supabase' with the access token given when this site was created (will retry next start).
+[agent-plugins] could not connect 'supabase' with the access token given when this site was created (will retry next start).
+✔ pending onboarding tokens are applied first, and the env import skips every plugin that had one (4.450552ms)
+✔ a failed pending apply still keeps the env import off the pending plugins (2.075712ms)
+✔ memory mode has no site folder: only the env import runs, skipping nothing (0.468629ms)
+✖ default boot adapters preserve a failed onboarding token over a conflicting ambient token and retry it (62.140065ms)
+✔ checkContentDbSchema(): a path with no file at all returns 'no-file' (first boot — nothing to guard, openContentDb() will create it) (10.03121ms)
+✔ checkContentDbSchema(): an existing file with no __drizzle_migrations table at all returns 'unmigrated' (nothing applied yet — safe to proceed) (73.259667ms)
+✔ checkContentDbSchema(): a __drizzle_migrations table that exists but is EMPTY also returns 'unmigrated' — a distinct branch from 'table absent entirely' inside readAppliedMigrationIdentity (15.67299ms)
+✔ checkContentDbSchema(): a db already migrated by THIS runtime returns 'ok' — the same db openContentDb() would happily reopen (342.812357ms)
+✔ checkContentDbSchema(): a db whose latest applied migration matches no entry in this runtime's bundled journal returns 'refuse' — REFUSE, not a silent migrate, on a divergent lineage this function cannot safely interpret (234.570795ms)
+✔ checkContentDbSchema(): divergent migration lineage returns a refusal without throwing (372.939491ms)
+✔ checkContentDbSchema(): an older real migration is safe to migrate forward (23.456934ms)
+✔ checkContentDbSchema(): a site newer than this runtime becomes a 'refuse' carrying the policy's own message (270.835802ms)
+✔ checkContentDbSchema(): any other policy failure propagates instead of being masked as a refusal (250.160036ms)
+✔ adoption: compatible entrypoints reuse Jini's existing implementations (1.204009ms)
+✔ adoption: real Resend keeps positional HTTP, indexed batches and account-key isolation (115.811577ms)
+✔ adoption: initial setting write is unwrapped and invalidate immediately stops sign-in mail (21.005745ms)
+✔ resolveDefaultSdkModulePath(): returns the real, on-disk @tovu/sdk build location — the same location Node's own package resolution reaches, not a hand-computed relative guess (3.933517ms)
+✔ both exact SDK specifiers resolve to the same host module despite plugin-local shadow packages (193.957565ms)
+✔ pin then read uses the selected scheme and port over inherited PORT and TLS fallback (1.594363ms)
+✔ http: direct composition uses the configured PORT (0.439089ms)
+✔ https: direct composition uses the configured PORT (0.342608ms)
+✔ buildAnalyticsProviders: credential found / missing, egress adapter, cached plugin load (12.332361ms)
+✔ analyticsProviderRouteDeps: absent providers keep the built-in-only, hook-free route (566.193647ms)
+[consent] read failed
+✔ analyticsProviderRouteDeps: requires an explicit receipt before forwarding, including US opt-out regions (771.318441ms)
+✔ buildAnalyticsProviders: credentials are cached per label for the TTL; failures are retried (1.351188ms)
+✔ buildAnalyticsProviders: a late failure never evicts a newer cached credential (0.455752ms)
+✔ new engine forwarding: US no-choice may run, DNT/GPC and strict regions deny; off cannot grant full forwarding (774.489341ms)
+[migrations] /tmp/tovu-boot-settings-vu65kQ/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ a settings registration failing while provider boot is still pending is never an unhandled rejection, and settingsReady still rejects (2347.528368ms)
+✔ createApp hands onBootWork the installed-extension pass, which settles only after it has read the plugin catalog (2432.371996ms)
+✔ createApp without onBootWork still composes (every existing caller) (662.458447ms)
+✔ in-memory consent readiness registers definitions without creating privacy content (392.030323ms)
+✔ createServingApp returns that same pass as bootWork, so a serving process can await it before closing the store (2239.297318ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ deps.ts: turning on the tier-1 sample creates its content types in content.db, recorded as the plugin (3306.776113ms)
+✔ ../app.ts: desktop accepts a loopback OAuth callback; hosted requires HTTPS (426.271984ms)
+✔ ../deps.ts: desktop accepts a loopback OAuth callback; hosted requires HTTPS (408.852263ms)
+✔ ../../../inbound/assistant/agent-daemon-server.ts: desktop accepts a loopback OAuth callback; hosted requires HTTPS (178.598011ms)
+✔ stop returns within the grace while a pull hangs, and logs one line (1018.557875ms)
+✔ stop waits for the notification drain a finished pull started, and no longer (52.736752ms)
+✔ an owner/admin sign-in runs one automatic pull for the trigger's workspace (1.47269ms)
+✔ after stop, neither the startup nor the sign-in trigger starts another pull (4.198666ms)
+✔ with no composed automatic pull every trigger is a no-op and stop returns at once (0.949952ms)
+✔ L058a storage preflight sqlite refuses before opening databases (13.543594ms)
+✔ L058a storage preflight postgres refuses before opening databases (2.949581ms)
+✔ L058a storage preflight pglite refuses before opening databases (3.533377ms)
+✔ L058a held PGlite owner lock refuses without touching metadata (11.160027ms)
+
+Interrupted while running:
+
+⚠ apps/website/src/server/runtime/composition/__tests__/pages-html-revisions-wiring.integration.test.ts (apps/website/src/server/runtime/composition/__tests__/pages-html-revisions-wiring.integration.test.ts:1:1)

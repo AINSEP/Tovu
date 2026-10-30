@@ -1,0 +1,5 @@
+shard 4 PARTIAL (killed at cap): ✔=1982 ✖=1
+shard 5 PARTIAL (killed at cap): ✔=3812 ✖=2
+shard 6 PARTIAL (killed at cap): ✔=3402 ✖=10
+shard 7 PARTIAL (killed at cap): ✔=3385 ✖=4
+shard 8 PARTIAL (killed at cap): ✔=3106 ✖=6

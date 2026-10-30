@@ -6615,3 +6615,2320 @@ vault boot coverage {
   }
 }
 ✔ [unrun] settings [pglite]: core.language.locale is a per-user value — the owner's choice reads back as theirs and leaves another user's layer empty (14145.437615ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ [unrun] settings [pglite]: GET site/profile reports every section ok for the owner, reflects a published page, and rejects a bad query with 400 (16534.950348ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ [unrun] trash purge [sqlite]: a deleted post is listed in the Trash, purge hard-deletes the row and its revisions, a repeat purge is not-found (3853.996056ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ [unrun] trash restore [sqlite]: a deleted post restored from the Trash lists again with its marker cleared (3133.74282ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ [unrun] trash purge [sqlite]: a malformed selection is refused 400 INVALID_INPUT and destroys nothing (2795.984277ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ [unrun] trash purge [pglite]: a deleted post is listed in the Trash, purge hard-deletes the row and its revisions, a repeat purge is not-found (15518.467186ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ [unrun] trash restore [pglite]: a deleted post restored from the Trash lists again with its marker cleared (15818.157158ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ [unrun] trash purge [pglite]: a malformed selection is refused 400 INVALID_INPUT and destroys nothing (14358.878604ms)
+✔ packet-one admin and content routes expose the seeded post loop (1717.226265ms)
+✔ POST posts creates a blank draft and it's immediately listed (983.144456ms)
+✔ POST_CREATE: honors caller-supplied slug/bodyJson/status instead of always deriving/blanking/drafting them (861.671753ms)
+✔ POST_CREATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing written; a body just under the cap still succeeds (1053.619878ms)
+✔ POST_UPDATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing persisted; a body just under the cap still succeeds (813.676385ms)
+✔ POST_CREATE: 400 VALIDATION_ERROR for a malformed slug, 409 SLUG_CONFLICT for a taken slug (975.18915ms)
+✔ POST pages creates a blank draft with kind 'page', it's listed under pages but not posts (657.463241ms)
+✔ PAGE_CREATE: honors caller-supplied slug/bodyJson/status, 400 VALIDATION_ERROR / 409 SLUG_CONFLICT on bad input (619.118776ms)
+✔ pages routes 404 for an unknown workspace id (835.767402ms)
+✔ GET/PUT a page round-trips, and both 404 when the id belongs to a post (kind mismatch) (741.040078ms)
+✔ PAGE_UPDATE: 400 VALIDATION_ERROR for a blank title, 409 SLUG_CONFLICT for a taken slug (1034.435048ms)
+✔ PAGE_UPDATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing persisted; a body just under the cap still succeeds (1476.101942ms)
+✔ GET themes lists discovered built-in themes, TB-01 ordered, exactly one marked active (612.161431ms)
+✔ GET themes 404s for an unknown workspace id and 403s without theme.set (886.05432ms)
+✔ SPEC-006 REQ-05: presentation routes are gated by theme.set — a principal without it is denied 403, the owner still succeeds (1147.681113ms)
+✔ SPEC-006 REQ-05: change-set routes are gated by changeset.read/changeset.revert — a principal without them is denied 403, the owner still succeeds (892.177886ms)
+✔ change-sets revert: a workspace id that is not this site's is 404 (737.010736ms)
+✔ change-sets revert: an unknown change set id is 404 CHANGE_SET_NOT_FOUND (641.048819ms)
+✔ change-sets revert: a change set that is not 'applied' is 409 CHANGE_SET_INVALID_STATUS (437.01847ms)
+✔ change-sets revert: an entity that moved on since is 409 REVERT_CONFLICT (532.498723ms)
+✔ change-sets revert: an item with no registered reverter is 422 REVERT_NOT_POSSIBLE (644.353013ms)
+✔ change-sets revert: an unrevertible later item prevents even an eligible item's inverse (440.050342ms)
+✔ change-sets revert: an unexpected error is 500 with a generic body (395.381782ms)
+✔ change-sets revert: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call (234.085903ms)
+✔ change-sets revert: `req.params.changeSetId ?? ""` fallback, forced via a direct handler call with only that param omitted -- reaches the real not-found lookup behind a real seeded principal (309.845462ms)
+✔ change-sets revert: an agent principal with force:true is 403 REVERT_FORBIDDEN, before any repo read (356.681322ms)
+✔ change-sets revert: force:true past a real conflict reverts the entity through the real HTTP route (200) (506.049492ms)
+✔ change-sets revert: without force, a real conflict names the newer version and the actor in the 409 details (471.616479ms)
+✔ REGISTER rejects a non-boolean 'queryable' with 400 — it used to return 201 and persist the string verbatim (810.849394ms)
+✔ REGISTER rejects a non-boolean 'required' with 400 — it used to be stored in the record and its revision stateJson (528.508978ms)
+✔ REGISTER rejects a null element with 400, not the 500 the TypeError inside the grammar guard used to produce (519.321412ms)
+✔ REGISTER reports a misspelled key with 400 instead of silently dropping it (383.942223ms)
+✔ REGISTER rejects a non-array 'fields' with 400 and names the type received (410.34906ms)
+✔ UPDATE-FIELDS applies the same shape rules — the two sibling routes cannot drift (329.544425ms)
+✔ UPDATE-FIELDS still requires expectedVersion, and says so without mentioning fields (400.005405ms)
+✔ CONTROL: a valid registration still succeeds, with both booleans round-tripping as booleans (518.105944ms)
+✔ CONTROL: an empty 'fields' array is still legal (489.100717ms)
+✔ CONTROL: a grammar-invalid field name is still rejected by CIC U-002-B1 guard 3, not by the shape boundary (366.497165ms)
+✔ CONTROL: a kind outside the closed enum is still rejected with the domain's own field-kind error (390.77555ms)
+✔ CONTROL: the reserved-key check still fires ahead of any field rule (AC-38's fixed guard order) (414.889174ms)
+✔ CONTROL: exceeding the queryable-field cap is still guard 5's rejection, not the shape boundary's (471.003507ms)
+✔ deployment-overview: an unauthorized principal (no grants) gets 403 (1595.106628ms)
+✔ deployment-overview: a mismatched workspaceId in the URL 404s (779.862623ms)
+✔ deployment-overview: the seeded owner gets 200 with real process/env-derived fields, never a fabricated value (1036.565237ms)
+✔ deployment-overview: a missing owner credential reports no unsafe default password (828.205669ms)
+✔ deployment-overview: an owner still on the default password is unsafe even when TOVU_ADMIN_PASSWORD now holds something else (1004.080058ms)
+✔ deployment-overview: an owner whose stored password is no longer the default is safe even with TOVU_ADMIN_PASSWORD unset (1010.131536ms)
+✔ deployment-overview: reports a known agent-daemon failure, latched from outside runBootLifecycle (679.011414ms)
+✔ deployment-overview: dbPath/uploadsDir are the BOOTED site's paths, not the env/cwd site's (892.40828ms)
+✔ forms get-by-id: a workspace id that is not this site's is 404 (checked before authorize) (747.222993ms)
+✔ forms get-by-id: an unknown id/slug returns FORMS_DEFINITION_NOT_FOUND (603.025847ms)
+✔ forms get-by-id: 500s (generic, message swallowed) when the repo explodes (423.12207ms)
+✔ forms get-by-id: a direct handler invocation with undefined workspaceId/formId params never matches the site and is a 404 (unreachable through real routing) (392.767944ms)
+✔ forms list-submissions: a workspace id that is not this site's is 404 (checked before authorize) (635.170227ms)
+✔ forms list-submissions: ?limit= out of [1,100] or non-integer is 400 FORMS_FIELD_VALIDATION_ERROR (617.846175ms)
+✔ forms list-submissions: a non-string ?cursor= (repeated query param, parsed as an array) is 400 FORMS_FIELD_VALIDATION_ERROR (499.862285ms)
+✔ forms list-submissions: an explicit valid ?limit=&cursor= pair is threaded through to the repo (692.320851ms)
+✔ forms list-submissions: 500s (generic, message swallowed) when the repo explodes (496.006111ms)
+✔ forms list-submissions: undefined workspaceId/formId params fall back via direct handler invocation (unreachable through real routing) (522.532229ms)
+✔ mail-status: the default console mailer reports mail delivery unavailable (1293.81266ms)
+✔ mail-status: a real mail adapter reports mail delivery available (721.430368ms)
+✔ mail-status: a mismatched workspaceId in the URL 404s (659.312147ms)
+✔ mail-status: an explicit console driver reports delivery unavailable (1016.675962ms)
+✔ mail-status: no session is refused with 401 (713.592201ms)
+✔ mail-status: a signed-in user without admin.forms.manage is refused (819.829041ms)
+✔ mail-status: with a status source, the body also carries state, lanes, warnings and providers (629.209354ms)
+✔ mail-status: a failing status source is a 500 without detail (629.180968ms)
+✔ T003: GET members list denied 403 FORBIDDEN without member.manage; carries no member data (1033.799476ms)
+✔ T003: GET members list succeeds (200) for the seeded owner (wildcard grant) — no regression (612.944774ms)
+✔ T004: GET member-by-id denied 403 FORBIDDEN without member.manage (669.543022ms)
+✔ T004: GET member-by-id succeeds (200) for the seeded owner (wildcard grant) — no regression (420.521908ms)
+✔ T005: POST request-magic-link denied 403 FORBIDDEN without member.manage (796.265262ms)
+[mail:console] to=someone@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:da02cde9c571d4943d0ceb29c1a918c2c4f8d0be9f2e6b9b0dce8654c2a1ef56 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin#magic=e4f93dee5fded4bdfcfc811961cc43c1ea39abae96e4a76d7380ea9d4790086f\nOr enter this one-time code: 992780"
+✔ T005: POST request-magic-link succeeds (200) for the seeded owner (wildcard grant) — no regression (519.043496ms)
+[mail:console] to=redirect@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:b977630428a2f2e333d2e149d2605ae11d626332f403c0748b1bca27d19a1468 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin#magic=e357b1ec12406305f4cce26b98aea5f96fc1d2745bdf2c15e3b3d1e2745ad919&redirect=%2Faccount\nOr enter this one-time code: 71…"
+✔ POST request-magic-link with redirectPath succeeds (200) (497.385222ms)
+✔ POST request-magic-link returns 400 for invalid email (659.315425ms)
+✔ POST request-magic-link returns 404 for mismatched workspaceId (460.253477ms)
+✔ POST request-magic-link returns 500 on unexpected internal error (664.87006ms)
+✔ AC-20 (pre-existing, re-confirmed): POST disable still denied 403 FORBIDDEN without member.manage (487.659888ms)
+[mail:console] to=shared-budget@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:b5402e5f731d510be8b610e89a18acee33eede67ee8e2bae01de7032a094d9f5 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin#magic=cec08ce138e443af63d6f53adebc2a6da75351c99442bb5ea538e4e399f3bd6e\nOr enter this one-time code: 307362"
+[mail:console] to=shared-budget@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:1b5514ffadc9e6dc2a45b9fff4d8e130be4fed619fb983b26c4670d3be72c029 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin#magic=9d26ef941cea70682d74432436e2c76cc37c2709728f43800f861192a0b6666c\nOr enter this one-time code: 916872"
+[mail:console] to=shared-budget@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:096e5a76c5324f3f448f1db3708ec9c77aceb867d8754e4088081b6d69d0f3c6 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin#magic=d4a80d842531a4076d87b0d478574dbea54da1ec1341a3a8f51e3499d6ebc666\nOr enter this one-time code: 178817"
+[mail:console] to=shared-budget@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:3816ae19bd92965723e6caee851a11080c723b3a5bd60e25f80095fde06fe17d sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin#magic=52e4b44a189791bece580236a60db7e3a3cfb57fa632dee694f8dceac848b6d7\nOr enter this one-time code: 687939"
+[mail:console] to=shared-budget@example.com subject="Your sign-in link and code" idempotencyKey=members:signin:93bc28cc686af63367b7e1102e91bfca2c8af6f825ff274ce7dd7e5bde7ce439 sourceContext={"module":"members"} body="Sign in using this link (expires in 15 minutes): http://localhost:3000/signin#magic=c4126e37f2011cb82cbe49971c8d8c051d407f0012e6fbe1427c89b439696e86\nOr enter this one-time code: 471103"
+✔ T017/INV-NEW-03: an unauthorized caller's 403 on request-magic-link does not consume the MAGIC_LINK_PER_EMAIL window for that email (1014.450324ms)
+✔ mismatched :workspaceId 404s before authorize() runs (list route), matching the verified repo precedent (579.024229ms)
+✔ owner disable persists the disabled member and revokes an existing session (501.190277ms)
+✔ blank admin magic-link emails remain validation errors after authorization without consuming budget (831.964483ms)
+✔ observability-status: an unauthorized principal (no grants) gets 403 (1354.439203ms)
+✔ observability-status: the seeded owner (wildcard grant) gets 200, disabled by default (844.99376ms)
+✔ observability-status: a mismatched workspaceId in the URL 404s (692.051889ms)
+✔ observability-status: a configured provider port reports enabled under the fixed service name, never its endpoint or credential (936.02919ms)
+✔ observability-status: an authorization failure answers a generic 500 (955.002631ms)
+✔ telemetry test: owner invokes the fixed action once and submitted text is ignored (719.531961ms)
+✔ telemetry test: unauthenticated, unprivileged and wrong-workspace callers cannot dispatch (1105.835322ms)
+✔ observability status includes delivery evidence and test permission without destinations (658.630091ms)
+✔ observability-status follows the live lease even when the composed port is an inert wrapper (808.303936ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ REGRESSION: a post whose templateChoice was never set renders its real content, not the diagnostic page (603.96143ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+✔ a post explicitly opted out of templates still gets the diagnostic page (240.964759ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+✔ null and "" produce different pages for otherwise identical posts (372.159461ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/long-form' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ an explicit templateChoice renders through that template, not the first one (253.02623ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/collision-page' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ overridesThemePage false: the theme's own same-slug page wins over the post (322.594368ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ overridesThemePage true: the post wins over the theme's own same-slug page (413.597754ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ overridesThemePage true composes with the templateChoice fallback rather than bypassing it (351.717384ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+✔ ROUND TRIP: saving "No template chosen" through the admin API persists "" and diagnoses on the site (567.021112ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ overridesThemePage null (never decided): the post wins over the theme's own same-slug page — the tri-state default (2026-08-15) (401.77171ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static theme 'static-test-theme' ships none of 'pages-default.html', 'page-shell.html'; untemplated html Pages render in Tovu's generic chrome instead of this theme's own document
+✔ overridesThemePage is kind-blind: a database Page (kind: 'page') gets the same tri-state default as a Post (334.890518ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/collision-page' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ ROUND TRIP: explicitly resetting overridesThemePage to null through the admin API restores the default (post wins) (584.78375ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ a theme with no same-slug page serves the post regardless of overridesThemePage (336.521168ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/collision-page' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ ROUND TRIP: saving overridesThemePage through the admin API persists it and the post wins over the theme page (567.859922ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ REGRESSION: an html Page with no templateChoice renders through the static theme's own page-shell, not the generic Tovu chrome (220.289521ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ a doc-format Page with no templateChoice DOES get the static page-shell auto-fallback — and that is not the terms-of-service regression (287.831424ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+✔ a static theme with no page-shell page keeps the pre-fix generic fallback for an untemplated html Page (200.578817ms)
+✔ publish-content media: a media row exports, plans as 'created' (never 'blocked'), and apply() writes it on the destination (2889.847945ms)
+✔ publish-content media: a PUSH to a peer carries the media entity and names its blob (2213.48882ms)
+✔ the publishing gate leaves a request without an Authorization header untouched (7.727513ms)
+✔ the publishing gate passes ordinary API keys and tampered publishing tokens on untouched (2.14674ms)
+✔ the publishing gate refuses a disconnected source or a removed grant after admitting the same token (3.668537ms)
+✔ the publishing gate refuses a token after its only capability is removed from the current grant (1.917451ms)
+✔ the publishing gate refuses a verified token when either trust store is unreadable or rejects (2.275481ms)
+✔ the identity route states this install's identity and nothing about who may publish to it (1027.947967ms)
+✔ a source that was never given a secret publishes end to end, over HTTP (529.694837ms)
+✔ an UNSIGNED handshake is refused by the live route (535.111574ms)
+✔ a signature from the WRONG KEY is refused by the live route (596.280179ms)
+✔ a REPLAYED nonce is refused by the live route — single use is real, not documented (601.217801ms)
+✔ a valid publish token cannot reach an ordinary content.write route (622.766472ms)
+✔ a valid publish token cannot reach an admin route outside the publishing surface (563.655612ms)
+✔ the export route REFUSES a publishing credential rather than handing back an empty bundle (610.015931ms)
+✔ a publish-trust route with NO token resolves to no credential (446.888481ms)
+✔ dropping the grant revokes publishing within one session, not at the end of one (981.510728ms)
+✔ an install that has never provisioned refuses the handshake without saying so (560.297716ms)
+✔ a granted entity type is accepted at the bundle door (414.932241ms)
+✔ an entity type the grant does not name is refused, and the whole bundle with it (500.21901ms)
+✔ an entity that declares no type at all is refused, not skipped (475.748394ms)
+✔ a publishing token may carry overwrite ticks to /import/plan and /import/execute (592.31741ms)
+✔ publishing trust admits only artifact PUT/DELETE in the share namespace (2.051991ms)
+✔ admin redirects create route: workspace mismatch is 404 before any body validation (1069.201731ms)
+✔ admin redirects create route: every parseRedirectCreateBody rejection branch returns 400 VALIDATION_ERROR (470.169957ms)
+✔ admin redirects create route: override/priority default to false/0 when omitted, and honor explicit values when present (360.496658ms)
+✔ admin redirects create route: matchType 'regex' is a valid request shape but is always rejected write-side (REQ-22) (400.856009ms)
+✔ admin redirects create route: an absolute toTarget outside the verified origin is rejected write-side (open-redirect oracle, REQ-08) (370.401745ms)
+✔ admin redirects create route: an active exact-match duplicate fromPattern is a 409 conflict (337.120916ms)
+✔ SECURITY: a self-redirect (fromPattern === toTarget) is rejected as a loop, not created (327.645252ms)
+✔ SECURITY: creating B->A when A->B already exists collapses the chain and rejects it as a loop (never a live two-hop cycle) (310.126434ms)
+✔ admin redirects create route: an unexpected error surfaces as 500 INTERNAL_ERROR, not the domain 4xx mappings (295.594558ms)
+✔ admin redirects create route: req.params.workspaceId is always populated by Express for a matched route (defensive ?? "" fallback is unreachable through real HTTP) (334.107926ms)
+✔ admin redirects create route: a body-less request (no req.body at all, direct invoke) is a 400 VALIDATION_ERROR, not a TypeError (195.1931ms)
+✔ server-logs: an unauthorized principal (no grants) gets 403 (1063.965398ms)
+✔ server-logs: the owner gets filtered, redacted lines (770.041163ms)
+✔ server-logs: an unusable filter is a 400 naming the field (477.420218ms)
+✔ server-logs: a mismatched workspaceId in the URL 404s (579.344723ms)
+✔ a default-policy pre_content handler that throws turns GET / into a 500, not served content (720.237737ms)
+✔ a default-policy post_content handler that throws turns GET /:slug for a missing post into a logged 500, not a hung request (379.798213ms)
+✔ custom-credentials: POST with a secret store that cannot seal is 503 SECRET_STORE_UNCONFIGURED and stores no row (1149.341941ms)
+✔ source-control-credentials: POST with a secret store that cannot seal is 503 SECRET_STORE_UNCONFIGURED and stores no row (911.193296ms)
+✔ mail-status: a signed-in principal without admin.forms.manage is 403 and learns nothing about the mailer (986.777212ms)
+✔ observability-status: environment variables no longer enable it; a configured provider port does, under the fixed service name (1080.996616ms)
+✔ site assistant env fallbacks: anthropic gets none of the three env values, even when all are set (2.153938ms)
+✔ site assistant env fallbacks: openai gets none of the three env values, even when all are set (2.281725ms)
+✔ site assistant env fallbacks: azure gets none of the three env values, even when all are set (0.138656ms)
+✔ site assistant env fallbacks: google reads and trims all three (0.232836ms)
+✔ site assistant env fallbacks: google with whitespace-only env values gets undefined for each (0.278708ms)
+✔ a form notification is sent from the site's configured sender, read for the submission's workspace (50.199219ms)
+✔ without a composed resolver a non-delivering mailer keeps the no-reply@forms.local placeholder (11.501256ms)
+✔ a delivering mailer with no sender sends nothing and the refusal is logged by the subscriber (2.351209ms)
+✔ a provider's { ok: false } result is logged with its message alone (10.221918ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+[site-assistant] {
+  errorId: '87e3d583-0e2b-46ea-928c-59fa11686320',
+  code: 'NOT_CONFIGURED',
+  diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+}
+✔ visitorai: both admin write APIs refuse enabling with key and persist neither field (786.019794ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+[site-assistant] {
+  errorId: '10d82611-e7b4-4a7f-afba-918c4ca7ee95',
+  code: 'MODEL_NOT_CONFIGURED',
+  diagnostic: 'site assistant has no saved model — choose one in AI Assistant before enabling the public assistant.'
+}
+✔ visitorai: both admin write APIs refuse enabling with model and persist neither field (768.5275ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+[site-assistant] {
+  errorId: 'b2ed53c1-17d5-450e-8d46-75813d24a5bd',
+  code: 'NOT_CONFIGURED',
+  diagnostic: 'SecretOpenError: Unsupported state or unable to authenticate data\n' +
+    '    at AesGcmSecretSealer.open (/home/user/Tovu/apps/website/src/features/webhooks/secret-sealer.aesgcm.ts:152:36)\n' +
+    '    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n' +
+    '    at async protectStorage (/home/user/Tovu/apps/website/src/platform/secrets/store-vault-guards.ts:18:16)\n' +
+    '    at async SecretsVaultService.open (/home/user/Jini/packages/platform/src/secrets/credential-sets/vault.service.ts:148:23)\n' +
+    '    at async SecretsVaultService.findOne (/home/user/Jini/packages/platform/src/secrets/credential-sets/vault.service.ts:234:49)\n' +
+    '    at async resolveSiteAssistantApiKey (/home/user/Tovu/apps/website/src/assistant/site-credential-store.ts:160:20)\n' +
+    '    at async resolvePublicAssistantAvailability (/home/user/Tovu/apps/website/src/assistant/public-assistant-availability.ts:19:22)\n' +
+    '    at async resolveProviderConfigOrRespond (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/site-assistant.ts:429:24)\n' +
+    '    at async runSiteAssistantPreflight (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/site-assistant.ts:566:20)\n' +
+    '    at async handleChat (/home/user/Tovu/apps/website/src/server/runtime/composition/modules/site-assistant.ts:657:27)'
+}
+✔ visitorai: both admin write APIs refuse enabling with unreadable-key and persist neither field (781.517086ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+[site-assistant] {
+  errorId: '896e4d2b-ae03-4751-a12e-197b56615c00',
+  code: 'PROVIDER_UNSUPPORTED',
+  diagnostic: 'site assistant is configured for an unsupported provider "cohere" — supported providers are anthropic, openai, azure, google.'
+}
+✔ visitorai: both admin write APIs refuse enabling with unsupported-provider and persist neither field (585.933307ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+[site-assistant] {
+  errorId: '0615b9a0-85ce-4c7d-ba21-dafbf5863d62',
+  code: 'NOT_CONFIGURED',
+  diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+}
+✔ visitorai: react widget and chat stop after saved key removal despite flag and env defaults (639.697514ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+[site-assistant] {
+  errorId: 'd3ddca3a-a32d-4b41-aca0-480de401b53d',
+  code: 'MODEL_NOT_CONFIGURED',
+  diagnostic: 'site assistant has no saved model — choose one in AI Assistant before enabling the public assistant.'
+}
+✔ visitorai: react widget and chat stop after saved model removal despite flag and env defaults (590.935934ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+[site-assistant] {
+  errorId: '761365eb-4169-4955-bca7-4c10f28aadd9',
+  code: 'NOT_CONFIGURED',
+  diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+}
+✔ visitorai: vanilla widget and chat stop after saved key removal despite flag and env defaults (686.248975ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+[site-assistant] {
+  errorId: '56491d74-cfac-4658-916e-1a2190088bf7',
+  code: 'MODEL_NOT_CONFIGURED',
+  diagnostic: 'site assistant has no saved model — choose one in AI Assistant before enabling the public assistant.'
+}
+✔ visitorai: vanilla widget and chat stop after saved model removal despite flag and env defaults (1030.237713ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'tovu-official', which is whichever theme discovery happened to list first
+[site-assistant] {
+  errorId: 'bb10d4d1-3fa9-46da-a8bb-abe62efe20ac',
+  code: 'NOT_CONFIGURED',
+  diagnostic: 'site assistant is not configured — save a usable provider key and a model in AI Assistant before enabling the public assistant.'
+}
+[site-assistant] {
+  errorId: '71a8cc0f-8584-4e11-ac5d-b59e08b14989',
+  code: 'ASSISTANT_DISABLED',
+  diagnostic: 'site assistant is disabled'
+}
+✔ visitorai: imported enabled state with no credential emits no widget and cannot consume an env key (696.375134ms)
+✔ visitorai: an alias cannot bypass credential validation on the generic write API (531.579403ms)
+✔ visitorai: generic definition batches cannot replace the code-owned off default (401.07543ms)
+✔ no production file under server/inbound/ imports site-key-ensure (the one site-key writer) (1674.479344ms)
+✔ the boundary scanner sees every supported import syntax and ignores comments and ordinary strings (1.235664ms)
+✔ a keyless instance passes a bearer request on to the session gate instead of hanging (2.01611ms)
+✔ a keyring that fails at verify time passes the request on instead of hanging (0.756434ms)
+✔ non-bearer authorization proceeds to the ordinary credential gate without reading publishing state (0.677209ms)
+✔ publishing context remains absent for ordinary credentials and preserves an attached grant (0.290761ms)
+✔ API-key principal projection sends only the five public fields (10.44631ms)
+✔ issued key takes the one-time secret separately and preserves an explicit expiry (0.532862ms)
+✔ webhook delivery projections retain failure details and omit internal payloads (6.815563ms)
+✔ subscription projection sends the delivery summary, clones topics, and represents no delivery as null (0.539073ms)
+✔ media projection preserves metadata and uses the supplied content type and public URL (0.483745ms)
+✔ media list joins content types by sha256 and URLs by id, with null for either missing lookup (0.487889ms)
+✔ member projection excludes operator notes, extension fields and token material (0.364055ms)
+✔ user projection preserves last-login metadata and grants without emitting password hashes (3.937357ms)
+✔ role and policy projections retain built-in and frozen flags without internal fields (0.63595ms)
+✔ workspace projection includes creation time and emits only the public identity fields (0.410611ms)
+✔ media projection preserves an explicit document kind (0.468384ms)
+✔ a document without an original filename fails validation instead of fabricating its type (0.649171ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ admin memory round-trips a user note, refuses learned writes/traversal, and package viewer excludes state (1152.786356ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ admin memory GET answers both lists and the memory limits (677.698035ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ admin memory answers an unknown plugin with the not-found code (772.38809ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ admin memory checks the plugin exists before validating a write (657.158705ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ admin memory refuses a write with no body (509.817944ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ admin memory refuses an extra key even when entryPath and text are valid (574.9181ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ admin memory answers a rejected note path with the invalid-note code (676.25189ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ admin memory PUT answers the saved note in the notes list (587.954082ms)
+✔ test-agent preserves unknown id and forces a fresh probe (14.103198ms)
+✔ test-agent preserves unavailable CLI and forces a fresh probe (0.929641ms)
+✔ test-agent preserves missing authentication and forces a fresh probe (0.662842ms)
+✔ test-agent preserves unknown authentication and forces a fresh probe (0.491567ms)
+✔ test-agent preserves stale model and forces a fresh probe (0.562817ms)
+✔ test-agent preserves ready with model and forces a fresh probe (6.388027ms)
+✔ test-agent preserves ready without model and forces a fresh probe (0.650575ms)
+✔ detect-agents reads injected inventory with strict force undefined (7.233743ms)
+✔ detect-agents reads injected inventory with strict force false (6.924948ms)
+✔ detect-agents reads injected inventory with strict force true (0.963443ms)
+✔ detect-agents reads injected inventory with strict force true (0.600107ms)
+✔ test-agent probes through the assistant inventory's runtime when no detector is injected (0.725293ms)
+✔ test-agent refuses another workspace before authorizing or probing (0.460707ms)
+✔ test-agent falls back to the runtime's own detector when neither a detector nor an inventory is wired (isolated PATH) (10727.773986ms)
+✔ useAdminStoredCredential opens the CALLER'S OWN admin row and sends its stored endpoint (9.927521ms)
+✔ an omitted principal cannot open a credential owned by the literal 'undefined' principal (0.71695ms)
+✔ useStoredCredential still opens the SITE row and never the admin's (1.141178ms)
+✔ a typed key still wins over the admin stored one, and no row is decrypted at all (0.322533ms)
+✔ both stored flags select only the caller's admin row, including its endpoint pin (1.297933ms)
+✔ the endpoint pin applies to the admin row: a mismatched destination is a 400, not a substitution (0.928942ms)
+✔ a trailing slash is the same endpoint, not a mismatch (0.642865ms)
+✔ an admin row with no saved endpoint is a 400 naming the admin credential, not the site one (0.569925ms)
+✔ no admin row at all falls through to an empty key, letting the provider give its own answer (0.855856ms)
+✔ neither flag: unchanged for every pre-existing caller, and neither stored row is read (0.558908ms)
+✔ list: returns 200 with content types when authorized (130.460984ms)
+✔ list: returns 403 when principal is not authorized for admin.collections.read (29.646123ms)
+✔ list: returns 500 when error is an instance of Error (17.152847ms)
+✔ list: returns 500 when non-Error is thrown (22.419628ms)
+external-mcp probe route failed
+external-mcp probe route failed
+✔ MCP admissions: authorization failure is private and does not become a success (532.79405ms)
+✔ MCP admissions: denied permission stops before reaching repositories (523.975176ms)
+✔ MCP admissions: workspace isolation precedes authorization (349.508991ms)
+✔ MCP admissions: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (267.534625ms)
+✔ MCP delete: authorization failure is private and does not become a success (247.498721ms)
+✔ MCP delete: denied permission stops before reaching repositories (414.260973ms)
+✔ MCP delete: workspace isolation precedes authorization (247.844059ms)
+✔ MCP delete: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (337.008522ms)
+✔ MCP list: authorization failure is private and does not become a success (262.945801ms)
+✔ MCP list: denied permission stops before reaching repositories (313.677119ms)
+✔ MCP list: workspace isolation precedes authorization (364.471307ms)
+✔ MCP list: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (378.595582ms)
+✔ MCP put: authorization failure is private and does not become a success (451.400539ms)
+✔ MCP put: denied permission stops before reaching repositories (371.579566ms)
+✔ MCP put: workspace isolation precedes authorization (292.766916ms)
+✔ MCP put: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (348.780204ms)
+✔ MCP approvals list: authorization failure is private and does not become a success (230.46943ms)
+✔ MCP approvals list: denied permission stops before reaching repositories (347.804474ms)
+✔ MCP approvals list: workspace isolation precedes authorization (269.873669ms)
+✔ MCP approvals list: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (332.239754ms)
+✔ MCP approvals revoke: authorization failure is private and does not become a success (232.346192ms)
+✔ MCP approvals revoke: denied permission stops before reaching repositories (286.406944ms)
+✔ MCP approvals revoke: workspace isolation precedes authorization (278.850831ms)
+✔ MCP approvals revoke: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (426.703089ms)
+✔ MCP probe: authorization failure is private and does not become a success (364.048722ms)
+✔ MCP probe: denied permission stops before reaching repositories (336.312068ms)
+✔ MCP probe: workspace isolation precedes authorization (238.992511ms)
+✔ MCP probe: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (199.129826ms)
+✔ MCP approvals GET: store failure cannot masquerade as empty or removed (271.798985ms)
+✔ MCP approvals DELETE: store failure cannot masquerade as empty or removed (361.936621ms)
+✔ MCP probe: repository failure is a private 500 rather than an unreachable-vendor report (343.062798ms)
+✔ MCP probe limiter uses the shared outbound call budget and restores it after the window (5.950614ms)
+✔ MCP OAuth connect: wrong workspace and denied permission do not invoke the service (235.365522ms)
+✔ MCP OAuth poll: wrong workspace and denied permission do not invoke the service (387.299832ms)
+✔ MCP OAuth disconnect: wrong workspace and denied permission do not invoke the service (317.232014ms)
+✔ MCP OAuth: provider polling error preserves optional retry delay undefined (236.272404ms)
+✔ MCP OAuth: provider polling error preserves optional retry delay 7 (193.221934ms)
+✔ MCP probe: exhausted budget answers before checking permissions or connecting (320.434095ms)
+✔ MCP PUT: invalid or empty OAuth block preserves static configuration undefined (615.051034ms)
+✔ MCP PUT: invalid or empty OAuth block preserves static configuration null (580.633896ms)
+external-mcp oauth route failed: secret upstream body
+external-mcp oauth route failed: secret upstream body
+✔ MCP PUT: invalid or empty OAuth block preserves static configuration [] (273.869299ms)
+✔ MCP PUT: invalid or empty OAuth block preserves static configuration "invalid" (222.070625ms)
+✔ MCP PUT: invalid or empty OAuth block preserves static configuration {} (201.255597ms)
+✔ MCP PUT: invalid or empty OAuth block preserves static configuration {"clientId":42} (424.506237ms)
+✔ MCP PUT: absent body is rejected and never creates an empty command server (236.166474ms)
+✔ MCP GET: storage failure is a private 500 (238.424079ms)
+✔ MCP DELETE: storage failure is a private 500 (330.040537ms)
+✔ MCP PUT: storage failure is a private 500 (374.307362ms)
+✔ MCP OAuth unexpected string is never reflected to the operator (288.769238ms)
+✔ MCP OAuth unexpected object is never reflected to the operator (256.590022ms)
+✔ MCP delete: `req.params.serverId ?? ""` fallback, forced via a direct handler call, resolves the empty id to a refusal, never a write or probe (200.684599ms)
+✔ MCP put: `req.params.serverId ?? ""` fallback, forced via a direct handler call, resolves the empty id to a refusal, never a write or probe (225.379311ms)
+✔ MCP probe: `req.params.serverId ?? ""` fallback, forced via a direct handler call, resolves the empty id to a refusal, never a write or probe (281.605198ms)
+✔ MCP approvals revoke: `req.params.serverId ?? ""` / `req.params.toolName ?? ""` fallbacks, forced via a direct handler call, delete nothing and answer 404 (201.134231ms)
+✔ MCP OAuth connect: `req.params.serverId ?? ""` fallback, forced via a direct handler call, hands the service the empty id (216.75626ms)
+✔ MCP OAuth poll: `req.params.serverId ?? ""` fallback, forced via a direct handler call, hands the service the empty id (255.688821ms)
+✔ MCP OAuth disconnect: `req.params.serverId ?? ""` fallback, forced via a direct handler call, hands the service the empty id (257.221903ms)
+✔ GET with a mismatched workspaceId 404s (79.015737ms)
+✔ GET refuses a denied authorize() with 403 before touching the store (31.226216ms)
+✔ GET returns null before anything has been set (19.048322ms)
+✔ PUT with a real absolute directory sets it, and GET then reflects it (75.58966ms)
+✔ PUT with a missing 'path' field is a 400 validation error (17.953206ms)
+✔ PUT with a path that does not exist is a 400 with the store's own message, not a 500 (29.03558ms)
+✔ DELETE clears a previously-set root (39.369605ms)
+✔ PUT rejects relative and regular-file paths without replacing the configured root (26.007762ms)
+✔ PUT refuses denied authorization without changing the stored root (37.370362ms)
+✔ DELETE refuses denied authorization without changing the stored root (29.748029ms)
+✔ a previously-set folder survives a fresh route registration against the same siteDir (simulated restart) (18.516525ms)
+✔ GET reports a vanished folder honestly, not as though nothing was ever set (14.530498ms)
+✔ two workspaces backed by the same siteDir do not share a custom root (19.23914ms)
+✔ media sizes visit only returned distinct hashes and keep eight original-blob lookups in flight (15.208721ms)
+✔ media sizes preserve zero and isolate missing rows, missing files, and storage errors (5.013216ms)
+✔ older blob adapters report null without payload or repository I/O; empty pages do nothing (0.454071ms)
+✔ media delete: authorization failure is private and does not become a success (477.738146ms)
+✔ media delete: denied permission stops before reaching repositories (336.86065ms)
+✔ media delete: workspace isolation precedes authorization (304.516058ms)
+✔ media delete: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (208.117855ms)
+✔ media import: authorization failure is private and does not become a success (341.650109ms)
+✔ media import: denied permission stops before reaching repositories (214.730586ms)
+✔ media import: workspace isolation precedes authorization (319.942987ms)
+✔ media import: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (409.68234ms)
+✔ media list: authorization failure is private and does not become a success (365.567287ms)
+✔ media list: denied permission stops before reaching repositories (230.346199ms)
+✔ media list: workspace isolation precedes authorization (218.17803ms)
+✔ media list: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (201.653689ms)
+✔ media original: authorization failure is private and does not become a success (308.340742ms)
+✔ media original: denied permission stops before reaching repositories (263.410789ms)
+✔ media original: workspace isolation precedes authorization (266.030556ms)
+✔ media original: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (233.268005ms)
+✔ media providers: authorization failure is private and does not become a success (183.588833ms)
+✔ media providers: denied permission stops before reaching repositories (352.684262ms)
+✔ media providers: workspace isolation precedes authorization (283.631914ms)
+✔ media providers: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (287.588151ms)
+✔ media replace: authorization failure is private and does not become a success (236.067641ms)
+✔ media replace: denied permission stops before reaching repositories (480.432367ms)
+✔ media replace: workspace isolation precedes authorization (349.722905ms)
+✔ media replace: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (312.389335ms)
+✔ media text: authorization failure is private and does not become a success (387.130836ms)
+✔ media text: denied permission stops before reaching repositories (303.00912ms)
+✔ media text: workspace isolation precedes authorization (257.94641ms)
+✔ media text: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (406.667085ms)
+✔ media trash: authorization failure is private and does not become a success (331.24592ms)
+✔ media trash: denied permission stops before reaching repositories (351.756908ms)
+✔ media trash: workspace isolation precedes authorization (320.423841ms)
+✔ media trash: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (375.796239ms)
+✔ media upload: authorization failure is private and does not become a success (407.267106ms)
+✔ media upload: denied permission stops before reaching repositories (250.178649ms)
+✔ media upload: workspace isolation precedes authorization (292.234609ms)
+✔ media upload: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (188.019372ms)
+✔ media usage: authorization failure is private and does not become a success (322.163054ms)
+✔ media usage: denied permission stops before reaching repositories (344.065901ms)
+✔ media usage: workspace isolation precedes authorization (281.585229ms)
+✔ media usage: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the workspace 404 before authorization (167.594933ms)
+✔ media trash: concurrent not-found does not report a successful trash (212.327212ms)
+✔ media trash: concurrent version-changed does not report a successful trash (183.987451ms)
+✔ media trash: disappearance after successful marker flip is 404 (301.987817ms)
+✔ media import: malformed input undefined never reaches outbound HTTP (201.924183ms)
+✔ media import: malformed input null never reaches outbound HTTP (241.9378ms)
+✔ media import: malformed input [] never reaches outbound HTTP (299.311ms)
+✔ media import: malformed input "https://example.com/a.png" never reaches outbound HTTP (237.044746ms)
+✔ media import: malformed input {} never reaches outbound HTTP (240.484945ms)
+✔ media import: malformed input {"url":" "} never reaches outbound HTTP (257.598264ms)
+✔ media import: malformed input {"url":1} never reaches outbound HTTP (250.519134ms)
+✔ media text: rejects invalid byte paging ?offset=-1 (337.332755ms)
+✔ media text: rejects invalid byte paging ?offset=1.5 (269.835719ms)
+✔ media text: rejects invalid byte paging ?offset[]=1 (352.074119ms)
+✔ media text: rejects invalid byte paging ?offset=NaN (294.009598ms)
+✔ media replace: incomplete transactional capability refuses before decoding bytes (257.085102ms)
+✔ media import: Error keeps transport details out of the response (225.176605ms)
+✔ media import: EgressRefusedError keeps transport details out of the response (266.304194ms)
+✔ document original: no size capability enforces size bounds and safe attachment headers (568.793574ms)
+✔ document original: unknown size enforces size bounds and safe attachment headers (1161.993986ms)
+✔ document original: bounded size enforces size bounds and safe attachment headers (757.225392ms)
+✔ document original: oversized size enforces size bounds and safe attachment headers (561.533016ms)
+✔ document original: oversized bytes enforces size bounds and safe attachment headers (266.571013ms)
+✔ media original: callers can supply their own not-found response without reading a blob (387.98777ms)
+✔ media upload: incomplete payload undefined is rejected before authorization or storage (284.662743ms)
+✔ media upload: incomplete payload {"filename":"file","dataBase64":"YQ=="} is rejected before authorization or storage (265.720031ms)
+✔ media upload: incomplete payload {"filename":"file","contentType":"image/png"} is rejected before authorization or storage (209.67569ms)
+✔ media upload: incomplete payload {"filename":"file","contentType":"image/png","dataBase64":7} is rejected before authorization or storage (431.203092ms)
+✔ media upload: JSON that cannot be converted to a content-type string returns a private parser failure (270.282589ms)
+✔ document original: a legacy record without an original filename fails privately (315.765531ms)
+✔ media replace: malformed replacement undefined leaves the source unchanged (447.139274ms)
+✔ media replace: malformed replacement {"filename":"file","contentType":"image/png"} leaves the source unchanged (278.504767ms)
+✔ media replace: malformed replacement {"filename":"file","contentType":1,"dataBase64":"YQ=="} leaves the source unchanged (422.307184ms)
+✔ media replace: malformed replacement {"filename":"file","contentType":"image/png","dataBase64":1} leaves the source unchanged (283.819561ms)
+✔ media replace: malformed replacement {"filename":" ","contentType":"image/png","dataBase64":"YQ=="} leaves the source unchanged (376.531184ms)
+✔ media providers: omitted provider map clears the whole set (208.118889ms)
+✔ media list: documents include only active records and keep their type tied to filename (311.264937ms)
+✔ media list: an unknown ?kind is a 400 before authorization or any repository read (484.703613ms)
+✔ media import: with no injected logger, an egress refusal's full diagnosis goes to the operator console only (243.339466ms)
+✔ media text: valid paging of an absent document is 404 and repository failure is 500 (615.121194ms)
+✔ media usage: unknown asset is 404 and no reference information is queried (384.240973ms)
+✔ media usage (direct invoke): missing :workspaceId 404s and a missing :mediaId is looked up as "", never "undefined" (346.719093ms)
+✔ text route maps MediaNotFoundError and preserves private response headers (11.22096ms)
+✔ text route maps MediaValidationError and preserves private response headers (0.741964ms)
+✔ text route maps DocumentTextExtractionError and preserves private response headers (8.49525ms)
+✔ text route maps Error and preserves private response headers (0.526409ms)
+✔ text route refuses a nondecimal offset "" before reading bytes (0.791769ms)
+✔ text route refuses a nondecimal offset "-1" before reading bytes (0.597201ms)
+✔ text route refuses a nondecimal offset "1.5" before reading bytes (0.478414ms)
+✔ text route refuses a nondecimal offset "1e3" before reading bytes (0.477134ms)
+✔ text route refuses a nondecimal offset ["0","1"] before reading bytes (3.615326ms)
+✔ text route refuses a nondecimal offset {"value":"0"} before reading bytes (1.564291ms)
+(node:28937) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28937) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ admin magic link maps MemberSignInUnavailableError without leaking delivery details (26.65809ms)
+✔ admin magic link maps SenderIdentityNotConfiguredError without leaking delivery details (0.92776ms)
+✔ admin magic link maps MemberValidationError without leaking delivery details (5.258764ms)
+✔ admin magic link maps Error without leaking delivery details (0.951391ms)
+✔ admin magic link refuses rate-limited mail without requesting delivery (0.951401ms)
+✔ create-campaign: each required string field, missing or non-string, is a 400 before authorize() and before anything is saved (974.144061ms)
+✔ create-campaign: bodyJson must be a non-null object — missing, null and a string are all 400 (496.896197ms)
+✔ create-campaign: a valid body is a 201 draft carrying the submitted envelope fields, attributed to the caller (593.678138ms)
+✔ create-campaign: a non-string preheader is stored as null, not coerced to text (463.172538ms)
+✔ resend-confirmation: mints a fresh confirmation token and emails the subscriber's directory address (755.179893ms)
+✔ resend-confirmation: a second resend supersedes the first token, leaving exactly one live token (411.735894ms)
+✔ resend-confirmation: a subscriber with no directory contact gets a 200 but nothing is minted or sent (259.884259ms)
+✔ resend-confirmation: an unknown subscription id is 404 NEWSLETTER_SUBSCRIPTION_NOT_FOUND and sends nothing (315.86459ms)
+✔ step 5: metadata points only to digest-pinned admitted bytes; disable retires metadata and URLs (812.721478ms)
+✔ site plugin end to end: remove -> list in Trash -> restore disabled -> remove -> purge (1732.777603ms)
+✔ PLUGIN_NOT_FOUND: DELETE .../plugins/:pluginId for an id absent from discovery is 404 (746.585538ms)
+✔ PLUGIN_NOT_UNINSTALLABLE: DELETE .../plugins/word-count (a built-in) is 422, and its files (there are none) are untouched (725.615213ms)
+✔ PLUGIN_ENABLED: DELETE .../plugins/:pluginId while still enabled is 409, refuses, and the files remain on disk (804.422741ms)
+✔ PLUGIN_IN_TRASH: a newly copied live folder cannot replace the same plugin already in Trash (857.28096ms)
+✔ path traversal (no matching plugin, raw wire request): DELETE .../plugins/.. with nothing installed under that id is 404, never reaches the filesystem removal at all (767.459177ms)
+✔ path traversal: folder-bound discovery cannot hide an unsafe-record uninstall path-guard regression (838.38834ms)
+✔ REST create uses the account default and update saves credit and false independently from creator attribution (193.794524ms)
+✔ REST standing draft retains byline edits without changing the saved post (53.762551ms)
+✔ REST create, update and autosave reject overlong credit with the same error and no writes (33.149399ms)
+✔ PUT posts/:postId refuses a video as featuredMediaId with a 400 VALIDATION_ERROR (1235.419265ms)
+✔ PUT posts/:postId refuses an unknown or trashed featuredMediaId (887.883768ms)
+✔ PUT posts/:postId stores an image featuredMediaId, and null still clears it (813.096659ms)
+✔ PUT posts/:postId stores the asset id when given the media slug (640.355524ms)
+✔ PUT pages/:pageId refuses a video as featuredMediaId with a 400 VALIDATION_ERROR (768.906974ms)
+(node:30009) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30009) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ undo runs inverses newest-first, reports skips, and records the run as undone (574.2138ms)
+✔ a skipped file is reported and is not rolled back (349.88426ms)
+✔ when the audit write fails after a file was restored, the file is put back and the error is the 409 (402.844139ms)
+✔ a failed undo with no file restored rethrows without rolling anything back (371.492346ms)
+✔ a non-Error thrown by an undo answers the fixed 409 text (301.830783ms)
+[plugin-runtime] 'seo' hook refused a request: plugin 'seo' filter failed: password=hunter2
+✔ each known import error maps to its status and code, keeping its message (6.938488ms)
+✔ a plugin save-hook refusal mid-import is a 500 PLUGIN_HOOK_FAILED naming the plugin, like the posts routes (5.334212ms)
+✔ an unrecognised error is a 500 with fixed text; its own message goes only to the server log (0.744266ms)
+✔ a non-Error throw is a 500 with the generic message, logged the same way (0.392678ms)
+✔ GET .../peers answers exactly {peers:[{id,label,baseUrl,remoteWorkspaceId,masked,hasCredential}]} (166.363602ms)
+✔ no response body ever carries sealed material or the raw key (74.158923ms)
+✔ list asks publish_content.read; every mutation asks publish_content.apply; content.* is never asked (22.712391ms)
+✔ every peers route 403s when the permission is denied, naming the publish_content permission (29.322379ms)
+✔ every peers route 404s on a mismatched workspace id before doing anything else (18.721357ms)
+✔ a create refusing validation is a 400 with a code, not a 500 (6.535777ms)
+✔ a duplicate label is a 409 DUPLICATE_LABEL (42.176259ms)
+✔ DELETE is idempotent 204 (45.128814ms)
+✔ push/pull address a peer by peerId only — an unknown one is 404 PEER_NOT_FOUND (6.771304ms)
+✔ a private-address peer answers 502 with the devHostAllowlist diagnosis intact, never a generic 500 (25.957038ms)
+✔ push/confirm and push/execute validate their bodies before opening the peer credential (15.504456ms)
+✔ push/plan refuses a malformed selectedEntityKeys with a 400 code, before it opens the peer (17.93119ms)
+✔ push/plan treats an absent selection as 'everything', not as an empty one (9.613443ms)
+✔ push/plan refuses a malformed overwriteEntityKeys with a 400 code, before it opens the peer (21.252609ms)
+✔ push/execute refuses a malformed overwriteEntityKeys with a 400 code, before it opens the peer (5.755017ms)
+✔ push/plan echoes overwriteEntityKeys back exactly as sent, and forwards the same keys to the peer's own /import/plan (14.314875ms)
+✔ push/plan omits overwriteEntityKeys from its response, and reports liveCanOverwrite:false, when nothing was ticked (9.705743ms)
+[publish-content] destination history write failed after remote apply
+✔ push/execute forwards overwriteEntityKeys to the peer's own /import/execute (18.472126ms)
+✔ a read-only principal cannot mutate a peer or use any transport route (23.439256ms)
+✔ push/confirm relays the exact plan id and hash and returns the peer's token (19.298849ms)
+✔ get-settings: mismatched workspaceId 404s (613.457985ms)
+✔ get-settings: forbidden 403s (370.77442ms)
+✔ get-settings: returns workspace seo settings (200) (792.759587ms)
+✔ get-settings: unexpected error returns 500 (INTERNAL_ERROR) (518.442331ms)
+✔ get-settings: workspaceId undefined fallback via direct handler execution (209.52313ms)
+✔ a request without a workspace segment is refused 404 before authentication (15.083141ms)
+✔ another workspace is refused 404 without opening a stream (0.76128ms)
+✔ a settings store that never became ready is refused 401 (0.718421ms)
+✔ a request with no authenticated principal is refused 401 (0.621593ms)
+✔ a principal without settings.read is refused 403 with the authorizer's reason (5.441357ms)
+✔ asking for theme preview without theme.set or settings.read is still refused 403 (0.702372ms)
+✔ an HTTP/1.1 stream opens 200 with keep-alive SSE headers and a connected comment (1.307077ms)
+✔ an HTTP/2 stream omits the Connection header (0.701792ms)
+✔ a fresh subscriber starts at the ledger head (39.717466ms)
+✔ Last-Event-ID resumes from its position and beats afterRevision (2.407136ms)
+✔ afterRevision resumes when no Last-Event-ID is sent, including from zero (6.580851ms)
+✔ a resume point past the head is clamped to the head (7.655386ms)
+✔ negative, non-numeric and non-string resume points start at the head (3.140417ms)
+✔ a visible change emits its workspace-scoped id, not the ledger head (2.13524ms)
+✔ a page with nothing visible emits nothing but still advances to the head (1.467459ms)
+✔ a full page advances only to its last row, and the short page after it to the head (12.823936ms)
+✔ namespaces, including unresolvable ones, are looked up once per connection (8.575922ms)
+✔ a failed poll is logged, keeps the stream and re-reads the same window next tick (2.544716ms)
+✔ a poll still in flight makes the next interval skip instead of re-reading the window (1.799695ms)
+✔ a stream closed while its poll is in flight writes nothing when the poll returns (1.397618ms)
+✔ a theme-only subscriber gets preview frames and never reads the settings ledger (24.35399ms)
+✔ themeRevision resumes the preview channel, replaying a newer marker (9.195849ms)
+✔ without a themes directory the preview channel stays silent (1.770336ms)
+✔ theme preview is not requested unless themePreview is exactly 1 (1.507349ms)
+✔ an idle stream sends a keepalive comment every 25 seconds (9.498518ms)
+✔ re-authorization keeps a stream whose grant still holds (1.971204ms)
+✔ re-authorization ends the stream and its timers once settings.read is revoked (5.467499ms)
+✔ revoking settings.read but keeping theme.set keeps the stream and stops ledger reads (2.295262ms)
+✔ an authorizer error during re-authorization is logged and closes the stream (10.948757ms)
+✔ a stream closed while re-authorization is in flight is not ended again (2.359186ms)
+✔ closing both request and response stops every interval (1.622703ms)
+✔ injected timers are used, and a callback firing after close does nothing (10.442881ms)
+✔ an empty feedTimers object falls back to the global interval functions (1.214258ms)
+✔ a settings frame contains only visible namespace names and the examined workspace id (1.349207ms)
+✔ an unresolvable batch advances the cursor without emitting an empty settings frame (4.843411ms)
+✔ revoking settings access during a held poll suppresses its frame while preview keeps the stream open (1.42442ms)
+✔ closing the response during a held visible batch suppresses all settings frame writes (5.929553ms)
+✔ a definition namespace change keeps emitting the cached old namespace (reported, not fixed) (1.480355ms)
+✔ lifecycle gates retain workspace, capability, binding, authorization and host precedence (256.046325ms)
+✔ lifecycle catches principal/auth failures and sanitizes typed and opaque effect errors (267.521046ms)
+✔ lifecycle returns action payloads and defaults only nullish results, preserving mutation order (47.855999ms)
+✔ lifecycle missing workspace parameter remains a 404 (6.337436ms)
+✔ C-001: 200 with an empty list when the workspace has no skills tree on disk (ENOENT fast path) (897.078932ms)
+✔ C-001/C-002: 200 returns every installed skill projected to {toolId, name, description} (840.817203ms)
+✔ C-001: 404 when the :workspaceId path param does not match deps.workspaceId (427.454396ms)
+✔ C-001/D-3: 403 for a signed-in principal with no admin.assistant.use grant (662.285679ms)
+✔ C-001: 500 surfaces the duplicate-skill-name error VERBATIM (INTERNAL_ERROR), not swallowed into a generic message (686.936331ms)
+✔ C-001: a request with no :workspaceId param at all 404s (the `?? ""` fallback, forced via a direct handler call) (494.671131ms)
+✔ route templates drop queries/fragments and turn record ids into :id (2.263677ms)
+✔ free text loses URL queries and passes core secret/PII redaction (2.997973ms)
+✔ validation refuses unknown fields, wrong types, missing fields and non-admin routes (5.632542ms)
+✔ oversize fields and oversize bodies are refused with 413 (1.324963ms)
+✔ a page view reaches product analytics as admin_pageview with only the route template (0.655829ms)
+✔ an error reaches the observability port scrubbed, as the browser error, with route and component stack (5.82678ms)
+✔ an error without a stack still carries a stack line built from its own message (0.820801ms)
+✔ consent off: page views never reach the vendor; consent on: they do (2.055106ms)
+✔ no provider configured: the request still succeeds and nothing is sent (5.861579ms)
+✔ machine credentials are refused before anything is read or forwarded (2.350354ms)
+✔ the per-principal limit answers 429 with Retry-After and forwards nothing (0.642213ms)
+✔ a failing provider leaves the browser action successful and logs only a fixed warning (1.025242ms)
+✔ publish-targets: refusals are logged, never returned; optional descriptor parts appear only when declared (722.67698ms)
+✔ publish-targets and destinations: a request with no :workspaceId param 404s (direct handler call) (334.131151ms)
+✔ publish-targets and destinations: a registry load failure is a fixed 500 that never echoes the cause (191.940085ms)
+✔ publish destinations: a publishing-grant request reads peers through its grant, not the session authorizer (225.265072ms)
+✔ publish preview: refusals are logged; with a configured credential an invalid credentialId is a 400, an absent one inspects the named project (516.059125ms)
+✔ an absent workspace param 404s before authorizing (7.079175ms)
+✔ providers list optional credential/i18n fields only when declared, names switched-off hosts, and logs refusals (2.308669ms)
+✔ unexpected store or loader failures answer a generic 500 and log without the detail (4.907068ms)
+✔ an absent request body is read as {} on create (validation 400) and update (not-found 404) (1.370758ms)
+✔ new credentials use neutral declared fields; unlisted saved rows remain visible without their secret (50.836931ms)
+✔ get /api/admin/v1/workspaces/:workspaceId/system/source-control/providers refuses workspace and permission mismatches before loading providers or rows (0.664174ms)
+✔ get /api/admin/v1/workspaces/:workspaceId/system/source-control/credentials refuses workspace and permission mismatches before loading providers or rows (0.666394ms)
+✔ post /api/admin/v1/workspaces/:workspaceId/system/source-control/credentials refuses workspace and permission mismatches before loading providers or rows (0.78784ms)
+✔ put /api/admin/v1/workspaces/:workspaceId/system/source-control/credentials/:id refuses workspace and permission mismatches before loading providers or rows (1.30438ms)
+✔ delete /api/admin/v1/workspaces/:workspaceId/system/source-control/credentials/:id refuses workspace and permission mismatches before loading providers or rows (0.871905ms)
+✔ store duplicate and encryption errors retain their established HTTP codes (1.828126ms)
+
+Interrupted while running:
+
+⚠ apps/website/src/server/inbound/admin-http/routes/system/site-shares.integration.test.ts (apps/website/src/server/inbound/admin-http/routes/system/site-shares.integration.test.ts:1:1)

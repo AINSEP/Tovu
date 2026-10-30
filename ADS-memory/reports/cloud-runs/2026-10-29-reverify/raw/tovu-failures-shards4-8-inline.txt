@@ -1,0 +1,27 @@
+=== shard 4 inline failures
+✖ root/admin/site-chat select the same new chat release and preserve the UI override
+=== shard 5 inline failures
+✖ agent-daemon-port exports exactly the documented runtime surface, no more and no less
+✖ stock resolvers work from a dist/src module layout independently of cwd
+=== shard 6 inline failures
+  ✖ an order INSERT failure rolls back the preceding stock and version update
+✖ default boot adapters preserve a failed onboarding token over a conflicting ambient token and retry it
+✖ lazy kernel resolves the handle only on first use and keeps the same kernel on later calls
+✖ no production file under src/{analytics,features,identity,media,navigation,origin,seo,widgets}/ value-imports from src/assistant/ (type-only ToolContributor imports are fine)
+✖ null expectedVersion still flips the real marker and increments the existing version
+✖ page delete compensates a failed audit write using its captured page
+✖ store plugin data [pglite]
+✖ store plugin data [sqlite]
+✖ workspaceIdOverride supplied: the db opened for validation is the SAME handle the returned deps read from (not a second, divergent connection)
+=== shard 7 inline failures
+✖ live site: a request carrying the static-export marker gets no widget AND a never-store Cache-Control
+✖ real core tree has only reviewed pattern exceptions, each with its exact current total
+✖ the redirects barrel exports only the SQLite repo and the phase-handler registrar
+✖ vendor-credentials exposes the publish-credentials in-memory repo as its only runtime export
+=== shard 8 inline failures
+✖ no new raw SQLite outside the storage kernel (ratchet: the baseline only shrinks)
+✖ store: activation is idempotent — a second boot does not double-seed
+✖ store: checkout decrements stock (OCC) and records an order
+✖ store: checkout refuses out-of-stock and unknown products (no order, no decrement)
+✖ store: invalid quantities are refused without stock, version, or order changes
+✖ t10 media expired form closes without saving

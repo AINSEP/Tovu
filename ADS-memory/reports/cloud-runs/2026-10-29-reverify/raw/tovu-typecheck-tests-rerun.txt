@@ -1,0 +1,114 @@
+
+> tovu@0.1.0 typecheck:tests
+> NODE_OPTIONS=--max-old-space-size=6144 tsc -p tsconfig.tests.json --noEmit
+
+apps/website/src/assistant/__tests__/tool-approval-policy.test.ts(112,11): error TS2339: Property 'TOOL_APPROVAL_POLICY' does not exist on type 'typeof import("/home/user/Tovu/apps/website/src/assistant/assistant-tool-approval-policy", { with: { "resolution-mode": "import" } })'.
+apps/website/src/assistant/duplicate-resource-registry.ts(97,10): error TS2352: Conversion of type 'DuplicateResourceHandlerContributor<never>[]' to type 'readonly DuplicateResourceHandlerContributor<TDeps>[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'DuplicateResourceHandlerContributor<never>' is not comparable to type 'DuplicateResourceHandlerContributor<TDeps>'.
+    Type 'TDeps' is not comparable to type 'never'.
+apps/website/src/features/agent-plugins/__tests__/unit/access-token-tool.unit.test.ts(95,70): error TS2345: Argument of type '{ workspaceId: string; authorize: AuthorizeFn; clock: { nowMs: () => number; nowIso: () => string; }; externalMcpServerRepo: InMemoryExternalMcpServerRepo; ... 10 more ...; skillLayout: SkillLayout; }' is not assignable to parameter of type 'AgentPluginAccessTokenToolDeps'.
+  Type '{ workspaceId: string; authorize: AuthorizeFn; clock: { nowMs: () => number; nowIso: () => string; }; externalMcpServerRepo: InMemoryExternalMcpServerRepo; ... 10 more ...; skillLayout: SkillLayout; }' is missing the following properties from type 'AgentPluginAccessTokenToolDeps': externalMcpStore, notifyRosterChanged
+apps/website/src/features/agent-plugins/__tests__/unit/import-access-token.unit.test.ts(80,80): error TS2345: Argument of type '{ workspaceId: string; clock: { nowMs: () => number; nowIso: () => string; }; externalMcpServerRepo: InMemoryExternalMcpServerRepo; siteAssistantSecretSealer: AesGcmSecretSealer; ... 8 more ...; skillLayout: SkillLayout; }' is not assignable to parameter of type 'ImportAgentPluginAccessTokensFromEnvDeps'.
+  Type '{ workspaceId: string; clock: { nowMs: () => number; nowIso: () => string; }; externalMcpServerRepo: InMemoryExternalMcpServerRepo; siteAssistantSecretSealer: AesGcmSecretSealer; ... 8 more ...; skillLayout: SkillLayout; }' is missing the following properties from type 'ImportAgentPluginAccessTokensFromEnvDeps': externalMcpStore, notifyRosterChanged
+apps/website/src/features/plugins/__tests__/data-module.test.ts(630,62): error TS2345: Argument of type 'PluginKernel' is not assignable to parameter of type 'SqliteConnectionSource | ContentKernel'.
+  Type 'StorageKernel<PluginCoreTables>' is not assignable to type '{ readonly $client: Database; } | ContentKernel'.
+    Type 'StorageKernel<PluginCoreTables>' is not assignable to type 'ContentKernel'.
+      Types of property 'run' are incompatible.
+        Type '<T>(fn: (db: Kysely<PluginCoreTables>) => T | Promise<T>) => Promise<T>' is not assignable to type '<T>(fn: (db: Kysely<ContentDatabase>) => T | Promise<T>) => Promise<T>'.
+          Types of parameters 'fn' and 'fn' are incompatible.
+            Types of parameters 'db' and 'db' are incompatible.
+              Type 'Kysely<PluginCoreTables>' is not assignable to type 'Kysely<ContentDatabase>'.
+                The types of 'fn.agg(...).over' are incompatible between these types.
+                  Type '(over?: OverBuilderCallback<PluginCoreTables, keyof PluginCoreTables> | undefined) => AggregateFunctionBuilder<PluginCoreTables, keyof PluginCoreTables, any>' is not assignable to type '(over?: OverBuilderCallback<ContentDatabase, keyof ContentDatabase> | undefined) => AggregateFunctionBuilder<ContentDatabase, keyof ContentDatabase, any>'.
+                    Types of parameters 'over' and 'over' are incompatible.
+                      Types of parameters 'builder' and 'builder' are incompatible.
+                        Type 'OverBuilder<PluginCoreTables, keyof PluginCoreTables>' is not assignable to type 'OverBuilder<ContentDatabase, keyof ContentDatabase>'.
+                          Types of property 'partitionBy' are incompatible.
+                            Type '{ (partitionBy: readonly PartitionByExpression<PluginCoreTables, keyof PluginCoreTables>[]): OverBuilder<PluginCoreTables, keyof PluginCoreTables>; <PE extends PartitionByExpression<...>>(partitionBy: PE): OverBuilder<...>; }' is not assignable to type '{ (partitionBy: readonly PartitionByExpression<ContentDatabase, keyof ContentDatabase>[]): OverBuilder<ContentDatabase, keyof ContentDatabase>; <PE extends PartitionByExpression<...>>(partitionBy: PE): OverBuilder<...>; }'.
+                              Types of parameters 'partitionBy' and 'partitionBy' are incompatible.
+                                Type 'readonly PartitionByExpression<ContentDatabase, keyof ContentDatabase>[]' is not assignable to type 'readonly PartitionByExpression<PluginCoreTables, keyof PluginCoreTables>[]'.
+                                  Type 'PartitionByExpression<ContentDatabase, keyof ContentDatabase>' is not assignable to type 'PartitionByExpression<PluginCoreTables, keyof PluginCoreTables>'.
+                                    Type '"value"' is not assignable to type 'PartitionByExpression<PluginCoreTables, keyof PluginCoreTables>'.
+apps/website/src/features/plugins/__tests__/data-module.test.ts(661,64): error TS2345: Argument of type 'PluginKernel' is not assignable to parameter of type 'SqliteConnectionSource | ContentKernel'.
+  Type 'StorageKernel<PluginCoreTables>' is not assignable to type '{ readonly $client: Database; } | ContentKernel'.
+    Type 'StorageKernel<PluginCoreTables>' is not assignable to type 'ContentKernel'.
+      Types of property 'run' are incompatible.
+        Type '<T>(fn: (db: Kysely<PluginCoreTables>) => T | Promise<T>) => Promise<T>' is not assignable to type '<T>(fn: (db: Kysely<ContentDatabase>) => T | Promise<T>) => Promise<T>'.
+          Types of parameters 'fn' and 'fn' are incompatible.
+            Types of parameters 'db' and 'db' are incompatible.
+              Type 'Kysely<PluginCoreTables>' is not assignable to type 'Kysely<ContentDatabase>'.
+                The types of 'fn.agg(...).over' are incompatible between these types.
+                  Type '(over?: OverBuilderCallback<PluginCoreTables, keyof PluginCoreTables> | undefined) => AggregateFunctionBuilder<PluginCoreTables, keyof PluginCoreTables, any>' is not assignable to type '(over?: OverBuilderCallback<ContentDatabase, keyof ContentDatabase> | undefined) => AggregateFunctionBuilder<ContentDatabase, keyof ContentDatabase, any>'.
+                    Types of parameters 'over' and 'over' are incompatible.
+                      Types of parameters 'builder' and 'builder' are incompatible.
+                        Type 'OverBuilder<PluginCoreTables, keyof PluginCoreTables>' is not assignable to type 'OverBuilder<ContentDatabase, keyof ContentDatabase>'.
+                          Types of property 'partitionBy' are incompatible.
+                            Type '{ (partitionBy: readonly PartitionByExpression<PluginCoreTables, keyof PluginCoreTables>[]): OverBuilder<PluginCoreTables, keyof PluginCoreTables>; <PE extends PartitionByExpression<...>>(partitionBy: PE): OverBuilder<...>; }' is not assignable to type '{ (partitionBy: readonly PartitionByExpression<ContentDatabase, keyof ContentDatabase>[]): OverBuilder<ContentDatabase, keyof ContentDatabase>; <PE extends PartitionByExpression<...>>(partitionBy: PE): OverBuilder<...>; }'.
+                              Types of parameters 'partitionBy' and 'partitionBy' are incompatible.
+                                Type 'readonly PartitionByExpression<ContentDatabase, keyof ContentDatabase>[]' is not assignable to type 'readonly PartitionByExpression<PluginCoreTables, keyof PluginCoreTables>[]'.
+                                  Type 'PartitionByExpression<ContentDatabase, keyof ContentDatabase>' is not assignable to type 'PartitionByExpression<PluginCoreTables, keyof PluginCoreTables>'.
+                                    Type '"value"' is not assignable to type 'PartitionByExpression<PluginCoreTables, keyof PluginCoreTables>'.
+apps/website/src/features/plugins/__tests__/data-module.test.ts(683,64): error TS2345: Argument of type 'PluginKernel' is not assignable to parameter of type 'SqliteConnectionSource | ContentKernel'.
+  Type 'StorageKernel<PluginCoreTables>' is not assignable to type '{ readonly $client: Database; } | ContentKernel'.
+    Type 'StorageKernel<PluginCoreTables>' is not assignable to type 'ContentKernel'.
+      Types of property 'run' are incompatible.
+        Type '<T>(fn: (db: Kysely<PluginCoreTables>) => T | Promise<T>) => Promise<T>' is not assignable to type '<T>(fn: (db: Kysely<ContentDatabase>) => T | Promise<T>) => Promise<T>'.
+          Types of parameters 'fn' and 'fn' are incompatible.
+            Types of parameters 'db' and 'db' are incompatible.
+              Type 'Kysely<PluginCoreTables>' is not assignable to type 'Kysely<ContentDatabase>'.
+                The types of 'fn.agg(...).over' are incompatible between these types.
+                  Type '(over?: OverBuilderCallback<PluginCoreTables, keyof PluginCoreTables> | undefined) => AggregateFunctionBuilder<PluginCoreTables, keyof PluginCoreTables, any>' is not assignable to type '(over?: OverBuilderCallback<ContentDatabase, keyof ContentDatabase> | undefined) => AggregateFunctionBuilder<ContentDatabase, keyof ContentDatabase, any>'.
+                    Types of parameters 'over' and 'over' are incompatible.
+                      Types of parameters 'builder' and 'builder' are incompatible.
+                        Type 'OverBuilder<PluginCoreTables, keyof PluginCoreTables>' is not assignable to type 'OverBuilder<ContentDatabase, keyof ContentDatabase>'.
+                          Types of property 'partitionBy' are incompatible.
+                            Type '{ (partitionBy: readonly PartitionByExpression<PluginCoreTables, keyof PluginCoreTables>[]): OverBuilder<PluginCoreTables, keyof PluginCoreTables>; <PE extends PartitionByExpression<...>>(partitionBy: PE): OverBuilder<...>; }' is not assignable to type '{ (partitionBy: readonly PartitionByExpression<ContentDatabase, keyof ContentDatabase>[]): OverBuilder<ContentDatabase, keyof ContentDatabase>; <PE extends PartitionByExpression<...>>(partitionBy: PE): OverBuilder<...>; }'.
+                              Types of parameters 'partitionBy' and 'partitionBy' are incompatible.
+                                Type 'readonly PartitionByExpression<ContentDatabase, keyof ContentDatabase>[]' is not assignable to type 'readonly PartitionByExpression<PluginCoreTables, keyof PluginCoreTables>[]'.
+                                  Type 'PartitionByExpression<ContentDatabase, keyof ContentDatabase>' is not assignable to type 'PartitionByExpression<PluginCoreTables, keyof PluginCoreTables>'.
+                                    Type '"value"' is not assignable to type 'PartitionByExpression<PluginCoreTables, keyof PluginCoreTables>'.
+apps/website/src/features/plugins/store/__tests__/store-runtime.test.ts(25,40): error TS2740: Type 'StorageKernel<ContentDatabase>' is missing the following properties from type 'Database': memory, readonly, name, open, and 11 more.
+apps/website/src/features/plugins/store/__tests__/store-runtime.test.ts(29,40): error TS2740: Type 'StorageKernel<ContentDatabase>' is missing the following properties from type 'Database': memory, readonly, name, open, and 11 more.
+apps/website/src/features/plugins/store/__tests__/store-runtime.test.ts(41,39): error TS2740: Type 'StorageKernel<ContentDatabase>' is missing the following properties from type 'Database': memory, readonly, name, open, and 11 more.
+apps/website/src/features/plugins/store/__tests__/store-runtime.test.ts(68,39): error TS2740: Type 'StorageKernel<ContentDatabase>' is missing the following properties from type 'Database': memory, readonly, name, open, and 11 more.
+apps/website/src/features/plugins/store/__tests__/store-runtime.test.ts(89,41): error TS2740: Type 'StorageKernel<ContentDatabase>' is missing the following properties from type 'Database': memory, readonly, name, open, and 11 more.
+apps/website/src/features/trash/__tests__/marker-sql.test.ts(11,36): error TS2353: Object literal may only specify known properties, and '$client' does not exist in type 'StorageKernel<ContentDatabase>'.
+apps/website/src/features/trash/__tests__/marker-sql.test.ts(23,56): error TS2345: Argument of type 'Database' is not assignable to parameter of type 'ContentKernel'.
+  Type 'Database' is missing the following properties from type 'StorageKernel<ContentDatabase>': dialect, transport, capabilities, ready, and 6 more.
+apps/website/src/server/inbound/admin-http/routes/members/__tests__/unit/h4-magic-link.unit.test.ts(28,48): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/server/inbound/admin-http/routes/sites/__tests__/unit/h4-site-effects.unit.test.ts(22,28): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/website/src/server/inbound/admin-http/routes/system/__tests__/unit/h4-sites.unit.test.ts(42,30): error TS7031: Binding element 'name' implicitly has an 'any' type.
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(23,46): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(iterable?: Iterable<unknown> | null | undefined): Set<unknown>', gave the following error.
+    Argument of type 'unknown' is not assignable to parameter of type 'Iterable<unknown> | null | undefined'.
+  Overload 2 of 2, '(values?: readonly any[] | null | undefined): Set<any>', gave the following error.
+    Argument of type 'unknown' is not assignable to parameter of type 'readonly any[] | null | undefined'.
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(23,76): error TS18046: 'body.allowedToolIds' is of type 'unknown'.
+apps/website/src/server/inbound/admin-http/routes/system/assistant-permanent-deletes.ts(26,70): error TS2488: Type 'unknown' must have a '[Symbol.iterator]()' method that returns an iterator.
+apps/website/src/server/inbound/public-http/middleware/__tests__/site-consent-policy.unit.test.ts(77,18): error TS18047: 'host' is possibly 'null'.
+apps/website/src/server/inbound/public-http/middleware/__tests__/site-consent-policy.unit.test.ts(77,18): error TS18047: 'host.shadowRoot' is possibly 'null'.
+apps/website/src/server/inbound/public-http/middleware/__tests__/site-consent-policy.unit.test.ts(78,18): error TS18047: 'host' is possibly 'null'.
+apps/website/src/server/inbound/public-http/routes/members/__tests__/unit/h4-oidc.unit.test.ts(26,102): error TS2353: Object literal may only specify known properties, and 'nowIso' does not exist in type 'Clock | PortMethods<Clock>'.
+apps/website/src/server/inbound/public-http/routes/members/__tests__/unit/h4-oidc.unit.test.ts(123,12): error TS2352: Conversion of type '{ identities: { listByMember: () => Promise<({ providerId: string; unlinkedAt: null; } | { providerId: string; unlinkedAt: string; })[]>; }; }' to type 'MemberLoginLinkDeps' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ identities: { listByMember: () => Promise<({ providerId: string; unlinkedAt: null; } | { providerId: string; unlinkedAt: string; })[]>; }; }' is missing the following properties from type 'MemberLoginLinkDeps': transaction, lockKey, clock, ids, and 7 more.
+apps/website/src/server/inbound/public-http/routes/site/__tests__/unit/h4-pages.unit.test.ts(11,72): error TS2322: Type '(name: string) => string' is not assignable to type '{ (name: "set-cookie"): string[] | undefined; (name: string): string | undefined; }'.
+  Type 'string' is not assignable to type 'string[]'.
+apps/website/src/server/runtime/composition/__tests__/boot-data-repairs.integration.test.ts(30,5): error TS2322: Type '(required: { kernel: ContentKernel; stampWatermark: () => Promise<void>; }) => Promise<number>' is not assignable to type '({ kernel, stampWatermark }: { kernel: ContentKernel; stampWatermark: () => Promise<void>; }, { now }?: { now?: (() => string) | undefined; }) => Promise<{ converted: number; }>'.
+  Type 'Promise<number>' is not assignable to type 'Promise<{ converted: number; }>'.
+    Type 'number' is not assignable to type '{ converted: number; }'.
+apps/website/src/server/runtime/composition/__tests__/boot-data-repairs.integration.test.ts(31,5): error TS2322: Type '(required: { kernel: ContentKernel; stampWatermark: () => Promise<void>; }) => Promise<number>' is not assignable to type '(required: { kernel: ContentKernel; stampWatermark: () => Promise<void>; }, optional?: { removalFor?: ((type: string) => OwnerEntryRemoval) | undefined; log?: ((line: string) => void) | undefined; now?: (() => string) | undefined; }) => Promise<...>'.
+  Type 'Promise<number>' is not assignable to type 'Promise<{ ran: boolean; removed: RemovedOwnerEntry[]; }>'.
+    Type 'number' is not assignable to type '{ ran: boolean; removed: RemovedOwnerEntry[]; }'.
+apps/website/src/server/runtime/composition/__tests__/boot-data-repairs.integration.test.ts(40,5): error TS2322: Type '() => Promise<undefined>' is not assignable to type '({ kernel, stampWatermark }: { kernel: ContentKernel; stampWatermark: () => Promise<void>; }, { now }?: { now?: (() => string) | undefined; }) => Promise<{ converted: number; }>'.
+  Type 'Promise<undefined>' is not assignable to type 'Promise<{ converted: number; }>'.
+    Type 'undefined' is not assignable to type '{ converted: number; }'.
+apps/website/src/server/runtime/composition/__tests__/provider-settings-required.unit.test.ts(116,25): error TS2322: Type '{ auth: string; } | { auth?: undefined; }' is not assignable to type 'Readonly<Record<string, string>>'.
+  Type '{ auth?: undefined; }' is not assignable to type 'Readonly<Record<string, string>>'.
+    Property 'auth' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts(413,52): error TS2345: Argument of type 'DnsRouteDeps' is not assignable to parameter of type 'SavedHostingDeps'.
+  Type 'DnsRouteDeps' is missing the following properties from type '{ publishContentPeerRepo: Pick<PublishContentPeerRepoPort, "listByWorkspace">; publishHistoryStore: Pick<PublishHistoryStore, "list">; }': publishContentPeerRepo, publishHistoryStore
+development/evals/tool-search-eval-registry.ts(89,48): error TS2314: Generic type 'AssistantToolContributions<TDeps, TSurfaces>' requires 2 type argument(s).
+development/evals/tool-search-eval-registry.ts(91,90): error TS2314: Generic type 'ToolContributor' requires 2 type argument(s).
+development/evals/tool-search-eval-registry.ts(92,97): error TS2314: Generic type 'DerivedToolContributor' requires 2 type argument(s).
+EXIT=2
