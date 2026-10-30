@@ -1,0 +1,36 @@
+✔ agent_plugins_update: catalog and risk match the install tool; approval always asks (1.791015ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ agent_plugins_update: without a human confirmation an enabled plugin is not updated (130.351939ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ agent_plugins_update: a newer zip updates the plugin, keeps it enabled, and snapshots settings through the host owner (60.201513ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ agent_plugins_update: the installed bytes again report nothing changed (41.213149ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ agent_plugins_update: lifecycle refusals reach the model as input errors carrying the code (52.831064ms)
+✔ agent_plugins_update: malformed targets are input errors before any file is read (8.590142ms)
+✔ agent_plugins_update: a bundled source kind is refused like any non-archive source (2.954772ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ agent_plugins_update: a host without MCP effects or a settings snapshot owner fails as a wiring error, changing nothing (34.48167ms)
+✔ agent_plugins_update: permission is checked before the target (0.521624ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ agent_plugins_update: a version-less package updates through the host's identity admission and reports no version (72.598353ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2395.121249

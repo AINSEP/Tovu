@@ -1,0 +1,49 @@
+✔ approval: each G12 tool keeps its declared effect (destructive tools are the ones that delete, overwrite, reorder or re-point) (13.148702ms)
+✔ schema: every G12 tool takes spreadsheetId only in Google's id alphabet and rejects unknown input keys (2.44847ms)
+✔ disclosure: every write and destructive tool names the spreadsheet and what changes, before anything is sent (1.091909ms)
+✔ basic filter cannot sort: the schema refuses sortSpecs, and a raw setBasicFilter is disclosed as destructive (2.86073ms)
+✔ basic filter set sends filterSpecs only, never sortSpecs (25.557998ms)
+✔ batch disclosure: the card lists every request kind with its count and effect (0.480341ms)
+✔ inventory: every listed kind has an effect, a replay class and a body check; the data-source kinds are not listed (2.788337ms)
+✔ fail closed: an unknown, preview, data-source or prototype-named kind is unsupported-request and the card cannot be shown (1.008915ms)
+✔ fail closed: a request naming two kinds, or a * field mask, is refused before Google (0.478595ms)
+✔ bounds: more than 100 requests or more than 1 MiB per batch is limit-exceeded before Google (4.286921ms)
+✔ bounds: more than 48 different request kinds is limit-exceeded, so the card can always list every kind (0.6942ms)
+✔ uncertain: a batch holding a non-replayable kind that gets a 5xx is uncertain-outcome and is sent exactly once (5.448975ms)
+✖ paths: a spreadsheet id that is not a Google id never reaches a URL, and the real input schema refuses it too (26.676022ms)
+✔ paths: a developer metadata id must be a non-negative integer before it becomes a path segment (5.675487ms)
+✔ query: an export range travels as an encoded ranges= parameter with the tab title A1-quoted, never in the path (22.260724ms)
+✔ errors: a Google failure that echoes the token and cell contents becomes a fixed safe message without either (3.135631ms)
+✔ export: a host with no artifact store is refused with export-unavailable before anything is read from Google (0.333962ms)
+✔ export bounds: a tab over 20,000 grid rows is refused after the metadata read, before any values read (2.508877ms)
+✔ export bounds: a range over 100,000 cells is refused before any values read (2.512522ms)
+✔ export bounds: a CSV over 4 MiB is an error and no partial file is written (93.576798ms)
+✔ output bound: an answer over 64 KiB is limit-exceeded, never cut short (5.241487ms)
+✔ format: the cell-format mask is always under userEnteredFormat, and the schema refuses a value mask (3.97986ms)
+✔ open_existing: no id means waiting with no request; an ungranted id is file-not-granted; a non-spreadsheet is not-a-spreadsheet (the Picker code) (4.180692ms)
+✔ open_existing: a picked spreadsheet returns metadata only, with a link built from the verified id (3.339104ms)
+✔ CSV injection: text starting with =, +, -, @, tab or CR gets a leading apostrophe, so a spreadsheet app shows it as text (0.363423ms)
+✔ CSV injection: numbers, booleans and ordinary text are written unchanged (only formula-like text is prefixed) (0.137045ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 25
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 906.923215
+
+✖ failing tests:
+
+test at content/agent-plugins/google-workspace/__tests__/sheets-admin.security.test.mjs:139:1
+✖ paths: a spreadsheet id that is not a Google id never reaches a URL, and the real input schema refuses it too (26.676022ms)
+  TypeError [Error]: withExtensionApprovalPolicy is not a function
+      at adapt (/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/register.ts:160:24)
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/register.ts:172:14)
+      at Array.map (<anonymous>)
+      at refresh (/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/register.ts:168:84)
+      at registerAgentPluginExecutableTools (/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/register.ts:175:3)
+      at async bootPluginTools (/home/user/Tovu/content/agent-plugins/google-workspace/__tests__/sheets-admin-harness.mjs:79:22)
+      at async TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugins/google-workspace/__tests__/sheets-admin.security.test.mjs:143:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

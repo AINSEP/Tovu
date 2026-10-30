@@ -1,0 +1,63 @@
+✔ executable plugin tools land on the process registry and are gated by the live activation record per call (34.729942ms)
+✖ a write tool asks through the process's confirmation transport, with the plugin's disclosed rows (11.701989ms)
+✔ without agentPluginTools the executable family is skipped (3.182744ms)
+✔ without surfaces the executable family is skipped (1.822269ms)
+✔ without executablePluginToolRegistry the executable family is skipped (1.81859ms)
+✔ loader refusals are logged with the registrar's prefix and the valid tools still register (2.31771ms)
+✔ a loader failure is logged and never thrown; the pass continues without the family (1.756273ms)
+✔ every family that fails is logged once with the registrar's prefix, a non-Error reason verbatim, and the pass never throws (0.957932ms)
+✔ AC-08: the generic token form's tool id is redeemable; every deleted Supabase tool id is not (0.177473ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 8
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1892.408897
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.executable-tools.test.ts:1:3913
+✖ a write tool asks through the process's confirmation transport, with the plugin's disclosed rows (11.701989ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      [
+  +     'Account',
+  +     'alice@acme.test'
+  +   ],
+  +   [
+  +     'Affects',
+  +     'table Leads'
+  +   ],
+  +   [
+        'Connection ref',
+        'conn-1'
+      ],
+      [
+        'Table',
+  ...
+      ],
+  -   [
+  -     'Account',
+  -     'alice@acme.test'
+  -   ],
+  -   [
+  -     'Affects',
+  -     'table Leads'
+  -   ]
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/installed-extension-tools.executable-tools.test.ts:81:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 'Account', 'alice@acme.test' ], [ 'Affects', 'table Leads' ], [ 'Connection ref', 'conn-1' ], [ 'Table', 'Leads' ], [ 'Values', 'a' ] ],
+    expected: [ [ 'Connection ref', 'conn-1' ], [ 'Table', 'Leads' ], [ 'Values', 'a' ], [ 'Account', 'alice@acme.test' ], [ 'Affects', 'table Leads' ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

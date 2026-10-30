@@ -1,0 +1,58 @@
+Plugin 'bound-plugin' has no publisher-qualified id; using 'unknown/bound-plugin'.
+Plugin 'bound-plugin' has no publisher-qualified id; using 'unknown/bound-plugin'.
+Plugin 'bound-plugin' has no publisher-qualified id; using 'unknown/bound-plugin'.
+Plugin 'bound-plugin' has no publisher-qualified id; using 'unknown/bound-plugin'.
+Plugin 'bound-plugin' has no publisher-qualified id; using 'unknown/bound-plugin'.
+Plugin 'bound-plugin' has no publisher-qualified id; using 'unknown/bound-plugin'.
+Plugin 'bound-plugin' has no publisher-qualified id; using 'unknown/bound-plugin'.
+Plugin 'bound-plugin' has no publisher-qualified id; using 'unknown/bound-plugin'.
+✔ plugin discovery, MCP, activation and memory stay on A after env selects B (105.876498ms)
+[skills] installed { workspaceId: 'workspace-local', toolId: 'skill_bound_skill' }
+[skills] enabled changed {
+  workspaceId: 'workspace-local',
+  toolId: 'skill_bound_skill',
+  enabled: false
+}
+[skills] removed { workspaceId: 'workspace-local', toolId: 'skill_bound_skill' }
+✔ skill install, list, bundled paths, toggle and removal use the booted A layout (24.20896ms)
+✔ filesystem custom root stays scoped to A and reflects live folder changes (3.939784ms)
+Plugin 'bound-plugin' has no publisher-qualified id; using 'unknown/bound-plugin'.
+[skills] installed { workspaceId: 'workspace-local', toolId: 'skill_bound_skill' }
+Plugin 'bound-plugin' has no publisher-qualified id; using 'unknown/bound-plugin'.
+Plugin 'bound-plugin' has no publisher-qualified id; using 'unknown/bound-plugin'.
+✔ admin memory and file handlers consume A's binding when env points at B (51.675256ms)
+✖ agent-plugins: explicit boot binding wins over ambient site while overrides stay validated (3.000029ms)
+✔ skills: explicit boot binding wins over ambient site while overrides stay validated (0.340161ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1853.079904
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/booted-request-layouts.integration.test.ts:1:8369
+✖ agent-plugins: explicit boot binding wins over ambient site while overrides stay validated (3.000029ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '/served/site-a/agent-plugins'
+  - '/explicit/layout'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/booted-request-layouts.integration.test.ts:143:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '/served/site-a/agent-plugins',
+    expected: '/explicit/layout',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

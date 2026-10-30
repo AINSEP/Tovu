@@ -1,0 +1,33 @@
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ an html-mode menu renders its stored markup inside the theme's marker element (216.613182ms)
+✔ stored html is kept but not rendered while the menu is in items mode (158.988273ms)
+✔ an html-mode menu with empty html keeps the theme's authored fallback (151.412383ms)
+✖ a bare Copy-HTML-embed marker is replaced by the menu's html alone (195.431392ms)
+✔ html is placed as stored: a closing tag smuggled past the save path still renders inside the wrapper (1.284615ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5852.749243
+
+✖ failing tests:
+
+test at apps/website/src/features/theme/__tests__/menu-authored-html.test.ts:1:2389
+✖ a bare Copy-HTML-embed marker is replaced by the menu's html alone (195.431392ms)
+  ReferenceError [Error]: withElementKeptIfAttributed is not defined
+      at injectAuthoredMenuHtml (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:364:24)
+      at resolve (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:339:39)
+      at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+      at injectMenuEmbeds (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:335:10)
+      at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:827:10)
+      at render (/home/user/Tovu/apps/website/src/features/theme/__tests__/menu-authored-html.test.ts:37:10)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/menu-authored-html.test.ts:59:16)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

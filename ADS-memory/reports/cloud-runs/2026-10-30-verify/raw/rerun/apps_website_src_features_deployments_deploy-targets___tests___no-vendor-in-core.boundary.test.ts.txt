@@ -1,0 +1,50 @@
+✔ full website/admin roots include contracts; desktop scope remains the existing two files (51.491861ms)
+✔ traversal preserves exclusions, supports TS variants and scans overlapping roots once (47.654486ms)
+✔ comments never count; executable strings, template substitutions and TSX do (5.048876ms)
+✔ the raw pre-filter cannot hide comment-separated provider or environment syntax (2.465256ms)
+✔ manifest canonical IDs and literal aliases do not depend on plugin activation (3.856553ms)
+✔ deploy hosts, source-control IDs and dormant deployment symbols retain detection everywhere (0.820576ms)
+✔ vendor words respect identifier boundaries and ordinary replicate prose without path exceptions (0.689374ms)
+✔ Render React/rendering terminology and the ordinary resend verb stay allowed (0.553189ms)
+✔ unified mail rules preserve branded names, domains, old adapter, selections and secrets (1.268515ms)
+✔ exception validation rejects invalid reasons, vendors, paths, counts and duplicate keys (0.956046ms)
+✔ pattern totals ratchet across files; increased, reduced, new and overlapping allowances fail (4.330686ms)
+✔ malformed policy data and supplemental vendor declarations fail closed (2.218999ms)
+✔ outside-scan release infrastructure is documented and never treated as a source allowance (4.331283ms)
+✔ tool search metadata has no hosting product names; plugin manifests own vendor search words (1.63366ms)
+✖ real core tree has only reviewed pattern exceptions, each with its exact current total (5388.420826ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 14
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6483.109345
+
+✖ failing tests:
+
+test at apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:1:11351
+✖ real core tree has only reviewed pattern exceptions, each with its exact current total (5388.420826ms)
+  AssertionError [ERR_ASSERTION]: Vendor knowledge belongs in its plugin. Uncovered file/vendor/count pairs:
+  + actual - expected
+  
+  + [
+  +   'apps/website/src/features/site-inspection/tool-registrations.ts: resend 1'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts:194:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'apps/website/src/features/site-inspection/tool-registrations.ts: resend 1' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

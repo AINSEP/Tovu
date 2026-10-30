@@ -1,0 +1,52 @@
+✔ Auto preflight suggests metadata only; the first guarded write still loads real guidance once (96.759786ms)
+✔ pending Ask use: real recovery replaces the attempt without another card (45.108432ms)
+✔ pending Ask use: process loss ends the turn and honours a late answer (20.287445ms)
+✔ pending Ask skip: real recovery replaces the attempt without another card (46.411469ms)
+✔ pending Ask skip: process loss ends the turn and honours a late answer (17.628905ms)
+✔ controller identity binds principal and conversation; disposal removes every attempt alias (35.850791ms)
+✖ Don't ask again writes Auto only for the answering principal through the real setting service (9.220644ms)
+✔ CLI onStarted places the relevance note, without guidance bodies, into the executor prompt (138.399578ms)
+✔ CLI preflight preserves the answer receipt channel in the durable run stream (37.011393ms)
+✔ load_agent_plugin carries maturity untested (30.947441ms)
+✔ load_agent_plugin carries maturity soon (15.869893ms)
+✔ load_agent_plugin carries maturity (absent) (12.834526ms)
+✔ automatic tool guidance warns before actions for an untested plugin (11.477857ms)
+✔ load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor (23.537629ms)
+✔ inactive Higgsfield returns the exact activation and retry calls without activating it (94.663125ms)
+✔ the first theme write loads installed tovu-theme after a note-only preflight (22.459418ms)
+✔ the loader cannot use another principal’s run, an excluded plugin, or a revoked activation (39.962683ms)
+✔ 50 relevant ids are discoverable by paging the existing search tool and all load through the executor (13350.747411ms)
+✔ explicit loader and guarded write refuse ask through the real executor (8.631906ms)
+✔ explicit loader and guarded write refuse off through the real executor (3.300536ms)
+✔ explicit loader and guarded write refuse untrusted through the real executor (8.989649ms)
+✔ explicit loader and guarded write refuse unavailable through the real executor (7.21606ms)
+✔ a turn whose signal is already aborted registers no controller and returns no note (2.907827ms)
+✔ a tool without guidance capabilities loads no plugin guidance (5.056389ms)
+✔ a failing guidance preparation is logged without detail and yields no guidance (7.256948ms)
+✔ load_agent_plugin refuses unknown input keys (4.113519ms)
+✔ a disposed Ask turn publishes nothing after its pending question is aborted (6.199128ms)
+✔ load_agent_plugin reads a supporting file after load without any per-plugin registration (12.818257ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 27
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17075.584211
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts:6:10610
+✖ Don't ask again writes Auto only for the answering principal through the real setting service (9.220644ms)
+  ReferenceError [Error]: getEffective is not defined
+      at read (/home/user/Tovu/apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts:214:21)
+      at Object.emitSurface (/home/user/Tovu/apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts:224:25)
+      at emitSurface (/home/user/Tovu/apps/website/src/features/agent-plugins/automatic-agent-plugins.ts:121:35)
+      at emit (/home/user/Tovu/apps/website/src/assistant/ask-choice-tool.ts:433:125)
+      at emit (/home/user/Tovu/apps/website/src/assistant/ask-choice-tool.ts:330:111)
+      at Object.send (/home/user/Jini/packages/daemon/src/surface-exchanges.ts:180:17)
+      at sendThenReceive (/home/user/Jini/packages/daemon/src/surface-exchanges.ts:247:24)
+      at askOnce (/home/user/Jini/packages/daemon/src/surface-exchanges.ts:233:22)
+      at Object.send (/home/user/Tovu/apps/website/src/assistant/ask-choice-tool.ts:338:56)
+      at waitForAnswer (/home/user/Jini/packages/mcp/src/tools/ask-choice/index.ts:60:20)

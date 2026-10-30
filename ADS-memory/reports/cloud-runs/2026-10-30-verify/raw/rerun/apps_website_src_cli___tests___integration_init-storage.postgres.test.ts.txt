@@ -1,0 +1,17 @@
+created site 'env-site' at /tmp/r1f2-init-pg-ySqFIS/env-site
+next: tovu serve /tmp/r1f2-init-pg-ySqFIS/env-site
+✔ --storage-env: the site names the variable, keeps no secret, and its database is at head with the template (1347.463108ms)
+created site 'sealed-site' at /tmp/r1f2-init-pg-ySqFIS/sealed-site
+next: tovu serve /tmp/r1f2-init-pg-ySqFIS/sealed-site
+✔ sealed: the connection string is sealed in the site folder (0600, no plaintext) and the site reopens from its meta (1089.451396ms)
+created site 'first-site' at /tmp/r1f2-init-pg-ySqFIS/first-site
+next: tovu serve /tmp/r1f2-init-pg-ySqFIS/first-site
+✔ a database that already holds a Tovu site is refused, before any folder, secret or key is made (1038.612377ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5945.058269

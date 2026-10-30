@@ -1,0 +1,50 @@
+✔ installs with no confirmation card, through the same installer with the previewed digest, and leaves the plugin off (13.797109ms)
+✔ installs with no dialog channel at all — nothing to approve, so nothing fails closed (2.195046ms)
+✔ desktop/dev installs need no environment opt-in, and an injected hosted policy still refuses first (2.750806ms)
+✔ hosted TOVU_PLUGIN_LOCAL_INSTALL opt-in gates it exactly like the admin route; nothing is inspected (1.24188ms)
+✔ a missing permission refuses before any package is inspected (1.865939ms)
+✔ the permission check asks for admin.plugins.enable on a plugin entity in this workspace for the caller (1.56563ms)
+✔ a missing permission refuses before the input is parsed (1.327023ms)
+✔ an enabled site with no installer bound reports installs as off (1.405647ms)
+✖ with no env injected the gate reads process.env at call time (1.544569ms)
+✔ an injected policy that allows installs wins over a hosted environment (2.854184ms)
+✔ a relative path is refused as caller input (1.303963ms)
+✔ an invalid package is refused at preview, before anything is written (1.225191ms)
+✔ a preview failure that is not an installer refusal propagates unchanged (2.086781ms)
+✔ an install failure that is not an installer refusal propagates unchanged (1.262096ms)
+✔ an installer refusal other than a changed package has no retry advice (1.231043ms)
+✔ an upgrade names the version it replaced (1.454326ms)
+✔ an installer refusal after the preview (package changed in between, busy lock) is a relayable result (1.137863ms)
+✔ a zip source passes the file's bytes as the archive, the admin ZIP route's input shape (43.788979ms)
+✔ description matches the schema: folder and zip sources, replace flag, required source (0.429268ms)
+✔ attachmentRef says to get it from chat_list_pending_attachments, never from a path (0.13901ms)
+✔ attachment ZIP uses the owner-scoped read port and preview digest (1.400525ms)
+✔ attachment input refuses neither path nor attachmentRef before preview (1.287818ms)
+✔ attachment input refuses both path and attachmentRef before preview (1.943229ms)
+✔ attachment input refuses a folder attachmentRef before preview (1.160507ms)
+✔ attachment input refuses a malformed attachmentRef before preview (1.107388ms)
+✔ attachment input refuses an inaccessible attachment before preview (1.402429ms)
+✔ attachment reading follows permission and site opt-in gates (1.913231ms)
+✔ empty content types do not produce an empty warning clause (1.093246ms)
+✔ the contributor registers plugins_install in its own domain with its risk map (0.115086ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 28
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1711.866041
+
+✖ failing tests:
+
+test at apps/website/src/features/plugin-runtime/__tests__/unit/install-tool.unit.test.ts:1:6249
+✖ with no env injected the gate reads process.env at call time (1.544569ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'hosted')
+      at createSitePluginPolicy (/home/user/Tovu/apps/website/src/features/plugin-runtime/install.ts:14:57)
+      at sitePluginLocalInstallEnabled (/home/user/Tovu/apps/website/src/features/plugin-runtime/install.ts:22:10)
+      at localInstallEnabled (/home/user/Tovu/apps/website/src/features/plugin-runtime/install-tool.ts:91:66)
+      at Object.plugins_install (/home/user/Tovu/apps/website/src/features/plugin-runtime/install-tool.ts:141:14)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/plugin-runtime/__tests__/unit/install-tool.unit.test.ts:131:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

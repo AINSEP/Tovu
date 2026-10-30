@@ -1,0 +1,2 @@
+✔ refuses a target other than postgres, and a --storage-env that is not set (1.441686ms)
+✔ the program routes `storage move` to the command (5.505551ms)

@@ -1,0 +1,45 @@
+[theme] static page 'widget-body-test/content-template' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ a page body with a legacy widget UUID marker renders the existing widget server-side (245.917126ms)
+✔ page: legacy widgets render through the public fallback render path (154.797144ms)
+✔ page: legacy widgets render through a static theme's content template (156.131111ms)
+✔ page: legacy widgets render through the declarative content path (165.632267ms)
+✔ page: legacy widgets render through the templated content path (492.140728ms)
+[theme] static page 'widget-body-test/content-template' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ page: legacy widgets render through the handlebars content path (322.78232ms)
+✔ post: legacy widgets render through the public fallback render path (152.305389ms)
+✔ post: legacy widgets render through a static theme's content template (136.575766ms)
+✔ post: legacy widgets render through the declarative content path (133.87019ms)
+✔ post: legacy widgets render through the templated content path (334.596523ms)
+[theme] static page 'widget-body-test/content-template' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'widget-body-test/content-template' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'widget-body-test/content-template' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'widget-body-test/content-template' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ post: legacy widgets render through the handlebars content path (370.134298ms)
+✔ bare HTML-mode pages expand widgets in a fragment (177.175527ms)
+✔ bare HTML-mode pages expand widgets in a complete document (162.111024ms)
+✖ a legacy menu widget and a current menu marker render together through the static document pipeline (162.789205ms)
+✔ HTML-mode static documents and partials use the same widget expansion (145.905042ms)
+✔ a missing widget renders nothing: <div data-embed-type="widget" data-embed-id="9004b382-ba7d-4191-82fb-84d0c533ad14"></div> (146.434769ms)
+✔ a missing widget renders nothing: <div data-embed-config='{"type":"widget","id":"9004b382-ba7d-4191-82fb-84d0c533ad14"}'></div> (149.263223ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 16
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8291.104097
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/public-http/routes/site/__tests__/widget-body-embeds.test.ts:1:4507
+✖ a legacy menu widget and a current menu marker render together through the static document pipeline (162.789205ms)
+  ReferenceError [Error]: withElementKeptIfAttributed is not defined
+      at resolve (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:343:14)
+      at substituteMarkers (/home/user/Jini/packages/cms/src/widgets/markers/marker.ts:799:25)
+      at injectMenuEmbeds (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:335:10)
+      at renderStaticPage (/home/user/Tovu/apps/website/src/features/theme/static-render.ts:827:10)
+      at finishStaticTierDocument (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/pages.ts:864:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/__tests__/widget-body-embeds.test.ts:109:16)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

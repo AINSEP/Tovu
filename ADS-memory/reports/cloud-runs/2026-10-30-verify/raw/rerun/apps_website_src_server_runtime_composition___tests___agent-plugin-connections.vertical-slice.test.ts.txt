@@ -1,0 +1,64 @@
+✔ vertical slice: connect -> public callback -> executable tool call -> admin-surface action, all through the composition (154.841959ms)
+✔ vertical slice: a surface reads status, starts a pick sign-in, takes its callback field once, saves state, and a tool reads it (54.468594ms)
+✔ security: the shared connection port refuses another workspace's target and reads no account for it (15.940219ms)
+✔ security: a token a plugin kept in module scope is withheld in a LATER tool call, surface call and state write (one memory per generation) (29.918948ms)
+✔ security: one token memory across seams: a token a TOOL obtained is withheld from a surface answer (25.029777ms)
+✔ security: one token memory across seams: a token a SURFACE handler obtained is withheld from a tool's output (22.549037ms)
+✔ security: surface handlers get the host kind from the runtime the API connections use, never from the caller's context (5.442478ms)
+✔ security: desktop admits only its plaintext loopback redirect, and completes the sign-in itself (18.141598ms)
+✖ vendor neutrality end to end: a second provider plugin connects, stores sealed tokens, runs a confirmed write tool, a surface action and a push form delivery (30.367898ms)
+✔ security: the composition gives the assistant's tool registrar and the admin screen's connections ONE frozen-account map, so an admin action the assistant runs is pinned (34.752227ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2619.388652
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:1:13640
+✖ vendor neutrality end to end: a second provider plugin connects, stores sealed tokens, runs a confirmed write tool, a surface action and a push form delivery (30.367898ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      [
+  +     'Account',
+  +     'Ada'
+  +   ],
+  +   [
+  +     'Affects',
+  +     'table Leads'
+  +   ],
+  +   [
+        'Connection ref',
+        'api-connection:v1:ws-1:acme-office:account'
+      ],
+      [
+        'Table',
+  ...
+      ],
+  -   [
+  -     'Account',
+  -     'Ada'
+  -   ],
+  -   [
+  -     'Affects',
+  -     'table Leads'
+  -   ]
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/agent-plugin-connections.vertical-slice.test.ts:230:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 'Account', 'Ada' ], [ 'Affects', 'table Leads' ], [ 'Connection ref', 'api-connection:v1:ws-1:acme-office:account' ], [ 'Table', 'Leads' ], [ 'Values', 'Ada' ] ],
+    expected: [ [ 'Connection ref', 'api-connection:v1:ws-1:acme-office:account' ], [ 'Table', 'Leads' ], [ 'Values', 'Ada' ], [ 'Account', 'Ada' ], [ 'Affects', 'table Leads' ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

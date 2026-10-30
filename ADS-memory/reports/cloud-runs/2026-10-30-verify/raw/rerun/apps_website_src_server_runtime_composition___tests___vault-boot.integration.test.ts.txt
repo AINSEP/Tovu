@@ -1,0 +1,47 @@
+✔ sqlite: legacy rows re-seal, compare, and reopen through Jini's ordinary service; second boot is idempotent (455.476365ms)
+✔ sqlite: a legacy custom login sealed only in the connection survives boot and token rotation; a saved column wins (363.27647ms)
+✔ sqlite: a moved legacy row whose label is already taken is dropped, never kept as a "(legacy copy)" (375.020334ms)
+✔ sqlite: an intervening revision prevents dropping a moved duplicate (338.442251ms)
+✔ sqlite: legacy key recovery drops a moved duplicate without key or crypto calls (380.148636ms)
+✔ sqlite: a row deleted after the identities query aborts boot with a conflict (373.353158ms)
+✔ sqlite: an unexpected row-level storage error propagates and rolls back boot (289.839476ms)
+✔ sqlite: moved rows with a free label keep it and respect the target default (657.160073ms)
+✔ sqlite: missing key flags each sealed legacy row, preserves bytes, retries safely, and never reports green (422.41309ms)
+✔ sqlite: unknown deploy catalog blocks only its legacy row and retains its identity/default mapping (380.002418ms)
+✔ sqlite: wrong key or failed verification leaves the old envelope recoverable (422.159746ms)
+✔ sqlite: the shared operation lock denies boot before DB work and the Jini workspace lock fences writers (304.104219ms)
+✔ sqlite: revision CAS refuses an intervening replacement and retains the writer's original envelope (442.572489ms)
+✔ sqlite: a malformed source identity is flagged instead of guessing a legacy AAD (422.448931ms)
+✔ sqlite: metadata-only rows normalize without any key or crypto calls (298.363722ms)
+✔ sqlite: missing keys after normalization still flag current envelopes instead of a false green boot (396.584136ms)
+✔ sqlite: a current envelope containing a JSON array is flagged unopenable and retained (386.564935ms)
+✔ sqlite: a legacy JSON array is flagged invalid-meta and keeps its original envelope (303.162363ms)
+✔ pglite: legacy rows re-seal, compare, and reopen through Jini's ordinary service; second boot is idempotent (3260.367468ms)
+✔ pglite: a legacy custom login sealed only in the connection survives boot and token rotation; a saved column wins (2459.03948ms)
+✔ pglite: a moved legacy row whose label is already taken is dropped, never kept as a "(legacy copy)" (2570.804914ms)
+✔ pglite: an intervening revision prevents dropping a moved duplicate (2447.493554ms)
+✔ pglite: legacy key recovery drops a moved duplicate without key or crypto calls (2336.465879ms)
+✔ pglite: a row deleted after the identities query aborts boot with a conflict (2386.757596ms)
+✔ pglite: an unexpected row-level storage error propagates and rolls back boot (2345.211711ms)
+✔ pglite: moved rows with a free label keep it and respect the target default (4891.904196ms)
+✔ pglite: missing key flags each sealed legacy row, preserves bytes, retries safely, and never reports green (2593.947019ms)
+✔ pglite: unknown deploy catalog blocks only its legacy row and retains its identity/default mapping (2502.46992ms)
+✔ pglite: wrong key or failed verification leaves the old envelope recoverable (2392.456057ms)
+✔ pglite: the shared operation lock denies boot before DB work and the Jini workspace lock fences writers (2449.98097ms)
+✔ pglite: revision CAS refuses an intervening replacement and retains the writer's original envelope (2372.297527ms)
+✔ pglite: a malformed source identity is flagged instead of guessing a legacy AAD (2458.22265ms)
+✔ pglite: metadata-only rows normalize without any key or crypto calls (2315.132386ms)
+✔ pglite: missing keys after normalization still flag current envelopes instead of a false green boot (2473.686858ms)
+✔ pglite: a current envelope containing a JSON array is flagged unopenable and retained (2408.920329ms)
+✔ pglite: a legacy JSON array is flagged invalid-meta and keeps its original envelope (2281.925571ms)
+✔ Tovu parsers call injected policy on reads/complete patches, retain provenance, and reject unsafe metadata (1.294976ms)
+✔ legacy codec checks versions, personal/MCP identity and exact peer version format (0.332471ms)
+✔ host boot wiring emits flagged coverage before returning when the site key is missing (391.77052ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 55798.738477

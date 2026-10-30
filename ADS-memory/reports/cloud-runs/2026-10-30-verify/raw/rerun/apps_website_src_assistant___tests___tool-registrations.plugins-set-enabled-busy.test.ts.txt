@@ -1,0 +1,58 @@
+Plugin 'higgsfield-media-busy' has no publisher-qualified id; using 'unknown/higgsfield-media-busy'.
+✖ plugins_set_enabled: a busy lock on ENABLE returns changed:false/reason:activations-busy WITHOUT raising the confirmation dialog (33.13532ms)
+Plugin 'higgsfield-media-busy' has no publisher-qualified id; using 'unknown/higgsfield-media-busy'.
+✖ plugins_set_enabled: a busy lock on DISABLE returns the same changed:false/reason:activations-busy result (32.736014ms)
+Plugin 'higgsfield-media-busy' has no publisher-qualified id; using 'unknown/higgsfield-media-busy'.
+✖ plugins_set_enabled: a permission failure on ENABLE is not reported as activations-busy (21.258286ms)
+Plugin 'higgsfield-media-busy' has no publisher-qualified id; using 'unknown/higgsfield-media-busy'.
+✖ plugins_set_enabled: a permission failure on DISABLE is not reported as activations-busy (16.647641ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2709.467238
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:7:2843
+✖ plugins_set_enabled: a busy lock on ENABLE returns changed:false/reason:activations-busy WITHOUT raising the confirmation dialog (33.13532ms)
+  TypeError [Error]: InMemoryExternalMcpServerRepo is not a constructor
+      at fakeRouteDeps (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:117:33)
+      at <anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:182:22)
+      at withInstalledAgentPlugin (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:107:18)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:180:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:7:3922
+✖ plugins_set_enabled: a busy lock on DISABLE returns the same changed:false/reason:activations-busy result (32.736014ms)
+  TypeError [Error]: InMemoryExternalMcpServerRepo is not a constructor
+      at fakeRouteDeps (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:117:33)
+      at <anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:208:22)
+      at async withInstalledAgentPlugin (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:107:12)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:204:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:7:5009
+✖ plugins_set_enabled: a permission failure on ENABLE is not reported as activations-busy (21.258286ms)
+  TypeError [Error]: InMemoryExternalMcpServerRepo is not a constructor
+      at fakeRouteDeps (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:117:33)
+      at <anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:235:24)
+      at withInstalledAgentPlugin (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:107:18)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:229:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:7:5009
+✖ plugins_set_enabled: a permission failure on DISABLE is not reported as activations-busy (16.647641ms)
+  TypeError [Error]: InMemoryExternalMcpServerRepo is not a constructor
+      at fakeRouteDeps (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:117:33)
+      at <anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:235:24)
+      at withInstalledAgentPlugin (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:107:18)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts:229:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

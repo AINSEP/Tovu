@@ -1,0 +1,90 @@
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ approved dev.tovu.memory namespace retains package guidance while each site's learned memory starts empty (138.296082ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'second' has no publisher-qualified id; using 'unknown/second'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'second' has no publisher-qualified id; using 'unknown/second'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ Layout B isolates two packages and keeps mutable state outside the indexed/frozen package on update (86.514016ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ uninstall keeps memory/data by default; reinstall resumes it; explicit preview-bound deletion removes the plugin folder (159.059451ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ notes autoload in pinned skill guidance; learned knowledge does not; package notes-seed is ignored (43.594492ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'second' has no publisher-qualified id; using 'unknown/second'.
+Plugin 'staging' has no publisher-qualified id; using 'unknown/staging'.
+✔ learned capability refuses traversal, sibling plugin aliases, notes writes, invalid UTF-8 and size overflows (63.237461ms)
+✖ memory tools cannot select a different plugin/kind and obey the per-call revocation gate (2.923643ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+[agent-plugins:migration-moved] /tmp/plugin-layout-b-hHXa6N/ws/workspace-local/packages/sha256/56c599e7f172180854649e9e462e3b6cdc9416e1219bbd2e45a308e05e40bdae -> /tmp/plugin-layout-b-hHXa6N/ws/workspace-local/example/package/sha256/56c599e7f172180854649e9e462e3b6cdc9416e1219bbd2e45a308e05e40bdae
+[agent-plugins:migration-moved] /tmp/plugin-layout-b-hHXa6N/ws/workspace-local/memory/example -> /tmp/plugin-layout-b-hHXa6N/ws/workspace-local/example/memory
+[agent-plugins:migration-moved] /tmp/plugin-layout-b-hHXa6N/ws/workspace-local/data/example -> /tmp/plugin-layout-b-hHXa6N/ws/workspace-local/example/data
+[agent-plugins:migration-complete] /tmp/plugin-layout-b-hHXa6N/ws/workspace-local
+✔ migration moves legacy packages, Layout A memory and PLUGIN_DATA once, preserving frozen modes and activations (64.00647ms)
+Plugin 'first' has no publisher-qualified id; using 'unknown/first'.
+Plugin 'second' has no publisher-qualified id; using 'unknown/second'.
+✔ migration resumes after interruption, isolates malformed manifests, and serializes concurrent boots (32.535903ms)
+[agent-plugins:migration-quarantined] /tmp/plugin-layout-b-P5rkiP/ws/workspace-local/packages/sha256/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff -> /tmp/plugin-layout-b-P5rkiP/ws/workspace-local/staging/legacy-quarantine/2026-10-30T05-57-39.913Z-f23370b6-e1ed-4a10-821b-47720ce45709/packages/sha256/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff: SyntaxError: Unexpected token 'b', "bad json" is not valid JSON
+[agent-plugins:migration-complete] /tmp/plugin-layout-b-P5rkiP/ws/workspace-local
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ malformed legacy entries are quarantined once and bundled seeding proceeds on this boot and the next (109.810491ms)
+[agent-plugins:migration-moved] /tmp/plugin-layout-b-UoJhsc/ws/workspace-local/packages/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd -> /tmp/plugin-layout-b-UoJhsc/ws/workspace-local/example/package/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+[agent-plugins:migration-complete] /tmp/plugin-layout-b-UoJhsc/ws/workspace-local
+[agent-plugins:migration-moved] /tmp/plugin-layout-b-UoJhsc/ws/ws-second/packages/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd -> /tmp/plugin-layout-b-UoJhsc/ws/ws-second/example/package/sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+[agent-plugins:migration-complete] /tmp/plugin-layout-b-UoJhsc/ws/ws-second
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ site boot migrates every existing workspace before seeding the active one (43.445088ms)
+Plugin 'example' has no publisher-qualified id; using 'unknown/example'.
+✔ a crash after rename but before permission restoration never leaves the migrated package writable (27.056933ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 10
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2476.474497
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/integration/layout-b-memory.integration.test.ts:2:8140
+✖ memory tools cannot select a different plugin/kind and obey the per-call revocation gate (2.923643ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at Object.get (/home/user/Tovu/apps/website/src/__tests__/fixtures/site-layout-context.ts:59:149)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/integration/layout-b-memory.integration.test.ts:169:61)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)

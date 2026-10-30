@@ -1,0 +1,36 @@
+✔ every wired widgets tool has an input fixture here — wiring one without adding it fails rather than going untested (12.050544ms)
+✔ every wired widgets tool declares exactly the permission EXPECTED_PERMISSIONS pins — a drift here means the catalog and this test disagree (0.360413ms)
+✔ widgets_list_instances: calls authorize() with its declared permission and the run's principal (27.685409ms)
+✔ widgets_list_instances: a denied principal is rejected and NOTHING is written (13.106698ms)
+✔ widgets_get_instance: calls authorize() with its declared permission and the run's principal (8.061363ms)
+✔ widgets_get_instance: a denied principal is rejected and NOTHING is written (9.269383ms)
+✔ widgets_list_regions: calls authorize() with its declared permission and the run's principal (8.034351ms)
+✔ widgets_list_regions: a denied principal is rejected and NOTHING is written (18.797811ms)
+✔ widgets_get_region: calls authorize() with its declared permission and the run's principal (7.106762ms)
+✔ widgets_get_region: a denied principal is rejected and NOTHING is written (7.8922ms)
+✔ widgets_create_instance: calls authorize() with its declared permission and the run's principal (7.699608ms)
+✔ widgets_create_instance: a denied principal is rejected and NOTHING is written (6.418445ms)
+✔ widgets_update_instance: calls authorize() with its declared permission and the run's principal (9.948876ms)
+✔ widgets_update_instance: a denied principal is rejected and NOTHING is written (5.935137ms)
+﹣ widgets_trash_instance: calls authorize() with its declared permission and the run's principal (0.104473ms) # confirmation-gated — see widgets/__tests__/agent-tools.trash-confirmation.test.ts
+✔ widgets_trash_instance: a denied principal is rejected and NOTHING is written (6.692608ms)
+✔ widgets_bind_region: calls authorize() with its declared permission and the run's principal (5.810433ms)
+✔ widgets_bind_region: a denied principal is rejected and NOTHING is written (6.130669ms)
+✔ widgets_set_region_placements: calls authorize() with its declared permission and the run's principal (6.945475ms)
+✔ widgets_set_region_placements: a denied principal is rejected and NOTHING is written (6.645975ms)
+✔ widgets_insert_embed: calls authorize() with its declared permission and the run's principal (6.234619ms)
+✔ widgets_insert_embed: a denied principal is rejected and NOTHING is written (6.192886ms)
+✔ widgets_remove_embed: calls authorize() with its declared permission and the run's principal (5.973003ms)
+✔ widgets_remove_embed: a denied principal is rejected and NOTHING is written (5.858958ms)
+✔ widgets_reorder_embeds: calls authorize() with its declared permission and the run's principal (6.476377ms)
+✔ widgets_reorder_embeds: a denied principal is rejected and NOTHING is written (6.289799ms)
+✔ the ToolPolicy layer is a pass-through 'allow' for every widgets registration — enforcement is the domain layer's (or this file's own inline gate), by design (1.175454ms)
+✔ every wired widgets tool declares a widgets.* permission — never an unrelated or read-only-looking permission on a mutating tool (0.42509ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 2594.412282

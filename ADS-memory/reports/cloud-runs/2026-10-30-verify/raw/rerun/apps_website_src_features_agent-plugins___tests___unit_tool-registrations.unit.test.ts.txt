@@ -1,0 +1,139 @@
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ each installed plugin produces exactly one stable, collision-free tool id with a non-empty description naming every one of its skills (101.440344ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✖ registerInstalledAgentPluginTools registers one guidance tool plus its scoped memory read/write pair per plugin directly onto a real ToolRegistry, the same registration call agent-daemon-server.ts makes for every other domain (15.432366ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ the input schema documents an optional 'skill' property whose enum names every skill this specific plugin has (28.706506ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ calling with no 'skill' argument returns the plugin's own eponymous skill plus the other available skill names (36.933628ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ when a plugin has no eponymous skill folder, the default falls back to its alphabetically-first skill and the description says so (50.418572ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ an explicit, recognized 'skill' argument returns that skill's own guidance, not the default (38.995109ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ an unrecognized 'skill' argument falls back to the default skill gracefully, with an informative note listing the valid values — never a thrown error (30.938629ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ a malformed 'skill' argument (wrong type) or an unexpected extra field still throws — only an unrecognized VALUE is graceful (29.554327ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ the handler returns the exact same guidance markdown readInstalledSkillMarkdown reads for that skill — real content, not a stub (31.994357ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ SECURITY: no absolute host path appears in any registered tool's id, description, schema, or handler output (43.984651ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+[agent-plugins] 'ui-ux-design': agent-plugin tools: 'ui-ux-design' is installed under more than one digest (e413b4326316e6da9fc12c1d323f818bd84c3e25d00a368802632ffa781fca6b and fc6b4649a5f729bda56118fd337d11d96515ac2376b5d0d9be7cbc02aad193cc) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+✔ two installed digests of the same plugin id refuse that plugin loudly, without aborting the load (84.495836ms)
+Plugin 'healthy-before' has no publisher-qualified id; using 'unknown/healthy-before'.
+Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+Plugin 'healthy-after' has no publisher-qualified id; using 'unknown/healthy-after'.
+Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+Plugin 'healthy-after' has no publisher-qualified id; using 'unknown/healthy-after'.
+Plugin 'healthy-before' has no publisher-qualified id; using 'unknown/healthy-before'.
+[agent-plugins] 'conflicted-plugin': agent-plugin tools: 'conflicted-plugin' is installed under more than one digest (241022268f6d96562dbe1515d8bbef1914dee41085cd25f6024a80e1f535cc30 and 347db903facb95abb81a339bd4cd0002f812f23616e46d14b76a9ec63281716c) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+✔ a per-plugin resolution failure (digest ambiguity) is isolated to that plugin — every other installed plugin still gets its tool source (113.289352ms)
+Plugin 'upgraded-plugin' has no publisher-qualified id; using 'unknown/upgraded-plugin'.
+Plugin 'upgraded-plugin' has no publisher-qualified id; using 'unknown/upgraded-plugin'.
+Plugin 'upgraded-plugin' has no publisher-qualified id; using 'unknown/upgraded-plugin'.
+✔ a current upgrade exposes only the accepted replacement's guidance (65.668799ms)
+Plugin 'only-in-other' has no publisher-qualified id; using 'unknown/only-in-other'.
+✔ workspace isolation: a load for workspace A sees nothing installed only under a different workspace (23.913994ms)
+✔ an empty (never-installed) workspace produces zero sources and an empty registration list, no throw (1.917363ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✖ the executor denies cached guidance after disable (19.048752ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✖ the executor denies cached guidance after uninstall (17.052189ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✖ the executor denies cached guidance after unreadable-activation (17.516248ms)
+[agent-plugins:migration-complete] /tmp/tovu-agent-plugin-tool-registrations-test-fzPfMs/ws/55555555-5555-4555-8555-555555555555
+✖ the registered connect handler resolves a real installed plugin and recognizes its saved sign-in (2057.072978ms)
+✔ plugin guidance carries maturity and warns before keys/actions for every maturity flag (4.247454ms)
+✔ L025b guidance pins selection guards, reader recovery and sanitized unknown names (0.852166ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 16
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4786.563754
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:21:1560
+✖ registerInstalledAgentPluginTools registers one guidance tool plus its scoped memory read/write pair per plugin directly onto a real ToolRegistry, the same registration call agent-daemon-server.ts makes for every other domain (15.432366ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at resolveSkillLayout (/home/user/Tovu/apps/website/src/features/skills/layout.ts:80:71)
+      at Object.get (/home/user/Tovu/apps/website/src/__tests__/fixtures/site-layout-context.ts:64:69)
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:215:60)
+      at async withAgentPluginsDir (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:106:12)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:210:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:21:14964
+✖ the executor denies cached guidance after disable (19.048752ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at resolveSkillLayout (/home/user/Tovu/apps/website/src/features/skills/layout.ts:80:71)
+      at Object.get (/home/user/Tovu/apps/website/src/__tests__/fixtures/site-layout-context.ts:64:69)
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:501:62)
+      at async withAgentPluginsDir (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:106:12)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:498:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:21:14964
+✖ the executor denies cached guidance after uninstall (17.052189ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at resolveSkillLayout (/home/user/Tovu/apps/website/src/features/skills/layout.ts:80:71)
+      at Object.get (/home/user/Tovu/apps/website/src/__tests__/fixtures/site-layout-context.ts:64:69)
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:501:62)
+      at async withAgentPluginsDir (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:106:12)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:498:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:21:14964
+✖ the executor denies cached guidance after unreadable-activation (17.516248ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at resolveSkillLayout (/home/user/Tovu/apps/website/src/features/skills/layout.ts:80:71)
+      at Object.get (/home/user/Tovu/apps/website/src/__tests__/fixtures/site-layout-context.ts:64:69)
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:501:62)
+      at async withAgentPluginsDir (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:106:12)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:498:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:21:16318
+✖ the registered connect handler resolves a real installed plugin and recognizes its saved sign-in (2057.072978ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'loadSafe')
+      at findPluginOAuthCard (/home/user/Tovu/apps/website/src/features/agent-plugins/connect-tool.ts:489:45)
+      at runAgentPluginConnect (/home/user/Tovu/apps/website/src/features/agent-plugins/connect-tool.ts:401:32)
+      at async <anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:537:22)
+      at async withAgentPluginsDir (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:106:12)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:518:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

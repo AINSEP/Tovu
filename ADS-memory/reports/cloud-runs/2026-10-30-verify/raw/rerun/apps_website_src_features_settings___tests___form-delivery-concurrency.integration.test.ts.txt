@@ -1,0 +1,62 @@
+✖ G15 T3: B removes while A holds a stale save snapshot; A's save keeps B's removal (151.121135ms)
+✖ G15 T3: concurrent adds merge both bindings after the stale writer retries (121.859671ms)
+✖ G15 T3: retrying an edit of the binding B removed refuses instead of resurrecting it (127.907108ms)
+✖ G15 T3: a stale removal keeps the binding another panel added (128.033226ms)
+✔ G15 T3: a stale owner write rolls back its revision and leaves the committed value intact (131.019956ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 1
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1923.421293
+
+✖ failing tests:
+
+test at apps/website/src/features/settings/__tests__/form-delivery-concurrency.integration.test.ts:1:3357
+✖ G15 T3: B removes while A holds a stale save snapshot; A's save keeps B's removal (151.121135ms)
+  TypeError [Error]: required.bindings.isConflict is not a function
+      at update (/home/user/Tovu/apps/website/src/features/agent-plugins/admin-surfaces/delivery-bindings.ts:187:29)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/settings/__tests__/form-delivery-concurrency.integration.test.ts:86:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at apps/website/src/features/settings/__tests__/form-delivery-concurrency.integration.test.ts:1:3781
+✖ G15 T3: concurrent adds merge both bindings after the stale writer retries (121.859671ms)
+  TypeError [Error]: required.bindings.isConflict is not a function
+      at update (/home/user/Tovu/apps/website/src/features/agent-plugins/admin-surfaces/delivery-bindings.ts:187:29)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/settings/__tests__/form-delivery-concurrency.integration.test.ts:97:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/settings/__tests__/form-delivery-concurrency.integration.test.ts:1:4270
+✖ G15 T3: retrying an edit of the binding B removed refuses instead of resurrecting it (127.907108ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  TypeError: required.bindings.isConflict is not a function
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/settings/__tests__/form-delivery-concurrency.integration.test.ts:110:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: required.bindings.isConflict is not a function
+        at update (/home/user/Tovu/apps/website/src/features/agent-plugins/admin-surfaces/delivery-bindings.ts:187:29)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/settings/__tests__/form-delivery-concurrency.integration.test.ts:110:3)
+        at async Test.run (node:internal/test_runner/test:1409:7)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:974:7),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/settings/__tests__/form-delivery-concurrency.integration.test.ts:1:4773
+✖ G15 T3: a stale removal keeps the binding another panel added (128.033226ms)
+  TypeError [Error]: required.bindings.isConflict is not a function
+      at update (/home/user/Tovu/apps/website/src/features/agent-plugins/admin-surfaces/delivery-bindings.ts:187:29)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/settings/__tests__/form-delivery-concurrency.integration.test.ts:121:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

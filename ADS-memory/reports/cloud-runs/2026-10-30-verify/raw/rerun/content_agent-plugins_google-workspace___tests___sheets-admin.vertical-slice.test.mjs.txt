@@ -1,0 +1,24 @@
+✖ vertical slice: a confirmed sheets_tab_modify rename registers, discloses, waits for the click and sends one batchUpdate (47.01841ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 749.142697
+
+✖ failing tests:
+
+test at content/agent-plugins/google-workspace/__tests__/sheets-admin.vertical-slice.test.mjs:21:1
+✖ vertical slice: a confirmed sheets_tab_modify rename registers, discloses, waits for the click and sends one batchUpdate (47.01841ms)
+  TypeError [Error]: withExtensionApprovalPolicy is not a function
+      at adapt (/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/register.ts:160:24)
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/register.ts:172:14)
+      at Array.map (<anonymous>)
+      at refresh (/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/register.ts:168:84)
+      at registerAgentPluginExecutableTools (/home/user/Tovu/apps/website/src/features/agent-plugins/executable-tools/register.ts:175:3)
+      at async bootPluginTools (/home/user/Tovu/content/agent-plugins/google-workspace/__tests__/sheets-admin-harness.mjs:79:22)
+      at async TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugins/google-workspace/__tests__/sheets-admin.vertical-slice.test.mjs:27:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
