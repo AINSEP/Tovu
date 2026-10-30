@@ -1,6 +1,6 @@
 import { expandPartials } from "../../contracts/core/expand-partials.js";
 import { safeHref } from "./render-contract.js";
-import { COLLECTION_MARKER_TYPE, FEATURED_IMAGE_MARKER_TYPE, markersOfType, MENU_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, substituteMarkers, withAddedId, withInnerContent, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
+import { COLLECTION_MARKER_TYPE, FEATURED_IMAGE_MARKER_TYPE, markersOfType, MENU_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, substituteMarkers, withAddedId, withElementKeptIfAttributed, withInnerContent, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { extractListingCardTemplate, injectListingScript, listingKeyOfAttributes, parseListingBatchSize, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
 import { injectMenuDropdownScript, renderMenuToggle } from "@jini-ai/cms/navigation/dropdown";
 import { postAuthorForDisplay } from "../../contracts/core/post-author.js";
