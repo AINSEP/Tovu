@@ -3,10 +3,14 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const HOOKS_PATH = 'apps/desktop/scripts/hooks';
+function isCI({ env }, _options = {}) {
+  return env.CI && env.CI !== 'false' && env.CI !== '0';
+}
+
 export function installDesktopHooks({ repoRoot }, { env = process.env,
   runGit = ({ args }) => spawnSync('git', args, { cwd: repoRoot, encoding: 'utf8' }),
 } = {}) {
-  if (env.CI && env.CI !== 'false' && env.CI !== '0') return 'ci';
+  if (isCI({ env })) return 'ci';
   const checkout = runGit({ args: ['rev-parse', '--show-toplevel'] });
   // An npm archive can sit inside another checkout: never configure that parent repository.
   if (checkout.status !== 0 || path.resolve(checkout.stdout.trim()) !== path.resolve(repoRoot)) return 'not-checkout';

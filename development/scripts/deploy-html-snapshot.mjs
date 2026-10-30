@@ -67,16 +67,22 @@ export function compareSnapshots({ before, after }, options = {}) {
   for (const [page, previous] of Object.entries(before.pages)) {
     const current = after.pages[page];
     if (!current) continue;
-    if (previous.status === 200 && current.status !== 200) {
-      failures.push({ page, metric: "status", before: previous.status, after: current.status });
-    }
-    if (current.bytes < previous.bytes * 0.8) {
-      failures.push({ page, metric: "bytes", before: previous.bytes, after: current.bytes });
-    }
-    for (const tag of GUARDED_TAGS) {
-      if (previous.counts[tag] > 0 && current.counts[tag] < previous.counts[tag] * 0.5) {
-        failures.push({ page, metric: tag, before: previous.counts[tag], after: current.counts[tag] });
-      }
+    failures.push(...comparePage({ page, previous, current }));
+  }
+  return failures;
+}
+
+function comparePage({ page, previous, current }, _options = {}) {
+  const failures = [];
+  if (previous.status === 200 && current.status !== 200) {
+    failures.push({ page, metric: "status", before: previous.status, after: current.status });
+  }
+  if (current.bytes < previous.bytes * 0.8) {
+    failures.push({ page, metric: "bytes", before: previous.bytes, after: current.bytes });
+  }
+  for (const tag of GUARDED_TAGS) {
+    if (previous.counts[tag] > 0 && current.counts[tag] < previous.counts[tag] * 0.5) {
+      failures.push({ page, metric: tag, before: previous.counts[tag], after: current.counts[tag] });
     }
   }
   return failures;

@@ -243,6 +243,13 @@ function parseArgs(argv: readonly string[]): Args {
   };
 }
 
+function reportDryRun({ planned }: { planned: BackfillDomainResult[] }, _options = {}): void {
+  for (const result of planned) {
+    if (result.skipped) console.log(`DRY RUN: ${result.entityType} — table not present in this database, skipped.`);
+    else console.log(`DRY RUN: ${result.entityType} — ${result.rows} row(s) would be indexed.`);
+  }
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   // Prove the database is really there BEFORE opening it: `openContentDb` creates-and-migrates on
@@ -253,10 +260,7 @@ async function main(): Promise<void> {
 
   if (!args.apply) {
     const planned = backfillTrashedItems({ client: db.$client, now, apply: false });
-    for (const result of planned) {
-      if (result.skipped) console.log(`DRY RUN: ${result.entityType} — table not present in this database, skipped.`);
-      else console.log(`DRY RUN: ${result.entityType} — ${result.rows} row(s) would be indexed.`);
-    }
+    reportDryRun({ planned });
     const total = planned.reduce((sum, result) => sum + result.rows, 0);
     console.log(`DRY RUN: ${total} row(s) total. Re-run with --apply to write.`);
     return;

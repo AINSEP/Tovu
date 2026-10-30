@@ -38,6 +38,32 @@ const APPS = [
   { name: "site-chat", builtMarker: "apps/site-chat/dist/site-assistant.js" },
 ];
 
+function serverStartSteps({ has, builtSha, headSha }, _options = {}) {
+  // The manifest, not dist/src/index.js: `tsc` emits JS even when it reports errors, so a failed
+  // build leaves an entry file behind. The manifest is written only after tsc succeeded.
+  const serverBuilt = has("dist/runtime-manifest.json");
+  // The legacy "unknown" sentinel (`emit-dist-package-json.mjs`'s own fallback when neither
+  // `TOVU_BUILD_SHA` nor `git rev-parse HEAD` is available) is deliberately never treated as stale —
+  // rebuilding on every boot when the sha can't be verified would defeat the point of skipping a
+  // build that is, for all this function can tell, still correct.
+  const serverStale = serverBuilt && builtSha != null && headSha != null && builtSha !== "unknown" && builtSha !== headSha;
+  if (serverBuilt && !serverStale) return [];
+  return [{ label: serverBuilt ? "the server (rebuilding stale dist)" : "the server", args: ["run", "build:server"] }];
+}
+
+function appStartSteps({ app, has, headSha, builtStamps }, _options = {}) {
+  const steps = [];
+  const built = has(app.builtMarker);
+  const stamp = builtStamps?.[app.name] ?? null;
+  const stale = built && headSha != null && stamp !== headSha;
+  if (built && !stale) return steps;
+
+  const prefix = ["--prefix", `apps/${app.name}`];
+  if (!has(`apps/${app.name}/node_modules`)) steps.push({ label: `${app.name} dependencies`, args: [...prefix, "install"] });
+  steps.push({ label: stale ? `${app.name} (rebuilding stale dist)` : app.name, args: [...prefix, "run", "build:local"], app: app.name });
+  return steps;
+}
+
 /**
  * Decides which npm commands must run before the server can start.
  *
@@ -60,29 +86,8 @@ const APPS = [
  */
 export function planStartSteps(input) {
   const { has, builtSha, headSha, builtStamps } = input;
-  const steps = [];
-
-  // The manifest, not dist/src/index.js: `tsc` emits JS even when it reports errors, so a failed
-  // build leaves an entry file behind. The manifest is written only after tsc succeeded.
-  const serverBuilt = has("dist/runtime-manifest.json");
-  // The legacy "unknown" sentinel (`emit-dist-package-json.mjs`'s own fallback when neither
-  // `TOVU_BUILD_SHA` nor `git rev-parse HEAD` is available) is deliberately never treated as stale —
-  // rebuilding on every boot when the sha can't be verified would defeat the point of skipping a
-  // build that is, for all this function can tell, still correct.
-  const serverStale = serverBuilt && builtSha != null && headSha != null && builtSha !== "unknown" && builtSha !== headSha;
-  if (!serverBuilt || serverStale) steps.push({ label: serverBuilt ? "the server (rebuilding stale dist)" : "the server", args: ["run", "build:server"] });
-
-  for (const app of APPS) {
-    const built = has(app.builtMarker);
-    const stamp = builtStamps?.[app.name] ?? null;
-    const stale = built && headSha != null && stamp !== headSha;
-    if (built && !stale) continue;
-
-    const prefix = ["--prefix", `apps/${app.name}`];
-    if (!has(`apps/${app.name}/node_modules`)) steps.push({ label: `${app.name} dependencies`, args: [...prefix, "install"] });
-    steps.push({ label: stale ? `${app.name} (rebuilding stale dist)` : app.name, args: [...prefix, "run", "build:local"], app: app.name });
-  }
-
+  const steps = serverStartSteps({ has, builtSha, headSha });
+  for (const app of APPS) steps.push(...appStartSteps({ app, has, headSha, builtStamps }));
   return { steps };
 }
 

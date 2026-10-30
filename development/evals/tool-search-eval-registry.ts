@@ -29,7 +29,7 @@ import {
   type AssistantSurfaceDeps,
 } from "../../apps/website/src/assistant/tool-registrations.js";
 import { toAssistantRegistryDeps, type RegistryDepsWithoutLimiter } from "../../apps/website/src/assistant/__tests__/fixtures/registry-deps.js";
-import type { AssistantToolContributions, DerivedToolContributor, ToolContributor } from "../../apps/website/src/assistant/tool-contribution-registry.js";
+import type { AssistantToolContributions, DerivedToolContributor, ToolContributor } from "../../apps/website/src/assistant/tool-registrations.js";
 import { installFirstPartyToolContributors } from "../../apps/website/src/server/runtime/composition/tool-catalog-manifest.js";
 
 /**

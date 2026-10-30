@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { sonarIgnores, sonarSourceConfig } from './policy.mjs';
+import { sonarIgnores, sonarSourceConfig, sonarVendorSha1Override } from './policy.mjs';
 
 // Isolated config: no Biome, core complexity, local rules, or architecture gates.
 export default [
@@ -15,4 +15,5 @@ export default [
       },
     },
   },
+  sonarVendorSha1Override,
 ];

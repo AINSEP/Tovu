@@ -65,6 +65,26 @@ export function parseActivationArgs(args: readonly string[]): ParsedArgs | { rea
   return { command, workspaceId, pluginId };
 }
 
+async function listActivations(
+  { parsed, workspaceRoot }: { parsed: ParsedArgs; workspaceRoot: string },
+  _options = {},
+): Promise<void> {
+  const installed = await listInstalledPlugins(workspaceRoot);
+  const activations = await readAgentPluginActivations({ workspaceRoot: workspaceRoot });
+
+  if (installed.length === 0) {
+    console.log(`No Agent Plugins are installed for workspace ${parsed.workspaceId}.`);
+    return;
+  }
+
+  for (const plugin of installed) {
+    const record = activations.plugins[plugin.pluginId];
+    const state = isAgentPluginActive({ activations: activations, pluginId: plugin.pluginId }) ? "ACTIVE  " : "INACTIVE";
+    const provenance = record === undefined ? "operator-installed (no explicit record)" : `${record.origin}, set by ${record.updatedBy} at ${record.updatedAt}`;
+    console.log(`${state}  ${plugin.pluginId}  [${plugin.archiveDigest.slice(0, 12)}]  ${provenance}`);
+  }
+}
+
 async function main(): Promise<void> {
   const parsed = parseActivationArgs(process.argv.slice(2));
   if ("error" in parsed) {
@@ -84,20 +104,7 @@ async function main(): Promise<void> {
   }
 
   if (parsed.command === "list") {
-    const installed = await listInstalledPlugins(workspaceLayout.root);
-    const activations = await readAgentPluginActivations({ workspaceRoot: workspaceLayout.root });
-
-    if (installed.length === 0) {
-      console.log(`No Agent Plugins are installed for workspace ${parsed.workspaceId}.`);
-      return;
-    }
-
-    for (const plugin of installed) {
-      const record = activations.plugins[plugin.pluginId];
-      const state = isAgentPluginActive({ activations: activations, pluginId: plugin.pluginId }) ? "ACTIVE  " : "INACTIVE";
-      const provenance = record === undefined ? "operator-installed (no explicit record)" : `${record.origin}, set by ${record.updatedBy} at ${record.updatedAt}`;
-      console.log(`${state}  ${plugin.pluginId}  [${plugin.archiveDigest.slice(0, 12)}]  ${provenance}`);
-    }
+    await listActivations({ parsed, workspaceRoot: workspaceLayout.root });
     return;
   }
 

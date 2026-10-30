@@ -31,7 +31,7 @@ function registryDependencyNames(packageDir) {
   } catch {
     return new Set();
   }
-  const specs = { ...manifest.dependencies, ...manifest.devDependencies };
+  const specs = { ...manifest.dependencies, ...manifest.optionalDependencies, ...manifest.peerDependencies, ...manifest.devDependencies };
   const local = Object.entries(specs).filter(([name, spec]) => name.startsWith('@jini-ai/') && spec.startsWith('file:'));
   if (local.length) {
     console.error(`Build blocked: @jini-ai/* file: dependencies cannot ship without the sibling checkout:\n${local.map(([name]) => `  - ${name}`).join('\n')}\nUse published ranges for releases; build:local is available for local development.`);

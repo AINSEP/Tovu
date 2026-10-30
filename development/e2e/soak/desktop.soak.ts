@@ -18,7 +18,8 @@ async function readDesktopMemory({ app, networkPids }: { app: ElectronApplicatio
   const metrics = await app.evaluate(async ({ app }) => {
     if (typeof globalThis.gc !== "function") throw new Error("Main GC unavailable");
     globalThis.gc(); await new Promise<void>(resolve => setImmediate(resolve)); globalThis.gc();
-    return app.getAppMetrics().filter(metric => metric.type === "Utility").map(metric => ({ pid: metric.pid, name: metric.name, serviceName: metric.serviceName }));
+    const nativeMetrics: Array<{ pid: number; type: string; name?: string; serviceName?: string }> = app.getAppMetrics();
+    return nativeMetrics.filter(metric => metric.type === "Utility").map(metric => ({ pid: metric.pid, name: metric.name, serviceName: metric.serviceName }));
   });
   const network = metrics.filter(metric => /network[ ._-]?service|network\.mojom/i.test(`${metric.name} ${metric.serviceName}`));
   expect(network.length, "Network Service metadata missing").toBeGreaterThan(0);
