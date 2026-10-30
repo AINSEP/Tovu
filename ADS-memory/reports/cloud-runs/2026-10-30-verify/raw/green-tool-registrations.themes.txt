@@ -1,0 +1,35 @@
+✔ exactly the 13 themes entries are registered — nothing else (49.189547ms)
+✔ no whole-theme or file-delete operation is agent-callable anywhere in the whole assistant tool set (19.447709ms)
+✔ an id with no DERIVED_RISK_BY_TOOL_ID classification cannot be wired (unknown operations are refused, never assumed safe) (0.830117ms)
+✔ every wired themes registration publishes its catalog entry's inputSchema and description verbatim (7.0914ms)
+✔ each catalog entry's declared risk matches what this layer derives from its handler (0.56661ms)
+✔ file writes and rescan declare durable effects; theme and file reads declare none (0.232286ms)
+✔ reads and theme lifecycle tools require theme.set; file writes require theme.edit (0.24209ms)
+✔ every themes tool refuses when authorize() denies, and performs no work (30.375515ms)
+✔ each themes tool checks exactly the permission its catalog entry declares (62.659476ms)
+✔ theme_list returns every discovered theme with id/name/tier/status/errors, and never leaks the server's filesystem path (4.776318ms)
+✔ theme_list filters by tier and by status (6.125173ms)
+✔ theme_list_files lists every file in one theme's folder, relative to it (5.070141ms)
+✔ theme_read_file returns the raw file content (22.335834ms)
+✔ an unknown themeId is a schema-decorated refusal naming the themes that do exist (5.295231ms)
+✔ theme_write_file: missing theme error tells the agent to create it first with theme_duplicate (32.4242ms)
+✔ theme_read_file and theme_write_file both refuse a ../ escape out of the theme's folder (30.95237ms)
+✔ theme_write_file refuses an absolute path (14.581889ms)
+✔ theme_write_file writes the file and reports the theme still valid (8.663354ms)
+✔ theme_write_file refuses to overwrite an existing file past the 1 MB read limit without overwriteOversized, and leaves its bytes (11.111507ms)
+✔ theme_write_file with overwriteOversized: true replaces an existing file past the 1 MB read limit (15.47311ms)
+✔ theme_write_file's published schema and description carry the overwriteOversized flag (0.142963ms)
+✔ writing INVALID JSON reports status 'invalid' with a naming error — the immediate feedback an editing agent needs (4.121675ms)
+✔ writing a Handlebars template with a disallowed construct reports status 'invalid' naming the file and the construct (6.372816ms)
+✔ writing a Liquid template with a disallowed tag into a templated theme is caught by the SAME loader a human edit goes through (33.701686ms)
+✔ a successful write refreshes the live routeDeps.themes entry, so the running site serves the edit (6.744066ms)
+✔ an invalid write is reflected in the live theme list too — theme_list immediately reports what theme_write_file just reported (7.781727ms)
+✔ list -> list_files -> read -> write -> re-read stays consistent across the whole sequence (13.766937ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3879.749331

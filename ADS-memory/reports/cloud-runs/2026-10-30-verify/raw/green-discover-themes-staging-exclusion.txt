@@ -1,0 +1,16 @@
+✔ discoverThemes: excludes .tovu-migrate-staging-* siblings, even though they declare the same manifest id as the real theme (12.715067ms)
+✔ discoverThemes: a staging-prefixed directory that fails to parse is still excluded (exclusion happens before loadTheme, not because it errors) (147.170059ms)
+✔ discoverAllBuiltInThemes: staging siblings under an engine subfolder (the real on-disk shape under themes/static) are excluded from the combined list (6.686266ms)
+✔ migration staging prefix keeps its persisted historical spelling (0.664733ms)
+✔ discoverAllBuiltInThemes: excludes dot-folders at root for built-in themes (4.106589ms)
+✔ discoverAllBuiltInThemes: excludes dot-folders at static for built-in themes (7.154908ms)
+✔ discoverAllBuiltInThemes: excludes dot-folders at root for site themes (11.68547ms)
+✔ discoverAllBuiltInThemes: excludes dot-folders at static for site themes (17.491042ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 902.191145

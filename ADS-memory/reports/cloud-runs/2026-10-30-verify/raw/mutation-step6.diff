@@ -1,0 +1,38 @@
+diff --git a/apps/website/src/assistant/tool-catalog-query.ts b/apps/website/src/assistant/tool-catalog-query.ts
+index 273fc157..813a6df2 100644
+--- a/apps/website/src/assistant/tool-catalog-query.ts
++++ b/apps/website/src/assistant/tool-catalog-query.ts
+@@ -137,7 +137,7 @@ export function buildToolCatalogQuery(
+     },
+     describe({ id }) {
+       refresh();
+-      return snapshot.query.describe({ id }) ?? (id === "content_read" ? snapshot.family : null);
++      return snapshot.query.describe({ id }) ?? (id === "content_read" || id.startsWith("content_read.") ? snapshot.family : null);
+     },
+   };
+ }
+diff --git a/apps/website/src/features/theme/asset-operations.ts b/apps/website/src/features/theme/asset-operations.ts
+index 2f1320f9..399aa429 100644
+--- a/apps/website/src/features/theme/asset-operations.ts
++++ b/apps/website/src/features/theme/asset-operations.ts
+@@ -130,7 +130,7 @@ export function findThemeOrThrow(routeDeps: ThemeToolDeps, themeId: string): Dis
+   const theme = routeDeps.themes.find((t) => t.manifest.id === themeId);
+   if (!theme) {
+     const known = routeDeps.themes.map((t) => t.manifest.id).join(", ") || "(none discovered)";
+-    throw new ThemeNotFoundError(`theme '${themeId}' was not found — discovered themes are: ${known}`);
++    throw new ThemeNotFoundError(`theme '${themeId}' was not found — discovered themes are: ${known}. Create it first with theme_duplicate, then retry.`);
+   }
+   return theme;
+ }
+diff --git a/apps/website/src/features/theme/theme.ts b/apps/website/src/features/theme/theme.ts
+index 46748909..7e43ee59 100644
+--- a/apps/website/src/features/theme/theme.ts
++++ b/apps/website/src/features/theme/theme.ts
+@@ -900,6 +900,7 @@ export function discoverThemes(
+     .filter((name) => {
+       if (exclude?.includes(name)) return false;
+       if (name.startsWith(MIGRATION_STAGING_DIR_PREFIX)) return false;
++      if (name.startsWith(".")) return false;
+       if (name === PUBLISH_STAGING_DIR || name === PUBLISH_PREVIOUS_DIR) return false;
+       const full = join(dir, name);
+       return statSync(full).isDirectory();

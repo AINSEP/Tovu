@@ -1,0 +1,122 @@
+✔ discoverThemes: excludes .tovu-migrate-staging-* siblings, even though they declare the same manifest id as the real theme (8.577543ms)
+✔ discoverThemes: a staging-prefixed directory that fails to parse is still excluded (exclusion happens before loadTheme, not because it errors) (2.028118ms)
+✔ discoverAllBuiltInThemes: staging siblings under an engine subfolder (the real on-disk shape under themes/static) are excluded from the combined list (2.62297ms)
+✔ migration staging prefix keeps its persisted historical spelling (0.214511ms)
+✖ discoverAllBuiltInThemes: excludes dot-folders at root for built-in themes (15.065797ms)
+✖ discoverAllBuiltInThemes: excludes dot-folders at static for built-in themes (8.312301ms)
+✖ discoverAllBuiltInThemes: excludes dot-folders at root for site themes (10.311113ms)
+✖ discoverAllBuiltInThemes: excludes dot-folders at static for site themes (12.852943ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 4
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 865.185784
+
+✖ failing tests:
+
+test at apps/website/src/features/theme/__tests__/discover-themes-staging-exclusion.test.ts:1:2947
+✖ discoverAllBuiltInThemes: excludes dot-folders at root for built-in themes (15.065797ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   '.claude',
+  +   'hidden-theme',
+      'tovu-starter'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/discover-themes-staging-exclusion.test.ts:104:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ '.claude', 'hidden-theme', 'tovu-starter' ],
+    expected: [ 'tovu-starter' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/discover-themes-staging-exclusion.test.ts:1:2947
+✖ discoverAllBuiltInThemes: excludes dot-folders at static for built-in themes (8.312301ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   '.claude',
+  +   'hidden-theme',
+      'tovu-starter'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/discover-themes-staging-exclusion.test.ts:104:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ '.claude', 'hidden-theme', 'tovu-starter' ],
+    expected: [ 'tovu-starter' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/discover-themes-staging-exclusion.test.ts:1:2947
+✖ discoverAllBuiltInThemes: excludes dot-folders at root for site themes (10.311113ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   '.claude',
+  +   'hidden-theme',
+      'tovu-starter'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/discover-themes-staging-exclusion.test.ts:104:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ '.claude', 'hidden-theme', 'tovu-starter' ],
+    expected: [ 'tovu-starter' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/discover-themes-staging-exclusion.test.ts:1:2947
+✖ discoverAllBuiltInThemes: excludes dot-folders at static for site themes (12.852943ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   '.claude',
+  +   'hidden-theme',
+      'tovu-starter'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/discover-themes-staging-exclusion.test.ts:104:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ '.claude', 'hidden-theme', 'tovu-starter' ],
+    expected: [ 'tovu-starter' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,12 @@
+✔ listToolCatalogEntries: each entry's source and description equal describe_tool's for the same id (36.215647ms)
+✔ listToolCatalogEntries: reads the registry on every call, so a tool registered later is included (0.294683ms)
+✔ describe_tool HTTP path: content_read.content_region describes the sub-read or points to content_read.widget_region (549.455005ms)
+✔ describe_tool HTTP path: content_read.form describes the sub-read or points to content_read.form_definition (302.928626ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7240.192906
