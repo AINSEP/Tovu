@@ -7,3 +7,6 @@ Jini install exit 0; Jini build + Tovu npm installs running. Tovu package.json r
 
 ## 2026-10-30T04:39:08Z — PROGRESS
 Jini build exit 0 (no errors). Tovu installs exit 0; contracts+sdk built. Step 1 shards running (3 parallel), Jini step 2 running. Step 6 done: 7 RED tests fail as expected; mutation turned them green (diff in raw/mutation-step6.diff), mutation reverted via git checkout. NOTE: mutation was live ~2 min while shards ran, so shard results for files touching theme.ts/tool-catalog-query.ts/asset-operations.ts may be affected. ASSUMPTION: jini.sh's plugin-* glob expanded against wrong cwd -> plugin-* vitest runs must be done separately.
+
+## 2026-10-30T04:39:27Z — PROGRESS
+Shards, Jini step 2 and Tovu root typecheck still running. package.json rewrites remain local-only by design.

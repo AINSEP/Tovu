@@ -22,3 +22,7 @@
 0 apps/website/src/features/media-generation/__tests__/media-provider-registry.test.ts
 0 apps/website/src/features/media-generation/__tests__/provider-credential-save.unit.test.ts
 0 apps/website/src/features/media-generation/__tests__/providers-tools.test.ts
+0 apps/website/src/features/media-generation/__tests__/tool-registrations.test.ts
+0 apps/website/src/features/media-import/__tests__/fetch-image.test.ts
+0 apps/website/src/features/media-import/__tests__/import-local-file-search.test.ts
+0 apps/website/src/features/media-import/__tests__/import-local-file.test.ts

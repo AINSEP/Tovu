@@ -17,3 +17,6 @@
 0 apps/website/src/assistant/__tests__/assistant-tool-executor-audit-sink.unit.test.ts
 0 apps/website/src/assistant/__tests__/assistant-vault.unit.test.ts
 0 apps/website/src/assistant/__tests__/automatic-agent-plugin-choice.test.ts
+1 apps/website/src/assistant/__tests__/automatic-agent-plugins.integration.test.ts
+0 apps/website/src/assistant/__tests__/batch-tool-inputs.test.ts
+0 apps/website/src/assistant/__tests__/byok-credential.test.ts

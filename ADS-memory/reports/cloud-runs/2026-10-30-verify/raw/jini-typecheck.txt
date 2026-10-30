@@ -44,3 +44,11 @@ packages/registry typecheck$ tsc -p tsconfig.json --noEmit
 packages/cli typecheck: Done
 packages/plugins typecheck: Done
 packages/registry typecheck: Done
+packages/cms typecheck: Done
+packages/agent-plugins typecheck$ tsc -p tsconfig.json --noEmit
+packages/cms/forms typecheck$ tsc -p tsconfig.json --noEmit
+packages/cms/forms typecheck: Done
+packages/agent-plugins typecheck: Done
+packages/integrations typecheck$ tsc -p tsconfig.json --noEmit
+packages/search typecheck$ tsc -p tsconfig.json --noEmit
+packages/search typecheck: Done

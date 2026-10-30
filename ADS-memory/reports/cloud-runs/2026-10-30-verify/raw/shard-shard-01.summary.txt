@@ -24,3 +24,7 @@
 0 apps/website/src/features/agent-plugins/__tests__/unit/bundled-search-meilisearch-provider.unit.test.ts
 0 apps/website/src/features/agent-plugins/__tests__/unit/bundled-search-meilisearch.unit.test.ts
 0 apps/website/src/features/agent-plugins/__tests__/unit/bundled-site-compliance-package.unit.test.ts
+0 apps/website/src/features/agent-plugins/__tests__/unit/bundled-site-import-package.unit.test.ts
+0 apps/website/src/features/agent-plugins/__tests__/unit/bundled-source-archive.unit.test.ts
+0 apps/website/src/features/agent-plugins/__tests__/unit/bundled-supabase-package.unit.test.ts
+0 apps/website/src/features/agent-plugins/__tests__/unit/bundled-tovu-theme-package.unit.test.ts
