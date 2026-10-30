@@ -1,0 +1,12 @@
+packages/agent-runtime/src/__tests__/antigravity-audit.unit.test.ts
+packages/agent-runtime/src/__tests__/detection.test.ts
+packages/agent-runtime/src/__tests__/native-tool-compatibility.unit.test.ts
+packages/agent-runtime/src/defs/__tests__/antigravity.test.ts
+packages/chat/src/core/assistant-client/__tests__/credential-notice-current-turn.unit.test.ts
+packages/chat/src/react/features/chat-pane/__tests__/components/AgentRuntimePicker.native-policy.unit.test.tsx
+packages/core/src/__tests__/tool-input-alias-agreement.unit.test.ts
+packages/daemon/src/__tests__/integration/delegated-approval-writes.integration.test.ts
+packages/daemon/src/agent-executor/__tests__/runtime-policy.test.ts
+packages/mcp/src/server/tools/__tests__/delegated-tool.test.ts
+packages/ui/src/features/mcp-ui/__tests__/surfaces/confirmation.test.ts
+packages/ui/src/features/mcp-ui/__tests__/surfaces/tool-approval.test.ts
