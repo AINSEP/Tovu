@@ -85,3 +85,7 @@
 0 apps/website/src/features/members/__tests__/password-auth.test.ts
 0 apps/website/src/features/members/__tests__/password-lifecycle.dialects.test.ts
 0 apps/website/src/features/members/__tests__/repo.contract.test.ts
+0 apps/website/src/features/members/__tests__/repo.dialects.test.ts
+0 apps/website/src/features/members/__tests__/repo.memory.test.ts
+0 apps/website/src/features/members/__tests__/repo.rows.test.ts
+0 apps/website/src/features/members/__tests__/restart.integration.test.ts

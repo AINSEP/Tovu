@@ -97,3 +97,6 @@
 0 apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.delete-confirmation-family.integration.test.ts
 0 apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.external-mcp-save.integration.test.ts
 0 apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.integration.test.ts
+0 apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts
+0 apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.permanent-delete.integration.test.ts
+0 apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.secret-forms.test.ts

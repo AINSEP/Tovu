@@ -16,3 +16,6 @@ Root typecheck exit 2: 256 TS errors, 21 non-kysely (raw/tc-root-nonkysely.txt).
 
 ## 2026-10-30T04:44:48Z — PROGRESS
 Jini: typecheck 0, guard 0, test:scripts 1 (coupling-isolation.test.ts:107 expects ui devDependencies ui-kit; R1 left it in dependencies — R1-caused, small fix queued), agent-runtime vitest 0. Tovu: e2e tsc/ tests tsc / desktop-main show additional non-kysely DI errors (raw/tc-*-nonkysely.txt). Waiting on shards, steps 4-5.
+
+## 2026-10-30T04:45:06Z — PROGRESS
+Heartbeat: shards ~332 files done, Jini step 2 and steps 4-5 still running.

@@ -134,3 +134,6 @@
 0 apps/website/src/features/comments/__tests__/tool-registrations.model-facing-errors.test.ts
 0 apps/website/src/features/comments/__tests__/tool-registrations.update-settings-validation-status.test.ts
 0 apps/website/src/features/consent/__tests__/adapters.test.ts
+0 apps/website/src/features/consent/__tests__/ensure-privacy-defaults.test.ts
+0 apps/website/src/features/consent/__tests__/readiness.pins.test.ts
+0 apps/website/src/features/consent/__tests__/service.pins.test.ts
