@@ -45,6 +45,8 @@ function relayAdmissionsReport(
  *  @complexity O(b) time and space for the report body, plus one bounded round trip. */
 export async function fetchDaemonAdmissions(options: {
   readonly token?: string;
+  /** Server-only demand gate. The daemon composition injects an inert gate. */
+  readonly ensureReady?: () => Promise<void>;
   readonly daemonUrl?: string;
   readonly fetch?: typeof globalThis.fetch;
   /** Traces the request as one outbound span (host/port, status — never the token). Omitted: untraced. */
@@ -58,6 +60,7 @@ export async function fetchDaemonAdmissions(options: {
   }
 
   try {
+    await options.ensureReady?.();
     const send = trackFetch({ fetch: options.fetch ?? globalThis.fetch, observability: options.observability ?? UNTRACED });
     const upstream = await send(`${options.daemonUrl ?? getAgentDaemonUrl()}${FEDERATION_ADMISSIONS_PATH}`, {
       headers: { Authorization: `Bearer ${token}` },

@@ -21,7 +21,7 @@ import { Readable } from "node:stream";
 import type { Request, Response } from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, RUN_PRINCIPAL_HEADER } from "#src/assistant/index";
-import { ensureAssistantDaemonStarted } from "../../lifecycle/daemon-supervisor.js";
+import { ensureAssistantDaemonReady, isAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getAssistantDaemonFailureReasonCode, isAssistantDaemonKnownFailed } from "../../lifecycle/readiness-state.js";
 import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
@@ -30,7 +30,7 @@ import { createNoopObservabilityPort, trackFetch, type ObservabilityPort } from 
 /** Optional collaborators every daemon call accepts. `observability` records each loopback request
  *  as one outbound span (method, host/port and status — never the run id, path or token); omitted,
  *  the call is untraced. Composition passes `RouteDeps.observability`. */
-export interface DaemonCallOptions { readonly observability?: ObservabilityPort; }
+export interface DaemonCallOptions { readonly observability?: ObservabilityPort; readonly ensureReady?: typeof ensureAssistantDaemonReady; readonly isReady?: () => boolean; }
 
 const UNTRACED = createNoopObservabilityPort({});
 
@@ -110,43 +110,11 @@ function isUnsafeReset(attempt: { code: unknown; method: string }): boolean {
  *  between them instead of one per request. Reset on the first success. */
 let daemonUnreachableSince: number | null = null;
 
-/**
- * Checked FIRST, before any `fetch` is attempted, by {@link fetchAgentDaemon}.
- * `isAssistantDaemonKnownFailed()` is `true` once `daemon-supervisor.ts` knows the daemon is not
- * usable — either it never got a process running for this boot at all (a spawn-level `error`), OR
- * automatic respawn gave up after repeated crashes (the crash-loop or port-conflict cap tripped,
- * which can happen hours into a boot that started fine). Either way this is a much stronger signal
- * than "the request failed to connect", because "something answered on the daemon's port" is not
- * proof of health: a leaked port can still be squatted by an orphaned daemon from a PREVIOUS run,
- * which would otherwise go on answering requests as if it were the daemon this boot just spawned.
- * Once we know the daemon is not usable, we stop trusting the port at all and fail immediately
- * instead of racing a `fetch` against whatever (if anything) is actually listening there.
- *
- * This is also the on-demand self-healing seam: every request short-circuited here calls
- * {@link ensureAssistantDaemonStarted}, not just the first one, because that function is
- * single-flight and cooldown-guarded on its own side (`daemon-supervisor.ts`'s `ensureStarted()`)
- * — a daemon that already has a spawn attempt running or scheduled treats the extra calls as cheap
- * no-ops, and a durably broken one is re-armed no more often than its own 30s cooldown floor
- * allows.
- *
- * Deliberately NOT awaited and does not change THIS request's outcome: `ensureStarted()` is
- * synchronous and never waits for the daemon to become healthy (there is no such signal in this
- * codebase — see `daemon-supervisor.ts`'s own header), so recovery is purely a background side
- * effect for future requests. This request always answers 503 immediately either way; blocking it
- * on a daemon that may never come back up would just add a second way for it to hang.
- *
- * @returns `true` if a 503 was already sent (caller must return without proceeding).
- */
+/** Availability stays honest while known-failed. Something listening at an old port is not
+ * proof of health: an orphan from a previous boot could otherwise answer as this site's daemon.
+ * This passive check never starts recovery; actual demand awaits the shared readiness gate. */
 export function respondIfDaemonKnownFailed(res: Response): boolean {
   if (!isAssistantDaemonKnownFailed()) return false;
-
-  const recovery = ensureAssistantDaemonStarted();
-  if (!recovery.ok) {
-    // ONE concise line, matching this module's own `daemonUnreachableSince` logging convention —
-    // worth an operator seeing (it names WHY on-demand recovery didn't fire this time: never
-    // started this boot, or cooling down after a recent attempt), not worth a stack trace.
-    console.error(`[assistant] on-demand daemon recovery did not start: ${recovery.reason}`);
-  }
 
   // "unavailable", not "failed to start" — true for BOTH latch causes (never started this boot, or
   // gave up after crash-looping). `reasonCode` is the exact string `daemon-supervisor.ts` latched
@@ -242,7 +210,7 @@ export async function fetchAgentDaemon(
   res: Response,
   options: { path?: string; method?: string; body?: unknown } & DaemonCallOptions = {},
 ): Promise<globalThis.Response | null> {
-  if (respondIfDaemonKnownFailed(res)) return null;
+  if (!(await awaitDaemonForResponse({ res }, options))) return null;
   const { target, method } = resolveDaemonRequest(req, options);
   const deadline = Date.now() + DAEMON_CONNECT_RETRY_MS;
   const send = daemonFetch(options);
@@ -266,7 +234,7 @@ export async function fetchAgentDaemon(
 /** Thin wrapper matching `assistant.ts`'s original call shape exactly: forward the SAME path/method
  *  this request arrived on, with an optional rewritten body. */
 export async function forwardToAgentDaemon(req: Request, res: Response, body?: unknown, optional: DaemonCallOptions = {}): Promise<globalThis.Response | null> {
-  return fetchAgentDaemon(req, res, { body, observability: optional.observability });
+  return fetchAgentDaemon(req, res, { body, observability: optional.observability, ensureReady: optional.ensureReady });
 }
 
 /**
@@ -321,7 +289,10 @@ const FEDERATION_RELOAD_FETCH_TIMEOUT_MS = 5_000;
  * "it didn't work, somehow."
  * @complexity O(1) plus one bounded round trip.
  */
-export async function triggerFederationReload(optional: DaemonCallOptions = {}): Promise<{ readonly ok: boolean; readonly newlyAdmittedConnectionIds?: readonly string[] }> {
+export async function triggerFederationReload(optional: DaemonCallOptions = {}): Promise<{ readonly ok: boolean; readonly newlyAdmittedConnectionIds?: readonly string[]; readonly appliesOnNextStart?: boolean }> {
+  // Known Phase 1 gap: after an unprompted crash-respawn this reads not-ready until the next demand;
+  // a roster change in that window skips the live reload and applies on the daemon's next start.
+  if (!(optional.isReady ?? isAssistantDaemonReady)()) return { ok: true, appliesOnNextStart: true };
   const token = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
   if (!token) {
     console.warn("[assistant] mcp-federation: reload skipped — the agent daemon token is not configured");
@@ -397,7 +368,7 @@ export async function fetchAgentDaemonEventStream(
   path: string,
   optional: DaemonCallOptions = {},
 ): Promise<{ statusCode: number; body: ReadableStream<Uint8Array> } | null> {
-  if (respondIfDaemonKnownFailed(res)) return null;
+  if (!(await awaitDaemonForResponse({ res }, optional))) return null;
   const target = `${getAgentDaemonUrl()}${path}`;
   const headers = outboundHeaders(req, res);
   const deadline = Date.now() + DAEMON_CONNECT_RETRY_MS;
@@ -419,4 +390,45 @@ export async function fetchAgentDaemonEventStream(
     noteDaemonUnreachableWaiting();
     await new Promise((r) => setTimeout(r, DAEMON_CONNECT_RETRY_INTERVAL_MS));
   }
+}
+
+/** Await demand before selecting the origin or consuming request bytes. Startup failures are 503s. */
+export async function awaitDaemonForResponse(
+  { res }: { res: Response }, { ensureReady = ensureAssistantDaemonReady }: DaemonCallOptions = {},
+): Promise<boolean> {
+  try { await ensureReady({}, {}); return true; }
+  catch (error) {
+    // One line per refused request names why (cold-start timeout, disabled site, shutdown).
+    console.error(`[assistant] the agent daemon is not ready: ${String(error)}`);
+    if (respondIfDaemonKnownFailed(res)) return false;
+    res.status(503).json({ error: "the agent daemon is currently unavailable", code: "AGENT_DAEMON_UNAVAILABLE" });
+    return false;
+  }
+}
+
+/** A cold page-load bridge is passive. Clean EOF makes native EventSource reconnect after ready.
+ * No upstream piping or fabricated session: only the daemon can mint the real bind token.
+ * @returns true when this response was parked, false when the caller should use the normal proxy.
+ * @complexity O(1) state per stream, one cheap lifecycle check per 250ms.
+ */
+export function parkColdFrontendStream(
+  { res, isReady = isAssistantDaemonReady }: { res: Response; isReady?: () => boolean },
+  { schedule = ({ work, delayMs }) => { const timer = setInterval(work, delayMs); return () => clearInterval(timer); } }:
+    { schedule?: (input: { work: () => void; delayMs: number }) => () => void } = {},
+): boolean {
+  if (isReady()) return false;
+  res.status(200);
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+  res.write("retry: 500\n\n: waiting for chat\n\n");
+  let ticks = 0;
+  const cancel = schedule({ delayMs: 250, work: () => {
+    if (isReady()) { cancel(); res.end(); return; }
+    ticks += 1;
+    if (ticks % 60 === 0) res.write(": keepalive\n\n");
+  } });
+  res.once("close", cancel);
+  return true;
 }

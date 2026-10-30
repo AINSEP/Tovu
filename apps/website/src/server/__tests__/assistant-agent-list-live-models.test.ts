@@ -118,6 +118,11 @@ function harness() {
       daemon: server,
       buildApp: () => {
         const deps = createRouteDeps();
+        Object.assign(deps, { assistantAgentInventory: {
+          ...deps.assistantAgentInventory,
+          listAssistantAgents: async () => [CLAUDE_AGENT, CODEX_AGENT],
+          rescanAssistantAgents: async () => [CLAUDE_AGENT, CODEX_AGENT],
+        } });
         const app = express();
         app.use(express.json());
         registerAuthRoutes(app, deps);
@@ -155,14 +160,14 @@ test.after(async () => {
 
 // Every boot builds fresh dependencies and an assistant module with its own discovery cache.
 
-test("no stored admin credential leaves the daemon's agent list byte-identical, including modelsSource", async (t) => {
+test("no stored admin credential leaves the API inventory byte-identical, including modelsSource", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
 
   const res = await fetch(`${baseUrl}/api/agents`, { headers: { cookie } });
 
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { agents: [CLAUDE_AGENT, CODEX_AGENT] });
-  assert.equal(daemonRequestCount, 1, "the daemon must still be called exactly once — no credential is not a skip");
+  assert.equal(daemonRequestCount, 0, "availability must not contact the daemon");
 });
 
 test("an anthropic admin credential enriches only the claude entry, unioned with the fallback list", async (t) => {
@@ -230,22 +235,10 @@ test("POST /api/agents/rescan shares GET /api/agents' enrichment and host cache"
   assert.equal(provider.requestCount(), 1, "GET and rescan must reuse the module's discovery cache within the TTL");
 });
 
-test("a 2xx daemon response missing the agents array is relayed unmodified and logs a warning — the dangerous silent-degradation path", async (t) => {
+test("availability ignores the daemon response shape and reads only the API inventory", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
-  const originalWarn = console.warn;
-  const warnings: unknown[][] = [];
-  console.warn = (...args: unknown[]) => {
-    warnings.push(args);
-  };
-
-  try {
-    const res = await fetch(`${baseUrl}/api/agents?shapeMismatch=1`, { headers: { cookie } });
-
-    assert.equal(res.status, 200);
-    assert.deepEqual(await res.json(), { unexpected: "shape", note: "not an agents array" }, "the daemon's raw body must still reach the browser");
-    assert.equal(warnings.length, 1, "an unexpected 2xx shape must log exactly one warning — this is the case an operator has no other way to see");
-    assert.match(String(warnings[0][0]), /without an 'agents' array/);
-  } finally {
-    console.warn = originalWarn;
-  }
+  const response = await fetch(`${baseUrl}/api/agents?shapeMismatch=1`, { headers: { cookie } });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { agents: [CLAUDE_AGENT, CODEX_AGENT] });
+  assert.equal(daemonRequestCount, 0);
 });

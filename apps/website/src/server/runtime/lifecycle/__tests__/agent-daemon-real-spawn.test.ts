@@ -36,7 +36,16 @@ const nativeSpawn: NonNullable<import("../daemon-supervisor.js").StartAssistantD
   });
   return child;
 };
-const { startAssistantDaemon, shutdownAssistantDaemon, resetAssistantDaemonSingletonForTests } = await import("../daemon-supervisor.js");
+const { startAssistantDaemon, ensureAssistantDaemonReady, shutdownAssistantDaemon, resetAssistantDaemonSingletonForTests } = await import("../daemon-supervisor.js");
+// Registration is cold (ADR-070 #7): the child spawns on the first demand. The stub never writes
+// discovery, so readiness is left to fail in the background; these tests read the spawn itself.
+// A no-op refresh keeps the boot-resolved port, which every assertion here compares against.
+// Resolves once the demand reached the native spawn, so `report` belongs to this test's child.
+async function demandSpawn(): Promise<void> {
+  child = undefined;
+  void ensureAssistantDaemonReady({}, {}).catch(() => {});
+  while (child === undefined) await new Promise(resolve => setTimeout(resolve, 5));
+}
 
 test("startAssistantDaemon passes the resolved port, site, socket and identity through the real spawn env", { timeout: 10_000 }, async () => {
   const fixture = mkdtempSync(path.join(tmpdir(), "tovu-daemon-spawn-"));
@@ -62,9 +71,12 @@ test("startAssistantDaemon passes the resolved port, site, socket and identity t
       }));
       setInterval(() => {}, 1000);
     `);
+    child = undefined;
     startAssistantDaemon({ workspaceId: "workspace-stub", siteDir: "/site/stub", pgSocketPath: "/tmp/stub/.s.PGSQL.5432" }, {
-      registerProcessSignalHandlers: false, nativeSpawn,
+      registerProcessSignalHandlers: false, nativeSpawn, refreshPort: async () => {},
     });
+    assert.equal(child, undefined, "registration alone must not spawn the daemon");
+    await demandSpawn();
     assert.deepEqual(await report!, {
       argv: ["--workspace", "workspace-stub"], port: resolvedPort, site: "/site/stub",
       workspace: "workspace-stub", parent: String(process.pid), socket: "/tmp/stub/.s.PGSQL.5432", themes: "/custom/themes",
@@ -135,7 +147,8 @@ for (const mode of ['https-dev', 'desktop'] as const) {
         console.log(JSON.stringify({ inherited: process.env.TOVU_SITE_LISTENER_ORIGIN, derived: deps.derivedPublicOrigin, result }));
         setInterval(() => {}, 1000);
       `);
-      startAssistantDaemon({ workspaceId: 'workspace-origin', siteDir: fixture }, { registerProcessSignalHandlers: false, nativeSpawn });
+      startAssistantDaemon({ workspaceId: 'workspace-origin', siteDir: fixture }, { registerProcessSignalHandlers: false, nativeSpawn, refreshPort: async () => {} });
+      await demandSpawn();
       const childReport = await report!;
       assert.equal(childReport.inherited, expected);
       assert.equal(childReport.derived, expected);

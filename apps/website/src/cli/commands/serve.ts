@@ -427,23 +427,19 @@ async function serveBootedSite(input: RunServeCommandInput, target: string, owne
       }
       resolve();
 
-      // Same readiness-await-then-spawn ordering as `index.ts`'s own `app.listen()` callback, and
+      // Register cold, retaining the readiness-before-spawn gate shared with index.ts, and
       // for the identical reason (see `server/runtime/boot/site-boot-readiness.ts`, the list both
       // boot paths now share): spawning before these settle raced this process's own first-boot identity/settings seeding and
       // shipped a real duplicate-`core.execution.mode`-row defect. `registerProcessSignalHandlers:
       // false` because this command already owns SIGINT/SIGTERM below (BR-07) — see
       // `startAssistantDaemon`'s own option doc for why a second listener here would race it.
-      awaitSiteBootReadiness({ deps })
-        .then(async () => {
-          if (!(await agentDaemonWanted(deps))) return;
-          startAssistantDaemon(
-            { workspaceId: deps.workspaceId, siteDir: target, pgSocketPath: bootResult.store?.pgliteSocketPath },
-            { registerProcessSignalHandlers: false }
-          );
-        })
-        .catch((error: unknown) => {
-          console.error("[cli/serve] a boot-readiness promise rejected — not starting the agent daemon", error);
-        });
+      startAssistantDaemon(
+        { workspaceId: deps.workspaceId, siteDir: target, pgSocketPath: bootResult.store?.pgliteSocketPath },
+        { registerProcessSignalHandlers: false, beforeStart: async () => {
+          await awaitSiteBootReadiness({ deps });
+          if (!(await agentDaemonWanted(deps))) throw new Error("the assistant daemon is disabled for this site");
+        } }
+      );
 
       // BR-07: on SIGINT/SIGTERM, stop accepting new connections, let the current request finish,
       // then close the db handle and exit 0.

@@ -1,4 +1,6 @@
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
+import { EventEmitter } from "node:events";
+import { startAssistantDaemon, resetAssistantDaemonSingletonForTests } from "../runtime/lifecycle/daemon-supervisor.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -268,3 +270,15 @@ test("no daemon token configured at all — 503 before any request is even attem
   assert.equal(body.code, "AGENT_DAEMON_UNAVAILABLE");
   assert.match(body.error, /token/i);
 });
+
+
+// These wire-contract cases use a live stand-in endpoint after an identity-matched fake start.
+test.beforeEach(() => {
+  resetAssistantDaemonSingletonForTests();
+  startAssistantDaemon({ workspaceId: "test", siteDir: "/fake-site" }, {
+    registerProcessSignalHandlers: false, refreshPort: async () => {},
+    spawnDaemonProcess: () => Object.assign(new EventEmitter(), { pid: 321, kill: () => true }),
+    readDiscovery: async () => ({ pid: 321, url: "http://127.0.0.1:12345" }),
+  });
+});
+test.afterEach(resetAssistantDaemonSingletonForTests);

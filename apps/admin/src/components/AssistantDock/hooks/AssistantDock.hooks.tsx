@@ -1,3 +1,4 @@
+import { activateAssistantDaemon, prepareAssistantPageBinding } from "../../../lib/assistant-daemon-activation";
 import { partitionChatPackages } from "./chat-package-kind";
 import { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps } from "./resolve-composer-discovery-outcome";
 import type { SelectedComposerSkill } from "@/features/plugins/selected-skills";
@@ -5,7 +6,7 @@ import { captureSkillDrop } from "@/features/skills/skill-drop";
 import { createInstalledSkillsComposerCapabilitySource } from "@/features/plugins/installed-skills-composer-source";
 import { SKILLS_CHANGED_EVENT } from "@/features/skills/api";
 import { getAssistantDockOpen, subscribeToAssistantDock } from "@/lib/assistant-dock-bus";
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type DragEvent } from "react";
 import {
   createDaemonAttachmentUploader,
   type ChatPaneAgent,
@@ -17,7 +18,7 @@ import {
   type FrontendSessionBridge,
   type I18nAdapter,
 } from "@jini-ai/chat/react";
-import { conversationTitleForDisplay, isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
+import { conversationTitleForDisplay, isTerminalRunStatus, type ChatMessage, type StartRunInput } from "@jini-ai/chat/core";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
 import { resolveSelectedPreset, type ExecutionConfig } from "@jini-ai/ui";
 import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
@@ -890,17 +891,18 @@ export function useSelectedPluginChips(
  */
 export function useAssistantTransport(
   input: {
+    agentBridge?: FrontendSessionBridge | null;
     executionConfigRef: React.MutableRefObject<ExecutionConfig>;
     readExecutionConfigForSend?: () => Promise<ExecutionConfig>;
     readLocalCliSelectionForSend?: (config: ExecutionConfig) => ChatPaneAgentSelection;
     ensureConversationId?: () => Promise<string | null>;
     persistUserTurn?: (conversationId: string, message: ChatMessage) => Promise<void>;
   },
-  { createTransport = createTovuAssistantTransport }: { createTransport?: typeof createTovuAssistantTransport } = {},
+  { createTransport = createTovuAssistantTransport, prepareBinding = prepareAssistantPageBinding }: { createTransport?: typeof createTovuAssistantTransport; prepareBinding?: typeof prepareAssistantPageBinding } = {},
 ): ReturnType<typeof createTovuAssistantTransport> {
   const { executionConfigRef, ensureConversationId, persistUserTurn } = input;
-  const io = useRef({ input, createTransport });
-  io.current = { input, createTransport };
+  const io = useRef({ input, createTransport, prepareBinding });
+  io.current = { input, createTransport, prepareBinding };
   return useMemo<ReturnType<typeof createTovuAssistantTransport>>(() => {
     const transport = io.current.createTransport({
       getExecutionConfig: () => executionConfigRef.current,
@@ -935,24 +937,65 @@ export function useAssistantTransport(
         if (fresh.readExecutionConfigForSend) {
           const config = await fresh.readExecutionConfigForSend();
           if (config.mode === "local-cli") {
-            const selection = fresh.readLocalCliSelectionForSend?.(config) ?? localCliSelectionFromConfig({ config });
-            const { model: _oldModel, reasoning: _oldReasoning, ...context } = runInput.context ?? {};
-            // A pending picker save stays authoritative even if a refresh still sees the old
-            // ledger effort. Missing effort retains the existing fallback for legacy callers.
-            const reasoning = selection.reasoning ?? selectedLocalCliReasoning({
-              ...config, localCli: { ...config.localCli, agentId: selection.agentId },
-            });
-            runInput = {
-              ...runInput,
-              agentId: selection.agentId,
-              context: { ...context, ...(selection.model ? { model: selection.model } : {}), ...(reasoning ? { reasoning } : {}) },
-            };
+            runInput = withLatestLocalCliSelection({ runInput, config }, { readSelection: fresh.readLocalCliSelectionForSend });
           }
+        }
+        // The pane froze context while the cold bridge was parked. Read its token after attach.
+        if (fresh.executionConfigRef.current.mode === "local-cli") {
+          const token = await pageBindToken({ bridge: fresh.agentBridge, signal: runInput.cancelSignal ?? runInput.signal }, { prepareBinding: io.current.prepareBinding });
+          if (fresh.agentBridge) runInput = { ...runInput, context: { ...runInput.context, frontendBindToken: token } };
         }
         return transport.startRun(runInput, handlers);
       },
     };
   }, [executionConfigRef, ensureConversationId, persistUserTurn]);
+}
+
+/** Pre-warms the per-site agent daemon while the dock is open in Local CLI mode (ADR-070 #7).
+ * API · BYOK runs in the API process, so it never wakes the daemon; neither does the default mode
+ * before the saved one has loaded. A failed wake is left to the first send, which retries it. */
+export function useLocalCliDaemonPrewarm(
+  { mode, configLoaded }: { mode: ExecutionConfig["mode"]; configLoaded: boolean },
+  { activate = activateAssistantDaemon }: { activate?: typeof activateAssistantDaemon } = {},
+): void {
+  const dockOpen = useSyncExternalStore(subscribeToAssistantDock, getAssistantDockOpen);
+  const wake = useRef(activate);
+  wake.current = activate;
+  useEffect(() => {
+    if (dockOpen && configLoaded && mode === "local-cli") void wake.current({}, {}).catch(() => undefined);
+  }, [dockOpen, configLoaded, mode]);
+}
+
+/** A failed or slow wake must never fail the send: run acceptance waits for the daemon itself, so
+ * fall back to the bridge's current token. Only the caller's own Stop propagates. */
+async function pageBindToken(
+  { bridge, signal }: { bridge?: FrontendSessionBridge | null; signal?: AbortSignal },
+  { prepareBinding }: { prepareBinding: typeof prepareAssistantPageBinding },
+): Promise<string | undefined> {
+  try { return await prepareBinding({ bridge, signal }, {}); }
+  catch (error) {
+    if (signal?.aborted) throw error;
+    return bridge?.bindToken() ?? undefined;
+  }
+}
+
+/** Keep the saved CLI selection authoritative at dispatch, before adding the live page binding. */
+function withLatestLocalCliSelection(
+  { runInput, config }: { runInput: StartRunInput; config: ExecutionConfig },
+  { readSelection }: { readSelection?: (config: ExecutionConfig) => ChatPaneAgentSelection } = {},
+): StartRunInput {
+  const selection = readSelection?.(config) ?? localCliSelectionFromConfig({ config });
+  const { model: _oldModel, reasoning: _oldReasoning, ...context } = runInput.context ?? {};
+  // A pending picker save stays authoritative even if a refresh still sees the old
+  // ledger effort. Missing effort retains the existing fallback for legacy callers.
+  const reasoning = selection.reasoning ?? selectedLocalCliReasoning({
+    ...config, localCli: { ...config.localCli, agentId: selection.agentId },
+  });
+  return {
+    ...runInput,
+    agentId: selection.agentId,
+    context: { ...context, ...(selection.model ? { model: selection.model } : {}), ...(reasoning ? { reasoning } : {}) },
+  };
 }
 
 /**
@@ -1960,13 +2003,7 @@ export function useComposerCapabilitiesSeam(
 
 export function useAssistantTransportSeam(
   override: typeof useAssistantTransport | undefined,
-  input: {
-    executionConfigRef: React.MutableRefObject<ExecutionConfig>;
-    readExecutionConfigForSend?: () => Promise<ExecutionConfig>;
-    readLocalCliSelectionForSend?: (config: ExecutionConfig) => ChatPaneAgentSelection;
-    ensureConversationId?: () => Promise<string | null>;
-    persistUserTurn?: (conversationId: string, message: ChatMessage) => Promise<void>;
-  },
+  input: Parameters<typeof useAssistantTransport>[0],
 ): ReturnType<typeof createTovuAssistantTransport> {
   return (override ?? useAssistantTransport)(input);
 }

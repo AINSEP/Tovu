@@ -307,15 +307,17 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
       const widened = stderr.filter(line => line.includes("this site is reachable from other machines"));
       if (scenario.expected === "127.0.0.1") assert.deepEqual(widened, []);
       else assert.deepEqual(widened, [`tovu serve: warning: listening on ${scenario.expected ?? "all interfaces"}; this site is reachable from other machines on your network (--host/TOVU_HOST)\n`]);
-      if (scenario.daemonWanted === true) {
-        assert.deepEqual(daemonStarts, [[{ workspaceId: "wiring-workspace", siteDir: target, pgSocketPath: scenario.pgliteSocketPath }, { registerProcessSignalHandlers: false }]]);
-      } else assert.deepEqual(daemonStarts, []);
-      assert.deepEqual(leaseClaims, [{ dir: target, app: scenario.runningApp ?? "Web" }]);
-      if (scenario.identityFails === true) {
-        // Server log capture (installed by the command) formats console.error's arguments into one line.
-        assert.equal(errors.length, 1);
-        assert.match(String(errors[0]![0]), /^\[cli\/serve\] a boot-readiness promise rejected — not starting the agent daemon Error: identity seeding failed\n/);
-      }
+      // Boot registers the daemon cold, exactly once; eligibility and seeding gate the first demand.
+      assert.equal(daemonStarts.length, 1);
+      const [spawnInput, startOptions] = daemonStarts[0] as [unknown, { registerProcessSignalHandlers: boolean; beforeStart: () => Promise<void> }];
+      assert.deepEqual(spawnInput, { workspaceId: "wiring-workspace", siteDir: target, pgSocketPath: scenario.pgliteSocketPath });
+      assert.equal(startOptions.registerProcessSignalHandlers, false);
+      assert.equal(typeof startOptions.beforeStart, "function");
+      if (scenario.identityFails === true) await assert.rejects(startOptions.beforeStart(), readinessFailure);
+      else if (scenario.daemonWanted === true) await startOptions.beforeStart();
+      else await assert.rejects(startOptions.beforeStart(), /the assistant daemon is disabled for this site/);
+      // A failed seeder no longer logs at boot: the refusal surfaces on the demand that awaited it.
+      assert.deepEqual(errors, []);
       assert.equal(process.env.TOVU_SITE_DIR, target);
       assert.ok(signals.has("SIGTERM"));
       assert.ok(signals.has("SIGINT"));

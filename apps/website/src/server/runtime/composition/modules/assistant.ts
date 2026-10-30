@@ -46,6 +46,7 @@ import { redactAdminRunContextRef } from "#src/assistant/credential-chat-intake"
  * `assistant-ag-ui.ts` can reach the same daemon process without duplicating it. Pure extraction —
  * every function this file still calls has the exact body it had inline here before the split.
  */
+import { ensureAssistantDaemonReady, isAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
 import type { AgentSummary } from "@jini-ai/daemon/http";
 import type { Express, NextFunction, Request, Response } from "express";
 
@@ -69,13 +70,19 @@ import {
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { registerAdminChatAttachmentReadRoute } from "#src/server/inbound/admin-http/routes/assistant/get-chat-attachment";
 import type { RouteDeps } from "#src/server/routes/types";
-import { daemonFetch, getAgentDaemonUrl, forwardToAgentDaemon, respondIfDaemonKnownFailed, type DaemonCallOptions } from "./assistant-daemon-client.js";
+
+import { daemonFetch, getAgentDaemonUrl, forwardToAgentDaemon, parkColdFrontendStream, awaitDaemonForResponse, respondIfDaemonKnownFailed, type DaemonCallOptions } from "./assistant-daemon-client.js";
 import type { ServerModuleHandle } from "./types.js";
 import { randomUUID } from "node:crypto";
 import { createRunAcceptance } from "#src/assistant/durable-runs/accept";
 import { assistantRunFinalizerFor, createHttpRunDaemonClient } from "./assistant-run-finalizer.js";
 import type { DurableRun, DurableRunHead } from "#src/assistant/durable-runs/ports";
 import { RunSlotBusyError } from "#src/assistant/persistence/durable-run-store";
+
+/** The API composition uses the real lifecycle; route tests inject discovery-free demand ports. */
+type AssistantRouteDeps = RouteDeps & {
+  assistantDaemonDemand?: { ensureReady: typeof ensureAssistantDaemonReady; isReady: () => boolean };
+};
 
 /** Streams `upstream`'s response back onto `res` as it arrives — required for the SSE run-events
  * endpoint, where buffering the whole body first would defeat live streaming entirely.
@@ -128,7 +135,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * principal into `contextRef` so the daemon (no cookie of its own) can answer `resolveDelegatedPrincipal`
  * for this run later, and can record who owns it. Every other route is a transparent pass-through
  * — they carry the same principal in a header instead, since they have no body to stamp. */
-async function proxyRunStart(req: Request, res: Response, daemon: DaemonCallOptions, deps: RouteDeps): Promise<void> {
+async function proxyRunStart(req: Request, res: Response, daemon: DaemonCallOptions, deps: AssistantRouteDeps): Promise<void> {
   const principal = getAuthedPrincipal(res);
   const body = (req.body ?? {}) as { contextRef?: unknown; agentId?: unknown; idempotencyKey?: unknown };
 
@@ -156,13 +163,13 @@ async function proxyRunStart(req: Request, res: Response, daemon: DaemonCallOpti
 }
 
 async function proxyAcceptedRun(
-  { decoded, body, deps, res }: { decoded: Record<string, unknown>; body: { agentId?: unknown }; deps: RouteDeps; res: Response }, _optional = {},
+  { decoded, body, deps, res }: { decoded: Record<string, unknown>; body: { agentId?: unknown }; deps: AssistantRouteDeps; res: Response }, _optional = {},
 ): Promise<boolean> {
   const principal = getAuthedPrincipal(res);
   const durable = deps.chatRunLedger.durable;
   if (durable && typeof decoded.conversationId === "string" && typeof decoded.assistantMessageId === "string") {
     const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {});
-    const client = createHttpRunDaemonClient({ observability: deps.observability });
+    const client = createHttpRunDaemonClient({ observability: deps.observability }, { ensureReady: deps.assistantDaemonDemand?.ensureReady });
     const acceptance = createRunAcceptance({ store: durable, now: Date.now, mintRunId: randomUUID,
       onAccepted: ({ run }) => deps.tracker.capture({ name: "assistant_run_started", userId: principal.id }, { properties: { chatSurface: "admin", logicalRunId: run.messageId, eventId: `assistant-start:${run.messageId}` } }),
       launch: (required, optional) => client.launch!(required, optional),
@@ -185,7 +192,7 @@ async function proxyPassthrough(req: Request, res: Response, daemon: DaemonCallO
   await relayResponse(upstream, req, res);
 }
 
-async function ownedDurableRun({ req, res, deps }: { req: Request; res: Response; deps: RouteDeps }, _optional = {}): Promise<DurableRunHead | null> {
+async function ownedDurableRun({ req, res, deps }: { req: Request; res: Response; deps: AssistantRouteDeps }, _optional = {}): Promise<DurableRunHead | null> {
   const store = deps.chatRunLedger.durable;
   if (!store) return null;
   const principalId = getAuthedPrincipal(res).id;
@@ -195,13 +202,13 @@ async function ownedDurableRun({ req, res, deps }: { req: Request; res: Response
 }
 
 /** Routine polls read the owned saved projection; only recovery signals invoke the finalizer. */
-async function readDurableCheckpoint({ req, res, deps }: { req: Request; res: Response; deps: RouteDeps }, _optional = {}): Promise<void> {
+async function readDurableCheckpoint({ req, res, deps }: { req: Request; res: Response; deps: AssistantRouteDeps }, _optional = {}): Promise<void> {
   const run = await ownedDurableRun({ req, res, deps }, {});
   if (!run) { res.status(404).json({ error: "not found" }); return; }
   res.json({ message: run.message, conversationId: run.conversationId });
 }
 
-async function recoverDurableRun({ req, res, deps }: { req: Request; res: Response; deps: RouteDeps }, _optional = {}): Promise<void> {
+async function recoverDurableRun({ req, res, deps }: { req: Request; res: Response; deps: AssistantRouteDeps }, _optional = {}): Promise<void> {
   const run = await ownedDurableRun({ req, res, deps }, {});
   if (!run) { res.status(404).json({ error: "not found" }); return; }
   const finalizer = assistantRunFinalizerFor({ ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability }, {});
@@ -211,7 +218,7 @@ async function recoverDurableRun({ req, res, deps }: { req: Request; res: Respon
   res.json({ message: current.message, conversationId: current.conversationId });
 }
 
-async function cancelDurableRun({ req, res, deps, daemon }: { req: Request; res: Response; deps: RouteDeps; daemon: DaemonCallOptions }, _optional = {}): Promise<void> {
+async function cancelDurableRun({ req, res, deps, daemon }: { req: Request; res: Response; deps: AssistantRouteDeps; daemon: DaemonCallOptions }, _optional = {}): Promise<void> {
   let run = await ownedDurableRun({ req, res, deps }, {});
   if (!run) run = await cancelBeforeAcceptance({ req, res, deps }, {});
   if (!run) { await proxyPassthrough(req, res, daemon); return; }
@@ -221,7 +228,7 @@ async function cancelDurableRun({ req, res, deps, daemon }: { req: Request; res:
   res.json({ run: { id: run.runId, state: "cancelled" } });
 }
 
-async function cancelBeforeAcceptance({ req, res, deps }: { req: Request; res: Response; deps: RouteDeps }, _optional = {}): Promise<DurableRun | null> {
+async function cancelBeforeAcceptance({ req, res, deps }: { req: Request; res: Response; deps: AssistantRouteDeps }, _optional = {}): Promise<DurableRun | null> {
   const body = (req.body ?? {}) as { messageId?: unknown; conversationId?: unknown };
   if (typeof body.messageId !== "string" || typeof body.conversationId !== "string") return null;
   return deps.chatRunLedger.durable?.cancelPending({ messageId: body.messageId, conversationId: body.conversationId,
@@ -231,7 +238,7 @@ async function cancelBeforeAcceptance({ req, res, deps }: { req: Request; res: R
 
 /**
  * `GET /api/agents` / `POST /api/agents/rescan`'s dedicated handler — the one route pair that
- * needs the daemon's JSON body parsed and rewritten rather than streamed through unmodified.
+ * reads the API-owned inventory, preserving the daemon route's existing response contract.
  * Design: `ADS-memory/reports/local-cli-live-model-discovery-design-2026-08-05.md` §3.1.
  *
  * Both routes answer the identical `{agents: AgentSummary[]}` shape (`@jini-ai/http-kit`'s
@@ -246,37 +253,7 @@ async function cancelBeforeAcceptance({ req, res, deps }: { req: Request; res: R
  * `models`/`modelsSource: "fallback"` byte-identical, which is what makes the credential branch a
  * pure enrichment step rather than something the picker can be gated or degraded by.
  *
- * Falls back to relaying the daemon's raw body/status unmodified whenever the response isn't the
- * `{agents: [...]}` shape this handler expects (non-2xx, a parse failure, or simply no `agents`
- * key) — this handler must never turn a daemon-side error into a worse one by discarding it.
  */
-/**
- * Parses `rawText` into the `{agents: AgentSummary[]}` shape enrichment needs, or `null` when this
- * response should instead be relayed unmodified (a parse failure, a non-2xx status, an empty body,
- * or a 2xx body that isn't the expected shape — see {@link respondWithEnrichedAgentList}'s own doc
- * for why the last case still gets a warning while the others stay quiet).
- */
-function parseEnrichableAgentList(
-  rawText: string,
-  upstream: globalThis.Response,
-  req: Request,
-): { payload: { agents?: unknown }; agents: AgentSummary[] } | null {
-  let payload: { agents?: unknown } | undefined;
-  try {
-    payload = rawText ? (JSON.parse(rawText) as { agents?: unknown }) : undefined;
-  } catch {
-    return null;
-  }
-  if (!upstream.ok || !payload) return null;
-  if (!Array.isArray(payload.agents)) {
-    console.warn(
-      `[assistant] ${req.method} ${req.originalUrl} — daemon responded 2xx without an 'agents' array; relaying unmodified, live model enrichment skipped for this response`,
-    );
-    return null;
-  }
-  return { payload, agents: payload.agents as AgentSummary[] };
-}
-
 /** Enriches one agent's `models`/`modelsSource` with a live discovery call — the `claude` entry
  *  only, unioned into its static fallback list. See {@link respondWithEnrichedAgentList}'s own doc
  *  for the full union/never-replace/never-hard-fail contract this implements. */
@@ -290,31 +267,19 @@ async function enrichAgentWithLiveModels(
   return { ...agent, models: unionModels(agent.models ?? [], live), modelsSource: "live" };
 }
 
-async function respondWithEnrichedAgentList(
-  { req, res, routeDeps, liveModels }: { req: Request; res: Response; routeDeps: RouteDeps; liveModels: LiveModelDiscovery },
+export async function respondWithEnrichedAgentList(
+  { req, res, routeDeps, liveModels }: { req: Request; res: Response; routeDeps: AssistantRouteDeps; liveModels: LiveModelDiscovery },
   _options = {},
 ): Promise<void> {
-  const upstream = await forwardToAgentDaemon(req, res, req.method === "GET" || req.method === "HEAD" ? undefined : req.body, { observability: routeDeps.observability });
-  if (!upstream) return;
-
-  const rawText = await upstream.text();
-  res.status(upstream.status);
-  const contentType = upstream.headers.get("content-type");
-  if (contentType) res.setHeader("Content-Type", contentType);
-
-  const parsed = parseEnrichableAgentList(rawText, upstream, req);
-  if (!parsed) {
-    // A non-2xx status, an empty/unparseable body, or an unexpected shape — the daemon (or the
-    // warning `parseEnrichableAgentList` already logged) is the right place for that to be
-    // attributed, not this proxy hop. Relay exactly what the daemon sent.
-    res.send(rawText);
-    return;
-  }
+  if (respondIfDaemonKnownFailed(res)) return;
+  const inventory = routeDeps.assistantAgentInventory;
+  if (!inventory) { res.status(503).json({ error: "the agent inventory is not configured", code: "AGENT_DAEMON_UNAVAILABLE" }); return; }
+  const agents = await (req.method === "POST" ? inventory.rescanAssistantAgents({}, {}) : inventory.listAssistantAgents({}, {}));
 
   const principal = getAuthedPrincipal(res);
-  const enriched = await Promise.all(parsed.agents.map((agent) => enrichAgentWithLiveModels({ agent, liveModels, workspaceId: routeDeps.workspaceId, principalId: principal.id })));
+  const enriched = await Promise.all(agents.map((agent) => enrichAgentWithLiveModels({ agent, liveModels, workspaceId: routeDeps.workspaceId, principalId: principal.id })));
 
-  res.json({ ...parsed.payload, agents: enriched });
+  res.json({ agents: enriched });
 }
 
 /**
@@ -493,7 +458,7 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
  * process) — see `daemon-auth.ts`.
  */
 async function forwardAttachmentUpload(req: Request, res: Response, daemon: DaemonCallOptions): Promise<void> {
-  if (respondIfDaemonKnownFailed(res)) return;
+  if (!(await awaitDaemonForResponse({ res }, daemon))) return;
   const target = `${getAgentDaemonUrl()}${req.originalUrl}`;
   const headers: Record<string, string> = {
     "content-type": req.get("content-type") ?? "application/octet-stream",
@@ -530,9 +495,9 @@ async function forwardAttachmentUpload(req: Request, res: Response, daemon: Daem
  * diverge from the BYOK module's own store the first time someone forgot to thread it through, and
  * every confirmation would 404/409 against an exchange this store never opened.
  */
-export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges: SurfaceExchangeStore): ServerModuleHandle {
+export function createAssistantModule(routeDeps: AssistantRouteDeps, byokSurfaceExchanges: SurfaceExchangeStore): ServerModuleHandle {
   // Every proxied daemon call is an outbound span under the admin request that caused it.
-  const daemon: DaemonCallOptions = { observability: routeDeps.observability };
+  const daemon: DaemonCallOptions = { observability: routeDeps.observability, ensureReady: routeDeps.assistantDaemonDemand?.ensureReady };
   // Each host owns its cache for its lifetime; unrelated applications cannot share a model slot.
   const liveModels = createLiveModelDiscovery({
     repo: routeDeps.adminExecutionCredentialRepo,
@@ -612,7 +577,14 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       // `/api/runs/:runId/events`, and buffering it would mean the tab never receives an
       // invocation until the connection closed.
       app.use("/api/frontend-sessions", requireAdminSession(routeDeps));
-      app.get("/api/frontend-sessions/stream", (req, res, next) => proxyPassthrough(req, res, daemon).catch(next));
+      // Session-gated like every other chat POST (POST /api/runs wakes the daemon the same way).
+      app.post("/api/frontend-sessions/activate", (_req, res, next) => {
+        (daemon.ensureReady ?? ensureAssistantDaemonReady)({}, {}).then(() => { res.sendStatus(204); }).catch(next);
+      });
+      app.get("/api/frontend-sessions/stream", (req, res, next) => {
+        if (parkColdFrontendStream({ res, isReady: routeDeps.assistantDaemonDemand?.isReady ?? isAssistantDaemonReady }, {})) return;
+        proxyPassthrough(req, res, daemon).catch(next);
+      });
       app.post("/api/frontend-sessions/:sessionId/responses", (req, res, next) =>
         proxyPassthrough(req, res, daemon).catch(next),
       );

@@ -17,7 +17,7 @@ test("MCP proxy pins validation, explicit/param/typed correlations and authorita
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);
-  createAssistantModule(deps, store).registerRoutes?.(app);
+  createAssistantModule(Object.assign(deps, { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }), store).registerRoutes?.(app);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const previous = process.env.JINI_AGENT_DAEMON_URL;
   t.after(() => { if (previous === undefined) delete process.env.JINI_AGENT_DAEMON_URL; else process.env.JINI_AGENT_DAEMON_URL = previous; });

@@ -528,7 +528,7 @@ const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
   derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
 };
-installFirstPartyToolContributors({ contributions }, { deployOpsRegistry: await routeDeps.loadDeployOps({ workspaceId: routeDeps.workspaceId }), observability: routeDeps.observability,
+installFirstPartyToolContributors({ contributions }, { ensureDaemonReady: async () => {}, deployOpsRegistry: await routeDeps.loadDeployOps({ workspaceId: routeDeps.workspaceId }), observability: routeDeps.observability,
   chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
   readInstallAttachment: createPluginInstallAttachmentReader({}, {
     uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir,

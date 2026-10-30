@@ -34,7 +34,7 @@ function withToken(t: import("node:test").TestContext, value: string | undefined
 test("launch POSTs the continuation to the current daemon with the run id as idempotency key and the bearer token", async (t) => {
   withToken(t, "tok-launch");
   const { calls, fetch } = recordingFetch(() => new Response("accepted", { status: 202 }));
-  const client = createHttpRunDaemonClient({ observability }, { currentUrl: () => "http://127.0.0.1:4200", fetch });
+  const client = createHttpRunDaemonClient({ observability }, { ensureReady: async () => {}, currentUrl: () => "http://127.0.0.1:4200", fetch });
   await client.launch!({ run: { runId: "run-9", principalId: "owner" } as never, request: { contextRef: "ctx-1", agentId: "agent-a" } }, {});
   assert.equal(calls.length, 1);
   assert.equal(calls[0]!.url, "http://127.0.0.1:4200/api/runs");
@@ -47,7 +47,7 @@ test("launch POSTs the continuation to the current daemon with the run id as ide
 test("launch surfaces a daemon refusal as an error naming the status; no token means no Authorization header", async (t) => {
   withToken(t, undefined);
   const { calls, fetch } = recordingFetch(() => new Response(null, { status: 409 }));
-  const client = createHttpRunDaemonClient({ observability }, { currentUrl: () => "http://127.0.0.1:4200", fetch });
+  const client = createHttpRunDaemonClient({ observability }, { ensureReady: async () => {}, currentUrl: () => "http://127.0.0.1:4200", fetch });
   await assert.rejects(client.launch!({ run: { runId: "run-9", principalId: "owner" } as never, request: { contextRef: "ctx-1" } }, {}), { message: "continuation rejected (409)" });
   assert.equal("Authorization" in calls[0]!.headers, false);
 });
@@ -109,7 +109,7 @@ test("runStatus: an unreachable prior daemon is null there, and an aborted probe
 
 test("with no prior-daemon discovery the current daemon is the only origin, and its status is returned as-is", async () => {
   const { calls, fetch } = recordingFetch(() => new Response(null, { status: 404 }));
-  const client = createHttpRunDaemonClient({ observability }, { currentUrl: () => "http://127.0.0.1:4300", fetch });
+  const client = createHttpRunDaemonClient({ observability }, { ensureReady: async () => {}, currentUrl: () => "http://127.0.0.1:4300", fetch });
   assert.equal(await client.runStatus({ runId: "r", principalId: "owner" }, {}), 404);
   assert.deepEqual(calls.map((call) => call.url), ["http://127.0.0.1:4300/api/runs/r"]);
 });
@@ -124,4 +124,19 @@ test("a recorded prior daemon whose process is gone (default liveness probe) is 
   });
   assert.equal(await client.runStatus({ runId: "r", principalId: "owner" }, {}), 200);
   assert.deepEqual(calls.map((call) => call.url), ["http://127.0.0.1:4300/api/runs/r"]);
+});
+
+
+test("first durable launch waits for readiness and dispatches the accepted identity exactly once", async () => {
+  let ready!: () => void;
+  const started = new Promise<void>((resolve) => { ready = resolve; });
+  const { calls, fetch } = recordingFetch(() => new Response(null, { status: 201 }));
+  const client = createHttpRunDaemonClient({ observability }, {
+    ensureReady: () => started, currentUrl: () => "http://127.0.0.1:4200", fetch,
+  });
+  const pending = client.launch!({ run: { runId: "accepted-1", principalId: "owner" } as never, request: { contextRef: "{}" } }, {});
+  assert.equal(calls.length, 0);
+  ready(); await pending;
+  assert.equal(calls.length, 1);
+  assert.equal(JSON.parse(calls[0]!.body!).idempotencyKey, "accepted-1");
 });

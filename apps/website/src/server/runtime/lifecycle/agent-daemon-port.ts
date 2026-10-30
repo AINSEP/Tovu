@@ -33,6 +33,8 @@ export interface AgentDaemonOriginResolver {
    *  `getPortForSpawnEnv()` to read synchronously afterward. A second call returns the
    *  already-settled result without re-probing. */
   ensure(): Promise<void>;
+  /** A deferred spawn must not reuse the boot-time released reservation. */
+  refresh(): Promise<void>;
   /** The resolved daemon origin. An explicit `JINI_AGENT_DAEMON_URL`/`JINI_AGENT_DAEMON_PORT` is
    *  re-checked live on every call. Falls back to whatever `ensure()` already cached; throws if
    *  self-allocation was needed and `ensure()` has not yet settled — every real boot path calls
@@ -100,16 +102,21 @@ export function allocateFreePort(
  *
  * @complexity Each method O(1) beyond the one-time `allocateFreePort` probe `ensure()` may perform.
  */
-export function createAgentDaemonOriginResolver(): AgentDaemonOriginResolver {
+export function createAgentDaemonOriginResolver(
+  _required: Record<string, never> = {}, { allocatePort = allocateFreePort }: { allocatePort?: typeof allocateFreePort } = {},
+): AgentDaemonOriginResolver {
   let selfAllocatedPort: number | undefined;
   let ensured: Promise<void> | undefined;
 
   async function resolveAndCache(): Promise<void> {
     if (readExplicitOrigin() !== undefined) return;
-    selfAllocatedPort = await allocateFreePort();
+    selfAllocatedPort = await allocatePort();
   }
 
   return {
+    async refresh(): Promise<void> {
+      await resolveAndCache();
+    },
     ensure(): Promise<void> {
       ensured ??= resolveAndCache();
       return ensured;
@@ -145,4 +152,9 @@ export function getAgentDaemonUrl(): string {
 /** Production entry point — see {@link AgentDaemonOriginResolver.getPortForSpawnEnv}. */
 export function getAgentDaemonPortForSpawnEnv(): string | undefined {
   return productionResolver.getPortForSpawnEnv();
+}
+
+/** Refresh only the self-selected port immediately before demand; explicit origin precedence stands. */
+export function refreshAgentDaemonPort(): Promise<void> {
+  return productionResolver.refresh();
 }

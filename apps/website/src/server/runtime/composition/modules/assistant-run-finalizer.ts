@@ -1,3 +1,4 @@
+import { ensureAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 /**
@@ -144,6 +145,7 @@ export function createHttpRunDaemonClient(
     previousDaemon?: () => Promise<{ url: string; pid: number } | null>;
     isAlive?: (required: { pid: number }) => boolean;
     currentUrl?: () => string;
+    ensureReady?: typeof ensureAssistantDaemonReady;
     fetch?: typeof fetch;
   } = {},
 ): RunDaemonClient {
@@ -178,6 +180,7 @@ export function createHttpRunDaemonClient(
   }
   return {
     async launch({ run, request }, _options) {
+      await (optional.ensureReady ?? ensureAssistantDaemonReady)({}, {});
       const response = await send(`${(optional.currentUrl ?? getAgentDaemonUrl)()}/api/runs`, {
         method: "POST", headers: { ...daemonHeaders(run.principalId!), "Content-Type": "application/json" },
         body: JSON.stringify({ ...request, runId: run.runId, idempotencyKey: run.runId }), signal: AbortSignal.timeout(10_000),

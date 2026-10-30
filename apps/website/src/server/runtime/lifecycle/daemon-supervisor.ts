@@ -32,8 +32,8 @@ import { redactLocalText } from "../../../platform/server-logs/redact-local-text
 import { createRedactedOutputSink } from "../../../platform/server-logs/console-tee.js";
 
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "./readiness-state.js";
-import { getAgentDaemonPortForSpawnEnv } from "./agent-daemon-port.js";
-import { createAssistantDaemonRegistry } from "./assistant-daemon-registry.js";
+import { getAgentDaemonPortForSpawnEnv, refreshAgentDaemonPort } from "./agent-daemon-port.js";
+import { createAssistantDaemonRegistry, readPreviousAssistantDaemon } from "./assistant-daemon-registry.js";
 import { AGENT_DAEMON_EXIT_CODE, createRespawnPolicy } from "#src/assistant/index";
 import type { RespawnDecision, RespawnPolicy } from "#src/assistant/index";
 
@@ -56,6 +56,7 @@ export interface SpawnedDaemonProcess {
 export interface DaemonSupervisorDeps {
   /** Caller-owned Node child factory. The production singleton uses Jini's Node adapter instead. */
   spawnDaemonProcess: () => SpawnedDaemonProcess;
+  readiness?: DaemonSupervisorRequired["readiness"];
   /** Defaults to a fresh {@link createRespawnPolicy} instance with production settings — pass an
    *  override in tests to shrink the backoff/cap thresholds so retries happen in milliseconds. */
   policy?: RespawnPolicy;
@@ -98,6 +99,8 @@ export interface DaemonSupervisorActionResult {
 export interface DaemonSupervisor {
   /** Perform the first spawn attempt. Call exactly once per supervisor instance. */
   start(): void;
+  isReady(): boolean;
+  ensureReady(required: Record<string, never>, optional?: { signal?: AbortSignal }): Promise<void>;
   /**
    * The manual restart seam — the piece that answers "a human's not gonna know how to restart a
    * Node process": clears the respawn policy, cancels any pending scheduled retry, and spawns a
@@ -201,6 +204,7 @@ function bindDaemonSupervisor(ports: DaemonProcessPorts, options: DaemonHostOpti
   const log = options.log ?? ((line: string) => console.log(line));
   const supervisor = createSidecarSupervisor({
     ...ports,
+    readiness: options.readiness,
     policy: options.policy ?? createRespawnPolicy({ now: clock }),
     now: clock,
     scheduler: options.scheduler ?? createNodeSupervisorScheduler({}),
@@ -437,8 +441,9 @@ export function createRealDaemonProcessPorts(input: DaemonSpawnEnvInput, optiona
 }
 
 // Module-singleton wrapper: the only place in this file that touches real process.on.
-// Top-level boot starts after readiness; restart and lazy-start callers share this lifecycle.
+// Boot registers without spawning; restart and demand callers share the readiness-gated lifecycle.
 let singleton: DaemonSupervisor | undefined;
+let prepareStart: (() => Promise<void>) | undefined;
 // The package owns termination; this host only retains its completion for site-store teardown.
 let daemonStopWork: Promise<void> = Promise.resolve();
 
@@ -459,11 +464,17 @@ let shutdownRequested = false;
  */
 export function resetAssistantDaemonSingletonForTests(): void {
   singleton = undefined;
+  prepareStart = undefined;
   shutdownRequested = false;
   daemonStopWork = Promise.resolve();
 }
 
 export interface StartAssistantDaemonOptions {
+  /** Await API-owned seeders and eligibility before the first demand starts a child. */
+  beforeStart?: () => Promise<void>;
+  readDiscovery?: () => Promise<{ pid: number; url: string } | null>;
+  scheduler?: SupervisorScheduler;
+  refreshPort?: () => Promise<void>;
   /**
    * Default `true`: this call registers its own
    * `process.on(SIGINT/SIGTERM/SIGHUP/"exit", ...)` handlers, and the signal handlers call
@@ -493,7 +504,7 @@ export interface StartAssistantDaemonOptions {
 }
 
 /**
- * Start the assistant daemon supervisor for this process boot. Safe to call only once — a second
+ * Register the assistant daemon supervisor without spawning for this process boot. Safe to call only once — a second
  * call is ignored (logged, not thrown) rather than silently spawning a second supervisor that
  * would fight the first one for the same port and the same `process.on(signal, ...)` slot.
  */
@@ -511,10 +522,10 @@ export function startAssistantDaemon(
     return;
   }
 
-  // Resolved once, here, rather than inside `spawnDaemonProcess` — `ensureAgentDaemonPortResolved()`
-  // (called by both real boot paths before `createApp()`) has already settled by the time this runs,
-  // so the same value this process's own proxy is using is what gets threaded into the child's env
-  // and into `daemonPort` (used only for this supervisor's human-readable failure text).
+  // Both boot paths pre-resolve an origin before createApp. A lazy launch refreshes the released
+  // reservation below: a boot-time free port may have been taken hours before first chat.
+  // Keep a concrete port because daemon boot snapshots its MCP injection URL before listening.
+  // The proxy and child still share this resolver; explicit URL/port precedence is unchanged.
   const daemonPortOverride = getAgentDaemonPortForSpawnEnv();
   const spawnEnv: DaemonSpawnEnvInput = {
     workspaceId: input.workspaceId,
@@ -522,18 +533,30 @@ export function startAssistantDaemon(
     daemonPortOverride,
     pgSocketPath: input.pgSocketPath,
   };
+  let prepared: Promise<void> | undefined;
+  prepareStart = () => prepared ??= (async () => {
+    await options.beforeStart?.();
+    await (options.refreshPort ?? refreshAgentDaemonPort)();
+    spawnEnv.daemonPortOverride = getAgentDaemonPortForSpawnEnv();
+  })().catch((error: unknown) => { prepared = undefined; throw error; });
+  const readiness = { isReady: async ({ pid }: { pid: number }): Promise<boolean> => {
+    const record = await (options.readDiscovery ?? (() => readPreviousAssistantDaemon({ siteDir: input.siteDir }, {})))();
+    return record !== null && record.pid === pid;
+  } };
   let supervisor: DaemonSupervisor;
   if (options.spawnDaemonProcess !== undefined) {
     const spawnDaemonProcess = options.spawnDaemonProcess;
     supervisor = createDaemonSupervisor({
       spawnDaemonProcess: () => spawnDaemonProcess(spawnEnv),
       daemonPort: daemonPortOverride,
+      readiness,
+      scheduler: options.scheduler,
     });
   } else {
-    supervisor = bindDaemonSupervisor(createRealDaemonProcessPorts(spawnEnv, { spawn: options.nativeSpawn }), { daemonPort: daemonPortOverride });
+    supervisor = bindDaemonSupervisor(createRealDaemonProcessPorts(spawnEnv, { spawn: options.nativeSpawn }), { daemonPort: daemonPortOverride, readiness, scheduler: options.scheduler });
   }
   singleton = supervisor;
-  supervisor.start();
+  // Registration is cold. Demand callers await seeders and discovery through ensureReady.
 
   if (options.registerProcessSignalHandlers === false) return;
 
@@ -575,7 +598,10 @@ export function restartAssistantDaemon(): RestartAssistantDaemonResult {
   if (singleton === undefined) {
     return { ok: false, reason: "the assistant daemon was never started this process boot" };
   }
-  return singleton.restart();
+  if (shutdownRequested) return { ok: false, reason: "shutting down" };
+  const supervisor = singleton;
+  void prepareStart?.().then(async () => { supervisor.restart(); await supervisor.ensureReady({}, {}); }).catch((error: unknown) => recordAssistantDaemonFailure(String(error)));
+  return { ok: true };
 }
 
 export type EnsureAssistantDaemonStartedResult = DaemonSupervisorActionResult;
@@ -592,5 +618,30 @@ export function ensureAssistantDaemonStarted(): EnsureAssistantDaemonStartedResu
   if (singleton === undefined) {
     return { ok: false, reason: "the assistant daemon was never started this process boot" };
   }
-  return singleton.ensureStarted();
+  if (shutdownRequested) return { ok: false, reason: "shutting down" };
+  const supervisor = singleton;
+  void prepareStart?.().then(() => supervisor.ensureReady({}, {})).catch((error: unknown) => recordAssistantDaemonFailure(String(error)));
+  return { ok: true };
+}
+
+/** The shared demand gate: seeders first, then Jini's single-flight 30s discovery deadline.
+ * @returns Resolves only for our live child; rejects on shutdown, ineligibility or readiness failure.
+ * @complexity O(1) host work; Jini bounds and schedules discovery polling.
+ */
+export async function ensureAssistantDaemonReady(
+  _required: Record<string, never>, { signal }: { signal?: AbortSignal } = {},
+): Promise<void> {
+  signal?.throwIfAborted();
+  if (shutdownRequested) throw new Error("shutting down");
+  if (!singleton) throw new Error("the assistant daemon lifecycle is not configured");
+  await prepareStart?.();
+  signal?.throwIfAborted();
+  await singleton.ensureReady({}, { signal });
+  // Our identity-matched child is live, so a latch from an earlier slow readiness wait is stale.
+  clearAssistantDaemonFailure();
+}
+
+/** Passive observers never call ensureStarted: cold page streams and saved roster changes stay cold. */
+export function isAssistantDaemonReady(): boolean {
+  return singleton?.isReady() ?? false;
 }

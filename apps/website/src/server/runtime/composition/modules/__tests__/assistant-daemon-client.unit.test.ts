@@ -8,10 +8,10 @@ import type { Request, Response } from "express";
 
 import {
   cancelDaemonRunBestEffort,
-  fetchAgentDaemon,
-  fetchAgentDaemonEventStream,
-  forwardToAgentDaemon,
-  triggerFederationReload,
+  fetchAgentDaemon as demandFetch,
+  fetchAgentDaemonEventStream as demandStream,
+  forwardToAgentDaemon as demandForward,
+  triggerFederationReload as reloadWarmDaemon,
 } from "../assistant-daemon-client.js";
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 
@@ -32,6 +32,12 @@ import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability
  * Every daemon here is a real local socket; the daemon origin comes from `JINI_AGENT_DAEMON_URL`,
  * which `getAgentDaemonUrl()` re-reads on every call.
  */
+
+// This suite tests HTTP/retry spans after readiness. Lifecycle behavior has its own DI suite.
+const fetchAgentDaemon: typeof demandFetch = (req, res, options = {}) => demandFetch(req, res, { ...options, ensureReady: async () => {} });
+const fetchAgentDaemonEventStream: typeof demandStream = (req, res, path, options = {}) => demandStream(req, res, path, { ...options, ensureReady: async () => {} });
+const forwardToAgentDaemon: typeof demandForward = (req, res, body, options = {}) => demandForward(req, res, body, { ...options, ensureReady: async () => {} });
+const triggerFederationReload: typeof reloadWarmDaemon = (options = {}) => reloadWarmDaemon({ ...options, isReady: () => true });
 
 const TOKEN_ENV = "TOVU_AGENT_DAEMON_TOKEN";
 

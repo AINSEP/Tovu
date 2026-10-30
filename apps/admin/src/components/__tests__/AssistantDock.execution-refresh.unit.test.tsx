@@ -55,7 +55,7 @@ function harness() {
   function useDock() {
     const execution = useExecutionConfig({}, { port });
     const selection = useLocalCliSelection(execution, { persistWrite });
-    const transport = useAssistantTransport({ ...execution, ...selection }, { createTransport });
+    const transport = useAssistantTransport({ ...execution, ...selection }, { createTransport, prepareBinding: async () => undefined });
     return { ...execution, ...selection, transport };
   }
   return {

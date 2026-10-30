@@ -171,3 +171,13 @@ it("opening a sheet before its DOM ref mounts does not fabricate a measurement",
   expect(result.current.sheetHeightPx).toBe(0);
   expect(result.current.dockWidthPx).toBe(0);
 });
+
+it("opening the dock does not itself wake the agent daemon: the dock decides by execution mode (BYOK runs in the API)", async () => {
+  const fetchSpy = vi.fn(async (_url: RequestInfo | URL) => new Response(null, { status: 204 }));
+  vi.stubGlobal("fetch", fetchSpy);
+  vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+  const { result } = renderHook(() => useChatDockLayout());
+  act(() => result.current.setChatOpen(true));
+  await act(async () => { await Promise.resolve(); });
+  expect(fetchSpy.mock.calls.map(([url]) => String(url))).not.toContain("/api/frontend-sessions/activate");
+});

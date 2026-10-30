@@ -344,6 +344,7 @@ export function installFirstPartyToolContributors(
     observability,
     createHttpClient = createDefaultHttpClient,
     fetchAdmissions = fetchDaemonAdmissions,
+    ensureDaemonReady,
     chatAttachmentsDir,
     mediaVideoPorts = createMediaVideoToolPorts({}, { uploadDirectory: chatAttachmentsDir }),
     readInstallAttachment = createPluginInstallAttachmentReader({}, { uploadDirectory: chatAttachmentsDir }),
@@ -352,6 +353,8 @@ export function installFirstPartyToolContributors(
     observability?: ObservabilityPort;
     createHttpClient?: typeof createDefaultHttpClient;
     fetchAdmissions?: typeof fetchDaemonAdmissions;
+    /** Only the API supplies a supervisor gate; daemon-local admissions must never wait on it. */
+    ensureDaemonReady?: () => Promise<void>;
     /** The booted site's `RouteDeps.siteStoragePaths.chatAttachmentsDir`, which the two default
      *  attachment readers below read from. Both production callers pass it; omitted (hermetic
      *  tests), those readers refuse every ref instead of resolving a directory from env. */
@@ -424,7 +427,7 @@ export function installFirstPartyToolContributors(
   }) }) });
   contributions.contributors.register({ contribution: contributeEntriesTools() });
   contributions.contributors.register({ contribution: contributeExternalMcpTools({ probe: probeExternalMcpServer }) });
-  contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: () => fetchAdmissions({ observability }) }) });
+  contributions.contributors.register({ contribution: contributeExternalMcpOperationsTools({ probe: probeExternalMcpServer, admissions: () => fetchAdmissions({ observability, ensureReady: ensureDaemonReady }) }) });
   contributions.contributors.register({ contribution: contributeFsFilesTools() });
   contributions.contributors.register({ contribution: contributeFilesCopyTools() });
   contributions.contributors.register({ contribution: contributeFormsTools() });

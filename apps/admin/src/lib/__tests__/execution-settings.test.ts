@@ -415,7 +415,7 @@ describe("saveExecutionConfig — the ADR-028 §6 boundary, and the write-only c
     function useDock() {
       const execution = useExecutionConfig({}, { port });
       const selection = useLocalCliSelection(execution);
-      const transport = useAssistantTransport({ ...execution, ...selection }, { createTransport: () => ({ startRun, stopRun: async () => {}, reattachRun: async () => {}, fetchRunStatus: async () => null }) });
+      const transport = useAssistantTransport({ ...execution, ...selection }, { prepareBinding: async () => undefined, createTransport: () => ({ startRun, stopRun: async () => {}, reattachRun: async () => {}, fetchRunStatus: async () => null }) });
       return { ...execution, ...selection, transport };
     }
     const handlers = { onEvent: () => {}, onDone: () => {}, onError: () => {} };

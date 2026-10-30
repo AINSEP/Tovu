@@ -67,6 +67,7 @@ import {
   useComposerDiscoverySelect,
   useExecutionConfig,
   useExecutionConfigSeam,
+  useLocalCliDaemonPrewarm,
   useLocalCliSelection,
   useLocalCliSelectionSeam,
   useMessagesChangeHandler,
@@ -355,6 +356,8 @@ export function AssistantDock({
 
   const executionPolicy = useTovuDockExecution({ controller: useExecutionConfigSeam(useExecutionConfigOverride), locale }, { usePolicy: useExecutionPolicy });
   const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded, readExecutionConfigForSend } = executionPolicy;
+  // The dock, not the layout, owns the pre-warm: only it knows the chat's execution mode.
+  useLocalCliDaemonPrewarm({ mode: executionConfig.mode, configLoaded });
   const { byokRuntime, handleByokModelChange } = useByokRuntimeSeam(useByokRuntimeOverride, { executionConfig, setExecutionConfig });
   const { localCliSelection, handleLocalCliSelectionChange, readLocalCliSelectionForSend } = useLocalCliSelectionSeam(useLocalCliSelectionOverride, {
     executionConfig,
@@ -368,6 +371,7 @@ export function AssistantDock({
   // `CreateTovuAssistantTransportOptions.ensureConversationId` for the full mechanism.
   const chats = useChatsSeam(useChats, { principalId });
   const transport = useAssistantTransportSeam(useAssistantTransportOverride, {
+    agentBridge,
     executionConfigRef,
     readExecutionConfigForSend,
     readLocalCliSelectionForSend,

@@ -1,7 +1,7 @@
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import assert from "node:assert/strict";
-import { once } from "node:events";
+import { EventEmitter, once } from "node:events";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
@@ -11,6 +11,7 @@ import express from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../runtime/lifecycle/readiness-state.js";
+import { resetAssistantDaemonSingletonForTests, startAssistantDaemon } from "../runtime/lifecycle/daemon-supervisor.js";
 import type { RouteDeps } from "../routes/types.js";
 import type { ObservabilityPort } from "../../platform/observability/index.js";
 import { assertSpanOmits, createInMemoryOtel } from "../../platform/observability/__tests__/fixtures/in-memory-otel.js";
@@ -269,6 +270,14 @@ function harness() {
 
 async function bootAgUi(t: import("node:test").TestContext, observability?: ObservabilityPort) {
   const { buildApp } = await harness();
+  // The daemon starts on first demand: register an identity-matched fake so the stand-in answers.
+  resetAssistantDaemonSingletonForTests();
+  startAssistantDaemon({ workspaceId: "test", siteDir: "/fake-site" }, {
+    registerProcessSignalHandlers: false, refreshPort: async () => {},
+    spawnDaemonProcess: () => Object.assign(new EventEmitter(), { pid: 321, kill: () => true }),
+    readDiscovery: async () => ({ pid: 321, url: "http://127.0.0.1:0" }),
+  });
+  t.after(resetAssistantDaemonSingletonForTests);
   recorded = [];
   startRunBehavior = "ok";
   eventsBehavior = "normal";
@@ -651,6 +660,8 @@ test("a known-failed daemon short-circuits this route too — startDaemonRun's o
   // the shared helper itself writes a 503.
   recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
   t.after(() => clearAssistantDaemonFailure());
+  // A latched daemon has no live child to wake, so the demand gate refuses.
+  resetAssistantDaemonSingletonForTests();
 
   const res = await fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
     method: "POST",

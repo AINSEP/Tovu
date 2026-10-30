@@ -118,7 +118,9 @@ import {
   useWorkingDirectoryAccess,
   useWorkingDirectoryAccessSeam,
   useFolderDropBridge,
+  useLocalCliDaemonPrewarm,
 } from "../AssistantDock/hooks/AssistantDock.hooks";
+import { publishAssistantDockState, resetAssistantDockBus } from "../../lib/assistant-dock-bus";
 import {
   DEFAULT_EXECUTION_CONFIG,
   createExecutionPort,
@@ -1349,7 +1351,7 @@ describe("useAssistantTransport — the send-time execution re-read", () => {
   it("passes the frozen run input straight through when the caller has no send-time config reader", async () => {
     const { startRun, createTransport } = fakeTransport();
     const executionConfigRef = { current: DEFAULT_EXECUTION_CONFIG };
-    const { result } = renderHook(() => useAssistantTransport({ executionConfigRef }, { createTransport }));
+    const { result } = renderHook(() => useAssistantTransport({ executionConfigRef }, { createTransport, prepareBinding: async () => undefined }));
     const runInput = { agentId: "claude", context: { model: "frozen" } } as unknown as RunInput;
     await result.current.startRun(runInput, handlers);
     expect(startRun).toHaveBeenCalledWith(runInput, handlers);
@@ -1359,13 +1361,74 @@ describe("useAssistantTransport — the send-time execution re-read", () => {
     const { startRun, createTransport } = fakeTransport();
     const saved: ExecutionConfig = { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" };
     const executionConfigRef = { current: DEFAULT_EXECUTION_CONFIG };
-    const { result } = renderHook(() => useAssistantTransport({ executionConfigRef, readExecutionConfigForSend: async () => saved }, { createTransport }));
+    const { result } = renderHook(() => useAssistantTransport({ executionConfigRef, readExecutionConfigForSend: async () => saved }, { createTransport, prepareBinding: async () => undefined }));
     await result.current.startRun({ agentId: "claude" } as unknown as RunInput, handlers);
     expect(startRun).toHaveBeenCalledTimes(1);
     const sent = startRun.mock.calls[0]![0] as { agentId: string; context: Record<string, unknown> };
     expect(sent.agentId).toBe("codex");
     expect(sent.context).toEqual(expect.any(Object));
     expect(sent.context).not.toHaveProperty("model", "frozen");
+  });
+
+  it("a failed daemon wake never fails a Local CLI send: it dispatches with the bridge's current token", async () => {
+    const { startRun, createTransport } = fakeTransport();
+    const executionConfigRef = { current: { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" } as ExecutionConfig };
+    const agentBridge = { ready: new Promise(() => {}), bindToken: () => "bind-current" } as unknown as FrontendSessionBridge;
+    const prepareBinding = vi.fn().mockRejectedValue(new Error("the assistant could not start"));
+    const { result } = renderHook(() => useAssistantTransport({ executionConfigRef, agentBridge }, { createTransport, prepareBinding }));
+    await result.current.startRun({ agentId: "codex", context: {} } as unknown as RunInput, handlers);
+    expect(prepareBinding).toHaveBeenCalledTimes(1);
+    expect(startRun).toHaveBeenCalledTimes(1);
+    expect((startRun.mock.calls[0]![0] as { context: Record<string, unknown> }).context.frontendBindToken).toBe("bind-current");
+  });
+
+  it("Stop during the wake still cancels the send", async () => {
+    const { startRun, createTransport } = fakeTransport();
+    const executionConfigRef = { current: { ...localCliConfig({ agentId: "codex" }), mode: "local-cli" } as ExecutionConfig };
+    const stop = new AbortController(); stop.abort();
+    const prepareBinding = vi.fn().mockRejectedValue(new DOMException("stopped", "AbortError"));
+    const { result } = renderHook(() => useAssistantTransport({ executionConfigRef }, { createTransport, prepareBinding }));
+    await expect(result.current.startRun({ agentId: "codex", signal: stop.signal } as unknown as RunInput, handlers)).rejects.toThrow("stopped");
+    expect(startRun).not.toHaveBeenCalled();
+  });
+});
+
+describe("useLocalCliDaemonPrewarm", () => {
+  afterEach(() => resetAssistantDockBus());
+
+  it("opening the dock in API · BYOK mode never wakes the daemon: BYOK runs in the API process", () => {
+    const activate = vi.fn().mockResolvedValue(undefined);
+    renderHook(() => useLocalCliDaemonPrewarm({ mode: "byok", configLoaded: true }, { activate }));
+    act(() => publishAssistantDockState(true));
+    expect(activate).not.toHaveBeenCalled();
+  });
+
+  it("opening the dock in Local CLI mode wakes the daemon once, after the saved mode is known", () => {
+    const activate = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = renderHook(({ configLoaded }) => useLocalCliDaemonPrewarm({ mode: "local-cli", configLoaded }, { activate }), {
+      initialProps: { configLoaded: false },
+    });
+    act(() => publishAssistantDockState(true));
+    // The default mode is local-cli, so a still-loading BYOK site must not wake it either.
+    expect(activate).not.toHaveBeenCalled();
+    rerender({ configLoaded: true });
+    expect(activate).toHaveBeenCalledTimes(1);
+    rerender({ configLoaded: true });
+    expect(activate).toHaveBeenCalledTimes(1);
+  });
+
+  it("a closed dock stays cold; switching an open dock from BYOK to Local CLI wakes it; a failed wake is swallowed", async () => {
+    const activate = vi.fn().mockRejectedValue(new Error("the assistant could not start"));
+    const { rerender } = renderHook(({ mode }: { mode: ExecutionConfig["mode"] }) => useLocalCliDaemonPrewarm({ mode, configLoaded: true }, { activate }), {
+      initialProps: { mode: "local-cli" },
+    });
+    expect(activate).not.toHaveBeenCalled();
+    rerender({ mode: "byok" });
+    act(() => publishAssistantDockState(true));
+    expect(activate).not.toHaveBeenCalled();
+    rerender({ mode: "local-cli" });
+    expect(activate).toHaveBeenCalledTimes(1);
+    await Promise.resolve();
   });
 });
 

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
+import { EventEmitter, once } from "node:events";
 import { createServer, type RequestListener } from "node:http";
 import type { AddressInfo } from "node:net";
 import test, { type TestContext } from "node:test";
@@ -11,6 +11,7 @@ import { AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/index";
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 import { registerAdminExternalMcpAdmissionsRoute } from "#src/server/inbound/admin-http/routes/external-mcp/admissions";
 import { fetchDaemonAdmissions } from "../external-mcp-admissions.js";
+import { resetAssistantDaemonSingletonForTests, startAssistantDaemon } from "#src/server/runtime/lifecycle/daemon-supervisor";
 
 /**
  * @file The daemon admissions read is one outbound CLIENT span through the port it is handed —
@@ -91,6 +92,14 @@ async function standInDaemon(t: TestContext, handler: RequestListener): Promise<
 
 test("the admin admissions route traces its daemon read through deps.observability", async (t) => {
   const daemonPort = await standInDaemon(t, (_req, res) => { res.setHeader("content-type", "application/json"); res.end('{"connections":[]}'); });
+  // The route awaits the demand gate; an identity-matched fake makes the stand-in this site's daemon.
+  resetAssistantDaemonSingletonForTests();
+  startAssistantDaemon({ workspaceId: "ws-otel", siteDir: "/fake-site" }, {
+    registerProcessSignalHandlers: false, refreshPort: async () => {},
+    spawnDaemonProcess: () => Object.assign(new EventEmitter(), { pid: 321, kill: () => true }),
+    readDiscovery: async () => ({ pid: 321, url: `http://127.0.0.1:${daemonPort}` }),
+  });
+  t.after(resetAssistantDaemonSingletonForTests);
   const { exporter, port } = createInMemoryOtel();
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });

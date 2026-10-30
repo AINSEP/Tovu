@@ -124,3 +124,18 @@ test("two independent resolvers allocate distinct ports that can actually be bou
     }
   });
 });
+
+
+test("cold spawn refreshes the boot-time allocation; explicit origin precedence is preserved", async () => {
+  await withEnv({ JINI_AGENT_DAEMON_URL: undefined, JINI_AGENT_DAEMON_PORT: undefined }, async () => {
+    let allocations = 0;
+    const resolver = createAgentDaemonOriginResolver({}, { allocatePort: async () => { allocations += 1; return 45000 + allocations; } });
+    await resolver.ensure(); assert.equal(resolver.getPortForSpawnEnv(), "45001");
+    await resolver.refresh(); assert.equal(resolver.getPortForSpawnEnv(), "45002");
+    assert.equal(resolver.getUrl(), "http://127.0.0.1:45002");
+    await withEnv({ JINI_AGENT_DAEMON_URL: "http://127.0.0.1:46000" }, async () => {
+      await resolver.refresh(); assert.equal(allocations, 2);
+      assert.equal(resolver.getUrl(), "http://127.0.0.1:46000");
+    });
+  });
+});

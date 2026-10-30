@@ -348,28 +348,24 @@ async function main(): Promise<void> {
     const store = useMemory ? "in-memory" : `sqlite (${defaultContentDbPath()})`;
     console.log(`tovu server running on ${devScheme}://localhost:${port} — store: ${store}`);
 
-    // Readiness before spawn: `app.listen()`'s callback firing says nothing about whether the
+    // Cold registration retains readiness before spawn: listening says nothing about whether the
     // boot-time seeders have settled, and spawning the daemon early raced them (duplicate identity
     // and `core.execution.mode` rows). The list and the full why live in
     // `server/runtime/boot/site-boot-readiness.ts`, shared with `cli/commands/serve.ts`.
-    awaitSiteBootReadiness({ deps })
-      .then(async () => {
-        if (!(await agentDaemonWanted(deps))) return;
-        startAssistantDaemon(
-          { workspaceId: deps.workspaceId, siteDir: siteDir(), pgSocketPath: siteStore?.pgliteSocketPath },
-          { registerProcessSignalHandlers: !storeOwnsShutdown }
-        );
-      })
-      .catch((error: unknown) => {
-        console.error("[index] a boot-readiness promise rejected — not starting the agent daemon", error);
-      });
+    startAssistantDaemon(
+      { workspaceId: deps.workspaceId, siteDir: siteDir(), pgSocketPath: siteStore?.pgliteSocketPath },
+      { registerProcessSignalHandlers: !storeOwnsShutdown, beforeStart: async () => {
+        await awaitSiteBootReadiness({ deps });
+        if (!(await agentDaemonWanted(deps))) throw new Error("the assistant daemon is disabled for this site");
+      } }
+    );
   }
 
 }
 
 // ADR-049 (process-shape correction) — Tovu never spawns a coding-agent CLI itself; that lives
 // entirely in `src/assistant/agent-daemon-server.ts`, a separate OS process. `startAssistantDaemon`
-// (called above, inside `app.listen()`'s callback, after the boot-readiness promises settle) now
+// (registered above inside `app.listen()`'s callback; demand awaits boot-readiness) now
 // owns the full spawn-and-supervise lifecycle — including automatic respawn with backoff, a
 // crash-loop cap, and the manual restart seam a future admin action can call — in
 // `src/assistant/daemon-supervisor.ts`. Moved out of this file because `index.ts` self-invokes

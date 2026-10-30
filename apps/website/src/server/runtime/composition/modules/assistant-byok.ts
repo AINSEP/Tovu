@@ -1,3 +1,4 @@
+import { ensureAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
 import { createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic-agent-plugins";
 import { askAgentPluginChoice } from "#src/assistant/ask-choice-tool";
 import { createAiTraceRecorder } from "@jini-ai/agent-runtime/ai-trace";
@@ -473,7 +474,7 @@ export function createAssistantByokModule(
   // `createDefaultHttpClient` itself (`platform/http/test-origin-allowlist.ts`).
   // The agent daemon's tool RPC runs on this same surface (`assistant-tool-exec.ts`); the daemon-call
   // adapters below change nothing for a BYOK turn.
-  installFirstPartyToolContributors({ contributions }, { observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
+  installFirstPartyToolContributors({ contributions }, { ensureDaemonReady: () => ensureAssistantDaemonReady({}, {}), observability: routeDeps.observability, chatAttachmentsDir: routeDeps.siteStoragePaths.chatAttachmentsDir,
     createHttpClient: createTestOriginHttpClientFactory({ allowedOrigins: routeDeps.outboundTestOrigins ?? [] }),
     readInstallAttachment: createDaemonAwareInstallAttachmentReader({ uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }) });
   const surfaceDeps = routeDeps.conversationToolApprovals ? { ...routeDeps, nativeApprovalMemory: routeDeps.nativeApprovalMemory ?? createDaemonApprovalMemory({

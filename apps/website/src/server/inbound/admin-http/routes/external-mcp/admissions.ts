@@ -1,3 +1,4 @@
+import { ensureAssistantDaemonReady } from "../../../../runtime/lifecycle/daemon-supervisor.js";
 import { fetchDaemonAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
@@ -46,7 +47,8 @@ export const registerAdminExternalMcpAdmissionsRoute: ExternalMcpRouteRegistrar 
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
 
-      const result = await fetchDaemonAdmissions({ observability: deps.observability });
+      // Known ADR-070 #7 Phase 1 exception: this rarely opened settings page may wake a cold daemon.
+      const result = await fetchDaemonAdmissions({ ensureReady: () => ensureAssistantDaemonReady({}, {}), observability: deps.observability });
       if (!result.ok) {
         res.status(503).json(result.body);
         return;

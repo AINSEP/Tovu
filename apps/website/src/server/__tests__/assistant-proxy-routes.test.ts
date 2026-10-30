@@ -1,7 +1,7 @@
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
-import { EventEmitter, once } from "node:events";
-import { createServer, type IncomingHttpHeaders, type Server } from "node:http";
+import { once } from "node:events";
+import { createServer, request, type IncomingHttpHeaders, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
@@ -9,7 +9,7 @@ import { SpanKind } from "@opentelemetry/api";
 import express from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, MCP_UI_TOOL_CALLS_PATH, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
-import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../runtime/lifecycle/readiness-state.js";
+import { clearAssistantDaemonFailure, recordAssistantDaemonFailure, isAssistantDaemonKnownFailed } from "../runtime/lifecycle/readiness-state.js";
 import type { RouteDeps } from "../routes/types.js";
 import type { ObservabilityPort } from "../../platform/observability/index.js";
 import { assertSpanOmits, createInMemoryOtel } from "../../platform/observability/__tests__/fixtures/in-memory-otel.js";
@@ -62,6 +62,7 @@ interface RecordedRequest {
 }
 
 let recorded: RecordedRequest[] = [];
+let demandOverride: (() => Promise<void>) | undefined;
 
 /** The stand-in agent daemon: records every inbound request, then answers in the shape the real route would. */
 async function startStandInDaemon(): Promise<{ origin: string; server: Server }> {
@@ -176,6 +177,13 @@ function harness() {
       buildApp: (observability?: ObservabilityPort) => {
         const deps: RouteDeps = createRouteDeps();
         if (observability) deps.observability = observability;
+        Object.assign(deps, { assistantDaemonDemand: {
+          ensureReady: async () => {
+            if (demandOverride) { await demandOverride(); return; }
+            if (isAssistantDaemonKnownFailed()) throw new Error("controlled readiness failure");
+          },
+          isReady: () => true,
+        } });
         const app = express();
         app.use(express.json());
         registerAuthRoutes(app, deps);
@@ -194,6 +202,7 @@ function harness() {
 async function bootProxy(t: import("node:test").TestContext, observability?: ObservabilityPort) {
   const { buildApp } = await harness();
   recorded = [];
+  demandOverride = undefined;
   const baseUrl = await startTestServer(buildApp(observability), t);
   const cookie = await loginAsOwner(baseUrl);
   return { baseUrl, cookie };
@@ -352,6 +361,26 @@ test("an MCP-UI tool call for an exchangeId the daemon owns falls through, and t
   assert.equal(recorded[0].url, MCP_UI_TOOL_CALLS_PATH);
 });
 
+test("chat activation is session-gated and wakes the daemon from any host the admin is served on", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  let wakes = 0;
+  demandOverride = async () => { wakes++; };
+  const denied = await fetch(`${baseUrl}/api/frontend-sessions/activate`, { method: "POST" });
+  assert.equal(denied.status, 401); await denied.text();
+  assert.equal(wakes, 0);
+  // A deployed site's admin is not on loopback; its same-origin Origin must still wake chat.
+  const { port } = new URL(baseUrl);
+  const status = await new Promise<number>((resolve, reject) => {
+    const req = request({ host: "127.0.0.1", port, path: "/api/frontend-sessions/activate", method: "POST",
+      headers: { cookie, host: "admin.example.com", origin: "https://admin.example.com", "sec-fetch-site": "same-origin" } },
+    (res) => { res.resume(); resolve(res.statusCode ?? 0); });
+    req.on("error", reject); req.end();
+  });
+  assert.equal(status, 204);
+  assert.equal(wakes, 1);
+  assert.equal(recorded.length, 0, "activation only awaits readiness; it proxies nothing");
+});
+
 test("frontend session streams, answers, and attachment deletion are session-gated and forwarded intact", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
   const me = await (await fetch(`${baseUrl}/api/admin/v1/auth/me`, { headers: { cookie } })).json() as { user: { id: string } };
@@ -423,15 +452,13 @@ test("every proxied request carries the daemon bearer token", async (t) => {
   await fetch(`${baseUrl}/api/runs/run-1`, { headers: { cookie } });
   await fetch(`${baseUrl}/api/runs/run-1/events`, { headers: { cookie } });
   await fetch(`${baseUrl}/api/runs/run-1/cancel`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: "{}" });
-  await fetch(`${baseUrl}/api/agents`, { headers: { cookie } });
-  await fetch(`${baseUrl}/api/agents/rescan`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: "{}" });
   await fetch(`${baseUrl}/api/runs`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
     body: JSON.stringify({ contextRef: JSON.stringify({ prompt: "hello" }) }),
   });
 
-  assert.equal(recorded.length, 7);
+  assert.equal(recorded.length, 5);
   for (const request of recorded) {
     assert.equal(
       request.headers.authorization,
@@ -565,33 +592,13 @@ test("a known-failed daemon short-circuits every proxied route to an immediate 5
   );
 });
 
-test("a known-failed daemon triggers ensureAssistantDaemonStarted() as a self-healing side effect, on every short-circuited request", async (t) => {
+test("known-failed availability fails from the API without contacting the daemon", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
-  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  recordAssistantDaemonFailure("controlled crash cap");
   t.after(() => clearAssistantDaemonFailure());
-
-  // This test process never calls `daemon-supervisor.ts`'s `startAssistantDaemon()` (that spawns a
-  // real OS process, which no other test in this file does either), so `ensureAssistantDaemonStarted()`
-  // deterministically answers `{ok: false, reason: "the assistant daemon was never started this
-  // process boot"}` — see that function's own contract. `respondIfDaemonKnownFailed` logs exactly one
-  // line whenever the recovery attempt reports `ok: false`, which is the only externally-observable
-  // signal that the call happened at all (the function itself has no other side effect in this state).
-  // Capturing that line is what proves the wiring, not just the 503 status code every other
-  // known-failed test in this file already asserts.
-  const errorLines: string[] = [];
-  t.mock.method(console, "error", (...args: unknown[]) => {
-    errorLines.push(args.map(String).join(" "));
-  });
-
-  const res = await fetch(`${baseUrl}/api/runs`, { headers: { cookie } });
-
-  assert.equal(res.status, 503, "the short-circuit must still answer 503 immediately — recovery never blocks THIS request");
-  assert.ok(
-    errorLines.some(
-      (line) => line.includes("on-demand daemon recovery") && line.includes("never started this process boot")
-    ),
-    `expected a recovery-attempt log line proving ensureAssistantDaemonStarted() was called; got: ${JSON.stringify(errorLines)}`
-  );
+  const response = await fetch(`${baseUrl}/api/agents`, { headers: { cookie } });
+  assert.equal(response.status, 503);
+  assert.equal(recorded.length, 0);
 });
 
 test("a known-failed daemon also short-circuits the SSE run-events route", async (t) => {
@@ -731,33 +738,18 @@ test("READ-ONLY BOUNDARY: no write verb is mounted on the tool catalog path — 
   assert.equal(recorded.length, 0, "a write verb against the tool-catalog path must never reach the daemon — enumeration only, per this route's own boundary");
 });
 
-test("a failed daemon spawn is reattempted by the proxy and later requests recover", async (t) => {
+test("a cold authenticated proxy request waits for readiness and succeeds on that same request", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
-  const { startAssistantDaemon, shutdownAssistantDaemon } = await import("../runtime/lifecycle/daemon-supervisor.js");
-  const children: EventEmitter[] = [];
-  startAssistantDaemon({ workspaceId: "workspace-local", siteDir: "/unused-test-site" }, {
-    registerProcessSignalHandlers: false,
-    spawnDaemonProcess: () => {
-      const child = Object.assign(new EventEmitter(), { kill: () => true });
-      children.push(child);
-      return child;
-    },
-  });
-  t.after(() => { shutdownAssistantDaemon(); clearAssistantDaemonFailure(); });
-  assert.equal(children.length, 1);
-  children[0].emit("error", new Error("controlled spawn failure"));
-
-  const failed = await fetch(`${baseUrl}/api/runs`, { headers: { cookie } });
-  assert.equal(failed.status, 503, "recovery does not change this request's outcome");
-  await failed.text();
-  assert.equal(children.length, 2, "the proxy must call the supervisor and actually reattempt the spawn");
-  assert.equal(recorded.length, 0);
-
-  const recovered = await fetch(`${baseUrl}/api/runs`, { headers: { cookie } });
-  assert.equal(recovered.status, 200);
-  assert.deepEqual(await recovered.json(), { runs: [{ id: "run-1" }] });
+  let ready!: () => void; let entered!: () => void;
+  const waiting = new Promise<void>((resolve) => { entered = resolve; });
+  const gate = new Promise<void>((resolve) => { ready = resolve; });
+  demandOverride = () => { entered(); return gate; };
+  const pending = fetch(`${baseUrl}/api/runs`, { headers: { cookie } });
+  await waiting; assert.equal(recorded.length, 0);
+  ready(); const response = await pending;
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { runs: [{ id: "run-1" }] });
   assert.equal(recorded.length, 1);
-  assert.equal(children.length, 2, "a healthy subsequent request needs no additional spawn");
 });
 
 test("spans: every proxied daemon call is one CLIENT span, never its path, query, token, principal or body", async (t) => {
