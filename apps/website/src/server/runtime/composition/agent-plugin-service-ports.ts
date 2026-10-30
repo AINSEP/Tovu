@@ -40,7 +40,7 @@ export function composePluginCredentials({ loadCards, httpClient }: { loadCards?
 }
 
 /** Principal attribution and Auto normalization remain at the settings owner boundary. O(1). */
-export function composeAgentPluginPreferences({ settings, read = getEffective, write = set }: { settings: SetValueRequired['deps'] & { clock: Pick<Clock, 'nowMs' | 'nowIso'> }; read?: typeof getEffective; write?: typeof set }, _options = {}): AgentPluginPreferencesPort {
+export function composeAgentPluginPreferences({ settings, read = getEffective, write = set }: { settings: SetValueRequired['deps'] & { clock: Clock & { nowIso(): string } }; read?: typeof getEffective; write?: typeof set }, _options = {}): AgentPluginPreferencesPort {
   return {
     locale: (input, _options = {}) => resolveOperatorLocale({ ...input, deps: { settingsRepo: settings.repo } }),
     mode: async ({ workspaceId, principalId }, _options = {}) => {
