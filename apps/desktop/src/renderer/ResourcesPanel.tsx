@@ -85,13 +85,19 @@ export function ResourcesMonitor({ projects, onSiteUpdated, children, useReading
   </ResourcesContext.Provider>;
 }
 
+/** Unavailable total readings keep the chip's existing copy; warnings come from main. O(1). */
+function resourceChipReading({ snapshot }: { snapshot: ResourcesSnapshot | null }, _options = {}) {
+  const metrics = snapshot?.status === 'available' ? snapshot.total : null;
+  const warning = resourceWarnings({ metrics });
+  const label = metrics?.rssBytes == null ? 'Unavailable' : memoryText({ bytes: metrics.rssBytes });
+  return { warning, label };
+}
+
 /** Total chip next to Settings; the native button supports Enter/Space. O(1), no effects. */
 export function ResourcesChip(_input: Record<string, never>, _options = {}) {
   const monitor = useContext(ResourcesContext);
   if (!monitor) return null;
-  const metrics = monitor.snapshot?.status === 'available' ? monitor.snapshot.total : null;
-  const warning = resourceWarnings({ metrics });
-  const label = metrics?.rssBytes == null ? 'Unavailable' : memoryText({ bytes: metrics.rssBytes });
+  const { warning, label } = resourceChipReading({ snapshot: monitor.snapshot });
   return <button type="button" className={`resources-chip${warning ? ' is-warning' : ''}`}
     aria-haspopup="dialog" aria-expanded={monitor.open} onClick={() => monitor.setOpen(true)}
     title={warning || 'View memory and CPU use'}>

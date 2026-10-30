@@ -12,12 +12,17 @@ function errorPayload({ record }: { record: Record<string, unknown> }, _options 
   return { kind: 'error', message: record.message, stack: record.stack };
 }
 
-/** Catalog ownership stays in the shared product map, including screens and actions. O(k). */
+/** Catalog ownership stays in the shared product map, including screens and actions. O(c) for c catalog IDs. */
+function catalogAllowsId({ kind, id }: { kind: 'action' | 'screen'; id: string }, _options = {}): boolean {
+  const rules = kind === 'action' ? PRODUCT_EVENTS.desktop_action!.action : PRODUCT_EVENTS.desktop_screen_viewed!.screen;
+  return Array.isArray(rules) && rules.includes(id);
+}
+
+/** Exact catalog shape with a bounded ID. O(k+c) for k fields and c catalog IDs. */
 function catalogPayload({ record }: { record: Record<string, unknown> }, _options = {}): ShellTelemetryPayload | undefined {
   if (record.kind !== 'action' && record.kind !== 'screen') return;
   if (Object.keys(record).length !== 2 || typeof record.id !== 'string' || record.id.length > 80) return;
-  const rules = record.kind === 'action' ? PRODUCT_EVENTS.desktop_action!.action : PRODUCT_EVENTS.desktop_screen_viewed!.screen;
-  if (!Array.isArray(rules) || !rules.includes(record.id)) return;
+  if (!catalogAllowsId({ kind: record.kind, id: record.id })) return;
   return { kind: record.kind, id: record.id };
 }
 
@@ -49,22 +54,22 @@ export function registerProductTelemetryIpc({ ipcMain, isShellPage, tracker }: {
   isShellPage: (url: string) => boolean; tracker: Tracker;
 }, { now = Date.now }: { now?: () => number } = {}): () => void {
   let errors: number[] = [];
+  const recordError = ({ message, stack }: { message: string; stack: string }) => {
+    const at = now();
+    errors = errors.filter(time => at - time < 60_000);
+    if (errors.length >= 10) return;
+    errors.push(at);
+    const error = new Error(message);
+    error.stack = stack;
+    tracker.error({ error }, { context: { operation: 'desktop.shell_error', attributes: { process: 'renderer' } } });
+  };
   const listener = (event: TelemetryEvent, input: unknown) => {
     if (!fromShellMainFrame({ event, isShellPage })) return;
     const payload = shellTelemetryPayload({ input });
     if (!payload) return;
-    if (payload.kind === 'error') {
-      const at = now();
-      errors = errors.filter(time => at - time < 60_000);
-      if (errors.length >= 10) return;
-      errors.push(at);
-      const error = new Error(payload.message);
-      error.stack = payload.stack;
-      tracker.error({ error }, { context: { operation: 'desktop.shell_error', attributes: { process: 'renderer' } } });
-    } else {
-      const action = payload.kind === 'action';
-      void tracker.capture({ name: action ? 'desktop_action' : 'desktop_screen_viewed', userId: 'system' }, { properties: { [action ? 'action' : 'screen']: payload.id } });
-    }
+    if (payload.kind === 'error') return recordError(payload);
+    const action = payload.kind === 'action';
+    void tracker.capture({ name: action ? 'desktop_action' : 'desktop_screen_viewed', userId: 'system' }, { properties: { [action ? 'action' : 'screen']: payload.id } });
   };
   ipcMain.on(PRODUCT_TELEMETRY_CHANNEL, listener);
   return () => { ipcMain.removeListener(PRODUCT_TELEMETRY_CHANNEL, listener); };

@@ -65,18 +65,21 @@ export function useSharedKeys({ bridge = ownerStoreBridge({}) }: { bridge?: Owne
 
   /** Ref guard closes the same-render double-click gap; opaque throws never reach UI/logs. */
   const run = useCallback(async ({ action }: { action?: () => Promise<OwnerStoreReply> } = {}, _options = {}) => {
-    function applyActionReply({ reply }: { reply: OwnerStoreReply }, _options = {}): boolean {
-      if (!mounted.current) return false;
-      if (!reply.ok) { setError(failureText({ code: reply.error.code })); return false; }
-      setMessage(successText({ reply }));
-      return true;
+    /** Only completed actions refresh inventory; cancelled or unmounted replies stop here. */
+    async function refreshAfterAction({ action }: { action?: () => Promise<OwnerStoreReply> }, _options = {}): Promise<void> {
+      if (action) {
+        const reply = await action();
+        if (!mounted.current) return;
+        if (!reply.ok) { setError(failureText({ code: reply.error.code })); return; }
+        setMessage(successText({ reply }));
+      }
+      await read();
     }
     if (!bridge || pending.current) return;
     pending.current = true;
     setBusy(true); setError(''); setMessage('');
     try {
-      if (action && !applyActionReply({ reply: await action() })) return;
-      await read();
+      await refreshAfterAction({ action });
     } catch {
       if (mounted.current) { setEntries([]); setLoaded(false); setError(FAILED); }
     } finally {

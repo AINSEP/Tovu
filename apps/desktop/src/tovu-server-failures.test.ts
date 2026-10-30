@@ -96,6 +96,19 @@ test("an error after readiness cannot replace the handle, and the supervisor sti
 
 test("the default Windows stop invokes taskkill for the whole tree and waits for child exit", { timeout: 2000 }, async (t) => {
   const f = fixture({ t });
+  // Default resolution uses the real host platform even when Stop exercises win32.
+  const command = path.join(f.input.repoRoot, process.platform === "win32" ? "taskkill.EXE" : "taskkill");
+  fs.writeFileSync(command, "", { mode: 0o755 });
+  const previousPath = process.env.PATH;
+  const previousPathExt = process.env.PATHEXT;
+  t.after(() => {
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
+    if (previousPathExt === undefined) delete process.env.PATHEXT;
+    else process.env.PATHEXT = previousPathExt;
+  });
+  process.env.PATH = f.input.repoRoot;
+  process.env.PATHEXT = ".EXE";
   const taskkills: unknown[] = [];
   const patched = t.mock.method(childProcess, "execFileSync", (...args: unknown[]) => { taskkills.push(args); return Buffer.alloc(0); });
   syncBuiltinESMExports();
@@ -107,7 +120,7 @@ test("the default Windows stop invokes taskkill for the whole tree and waits for
   const handle = await started;
   let stopped = false;
   const stopping = handle.stop().then(() => { stopped = true; });
-  assert.deepEqual(taskkills, [["taskkill", ["/pid", String(f.child.pid), "/T", "/F"], { stdio: "ignore" }]]);
+  assert.deepEqual(taskkills, [[command, ["/pid", String(f.child.pid), "/T", "/F"], { stdio: "ignore" }]]);
   assert.deepEqual(directKills, [], "direct termination would orphan the agent daemon");
   await new Promise<void>((resolve) => setImmediate(resolve));
   assert.equal(stopped, false);

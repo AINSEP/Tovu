@@ -532,14 +532,7 @@ function buildServeEnv(input: BuildServeEnvInput, { warn = console.warn }: { war
 
   applyRepoRootDefaults(env, repoRoot);
 
-  // Set LAST and only when the caller resolved a live dev server (`admin-dev-proxy.ts` probes; a
-  // packaged app yields no candidate at all). `admin-static.ts`'s precedence makes this override
-  // `TOVU_ADMIN_DIST` above rather than sit beside it — the dev-proxy branch returns before the
-  // static branch is reached — which is exactly the point: the built bundle is what goes stale.
-  // Omitted by every caller that passes nothing, so the child env is unchanged for them.
-  if (typeof input.adminDevProxyUrl === "string" && input.adminDevProxyUrl !== "") {
-    env.TOVU_ADMIN_DEV_PROXY_URL = input.adminDevProxyUrl;
-  }
+  applyAdminDevProxyEnv({ env, adminDevProxyUrl: input.adminDevProxyUrl });
 
   // Node-toolchain plan (2026-09-24), S4. Unlike every other pair in this function, an inherited
   // value is DELETED rather than left alone when the caller passes nothing — `main.ts` is the only
@@ -555,6 +548,20 @@ function buildServeEnv(input: BuildServeEnvInput, { warn = console.warn }: { war
   }
 
   return env;
+}
+
+/** Apply the dev proxy to the child env in place. O(1). */
+function applyAdminDevProxyEnv({ env, adminDevProxyUrl }: {
+  env: NodeJS.ProcessEnv; adminDevProxyUrl: BuildServeEnvInput['adminDevProxyUrl'];
+}, _options = {}): void {
+  // Set LAST and only when the caller resolved a live dev server (`admin-dev-proxy.ts` probes; a
+  // packaged app yields no candidate at all). `admin-static.ts`'s precedence makes this override
+  // `TOVU_ADMIN_DIST` above rather than sit beside it — the dev-proxy branch returns before the
+  // static branch is reached — which is exactly the point: the built bundle is what goes stale.
+  // Omitted by every caller that passes nothing, so the child env is unchanged for them.
+  if (typeof adminDevProxyUrl === "string" && adminDevProxyUrl !== "") {
+    env.TOVU_ADMIN_DEV_PROXY_URL = adminDevProxyUrl;
+  }
 }
 
 /**
