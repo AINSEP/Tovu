@@ -217,6 +217,20 @@ test("the button sits between Rescan and Create website", () => {
   const row = tools.slice(0, tools.indexOf('</header>'));
   assert.ok(row.indexOf('Rescan') < row.indexOf('Add Tovu Website'), 'Rescan must come first');
   assert.ok(row.indexOf('Add Tovu Website') < row.indexOf('Create website'), 'Create website must come last');
+  // 2026-10-30 owner: two groups. Manage (Rescan, Sites settings, Shared keys), a gap, then the
+  // three ways to get a site in (Import, Add, Create) — no icon wedged between text buttons.
+  assert.ok(row.indexOf('<SharedKeysLauncher') < row.indexOf('main__tools-gap'), 'the manage group comes first');
+  assert.ok(row.indexOf('main__tools-gap') < row.indexOf('kind="import"'), 'a gap separates the groups');
+  assert.ok(row.indexOf('kind="import"') < row.indexOf('Add Tovu Website'), 'Import leads the get-a-site-in group');
+});
+
+test("only Create website is filled; Add Tovu Website is outlined", () => {
+  // 2026-10-30 owner: two solid buttons competed. Reverses the earlier solid-Add call.
+  const markup = withoutComments(appTsx);
+  const add = markup.slice(0, markup.indexOf("'Add Tovu Website'"));
+  const addButton = add.slice(add.lastIndexOf('<button'));
+  assert.ok(addButton.includes('button--quiet'), 'Add Tovu Website is outlined');
+  assert.ok(!addButton.includes('button--contrast'), 'Add Tovu Website is not filled');
 });
 
 test("a refused add is reported ALONGSIDE the grid, never in place of it", () => {

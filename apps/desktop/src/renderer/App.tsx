@@ -1145,15 +1145,9 @@ function MainHeader({
           </button>
           <SitesFolders useSettings={useFolders} />
           <SharedKeysLauncher />
-          {/* Next to Rescan because the two are the same KIND of action — both only ever add cards
-              for websites that already exist. The difference is who chooses: Rescan looks under the
-              scan roots automatically, this one asks the operator for one folder. Styled solid on
-              the owner's call, so it no longer reads as quiet as Rescan does; it stays distinct
-              from "Create website", the only button here that makes a NEW site, by wearing the
-              neutral high-contrast fill rather than `--primary`. */}
-          <button type="button" className="button button--contrast" onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'add_existing_website' } }); void onAddSite(); }} disabled={adding} title="Add an existing Tovu site. Its files stay where they are.">
-            {adding ? 'Adding…' : 'Add Tovu Website'}
-          </button>
+          {/* Two groups (owner, 2026-10-30): manage the sites you have, then the three ways to get
+              a site in — so no icon sits wedged between two text buttons. */}
+          <span className="main__tools-gap" aria-hidden="true" />
           {/* Quiet like Rescan: it opens a site's own Import & Export > Import tab, where the import lives. */}
           {onImportSite && (
             <button type="button" className="button button--quiet button--icon jini-tooltip" data-tooltip-placement="bottom"
@@ -1161,6 +1155,14 @@ function MainHeader({
               <ToolIcon kind="import" />
             </button>
           )}
+          {/* Like Rescan it only ever adds cards for websites that already exist; the difference is
+              who chooses: Rescan looks under the scan roots automatically, this one asks the
+              operator for one folder. Outlined since 2026-10-30 (owner): it was solid, and two
+              filled buttons competed — only "Create website", the one that makes a NEW site, is
+              filled now. */}
+          <button type="button" className="button button--quiet" onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'add_existing_website' } }); void onAddSite(); }} disabled={adding} title="Add an existing Tovu site. Its files stay where they are.">
+            {adding ? 'Adding…' : 'Add Tovu Website'}
+          </button>
           <button type="button" className="button button--create" onClick={onCreateWebsite}>
             <span aria-hidden="true">+</span>
             Create website

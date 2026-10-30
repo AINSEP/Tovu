@@ -1207,6 +1207,7 @@ webview { display: flex; }
 .sites-settings__warning p { margin: 0; }
 .sites-settings__warning-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 /* Outside the dialog it sits in the Websites header's tool row; give it a line of its own. */
+.main__tools-gap { width: 0.75rem; }
 .main__tools > .sites-settings__warning { flex-basis: 100%; text-align: left; }
 
 /* Sticky so Save stays in reach when a long folder list scrolls the panel. */
