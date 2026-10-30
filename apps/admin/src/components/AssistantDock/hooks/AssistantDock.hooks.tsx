@@ -886,6 +886,8 @@ export function useSelectedPluginChips(
  *   stub predating it still builds a working transport — one without first-turn session capture,
  *   which is exactly the pre-fix behavior and never a crash.
  * @returns The memoized transport instance.
+ * @param input.onDaemonStartingChange - Reports a send's activation still pending after 500 ms;
+ *   clears on activation settlement or Stop, independently of page attachment and run acceptance.
  * @example
  * const transport = useAssistantTransport({ executionConfigRef, ensureConversationId: chats.ensureConversationId });
  */
@@ -897,6 +899,7 @@ export function useAssistantTransport(
     readLocalCliSelectionForSend?: (config: ExecutionConfig) => ChatPaneAgentSelection;
     ensureConversationId?: () => Promise<string | null>;
     persistUserTurn?: (conversationId: string, message: ChatMessage) => Promise<void>;
+    onDaemonStartingChange?: (starting: boolean) => void;
   },
   { createTransport = createTovuAssistantTransport, prepareBinding = prepareAssistantPageBinding }: { createTransport?: typeof createTovuAssistantTransport; prepareBinding?: typeof prepareAssistantPageBinding } = {},
 ): ReturnType<typeof createTovuAssistantTransport> {
@@ -942,7 +945,10 @@ export function useAssistantTransport(
         }
         // The pane froze context while the cold bridge was parked. Read its token after attach.
         if (fresh.executionConfigRef.current.mode === "local-cli") {
-          const token = await pageBindToken({ bridge: fresh.agentBridge, signal: runInput.cancelSignal ?? runInput.signal }, { prepareBinding: io.current.prepareBinding });
+          const token = await pageBindToken({ bridge: fresh.agentBridge, signal: runInput.cancelSignal ?? runInput.signal }, {
+            prepareBinding: io.current.prepareBinding,
+            onDaemonStartingChange: (starting) => io.current.input.onDaemonStartingChange?.(starting),
+          });
           if (fresh.agentBridge) runInput = { ...runInput, context: { ...runInput.context, frontendBindToken: token } };
         }
         return transport.startRun(runInput, handlers);
@@ -967,15 +973,41 @@ export function useLocalCliDaemonPrewarm(
 }
 
 /** A failed or slow wake must never fail the send: run acceptance waits for the daemon itself, so
- * fall back to the bridge's current token. Only the caller's own Stop propagates. */
+ * fall back to the bridge's current token. Only the caller's own Stop propagates.
+ * Startup feedback covers only activation, never the subsequent page-attachment wait.
+ * @returns The prepared or fallback token; throws the caller's abort reason on Stop.
+ * @complexity O(1), one timer and one abort listener, both released when the wait ends.
+ */
 async function pageBindToken(
   { bridge, signal }: { bridge?: FrontendSessionBridge | null; signal?: AbortSignal },
-  { prepareBinding }: { prepareBinding: typeof prepareAssistantPageBinding },
+  { prepareBinding, onDaemonStartingChange }: {
+    prepareBinding: typeof prepareAssistantPageBinding;
+    onDaemonStartingChange: (starting: boolean) => void;
+  },
 ): Promise<string | undefined> {
-  try { return await prepareBinding({ bridge, signal }, {}); }
-  catch (error) {
-    if (signal?.aborted) throw error;
+  signal?.throwIfAborted();
+  let activationPending = true;
+  const timer = setTimeout(() => onDaemonStartingChange(true), 500);
+  // Stop and activation settlement may both arrive; a late completion must not clear a new send.
+  const finishActivation = () => {
+    if (!activationPending) return;
+    activationPending = false;
+    clearTimeout(timer);
+    onDaemonStartingChange(false);
+  };
+  signal?.addEventListener("abort", finishActivation, { once: true });
+  try {
+    const token = await prepareBinding({ bridge, signal }, { onActivationSettled: finishActivation });
+    signal?.throwIfAborted();
+    return token;
+  }
+  catch {
+    if (signal?.aborted) throw signal.reason;
     return bridge?.bindToken() ?? undefined;
+  }
+  finally {
+    finishActivation();
+    signal?.removeEventListener("abort", finishActivation);
   }
 }
 
@@ -2001,11 +2033,14 @@ export function useComposerCapabilitiesSeam(
   return (override ?? useComposerCapabilities)();
 }
 
+/** Keeps startup display state in the dock's hooks layer without rebuilding the transport. */
 export function useAssistantTransportSeam(
-  override: typeof useAssistantTransport | undefined,
   input: Parameters<typeof useAssistantTransport>[0],
-): ReturnType<typeof createTovuAssistantTransport> {
-  return (override ?? useAssistantTransport)(input);
+  { useTransport = useAssistantTransport }: { useTransport?: typeof useAssistantTransport } = {},
+): { transport: ReturnType<typeof createTovuAssistantTransport>; daemonStarting: boolean } {
+  const [daemonStarting, setDaemonStarting] = useState(false);
+  const transport = useTransport({ ...input, onDaemonStartingChange: setDaemonStarting });
+  return { transport, daemonStarting };
 }
 
 export function useAttachmentUploaderSeam(

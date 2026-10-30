@@ -14,14 +14,20 @@ export async function activateAssistantDaemon(
 /** Wait for the first real attachment after waking, then read the live token at dispatch time.
  * A clean close of the API's parked SSE stream reconnects through the ordinary daemon proxy.
  * @returns The current token, or undefined on surfaces with no page bridge.
+ * @param options.onActivationSettled - Optional notification on activation success or failure,
+ * before waiting for page attachment, so host startup feedback ends at the activation boundary.
  * @throws On activation failure, cancellation or a bridge that does not attach within 5s after ready.
  * @complexity O(1), one activation and one bounded attachment wait.
  */
 export async function prepareAssistantPageBinding(
   { bridge, signal }: { bridge?: Pick<FrontendSessionBridge, "ready" | "bindToken"> | null; signal?: AbortSignal },
-  { activate = activateAssistantDaemon }: { activate?: typeof activateAssistantDaemon } = {},
+  { activate = activateAssistantDaemon, onActivationSettled }: {
+    activate?: typeof activateAssistantDaemon;
+    onActivationSettled?: () => void;
+  } = {},
 ): Promise<string | undefined> {
-  await activate({ signal }, {});
+  try { await activate({ signal }, {}); }
+  finally { onActivationSettled?.(); }
   if (!bridge) return undefined;
   const deadline = AbortSignal.timeout(5_000);
   const waitSignal = signal ? AbortSignal.any([signal, deadline]) : deadline;

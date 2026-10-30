@@ -370,7 +370,7 @@ export function AssistantDock({
   // driven by `onMessagesChange` starts too late for the run to carry the id. See
   // `CreateTovuAssistantTransportOptions.ensureConversationId` for the full mechanism.
   const chats = useChatsSeam(useChats, { principalId });
-  const transport = useAssistantTransportSeam(useAssistantTransportOverride, {
+  const { transport, daemonStarting } = useAssistantTransportSeam({
     agentBridge,
     executionConfigRef,
     readExecutionConfigForSend,
@@ -381,7 +381,7 @@ export function AssistantDock({
     // a run that may fail to deliver it exists at all — see `persistUserTurn`'s own doc in
     // `use-assistant-chats.hooks.ts`.
     persistUserTurn: chats.persistUserTurn,
-  });
+  }, { useTransport: useAssistantTransportOverride });
   const uploadOrdinaryAttachments = useAttachmentUploaderSeam(useAttachmentUploaderOverride);
   const skillInstall = useSkillInstall();
   const uploadAttachments = useSkillAwareAttachmentUploader({ uploadAttachments: uploadOrdinaryAttachments, proposeFiles: skillInstall.proposeFiles });
@@ -476,6 +476,7 @@ export function AssistantDock({
         // gets in — pushing new messages into a live pane would fight its own state.
         key={chats.paneKey}
         transport={failureSurface.transport}
+        sendingLabel={daemonStarting ? t("Starting assistant…") : undefined}
         deliverTypedAnswer={typedAnswerPoster}
         deliverMidRunMessage={midRunMessagePoster}
         onSecretRedacted={onAdminSecretRedacted}

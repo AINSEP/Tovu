@@ -14,6 +14,7 @@ import { COMMON_I18N } from "../../lib/i18n-common";
  */
 export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Starting assistant…": "Iniciando el asistente…",
     "Reply length": "Longitud de respuesta",
     "Short": "Breve",
     "Normal": "Habitual",
@@ -57,6 +58,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "El asistente acaba de capturar una captura de pantalla de esta vista.",
   },
   id: {
+    "Starting assistant…": "Memulai asisten…",
     "Reply length": "Panjang balasan",
     "Short": "Singkat",
     "Normal": "Biasa",
@@ -100,6 +102,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "Asisten baru saja mengambil tangkapan layar dari layar ini.",
   },
   de: {
+    "Starting assistant…": "Assistent wird gestartet…",
     "Reply length": "Antwortlänge",
     "Short": "Kurz",
     "Normal": "Standard",
@@ -143,6 +146,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "Der Assistent hat gerade einen Screenshot dieses Bildschirms aufgenommen.",
   },
   "zh-CN": {
+    "Starting assistant…": "正在启动助手…",
     "Reply length": "回复长度",
     "Short": "简短",
     "Normal": "正常",
@@ -186,6 +190,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "助手刚刚截取了此屏幕的截图。",
   },
   "zh-TW": {
+    "Starting assistant…": "正在啟動助理…",
     "Reply length": "回覆長度",
     "Short": "簡短",
     "Normal": "一般",
@@ -229,6 +234,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "助理剛剛擷取了此畫面的截圖。",
   },
   "pt-BR": {
+    "Starting assistant…": "Iniciando o assistente…",
     "Reply length": "Tamanho da resposta",
     "Short": "Curta",
     "Normal": "Padrão",
@@ -272,6 +278,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "O assistente acabou de capturar uma captura de tela desta janela.",
   },
   ru: {
+    "Starting assistant…": "Запуск помощника…",
     "Reply length": "Длина ответа",
     "Short": "Кратко",
     "Normal": "Обычно",
@@ -315,6 +322,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "Ассистент только что сделал снимок этого экрана.",
   },
   fa: {
+    "Starting assistant…": "در حال راه‌اندازی دستیار…",
     "Reply length": "طول پاسخ",
     "Short": "کوتاه",
     "Normal": "معمولی",
@@ -358,6 +366,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "دستیار همین الان از این صفحه یک عکس گرفت.",
   },
   ar: {
+    "Starting assistant…": "جارٍ بدء تشغيل المساعد…",
     "Reply length": "طول الرد",
     "Short": "قصير",
     "Normal": "عادي",
@@ -401,6 +410,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "التقط المساعد للتو لقطة شاشة لهذه الشاشة.",
   },
   ja: {
+    "Starting assistant…": "アシスタントを起動中…",
     "Reply length": "返信の長さ",
     "Short": "短め",
     "Normal": "標準",
@@ -444,6 +454,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "アシスタントがこの画面のスクリーンショットを撮影しました。",
   },
   ko: {
+    "Starting assistant…": "어시스턴트를 시작하는 중…",
     "Reply length": "답변 길이",
     "Short": "짧게",
     "Normal": "보통",
@@ -487,6 +498,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "어시스턴트가 방금 이 화면의 스크린샷을 캡처했습니다.",
   },
   pl: {
+    "Starting assistant…": "Uruchamianie asystenta…",
     "Reply length": "Długość odpowiedzi",
     "Short": "Krótka",
     "Normal": "Normalna",
@@ -530,6 +542,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "Asystent właśnie zrobił zrzut ekranu tego widoku.",
   },
   hu: {
+    "Starting assistant…": "Az asszisztens indítása…",
     "Reply length": "Válasz hossza",
     "Short": "Rövid",
     "Normal": "Normál",
@@ -573,6 +586,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "Az asszisztens az imént képernyőképet készített erről a képernyőről.",
   },
   fr: {
+    "Starting assistant…": "Démarrage de l’assistant…",
     "Reply length": "Longueur de réponse",
     "Short": "Courte",
     "Normal": "Normale",
@@ -616,6 +630,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "L'assistant vient de capturer une capture d'écran de cet écran.",
   },
   uk: {
+    "Starting assistant…": "Запуск помічника…",
     "Reply length": "Довжина відповіді",
     "Short": "Коротко",
     "Normal": "Звичайно",
@@ -659,6 +674,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "Асистент щойно зробив знімок цього екрана.",
   },
   tr: {
+    "Starting assistant…": "Asistan başlatılıyor…",
     "Reply length": "Yanıt uzunluğu",
     "Short": "Kısa",
     "Normal": "Olağan",
@@ -702,6 +718,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "Asistan az önce bu ekranın bir ekran görüntüsünü aldı.",
   },
   th: {
+    "Starting assistant…": "กำลังเริ่มต้นผู้ช่วย…",
     "Reply length": "ความยาวคำตอบ",
     "Short": "สั้น",
     "Normal": "ปกติ",
@@ -745,6 +762,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "ผู้ช่วยเพิ่งจับภาพหน้าจอนี้",
   },
   it: {
+    "Starting assistant…": "Avvio dell’assistente…",
     "Reply length": "Lunghezza risposta",
     "Short": "Breve",
     "Normal": "Normale",
@@ -788,6 +806,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "L'assistente ha appena catturato uno screenshot di questa schermata.",
   },
   hi: {
+    "Starting assistant…": "सहायक शुरू हो रहा है…",
     "Reply length": "जवाब की लंबाई",
     "Short": "संक्षिप्त",
     "Normal": "सामान्य",
@@ -831,6 +850,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "सहायक ने अभी इस स्क्रीन का स्क्रीनशॉट लिया है।",
   },
   ur: {
+    "Starting assistant…": "معاون شروع ہو رہا ہے…",
     "Reply length": "جواب کی لمبائی",
     "Short": "مختصر",
     "Normal": "معمول",
@@ -874,6 +894,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "The assistant just captured a screenshot of this screen.": "اسسٹنٹ نے ابھی اس اسکرین کا اسکرین شاٹ لیا ہے۔",
   },
   bn: {
+    "Starting assistant…": "সহকারী চালু হচ্ছে…",
     "Reply length": "উত্তরের দৈর্ঘ্য",
     "Short": "সংক্ষিপ্ত",
     "Normal": "স্বাভাবিক",
