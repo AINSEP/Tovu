@@ -1,3 +1,4 @@
+import { getEffective } from "#src/features/settings/index";
 import { composeAgentPluginPreferences } from "#src/server/runtime/composition/agent-plugin-service-ports";
 import '../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
