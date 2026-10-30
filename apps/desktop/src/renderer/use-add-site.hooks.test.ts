@@ -224,13 +224,13 @@ test("the button sits between Rescan and Create website", () => {
   assert.ok(row.indexOf('kind="import"') < row.indexOf('Add Tovu Website'), 'Import leads the get-a-site-in group');
 });
 
-test("only Create website is filled; Add Tovu Website is outlined", () => {
-  // 2026-10-30 owner: two solid buttons competed. Reverses the earlier solid-Add call.
+test("Add Tovu Website is solid black (contrast), distinct from the rust Create website", () => {
+  // 2026-10-30 owner: outlined read too quiet; back to the black contrast fill.
   const markup = withoutComments(appTsx);
   const add = markup.slice(0, markup.indexOf("'Add Tovu Website'"));
   const addButton = add.slice(add.lastIndexOf('<button'));
-  assert.ok(addButton.includes('button--quiet'), 'Add Tovu Website is outlined');
-  assert.ok(!addButton.includes('button--contrast'), 'Add Tovu Website is not filled');
+  assert.ok(addButton.includes('button--contrast'), 'Add Tovu Website is black');
+  assert.ok(!addButton.includes('button--quiet'), 'Add Tovu Website is not outlined');
 });
 
 test("a refused add is reported ALONGSIDE the grid, never in place of it", () => {

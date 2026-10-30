@@ -1157,10 +1157,10 @@ function MainHeader({
           )}
           {/* Like Rescan it only ever adds cards for websites that already exist; the difference is
               who chooses: Rescan looks under the scan roots automatically, this one asks the
-              operator for one folder. Outlined since 2026-10-30 (owner): it was solid, and two
-              filled buttons competed — only "Create website", the one that makes a NEW site, is
-              filled now. */}
-          <button type="button" className="button button--quiet" onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'add_existing_website' } }); void onAddSite(); }} disabled={adding} title="Add an existing Tovu site. Its files stay where they are.">
+              operator for one folder. Solid black on the owner's call (restated 2026-10-30 after a
+              brief outlined try): it stays distinct from "Create website", the only button here
+              that makes a NEW site, by wearing the neutral contrast fill rather than `--primary`. */}
+          <button type="button" className="button button--contrast" onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'add_existing_website' } }); void onAddSite(); }} disabled={adding} title="Add an existing Tovu site. Its files stay where they are.">
             {adding ? 'Adding…' : 'Add Tovu Website'}
           </button>
           <button type="button" className="button button--create" onClick={onCreateWebsite}>
