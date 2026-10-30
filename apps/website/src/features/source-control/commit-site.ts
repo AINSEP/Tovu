@@ -2,6 +2,8 @@ import { rmSync } from "node:fs";
 import path from "node:path";
 
 import type { UUID } from "@jini-ai/core/primitives";
+import { redactSecrets } from "@jini-ai/core";
+import { CREDENTIAL_MESSAGES } from "../../contracts/core/credential-token.js";
 
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { firstExportFailure, type ExportReport } from "#src/features/site-export/index";
@@ -45,7 +47,8 @@ import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from
  * `features/source-control` domain logic, this feature's one seam into the git-host provider a plugin
  * ships (`provider-module.ts`). No
  * dependency on `features/deployments/**` — this feature's identity table and Git Data API adapter
- * are its own, deliberately not sharing `publish-credentials`' resolve path (see `store.ts`'s header
+ * are its own. A missing source-control identity may use the injected saved API-key reader;
+ * this still does not share `publish-credentials`' resolve path (see `store.ts`'s header
  * for why `source_control_credential_sets` is a separate table) or `static-publish/adapter.ts`'s
  * `toDeployFile`/`exportSiteLazily` (a ~6-line duplication, not a shared helper — see this file's
  * `exportSiteLazily` below for why importing the sibling domain's copy would be wrong, not merely
@@ -152,7 +155,14 @@ export interface CommitSiteDeps {
   /** The host committed to: whose saved default credential is resolved, and whose plugin provider
    *  {@link gitAdapter} is. */
   readonly providerId: SourceControlProviderId;
-  readonly credentialDeps: { repo: SourceControlCredentialSetRepoPort; sealer: SecretSealerPort; keyring?: KeyringPort };
+  readonly credentialDeps: {
+    repo: SourceControlCredentialSetRepoPort;
+    sealer: SecretSealerPort;
+    keyring?: KeyringPort;
+    /** Opens a provider-declared saved API key only when no source-control identity exists.
+     * Composition/tool wiring owns the custom-credential reader, never this commit layer. */
+    resolveSavedApiKey?: (input: { workspaceId: UUID; providerId: SourceControlProviderId }, options?: {}) => Promise<ResolvedSourceControlCredential | null>;
+  };
   /** The plugin provider's `commitSite` (`tool-registrations.ts` resolves it) — tests inject a fake
    *  here instead of touching `fetch`. Omitted, the commit fails loudly as a wiring bug. */
   readonly gitAdapter?: SourceControlCommitAdapter;
@@ -278,21 +288,27 @@ type CommitCredentialResult =
   | { ok: false; code: "NO_CREDENTIALS_CONFIGURED"; message: string };
 
 /**
- * Resolves and validates the workspace's default GitHub source-control credential. Split out of
+ * Resolves and validates the workspace's default source-control credential, falling back to its
+ * provider-declared saved API key only when no explicit credential exists. Split out of
  * `commitSiteToSourceControl` so that function reads as one guard per phase (credential, export,
  * commit) rather than one long chain — this phase alone covers the decrypt-failure catch, the
  * missing-credential case, and the (practically unreachable, but explicitly typed) wrong-provider
  * guard documented at the inline comment below.
  */
 async function resolveCommitCredential(
-  credentialDeps: CommitSiteDeps["credentialDeps"],
-  workspaceId: UUID,
-  providerId: SourceControlProviderId,
+  { credentialDeps, workspaceId, providerId }: {
+    credentialDeps: CommitSiteDeps["credentialDeps"]; workspaceId: UUID; providerId: SourceControlProviderId;
+  },
+  _options = {},
 ): Promise<CommitCredentialResult> {
   let credential: Awaited<ReturnType<typeof resolveDefaultForSourceControl>>;
   try {
     credential = await resolveDefaultForSourceControl(credentialDeps, { workspaceId, providerId });
-  } catch (err) {
+    if (!credential && credentialDeps.resolveSavedApiKey) {
+      const saved = await credentialDeps.resolveSavedApiKey({ workspaceId, providerId });
+      if (saved) return { ok: true, credential: saved };
+    }
+  } catch {
     // `resolveDefaultForSourceControl`'s own doc documents this as a real, deliberate possibility
     // (`store.ts`'s `decryptRecord`: a decrypt failure throws rather than degrading to `null`) — this
     // function's own contract (this doc, right above) is that IT never throws regardless, so a
@@ -304,7 +320,7 @@ async function resolveCommitCredential(
     return {
       ok: false,
       code: "NO_CREDENTIALS_CONFIGURED",
-      message: `credential could not be resolved: ${err instanceof Error ? err.message : String(err)}`,
+      message: `credential could not be resolved: ${CREDENTIAL_MESSAGES.storage}`,
     };
   }
   if (!credential) {
@@ -419,7 +435,7 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
   const configError = validateCommitTarget(input, deps.validateTarget);
   if (configError) return { ok: false, code: "INVALID_CONFIG", message: configError };
 
-  const credentialResult = await resolveCommitCredential(deps.credentialDeps, input.workspaceId, deps.providerId);
+  const credentialResult = await resolveCommitCredential({ credentialDeps: deps.credentialDeps, workspaceId: input.workspaceId, providerId: deps.providerId });
   if (!credentialResult.ok) return credentialResult;
 
   const exportResult = await exportForCommit({ input, providerId: deps.providerId });
@@ -459,7 +475,9 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
     } as const;
     // Own keys only: a plugin's `constructor`/`__proto__` code must not resolve to an inherited member.
     const code = Object.hasOwn(codeByAdapterCode, result.code) ? codeByAdapterCode[result.code] : "PROVIDER_ERROR";
-    return { ok: false, code, message: result.message };
+    // A host or transport may echo the Authorization value. Use the shared redactor before the
+    // provider's explanation crosses the tool boundary, including tokens with no known prefix.
+    return { ok: false, code, message: redactSecrets({ input: result.message }, { exactSecrets: [credentialResult.credential.token] }) };
   }
 
   return {

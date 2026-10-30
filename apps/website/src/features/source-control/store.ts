@@ -17,7 +17,9 @@ import type {
 import type { ObservabilityPort } from "../../platform/observability/index.js";
 
 /** Source-control validation and inline identity probes remain feature policy. Jini owns
- * sealing, persistence, hints and defaults. Plain read models require neither keys nor opens. */
+ * sealing, persistence, hints and defaults. Plain read models require neither keys nor opens.
+ * The identity store stays separate from deployments and custom API keys; commit callers may
+ * supply the existing custom-key reader through a port when this provider has no identity row. */
 
 const MAX_LABEL_LENGTH = 200;
 export class SourceControlCredentialValidationError extends Error {}

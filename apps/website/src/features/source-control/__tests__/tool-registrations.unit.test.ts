@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
+import { inspect } from "node:util";
 import { runInNewContext } from "node:vm";
 
 import { registerMcpUiToolCallsRoute } from "#src/assistant/mcp-ui-tool-calls-route";
@@ -16,6 +17,10 @@ import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExch
 import type { SourceControlCommitAdapter, SourceControlCommitResult } from "../commit-site.js";
 import { type LoadSourceControlProviders } from "../provider-registry.js";
 import { createSourceControlCredential } from "../store.js";
+import { createCustomCredential } from "../../custom-credentials/store.js";
+import type { CustomCredentialSetRepoPort } from "../../custom-credentials/types.js";
+import { createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
+import { githubFromSource } from "./fixtures/github-from-source.js";
 
 import { buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceControlDerivedRisk, type SourceControlToolDeps } from "../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
@@ -46,8 +51,10 @@ const fixtureProviders: LoadSourceControlProviders = async () => exampleRegistry
 /** A workspace where no plugin provides a git host (the example-git plugin turned off). */
 const noProviders: LoadSourceControlProviders = async () => ({ list: () => [], get: () => undefined, refusals: [] });
 
+type SavedApiKeyTestDeps = SourceControlToolDeps & { customCredentialSetRepo: CustomCredentialSetRepoPort };
+
 function fakeDeps(options: { allow?: boolean; gitAdapter?: SourceControlCommitAdapter; loadSourceControlProviders?: LoadSourceControlProviders; exportSiteBound?: SourceControlToolDeps["exportSiteBound"] } = {}): {
-  deps: SourceControlToolDeps;
+  deps: SavedApiKeyTestDeps;
   authorizeCalls: Record<string, unknown>[];
   setAllow: (value: boolean) => void;
 } {
@@ -55,7 +62,7 @@ function fakeDeps(options: { allow?: boolean; gitAdapter?: SourceControlCommitAd
   const authorizeCalls: Record<string, unknown>[] = [];
   const base = createRouteDeps();
 
-  const deps: SourceControlToolDeps = {
+  const deps: SavedApiKeyTestDeps = {
     ...base,
     exportSiteBound: options.exportSiteBound ?? (async ({outputDir}) => ({outputDir, routes: {succeeded: [{path: "/", kind: "home", outputFile: "index.html", data: "<html>export fixture</html>"}], failed: []}, assets: {succeeded: [], failed: []}, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: []})),
     sourceControlExportRootDir: exportDir,
@@ -613,3 +620,183 @@ test("backup discovery finds an installed git host without credentials and denie
   await assert.rejects(call(deniedTool), /source-control.read/);
   assert.equal(registryReads, 1);
 });
+
+// Owner regression, 2026-10-30: Copy keys preserves a custom API credential, not a
+// source-control connection. Use the real custom store/sealer and bundled provider;
+// only the remote commit/export are faked by the existing harness above.
+const SAVED_GITHUB_API_KEY = "fixture_saved_github_api_key_never_real";
+const EXPLICIT_GITHUB_KEY = "fixture_explicit_github_connection_never_real";
+const SAVED_KEY_COMMIT_INPUT = { provider: "github", owner: "octo", repo: "demo", commitMessage: "saved key regression" };
+
+async function seedSavedGitHubApiKey({ deps }: { deps: SavedApiKeyTestDeps },
+  { workspaceId = deps.workspaceId }: { workspaceId?: string } = {}) {
+  return createCustomCredential({
+    repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer,
+    keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen,
+  }, {
+    workspaceId, scope: "site", label: "github", category: "source-control",
+    baseUrl: "https://api.github.com", connection: { token: SAVED_GITHUB_API_KEY },
+  });
+}
+
+function savedKeyTools({ deps }: { deps: SourceControlToolDeps }, _options = {}) {
+  const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const registrations = buildRegistrations(deps, exchanges);
+  return { exchanges, execute: tool(registrations, "source_control_execute_commit"), capabilities: tool(registrations, "source_control_get_capabilities") };
+}
+
+/** Capture actual console sinks, including Error objects; node:test restores each mock. */
+function captureCredentialLogs({ context }: { context: TestContext }, _options = {}): unknown[][] {
+  const logs: unknown[][] = [];
+  for (const method of ["debug", "info", "log", "warn", "error"] as const) {
+    context.mock.method(console, method, (...args: unknown[]) => { logs.push(args); });
+  }
+  return logs;
+}
+
+/** Boolean-only assertions prevent a failed leak check from printing even fixture tokens. */
+function assertNoCredentialLeak({ observations }: { observations: unknown }, _options = {}): void {
+  const text = inspect(observations, { depth: null });
+  for (const token of [SAVED_GITHUB_API_KEY, EXPLICIT_GITHUB_KEY]) {
+    assert.equal(text.includes(token), false, "a credential escaped through output, an error or a log");
+  }
+}
+
+test("saved GitHub API key: commit opens this site's key when no source-control credential exists", async (t) => {
+  const received: boolean[] = [];
+  const { deps } = fakeDeps({ loadSourceControlProviders: githubFromSource, gitAdapter: {
+    async commit(input) { received.push(input.token === SAVED_GITHUB_API_KEY); return FAKE_SUCCESS; },
+  } });
+  const { execute, exchanges } = savedKeyTools({ deps });
+  // A key belonging to another workspace must not satisfy this site's lookup.
+  await seedSavedGitHubApiKey({ deps }, { workspaceId: "another-site" });
+  const absent = await call(execute, { input: SAVED_KEY_COMMIT_INPUT }) as { reason: string };
+  assert.equal(absent.reason, "no-credential");
+  assert.equal(received.length, 0);
+  await seedSavedGitHubApiKey({ deps });
+  assert.deepEqual(await deps.sourceControlCredentialSetRepo.listByProvider({ workspaceId: deps.workspaceId, providerId: "github" }), []);
+  const logs = captureCredentialLogs({ context: t });
+  const result = await call(execute, { input: SAVED_KEY_COMMIT_INPUT }) as { committed: boolean; commitSha?: string };
+  assertNoCredentialLeak({ observations: { result, logs } });
+  assert.equal(result.committed, true, "a saved API key must not ask the owner to connect again");
+  assert.equal(result.commitSha, "abc123");
+  assert.deepEqual(received, [true], "the adapter must receive the decrypted site API key");
+  assert.equal(exchanges.size(), 0);
+});
+
+test("saved GitHub API key: explicit connection wins with both present, then deleting it enables fallback", async () => {
+  const received: { explicit: boolean; apiKey: boolean }[] = [];
+  const { deps } = fakeDeps({ loadSourceControlProviders: githubFromSource, gitAdapter: {
+    async commit(input) {
+      received.push({ explicit: input.token === EXPLICIT_GITHUB_KEY, apiKey: input.token === SAVED_GITHUB_API_KEY });
+      return FAKE_SUCCESS;
+    },
+  } });
+  await seedSavedGitHubApiKey({ deps });
+  const explicit = await createSourceControlCredential({ deps: {
+    repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer,
+    keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen,
+    loadSourceControlProviders: githubFromSource, fetchFn: async () => new Response('{"login":"octo"}'),
+  }, input: { workspaceId: deps.workspaceId, scope: "site", label: "Explicit GitHub",
+    connection: { providerId: "github", token: EXPLICIT_GITHUB_KEY } } });
+  const { execute } = savedKeyTools({ deps });
+  const preferred = await call(execute, { input: SAVED_KEY_COMMIT_INPUT }) as { committed: boolean };
+  assertNoCredentialLeak({ observations: preferred });
+  assert.equal(preferred.committed, true);
+  assert.deepEqual(received, [{ explicit: true, apiKey: false }], "an API key cannot override an existing connection");
+
+  await deps.sourceControlCredentialSetRepo.delete({ workspaceId: deps.workspaceId, id: explicit.id });
+  const fallback = await call(execute, { input: SAVED_KEY_COMMIT_INPUT }) as { committed: boolean };
+  assertNoCredentialLeak({ observations: fallback });
+  assert.equal(fallback.committed, true, "removing the explicit connection must reveal the saved API key");
+  assert.deepEqual(received, [{ explicit: true, apiKey: false }, { explicit: false, apiKey: true }]);
+});
+
+test("saved GitHub API key: capabilities reports configured and its source without opening the secret", async () => {
+  const { deps } = fakeDeps({ loadSourceControlProviders: async workspaceId => {
+    const github = await githubFromSource(workspaceId);
+    const other = exampleRegistry({ probe: false, ids: ["example-git"] });
+    return { list: () => [...github.list(), ...other.list()], get: id => github.get(id) ?? other.get(id), refusals: [] };
+  } });
+  await seedSavedGitHubApiKey({ deps });
+  let opens = 0;
+  const { capabilities } = savedKeyTools({ deps: { ...deps, siteAssistantSecretSealer: {
+    async seal() { throw new Error("capabilities must not seal a key"); },
+    async open() { opens++; throw new Error("capabilities must not open a key"); },
+  } } });
+  const result = await call(capabilities) as { providers: {
+    providerId: string; configured: boolean; credentialSource?: string; commitSupported: boolean; savedCredentials: unknown[]; guidance?: string;
+  }[] };
+  assertNoCredentialLeak({ observations: result });
+  const github = result.providers.find(provider => provider.providerId === "github");
+  assert.ok(github);
+  assert.equal(github.configured, true, "the API key is an available credential even without a connection row");
+  // Source vocabulary for the new public capability field: the saved API key,
+  // rather than a fabricated source-control credential-set summary.
+  assert.equal(github.credentialSource, "saved-api-key");
+  assert.equal(github.commitSupported, true);
+  assert.deepEqual(github.savedCredentials, []);
+  assert.equal(github.guidance, undefined, "an available key must not generate connect instructions");
+  const other = result.providers.find(provider => provider.providerId === "example-git");
+  assert.ok(other);
+  assert.equal(other.configured, false, "only GitHub declares this saved-key fallback");
+  assert.equal(opens, 0);
+});
+
+test("saved GitHub API key: neither credential retains connect outcome, including after the last key is removed", async () => {
+  const received: boolean[] = [];
+  const { deps } = fakeDeps({ loadSourceControlProviders: githubFromSource, gitAdapter: {
+    async commit(input) { received.push(input.token === SAVED_GITHUB_API_KEY); return FAKE_SUCCESS; },
+  } });
+  const { execute, capabilities, exchanges } = savedKeyTools({ deps });
+  const missing = {
+    committed: false, reason: "no-credential",
+    message: "No GitHub source control credential is configured for this workspace. Call credential_save with kind source-control to open a human credential form before committing.",
+  };
+  assert.deepEqual(await call(execute, { input: SAVED_KEY_COMMIT_INPUT }), missing);
+  const saved = await seedSavedGitHubApiKey({ deps });
+  const connected = await call(execute, { input: SAVED_KEY_COMMIT_INPUT }) as { committed: boolean };
+  assertNoCredentialLeak({ observations: connected });
+  assert.equal(connected.committed, true, "saving an API key must make the existing tool usable");
+  await deps.customCredentialSetRepo.delete({ workspaceId: deps.workspaceId, id: saved.id });
+  assert.deepEqual(await call(execute, { input: SAVED_KEY_COMMIT_INPUT }), missing);
+  const result = await call(capabilities) as { providers: { providerId: string; configured: boolean; guidance?: string }[] };
+  assertNoCredentialLeak({ observations: result });
+  const github = result.providers.find(provider => provider.providerId === "github");
+  assert.ok(github);
+  assert.equal(github.configured, false);
+  assert.match(github.guidance ?? "", /credential_save with kind source-control/);
+  assert.deepEqual(received, [true], "neither missing-key call may reach the provider");
+  assert.equal(exchanges.size(), 0);
+});
+
+for (const failure of ["transport", "provider-response"] as const) {
+  test(`saved GitHub API key: ${failure} failure never exposes the token in output, errors, logs or spans`, async (t) => {
+    const { deps } = fakeDeps({ loadSourceControlProviders: githubFromSource });
+    await seedSavedGitHubApiKey({ deps });
+    const logs = captureCredentialLogs({ context: t });
+    const { exporter, port } = createInMemoryOtel();
+    const { execute } = savedKeyTools({ deps: { ...deps, observability: port } });
+    const requests: { expectedUrl: boolean; expectedAuthorization: boolean }[] = [];
+    // Exercise the real bundled provider. No request may leave the test process.
+    t.mock.method(globalThis, "fetch", async (url: string | URL | Request, init?: RequestInit) => {
+      requests.push({ expectedUrl: String(url) === "https://api.github.com/repos/octo/demo",
+        expectedAuthorization: new Headers(init?.headers).get("Authorization") === `Bearer ${SAVED_GITHUB_API_KEY}` });
+      if (failure === "transport") throw new Error(`request failed; Authorization: Bearer ${SAVED_GITHUB_API_KEY}`);
+      return new Response(JSON.stringify({ message: `request rejected; Authorization: Bearer ${SAVED_GITHUB_API_KEY}` }), { status: 403 });
+    });
+    const outcomes = await Promise.allSettled([call(execute, { input: SAVED_KEY_COMMIT_INPUT })]);
+    const spans = exporter.getFinishedSpans().map(span => ({ name: span.name, attributes: span.attributes, events: span.events, status: span.status }));
+    assertNoCredentialLeak({ observations: { outcomes, logs, spans } });
+    assert.deepEqual(requests, [{ expectedUrl: true, expectedAuthorization: true }], "the real GitHub request must use the saved API key; an early connect outcome cannot satisfy the secrecy check");
+    const outcome = outcomes[0]!;
+    assert.equal(outcome.status, "fulfilled", "provider failures must remain typed tool results");
+    assert.ok(outcome.status === "fulfilled");
+    const result = outcome.value as { committed: boolean; cancelled: boolean; code: string; message: string };
+    assert.equal(result.committed, false);
+    assert.equal(result.cancelled, false);
+    assert.equal(result.code, failure === "transport" ? "NETWORK_UNREACHABLE" : "PROVIDER_ERROR");
+    assert.ok(result.message.trim().length > 0);
+    assert.equal(spans.length, 1, "the real provider request must also exercise its observability boundary");
+  });
+}

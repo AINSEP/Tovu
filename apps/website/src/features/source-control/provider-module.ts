@@ -9,12 +9,17 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  * {@link SourceControlProviderKit}, and calls the generic operations below: committing the site's
  * static export (`source_control_execute_commit`), reading a token's account name (the admin Source
  * Control page), writing files through a saved custom credential (`custom_credential_write_files`)
- * and pushing a site backup (`site_backup_*`). Nothing here names a vendor.
+ * and pushing a site backup (`site_backup_*`). Saved API-key labels below are Tovu's credential
+ * bindings; vendor operations remain in the plugin.
  *
  * Every operation reports failure as a value, never a throw. `network-unreachable` always means no
  * response arrived (so says nothing about the credential); `provider-error` means the host answered
  * and refused; `diverged` means the branch moved and nothing was overwritten.
  */
+
+/** Provider id -> saved custom API-key label. Only declared bindings may supply a commit fallback;
+ * explicit source-control connections always win. */
+export const sourceControlSavedApiKeyLabels: ReadonlyMap<string, string> = new Map([["github", "github"]]);
 
 /** One file of a site export, repository-relative. */
 export interface CommitFile {
