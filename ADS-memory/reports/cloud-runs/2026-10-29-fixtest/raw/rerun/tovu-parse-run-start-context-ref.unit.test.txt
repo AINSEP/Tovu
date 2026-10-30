@@ -1,0 +1,58 @@
+✔ forwards a model present in contextRef (2.79369ms)
+✔ omits model when absent from contextRef (0.317497ms)
+✔ a non-string model is not forwarded (0.330788ms)
+✔ an empty-string model is not forwarded (0.230206ms)
+✔ still requires prompt and principalId, unchanged (0.701676ms)
+✔ still filters attachmentIds down to non-empty strings, unchanged (0.87608ms)
+✔ forwards pluginRefIds present in contextRef (0.306173ms)
+✔ defaults pluginRefIds to an empty array when absent from contextRef (0.224208ms)
+✔ filters pluginRefIds down to non-empty strings, same as attachmentIds (0.280001ms)
+✔ a non-array pluginRefIds is not forwarded (0.30594ms)
+✔ forwards a conversationId present in contextRef (0.375576ms)
+✔ omits conversationId when absent from contextRef (0.18841ms)
+✔ a non-string conversationId is not forwarded (0.204781ms)
+✔ an empty-string conversationId is not forwarded (0.178981ms)
+✔ forwards a reasoning level present in contextRef (0.176675ms)
+✔ omits reasoning when absent from contextRef (0.153598ms)
+✔ a non-string reasoning is not forwarded (0.25691ms)
+✔ an empty-string reasoning is not forwarded (0.172729ms)
+✔ model and reasoning both survive the same envelope (0.318661ms)
+✔ invalid JSON and non-object envelopes cannot start a run (0.295134ms)
+✖ daemon model prompt removes pasted credentials and preserves the request (2.849918ms)
+✔ carries validated per-chat plugin decisions and the actual current request (0.517033ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 21
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 358.477793
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/parse-run-start-context-ref.unit.test.ts:1:4418
+✖ daemon model prompt removes pasted credentials and preserves the request (2.849918ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+    'Use this [token removed] to connect my account\n' +
+      '\n' +
+  +   'A secret-shaped value was removed from the current user message. Do not repeat the removed value. Tell them to rotate it if it was real. This does not mean the configured connection failed; reuse it unless it actually failed authentication. Open a secure credential card only if the task needs a missing credential or the person explicitly requests replacement.'
+  -   'The user tried to share a credential; open the matching card. Do not repeat the removed value. Tell them to rotate it if it was real.'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/parse-run-start-context-ref.unit.test.ts:145:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Use this [token removed] to connect my account\n\nA secret-shaped value was removed from the current user message. Do not repeat the removed value. Tell them to rotate it if it was real. This does not mean the configured connection failed; reuse it unless it actually failed authentication. Open a secure credential card only if the task needs a missing credential or the person explicitly requests replacement.',
+    expected: 'Use this [token removed] to connect my account\n\nThe user tried to share a credential; open the matching card. Do not repeat the removed value. Tell them to rotate it if it was real.',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+exit 1

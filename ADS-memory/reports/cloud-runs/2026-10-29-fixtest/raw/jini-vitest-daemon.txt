@@ -1,0 +1,371 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/daemon
+
+ ✓ src/http/__tests__/attachments.test.ts (154 tests) 1451ms
+stderr | src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — a single failed queued emit does not block the run from reaching a terminal state > swallows an emit() race against an already-terminal run instead of leaving an unhandled rejection
+[daemon] Queued lifecycle event could not be delivered.
+[daemon] Queued lifecycle event could not be delivered.
+
+stderr | src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — ACP dispatch (fake attachAcpSession) > swallows an emit() race against an already-terminal run on the ACP path without an unhandled rejection
+[daemon] Queued lifecycle event could not be delivered.
+
+stderr | src/http/__tests__/model-proxy.test.ts > POST /api/proxy/anthropic/stream > does not leak an unhandled rejection when the pre-stream origin check throws, and keeps serving requests after
+[@jini-ai/http-kit] internal error (model-proxy/anthropic, correlationId=f31f7d54-e970-43df-9c0f-3cf6fde9bf9d) Error: same-origin check exploded unexpectedly
+    at Proxy.<anonymous> (/home/user/Jini/packages/daemon/src/http/__tests__/model-proxy.test.ts:462:15)
+    at Proxy.mockCall (file:///home/user/Jini/node_modules/.pnpm/@vitest+spy@2.1.9/node_modules/@vitest/spy/dist/index.js:61:17)
+    at Proxy.spy (file:///home/user/Jini/node_modules/.pnpm/tinyspy@3.0.2/node_modules/tinyspy/dist/index.js:45:80)
+    at Module.guardSameOrigin (/home/user/Jini/packages/http-kit/src/origin.ts:33:7)
+    at runProxyStream (/home/user/Jini/packages/daemon/src/http/model-proxy.ts:419:20)
+    at /home/user/Jini/packages/daemon/src/http/model-proxy.ts:651:7
+    at /home/user/Jini/packages/daemon/src/http/__tests__/model-proxy.test.ts:467:15
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+
+stderr | src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — pi-rpc dispatch (fake attachPiRpcSession) > swallows an emit() race against an already-terminal run on the pi-rpc path without an unhandled rejection
+[daemon] Queued lifecycle event could not be delivered.
+
+stderr | src/http/__tests__/model-proxy.test.ts > POST /api/proxy/:provider/stream — the generic catch-all > does not leak an unhandled rejection when the pre-stream origin check throws on the catch-all route, and keeps serving requests after
+[@jini-ai/http-kit] internal error (model-proxy/anthropic, correlationId=7983512c-65d0-4e73-a506-d32d465f017a) Error: same-origin check exploded unexpectedly
+    at Proxy.<anonymous> (/home/user/Jini/packages/daemon/src/http/__tests__/model-proxy.test.ts:975:15)
+    at Proxy.mockCall (file:///home/user/Jini/node_modules/.pnpm/@vitest+spy@2.1.9/node_modules/@vitest/spy/dist/index.js:61:17)
+    at Proxy.spy (file:///home/user/Jini/node_modules/.pnpm/tinyspy@3.0.2/node_modules/tinyspy/dist/index.js:45:80)
+    at Module.guardSameOrigin (/home/user/Jini/packages/http-kit/src/origin.ts:33:7)
+    at /home/user/Jini/packages/daemon/src/http/model-proxy.ts:619:22
+    at /home/user/Jini/packages/daemon/src/http/__tests__/model-proxy.test.ts:978:15
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+
+ ❯ src/agent-executor/__tests__/agent-executor.test.ts (388 tests | 1 failed) 713ms
+   × AgentExecutor — stdoutPolicy: buffer-until-close + sanitize (antigravity) > ignores stdoutPolicy for a structured (JSON-stream) def, whose events come from the parser 19ms
+     → expected [] to include 'text_delta'
+ ✓ src/http/__tests__/model-proxy.test.ts (345 tests) 776ms
+ ✓ src/__tests__/run-lifecycle.test.ts (67 tests) 62ms
+stderr | src/http/__tests__/xai.test.ts > xaiOauthCompleteRoute — non-Error failures and token defaults > rejects a token response with no token_type without persisting it
+[@jini-ai/http-kit] internal error (xai/oauth-complete, correlationId=06683458-1e2e-4862-a3fb-6585f6998964) Error: the authorization server's response did not contain a supported OAuth token set
+    at redactError (/home/user/Jini/packages/daemon/src/http/xai.ts:307:10)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/xai.ts:519:82)
+    at /home/user/Jini/packages/daemon/src/http/__tests__/xai.test.ts:446:5
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file:///home/user/Jini/node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11
+
+ ✓ src/http/__tests__/xai.test.ts (80 tests) 471ms
+ ✓ src/http/__tests__/runs.test.ts (69 tests) 89ms
+stderr | src/http/__tests__/routines.test.ts > registerRoutineRoutes > confirmed-bug regression: GET/:id, DELETE/:id, and GET/:id/runs must not crash (or silently 500-loop) on a throwing store, matching every sibling route's try/catch discipline > GET /api/routines/:id returns 500 INTERNAL_ERROR instead of throwing
+[@jini-ai/http-kit] internal error (GET /api/routines/:id, correlationId=fbaf1c23-2bfa-4020-99b7-6babe339004e) Error: store exploded
+    at Object.boom (/home/user/Jini/packages/daemon/src/http/__tests__/routines.test.ts:906:15)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/routines.ts:305:38)
+    at Object.GET /api/routines/:id (/home/user/Jini/packages/http-kit/src/adapter.ts:132:33)
+    at /home/user/Jini/packages/daemon/src/http/__tests__/routines.test.ts:925:45
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stderr | src/http/__tests__/routines.test.ts > registerRoutineRoutes > confirmed-bug regression: GET/:id, DELETE/:id, and GET/:id/runs must not crash (or silently 500-loop) on a throwing store, matching every sibling route's try/catch discipline > DELETE /api/routines/:id returns 500 INTERNAL_ERROR instead of throwing
+[@jini-ai/http-kit] internal error (DELETE /api/routines/:id, correlationId=5e0141f7-9ceb-4106-8099-a916742bf1a1) Error: store exploded
+    at Object.boom (/home/user/Jini/packages/daemon/src/http/__tests__/routines.test.ts:906:15)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/routines.ts:332:38)
+    at Object.DELETE /api/routines/:id (/home/user/Jini/packages/http-kit/src/adapter.ts:132:33)
+    at /home/user/Jini/packages/daemon/src/http/__tests__/routines.test.ts:937:48
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stderr | src/http/__tests__/routines.test.ts > registerRoutineRoutes > confirmed-bug regression: GET/:id, DELETE/:id, and GET/:id/runs must not crash (or silently 500-loop) on a throwing store, matching every sibling route's try/catch discipline > GET /api/routines/:id/runs returns 500 INTERNAL_ERROR instead of throwing
+[@jini-ai/http-kit] internal error (GET /api/routines/:id/runs, correlationId=5c7bd746-8964-45c8-b051-44d9590a7215) Error: store exploded
+    at Object.boom (/home/user/Jini/packages/daemon/src/http/__tests__/routines.test.ts:906:15)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/routines.ts:377:39)
+    at Object.GET /api/routines/:id/runs (/home/user/Jini/packages/http-kit/src/adapter.ts:132:33)
+    at /home/user/Jini/packages/daemon/src/http/__tests__/routines.test.ts:947:50
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ ✓ src/http/__tests__/routines.test.ts (87 tests) 130ms
+stderr | src/http/__tests__/terminals.test.ts > terminalCreateRoute.handle > reports a timeout as a redacted INTERNAL_ERROR
+[@jini-ai/http-kit] internal error (terminal-create, correlationId=c9f2a9df-4b02-48e3-80bf-341dbd58467f) timed-out
+
+stderr | src/http/__tests__/terminals.test.ts > terminalCreateRoute.handle > reports a cancellation as a redacted INTERNAL_ERROR
+[@jini-ai/http-kit] internal error (terminal-create, correlationId=e22ffa15-1ddf-463f-a650-de4abc3cee97) cancelled
+
+ ✓ src/http/__tests__/terminals.test.ts (99 tests) 131ms
+ ✓ src/http/__tests__/connectors.test.ts (98 tests) 162ms
+ ✓ src/routines/__tests__/scheduler.test.ts (34 tests) 36ms
+stderr | src/http/__tests__/delegated-tools.test.ts > delegatedToolExecuteRoute.handle > propagates a caller-supplied abort signal through the bridge into ToolExecutor, cancelling a pending confirmation
+[@jini-ai/http-kit] internal error (delegated-tool-execute, correlationId=8959eb6f-7fb3-4fad-8a01-0c38af8137e0) cancelled
+
+stderr | src/http/__tests__/delegated-tools.test.ts > registerDelegatedToolRoutes > a real HTTP request close (client disconnect) reaches ToolExecutor and cancels a pending confirmation, end to end through mountJsonRoute
+[@jini-ai/http-kit] internal error (delegated-tool-execute, correlationId=6ec46419-8894-455e-8533-0700f3b4f9e8) cancelled
+
+ ✓ src/http/__tests__/delegated-tools.test.ts (40 tests) 86ms
+ ✓ src/__tests__/tool-executor.test.ts (43 tests) 98ms
+ ✓ src/http/__tests__/memory.test.ts (75 tests) 138ms
+ ✓ src/http/__tests__/host-tools.test.ts (80 tests) 65ms
+ ✓ src/http/__tests__/media.test.ts (63 tests) 731ms
+ ✓ src/agent-executor/__tests__/mid-run-user-message.test.ts (26 tests) 95ms
+ ✓ src/__tests__/frontend-session-registry.test.ts (44 tests) 27ms
+ ✓ src/__tests__/terminal-session.test.ts (43 tests) 137ms
+ ✓ src/__tests__/surface-exchanges.test.ts (48 tests) 19ms
+ ✓ src/__tests__/delegated-tool-bridge.test.ts (23 tests) 46ms
+ ✓ src/http/__tests__/research.test.ts (36 tests) 93ms
+stderr | src/http/__tests__/db-ops.test.ts > daemonDbInspectRoute > reports a timeout as a redacted INTERNAL_ERROR
+[@jini-ai/http-kit] internal error (db-inspect, correlationId=bd84fdc2-12b8-49d8-b798-137df61baa16) timed-out
+
+stderr | src/http/__tests__/db-ops.test.ts > daemonDbInspectRoute > reports a cancellation as a redacted INTERNAL_ERROR
+[@jini-ai/http-kit] internal error (db-inspect, correlationId=19ce36e5-53b9-420f-bbf0-431ed47430d0) cancelled
+
+ ✓ src/http/__tests__/db-ops.test.ts (37 tests) 77ms
+ ✓ src/http/__tests__/tool-execution-rpc.test.ts (37 tests) 644ms
+ ✓ src/tool-recovery/__tests__/recovery-branches.test.ts (66 tests) 35ms
+ ✓ src/__tests__/legacy-data-migration.test.ts (40 tests) 359ms
+ ✓ src/http/__tests__/remote-run-events.test.ts (34 tests) 19ms
+ ✓ src/__tests__/tool-executor.dispatch.test.ts (35 tests) 165ms
+ ✓ src/__tests__/read-only-tools.test.ts (21 tests) 13ms
+ ✓ src/http/__tests__/frontend-sessions.test.ts (24 tests) 80ms
+ ✓ src/run/core/__tests__/retry.test.ts (66 tests) 15ms
+ ✓ src/agent-executor/__tests__/agent-executor-helpers.test.ts (53 tests) 16ms
+ ✓ src/__tests__/tool-input-normalization.test.ts (17 tests) 43ms
+ ✓ src/core/__tests__/tool-gaps.test.ts (53 tests) 24ms
+ ✓ src/routines/__tests__/schedule.test.ts (35 tests) 36ms
+ ✓ src/__tests__/ai-trace-lifecycle-regressions.test.ts (24 tests) 507ms
+ ✓ src/agent-executor/__tests__/agent-executor-filesystem-policy.test.ts (14 tests) 162ms
+ ✓ src/__tests__/run-lifecycle-slow-run-watchdog.test.ts (12 tests) 18ms
+ ✓ src/http/__tests__/active-context.test.ts (29 tests) 65ms
+ ✓ src/agent-executor/__tests__/runtime-policy.test.ts (27 tests) 126ms
+ ✓ src/__tests__/tool-executor-audit.test.ts (17 tests) 7ms
+ ✓ src/__tests__/delegated-tool-bridge.mcp-ui.test.ts (12 tests) 15ms
+ ✓ src/routines/__tests__/routine-store.test.ts (24 tests) 19ms
+ ✓ src/store/event-log/__tests__/sqlite.test.ts (27 tests) 433ms
+ ✓ src/agent-executor/__tests__/starting-model.test.ts (15 tests) 27ms
+ ✓ src/agent-executor/__tests__/agent-executor-acp.integration.test.ts (4 tests) 149ms
+ ✓ src/agent-executor/__tests__/mcp-bridge-probe.unit.test.ts (21 tests) 25ms
+ ✓ src/__tests__/run-credentials.pins.test.ts (49 tests) 19ms
+ ✓ src/http/__tests__/frontend-control.test.ts (12 tests) 78ms
+ ✓ src/__tests__/frontend-capability-tools.test.ts (22 tests) 18ms
+ ✓ src/agent-executor/__tests__/launch-defaults-and-staging.test.ts (7 tests) 35ms
+ ✓ src/agent-executor/codex/__tests__/mcp-sources-isolation.test.ts (17 tests) 19ms
+ ✓ src/__tests__/run-lifecycle-helpers.test.ts (26 tests) 11ms
+ ✓ src/agent-executor/__tests__/run-output.test.ts (17 tests) 22ms
+ ✓ src/store/event-log/__tests__/sqlite-kernel.test.ts (7 tests) 59ms
+ ✓ src/__tests__/injected-ports.test.ts (11 tests) 10ms
+ ✓ src/core/__tests__/tool-audit.test.ts (23 tests) 13ms
+ ✓ src/agent-executor/__tests__/mcp-bridge-staging.test.ts (8 tests) 42ms
+ ✓ src/run/diagnostics/__tests__/diagnostics.test.ts (17 tests) 14ms
+stderr | src/http/__tests__/daemon-status.test.ts > daemonStatusRoute > surfaces an unexpected error through the mounted route as a 500 INTERNAL_ERROR (malformed-response category)
+[@jini-ai/http-kit] internal error (GET /api/daemon/status, correlationId=0d4cac0b-3fcf-4820-a848-f921234dce7c) Error: boom
+    at Object.getVersion (/home/user/Jini/packages/daemon/src/http/__tests__/daemon-status.test.ts:132:17)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/daemon-status.ts:68:32)
+    at Object.GET /api/daemon/status (/home/user/Jini/packages/http-kit/src/adapter.ts:132:33)
+    at /home/user/Jini/packages/daemon/src/http/__tests__/daemon-status.test.ts:138:48
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ ✓ src/http/__tests__/daemon-status.test.ts (15 tests) 22ms
+ ✓ src/__tests__/event-log.test.ts (15 tests) 12ms
+ ↓ src/__tests__/integration/claude-bash-sandbox.live.test.ts (1 test | 1 skipped)
+stdout | src/__tests__/integration/claude-bash-sandbox.live.test.ts
+[claude-bash-live] SKIPPED: set JINI_LIVE_CLI_TESTS=1 (spends model tokens)
+
+ ✓ src/http/__tests__/attachments-coverage.test.ts (9 tests) 82ms
+ ✓ src/tool-recovery/__tests__/observability.test.ts (9 tests) 11ms
+ ✓ src/agent-executor/codex/__tests__/home-cleanup.test.ts (5 tests) 36ms
+ ✓ src/http/__tests__/tool-catalog.test.ts (18 tests) 84ms
+ ✓ src/__tests__/integration/delegated-approval-writes.integration.test.ts (6 tests) 20ms
+ ✓ src/store/event-log/__tests__/sqlite-receipts.test.ts (11 tests) 79ms
+ ✓ src/__tests__/delegated-tool-bridge.media.test.ts (8 tests) 15ms
+ ✓ src/agent-executor/__tests__/antigravity-permissions.unit.test.ts (34 tests) 132ms
+ ✓ src/__tests__/characterization.test.ts (1 test) 7ms
+ ✓ src/tool-recovery/__tests__/redaction.test.ts (7 tests) 8ms
+ ✓ src/http/__tests__/delegated-tools-status-mapping.test.ts (14 tests) 18ms
+ ✓ src/agent-executor/__tests__/split-parity.test.ts (8 tests) 12ms
+ ✓ src/__tests__/agent-run-concurrency.test.ts (13 tests) 26ms
+ ✓ src/__tests__/event-log-retention.test.ts (11 tests) 10ms
+ ✓ src/http/__tests__/research-handle.test.ts (11 tests) 15ms
+ ✓ src/agent-executor/codex/__tests__/staging-policy.test.ts (14 tests) 11ms
+ ✓ src/__tests__/run-credentials.test.ts (6 tests) 12ms
+ ✓ src/http/__tests__/component-catalog.test.ts (17 tests) 63ms
+ ✓ src/http/__tests__/run-credentials.test.ts (12 tests) 10ms
+ ✓ src/http/__tests__/delegated-tools-host-safe-failure.test.ts (7 tests) 15ms
+ ✓ src/continuation/__tests__/run-start-handler.test.ts (8 tests) 8ms
+ ✓ src/agent-executor/codex/__tests__/home-config.test.ts (15 tests) 6ms
+ ✓ src/__tests__/tool-catalog-audit.test.ts (7 tests) 7ms
+ ✓ src/__tests__/attachment-content.test.ts (11 tests) 9ms
+ ✓ src/http/__tests__/health.test.ts (13 tests) 17ms
+ ✓ src/agent-executor/__tests__/full-cli-mcp-policy.test.ts (8 tests) 13ms
+stderr | src/http/__tests__/delegated-tools-host-described-internal-error.test.ts > delegated tool route: describeInternalError (host-supplied model-safe text for the 500) > falls back to the generic message when the host describer throws
+[@jini-ai/http-kit] describeInternalError threw (correlationId=a41f37e5-615e-4db7-9a8d-1a62e63c18e5) Error: describer bug
+    at Object.describeInternalError (/home/user/Jini/packages/daemon/src/http/__tests__/delegated-tools-host-described-internal-error.test.ts:121:15)
+    at describeSafely (/home/user/Jini/packages/daemon/src/http/delegated-tools.ts:163:23)
+    at reportInternalError (/home/user/Jini/packages/daemon/src/http/delegated-tools.ts:181:19)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/delegated-tools.ts:356:27)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at callRoute (/home/user/Jini/packages/daemon/src/http/__tests__/delegated-tools-host-described-internal-error.test.ts:47:18)
+    at /home/user/Jini/packages/daemon/src/http/__tests__/delegated-tools-host-described-internal-error.test.ts:125:41
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ ✓ src/tool-recovery/__tests__/federated-refusal.test.ts (7 tests) 5ms
+ ✓ src/http/__tests__/delegated-tools-host-described-internal-error.test.ts (9 tests) 16ms
+ ✓ src/http/__tests__/agents.test.ts (12 tests) 10ms
+ ✓ src/http/__tests__/run-messages.test.ts (9 tests) 14ms
+ ✓ src/__tests__/agent-session-resume.test.ts (19 tests) 5ms
+ ✓ src/store/agent-sessions/__tests__/legacy-sqlite.test.ts (7 tests) 19ms
+ ✓ src/http/__tests__/attachment-lookup.test.ts (4 tests) 78ms
+ ✓ src/store/event-log/__tests__/sqlite-schema-failures.test.ts (11 tests) 63ms
+ ✓ src/http/__tests__/route-manifest.test.ts (14 tests) 10ms
+ ✓ src/tool-recovery/__tests__/recovery.test.ts (4 tests) 7ms
+ ✓ src/__tests__/delegated-result-correlation.test.ts (9 tests) 12ms
+ ✓ src/http/__tests__/execution-events-m1.unit.test.ts (6 tests) 10ms
+ ✓ src/continuation/__tests__/run-scoped-context-store.test.ts (8 tests) 10ms
+ ✓ src/agent-executor/__tests__/antigravity-permissions.test.ts (9 tests) 87ms
+ ✓ src/agent-executor/__tests__/live-session-state.test.ts (11 tests) 7ms
+ ✓ src/__tests__/tool-result-media.test.ts (16 tests) 9ms
+ ✓ src/agent-executor/codex/__tests__/toml-dedupe.test.ts (7 tests) 6ms
+ ✓ src/__tests__/delegated-tool-bridge.slow-run-surface.test.ts (4 tests) 12ms
+ ✓ src/__tests__/args-convention.regression.test.ts (7 tests) 22ms
+ ✓ src/__tests__/tool-result-surfaces.test.ts (15 tests) 7ms
+ ✓ src/__tests__/close-status.test.ts (13 tests) 13ms
+ ✓ src/__tests__/conversation-start-lock.test.ts (8 tests) 94ms
+ ✓ src/http/__tests__/run-message-parse.test.ts (23 tests) 8ms
+ ✓ src/agent-executor/__tests__/host-env-ports.test.ts (4 tests) 14ms
+ ✓ src/__tests__/image-prompt-delivery.test.ts (12 tests) 4ms
+ ✓ src/__tests__/remote-transport-m1.unit.test.ts (6 tests) 11ms
+ ✓ src/agent-executor/__tests__/launch-characterization.test.ts (18 tests) 10ms
+ ✓ src/http/__tests__/remote-attachment-boundaries.unit.test.ts (15 tests) 11ms
+ ✓ src/http/__tests__/workspace-root.test.ts (11 tests) 8ms
+ ✓ src/agent-executor/__tests__/launch-relay-m1.unit.test.ts (5 tests) 30ms
+ ✓ src/http/__tests__/memory-entry-parse.test.ts (19 tests) 7ms
+ ✓ src/store/event-log/__tests__/sqlite.tool-result-media.test.ts (3 tests) 39ms
+ ✓ src/__tests__/agent-session-binding.test.ts (13 tests) 4ms
+ ✓ src/http/__tests__/args-convention.test.ts (4 tests) 9ms
+ ✓ src/http/__tests__/integration-contracts.test.ts (5 tests) 8ms
+ ✓ src/agent-executor/__tests__/agent-executor-read-only-dirs.test.ts (3 tests) 33ms
+ ✓ src/tool-recovery/__tests__/stack.test.ts (3 tests) 9ms
+ ✓ src/http/__tests__/research-ports.test.ts (3 tests) 11ms
+ ✓ src/__tests__/remote-tool-bridge.test.ts (6 tests) 7ms
+ ✓ src/__tests__/run-lifecycle-event-drop.test.ts (4 tests) 12ms
+ ✓ src/tool-recovery/__tests__/analytics-boundaries.unit.test.ts (7 tests) 12ms
+ ✓ src/__tests__/result-boundaries.unit.test.ts (25 tests) 10ms
+ ✓ src/http/__tests__/resource-request.test.ts (20 tests) 9ms
+ ✓ src/http/__tests__/index.test.ts (8 tests) 4ms
+ ✓ src/__tests__/tool-candidates.test.ts (14 tests) 6ms
+ ✓ src/__tests__/fixture-contracts-m1.unit.test.ts (3 tests) 9ms
+ ✓ src/store/event-log/__tests__/ownership.test.ts (7 tests) 19ms
+ ✓ src/__tests__/ai-trace-lifecycle.test.ts (3 tests) 12ms
+ ✓ src/agent-executor/__tests__/claude-background-ceiling.test.ts (6 tests) 14ms
+ ✓ src/http/__tests__/model-proxy-fields.test.ts (11 tests) 4ms
+ ✓ src/__tests__/run-credentials.characterization.test.ts (6 tests) 4ms
+ ✓ src/agent-executor/__tests__/agent-executor-capability-probe.test.ts (1 test) 8ms
+ ✓ src/__tests__/surface-exchanges.deadlines.test.ts (4 tests) 7ms
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+ ✓ src/__tests__/tool-executor-audit-bound.test.ts (4 tests) 18ms
+ ✓ src/agent-executor/__tests__/message-relay.test.ts (3 tests) 6ms
+ ✓ src/agent-executor/__tests__/usage-cost-basis.test.ts (6 tests) 31ms
+ ✓ src/continuation/__tests__/continuation-transport.test.ts (6 tests) 6ms
+ ✓ src/__tests__/routing-tool-executor.test.ts (3 tests) 10ms
+ ✓ src/http/__tests__/message-relay-boundaries.unit.test.ts (8 tests) 9ms
+ ✓ src/agent-executor/__tests__/model-receipts.test.ts (3 tests) 4ms
+ ✓ src/http/__tests__/message-relay.test.ts (2 tests) 12ms
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+ ✓ src/__tests__/identifier-lint.test.ts (1 test) 4ms
+ ✓ src/__tests__/tool-result-diagnostics.test.ts (4 tests) 3ms
+ ✓ src/run/core/__tests__/result.test.ts (7 tests) 5ms
+ ✓ src/store/event-log/__tests__/protocol-args.regression.test.ts (3 tests) 18ms
+ ✓ src/http/__tests__/cancel-owned-runs.test.ts (4 tests) 6ms
+ ✓ src/http/__tests__/attachment-site-staging.test.ts (2 tests) 21ms
+ ✓ src/tool-recovery/__tests__/diagnostics.test.ts (3 tests) 6ms
+ ✓ src/continuation/__tests__/journal.test.ts (4 tests) 6ms
+ ✓ src/store/agent-sessions/__tests__/construction.test.ts (8 tests) 7ms
+ ✓ src/__tests__/index.test.ts (1 test) 2ms
+ ✓ src/agent-executor/__tests__/session-exit-w2g.unit.test.ts (2 tests) 5ms
+ ✓ src/store/event-log/__tests__/clock.test.ts (2 tests) 12ms
+ ✓ src/tool-recovery/__tests__/observability-w2g.unit.test.ts (5 tests) 8ms
+ ✓ src/store/agent-sessions/__tests__/two-connections.test.ts (1 test) 27ms
+ ✓ src/__tests__/slow-watchdog-resume.regression.test.ts (1 test) 15ms
+ ✓ src/agent-executor/__tests__/live-state-m1.unit.test.ts (1 test) 2ms
+ ✓ src/agent-executor/__tests__/values.test.ts (4 tests) 4ms
+ ✓ src/agent-executor/__tests__/model-fixture-m1.unit.test.ts (2 tests) 5ms
+ ✓ src/http/__tests__/agents-model-catalog.test.ts (1 test) 3ms
+ ✓ src/store/agent-sessions/__tests__/loads-without-driver.test.ts (2 tests) 16024ms
+   ✓ neutral packed port works with no db/Kysely/drivers/React and keeps declaration imports usable 4726ms
+   ✓ SQL factory declarations accept the host numeric timestamp and extra tables without a cast 11298ms
+ ✓ src/agent-executor/__tests__/attachment-stdin.test.ts (1 test) 3ms
+ ✓ src/run/__tests__/index.test.ts (1 test) 2ms
+ ✓ src/__tests__/legacy-filesystem-port.regression.test.ts (1 test) 3ms
+ ✓ src/__tests__/credential-crypto-parity.test.ts (8 tests) 3ms
+ ✓ src/continuation/__tests__/journal-failure.regression.test.ts (1 test) 12ms
+ ✓ src/http/__tests__/attachment-route-m1.unit.test.ts (1 test) 4ms
+ ✓ src/store/agent-sessions/__tests__/pack-refusal-m1.unit.test.ts (1 test) 6ms
+ ✓ src/store/agent-sessions/__tests__/fixture-failure-m1.unit.test.ts (1 test) 3ms
+ ✓ src/agent-executor/__tests__/cost-metadata.test.ts (2 tests) 4ms
+ ✓ src/__tests__/memory-recovery.db-contract.test.ts (1 test) 2ms
+ ✓ src/agent-executor/codex/__tests__/isolation-m1.unit.test.ts (4 tests) 5ms
+ ✓ src/agent-executor/__tests__/durable-session-status.test.ts (2 tests) 2ms
+ ✓ src/store/agent-sessions/__tests__/pglite.socket.test.ts (7 tests) 17519ms
+   ✓ opaque pair encodings are independent, including ambiguous delimiter pairs 3105ms
+   ✓ overwrite and idempotent clear affect only the selected pair 2171ms
+   ✓ concurrent sets leave one complete successor 1964ms
+   ✓ shares the injected transaction for insert, overwrite and clear rollback 2387ms
+   ✓ uses assistant_agent_sessions FK and cascades exactly the deleted conversation 2926ms
+   ✓ construction performs no I/O or ownership changes; writes use the injected clock 2643ms
+   ✓ concurrent upserts preserve one primary-key row 2321ms
+ ✓ src/store/agent-sessions/__tests__/sqlite.test.ts (7 tests) 42ms
+ ✓ src/store/agent-sessions/__tests__/pglite.test.ts (7 tests) 13315ms
+   ✓ opaque pair encodings are independent, including ambiguous delimiter pairs 3247ms
+   ✓ overwrite and idempotent clear affect only the selected pair 1890ms
+   ✓ concurrent sets leave one complete successor 1659ms
+   ✓ shares the injected transaction for insert, overwrite and clear rollback 1769ms
+   ✓ uses assistant_agent_sessions FK and cascades exactly the deleted conversation 1654ms
+   ✓ construction performs no I/O or ownership changes; writes use the injected clock 1527ms
+   ✓ concurrent upserts preserve one primary-key row 1568ms
+ ✓ src/store/agent-sessions/__tests__/memory.test.ts (3 tests) 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — stdoutPolicy: buffer-until-close + sanitize (antigravity) > ignores stdoutPolicy for a structured (JSON-stream) def, whose events come from the parser
+AssertionError: expected [] to include 'text_delta'
+ ❯ src/agent-executor/__tests__/agent-executor.test.ts:3031:39
+    3029| 
+    3030|     const events = await collectEvents(lifecycle, run.id);
+    3031|     expect(agentPayloadTypes(events)).toContain('text_delta');
+       |                                       ^
+    3032|     expect(JSON.stringify(events)).not.toContain('SHOULD NOT APPEAR');
+    3033|     expect(JSON.stringify(events)).toContain('parsed reply');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 182 passed | 1 skipped (184)
+      Tests  1 failed | 3836 passed | 1 skipped (3838)
+   Start at  02:15:52
+   Duration  72.02s (transform 5.39s, setup 0ms, collect 45.71s, tests 57.81s, environment 32ms, prepare 10.68s)
+
+exit 1

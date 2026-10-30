@@ -1,0 +1,33 @@
+﹣ the daemon entry's static runtime graph reaches none of ADR-070's forbidden modules (0.811374ms) # un-skipped by W3-C
+✖ the walk resolves relative and #src imports from the real daemon entry and never throws (1181.361286ms)
+✔ type-only imports and dynamic import() are not runtime edges; every other import form is (1.383327ms)
+✔ the forbidden list matches the ADR's modules and nothing next to them (0.650208ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 1928.640258
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts:2:78
+✖ the walk resolves relative and #src imports from the real daemon entry and never throws (1181.361286ms)
+  AssertionError [ERR_ASSERTION]: extensionless `#src/` import
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts:131:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+exit 1

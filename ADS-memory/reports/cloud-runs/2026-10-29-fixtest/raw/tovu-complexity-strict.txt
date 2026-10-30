@@ -1,0 +1,13 @@
+
+/home/user/Tovu/apps/admin/src/components/AssistantDock/AssistantDock.tsx
+  319:8  error  Function 'AssistantDock' has a complexity of 11. Maximum allowed is 10  complexity
+
+/home/user/Tovu/apps/website/src/assistant/credential-chat-intake.ts
+  9:8  error  Function 'redactAdminRunContextRef' has a complexity of 11. Maximum allowed is 10  complexity
+
+/home/user/Tovu/apps/website/src/server/runtime/composition/modules/assistant-byok.ts
+  201:1  error  Function 'toByokChatMessage' has a complexity of 11. Maximum allowed is 10  complexity
+
+✖ 3 problems (3 errors, 0 warnings)
+
+exit 1

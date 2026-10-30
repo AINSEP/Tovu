@@ -1,0 +1,38 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-runtime
+
+ ❯ src/__tests__/model-discovery.test.ts (65 tests | 1 failed) 72ms
+   × shared adapter conformance > maps Antigravity display-name settings to the live slug 9ms
+     → expected [ '--output-format', 'stream-json' ] to deeply equal [ '--model', 'gemini-flash-high' ]
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/model-discovery.test.ts > shared adapter conformance > maps Antigravity display-name settings to the live slug
+AssertionError: expected [ '--output-format', 'stream-json' ] to deeply equal [ '--model', 'gemini-flash-high' ]
+
+- Expected
++ Received
+
+  Array [
+-   "--model",
+-   "gemini-flash-high",
++   "--output-format",
++   "stream-json",
+  ]
+
+ ❯ src/__tests__/model-discovery.test.ts:203:113
+    201|     const pinned = await resolveModelForLaunch({ def, context }, { dep…
+    202|     expect(pinned.model).toBe('gemini-flash-high');
+    203|     expect(def.buildArgs({ prompt: 'test', imagePaths: [] }, { options…
+       |                                                                                                                 ^
+    204|   });
+    205|   it('refuses an old default snapshot after the config changes, includ…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 64 passed (65)
+   Start at  02:46:27
+   Duration  1.38s (transform 717ms, setup 0ms, collect 1.07s, tests 72ms, environment 0ms, prepare 66ms)
+
+exit 1

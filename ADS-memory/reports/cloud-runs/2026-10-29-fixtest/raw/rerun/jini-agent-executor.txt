@@ -1,0 +1,37 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/daemon
+
+stderr | src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — a single failed queued emit does not block the run from reaching a terminal state > swallows an emit() race against an already-terminal run instead of leaving an unhandled rejection
+[daemon] Queued lifecycle event could not be delivered.
+[daemon] Queued lifecycle event could not be delivered.
+
+stderr | src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — ACP dispatch (fake attachAcpSession) > swallows an emit() race against an already-terminal run on the ACP path without an unhandled rejection
+[daemon] Queued lifecycle event could not be delivered.
+
+stderr | src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — pi-rpc dispatch (fake attachPiRpcSession) > swallows an emit() race against an already-terminal run on the pi-rpc path without an unhandled rejection
+[daemon] Queued lifecycle event could not be delivered.
+
+ ❯ src/agent-executor/__tests__/agent-executor.test.ts (388 tests | 1 failed) 741ms
+   × AgentExecutor — stdoutPolicy: buffer-until-close + sanitize (antigravity) > ignores stdoutPolicy for a structured (JSON-stream) def, whose events come from the parser 22ms
+     → expected [] to include 'text_delta'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent-executor/__tests__/agent-executor.test.ts > AgentExecutor — stdoutPolicy: buffer-until-close + sanitize (antigravity) > ignores stdoutPolicy for a structured (JSON-stream) def, whose events come from the parser
+AssertionError: expected [] to include 'text_delta'
+ ❯ src/agent-executor/__tests__/agent-executor.test.ts:3031:39
+    3029| 
+    3030|     const events = await collectEvents(lifecycle, run.id);
+    3031|     expect(agentPayloadTypes(events)).toContain('text_delta');
+       |                                       ^
+    3032|     expect(JSON.stringify(events)).not.toContain('SHOULD NOT APPEAR');
+    3033|     expect(JSON.stringify(events)).toContain('parsed reply');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 387 passed (388)
+   Start at  02:46:30
+   Duration  3.71s (transform 1.77s, setup 0ms, collect 2.68s, tests 741ms, environment 0ms, prepare 76ms)
+
+exit 1

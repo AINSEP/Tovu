@@ -1,0 +1,2 @@
+apps/website/src/server/runtime/composition/modules/assistant-byok.ts(222,32): error TS2550: Property 'findLastIndex' does not exist on type 'any[]'. Do you need to change your target library? Try changing the 'lib' compiler option to 'es2023' or later.
+apps/website/src/server/runtime/composition/modules/assistant-byok.ts(222,46): error TS7006: Parameter 'entry' implicitly has an 'any' type.

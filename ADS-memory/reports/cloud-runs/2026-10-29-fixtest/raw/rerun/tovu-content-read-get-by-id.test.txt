@@ -1,0 +1,315 @@
+✔ no id: the list member runs with the caller's input and its result is returned unchanged (4.60158ms)
+✔ an id: the list member runs WITHOUT the id, and only the matching item comes back in the list's own shape (0.827043ms)
+✔ the other list filters still pass through alongside the id (0.58684ms)
+✔ not found: exact model-facing text, as a ToolInputError (1.012228ms)
+✔ a non-string or empty id is refused before the list runs (0.852316ms)
+✔ a truncated list makes a miss inconclusive, and the message says so (0.700491ms)
+✔ a list with two item families searches both, each by its own id field (0.712975ms)
+✔ a nested id path (taxonomy rows are { taxonomy, terms }) (0.596442ms)
+✔ the list reader's own permission refusal is the answer, and the id path leaks nothing (0.663429ms)
+✔ a list result missing its declared items key is an internal error, not a silent 'not found' (0.612223ms)
+✔ the card schema gains the id as an OPTIONAL property; the list's own properties stay (0.527351ms)
+✔ a card with a hand-written get keeps dispatching to it; the list is never consulted for an id (0.772992ms)
+✔ themes (real handler): read one by themeId (2.45194ms)
+✔ themes (real handler): the same permission refusal by id as by list, no theme data (1.943551ms)
+✖ media (real handler): canonical id and mediaId select one scoped asset, including trashed media (9.43081ms)
+✔ media (real handler): list and id lookup retain the same permission refusal before repo access (1.060733ms)
+✔ forms (real handler): read one definition by formId; a miss is the exact not-found text (1.509153ms)
+✔ the real composition: every list-lookup card publishes its id as an optional string property (223.445499ms)
+✖ comment: canonical/legacy selectors preserve the source ABI, dispatch and required context (5.842696ms)
+✔ content_post: canonical/legacy selectors preserve the source ABI, dispatch and required context (1.091307ms)
+✖ member: canonical/legacy selectors preserve the source ABI, dispatch and required context (2.373813ms)
+✖ menu: canonical/legacy selectors preserve the source ABI, dispatch and required context (1.566071ms)
+✖ newsletter_campaign: canonical/legacy selectors preserve the source ABI, dispatch and required context (1.280918ms)
+✔ redirect: canonical/legacy selectors preserve the source ABI, dispatch and required context (0.623181ms)
+✖ seo_entry_meta: canonical/legacy selectors preserve the source ABI, dispatch and required context (1.14578ms)
+✔ site: canonical/legacy selectors preserve the source ABI, dispatch and required context (1.506726ms)
+✖ term: canonical/legacy selectors preserve the source ABI, dispatch and required context (0.951994ms)
+✖ widget_instance: canonical/legacy selectors preserve the source ABI, dispatch and required context (1.188193ms)
+✔ widget_region: canonical/legacy selectors preserve the source ABI, dispatch and required context (1.051599ms)
+✔ workspace: canonical/legacy selectors preserve the source ABI, dispatch and required context (0.980243ms)
+✖ backup_restore_point: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (1.354142ms)
+✔ collection_content_type: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (1.533216ms)
+✔ collection_entry: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.992405ms)
+✔ custom_credential: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (5.967863ms)
+✔ external_mcp: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.463608ms)
+✖ form_definition: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.701015ms)
+✖ identity_policy: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.736522ms)
+✖ identity_role: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (1.012397ms)
+✖ identity_user: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.604777ms)
+✖ media_asset: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.66784ms)
+✖ plugin: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.595103ms)
+✖ taxonomy: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.460747ms)
+✖ theme: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.548618ms)
+✔ theme_page_publication: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.979824ms)
+✖ webhook_subscription: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (1.615188ms)
+✔ canonical truncated misses and permission refusals preserve the list owner's answer (5.375603ms)
+✔ batch canonical and legacy selectors reach the original gated get; missing ids never list (2.964044ms)
+ℹ tests 47
+ℹ suites 0
+ℹ pass 29
+ℹ fail 18
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4436.745332
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:9600
+✖ media (real handler): canonical id and mediaId select one scoped asset, including trashed media (9.43081ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'validation'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:256:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'validation',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:15763
+✖ comment: canonical/legacy selectors preserve the source ABI, dispatch and required context (5.842696ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:386:53)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:15763
+✖ member: canonical/legacy selectors preserve the source ABI, dispatch and required context (2.373813ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:386:53)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:15763
+✖ menu: canonical/legacy selectors preserve the source ABI, dispatch and required context (1.566071ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:386:53)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:15763
+✖ newsletter_campaign: canonical/legacy selectors preserve the source ABI, dispatch and required context (1.280918ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:386:53)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:15763
+✖ seo_entry_meta: canonical/legacy selectors preserve the source ABI, dispatch and required context (1.14578ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:386:53)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:15763
+✖ term: canonical/legacy selectors preserve the source ABI, dispatch and required context (0.951994ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:386:53)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:15763
+✖ widget_instance: canonical/legacy selectors preserve the source ABI, dispatch and required context (1.188193ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:386:53)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:18767
+✖ backup_restore_point: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (1.354142ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:426:78)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:18767
+✖ form_definition: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.701015ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:426:78)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:18767
+✖ identity_policy: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.736522ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:426:78)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:18767
+✖ identity_role: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (1.012397ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:426:78)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:18767
+✖ identity_user: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.604777ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:426:78)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:18767
+✖ media_asset: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.66784ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:426:78)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:18767
+✖ plugin: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.595103ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:426:78)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:18767
+✖ taxonomy: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.460747ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:426:78)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:18767
+✖ theme: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (0.548618ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:426:78)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:1:18767
+✖ webhook_subscription: canonical/legacy lookup preserves natural keys, filters, misses and conflicts (1.615188ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts:426:78)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /Conflicting inputs/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+exit 1

@@ -1,0 +1,46 @@
+✖ no production file under src/{analytics,features,identity,media,navigation,origin,seo,widgets}/ value-imports from src/assistant/ (type-only ToolContributor imports are fine) (999.145698ms)
+✔ plugin sign-in defaults and token persistence receive assistant effects from the host (3.47316ms)
+✔ the boundary sees each runtime syntax and exempts only type-only edges (1.16091ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1740.859918
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts:1:3931
+✖ no production file under src/{analytics,features,identity,media,navigation,origin,seo,widgets}/ value-imports from src/assistant/ (type-only ToolContributor imports are fine) (999.145698ms)
+  AssertionError [ERR_ASSERTION]: Domain/feature modules must not call assistant's tool-contribution registry directly — only server/tool-catalog-manifest.ts may. Offending edges:
+    apps/website/src/features/agent-plugins/executable-tools/register.ts value-imports "../../../assistant/mcp-services.js"
+    apps/website/src/features/agent-plugins/memory-tools.ts value-imports "../../assistant/mcp-services.js"
+    apps/website/src/features/agent-plugins/tool-registrations.ts value-imports "../../assistant/mcp-services.js"
+    apps/website/src/features/plugin-runtime/capability-tool-registrations.ts value-imports "../../assistant/mcp-services.js"
+    apps/website/src/features/skills/tool-registrations.ts value-imports "../../assistant/mcp-services.js"
+  + actual - expected
+  
+  + [
+  +   'apps/website/src/features/agent-plugins/executable-tools/register.ts value-imports "../../../assistant/mcp-services.js"',
+  +   'apps/website/src/features/agent-plugins/memory-tools.ts value-imports "../../assistant/mcp-services.js"',
+  +   'apps/website/src/features/agent-plugins/tool-registrations.ts value-imports "../../assistant/mcp-services.js"',
+  +   'apps/website/src/features/plugin-runtime/capability-tool-registrations.ts value-imports "../../assistant/mcp-services.js"',
+  +   'apps/website/src/features/skills/tool-registrations.ts value-imports "../../assistant/mcp-services.js"'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts:200:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'apps/website/src/features/agent-plugins/executable-tools/register.ts value-imports "../../../assistant/mcp-services.js"', 'apps/website/src/features/agent-plugins/memory-tools.ts value-imports "../../assistant/mcp-services.js"', 'apps/website/src/features/agent-plugins/tool-registrations.ts value-imports "../../assistant/mcp-services.js"', 'apps/website/src/features/plugin-runtime/capability-tool-registrations.ts value-imports "../../assistant/mcp-services.js"', 'apps/website/src/features/skills/tool-registrations.ts value-imports "../../assistant/mcp-services.js"' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+exit 1

@@ -1,0 +1,39 @@
+✔ the real composition publishes exactly the 32 content_read cards (225.393782ms)
+✔ content_read.menu publishes optional canonical id and documents its legacy selector (141.110187ms)
+✖ the execution gate accepts canonical and legacy menu selectors and rejects conflicts before reading (151.181441ms)
+✔ canonical selector guidance covers get-only and list-lookup cards without changing canonical-id cards (139.235134ms)
+✔ not one of the 41 retired Tier-1 read ids survives into the collapsed catalog (124.757054ms)
+✔ the collapse is a net -9: 41 member tools become 32 cards, and nothing else changes count (267.024277ms)
+✔ includeContentReadCollapse:false reconstructs the true PRE-collapse catalog — the eval's baseline depends on it (129.314261ms)
+✔ RETIRED_READ_TOOL_TO_CARD is the single authority, and covers every retired id exactly once (1.490212ms)
+✔ every retired member's SEARCH VOCABULARY survives into its card's indexed description (166.112866ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 8
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5460.956234
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/content-read-tool.test.ts:1:4678
+✖ the execution gate accepts canonical and legacy menu selectors and rejects conflicts before reading (151.181441ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'completed'
+  - 'failed'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/content-read-tool.test.ts:171:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'completed',
+    expected: 'failed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+exit 1

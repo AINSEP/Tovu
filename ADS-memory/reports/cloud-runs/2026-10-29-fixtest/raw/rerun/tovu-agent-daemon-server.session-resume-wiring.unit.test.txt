@@ -1,0 +1,90 @@
+▶ H1 wiring — a failed resume must clear its dead stored session id
+  ✔ imports shouldClearSessionOnFailedResume from the pure decision module (1.378679ms)
+  ✔ the stream subscription calls shouldClearSessionOnFailedResume and, when true, clears the stored session id (0.261189ms)
+  ✔ attemptedResumeSessionId is assigned from the gated resume value actually attempted — the value the decision checks must reflect what onStarted really passed to agentExecutor.run, not the raw pre-gating lookup (0.295857ms)
+✔ H1 wiring — a failed resume must clear its dead stored session id (3.62532ms)
+▶ H2 wiring — overlapping runs on one conversation must not both resume
+  ✔ imports createLiveRunTracker and constructs exactly one module-level instance (0.738347ms)
+  ✔ a run registers itself in the tracker before any await in onStarted's synchronous prefix (0.269173ms)
+  ✔ a run unregisters itself from the tracker on its own terminal event (157.970866ms)
+  ✔ hasConcurrentLiveRun gates whether this run may read/pass a stored resumeSessionId (0.273814ms)
+✔ H2 wiring — overlapping runs on one conversation must not both resume (159.793283ms)
+▶ H2-context-loss wiring — a forced-cold run must not silently drop conversation history
+  ✔ imports agentCarriesOwnMemory and wouldForcedColdStartLoseConversationContext from the pure decision module (0.392601ms)
+  ✔ getSessionId is looked up unconditionally (not gated behind !hasConcurrentLiveRun) so the risky case is even detectable (0.441023ms)
+  ✔ the context-loss check runs, and refuses the run (finish + return), strictly before agentExecutor.run is called (0.377936ms)
+  ✔ effectiveResumeSessionId (not the raw storedSessionId) is what attemptedResumeSessionId and resolveResumeSessionField consume (0.285982ms)
+✔ H2-context-loss wiring — a forced-cold run must not silently drop conversation history (1.887994ms)
+▶ Send right after Stop — wait for the stopped run, and say why when refusing
+  ✔ waits for a stopped run on the same chat before deciding whether another run holds the session (0.163309ms)
+  ✔ the concurrent-run refusal puts its plain reason on the run's stream (0.111583ms)
+✔ Send right after Stop — wait for the stopped run, and say why when refusing (0.414431ms)
+✔ onStarted's real stream clears only the resumed conversation-agent binding (56.028092ms)
+✔ onStarted's real stream persists the CLI's reconfirmed session (29.949652ms)
+✔ onStarted refuses a concurrent memory-carrying run and never dispatches a cold executor call (15.937266ms)
+✔ onStarted registers the conversation synchronously while instruction refresh is held (18.598077ms)
+✖ fresh and resumed in-app launches honor user MCP undefined and disclose native permissions (24.295711ms)
+✖ fresh and resumed in-app launches honor user MCP false and disclose native permissions (18.968833ms)
+✖ fresh and resumed in-app launches honor user MCP true and disclose native permissions (15.938164ms)
+ℹ tests 20
+ℹ suites 4
+ℹ pass 17
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1819.605066
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:1:19266
+✖ fresh and resumed in-app launches honor user MCP undefined and disclose native permissions (24.295711ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:426:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:1:19266
+✖ fresh and resumed in-app launches honor user MCP false and disclose native permissions (18.968833ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:426:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:1:19266
+✖ fresh and resumed in-app launches honor user MCP true and disclose native permissions (15.938164ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.session-resume-wiring.unit.test.ts:426:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+exit 1

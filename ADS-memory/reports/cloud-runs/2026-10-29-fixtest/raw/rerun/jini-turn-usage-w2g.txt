@@ -1,0 +1,69 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/chat
+
+ ❯ src/core/__tests__/turn-usage-w2g.unit.test.ts (2 tests | 1 failed) 11ms
+   × legacy boundary data without an id splits every reply, while a repeated receipt id splits once 9ms
+     → expected [ [ { kind: 'text', …(1) } ], …(3) ] to deeply equal [ [ { kind: 'text', …(1) } ], …(3) ]
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/core/__tests__/turn-usage-w2g.unit.test.ts > legacy boundary data without an id splits every reply, while a repeated receipt id splits once
+AssertionError: expected [ [ { kind: 'text', …(1) } ], …(3) ] to deeply equal [ [ { kind: 'text', …(1) } ], …(3) ]
+
+- Expected
++ Received
+
+  Array [
+    Array [
+      Object {
+        "kind": "text",
+        "text": "reply",
+      },
+    ],
+    Array [
+      Object {
+        "kind": "text",
+        "text": "reply",
+      },
+    ],
+    Array [
+      Object {
+        "kind": "text",
+        "text": "reply",
+      },
+    ],
+    Array [
+      Object {
+        "kind": "text",
+        "text": "reply",
+      },
+      Object {
++       "data": Object {
++         "id": "input",
++       },
++       "kind": "ext",
++       "name": "user_message",
++     },
++     Object {
+        "kind": "text",
+        "text": "reply",
+      },
+    ],
+  ]
+
+ ❯ src/core/__tests__/turn-usage-w2g.unit.test.ts:10:106
+      8|   const malformed: AgentEvent = { kind: 'ext', name: 'user_message', d…
+      9|   const receipt: AgentEvent = { kind: 'ext', name: 'user_message', dat…
+     10|   expect(replySegments({ events: [text, legacy, text, malformed, text,…
+       |                                                                                                          ^
+     11|     [text], [text], [text], [text, text],
+     12|   ]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  02:46:29
+   Duration  382ms (transform 53ms, setup 125ms, collect 27ms, tests 11ms, environment 0ms, prepare 64ms)
+
+exit 1

@@ -1,0 +1,28 @@
+✖ assistant tool-call transcript contains the installed ui-ux-design foundations reference (1.916254ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1534.059368
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/integration/skill-supporting-files.chat.integration.test.ts:1:856
+✖ assistant tool-call transcript contains the installed ui-ux-design foundations reference (1.916254ms)
+  Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath './ui-ux-design/skills/ui-ux-design/references/foundations.md' is not defined by "exports" in /home/user/Tovu/node_modules/@jini-ai/agent-plugins/package.json
+      at exportsNotFound (node:internal/modules/esm/resolve:315:10)
+      at packageExportsResolve (node:internal/modules/esm/resolve:663:9)
+      at resolveExports (node:internal/modules/cjs/loader:754:36)
+      at Module._findPath (node:internal/modules/cjs/loader:821:31)
+      at node:internal/modules/cjs/loader:1557:27
+      at nextResolveSimple (/home/user/Tovu/node_modules/tsx/dist/register-B1c7OH6V.cjs:23:1010)
+      at /home/user/Tovu/node_modules/tsx/dist/register-B1c7OH6V.cjs:22:4512
+      at /home/user/Tovu/node_modules/tsx/dist/register-B1c7OH6V.cjs:22:2830
+      at resolveTsPaths (/home/user/Tovu/node_modules/tsx/dist/register-B1c7OH6V.cjs:23:762)
+      at /home/user/Tovu/node_modules/tsx/dist/register-B1c7OH6V.cjs:23:1203 {
+    code: 'ERR_PACKAGE_PATH_NOT_EXPORTED'
+  }
+exit 1

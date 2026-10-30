@@ -1,0 +1,6 @@
+apps/website/src/assistant/__tests__/ask-choice-tool.test.ts(407,24): error TS2351: This expression is not constructable.
+apps/website/src/assistant/__tests__/owner-chat-tool-inputs.unit.test.ts(30,9): error TS2741: Property 'policy' is missing in type '{ handler: (ctx: ToolExecutionContext) => Promise<{ media: never[]; received: unknown; }>; descriptor: { id: string; inputSchema
+apps/website/src/features/pages/__tests__/tool-registrations.test.ts(136,26): error TS2351: This expression is not constructable.
+apps/website/src/features/plugin-runtime/__tests__/unit/agent-plugin-enable-guidance.test.ts(43,24): error TS2351: This expression is not constructable.
+apps/website/src/features/post/__tests__/agent-tools.tiptap-node-vocabulary.test.ts(42,25): error TS2351: This expression is not constructable.
+apps/website/src/features/trash/__tests__/trash-item-page.unit.test.ts(11,9): error TS2741: Property 'policy' is missing in type '{ descriptor: { id: string; }; handler: (ctx: ToolExecutionContext) => Promise<{ trashed: boolean; }>; }' but required in type 'To

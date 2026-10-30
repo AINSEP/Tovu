@@ -1,0 +1,81 @@
+✔ the assistant imports a local SVG logo, persists sanitized bytes and returns its original URL (464.328908ms)
+✔ s5: local import reads the owner-picked external folder through the normal upload pipeline (9.067003ms)
+✔ local import batches eleven images, preserves per-item errors and keeps the shared cap (25.01586ms)
+✔ batching local imports cannot bypass each item's upload permission (2.989143ms)
+✔ local imports stamp the authenticated owner, ignoring caller attribution (13.388442ms)
+✔ an omitted root resolver reads the booted site through the existing filesystem root owner (3.338567ms)
+✔ local content-type storage failures propagate without claiming a successful import (3.319357ms)
+✖ catalog schema, domain registration and derived risk declare a permission-gated durable mutation (4.403305ms)
+✔ imports image/png by bytes, preserves metadata and blob bytes, and dedupes repeated imports (5.641106ms)
+✔ imports video/mp4 by bytes, preserves metadata and blob bytes, and dedupes repeated imports (5.554465ms)
+✔ refuses ../outside.png with the path reason and transfer recovery before reading (2.136292ms)
+✔ refuses .env with the path reason and transfer recovery before reading (1.710629ms)
+✔ refuses content.db with the path reason and transfer recovery before reading (1.844983ms)
+✔ refuses secrets/photo.png with the path reason and transfer recovery before reading (2.10009ms)
+✔ absolute paths and symlinks outside the root are refused with actionable transfer recovery (2.978418ms)
+✔ refuses HTML renamed .png by the actual bytes without writes (4.219895ms)
+✔ refuses PDF renamed .png by the actual bytes without writes (3.028523ms)
+✔ over-cap local file throws ToolInputError naming stat size and cap before reading (2.885571ms)
+✔ permission denial happens before root resolution, stat or reading (2.379779ms)
+✔ unset custom root gives the shared site-root recovery guidance (1.914815ms)
+✔ arbitrary root directory strings cannot widen the sandbox (1.886297ms)
+✔ growing files are refused during streaming and persist nothing (3.523399ms)
+✔ a file removed after stat is a model-facing refusal and persists nothing (2.74083ms)
+✔ empty files are refused without writing media (2.726071ms)
+✔ the production cap accepts a binary import above the old 10 MiB upload cap (67.313045ms)
+✔ the production 50 MiB cap rejects a sparse oversized file before reading (2.317658ms)
+✔ local importer refuses missing.png without a regular file (1.416597ms)
+✔ local importer refuses . without a regular file (1.277256ms)
+✔ an injected local cap cannot widen the production 50 MiB ceiling (1.628552ms)
+✖ site local import routes rejected outside roots through files_copy before reading canaries (2.715042ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 28
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2605.305134
+
+✖ failing tests:
+
+test at apps/website/src/features/media-import/__tests__/import-local-file.test.ts:1:10654
+✖ catalog schema, domain registration and derived risk declare a permission-gated durable mutation (4.403305ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /inside this site folder/. Input:
+  
+  'Put an image or video saved in this site or the owner-picked folder into the media library. Find the file with fs_list_files first, then pass the same root and relative path that fs_read_file takes. Use site for a logo in a theme folder, or custom for assets in the folder picked from the chat composer. For an https link use media_import_from_url. Accepts PNG, JPEG, GIF, WebP, AVIF, SVG, MP4 and WebM, up to 50 MiB, detected from the actual bytes. SVG is sanitized before storage; SVG fonts are refused. Returns { media: ImportedMediaView }, the same media object as media_import_from_url (id, slug, title, alt, caption, credit, sha256, status, version, publicUrl, sourceUrl); sourceUrl is empty for local files. Identical bytes share one stored blob. Unpicked folders, secrets, denied files, and oversized or unsupported files are refused. Ask the owner to pick that folder with the chat composer folder button (or drop the folder onto the composer), then call fs_list_files with root:"custom" and media_import_local_file with root:"custom" and the file path relative to that folder. Alternatively, ask the owner to attach the file to this chat, then use media_promote_chat_attachment.'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/media-import/__tests__/import-local-file.test.ts:193:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Put an image or video saved in this site or the owner-picked folder into the media library. Find the file with fs_list_files first, then pass the same root and relative path that fs_read_file takes. Use site for a logo in a theme folder, or custom for assets in the folder picked from the chat composer. For an https link use media_import_from_url. Accepts PNG, JPEG, GIF, WebP, AVIF, SVG, MP4 and WebM, up to 50 MiB, detected from the actual bytes. SVG is sanitized before storage; SVG fonts are refused. Returns { media: ImportedMediaView }, the same media object as media_import_from_url (id, slug, title, alt, caption, credit, sha256, status, version, publicUrl, sourceUrl); sourceUrl is empty for local files. Identical bytes share one stored blob. Unpicked folders, secrets, denied files, and oversized or unsupported files are refused. Ask the owner to pick that folder with the chat composer folder button (or drop the folder onto the composer), then call fs_list_files with root:"custom" and media_import_local_file with root:"custom" and the file path relative to that folder. Alternatively, ask the owner to attach the file to this chat, then use media_promote_chat_attachment.',
+    expected: /inside this site folder/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/media-import/__tests__/import-local-file.test.ts:1:21295
+✖ site local import routes rejected outside roots through files_copy before reading canaries (2.715042ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /files_copy with sources:\[\{root:"picked",path:"<relative file path>"\}\], destination:\{kind:"media"\}/. Input:
+  
+  'repo is unavailable to site agents; use site or the owner-picked custom root. Ask the owner to pick that folder with the chat composer folder button (or drop the folder onto the composer), then call fs_list_files with root:"custom" and media_import_local_file with root:"custom" and the file path relative to that folder. Alternatively, ask the owner to attach the file to this chat, then use media_promote_chat_attachment.. Fix the input and retry — this will not resolve on retry without an input change. '
+  
+      at Object.<anonymous> (/home/user/Tovu/apps/website/src/features/media-import/__tests__/import-local-file.test.ts:409:14)
+      at expectedException (node:assert:578:17)
+      at expectsError (node:assert:703:21)
+      at strict.rejects (node:assert:769:3)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/media-import/__tests__/import-local-file.test.ts:406:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'repo is unavailable to site agents; use site or the owner-picked custom root. Ask the owner to pick that folder with the chat composer folder button (or drop the folder onto the composer), then call fs_list_files with root:"custom" and media_import_local_file with root:"custom" and the file path relative to that folder. Alternatively, ask the owner to attach the file to this chat, then use media_promote_chat_attachment.. Fix the input and retry — this will not resolve on retry without an input change. ',
+    expected: /files_copy with sources:\[\{root:"picked",path:"<relative file path>"\}\], destination:\{kind:"media"\}/,
+    operator: 'match',
+    diff: 'simple'
+  }
+exit 1
