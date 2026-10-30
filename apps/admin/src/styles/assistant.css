@@ -969,6 +969,24 @@ button.jini-composer-leading,
   margin-left: -4px;
 }
 
+/* The picked-folder chip gives way first in the footer row. Jini's chip cap is 50% of its parent,
+   meant for the attachment tray; in the footer that parent is sized by the chip itself, so the chip
+   showed "A…" and still squeezed the model picker under Send (owner report, 2026-10-29). A fixed
+   cap, and a name clamped to one line that may break anywhere: its min-content is one character,
+   so Jini's footer truncates the chip before wrapping the picker and send to their own line. The
+   full path stays in the name's title. */
+.admin-chat-dock .jini-chat-pane .jini-composer-footer .tovu-picked-folder-chip {
+  min-width: 7rem;
+  max-width: 180px;
+}
+.admin-chat-dock .jini-chat-pane .jini-composer-footer .tovu-picked-folder-chip .jini-attachment-chip-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  white-space: normal;
+  word-break: break-all;
+}
+
 /* The leading slot contains notices and pinned trays, not just buttons. Jini caps it at 64px
    and gives children max-content widths; a sign-in warning must grow and wrap on the sheet too. */
 .admin-chat-dock .jini-chat-pane div.jini-composer-leading {
@@ -1041,12 +1059,11 @@ button.jini-composer-leading,
   border-color: var(--border-strong);
 }
 
-/* One row: the model/effort controls sit in it now, so a narrow dock truncates the model label
-   (Jini's ellipsis) instead of wrapping the send button onto a second line. */
+/* Jini's footer wraps as a last resort, and only its trailing group (model/effort picker and send)
+   moves, together, so send never lands on a line by itself. */
 .jini-composer-footer {
   display: flex;
   align-items: center;
-  flex-wrap: nowrap;
   gap: 8px;
 }
 
