@@ -1,0 +1,33 @@
+✔ owned inventories share settings/chat results within one host while two hosts stay isolated (82.662935ms)
+✔ inventory disposal drains a queued background scan before clearing its runtime (20.117171ms)
+✔ an injected def registry's failureHints bridge is projected only for the def that declares it (6.437181ms)
+✔ a non-waiting Rescan returns the retained inventory immediately while the forced scan is pending (26.56301ms)
+✔ with no detector and no test prober, the inventory delegates to the runtime's own detector (40.458799ms)
+✔ listAssistantAgents projects fallback models and reasoning options for claude (72.759816ms)
+✔ agent discovery exposes native-policy support for every CLI before a chat is sent (0.61812ms)
+✔ listAssistantAgents' carriesOwnMemory exactly matches each def's own resumesSessionViaCli/resumesSessionViaAcpLoad declaration (0.375406ms)
+✔ listAssistantAgents' supportsTools exactly matches each def's own runtimeSupportsExternalTools() result (0.339759ms)
+✔ listAssistantAgents' supportsSubagents/supportsClaudeInChrome exactly match each def's own runtime support helpers (0.378666ms)
+✔ listAssistantAgents never returns an agent with an empty id/name (0.276351ms)
+✔ listAssistantAgents memoizes — two back-to-back calls reuse the same in-flight/settled probe (0.221276ms)
+✔ rescanAssistantAgents forces a fresh probe, and a later listAssistantAgents call picks up that fresh result (51.273527ms)
+✔ assistantAgentDiscoveryPending reports the process inventory's forced scan only while it is in flight (64.089183ms)
+✔ rescanAssistantAgents surfaces the live model list the prober returns for an available def (52.160222ms)
+✔ known runtime capabilities retain their memory and tool semantics (12.418569ms)
+✔ assistant inventory preserves dynamic catalog and resolved default for the chat picker (45.78486ms)
+✔ assistant rescan forces model discovery and preserves an unresolved default without guessing (57.320014ms)
+✔ live discovery reissues on credential rotation inside the same TTL (13.313504ms)
+✔ live discovery contains rejection, keeps the failure TTL, then recovers at expiry (6.469125ms)
+✔ live discovery never calls the provider for absent, wrong-protocol or blank credentials (7.020316ms)
+✔ live discovery instances own their state and delimiter-containing tenant IDs cannot collide (1.911897ms)
+✔ live discovery coalesces concurrent calls while the provider is still responding (14.895035ms)
+✔ live discovery retries a cached failure when the stored baseUrl changes (1.891291ms)
+✔ Settings and chat share one background inventory while both requests return cached data (60.37695ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2021.448914

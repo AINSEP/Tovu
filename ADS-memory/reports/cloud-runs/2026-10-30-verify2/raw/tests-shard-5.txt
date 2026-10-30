@@ -1,0 +1,314 @@
+✔ media slug: a slug spelling ANOTHER asset's id is rejected at the write path (434.309245ms)
+✔ media slug: a slug spelling its OWN id is refused too — the shape is what is rejected, not the collision (227.143528ms)
+✔ media slug: ordinary slugs that merely contain hex and dashes are still accepted (294.87635ms)
+✔ media slug: even a pre-existing UUID-shaped slug cannot hijack the victim's own /m/{id}/original URL (1066.971076ms)
+✔ packet-one admin and content routes expose the seeded post loop (893.008331ms)
+✔ POST posts creates a blank draft and it's immediately listed (541.049766ms)
+✔ POST_CREATE: honors caller-supplied slug/bodyJson/status instead of always deriving/blanking/drafting them (603.749861ms)
+✔ POST_CREATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing written; a body just under the cap still succeeds (564.432922ms)
+✔ POST_UPDATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing persisted; a body just under the cap still succeeds (761.899838ms)
+✔ POST_CREATE: 400 VALIDATION_ERROR for a malformed slug, 409 SLUG_CONFLICT for a taken slug (593.509407ms)
+✔ POST pages creates a blank draft with kind 'page', it's listed under pages but not posts (586.453648ms)
+✔ PAGE_CREATE: honors caller-supplied slug/bodyJson/status, 400 VALIDATION_ERROR / 409 SLUG_CONFLICT on bad input (706.36417ms)
+✔ pages routes 404 for an unknown workspace id (659.85297ms)
+✔ GET/PUT a page round-trips, and both 404 when the id belongs to a post (kind mismatch) (800.041183ms)
+✔ PAGE_UPDATE: 400 VALIDATION_ERROR for a blank title, 409 SLUG_CONFLICT for a taken slug (447.411979ms)
+✔ PAGE_UPDATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing persisted; a body just under the cap still succeeds (883.784349ms)
+✔ GET themes lists discovered built-in themes, TB-01 ordered, exactly one marked active (716.567266ms)
+✔ GET themes 404s for an unknown workspace id and 403s without theme.set (869.604639ms)
+✔ SPEC-006 REQ-05: presentation routes are gated by theme.set — a principal without it is denied 403, the owner still succeeds (897.179835ms)
+✔ SPEC-006 REQ-05: change-set routes are gated by changeset.read/changeset.revert — a principal without them is denied 403, the owner still succeeds (612.962383ms)
+[publish-credentials] INTERNAL_ERROR
+✔ publish-credentials: GET responds 500 (not a hang) when the vault throws an untyped error (973.210877ms)
+[publish-credentials] INTERNAL_ERROR
+✔ publish-credentials: DELETE responds 500 (not a hang) when the repo throws an untyped error (847.167482ms)
+[publish-credentials] INTERNAL_ERROR
+✔ publish-credentials: POST responds 500 (not a hang) when the store throws an error none of the four typed classes match (591.158103ms)
+[source-control-credentials] unexpected store error
+✔ source-control-credentials: GET responds 500 (not a hang) when the repo throws an untyped error (525.597917ms)
+[source-control-credentials] unexpected store error
+✔ source-control-credentials: DELETE responds 500 (not a hang) when the repo throws an untyped error (632.007263ms)
+[publish-site] unexpected error triggering a publish Error: simulated authorize backend failure
+    at authorize (/home/user/Tovu/apps/website/src/server/__tests__/route-async-guards.test.ts:201:52)
+    at authorizeOrRespond (/home/user/Tovu/apps/website/src/server/inbound/admin-http/authorize-guard.ts:56:28)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts:251:32)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)
+✔ publish-site: POST (trigger) responds 500 (not a hang) when deps.authorize throws (837.920085ms)
+[publish-site] unexpected error polling publish status Error: simulated authorize backend failure
+    at authorize (/home/user/Tovu/apps/website/src/server/__tests__/route-async-guards.test.ts:201:52)
+    at authorizeOrRespond (/home/user/Tovu/apps/website/src/server/inbound/admin-http/authorize-guard.ts:56:28)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts:332:32)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)
+✔ publish-site: GET (status poll) responds 500 (not a hang) when deps.authorize throws (699.172674ms)
+[publish-site] unexpected error building a publish preview Error: simulated authorize backend failure
+    at authorize (/home/user/Tovu/apps/website/src/server/__tests__/route-async-guards.test.ts:201:52)
+    at authorizeOrRespond (/home/user/Tovu/apps/website/src/server/inbound/admin-http/authorize-guard.ts:56:28)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts:355:32)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)
+✔ publish-site: GET .../preview responds 500 (not a hang) when deps.authorize throws (665.537269ms)
+[export-site] unexpected error triggering an export Error: simulated authorize backend failure
+    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/route-async-guards.test.ts:201:52)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/export-site.ts:111:37)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)
+    at router.process_params (/home/user/Tovu/node_modules/express/lib/router/index.js:421:3)
+✔ export-site: POST (trigger) responds 500 (not a hang) when deps.authorize throws (513.434841ms)
+[export-site] unexpected error polling export status Error: simulated authorize backend failure
+    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/route-async-guards.test.ts:201:52)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/export-site.ts:163:37)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)
+    at router.process_params (/home/user/Tovu/node_modules/express/lib/router/index.js:421:3)
+✔ export-site: GET (status poll) responds 500 (not a hang) when deps.authorize throws (541.112619ms)
+[dockerfile-source] unexpected error reading the Dockerfile Error: simulated authorize backend failure
+    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/route-async-guards.test.ts:201:52)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts:86:37)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)
+    at router.process_params (/home/user/Tovu/node_modules/express/lib/router/index.js:421:3)
+✔ dockerfile-source: GET responds 500 (not a hang) when deps.authorize throws (465.531287ms)
+[dockerfile-source] unexpected error writing the Dockerfile Error: simulated authorize backend failure
+    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/route-async-guards.test.ts:201:52)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/dockerfile-source.ts:118:37)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)
+    at router.process_params (/home/user/Tovu/node_modules/express/lib/router/index.js:421:3)
+✔ dockerfile-source: PUT responds 500 (not a hang) when deps.authorize throws (541.676583ms)
+[comments/moderate] unexpected error applying 'approve' Error: simulated comment write-service failure
+    at Object.applyModeration (/home/user/Tovu/apps/website/src/server/__tests__/route-async-guards.test.ts:322:13)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/comments/moderate.ts:99:55)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+✔ comments/moderate: POST .../approve (the shared loop registrar) responds 500 (not a hang) when commentWriteService.applyModeration throws (507.802535ms)
+[comments/moderate] unexpected error purging a comment Error: simulated comment write-service failure
+    at Object.purge (/home/user/Tovu/apps/website/src/server/__tests__/route-async-guards.test.ts:325:13)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/comments/moderate.ts:142:53)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+✔ comments/moderate: POST .../purge responds 500 (not a hang) when commentWriteService.purge throws (572.042717ms)
+✔ payments-webhook: POST responds 500 (not a hang) when the receiver throws (15.132945ms)
+[analytics/recent-hits] unexpected error Error: simulated authorize backend failure
+    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/route-async-guards.test.ts:201:52)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/analytics/recent-hits.ts:82:37)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)
+    at router.process_params (/home/user/Tovu/node_modules/express/lib/router/index.js:421:3)
+✔ analytics/recent-hits: GET responds 500 (not a hang) when deps.authorize throws (485.284362ms)
+[comments/moderation-queue] unexpected error Error: simulated authorize backend failure
+    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/route-async-guards.test.ts:201:52)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/comments/moderation-queue.ts:41:37)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)
+    at router.process_params (/home/user/Tovu/node_modules/express/lib/router/index.js:421:3)
+✔ comments/moderation-queue: GET responds 500 (not a hang) when deps.authorize throws (438.742454ms)
+✔ commerce off: status GET responds 404 without calling a failing authorization backend (467.329055ms)
+✔ commerce/status explicitly mounted: GET responds 500 (not a hang) when deps.authorize throws (520.665785ms)
+[system/deployment-overview] unexpected error Error: simulated authorize backend failure
+    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/route-async-guards.test.ts:201:52)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts:170:37)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)
+    at router.process_params (/home/user/Tovu/node_modules/express/lib/router/index.js:421:3)
+✔ system/deployment-overview: GET responds 500 (not a hang) when deps.authorize throws (488.921121ms)
+[system/module-status] unexpected error Error: simulated authorize backend failure
+    at Object.authorize (/home/user/Tovu/apps/website/src/server/__tests__/route-async-guards.test.ts:201:52)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/module-status.ts:28:37)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/user/Tovu/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/user/Tovu/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/user/Tovu/node_modules/express/lib/router/layer.js:95:5)
+    at /home/user/Tovu/node_modules/express/lib/router/index.js:284:15
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/user/Tovu/node_modules/express/lib/router/index.js:376:14)
+    at router.process_params (/home/user/Tovu/node_modules/express/lib/router/index.js:421:3)
+✔ system/module-status: GET responds 500 (not a hang) when deps.authorize throws (366.675363ms)
+[site/comments-submit] unexpected error Error: simulated provider failure
+    at Object.active (/home/user/Tovu/apps/website/src/server/__tests__/route-async-guards.test.ts:505:86)
+    at Object.submit (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/comments-submit.ts:47:41)
+    at Object.submit (/home/user/Tovu/apps/website/src/server/inbound/public-http/routes/site/comments-submit.ts:88:20)
+    at <anonymous> (/home/user/Jini/packages/cms/src/comments/express/submit-handler.ts:108:36)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+✔ site/comments-submit: POST responds 500 (not a hang) when commentIngressPolicy.submit throws — the one PUBLIC route in this file (288.178465ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ renders the PENDING template override, not the row's saved templateChoice (618.447325ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ never persists the override — the row's stored templateChoice is unchanged afterward (476.945569ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET and POST previews are sandboxed by CSP, matching the editor iframe's flags and never allow-same-origin (440.298354ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ POST with a pending bodyJson renders the PENDING body, not the row's saved body (423.24895ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ POST with a form-urlencoded, JSON-stringified bodyJson field also renders the PENDING body (395.758683ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ POST never persists the pending body — the row's stored bodyJson is unchanged afterward (281.139931ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ POST with a malformed bodyJson (not an object) falls back to the saved body instead of erroring (399.225766ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+✔ a DRAFT post previews its own real body — the visibility guard no longer empties an admin preview (387.867511ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ a DRAFT doc-format post's own body renders via a POSTed bodyJson override, not the placeholder (627.255905ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ a DRAFT html-format Page's own body renders via a POSTed bodyHtml override, not the placeholder (526.81308ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ POST with a form-urlencoded bodyHtml field renders the PENDING body through the template — the Pages editor's real transport (914.915996ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ POST never persists the pending bodyHtml — the row's stored bodyHtml is unchanged afterward (895.678741ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ a bodyHtml field sent for a doc-format post is ignored — the saved bodyJson still renders (452.184894ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ an omitted templateChoice query param falls back to the theme's first template (554.143821ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+✔ an explicit empty templateChoice renders the diagnostic page (460.136316ms)
+✔ 401s without a session cookie (285.675128ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/blog-post' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ draft previews require content.read, allow read-only sessions, and conceal other workspaces (900.492606ms)
+✔ 404s for a post id that does not exist (372.651159ms)
+✔ with the theme turned off, the template preview returns a real error — not a 200 carrying a blank page (601.855163ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ REGRESSION: an untemplated html Page previews through the SAME template the live site serves it under (1016.732534ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+✔ an html Page with the picker's explicit 'No template chosen' previews BARE, matching the live site (S5) (711.247822ms)
+✔ a bare Page preview works on a site with no active theme — the bare branch runs before the 409 check (S5) (498.761485ms)
+✔ POST with a pending bodyHtml override renders THAT body bare, not the saved one (S5) (532.33351ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ REGRESSION: a doc-format Page with no template renders through the theme's page shell on the LIVE site (537.531471ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-test-theme/page-shell' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ REGRESSION: an unsaved, unpublished doc-format Page previews exactly as the live site renders it — no save, no publish required (745.696169ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+[theme] static theme 'static-test-theme' ships none of 'pages-default.html', 'page-shell.html'; untemplated html Pages render in Tovu's generic chrome instead of this theme's own document
+✔ the page-shell fallback reads a closed vocabulary, NOT manifest position — the terms-of-service regression cannot reopen through it (367.05548ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-test-theme', which is whichever theme discovery happened to list first
+✔ a doc-format bare Page's inline widget previews resolved, matching the live bare page (474.296631ms)
+✔ POST /_analytics/e accepts a clean beacon, returns 204, and stores a normalized hit (299.154162ms)
+✔ POST /_analytics/e never leaks accept/reject: an unresolvable host still returns 204 with an empty body (38.315294ms)
+✔ POST /_analytics/e never leaks accept/reject: PII-shaped event props are dropped silently (still 204) (17.01309ms)
+✔ POST /_analytics/e tolerates a malformed/empty body without throwing (still 204, nothing stored) (9.021511ms)
+✔ POST /_analytics/e rejects an array masquerading as eventProps rather than crashing (12.440262ms)
+✔ POST /_analytics/e honors dnt at the HTTP boundary (13.985786ms)
+✔ POST /_analytics/e can disable honoring dnt at the HTTP boundary (30.226099ms)
+✔ POST /_analytics/e honors gpc at the HTTP boundary (16.791383ms)
+✔ POST /_analytics/e can disable honoring gpc at the HTTP boundary (17.702358ms)
+✔ POST /_analytics/e conceals an unexpected resolver failure behind an empty 204 (10.407549ms)
+✔ POST /_analytics/e conceals an unexpected sink failure behind an empty 204 (19.523791ms)
+✔ REQ-14: GET recent-hits denied 403 FORBIDDEN without analytics.read; carries no hit data (937.686357ms)
+✔ REQ-14: GET recent-hits succeeds (200) for the seeded owner (wildcard grant) (548.801748ms)
+✔ AC-27: owner sees hits newest-first with only the honest raw-ingest fields (544.594864ms)
+✔ AC-30: owner's ?limit= query param is respected (786.307378ms)
+✔ AC-31: owner's non-numeric ?limit= is ignored rather than erroring (558.716797ms)
+✔ recent hits: zero, negative, fractional and oversized limits use the real sink's clamp (500.853287ms)
+[analytics/recent-hits] unexpected error Error: private sink failure
+    at Object.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/analytics-recent-hits.test.ts:193:65)
+    at Object.apply (node:internal/test_runner/mock/mock:805:20)
+    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/analytics/recent-hits.ts:96:46)
+✔ recent hits: a sink failure returns a caller-safe 500 INTERNAL_ERROR (427.057273ms)
+✔ AC-29: 404s on a workspace id that does not match the deployed workspace (checked before authorize) (403.341173ms)
+✔ T001b/INV-R2: mismatched :workspaceId 404s before authorize() runs, for a bare (no-grant) principal (496.436519ms)
+✔ T001b/INV-R2: mismatched :workspaceId 404s before authorize() runs, even for the owner's wildcard grant (317.242978ms)
+✔ recent hits: `req.params.workspaceId ?? ""` fallback, forced via a direct handler call, is the NOT_FOUND envelope before authorize() (229.437488ms)
+✔ assistant-daemon restart: an unauthorized principal (no grants) gets 403 (1204.947093ms)
+✔ assistant-daemon restart: a system.read-only principal is denied without restarting (826.540016ms)
+✔ assistant-daemon restart: a system.write-only principal can restart (734.777865ms)
+✔ assistant-daemon restart: a mismatched workspaceId in the URL 404s (808.508871ms)
+✔ assistant-daemon restart: no cookie at all gets 401, not a restart attempt (627.805082ms)
+✔ assistant-daemon restart: the seeded owner (wildcard grant) against the REAL daemon-supervisor singleton, never started this test process, gets the actual refused answer relayed as 409 (875.74363ms)
+✔ assistant-daemon restart: an accepted restart answers 200 {ok:true}, never claiming health (951.715277ms)
+✔ assistant-daemon restart: a refusal reason (e.g. 'shutting down') is relayed to the caller verbatim, not translated into a generic error (731.791252ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-bare-test-theme', which is whichever theme discovery happened to list first
+✔ a bare Page on a static-tier theme serves only its own HTML, no theme chrome (1052.538825ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'declarative-bare-test-theme', which is whichever theme discovery happened to list first
+✔ a bare Page on a declarative-tier theme serves the same bare output (tier-independent) (450.929241ms)
+✔ a bare Page with the theme turned off (NO_THEME_ID) still serves bare, not Tovu's own unstyled shell (480.562539ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-bare-test-theme', which is whichever theme discovery happened to list first
+✔ a bare Page claiming the home slug renders bare on GET / (280.249342ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-bare-test-theme', which is whichever theme discovery happened to list first
+✔ a bare Page whose body is already a complete HTML document is served as-is, no wrapping or injected <title> (217.992254ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-bare-test-theme', which is whichever theme discovery happened to list first
+✔ a complete bare document at bare-bom preserves its leading BOM/comments byte for byte (223.781192ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-bare-test-theme', which is whichever theme discovery happened to list first
+✔ a complete bare document at bare-comments preserves its leading BOM/comments byte for byte (231.429439ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-bare-test-theme', which is whichever theme discovery happened to list first
+✔ a draft bare Page is not publicly served (297.669709ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-bare-test-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-bare-test-theme', which is whichever theme discovery happened to list first
+✔ a member-gated bare Page still 404s for a signed-out visitor — the gate is not bypassed by bare (422.702225ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'static-bare-test-theme', which is whichever theme discovery happened to list first
+[theme] static page 'static-bare-test-theme/pages-default' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ control: a Page with templateChoice null is unaffected — still renders the theme's page shell (281.191992ms)

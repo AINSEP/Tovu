@@ -8,3 +8,6 @@ Setup done (node24, pg16 socket /tmp, Jini install+build exit 0, Tovu local rewr
 
 ## 2026-10-30T08:07:02Z — PROGRESS
 Done: tc (step3), admin vitest 147 files/2022 tests pass, desktop npm test 1850/1839 pass 10 skip 1 fail (Windows taskkill = ENV), check:boundaries 0 errors/35 warn, complexity:strict 2 errors (agents.ts:124 projectAssistantAgent=11; agent-daemon-server.ts:1353 launchAgentRun=18). Jini: typecheck 0, guard 0, test:scripts 3 fail (infra-retirement, Tovu still imports @jini-ai/infra), vitest agent-runtime/daemon pass, chat 1 fail (MessageRow ticking, timing under load avg 12 - solo re-run pending). Tovu node:test shards 0-2 still running (load avg 12 on 4 cores, slow); shards 3-7 not started. Will cut at minute 75 (~08:51) per cap.
+
+## 2026-10-30T08:30:03Z — PROGRESS
+Jini vitest all done: chat 1 fail (MessageRow ticking, fails solo => REAL), cms 1 fail (navigation alias collision, fails solo => REAL: core now throws ToolInputNormalizationError and accepts id==menuId), all others pass. Fixes pushed on cloud/verify2-1030-fixes (Tovu, worktree /home/user/wt-tovu): 36547797 (vendor-exceptions stale counts), 5909ee3d (agents.ts complexity). Shards 3,4,5,6 running; 0 slow; 7 pending.

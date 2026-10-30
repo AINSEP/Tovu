@@ -1,0 +1,23 @@
+✔ full website/admin roots include contracts; desktop scope remains the existing two files (38.549685ms)
+✔ traversal preserves exclusions, supports TS variants and scans overlapping roots once (67.576141ms)
+✔ comments never count; executable strings, template substitutions and TSX do (31.642157ms)
+✔ the raw pre-filter cannot hide comment-separated provider or environment syntax (8.074231ms)
+✔ manifest canonical IDs and literal aliases do not depend on plugin activation (32.807796ms)
+✔ deploy hosts, source-control IDs and dormant deployment symbols retain detection everywhere (1.658267ms)
+✔ vendor words respect identifier boundaries and ordinary replicate prose without path exceptions (2.957832ms)
+✔ Render React/rendering terminology and the ordinary resend verb stay allowed (1.16229ms)
+✔ unified mail rules preserve branded names, domains, old adapter, selections and secrets (6.461373ms)
+✔ exception validation rejects invalid reasons, vendors, paths, counts and duplicate keys (2.143087ms)
+✔ pattern totals ratchet across files; increased, reduced, new and overlapping allowances fail (7.124847ms)
+✔ malformed policy data and supplemental vendor declarations fail closed (20.396473ms)
+✔ outside-scan release infrastructure is documented and never treated as a source allowance (11.820096ms)
+✔ tool search metadata has no hosting product names; plugin manifests own vendor search words (11.657476ms)
+✔ real core tree has only reviewed pattern exceptions, each with its exact current total (10661.498468ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12643.042645

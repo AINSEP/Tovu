@@ -3974,3 +3974,15 @@ Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-
 ✔ tovu --help exits 0 and prints usage (11802.035964ms)
 ✔ tovu with no arguments at all exits 0 and prints usage (11771.126894ms)
 ✔ AC-12: tovu <unknown-command> exits 2 with usage printed (11641.576565ms)
+✔ CLI init with and without --admin-password ignores the parent env and persists the chosen login (37375.360797ms)
+created site 'private' at /tmp/tovu-stdin-owner-sPLzzI/private
+next: tovu serve /tmp/tovu-stdin-owner-sPLzzI/private
+agent-plugin-tokens: saved supabase
+✔ desktop stdin envelope accepts a password and service tokens together without changing either (3190.829922ms)
+✔ CLI refuses malformed credentials and conflicting stdin options before creating a site (6.325741ms)
+✔ stdin that is not a JSON object of plugin ids to strings is refused (2.040993ms)
+✔ a rejected token creates no site and seals nothing (1.126641ms)
+✔ no token typed: the site is created as before, nothing is checked or sealed, no token line (1831.126961ms)
+✔ an accepted token is sealed with the new site's own id and reported as saved (1134.303833ms)
+✔ a seal failure after the create keeps the site and reports failed without the token (1853.042272ms)
+✔ a Postgres connection string read from stdin cannot share stdin with tokens (0.831262ms)
