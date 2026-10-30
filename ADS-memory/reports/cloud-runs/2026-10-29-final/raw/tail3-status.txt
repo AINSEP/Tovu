@@ -1,0 +1,4 @@
+tovu-admin-vitest exit=1 secs=1593
+tovu-desktop-build-preload exit=0 secs=3
+tovu-desktop-test exit=1 secs=85
+ALLDONE

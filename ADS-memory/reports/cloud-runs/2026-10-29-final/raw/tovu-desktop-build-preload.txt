@@ -1,0 +1,8 @@
+
+> tovu-desktop@0.1.22 build:preload
+> rm -rf dist/preload dist/contracts dist/speech && tsc -p tsconfig.preload.json && esbuild src/speech/preload-speech.cts --bundle --platform=node --format=cjs --external:electron --outfile=dist/speech/preload-speech.cjs
+
+
+  dist/speech/preload-speech.cjs  8.6kb
+
+⚡ Done in 9ms
