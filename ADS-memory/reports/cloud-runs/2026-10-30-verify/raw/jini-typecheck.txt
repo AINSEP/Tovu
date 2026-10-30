@@ -72,3 +72,14 @@ packages/provider-plugins typecheck: Done
 packages/user-management typecheck: Done
 packages/chat typecheck: Done
 packages/daemon typecheck$ tsc -p tsconfig.json --noEmit
+packages/daemon typecheck: Done
+packages/devops typecheck$ tsc -p tsconfig.json --noEmit
+packages/mcp typecheck$ tsc -p tsconfig.json --noEmit
+packages/server typecheck$ tsc -p tsconfig.tests.json && tsc -p tsconfig.json --noEmit
+packages/sqlite typecheck$ tsc -p tsconfig.json --noEmit
+packages/sqlite typecheck: Done
+packages/devops typecheck: Done
+packages/server typecheck: Done
+packages/mcp typecheck: Done
+examples/reference-web typecheck$ tsc -p tsconfig.json --noEmit
+examples/reference-web typecheck: Done

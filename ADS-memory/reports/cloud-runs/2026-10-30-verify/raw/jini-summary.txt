@@ -1,0 +1,4 @@
+typecheck exit 0
+guard exit 0
+test-scripts exit 1
+vitest-agent-runtime exit 0

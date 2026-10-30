@@ -1,0 +1,4 @@
+
+> tovu@0.1.0 check:boundaries
+> depcruise --config .dependency-cruiser.mjs apps/website/src
+

@@ -13,3 +13,6 @@ Shards, Jini step 2 and Tovu root typecheck still running. package.json rewrites
 
 ## 2026-10-30T04:40:59Z — PROGRESS
 Root typecheck exit 2: 256 TS errors, 21 non-kysely (raw/tc-root-nonkysely.txt). Candidate REAL DI regressions: static-render.ts:343,365 withElementKeptIfAttributed no longer imported (DI commit dropped it); agent-plugin-service-ports.ts:43,51 Clock has no nowIso. Fixes deferred until shards finish (tree is in use). Still running: shards, Jini step 2, admin/desktop/tests tsc.
+
+## 2026-10-30T04:44:48Z — PROGRESS
+Jini: typecheck 0, guard 0, test:scripts 1 (coupling-isolation.test.ts:107 expects ui devDependencies ui-kit; R1 left it in dependencies — R1-caused, small fix queued), agent-runtime vitest 0. Tovu: e2e tsc/ tests tsc / desktop-main show additional non-kysely DI errors (raw/tc-*-nonkysely.txt). Waiting on shards, steps 4-5.

@@ -1,0 +1,8 @@
+e2e 2
+admin 0
+desktop-preload 0
+desktop-renderer 0
+desktop-main 2
+desktop-live-verify 0
+tests 2
+ALLDONE

@@ -1,0 +1,162 @@
+
+> jini@ test:scripts /home/user/Jini
+> vitest run scripts/__tests__ && pnpm run test:scripts:node
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/recon-site.unit.test.mjs (10 tests) 22ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/interaction-probe.unit.test.mjs (20 tests) 73ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/asset-harvest.test.mjs > main > falls back to the real fs/console ports when none are injected
+▸ 候选资产 0 个(图片 0 / 字体 0)，开始下载…
+✅ 下载 0 成功 / 0 失败 → /tmp/wc1-jji4l4/out
+/tmp/wc1-jji4l4/out/asset-manifest.json
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/asset-harvest.test.mjs (23 tests) 75ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/compare-recon.test.mjs > main > uses the real fs and console when no ports are injected
+/tmp/wc1-compare-AauWfH/R.md
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/compare-recon.test.mjs (17 tests) 70ms
+ ✓ packages/cms/scripts/__tests__/check-packaging.test.ts (22 tests) 51ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/audit-clone.test.mjs > main > uses the real fs and console when no ports are injected
+/tmp/wc1-audit-XORSLH/out.md
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/audit-clone.test.mjs (21 tests) 37ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/route-crawl.unit.test.mjs (11 tests) 24ms
+ ✓ scripts/__tests__/check-subpath-isolation.test.ts (33 tests) 918ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/dna-scaffold.test.mjs > main > uses the real fs and console when no ports are injected
+✅ design-dna 骨架已写入: /tmp/wc1-dna-JSbKPO/d.json
+   下一步: 人工 Analyze 补全 ""，并从 _recon_signals 指派颜色角色。schema → references/design-dna.md
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/dna-scaffold.test.mjs (13 tests) 26ms
+ ✓ scripts/__tests__/check-package-layers.test.ts (66 tests) 1217ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/visual-diff.unit.test.mjs (9 tests) 78ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/network-capture.unit.test.mjs (7 tests) 57ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/mirror-site.unit.test.mjs (8 tests) 28ms
+ ✓ scripts/__tests__/check-plugin-isolation.test.ts (40 tests) 61ms
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "npm-globalconfig". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "link-workspace-packages". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "_jsr-registry". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > real seeding installs readable skills deterministically and repeat boots preserve operator disablement
+/tmp/standalone-agent-plugin-ZPbnSB/seeding/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > real seeding installs readable skills deterministically and repeat boots preserve operator disablement
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > real seeding installs readable skills deterministically and repeat boots preserve operator disablement
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+ ✓ scripts/__tests__/plugin-package-gates.test.ts (10 tests) 1833ms
+   ✓ inspects actual tar bytes without executing package lifecycle hooks 1226ms
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > real seeding installs readable skills deterministically and repeat boots preserve operator disablement
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > real seeding installs readable skills deterministically and repeat boots preserve operator disablement
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > real seeding installs readable skills deterministically and repeat boots preserve operator disablement
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+/tmp/standalone-agent-plugin-ZPbnSB/digest-selection/ws/workspace-a
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/sourcemap-hunt.unit.test.mjs (9 tests) 24ms
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+stderr | scripts/__tests__/standalone-agent-plugin.integration.test.ts > the seeded digest selects the independent package over a retained legacy revision
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/od-preview-rewrite.unit.test.mjs (11 tests) 72ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/lib-wc2.unit.test.mjs (17 tests) 678ms
+   ✓ loadPlaywright > resolves with the real require/env defaults (result depends on the install) 632ms
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "npm-globalconfig". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "link-workspace-packages". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown env config "_jsr-registry". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+ ✓ scripts/__tests__/standalone-agent-plugin.integration.test.ts (4 tests) 6611ms
+   ✓ real seeding installs readable skills deterministically and repeat boots preserve operator disablement 1426ms
+   ✓ the seeded digest selects the independent package over a retained legacy revision 717ms
+   ✓ packing the lifecycle library publishes no design assets or design export 2903ms
+ ✓ scripts/__tests__/check-guard-drift.test.ts (10 tests) 7ms
+stdout | packages/agent-runtime/src/skills/web-clone/scripts/__tests__/init-clone.test.mjs > main > uses the real fs and console when no ports are injected
+/tmp/wc1-init-X4HAEF/demo-clone
+
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/init-clone.test.mjs (10 tests) 25ms
+ ✓ scripts/__tests__/peer-range-compatibility.unit.test.ts (11 tests) 39ms
+ ✓ scripts/__tests__/assemble-agent-plugin-package.test.ts (6 tests) 3408ms
+   ✓ assembles exactly the authored runtime files, preserving manifests, references, examples and executable helpers 701ms
+   ✓ selects only runtime roots and excludes nested tests, dependency trees and caches on repeat assembly 364ms
+   ✓ refuses a symlink within a selected asset tree without replacing completed output 480ms
+   ✓ the build CLI assembles a payload under node --import tsx and reports assembly failures 1367ms
+ ✓ scripts/__tests__/leaf-import-closures.test.ts (7 tests) 23822ms
+   ✓ HTML viewer leaf imports > cannot reach the renderer barrel, Markdown renderers or srcdoc assembly 465ms
+   ✓ universal translation owner and SEO entries > keeps SEO and its HTTP adapter free of React and preserves the existing interpolation owner 23018ms
+ ✓ packages/agent-runtime/src/skills/web-clone/scripts/__tests__/script-cli.test.mjs (8 tests) 16ms
+ ✓ scripts/__tests__/walk-imports.test.ts (7 tests) 158ms
+ ✓ scripts/__tests__/packed-exports.unit.test.ts (11 tests) 7ms
+ ✓ scripts/__tests__/guard-drift-cli.unit.test.ts (1 test) 757ms
+   ✓ reports success when the command finds no drift against an empty baseline 756ms
+ ✓ scripts/__tests__/fetch-query-isolation.test.ts (3 tests) 30030ms
+   ✓ fetch-query optional adapter isolation > keeps TanStack out of the default runtime closure while the optional entry reaches it 30023ms
+ ✓ scripts/__tests__/storage-public-entries.test.ts (23 tests) 1014ms
+ ✓ scripts/__tests__/guard-self-test.unit.test.ts (1 test) 291ms
+ ✓ scripts/__tests__/check-model-fallback-freshness.test.ts (1 test) 1189ms
+   ✓ guards Antigravity against newly reported models missing from its fallback 1188ms
+ ❯ scripts/__tests__/coupling-isolation.test.ts (20 tests | 1 failed) 47551ms
+   ✓ re-verify dependency and state regressions > keeps standalone plugin tooling on package public entries 25335ms
+   × re-verify dependency and state regressions > declares the shared secret-input owner on the permitted optional UI layer edge 3054ms
+     → expected undefined to be 'workspace:^' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  scripts/__tests__/coupling-isolation.test.ts > re-verify dependency and state regressions > declares the shared secret-input owner on the permitted optional UI layer edge
+AssertionError: expected undefined to be 'workspace:^' // Object.is equality
+
+- Expected: 
+"workspace:^"
+
++ Received: 
+undefined
+
+ ❯ scripts/__tests__/coupling-isolation.test.ts:107:52
+    105|       && finding.rule === 'SI-dependency')).toEqual([]);
+    106|     const pkg = JSON.parse(readFileSync(new URL('../../packages/ui/pac…
+    107|     expect(pkg.devDependencies['@jini-ai/ui-kit']).toBe('workspace:^');
+       |                                                    ^
+    108|     expect(pkg.peerDependencies['@jini-ai/ui-kit']).toBe('^0.6.10');
+    109|     expect(pkg.peerDependenciesMeta['@jini-ai/ui-kit']).toEqual({ opti…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 32 passed (33)
+      Tests  1 failed | 469 passed (470)
+   Start at  04:41:57
+   Duration  53.66s (transform 3.59s, setup 0ms, collect 12.48s, tests 120.27s, environment 11ms, prepare 3.57s)
+
+ ELIFECYCLE  Command failed with exit code 1.
