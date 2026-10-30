@@ -481,14 +481,14 @@ test('Tovu declares no production vendor plugins; OTLP is development-only and l
   assert.equal(manifest.dependencies['@jini-ai/provider-plugins'], undefined);
   assert.equal(manifest.optionalDependencies?.['@jini-ai/plugin-observability-opentelemetry'], undefined);
   for (const name of ['@jini-ai/plugin-catalog', '@jini-ai/plugin-ui-ux-design']) {
-    assert.equal(manifest.dependencies[name], '^0.7.0');
+    assert.equal(manifest.dependencies[name], '^0.6.15');
     assert.equal(lock.packages[''].dependencies[name], manifest.dependencies[name]);
-    assert.equal(lock.packages[`node_modules/${name}`].version, '0.7.0');
+    assert.equal(lock.packages[`node_modules/${name}`].version, '0.6.15');
     assert.equal(lock.packages[`node_modules/${name}`].dev, undefined);
   }
   const otlp = '@jini-ai/plugin-observability-opentelemetry';
-  assert.equal(manifest.devDependencies[otlp], '^0.7.0');
+  assert.equal(manifest.devDependencies[otlp], '^0.6.15');
   assert.equal(lock.packages[''].devDependencies[otlp], manifest.devDependencies[otlp]);
-  assert.equal(lock.packages[`node_modules/${otlp}`].version, '0.7.0');
+  assert.equal(lock.packages[`node_modules/${otlp}`].version, '0.6.15');
   assert.equal(lock.packages[`node_modules/${otlp}`].dev, true);
 });

@@ -18,7 +18,7 @@
     "prepare": "npm run build"
   },
   "dependencies": {
-    "@jini-ai/analytics": "^0.6.12",
-    "@jini-ai/diagnostics": "^0.6.12"
+    "@jini-ai/analytics": "^0.6.15",
+    "@jini-ai/diagnostics": "^0.6.15"
   }
 }
