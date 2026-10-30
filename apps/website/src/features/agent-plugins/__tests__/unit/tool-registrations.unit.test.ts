@@ -1,3 +1,4 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
