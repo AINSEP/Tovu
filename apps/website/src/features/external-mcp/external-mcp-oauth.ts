@@ -740,7 +740,7 @@ function sealedRedirectState({ deps, serverId }: { deps: ExternalMcpOAuthDeps; s
   const aad = formatAad({ kind: "oauth-redirect-state", version: "v1", parts: [JSON.stringify([deps.workspaceId, serverId])] });
   return createSealedAuthorizationState({ clock: deps.clock, workspaceId: deps.workspaceId, serverId, codec: {
     async seal({ plaintext }, _options = {}) {
-      const sealed = await deps.sealer.seal({ plaintext, key: await deps.keyring.activeKey(), aad });
+      const sealed = await deps.sealer.seal({ plaintext, key: await deps.keyring.activeKey({}), aad });
       return Buffer.from(JSON.stringify(sealed), "utf8").toString("base64url");
     },
     async open({ state }, _options = {}) {
