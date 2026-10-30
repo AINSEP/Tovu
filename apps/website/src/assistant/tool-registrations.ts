@@ -122,6 +122,7 @@ export type DuplicateResourceHandlerContributor = import("./tool-contributions.j
  */
 export type AssistantToolRegistryDeps = import("../features/consent/tool-registrations.js").ConsentToolDeps & ToolGapsToolDeps & import("../features/skills/install-tool.js").SkillsInstallToolDeps & import("../features/analytics/tool-registrations.js").AnalyticsToolDeps &
   { peerSiteReads?: PeerSiteReads; toolAttemptAuditSink: ToolAttemptAuditSink;
+    apiConnections?: { host: import("../features/api-connections/host.js").ApiConnectionHost };
     // Dynamically installed provider/project-key contributors consume these narrow ports too.
     projectKeys?: import("../features/project-keys/service.js").ProjectKeysPort;
     providerAppliesAt?: (required: { pluginId: string }) => "now" | "restart" | "failed";
