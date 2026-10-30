@@ -1,0 +1,145 @@
+{"timestamp":"2026-10-30T08:30:27.799Z","level":"info","service":"web","message":"web_fetch_page","context":{"origin":"http://127.0.0.1","durationMs":2,"outcome":"refused"}}
+[tool-failure] ERR-E3C0-029B-3DEB-D76C tool=probe_audit_failure run=run-meta-tool execution=286caec2-db5f-4d6e-9ff3-f9a674051cb3 principal=principal-meta-tool redactions=0: probe failure
+✔ the published meta-tool set is exactly the 3 staged-discovery tools, and nothing else reaches the provider (170.921507ms)
+✔ search_tools finds a real tool in the real catalog, and every hit it returns is one describe_tool can then resolve (179.068463ms)
+✔ search_tools clamps an out-of-range limit instead of spending a turn refusing it (86.391208ms)
+✔ search_tools' limit description tells the model a miss at the default cutoff is weak evidence, not proof no tool exists, and to retry before giving up (0.494095ms)
+✔ search_tools' limit description names no coverage percentage — a hardcoded number here is the exact shape of the defect this fixes, regardless of whether the number happens to be true today (0.360781ms)
+✔ search_tools with a missing or empty query is a readable error, not an empty result set (124.447898ms)
+✔ a query that matches nothing reports that it matched nothing, rather than looking like a broken tool (106.342405ms)
+✔ BYOK can find, describe and run web_fetch_page, and the wired client refuses a private address (89.024326ms)
+✖ describe_tool returns a real tool's input schema, and refuses an unknown id with a next step (107.912123ms)
+✔ execute_delegated_tool with a HALLUCINATED tool id returns a recoverable error — it does not throw and kill the turn (54.09587ms)
+✔ execute_delegated_tool requires a toolId, and says so (76.154467ms)
+✔ execute_delegated_tool accepts a JSON-ENCODED input string — the observed provider behavior that would otherwise make every input-taking tool uncallable (56.177243ms)
+✔ execute_delegated_tool refuses an input that is neither an object nor JSON-parseable, naming what is wrong (72.052472ms)
+✔ execute_delegated_tool supplies an empty object for omitted, null and blank input (73.922943ms)
+✔ execute_delegated_tool refuses a non-object, non-array, non-string input (e.g. a bare number), naming the actual type (45.138583ms)
+✔ execute_delegated_tool maps a real tool's own thrown ForbiddenError (from ITS internal authorize check, not ToolPolicy) to a readable 'failed' error, not an uncaught throw (37.388178ms)
+✔ execute_delegated_tool maps an already-aborted signal to a readable 'cancelled' error (72.018842ms)
+✔ a model that calls a REAL tool id as the tool NAME is told how to reach it, not just that it failed (45.576903ms)
+✔ READ-ONLY PARITY: a read-only-constrained principal cannot see or dispatch a write tool — the handler must never run (120.204844ms)
+✔ READ-ONLY PARITY: the identical dispatch from an UNCONSTRAINED principal is unaffected — byte-identical to before this gate existed (57.598631ms)
+✔ INCIDENT FIX: a search_tools call through executeMetaTool is recorded with the caller's real principal/run and the query length, limit, and ranked hit ids — never the raw query text (114.216557ms)
+✖ a describe_tool call through executeMetaTool is recorded with the requested id and whether it resolved (82.363082ms)
+✔ without a toolAttemptAudit option, search_tools/describe_tool behave exactly as before and log nothing (46.199228ms)
+✔ INCIDENT FIX: an execute_delegated_tool call through executeMetaTool is durably recorded — not just the search that found it (55.896445ms)
+✔ ordinary successful and throwing delegated handlers record their complete audit trail (54.457018ms)
+✔ WIRING: a diagnostic-carrying execute_delegated_tool result goes through ask -> apply -> retry with NO toolAttemptAudit sink present — the un-audited composition path also works, not just the audited one (175.520084ms)
+✔ WIRING: a successful first call is never retried and raises no recovery surface (283.881677ms)
+✔ WIRING: no second recovery cycle — a retry whose OWN result also carries a fresh hint+remedyToolId is returned as-is, not looped on again (78.754793ms)
+✔ WIRING: declining the recovery surface returns the ORIGINAL failure untouched, and the remedy tool is never called (71.462191ms)
+✔ WIRING: a headless call (no emitSurface) with a diagnostic-carrying result returns it untouched instead of hanging (57.129449ms)
+[tool-failure] ERR-BDA0-AED1-E527-E19D tool=fake_recoverable_retry_fails run=run-meta-tool execution=2e52f402-7f80-4a9b-b697-c8d56ab91443 principal=principal-meta-tool redactions=0: still broken after the fix
+✔ WIRING: the failed retry still returns a coherent, exact error to the model — and does NOT recursively re-enter recovery (74.495355ms)
+[assistant-byok] mcp-federation: 'echo-server' registered 1 federated tool(s): mcp__echo-server__echo
+[assistant-byok] mcp-federation: 'echo-server' registered 1 federated tool(s): mcp__echo-server__echo
+[assistant-byok] mcp-federation: 'echo-server' registered 3 federated tool(s): mcp__echo-server__echo, mcp__echo-server__write_ungranted, mcp__echo-server__write_granted
+[assistant-byok] mcp-federation: 'echo-server' refused remote tool 'unlisted' — not-in-operator-allowlist
+[assistant-byok] mcp-federation: 'echo-server' admitted WRITE tool 'write_granted' (operator-authorized)
+✔ WIRING: recovery composes OUTSIDE audit — original, remedy, and retry are each their own audited attempt (2 rows apiece), none lost or duplicated (71.418687ms)
+✔ BYOK federation: awaitFederation boots the real stored roster and resolves {settled: true} (156.276496ms)
+✔ BYOK federation: after awaitFederation settles, search_tools finds the newly federated tool (190.377172ms)
+✔ BYOK federation: settled admitted tools execute with remote names and arguments, while unlisted tools stay refused (148.463816ms)
+✔ BYOK federation: installExtensions: false leaves federation undefined and awaitFederation settled at once (44.296163ms)
+[assistant-byok] mcp-federation: 'echo-server' registered 1 federated tool(s): mcp__echo-server__echo
+✔ BYOK federation: execute_delegated_tool for a still-registering federated id gets 'still connecting', not a bare 'unknown tool' throw (104.18318ms)
+[assistant-byok] mcp-federation: 'echo-server' registered 1 federated tool(s): mcp__echo-server__echo
+[assistant-byok] mcp-federation: 'echo-server' failed, continuing without its tools — connect ECONNREFUSED
+✔ BYOK federation: execute_delegated_tool for a server that was never in the roster gets 'unknown tool', even while the boot pass is still mid-connect for a DIFFERENT server (107.556668ms)
+✔ BYOK federation: execute_delegated_tool for a connection that failed to connect gets that failure's own reason, once the boot pass has settled (126.374828ms)
+✔ the BYOK discovery registry hides disallowed permanent deletes from both has and list (69.110788ms)
+✔ owner discovery exposes permanent deletes with the site grant off, including credential and role deletes (44.930895ms)
+✔ an owner delete executes through the assembled BYOK guard only after the confirmation click (49.315311ms)
+✔ a tool's plain-string output reaches the model verbatim, not JSON-quoted (54.266936ms)
+✔ a tool's undefined output reaches the model as the JSON text null (105.350099ms)
+✔ a text-only content envelope stays one JSON string — only an image earns content blocks (65.534917ms)
+✔ a content envelope with a non-object block stays one JSON string (64.067298ms)
+✔ a content envelope with an unknown block type stays one JSON string, image or not (50.980742ms)
+✔ an image block missing its data stays one JSON string (74.02505ms)
+✔ a text block whose text is not a string stays one JSON string (86.737772ms)
+✔ an output whose content is not an array stays one JSON string (63.298846ms)
+✔ execute_delegated_tool refuses a JSON-encoded input that parses to a non-object, naming the fix (52.518556ms)
+✔ execute_delegated_tool refuses an array input by naming it an array (122.379873ms)
+✔ execute_delegated_tool with a non-string toolId is the same readable refusal as a missing one (64.934888ms)
+✔ describe_tool with a non-string id is refused, naming the argument (95.734777ms)
+✔ describe_tool with a blank id is refused, naming the argument (64.944493ms)
+✔ a meta-tool call whose input is not an object is read as no arguments at all (59.479484ms)
+✔ search_tools falls back to the default limit for a non-numeric limit (72.923486ms)
+[assistant-byok] mcp-federation: 'oauth-server' registered 1 federated tool(s): mcp__oauth-server__echo
+[assistant-byok] mcp-federation: stored server 'oauth-server' skipped — this process was not wired with an OAuth token resolver, so its access token cannot be obtained
+[assistant-byok] mcp-federation: 'echo-server' registered 1 federated tool(s): mcp__echo-server__echo
+[assistant-byok] mcp-federation: 'wobble-server' registered 1 federated tool(s): mcp__wobble-server__wobble
+[tool-failure] ERR-DC0D-3346-5787-7F99 tool=t2_failure run=run-meta-tool execution=9083bbba-46ce-4ded-9ac4-6a71074ffdf5 principal=principal-meta-tool redactions=0: T2 expected failure
+[tool-failure] ERR-7E9A-ABBF-AA77-11D3 tool=t2_failure run=run-meta-tool execution=fa0e6221-9ca6-4129-a0d1-6658409787e7 principal=principal-meta-tool redactions=0: T2 expected failure
+✔ a descriptor-confirmation tool parks until the turn's signal aborts, then reads as cancelled (reported, not fixed) (116.692148ms)
+✔ registerFederationPresets runs exactly once, while the surface is built (38.808628ms)
+✔ prepareGuidance is handed to the executor and consulted for a guidance-capable tool (62.486398ms)
+✔ with no federation, an mcp__ id the registry does not know is reported as an unknown tool (76.392063ms)
+✔ an installed-skills refresh that reports a change makes a tool it registered searchable on the next call (145.181896ms)
+✔ an installed-skills refresh that reports no change still leaves a tool it registered searchable (217.252298ms)
+✔ BYOK federation: a stored OAuth row's access token is resolved through the wired OAuth service and reaches the connection (86.00176ms)
+✔ BYOK federation: without a wired OAuth service a connected OAuth row is skipped, never launched credential-free (104.279263ms)
+✔ BYOK federation: a reload that admits a new server makes its tools searchable without another awaitFederation (118.287907ms)
+✔ BYOK: the installed-extension registrar gets this surface's own exchange store as the plugin tools' confirmation transport (161.206303ms)
+✔ T2 search → describe → typed execution publishes the concrete schema and retains legacy wrapper parity (152.378271ms)
+✔ T2 concurrent runs and repeated descriptions cannot share exposure or lose promotions (212.577022ms)
+✔ T2 failed and budget-limited descriptions never publish a callable; wrappers remain usable (221.065981ms)
+✔ T2 typed dispatch rechecks authorization and cannot promote a hidden write for a constrained principal (117.891323ms)
+✔ T2 typed reads attenuate nested writes through the existing executor (82.578511ms)
+✔ T2 typed calls preserve images, batches, failures and cancellation through the shared mapper (162.119435ms)
+✔ T2 typed permanent deletes retain the existing held-open surface and confirmation (41.440483ms)
+✔ T2 a previously published delete loses visibility before execution when its owner grant changes (56.841246ms)
+✔ T2 a typed confirmation park cancels without running its handler (109.741599ms)
+✔ T2 real surface and shared provider mapper complete discovery and typed execution in one turn (94.612425ms)
+ℹ tests 77
+ℹ suites 0
+ℹ pass 75
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13417.631774
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/byok-tool-surface.test.ts:1:7986
+✖ describe_tool returns a real tool's input schema, and refuses an unknown id with a next step (107.912123ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - true
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/byok-tool-surface.test.ts:214:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/byok-tool-surface.test.ts:1:16451
+✖ a describe_tool call through executeMetaTool is recorded with the requested id and whether it resolved (82.363082ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   found: true,
+  -   found: false,
+      id: 'content_read.workspace_but_invented'
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/byok-tool-surface.test.ts:424:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { id: 'content_read.workspace_but_invented', found: true },
+    expected: { id: 'content_read.workspace_but_invented', found: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,33 @@
+✔ query delegates to the initially-bound catalog before any rebind (1.998824ms)
+✔ rebind swaps what the SAME query object delegates to — object identity never changes (0.250825ms)
+✔ multiple rebinds always reflect the MOST RECENT catalog, never an earlier one (0.305621ms)
+✔ search preserves an explicit limit before and after rebind (0.322232ms)
+✔ daemon admission updates the mounted query while retaining boot tools (4429.449883ms)
+✖ the daemon describe route exposes the read family and refreshes its registered cards (19.595632ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4821.454769
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/tool-catalog-live-query.test.ts:1:3974
+✖ the daemon describe route exposes the read family and refreshes its registered cards (19.595632ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 404
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-catalog-live-query.test.ts:101:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 404,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

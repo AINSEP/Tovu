@@ -11,3 +11,9 @@ Done: tc (step3), admin vitest 147 files/2022 tests pass, desktop npm test 1850/
 
 ## 2026-10-30T08:30:03Z — PROGRESS
 Jini vitest all done: chat 1 fail (MessageRow ticking, fails solo => REAL), cms 1 fail (navigation alias collision, fails solo => REAL: core now throws ToolInputNormalizationError and accepts id==menuId), all others pass. Fixes pushed on cloud/verify2-1030-fixes (Tovu, worktree /home/user/wt-tovu): 36547797 (vendor-exceptions stale counts), 5909ee3d (agents.ts complexity). Shards 3,4,5,6 running; 0 slow; 7 pending.
+
+## 2026-10-30T08:31:16Z — PROGRESS
+Started shard 7 manually in parallel (5 shards concurrent) to fit cap; shard 0 has run 49 min. Hard stop for shard collection ~09:00Z; incomplete shards will be reported from in-flight output.
+
+## 2026-10-30T08:41:41Z — PROGRESS
+Shard 0 hit my 3000s timeout (exit 124): ~111 files (cli/ onward) were cancelled, not failed; re-running exactly those as shard 0b. Shards 3,4,5,6,7,0b running, 0 failures so far. Tried a NoInfer fix for the 2 test-tsc errors: made it worse (more errors) -> reverted, not pushed; listed instead. Remaining: wait for shards until ~08:55Z, then write RESULTS.md.

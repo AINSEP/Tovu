@@ -3986,3 +3986,698 @@ agent-plugin-tokens: saved supabase
 ✔ an accepted token is sealed with the new site's own id and reported as saved (1134.303833ms)
 ✔ a seal failure after the create keeps the site and reports failed without the token (1853.042272ms)
 ✔ a Postgres connection string read from stdin cannot share stdin with tokens (0.831262ms)
+✔ AC-01/api.spec.md §5: tovu init <dir> --name <name> exits 0, prints the created-site stdout contract, and produces a real install dir (20481.595352ms)
+✔ BR-03: omitting --name defaults the site name to the directory basename, end to end through the CLI (24439.315506ms)
+✔ AC-04/EC-01: tovu init against an existing non-empty directory exits 3 with INIT_DIR_NOT_EMPTY, directory left untouched (18717.492917ms)
+✔ EC-02: tovu init against a path that exists as a regular file exits 3 with INIT_DIR_NOT_EMPTY (19874.703994ms)
+✔ EC-06: an empty --name exits 2 with VALIDATION, nothing created (18083.54439ms)
+✔ VALIDATION: tovu init with no dir argument at all exits 2 with usage (a missing required positional argument is a usage error) (21290.036342ms)
+✔ parseInitStorage: default sqlite, the three kinds, postgres sealed or env-named, bad input refused (4.470729ms)
+created site 'sqlite-site' at /tmp/r1f2-init-storage-eFlghG/sqlite-site
+next: tovu serve /tmp/r1f2-init-storage-eFlghG/sqlite-site
+✔ init without --storage still writes a SQLite site (1916.902567ms)
+created site 'PGlite Site' at /tmp/r1f2-init-storage-eFlghG/pglite-site
+next: tovu serve /tmp/r1f2-init-storage-eFlghG/pglite-site
+✔ init --storage pglite: the data dir is at head with the template seeded, no SQLite files, lock released (11438.474754ms)
+✔ init --storage postgres --storage-env naming an unset variable is refused before anything is created (4.860778ms)
+✔ init --storage postgres with an empty connection string is refused before anything is created (0.657532ms)
+✔ hidden creation: no sites MCP tool takes a storage input (0.336641ms)
+created site 'env-site' at /tmp/r1f2-init-pg-4yNS0Q/env-site
+next: tovu serve /tmp/r1f2-init-pg-4yNS0Q/env-site
+✔ --storage-env: the site names the variable, keeps no secret, and its database is at head with the template (5372.431565ms)
+created site 'sealed-site' at /tmp/r1f2-init-pg-4yNS0Q/sealed-site
+next: tovu serve /tmp/r1f2-init-pg-4yNS0Q/sealed-site
+✔ sealed: the connection string is sealed in the site folder (0600, no plaintext) and the site reopens from its meta (5315.07864ms)
+created site 'first-site' at /tmp/r1f2-init-pg-4yNS0Q/first-site
+next: tovu serve /tmp/r1f2-init-pg-4yNS0Q/first-site
+✔ a database that already holds a Tovu site is refused, before any folder, secret or key is made (4718.861654ms)
+
+Interrupted while running:
+
+⚠ apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts (apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts:1:1)
+✖ apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts (36733.121041ms)
+✖ apps/website/src/cli/__tests__/integration/owner-store.integration.test.ts
+✖ apps/website/src/cli/__tests__/integration/serve-command-boot-lifecycle.integration.test.ts
+✖ apps/website/src/cli/__tests__/integration/serve-command-plugin-sdk-resolver.integration.test.ts
+✖ apps/website/src/cli/__tests__/integration/serve-command-site-key.integration.test.ts
+✖ apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts
+✖ apps/website/src/cli/__tests__/integration/serve-export-teardown.integration.test.ts
+✖ apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts
+✖ apps/website/src/cli/__tests__/integration/theme-migrate-command.integration.test.ts
+✖ apps/website/src/cli/__tests__/integration/theme-normalize-build-command.integration.test.ts
+✖ apps/website/src/cli/__tests__/integration/theme-sync-originals-command.integration.test.ts
+✖ apps/website/src/cli/__tests__/integration/theme-validate-command.integration.test.ts
+✖ apps/website/src/cli/__tests__/unit/adopt-command.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/agent-plugin-tokens-command.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/deploy-config-command.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/deploy-config-target-help.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/errors-l149.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/export-base-path-srcset.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/export-command-boot-work.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/export-command-real-site.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/export-l149.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/help-streams.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/import-site-l149.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/init-connection-string-reader.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/init-l149.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/introspect-command.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/introspect.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/owner-store-import.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/plugin-command.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/plugin-install-real-site.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/program-actions.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/remove-fixture-tree.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/serve-site-dir-pin.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/site-rename-command.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/storage-move-command.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/theme-command-gaps.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/theme-migrate-summary.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/theme-sync-originals-command.unit.test.ts
+✖ apps/website/src/cli/__tests__/unit/theme-validate-normalize-output.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/credential-token.test.ts
+✖ apps/website/src/contracts/core/__tests__/human-confirm.lifecycle.test.ts
+✖ apps/website/src/contracts/core/__tests__/human-confirm.test.ts
+✖ apps/website/src/contracts/core/__tests__/integration/child-process-coverage-env-wiring.test.ts
+✖ apps/website/src/contracts/core/__tests__/integration/operation-lock.cross-domain.integration.test.ts
+✖ apps/website/src/contracts/core/__tests__/model-facing-registration-errors.test.ts
+✖ apps/website/src/contracts/core/__tests__/native-approval-memory.test.ts
+✖ apps/website/src/contracts/core/__tests__/tool-surface-exchanges.pb1.test.ts
+✖ apps/website/src/contracts/core/__tests__/tool-surface-exchanges.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/agent-permission-mode.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/assistant-cli-permissions.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/assistant-native-fallbacks.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/assistant-run-events.activity.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/chat-delete-grant.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/child-process-coverage-env.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/credential-copy.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/extension-capability-vocabulary.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/host-signals.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/model-facing-tool-errors.caller-safe.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/operation-lock.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/path-containment.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/plugin-hook-failed-error.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/public-theme-resource-policy.contract.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/runtime-mode.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/scheduled-publish.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/secret-patterns.boundaries.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/secret-redaction.unit.test.ts
+✖ apps/website/src/contracts/core/__tests__/unit/strict-base64.unit.test.ts
+✖ apps/website/src/contracts/core/commands/__tests__/appliers.unit.test.ts
+✖ apps/website/src/contracts/core/commands/__tests__/authorize-gateway.test.ts
+✖ apps/website/src/contracts/core/commands/__tests__/change-sets-restart.integration.test.ts
+✖ apps/website/src/contracts/core/commands/__tests__/command-atomicity.test.ts
+✖ apps/website/src/contracts/core/commands/__tests__/idempotency-race.integration.test.ts
+✖ apps/website/src/contracts/core/commands/__tests__/integration/revert-plugin-ext.integration.test.ts
+✖ apps/website/src/contracts/core/commands/__tests__/post-delete-reverter.test.ts
+✖ apps/website/src/contracts/core/commands/__tests__/repo.contract.test.ts
+✖ apps/website/src/contracts/core/commands/__tests__/repo.memory.unit.test.ts
+✖ apps/website/src/contracts/core/commands/__tests__/revert.unit.test.ts
+✖ apps/website/src/contracts/core/embeds/__tests__/marker.canary.test.ts
+✖ apps/website/src/contracts/core/entry-refs/__tests__/extractor-l079.test.ts
+✖ apps/website/src/contracts/core/entry-refs/__tests__/extractor-marker.canary.test.ts
+✖ apps/website/src/contracts/core/entry-refs/__tests__/integration/extractor.integration.test.ts
+✖ apps/website/src/contracts/core/entry-refs/__tests__/integration/html-entry-refs-consistency.integration.test.ts
+✖ apps/website/src/contracts/core/entry-refs/__tests__/repo.contract.test.ts
+✖ apps/website/src/contracts/core/events/__tests__/enqueue-only-outbox.payload.test.ts
+✖ apps/website/src/contracts/core/events/__tests__/enqueue-only-outbox.test.ts
+✖ apps/website/src/contracts/core/events/__tests__/jini-outbox-parity.test.ts
+✖ apps/website/src/contracts/core/events/__tests__/memory-bus.test.ts
+✖ apps/website/src/contracts/core/events/__tests__/outbox-drainer.scheduling.test.ts
+✖ apps/website/src/contracts/core/events/__tests__/outbox-drainer.test.ts
+✖ apps/website/src/contracts/core/events/__tests__/outbox-repo.contract.test.ts
+✖ apps/website/src/contracts/core/events/__tests__/outbox-restart.integration.test.ts
+✖ apps/website/src/contracts/core/events/__tests__/outbox-retry-policies.unit.test.ts
+✖ apps/website/src/contracts/core/events/__tests__/outbox-worker.test.ts
+✖ apps/website/src/contracts/core/events/__tests__/outbox-workspace-id.integration.test.ts
+✖ apps/website/src/contracts/core/gated-mutations/__tests__/integration/db-ops.integration.test.ts
+✖ apps/website/src/contracts/core/gated-mutations/__tests__/unit/actor-identity.unit.test.ts
+✖ apps/website/src/contracts/core/gated-mutations/__tests__/unit/composition.unit.test.ts
+✖ apps/website/src/contracts/core/gated-mutations/__tests__/unit/gateway.unit.test.ts
+✖ apps/website/src/contracts/core/gated-mutations/__tests__/unit/token.unit.test.ts
+✖ apps/website/src/contracts/core/gated-mutations/__tests__/unit/watermark.unit.test.ts
+✖ apps/website/src/contracts/core/rate-limit/__tests__/rate-limit.test.ts
+✖ apps/website/src/contracts/headless/__tests__/admin-post-response.type.test.ts
+✖ apps/website/src/contracts/headless/__tests__/assistant-tool-approval-policy.unit.test.ts
+✖ apps/website/src/contracts/headless/__tests__/content-chat-title.test.ts
+✖ apps/website/src/contracts/headless/__tests__/index.barrel.unit.test.ts
+✖ apps/website/src/contracts/headless/__tests__/plugin-boundaries.test.ts
+✖ apps/website/src/contracts/site-assistant/__tests__/visitor-tools.unit.test.ts
+✖ apps/website/src/features/__tests__/features-no-server-imports.boundary.test.ts
+✖ apps/website/src/features/admin-parity/__tests__/tools.unit.test.ts
+✖ apps/website/src/features/agent-plugins/__tests__/analytics-provider-registry.test.ts
+ℹ tests 3595
+ℹ suites 69
+ℹ pass 3475
+ℹ fail 5
+ℹ cancelled 111
+ℹ skipped 4
+ℹ todo 0
+ℹ duration_ms 2999931.324078
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/byok-tool-surface.test.ts:1:7986
+✖ describe_tool returns a real tool's input schema, and refuses an unknown id with a next step (145.254309ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - true
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/byok-tool-surface.test.ts:214:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/byok-tool-surface.test.ts:1:16451
+✖ a describe_tool call through executeMetaTool is recorded with the requested id and whether it resolved (239.083799ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   found: true,
+  -   found: false,
+      id: 'content_read.workspace_but_invented'
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/byok-tool-surface.test.ts:424:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { id: 'content_read.workspace_but_invented', found: true },
+    expected: { id: 'content_read.workspace_but_invented', found: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/tool-catalog-live-query.test.ts:1:3974
+✖ the daemon describe route exposes the read family and refreshes its registered cards (18.278736ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 404
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-catalog-live-query.test.ts:101:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 404,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/tool-catalog-query.test.ts:1:2924
+✖ describe content_read lists only registered cards and their first authored sentence (5.353125ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + {
+  +   description: 'content_read is a namespace, not a tool; do not invent ids such as content_read.page. Describe a card id below for its inputs, then call that exact id without a resource argument.\n' +
+  +     'content_read.media_asset — Lists media assets.\n' +
+  +     'content_read.theme — Reads themes.',
+  +   id: 'content_read',
+  +   source: 'content'
+  + }
+  - null
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/tool-catalog-query.test.ts:89:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { id: 'content_read', source: 'content', description: 'content_read is a namespace, not a tool; do not invent ids such as content_read.page. Describe a card id below for its inputs, then call that exact id without a resource argument.\ncontent_read.media_asset — Lists media assets.\ncontent_read.theme — Reads themes.' },
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts:1:321
+✖ root/admin/site-chat select the same new chat release and preserve the UI override (22.728348ms)
+  TypeError [Error]: Invalid comparator: file:/home/user/Jini/packages/chat
+      at Comparator.parse (/home/user/Tovu/node_modules/semver/classes/comparator.js:41:13)
+      at new Comparator (/home/user/Tovu/node_modules/semver/classes/comparator.js:25:10)
+      at /home/user/Tovu/node_modules/semver/classes/range.js:157:47
+      at Array.map (<anonymous>)
+      at Range.parseRange (/home/user/Tovu/node_modules/semver/classes/range.js:157:35)
+      at /home/user/Tovu/node_modules/semver/classes/range.js:42:22
+      at Array.map (<anonymous>)
+      at new Range (/home/user/Tovu/node_modules/semver/classes/range.js:42:8)
+      at Object.minVersion (/home/user/Tovu/node_modules/semver/ranges/min-version.js:8:11)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts:11:26)
+
+test at apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts:1:1
+✖ apps/website/src/cli/__tests__/integration/introspect-command.integration.test.ts (36733.121041ms)
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/integration/owner-store.integration.test.ts:1:1
+✖ apps/website/src/cli/__tests__/integration/owner-store.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/integration/serve-command-boot-lifecycle.integration.test.ts:1:1
+✖ apps/website/src/cli/__tests__/integration/serve-command-boot-lifecycle.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/integration/serve-command-plugin-sdk-resolver.integration.test.ts:1:1
+✖ apps/website/src/cli/__tests__/integration/serve-command-plugin-sdk-resolver.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/integration/serve-command-site-key.integration.test.ts:1:1
+✖ apps/website/src/cli/__tests__/integration/serve-command-site-key.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts:1:1
+✖ apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/integration/serve-export-teardown.integration.test.ts:1:1
+✖ apps/website/src/cli/__tests__/integration/serve-export-teardown.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts:1:1
+✖ apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/integration/theme-migrate-command.integration.test.ts:1:1
+✖ apps/website/src/cli/__tests__/integration/theme-migrate-command.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/integration/theme-normalize-build-command.integration.test.ts:1:1
+✖ apps/website/src/cli/__tests__/integration/theme-normalize-build-command.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/integration/theme-sync-originals-command.integration.test.ts:1:1
+✖ apps/website/src/cli/__tests__/integration/theme-sync-originals-command.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/integration/theme-validate-command.integration.test.ts:1:1
+✖ apps/website/src/cli/__tests__/integration/theme-validate-command.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/adopt-command.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/adopt-command.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/agent-plugin-tokens-command.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/agent-plugin-tokens-command.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/deploy-config-command.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/deploy-config-command.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/deploy-config-target-help.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/deploy-config-target-help.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/errors-l149.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/errors-l149.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/export-base-path-srcset.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/export-base-path-srcset.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/export-command-boot-work.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/export-command-boot-work.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/export-command-real-site.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/export-command-real-site.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/export-l149.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/export-l149.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/help-streams.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/help-streams.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/import-site-l149.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/import-site-l149.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/init-connection-string-reader.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/init-connection-string-reader.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/init-l149.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/init-l149.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/introspect-command.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/introspect-command.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/introspect.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/introspect.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/owner-store-import.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/owner-store-import.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/plugin-command.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/plugin-command.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/plugin-install-real-site.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/plugin-install-real-site.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/program-actions.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/program-actions.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/remove-fixture-tree.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/remove-fixture-tree.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/serve-site-dir-pin.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/serve-site-dir-pin.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/site-rename-command.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/site-rename-command.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/storage-move-command.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/storage-move-command.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/theme-command-gaps.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/theme-command-gaps.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/theme-migrate-summary.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/theme-migrate-summary.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/theme-sync-originals-command.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/theme-sync-originals-command.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/cli/__tests__/unit/theme-validate-normalize-output.unit.test.ts:1:1
+✖ apps/website/src/cli/__tests__/unit/theme-validate-normalize-output.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/credential-token.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/credential-token.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/human-confirm.lifecycle.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/human-confirm.lifecycle.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/human-confirm.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/human-confirm.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/integration/child-process-coverage-env-wiring.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/integration/child-process-coverage-env-wiring.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/integration/operation-lock.cross-domain.integration.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/integration/operation-lock.cross-domain.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/model-facing-registration-errors.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/model-facing-registration-errors.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/native-approval-memory.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/native-approval-memory.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/tool-surface-exchanges.pb1.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/tool-surface-exchanges.pb1.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/tool-surface-exchanges.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/tool-surface-exchanges.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/agent-permission-mode.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/agent-permission-mode.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/assistant-cli-permissions.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/assistant-cli-permissions.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/assistant-native-fallbacks.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/assistant-native-fallbacks.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/assistant-run-events.activity.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/assistant-run-events.activity.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/chat-delete-grant.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/chat-delete-grant.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/child-process-coverage-env.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/child-process-coverage-env.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/credential-copy.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/credential-copy.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/extension-capability-vocabulary.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/extension-capability-vocabulary.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/host-signals.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/host-signals.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/model-facing-tool-errors.caller-safe.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/model-facing-tool-errors.caller-safe.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/operation-lock.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/operation-lock.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/path-containment.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/path-containment.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/plugin-hook-failed-error.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/plugin-hook-failed-error.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/public-theme-resource-policy.contract.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/public-theme-resource-policy.contract.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/runtime-mode.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/runtime-mode.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/scheduled-publish.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/scheduled-publish.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/secret-patterns.boundaries.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/secret-patterns.boundaries.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/secret-redaction.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/secret-redaction.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/__tests__/unit/strict-base64.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/__tests__/unit/strict-base64.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/commands/__tests__/appliers.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/commands/__tests__/appliers.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/commands/__tests__/authorize-gateway.test.ts:1:1
+✖ apps/website/src/contracts/core/commands/__tests__/authorize-gateway.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/commands/__tests__/change-sets-restart.integration.test.ts:1:1
+✖ apps/website/src/contracts/core/commands/__tests__/change-sets-restart.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/commands/__tests__/command-atomicity.test.ts:1:1
+✖ apps/website/src/contracts/core/commands/__tests__/command-atomicity.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/commands/__tests__/idempotency-race.integration.test.ts:1:1
+✖ apps/website/src/contracts/core/commands/__tests__/idempotency-race.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/commands/__tests__/integration/revert-plugin-ext.integration.test.ts:1:1
+✖ apps/website/src/contracts/core/commands/__tests__/integration/revert-plugin-ext.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/commands/__tests__/post-delete-reverter.test.ts:1:1
+✖ apps/website/src/contracts/core/commands/__tests__/post-delete-reverter.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/commands/__tests__/repo.contract.test.ts:1:1
+✖ apps/website/src/contracts/core/commands/__tests__/repo.contract.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/commands/__tests__/repo.memory.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/commands/__tests__/repo.memory.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/commands/__tests__/revert.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/commands/__tests__/revert.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/embeds/__tests__/marker.canary.test.ts:1:1
+✖ apps/website/src/contracts/core/embeds/__tests__/marker.canary.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/entry-refs/__tests__/extractor-l079.test.ts:1:1
+✖ apps/website/src/contracts/core/entry-refs/__tests__/extractor-l079.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/entry-refs/__tests__/extractor-marker.canary.test.ts:1:1
+✖ apps/website/src/contracts/core/entry-refs/__tests__/extractor-marker.canary.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/entry-refs/__tests__/integration/extractor.integration.test.ts:1:1
+✖ apps/website/src/contracts/core/entry-refs/__tests__/integration/extractor.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/entry-refs/__tests__/integration/html-entry-refs-consistency.integration.test.ts:1:1
+✖ apps/website/src/contracts/core/entry-refs/__tests__/integration/html-entry-refs-consistency.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/entry-refs/__tests__/repo.contract.test.ts:1:1
+✖ apps/website/src/contracts/core/entry-refs/__tests__/repo.contract.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/events/__tests__/enqueue-only-outbox.payload.test.ts:1:1
+✖ apps/website/src/contracts/core/events/__tests__/enqueue-only-outbox.payload.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/events/__tests__/enqueue-only-outbox.test.ts:1:1
+✖ apps/website/src/contracts/core/events/__tests__/enqueue-only-outbox.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/events/__tests__/jini-outbox-parity.test.ts:1:1
+✖ apps/website/src/contracts/core/events/__tests__/jini-outbox-parity.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/events/__tests__/memory-bus.test.ts:1:1
+✖ apps/website/src/contracts/core/events/__tests__/memory-bus.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/events/__tests__/outbox-drainer.scheduling.test.ts:1:1
+✖ apps/website/src/contracts/core/events/__tests__/outbox-drainer.scheduling.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/events/__tests__/outbox-drainer.test.ts:1:1
+✖ apps/website/src/contracts/core/events/__tests__/outbox-drainer.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/events/__tests__/outbox-repo.contract.test.ts:1:1
+✖ apps/website/src/contracts/core/events/__tests__/outbox-repo.contract.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/events/__tests__/outbox-restart.integration.test.ts:1:1
+✖ apps/website/src/contracts/core/events/__tests__/outbox-restart.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/events/__tests__/outbox-retry-policies.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/events/__tests__/outbox-retry-policies.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/events/__tests__/outbox-worker.test.ts:1:1
+✖ apps/website/src/contracts/core/events/__tests__/outbox-worker.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/events/__tests__/outbox-workspace-id.integration.test.ts:1:1
+✖ apps/website/src/contracts/core/events/__tests__/outbox-workspace-id.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/gated-mutations/__tests__/integration/db-ops.integration.test.ts:1:1
+✖ apps/website/src/contracts/core/gated-mutations/__tests__/integration/db-ops.integration.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/gated-mutations/__tests__/unit/actor-identity.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/gated-mutations/__tests__/unit/actor-identity.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/gated-mutations/__tests__/unit/composition.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/gated-mutations/__tests__/unit/composition.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/gated-mutations/__tests__/unit/gateway.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/gated-mutations/__tests__/unit/gateway.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/gated-mutations/__tests__/unit/token.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/gated-mutations/__tests__/unit/token.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/gated-mutations/__tests__/unit/watermark.unit.test.ts:1:1
+✖ apps/website/src/contracts/core/gated-mutations/__tests__/unit/watermark.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/core/rate-limit/__tests__/rate-limit.test.ts:1:1
+✖ apps/website/src/contracts/core/rate-limit/__tests__/rate-limit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/headless/__tests__/admin-post-response.type.test.ts:1:1
+✖ apps/website/src/contracts/headless/__tests__/admin-post-response.type.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/headless/__tests__/assistant-tool-approval-policy.unit.test.ts:1:1
+✖ apps/website/src/contracts/headless/__tests__/assistant-tool-approval-policy.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/headless/__tests__/content-chat-title.test.ts:1:1
+✖ apps/website/src/contracts/headless/__tests__/content-chat-title.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/headless/__tests__/index.barrel.unit.test.ts:1:1
+✖ apps/website/src/contracts/headless/__tests__/index.barrel.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/headless/__tests__/plugin-boundaries.test.ts:1:1
+✖ apps/website/src/contracts/headless/__tests__/plugin-boundaries.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/contracts/site-assistant/__tests__/visitor-tools.unit.test.ts:1:1
+✖ apps/website/src/contracts/site-assistant/__tests__/visitor-tools.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/features/__tests__/features-no-server-imports.boundary.test.ts:1:1
+✖ apps/website/src/features/__tests__/features-no-server-imports.boundary.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/features/admin-parity/__tests__/tools.unit.test.ts:1:1
+✖ apps/website/src/features/admin-parity/__tests__/tools.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at apps/website/src/features/agent-plugins/__tests__/analytics-provider-registry.test.ts:1:1
+✖ apps/website/src/features/agent-plugins/__tests__/analytics-provider-registry.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
