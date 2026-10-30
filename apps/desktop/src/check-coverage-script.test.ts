@@ -172,7 +172,8 @@ test("rootFromArgv defaults to the desktop root and resolves an explicit --root"
 
 test("the real entry pointed at a root with no config fails with exit 1", () => {
   const empty = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cov-empty-"));
-  const child = spawnSync(process.execPath, [SCRIPT, "--root", empty], { encoding: "utf8", timeout: 60_000 });
+  // NODE_NO_WARNINGS: Node < 24.3 prints a type-stripping ExperimentalWarning on stderr, which is not the gate's output.
+  const child = spawnSync(process.execPath, [SCRIPT, "--root", empty], { encoding: "utf8", timeout: 60_000, env: { ...process.env, NODE_NO_WARNINGS: "1" } });
   assert.equal(child.status, 1);
   assert.equal(child.stderr, "check-coverage: FAIL — no coverage-floors.json. This gate cannot pass without one.\n");
 });
