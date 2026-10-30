@@ -52,3 +52,23 @@ packages/agent-plugins typecheck: Done
 packages/integrations typecheck$ tsc -p tsconfig.json --noEmit
 packages/search typecheck$ tsc -p tsconfig.json --noEmit
 packages/search typecheck: Done
+packages/integrations typecheck: Done
+packages/agent-runtime typecheck$ tsc -p tsconfig.json --noEmit
+packages/agent-runtime typecheck: Done
+packages/ui typecheck$ tsc -p tsconfig.json --noEmit
+packages/analytics typecheck$ tsc -p tsconfig.json --noEmit
+packages/analytics typecheck: Done
+packages/ui typecheck: Done
+packages/admin typecheck$ tsc -p tsconfig.json --noEmit
+packages/commerce typecheck$ tsc -p tsconfig.json --noEmit
+packages/diagnostics typecheck$ tsc -p tsconfig.json --noEmit
+packages/commerce typecheck: Done
+packages/diagnostics typecheck: Done
+packages/admin typecheck: Done
+packages/chat typecheck$ tsc -p tsconfig.json --noEmit
+packages/provider-plugins typecheck$ tsc -p tsconfig.json --noEmit
+packages/user-management typecheck$ tsc -p tsconfig.json --noEmit
+packages/provider-plugins typecheck: Done
+packages/user-management typecheck: Done
+packages/chat typecheck: Done
+packages/daemon typecheck$ tsc -p tsconfig.json --noEmit

@@ -1,0 +1,6 @@
+root 2
+tsconfig.json
+tsconfig.live-verify.json
+tsconfig.main.json
+tsconfig.preload.json
+tsconfig.renderer.json
