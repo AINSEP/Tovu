@@ -1,0 +1,1252 @@
+node:internal/modules/cjs/loader:1564
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module 'react'
+Require stack:
+- /home/user/Tovu/apps/site-chat/src/__tests__/react-dom-harness.ts
+    at node:internal/modules/cjs/loader:1564:15
+    at nextResolveSimple (/home/user/Tovu/node_modules/tsx/dist/register-B1c7OH6V.cjs:23:1010)
+    at /home/user/Tovu/node_modules/tsx/dist/register-B1c7OH6V.cjs:22:4512
+    at /home/user/Tovu/node_modules/tsx/dist/register-B1c7OH6V.cjs:22:2830
+    at resolveTsPaths (/home/user/Tovu/node_modules/tsx/dist/register-B1c7OH6V.cjs:23:762)
+    at /home/user/Tovu/node_modules/tsx/dist/register-B1c7OH6V.cjs:23:1203
+    at j._resolveFilename (file:///home/user/Tovu/node_modules/tsx/dist/register-nyXW-TH3.mjs:2:18825)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1118:27)
+    at defaultResolve (node:internal/modules/cjs/loader:1199:20)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/home/user/Tovu/apps/site-chat/src/__tests__/react-dom-harness.ts'
+  ]
+}
+
+Node.js v24.22.0
+✖ apps/site-chat/src/__tests__/SiteAssistantHeader.test.ts (1723.982521ms)
+▶ isPageActionDirective
+  ✔ accepts a well-shaped navigate directive (1.971476ms)
+  ✔ accepts scroll_to and highlight directives (0.416411ms)
+  ✔ rejects a ui_surface directive — no Tier B runtime exists in this bundle (0.208906ms)
+  ✔ rejects navigate missing the auto flag (0.234693ms)
+  ✔ rejects a target missing a required field (0.185134ms)
+  ✔ rejects non-object, null, and unrelated shapes without throwing (0.339139ms)
+✔ isPageActionDirective (5.028946ms)
+▶ isQueuedPageAction (SPEC-046 REQ-2's queued-action boundary)
+  ✔ accepts a bare, well-shaped PageAction — the shape SiteAssistantWidget.tsx actually enqueues (0.586934ms)
+  ✔ rejects a full ClientDirective envelope — that is not what gets enqueued (0.378618ms)
+  ✔ rejects malformed and non-object entries without throwing (a poisoned queue entry, REQ-2) (0.25405ms)
+✔ isQueuedPageAction (SPEC-046 REQ-2's queued-action boundary) (1.466278ms)
+▶ wrong-typed page actions at both trust boundaries
+  ✔ rejects a non-string slug: 5 (0.774047ms)
+  ✔ rejects a non-string slug: {} (0.075925ms)
+  ✔ rejects a non-string slug: null (0.05526ms)
+  ✔ rejects a non-string title: 5 (0.091251ms)
+  ✔ rejects a non-string title: {} (0.059854ms)
+  ✔ rejects a non-string title: null (0.045699ms)
+  ✔ rejects a non-string path: 5 (0.045216ms)
+  ✔ rejects a non-string path: {} (0.044233ms)
+  ✔ rejects a non-string path: null (0.089079ms)
+  ✔ rejects a non-boolean navigate auto flag at both boundaries (0.171955ms)
+✔ wrong-typed page actions at both trust boundaries (1.802794ms)
+▶ extractPageActions
+  ✔ returns [] for undefined events (1.091539ms)
+  ✔ extracts client_directive ext events in order, skipping text/tool events (0.302364ms)
+  ✔ skips an ext event under a different name and a malformed directive payload (0.143958ms)
+✔ extractPageActions (1.749961ms)
+▶ splitPageActions
+  ✔ splits a navigate and a non-navigate action apart (0.248372ms)
+  ✔ navigate is null when no navigate action is present (0.143765ms)
+  ✔ other is null when only a navigate action is present (0.101249ms)
+  ✔ both are null for an empty list (0.143353ms)
+  ✔ takes the FIRST of each kind — at most one navigate, at most one other, per turn (0.123752ms)
+✔ splitPageActions (0.956036ms)
+✔ react: consent controls both the pre-load bubble and the mounted chat container (106.274994ms)
+✔ vanilla: consent controls both the pre-load bubble and the mounted chat container (21.021947ms)
+✔ branding yields to the same consent state at desktop and stacked mobile widths (31.499674ms)
+▶ visitorFacingError
+  ✔ keeps the server's reason and drops its trailing period so the sentence reads once (1.942956ms)
+  ✔ stringifies a non-Error reason (0.308477ms)
+  ✔ falls back to a generic reason when the message is blank (0.220692ms)
+  ✔ maps each browser's fetch network TypeError to one plain reason (0.350135ms)
+  ✔ passes a non-network TypeError's own message through (0.197455ms)
+✔ visitorFacingError (4.925186ms)
+✔ existing vanilla proposal strip click allow=true cannot activate navigation (145.884802ms)
+✔ existing vanilla proposal strip click allow=false cannot activate navigation (18.197441ms)
+✔ expiry, supersession, run teardown and open/close chrome changes clean listeners and focus (23.736001ms)
+✔ a Jini chrome re-render (Escape close, outside-bubble reopen) cannot drop a pending prompt (29.72102ms)
+✔ unmounted or incomplete host markup never creates a second proposal bar (27.894584ms)
+✔ agent-daemon-port exports exactly the documented runtime surface, no more and no less (3.873131ms)
+✔ agent-daemon-port.listAssistantAgents is the owning module's own binding, defined and unwrapped (0.347966ms)
+✔ agent-daemon-port.rescanAssistantAgents is the owning module's own binding, defined and unwrapped (0.146412ms)
+✔ agent-daemon-port.createCustomInstructionsCache is the owning module's own binding, defined and unwrapped (0.09262ms)
+✔ agent-daemon-port.DELEGATED_TOOL_CALLS_PATH is the owning module's own binding, defined and unwrapped (0.093054ms)
+✔ agent-daemon-port.requireAgentDaemonToken is the owning module's own binding, defined and unwrapped (0.077683ms)
+✔ agent-daemon-port.AGENT_DAEMON_EXIT_CODE is the owning module's own binding, defined and unwrapped (0.131416ms)
+✔ agent-daemon-port.FRONTEND_CONTROL_CAPABILITIES is the owning module's own binding, defined and unwrapped (0.086684ms)
+✔ agent-daemon-port.withReadOnlyFrontendCapabilities is the owning module's own binding, defined and unwrapped (0.097593ms)
+✔ agent-daemon-port.attachFederatedMcpTools is the owning module's own binding, defined and unwrapped (0.103873ms)
+✔ agent-daemon-port.createFederationReloadCoordinator is the owning module's own binding, defined and unwrapped (0.076005ms)
+✔ agent-daemon-port.createLiveToolCatalogQuery is the owning module's own binding, defined and unwrapped (0.084357ms)
+✔ agent-daemon-port.buildFederatedRefusalPrefix is the owning module's own binding, defined and unwrapped (0.063687ms)
+✔ agent-daemon-port.withFederatedRefusalDiagnosis is the owning module's own binding, defined and unwrapped (0.069022ms)
+✔ agent-daemon-port.readEnabledExternalMcpConfigs is the owning module's own binding, defined and unwrapped (0.082116ms)
+✔ agent-daemon-port.toResolvedFederatedConnections is the owning module's own binding, defined and unwrapped (0.062402ms)
+✔ agent-daemon-port.createDeviceAuthorizationStore is the owning module's own binding, defined and unwrapped (0.062857ms)
+✔ agent-daemon-port.createExternalMcpConnectionGate is the owning module's own binding, defined and unwrapped (0.053551ms)
+✔ agent-daemon-port.createExternalMcpOAuthService is the owning module's own binding, defined and unwrapped (1.098859ms)
+✔ agent-daemon-port.registerA2uiActionsRoute is the owning module's own binding, defined and unwrapped (0.095957ms)
+✔ agent-daemon-port.registerMcpUiToolCallsRoute is the owning module's own binding, defined and unwrapped (0.081159ms)
+✔ agent-daemon-port.resolveMcpJsonInjection is the owning module's own binding, defined and unwrapped (0.052979ms)
+✔ agent-daemon-port.createOwnedRunListHandler is the owning module's own binding, defined and unwrapped (0.046758ms)
+✔ agent-daemon-port.createRunOwnerRegistry is the owning module's own binding, defined and unwrapped (0.09581ms)
+✔ agent-daemon-port.requireRunOwnership is the owning module's own binding, defined and unwrapped (0.072083ms)
+✔ agent-daemon-port.RUN_PRINCIPAL_HEADER is the owning module's own binding, defined and unwrapped (0.049786ms)
+✔ agent-daemon-port.parseRunStartContextRef is the owning module's own binding, defined and unwrapped (0.046801ms)
+✔ agent-daemon-port.buildPageContextPromptBlock is the owning module's own binding, defined and unwrapped (0.047564ms)
+✔ agent-daemon-port.buildComponentCatalogQuery is the owning module's own binding, defined and unwrapped (0.140694ms)
+✔ agent-daemon-port.chartCatalogManifests is the owning module's own binding, defined and unwrapped (0.060037ms)
+✔ agent-daemon-port.buildToolCatalogQuery is the owning module's own binding, defined and unwrapped (0.056467ms)
+✔ agent-daemon-port.listToolCatalogEntries is the owning module's own binding, defined and unwrapped (0.046511ms)
+✔ agent-daemon-port.withToolAttemptAudit is the owning module's own binding, defined and unwrapped (0.078861ms)
+✔ agent-daemon-port.withToolFailureRecovery is the owning module's own binding, defined and unwrapped (0.044246ms)
+✔ agent-daemon-port.constrainPrincipalToReadOnlyTools is the owning module's own binding, defined and unwrapped (0.044219ms)
+✔ agent-daemon-port.withReadOnlyToolConstraint is the owning module's own binding, defined and unwrapped (0.04248ms)
+✔ agent-daemon-port.createAssistantToolExecutor is the owning module's own binding, defined and unwrapped (0.044803ms)
+✔ agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID is the owning module's own binding, defined and unwrapped (0.054143ms)
+✔ agent-daemon-port.UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID is the owning module's own binding, defined and unwrapped (0.042879ms)
+✔ agent-daemon-port.withToolCatalogAudit is the owning module's own binding, defined and unwrapped (0.040117ms)
+✔ agent-daemon-port.buildAssistantToolRegistrations is the owning module's own binding, defined and unwrapped (0.048115ms)
+✔ agent-daemon-port.askAgentPluginChoice is the owning module's own binding, defined and unwrapped (0.046631ms)
+✔ agent-daemon-port.applyToolApprovalPolicy is the owning module's own binding, defined and unwrapped (0.060154ms)
+✔ agent-daemon-port.createAssistantAgentInventory is the owning module's own binding, defined and unwrapped (0.052791ms)
+✔ agent-daemon-port.attachAssistantToolExtensions is the owning module's own binding, defined and unwrapped (0.04928ms)
+✔ agent-daemon-port.createStoredExternalMcpConnectionSource is the owning module's own binding, defined and unwrapped (0.047419ms)
+✔ agent-daemon-port.buildExternalMcpFederationDeps is the owning module's own binding, defined and unwrapped (0.042588ms)
+✔ agent-daemon-port.onExternalMcpRosterChanged is the owning module's own binding, defined and unwrapped (0.044308ms)
+✔ agent-daemon-port.notifyExternalMcpRosterChanged is the owning module's own binding, defined and unwrapped (0.051241ms)
+✔ agent-daemon-port.agentCarriesOwnMemory is the owning module's own binding, defined and unwrapped (0.050547ms)
+✔ agent-daemon-port.extractSessionRefFromEndEvent is the owning module's own binding, defined and unwrapped (0.047693ms)
+✔ agent-daemon-port.resolveResumeSessionField is the owning module's own binding, defined and unwrapped (0.051931ms)
+✔ agent-daemon-port.shouldClearSessionOnFailedResume is the owning module's own binding, defined and unwrapped (0.041595ms)
+✔ agent-daemon-port.wouldForcedColdStartLoseConversationContext is the owning module's own binding, defined and unwrapped (0.041299ms)
+✔ agent-daemon-port.CONCURRENT_RUN_REFUSAL_MESSAGE is the owning module's own binding, defined and unwrapped (0.053954ms)
+✔ agent-daemon-port.createLiveRunTracker is the owning module's own binding, defined and unwrapped (0.045406ms)
+✔ agent-daemon-port.failRunBeforeStart is the owning module's own binding, defined and unwrapped (0.056934ms)
+✔ agent-daemon-port.STOPPING_RUN_WAIT_MS is the owning module's own binding, defined and unwrapped (0.047493ms)
+✔ agent-daemon-port.waitForStoppingRuns is the owning module's own binding, defined and unwrapped (0.047268ms)
+✔ agent-daemon-port.agentAcceptsHostMintedSessionId is the owning module's own binding, defined and unwrapped (0.049562ms)
+✔ agent-daemon-port.resolveHostMintedSessionId is the owning module's own binding, defined and unwrapped (0.046301ms)
+✔ agent-daemon-port.resolveNewSessionField is the owning module's own binding, defined and unwrapped (0.044277ms)
+✔ agent-daemon-port.createConversationStartLock is the owning module's own binding, defined and unwrapped (0.044714ms)
+✔ agent-daemon-port.readChatPermanentDeletesPolicy is the owning module's own binding, defined and unwrapped (0.075055ms)
+✔ agent-daemon-port.createChatDeleteScope is the owning module's own binding, defined and unwrapped (0.056363ms)
+✔ agent-daemon-port.ALL_CHAT_DELETE_TOOLS is the owning module's own binding, defined and unwrapped (0.047357ms)
+✔ agent-daemon-port.readAssistantCliPermissions is the owning module's own binding, defined and unwrapped (0.049037ms)
+✔ agent-daemon-port.createLostFrontendBindings is the owning module's own binding, defined and unwrapped (0.047672ms)
+✔ agent-daemon-port.withPageNavigateErrorRewrap is the owning module's own binding, defined and unwrapped (0.05837ms)
+✔ agent-daemon-port.delegatedToolErrorDisclosure is the owning module's own binding, defined and unwrapped (0.235587ms)
+✔ agent-daemon-port.createRunActiveContextStore is the owning module's own binding, defined and unwrapped (0.05223ms)
+✔ agent-daemon-port.registerRunActiveContextRoute is the owning module's own binding, defined and unwrapped (0.049694ms)
+✔ agent-daemon-port.createRunScopedCredentials is the owning module's own binding, defined and unwrapped (0.065401ms)
+✔ owned inventories share settings/chat results within one host while two hosts stay isolated (87.524467ms)
+✔ inventory disposal drains a queued background scan before clearing its runtime (26.912403ms)
+✔ an injected def registry's failureHints bridge is projected only for the def that declares it (3.627803ms)
+✔ a non-waiting Rescan returns the retained inventory immediately while the forced scan is pending (10.284149ms)
+✔ with no detector and no test prober, the inventory delegates to the runtime's own detector (38.147886ms)
+✔ search_components defaults to 10 hits, clamps a low limit up to 1 and a high one down to 25 (5.240271ms)
+✔ describe_component returns a known entry and throws for an unknown id (5.654623ms)
+✔ daemon and BYOK pin the same credential-card policy (1.6638ms)
+✔ registers unconditionally — no environment can switch this tool off (4.991284ms)
+✔ returns a text block and a well-formed image block (2.882082ms)
+✔ the image block's data is a real, decodable PNG — not a stub string (15.106884ms)
+✔ two calls produce byte-identical images — the swatch is deterministic, not randomly generated (1.504865ms)
+✔ the catalog entry publishes an empty-object inputSchema — the model must call it with no arguments (0.499878ms)
+✔ the risk classification declares no side effects (1.188732ms)
+✔ reload() before start() never reads the roster and resolves an empty result (2.969518ms)
+[test] mcp-federation: 'x' failed, continuing without its tools — connect timed out after 15000ms
+[test] mcp-federation: boot pass failed, continuing without federated tools — roster read failed
+[test] mcp-federation: boot pass failed, continuing without federated tools — installed-extension registration failed
+[test] mcp-federation: boot pass failed, continuing without federated tools — roster read failed
+✔ start() called twice calls attach exactly once — single-flight and idempotent (12.832768ms)
+✔ start() awaits `after` before calling attach (0.584807ms)
+✔ a reload that admits a new connection calls onAdmitted once and recomputes refusalPrefix() (1.271362ms)
+✔ a no-op reload (nothing new in the roster) never calls onAdmitted (1.018077ms)
+✔ the logger prints the daemon's exact byte-identical line, prefixed with the caller's own log tag (2.873873ms)
+✔ a reload merges its reports onto the boot pass's and never re-admits a boot connection (1.115307ms)
+✔ reload() called while start() is in flight waits for the boot pass before settling (0.508863ms)
+✔ the logger prefixes warnings with the caller's own log tag too (0.87311ms)
+✔ a connect failure at boot is reported by connectFailures(), with reports() left untouched (0.765479ms)
+✔ a reload's own connect failure is merged onto connectFailures() even though nothing was newly admitted (0.468345ms)
+✔ a connection that failed at boot and then admits on a reload is no longer listed in connectFailures() (0.551861ms)
+✔ a boot pass whose resolveConnections() rejects still settles: start() resolves and started becomes true, not stuck false forever (0.354174ms)
+✔ a boot pass whose 'after' rejects also settles rather than leaving started() false forever (0.292801ms)
+✔ a failed boot pass logs the underlying error instead of swallowing it silently (0.399242ms)
+✔ reload() after a failed boot resolves an empty no-op result rather than hanging or throwing (0.291715ms)
+✔ configuredConnectionIds() is undefined before resolveConnections() resolves, then the resolved roster's ids once known (0.339139ms)
+✔ a connection that fails again on every reload is listed once, with its latest reason (0.515265ms)
+✔ a boot pass rejecting with a non-Error value logs that raw value and still settles (0.324365ms)
+✔ no capability reaching createFrontendControl requires confirmation (2.592342ms)
+✔ all seven chat.* verbs are present, including chat.reset_conversation (0.367994ms)
+✔ chat.reset_conversation is present, self-confirmed via inputSchema, and requires no confirmation transport (0.412486ms)
+✔ page.* capabilities are still present alongside the chat verbs (0.182336ms)
+✔ admin.publish_content is registered, a write, session-scoped, and requires no confirmation transport (0.273333ms)
+✔ admin.capture_screenshot is registered, read-only, session-scoped, and states its fidelity limits (0.403369ms)
+✔ createFrontendControl registers exactly the seven chat.* verbs as callable tools, plus page.*, and no confirming tool (0.811632ms)
+✔ only page.find_elements, admin.capture_screenshot and chat.get_state are registered read-only (0.505162ms)
+✔ marking read-only projects domain metadata and keeps each registration's handler and policy (0.405218ms)
+✔ chat.get_state is read-only while chat.send_message is not (0.250251ms)
+✔ real round trip: a browser confirmation click for webhooks_delete_subscription is accepted by the allowlist (134.682425ms)
+✔ SECURITY: a Cancel click for webhooks_delete_subscription also reaches the allowlist and reports the cancellation, not a 403 (17.393035ms)
+✔ comments_trash_comment completes in one call and emits no dialog (3.084163ms)
+✔ SECURITY: a surface callback cannot run comments_trash_comment — the route refuses it with 403 and never reaches the executor (9.257328ms)
+✔ widgets_trash_instance completes in one call and emits no dialog (9.260107ms)
+✔ SECURITY: a surface callback cannot run widgets_trash_instance — the route refuses it with 403 and never reaches the executor (10.695135ms)
+✔ theme_trash_file completes in one call and emits no dialog (8.431699ms)
+✔ SECURITY: a surface callback cannot run theme_trash_file — the route refuses it with 403 and never reaches the executor (12.658078ms)
+✔ redirects_tombstone completes in one call and emits no dialog (5.283388ms)
+✔ SECURITY: a surface callback cannot run redirects_tombstone — the route refuses it with 403 and never reaches the executor (11.807727ms)
+✔ media_trash_asset trashes the asset in one call and emits no dialog (278.062805ms)
+✔ SECURITY: a surface callback cannot run media_trash_asset — the route refuses it with 403 and never reaches the executor (321.995441ms)
+✔ trash_empty: browser callback confirms a parked call; fresh execution and wrong principal are refused (79.847841ms)
+✔ trash_purge_item: browser callback confirms a parked call; fresh execution and wrong principal are refused (23.784197ms)
+✔ media_purge_asset: browser callback confirms a parked call; fresh execution and wrong principal are refused (17.041107ms)
+✔ comments_purge_comment: browser callback confirms a parked call; fresh execution and wrong principal are refused (24.987186ms)
+✔ identity_user_delete: browser callback confirms a parked call; fresh execution and wrong principal are refused (20.506482ms)
+✔ external_mcp_delete: browser callback confirms a parked call; fresh execution and wrong principal are refused (24.64831ms)
+✔ custom_credential_delete: browser callback confirms a parked call; fresh execution and wrong principal are refused (13.235513ms)
+✔ deployment_delete_provider_credential: browser callback confirms a parked call; fresh execution and wrong principal are refused (26.997671ms)
+✔ source_control_delete_credential: browser callback confirms a parked call; fresh execution and wrong principal are refused (15.983065ms)
+✔ content_post_delete allows an answer to its parked policy card (2.056122ms)
+✔ content_post_search is on the allowlist — the real execution path behind the /search composer capability (0.297402ms)
+✔ deployment_execute_static_publish allows an answer to its parked policy card (0.396216ms)
+✔ the two read-only static-publish tools are NOT on the allowlist — neither opens an exchange, so admitting them here would only widen this endpoint's reach for no reason (0.152761ms)
+✔ credential_save redeems the publish-host card; the retired save id cannot redeem (0.312829ms)
+✔ deployment_generate_bucket_hosting_setup is NOT on the allowlist — it is a plain read tool that never opens an exchange (spec §3a) (0.224344ms)
+✔ SECURITY-CRITICAL: an arbitrary tool id is refused, including ones with their own destructive gate (0.18493ms)
+✔ assistant_demo_choices is on the allowlist unconditionally — it performs no token redemption because it has nothing to redeem (0.139708ms)
+✔ assistant_ask_choice is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does, not assistant_demo_choices's carve-out (0.22969ms)
+✔ plugins_uninstall is on the allowlist — it parks on the human's confirm/cancel click the same way media_trash_asset does, for either plugin family (2026-09-16) (0.142767ms)
+✔ agent_plugins_update can answer its parked policy card but cannot start from a surface callback (0.152265ms)
+✔ custom_credential_make_request is on the allowlist — its DELETE method holds up the same held-open-exchange shape content_post_delete does (2026-08-31) (0.13657ms)
+✔ custom_credential_create is on the allowlist — it holds up the same held-open-exchange shape custom_credential_set_token does (2026-09-03) (0.155937ms)
+✔ external_mcp_reauth_prompt is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-02) (0.171063ms)
+✔ external_mcp_save is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-08 dock-recovery product test) (0.194824ms)
+✔ credential_copy_from_project and plugin_source_delete only answer their parked cards — a surface callback cannot start either (0.185129ms)
+✔ custom_credential_write_files runs normally and cannot be executed by a surface callback (0.147775ms)
+✔ SECURITY-CRITICAL: the allowlist is exactly this set — widening it cannot happen silently (1.352452ms)
+✔ file-batch callbacks can only answer parked exchanges, never start fresh writes (1.579269ms)
+✔ SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if it is on that set (0.334069ms)
+✔ security: only an exact plugin-tool id shape may answer a parked exchange; look-alikes are refused (0.35298ms)
+✔ 'save the image at this link into the media library' finds media_import_from_url in the top 3 (41.37366ms)
+✔ 'can you download this picture from the web and add it to our files' finds media_import_from_url in the top 3 (2.88076ms)
+✔ 'I have a URL for an image, put it in the media library' finds media_import_from_url in the top 3 (2.378241ms)
+✔ 'grab that photo from the CDN and store it with our other images' finds media_import_from_url in the top 3 (2.187222ms)
+✔ 'import an image from a remote address' finds media_import_from_url in the top 3 (2.192215ms)
+✔ the incident's own phrasing outranks the two tools the assistant actually reached for and could not use (2.519434ms)
+✔ 'import from url' is not confused with redirects_create or webhooks_create_subscription, the other two URL-shaped tools (2.711933ms)
+✔ asking to GENERATE an image still finds media_generate_asset, not the importer — adding this tool did not cannibalize its sibling (2.63726ms)
+✔ asking to upload bytes still finds media_upload_asset — the importer does not displace it either (3.327157ms)
+✔ media_import_from_url ranks first for operator phrasings against the full registered catalog (470.55987ms)
+✔ plan and execute pulls are reachable through the real catalog and rank in the top three (542.017618ms)
+✔ publishing setup still ranks status first (366.177422ms)
+✔ registers unconditionally — no environment can switch this tool off (2.159909ms)
+✔ the tool description says a drawing may land on the screen's canvas, not only in the chat (0.37021ms)
+✔ returns rendered: true when nothing reports a refusal (17.661357ms)
+✔ a button action during the grace period is not a renderer refusal (2.609388ms)
+✔ returns rendered: false with the real reason when the browser relays a catalog-validation refusal — not a silent false success (6.054878ms)
+✔ with the production grace period, a relayed non-refusal answer settles the call at once as rendered (14.352315ms)
+✔ falls back to a generic detail string when the relayed refusal carries no string error.message (2.5955ms)
+✔ without a live surface channel nothing is opened and the call says why (0.554563ms)
+✔ a component list the A2UI schema refuses is reported as schema-rejected, not drawn (1.873002ms)
+✔ an input without components is treated as an empty list, which the A2UI schema refuses (0.845869ms)
+✔ search finds a tool by an id-term match (39.314456ms)
+✔ search ranks a tool matching more query terms above one matching fewer (2.665709ms)
+✔ search returns an empty array, not an error, for no matches (2.612869ms)
+✔ search respects the limit parameter (2.506317ms)
+✔ search derives 'source' from the id's domain prefix (1.933794ms)
+✔ every hit carries a positive score (1.906496ms)
+✔ describe returns the full entry including inputSchema for a known id (2.197879ms)
+✔ describe returns null, not throws, for an unknown id (1.559406ms)
+✔ describe content_read lists only registered cards and their first authored sentence (5.595598ms)
+✔ a family without registered cards is absent; a card without prose still has a purpose (3.314849ms)
+✔ describe omits inputSchema for a descriptor that declared none (1.411168ms)
+✔ an empty registry seeds an empty, non-throwing catalog (1.362639ms)
+✔ search vocabulary makes a tool findable by a word its authored description never contains (2.569847ms)
+✔ no caller ever sees the folded vocabulary — describe and search both return the AUTHORED description (2.06118ms)
+✔ a descriptor with no description at all seeds an empty string, both with and without keyword folding (2.704051ms)
+✔ an id with no domain prefix (e.g. it starts with the separator) falls back to source 'tovu' (4.542575ms)
+✔ includeDoc2query: false is forwarded through to indexedDescriptionFor, omitting doc2query questions from the index (5.809878ms)
+✔ a tool with no keyword entry is untouched, and the seam can disable folding entirely (3.194ms)
+✔ a freshly reset registry has no contributors (3.223415ms)
+✔ registerToolContributor appends in call order (0.908277ms)
+✔ re-registering the same domain REPLACES the earlier entry in place, not appends — idempotent per catalog instance (0.395449ms)
+✔ installFirstPartyToolContributors is idempotent — calling it twice leaves the registry in the same state as calling it once (21.896709ms)
+✔ installFirstPartyToolContributors installs exactly the converted domains — no more, no fewer (3.693755ms)
+✔ post IS installed by installFirstPartyToolContributors — the final conversion of the 25/25 registry rollout, after an earlier attempt was reverted (see features/post/tool-registrations.ts's own header) (2.569184ms)
+✔ database IS installed by installFirstPartyToolContributors — converted to the registry in a later pass than the test above's comment describes (see features/database/tool-registrations.ts's own header: the `getDriftStatus` edge that closed its 16-module SCC was cut by relocating drift.ts into db/, and check:architecture confirmed 0 cycles with database wired this way) (3.055752ms)
+✔ source-control IS installed by installFirstPartyToolContributors — retried once dual-read.ts's legacy-table imports were injected instead of value-imported (see features/source-control/tool-registrations.ts's own header, and ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md) (2.16323ms)
+✔ deployments IS installed by installFirstPartyToolContributors — retried once vendor-credentials/store.ts's own extractGitHubLogin import was ALSO injected instead of value-imported (see features/deployments/tool-registrations.ts's own header) (2.686937ms)
+✔ static-publish IS installed by installFirstPartyToolContributors — retried and landed together with deployments above (see features/deployments/publish-agent-tools.ts's own header: the two share the same features/deployments module, so check:architecture required converting both together) (2.713625ms)
+✔ themes IS installed by installFirstPartyToolContributors — retried once deployments/static-publish above left assistant without any transitive path into export (see features/theme/tool-registrations.ts's own header for the full trace, including its two prior reverts) (2.493259ms)
+✔ registration order is deterministic across repeated installs, not just stable within one (4.177366ms)
+✔ two registry contributors claiming the same tool id fail buildAssistantToolRegistrations, naming both domains (271.61801ms)
+✔ a registry contributor colliding with a legacy DOMAIN_SLICES id fails the same way — the check does not care which seam registered which side (164.613734ms)
+✔ a real catalog entry from a NOT-installed contributor fails assertRiskMetadataIsWirable — omission is a loud failure, not a silent pass (6.023185ms)
+✔ installing the contributor afterward makes the same id wirable — proving the failure above was about installation state, not something else (5.042505ms)
+✔ core registers no Supabase-specific connect tool — the generic agent_plugin_connect is the only way in (548.839936ms)
+✔ daemon construction statements and the real BYOK root independently build the identical tool-id set (2154.951782ms)
+✔ audit forwards every execute argument, including the cancellation and surface channels (5.798002ms)
+✔ ORDERING GAP: an unknown tool leaves a durable attempt record — Jini writes none at all, because it throws before minting one (3.039135ms)
+✔ the 'requested' row is appended BEFORE the inner executor is called, which is what makes the case above recordable (0.5536ms)
+✔ a denied execution records requested + denied, carrying Jini's executionId (0.434261ms)
+✔ a completed execution records requested + completed and returns the inner result unchanged (1.867205ms)
+✔ every non-throwing result status is recorded under its own phase, so the table can distinguish them (0.885202ms)
+✔ a throwing handler records requested + failed, and the original error still propagates untouched (3.464241ms)
+✔ ADVERSARIAL: a sink that throws on every append cannot break tool execution — audit is observation, not a gate (1.800203ms)
+✔ ADVERSARIAL: a throwing sink on the error path does not mask the tool's own error (0.822571ms)
+✔ REDACTION: detail records the input's key names and array sizes, never any value (0.478892ms)
+✔ REDACTION: a thrown error contributes only its class name, never its message (4.713536ms)
+✔ every row carries the workspace, run, tool and principal needed to attribute it (0.760474ms)
+✔ a truncated output is noted, since the recorded result is then not the whole story (0.39424ms)
+✔ 2026-09-16: a redacted internal failure's row links to its error ID, never its (already redacted) text (0.384962ms)
+✔ distinct executions get distinct attempt ids, so concurrent runs cannot be conflated (0.456581ms)
+✔ resumeConfirmation, cancel and getAuditRecord delegate straight through — Jini keeps its own contract (0.441902ms)
+✔ describeInput handles every shape without throwing, and never returns a value (0.212874ms)
+✔ projected search, approval and callback metadata exactly matches the reviewed baseline (9.100149ms)
+✔ every baseline ID retains its exchange and fresh-callback refusal rules (2.030394ms)
+✔ the production domain registrations carry their projected action policy (659.616433ms)
+✔ permanent-delete baseline pins all 13 opt-in ids and the two forbidden operations (2.296041ms)
+✔ CATALOGS_BY_DOMAIN has an entry for every domain the tool-contribution registry actually has installed — not just the domains this file remembered to add (2.129066ms)
+✔ every wired registration publishes the inputSchema from its catalog entry — the descriptor no longer carries only {id, description} (479.943836ms)
+✔ every content_read card preserves member inputs through published properties or canonical selector aliases (389.751358ms)
+✔ identity_user_create's published schema/description are a real derivation of its catalog entry, not an accidental mismatch — password stripped, dialog suffix appended (258.262795ms)
+✔ requiresConfirmation is still unset on every wired tool — setting it with no ExecutionDelegate would park the execution forever (200.653916ms)
+✔ a rejected 'fields' payload returns the tool's own schema plus an explicit non-retryable instruction, so the model can correct in one turn (217.455693ms)
+✔ the schema-bearing rejection happens for the update-fields tool too, naming that tool's own schema (237.212114ms)
+✔ no rejection message echoes the offending value — a fields payload can carry operator content (328.59605ms)
+✔ a tool result is an explicit model-facing view: workspaceId is dropped, version is kept for the next call's expectedVersion (234.655195ms)
+✔ tombstonedAt appears only when set, so an active type's payload carries no always-null key (438.024298ms)
+✔ content_read.collection_content_type returns every content type as the same model-facing view, regardless of status (292.251769ms)
+✔ content_read.collection_content_type returns an empty list rather than an error when the workspace has none (207.277796ms)
+✔ the returned fields array is a copy — a tool caller cannot mutate domain state through it (186.882374ms)
+✔ the real catalog and this layer's independent classification agree for every wired tool (224.087807ms)
+✔ a catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for a mutating handler fails the build (2.950282ms)
+✔ an unclassified tool id is refused rather than assumed safe — the conservative default is 'refuse' (1.50641ms)
+✔ the mismatch check is symmetric — an over-declared risk fails too, so the two sources must genuinely agree (4.273117ms)
+✔ a tool declaring confirmer-must-equal-own-delegatedBy cannot be wired with a plain handler (1.494574ms)
+✔ the only wired tools carrying a confirmation-requiring actor-class rule are the four that ask the human in chat (204.485812ms)
+✔ collections_execute_cleanup — the one catalog entry that DOES carry the rule — is still not wired (281.789915ms)
+✔ an actorClassRule that does NOT require confirmation is wirable — the guard is specific, not a blanket ban on actor-class rules (3.276657ms)
+✔ deployment_execute_static_publish and deployment_get_static_publish_capabilities are present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it — not merely in the source catalog array (816.706389ms)
+✔ both tools are discoverable through the real search_tools/describe_tool catalog — the actual channel a model uses to find a tool id before calling it (374.688807ms)
+✔ deployment_get_static_publish_capabilities actually executes through the REAL ToolExecutor and returns real per-provider data — presence in the registry is not the same as being callable (675.410224ms)
+✔ search_components and describe_component are present in the REAL ToolRegistry, built the same way agent-daemon-server.ts and byok-tool-surface.ts both build it (342.357499ms)
+✔ both are discoverable through the real search_tools/describe_tool catalog — the ONLY channel a BYOK turn has to reach them (395.29756ms)
+✔ search_components actually executes through the REAL ToolExecutor and returns real manifest hits — the same gate execute_delegated_tool routes through (288.170114ms)
+✔ describe_component executes through the REAL ToolExecutor and returns a known button's manifest (330.616002ms)
+✔ describe_component actually executes and rejects an unknown id with a plain, non-crashing error — presence in the registry is not the same as being callable (263.765981ms)
+✔ assistant_admin_screen_link is wired into the real assistant tool registry, read-only, with no confirmation requirement (216.409125ms)
+✔ plugins_uninstall is present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it, and the deleted agent_plugins_uninstall id is not (715.513056ms)
+✔ plugins_uninstall's Agent Plugin family is discoverable through the real search_tools/describe_tool catalog (478.730427ms)
+✔ plugins_uninstall (family agent-plugin) actually executes through the REAL ToolExecutor and rejects an unknown pluginId as a validation failure, not a crash (403.798945ms)
+✔ publish pull tools are wired with honest risk and the human-confirmed execute contract (900.256934ms)
+✔ root-added load_agent_plugin is discoverable and publishes the shared domain approval contract (609.493688ms)
+✔ exactly the 6 SEO catalog entries are registered — nothing withheld in this domain (34.593358ms)
+✔ every wired SEO registration publishes its catalog entry's inputSchema and description verbatim (12.214257ms)
+✔ requiresConfirmation is unset on every wired SEO tool (4.189072ms)
+✔ the independent risk classification agrees with the catalog for every wired SEO tool (7.63873ms)
+✔ a SEO catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for seo_set_settings fails the build (0.600621ms)
+✔ the ToolPolicy layer is a pass-through 'allow' for every wired SEO registration (1.858491ms)
+✔ seo_get_entry_meta: calls authorize() with 'admin.seo.manage' and the run's principal (8.389767ms)
+✔ seo_get_entry_meta: a denied principal is rejected (2.627363ms)
+✔ seo_analyze_entry: a denied principal is rejected (2.040352ms)
+✔ seo_get_settings: a denied principal is rejected (2.186006ms)
+✔ seo_regenerate_sitemap: a denied principal is rejected (10.899357ms)
+✔ seo_set_entry_overrides: self-enforcing chokepoint — a denied principal is rejected and nothing is written (2.162393ms)
+✔ seo_set_settings: self-enforcing chokepoint — a denied principal is rejected and nothing is written (2.066895ms)
+✔ seo_set_entry_overrides: rejects an unregistered field the same way the chokepoint does, with the schema attached for retry (4.076009ms)
+✔ seo_set_settings: a denied principal naming a video gets the permission error, not the image refusal (7.35638ms)
+✔ seo_set_entry_overrides and seo_set_settings refuse a video as a share image, nothing written (24.466038ms)
+✔ seo_get_entry_meta: an unknown entryId propagates SeoEntryNotFoundError unwrapped (10.160421ms)
+✔ workflow: set entry overrides, get entry meta to confirm the override is reflected, analyze to confirm the score improved (11.788686ms)
+✔ workflow: set site-wide settings, get settings to confirm the patch landed and other fields are untouched (8.999753ms)
+✔ seo_regenerate_sitemap rebuilds the active cache rather than only acknowledging (9.623701ms)
+✔ SEO tools reject invalid settings without writes and clear an override back to the derived title (24.193321ms)
+✔ normalization: real snake_case SEO settings write succeeds; colliding spellings fail (33.584891ms)
+✔ delegated normalization: SEO aliases return model-visible success and persist; collisions leave settings intact (859.708537ms)
+✔ chat-input regression: theme_edit_file deletes exact text with an empty replacement through the gate (46.017133ms)
+✔ theme_edit_file: zero matches is refused, and the file is left untouched (9.809555ms)
+✔ theme_edit_file: an ambiguous match (2+ occurrences) is refused when replaceAll is left false (5.988849ms)
+✔ theme_edit_file: replaceAll changes every occurrence of an ambiguous match (6.298679ms)
+✔ theme_edit_file: a unique match is replaced, leaving the rest of the file byte-identical (7.08993ms)
+✔ theme_edit_file: writing invalid JSON via an edit reports status 'invalid', same as theme_write_file (8.326708ms)
+✔ theme_edit_file: a script (.js) file is editable — content editability has no group-based restriction, matching theme_write_file (10.4502ms)
+✔ theme_edit_file refuses when authorize() denies, and never reads or writes (11.662022ms)
+✔ theme_rename_file: renames an ordinary style file within the same folder (7.128524ms)
+✔ theme_rename_file: renaming to the same name is a no-op, not a NAME_TAKEN collision against itself (4.374548ms)
+✔ theme_rename_file: a required file (theme.json) is refused — renaming it would invalidate the theme (3.549218ms)
+✔ theme_rename_file: a script (.js) file is refused — content is editable but identity is locked (2.789999ms)
+✔ theme_rename_file: an 'other'-group file (.md) is refused (3.039026ms)
+✔ theme_rename_file: changing the extension is refused even for an otherwise-writable file (4.487936ms)
+✔ theme_rename_file: a name that already exists in the folder is refused (checked before the extension rule) (3.520024ms)
+✔ theme_rename_file: a path-shaped name (containing '/') is refused as a shape error, not attempted as a move (4.865704ms)
+✔ theme_rename_file refuses when authorize() denies, and never touches disk (13.404671ms)
+✔ theme_rename_file refreshes the live routeDeps.themes entry, matching theme_write_file's live-state coupling (14.046566ms)
+✔ performThemeFileRename: a destPath that resolves generated-readonly throws -- provably unreachable through the theme_rename_file TOOL (destPath always shares sourcePath's own already-editable directory, per this function's own comment), exercised directly by passing a destPath in a DIFFERENT directory than the tool itself would ever construct (1.864307ms)
+✔ theme_edit_file: an empty replacement deletes the exact match (4.492656ms)
+✔ theme_edit_file: a deletion that would leave the file empty is refused without intent 'delete', and the file is untouched (6.737114ms)
+✔ theme_edit_file: intent 'delete' confirms emptying the whole file (8.392834ms)
+✔ theme_edit_file: the schema documents intent 'delete' and empty-string deletion (8.066241ms)
+✔ theme_reset_file: overwrites a diverged live file with the catalog's original bytes (34.719497ms)
+✔ theme_reset_file: a file already byte-identical to its original is not rewritten, and reports wasModified: false (9.810627ms)
+✔ theme_reset_file: a CRLF-only difference from an LF original counts as modified, and the LF bytes are restored (14.997679ms)
+✔ theme_reset_file: restores a binary original's exact bytes, including bytes that are not valid UTF-8, and the file then compares unmodified (15.565492ms)
+✔ theme_reset_file: a file over the 1 MB text-read limit resets to its exact bytes, and content is null (167.681999ms)
+✔ theme_reset_file: a live file deleted after install is recreated from its original, wasModified: true (5.341207ms)
+✔ theme_reset_file's description states the unmodified-file no-op, and no longer claims there is no modified check (0.465494ms)
+✔ theme_reset_file's search keywords carry modified/changed vocabulary (0.229351ms)
+✔ theme_reset_file: a theme with no stored original at all is refused, and nothing is touched (5.972596ms)
+✔ theme_reset_file: a theme with no site original resets from the package's read-only catalog via packageThemesDir, byte for byte (6.827391ms)
+✔ theme_reset_file: a file the author added after install has no catalog counterpart and is refused (7.503539ms)
+✔ theme_reset_file: a built theme's generated-readonly file is refused outright — no whole-tree revert is offered here (11.017891ms)
+✔ theme_reset_file: a path inside .trash/ is refused — restore it first (3.936041ms)
+✔ theme_reset_file refuses when authorize() denies, and never touches disk (3.514116ms)
+✔ theme_reset_file refuses a ../ escape into a sibling theme's folder, leaving it untouched (4.31246ms)
+✔ theme_reset_file refreshes the live routeDeps.themes entry, matching theme_write_file's live-state coupling (4.593607ms)
+✔ theme_reset_file: a theme whose original is a different layout version refuses theme.json, and the live manifest keeps apiVersion 2 (4.662083ms)
+✔ theme_copy_file: duplicates a file under the next available name, byte-for-byte (48.982315ms)
+✔ theme_copy_file: when 'name-1' is already taken, the collision loop runs again and lands on '-2' (13.602115ms)
+✔ theme_copy_file: a source path that does not exist in the theme is refused (10.411113ms)
+✔ theme_copy_file: a built theme's generated-readonly file is refused (8.407165ms)
+✔ theme_copy_file: a path inside .trash/ is refused — copying a trashed file would be a second, unaudited way out of the trash (4.853922ms)
+✔ theme_copy_file refuses when authorize() denies, and never touches disk (4.49431ms)
+✔ theme_copy_file refuses a ../ escape into a sibling theme's folder, and creates nothing there (7.86678ms)
+✔ theme_copy_file refreshes the live routeDeps.themes entry, and the copy shows up in a subsequent listing (12.095557ms)
+✔ workspace get and list share a card alongside update (62.721211ms)
+✔ workspace_create is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification (15.011427ms)
+✔ workspace_delete is never registered — refused for lack of a DERIVED_RISK_BY_TOOL_ID classification (11.645376ms)
+✔ no tool name across the whole assistant tool set implies a workspace can be created or deleted by an agent (15.090062ms)
+✔ every wired workspace registration publishes its catalog entry's inputSchema and description verbatim (12.222415ms)
+✔ requiresConfirmation is unset on every wired workspace tool (14.863973ms)
+✔ the independent risk classification agrees with the catalog for both wired workspace tools (4.058598ms)
+✔ a workspace catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for update fails the build (0.535083ms)
+✔ the ToolPolicy layer is a pass-through 'allow' for both wired workspace registrations (2.144241ms)
+✔ every wired workspace tool has a known input fixture (1.818555ms)
+✔ content_read.workspace: calls authorize() with 'workspace.manage' and the run's principal (2.150193ms)
+✔ content_read.workspace: a denied principal is rejected and nothing is written (6.570679ms)
+✔ workspace_update: calls authorize() with 'workspace.manage' and the run's principal (1.670459ms)
+✔ workspace_update: a denied principal is rejected and nothing is written (6.098538ms)
+✔ workspace_update: rejects an empty update the same way the domain function does (6.255338ms)
+✔ workspace_update: rejects a slug collision the same way the domain function does (2.556776ms)
+✔ workflow: get the current workspace, rename it, get again to confirm the rename is reflected (10.494364ms)
+[backfill-ranking] "push my site live to my static host" -> rank 1 (top hit: deployment_execute_static_publish), wanted deployment_execute_static_publish
+[backfill-ranking] "can I publish my site yet" -> rank 3 (top hit: publish_content_plan_pull), wanted deployment_get_static_publish_capabilities
+[backfill-ranking] "export my site to static files" -> rank 2 (top hit: deployment_diagnose_static_export), wanted deployment_trigger_export
+[backfill-ranking] "show me the current dockerfile" -> rank 1 (top hit: deployment_get_dockerfile), wanted deployment_get_dockerfile
+[backfill-ranking] "commit my site to github" -> rank 1 (top hit: source_control_execute_commit), wanted source_control_execute_commit
+[backfill-ranking] "is github connected" -> rank 1 (top hit: source_control_get_capabilities), wanted source_control_get_capabilities
+[backfill-ranking] "what backups do we have" -> rank 1 (top hit: content_read.backup_restore_point), wanted content_read.database_restore_point
+[backfill-ranking] "show me the history of database changes" -> rank 1 (top hit: database_query_timeline), wanted database_query_timeline
+[backfill-ranking] "remove this custom role" -> rank 1 (top hit: identity_role_delete), wanted identity_role_delete
+[backfill-ranking] "what access policies exist" -> rank 1 (top hit: content_read.identity_policy), wanted content_read.identity_policy
+[backfill-ranking] "make a new mailing list" -> rank 1 (top hit: newsletter_create_list), wanted newsletter_create_list
+[backfill-ranking] "they never got the confirmation email, send it again" -> rank 1 (top hit: newsletter_resend_confirmation), wanted newsletter_resend_confirmation
+[backfill-ranking] "build me a landing page" -> rank 1 (top hit: pages_write_html), wanted pages_write_html
+[backfill-ranking] "show me the html source of this page" -> rank 1 (top hit: pages_read_html), wanted pages_read_html
+[backfill-ranking] "is there a migration stuck in progress" -> rank 1 (top hit: recovery_get_status), wanted recovery_get_status
+[backfill-ranking] "look up this one redirect rule" -> rank 2 (top hit: redirects_create), wanted content_read.redirect
+[backfill-ranking] "what are our current seo defaults" -> rank 1 (top hit: seo_get_settings), wanted seo_get_settings
+[backfill-ranking] "change my admin theme to dark mode" -> rank 1 (top hit: settings_set_ui_preference), wanted settings_set_ui_preference
+[backfill-ranking] "give me an overview of the whole site" -> rank 1 (top hit: site_get_profile), wanted site_get_profile
+[backfill-ranking] "preview merging two tags together" -> rank 1 (top hit: taxonomy_plan_merge_term), wanted taxonomy_plan_merge_term
+[backfill-ranking] "delete this theme file" -> rank 1 (top hit: theme_trash_file), wanted theme_trash_file
+[backfill-ranking] "put this widget inline in the post body" -> rank 1 (top hit: widgets_insert_embed), wanted widgets_insert_embed
+[backfill-ranking] "create a new custom content type" -> rank 1 (top hit: collections_content_type_define), wanted collections_content_type_define
+[backfill-ranking] "what are our current comment moderation settings" -> rank 1 (top hit: comments_get_settings), wanted comments_get_settings
+[backfill-ranking] "show me a bar chart in the chat" -> rank 1 (top hit: assistant_render_ui), wanted assistant_render_ui
+✔ CRUX: every newly-backfilled tool ranks in the top 3 for a realistic operator phrasing, against the real ~160-tool catalog (1024.685513ms)
+[backfill-ranking] BEFORE (raw id+description) top-3: 10/25 — AFTER (keywords folded in) top-3: 25/25
+✔ the backfill measurably improves top-3 ranking for these cases versus the raw id+description baseline — the causal evidence, not just a high AFTER number in isolation (666.502165ms)
+✔ the production copy phrasing finds sites_duplicate_site in the top three (886.637225ms)
+✔ backfilled ids remain wired except explicitly unwired tools and the merged list alias (433.671357ms)
+✔ asking what is waiting to be published finds the Publish dialog capability in the top 3 (1212.706701ms)
+✔ the added vocabulary does not displace the static-site dry run or the comment queue (758.859348ms)
+✔ folds both keywords and doc2query questions in by default (2.665756ms)
+✔ includeDoc2query: false folds keywords only, omitting the doc2query questions (0.343331ms)
+✔ a tool id with neither keywords nor a doc2query entry is returned unchanged, with no marker appended (0.512503ms)
+✔ an empty description with nothing to fold returns the empty string, not the marker alone (0.117747ms)
+✔ an empty description WITH something to fold returns just the tail, with no leading marker (0.128811ms)
+✔ stripSearchKeywords recovers the exact authored description from a folded string (0.539092ms)
+✔ stripSearchKeywords returns text with no marker unchanged — most tools have no keywords entry at all (0.146549ms)
+✔ admin.capture_screenshot folds visual/screenshot vocabulary an operator would actually type (0.275519ms)
+✔ assistant_ask_choice folds decision/confirmation vocabulary an operator would actually type (0.852898ms)
+✔ listed tools are read-only without hints; an unlisted remote read hint cannot grant descriptor readOnly (9.379463ms)
+✔ a fresh roster admission drops readOnly when the remote contradicts the read list, and ordinary writes run without confirmation (1.467167ms)
+✔ operator read metadata cannot bypass the separate admission allowlist (1.557561ms)
+✔ a reviewed read with a query input runs without a card, while a contradictory read hint removes descriptor readOnly (4.080623ms)
+▶ chat history store [sqlite]
+  ✔ legacy reversed first turn reads question then answer without changing stored positions (84.029664ms)
+  ✔ read repair preserves a later follow-up and request-bound answers (14.748445ms)
+  ✔ equal-clock legacy first turn is repaired without stealing a correctly ordered follow-up (17.759183ms)
+  ✔ create then get and list round-trip every conversation field (3.6637ms)
+  ✔ list is most-recently-updated first and counts messages (14.458666ms)
+  ✔ messages round-trip every stored field, in position order (14.683772ms)
+  ✔ a malformed events column reads as no events, not an error (7.197042ms)
+  ✔ appending an existing id updates it in place at the same position (10.428687ms)
+  ✔ appending bumps the conversation's updatedAt (5.307897ms)
+  ✔ rename: a generated title replaces a fallback one but never a manual one (3.750428ms)
+  ✔ touch bumps updatedAt and, when asked, the expiry (5.606825ms)
+  ✔ delete cascades to messages, agent sessions and tool approvals (5.603237ms)
+  ✔ another owner, workspace or owner kind sees nothing and changes nothing (11.955535ms)
+  ✔ appending an id that lives in another owner's chat never overwrites that row (8.051592ms)
+  ✔ an append inside a rolled-back transaction leaves nothing (4.611664ms)
+  ✔ concurrent appends to one chat get distinct, gap-free positions (22.14177ms)
+✔ chat history store [sqlite] (237.833124ms)
+▶ chat history store [pglite]
+  ✔ legacy reversed first turn reads question then answer without changing stored positions (10664.291958ms)
+  ✔ read repair preserves a later follow-up and request-bound answers (272.353274ms)
+  ✔ equal-clock legacy first turn is repaired without stealing a correctly ordered follow-up (187.933038ms)
+  ✔ create then get and list round-trip every conversation field (26.004634ms)
+  ✔ list is most-recently-updated first and counts messages (161.152692ms)
+  ✔ messages round-trip every stored field, in position order (118.615509ms)
+  ✔ a malformed events column reads as no events, not an error (59.807334ms)
+  ✔ appending an existing id updates it in place at the same position (197.104405ms)
+  ✔ appending bumps the conversation's updatedAt (30.415829ms)
+  ✔ rename: a generated title replaces a fallback one but never a manual one (56.046942ms)
+  ✔ touch bumps updatedAt and, when asked, the expiry (20.737874ms)
+  ✔ delete cascades to messages, agent sessions and tool approvals (39.274081ms)
+  ✔ another owner, workspace or owner kind sees nothing and changes nothing (56.391285ms)
+  ✔ appending an id that lives in another owner's chat never overwrites that row (35.484056ms)
+  ✔ an append inside a rolled-back transaction leaves nothing (37.176861ms)
+  ✔ concurrent appends to one chat get distinct, gap-free positions (126.456561ms)
+✔ chat history store [pglite] (12101.549214ms)
+▶ conversation tool approval store [sqlite]
+  ✔ has is false until granted, then true for the exact fingerprint only (97.479272ms)
+  ✔ native identity lookup survives another chat and revokes with the granting chat (11.777723ms)
+  ✔ every key part scopes the approval (16.783881ms)
+  ✔ a regrant replaces the fingerprint and time in the one row (5.450586ms)
+  ✔ two different tools in one chat retain independent approval rows (20.24522ms)
+  ✔ grant throws for a conversation that does not exist; deleting a chat deletes its approvals (5.052563ms)
+  ✔ a grant inside a rolled-back transaction leaves nothing (3.478012ms)
+  ✔ concurrent grants of one key leave exactly one row (6.652364ms)
+✔ conversation tool approval store [sqlite] (170.09855ms)
+▶ conversation tool approval store [pglite]
+  ✔ has is false until granted, then true for the exact fingerprint only (7816.89861ms)
+  ✔ native identity lookup survives another chat and revokes with the granting chat (63.333248ms)
+  ✔ every key part scopes the approval (51.286586ms)
+  ✔ a regrant replaces the fingerprint and time in the one row (42.314104ms)
+  ✔ two different tools in one chat retain independent approval rows (52.056554ms)
+  ✔ grant throws for a conversation that does not exist; deleting a chat deletes its approvals (35.69647ms)
+  ✔ a grant inside a rolled-back transaction leaves nothing (37.890152ms)
+  ✔ concurrent grants of one key leave exactly one row (60.464408ms)
+✔ conversation tool approval store [pglite] (8173.330117ms)
+▶ site capability registry
+  ▶ default deny
+    ✔ refuses an unknown capability name before executing anything (2.460653ms)
+    ✔ refuses a real capability for a caller class it was not granted to (0.36543ms)
+    ✔ gives the same outcome kind for a nonexistent name and a not-granted caller (0.522519ms)
+  ✔ default deny (4.968595ms)
+  ▶ authorized invocation
+    ✔ executes and returns the capability's result for a granted caller (3.947876ms)
+    ✔ leaves input validation to the capability itself (0.538888ms)
+    ✔ supports the parameterless list_categories capability (0.419153ms)
+  ✔ authorized invocation (5.126346ms)
+  ▶ execution failure
+    ✔ surfaces a thrown error as an error outcome instead of throwing (1.331328ms)
+  ✔ execution failure (1.472672ms)
+  ▶ SPEC-046 REQ-4 — directive passthrough
+    ✔ carries a page-action capability's directive on the ok outcome (0.71562ms)
+    ✔ a read-only capability's ok outcome never carries a directive (0.604039ms)
+    ✔ a refused target produces no directive, even for a page-action capability (0.353077ms)
+  ✔ SPEC-046 REQ-4 — directive passthrough (1.848527ms)
+  ▶ surface parity with the old closed switch
+    ✔ exposes exactly the capabilities the SSE route schemas describe (1.299335ms)
+    ✔ re-exports the same model-facing schemas tools.ts defines (0.193427ms)
+  ✔ surface parity with the old closed switch (1.646704ms)
+✔ site capability registry (16.240636ms)
+✔ init refuses shared Postgres stdin for createInputStdin before reading (2.678907ms)
+✔ init refuses shared Postgres stdin for agentPluginTokensStdin before reading (0.290638ms)
+✔ init none checks before creation and seals after success output (1088.639734ms)
+✔ init tokens checks before creation and seals after success output (983.227225ms)
+✔ init envelope checks before creation and seals after success output (1057.798492ms)
+✔ init empty-envelope checks before creation and seals after success output (1608.68649ms)
+✔ rename forwards folder names and prints the committed paths, including Windows separators (3.244048ms)
+✔ a refused or rolled-back rename emits no success output (1.106664ms)
+✔ validate defaults to the author profile and prints VALID with no finding sections (2.729525ms)
+✔ validate lists errors and warnings, with a path only when the finding has one, and exits 1 when invalid (0.452845ms)
+✔ validate --json prints the raw result; an unknown profile is refused before validating (0.946138ms)
+✔ normalize-build defaults --pages to index.html and summarises moves, rewrites and discards (0.821768ms)
+✔ normalize-build trims the --pages list, omits an empty discard line, and --json prints the raw result (0.489857ms)
+✔ normalize-build refuses a missing stylesheet or an empty page list before touching the folder (0.419349ms)
+✔ normalize-build writes its summary to stdout by default (0.985352ms)
+✔ blank token refused (missing) (2.602401ms)
+✔ blank token refused (0) (0.237557ms)
+✔ blank token refused (4) (0.126458ms)
+✔ normalization changes only the edges, and preserves the entire accepted alphabet (0.570319ms)
+✔ 8192 stored characters accepted, 8193 rejected with the exact limit (0.532518ms)
+✔ plaintext metadata refused (url) (1.713639ms)
+✔ plaintext metadata refused (url) (0.2068ms)
+✔ plaintext metadata refused (url) (0.436402ms)
+✔ plaintext metadata refused (arg) (1.822265ms)
+✔ plaintext metadata refused (arg) (0.599284ms)
+✔ plaintext metadata refused (label) (0.369749ms)
+✔ ordinary labels, URLs and arguments remain usable (0.653174ms)
+✔ server-derived hints hide every character of a short token (15.964997ms)
+✔ new credential copy is translated for every supported admin locale (1.864115ms)
+✔ a listed class rejects with a ToolInputError carrying the coded message (2.395088ms)
+✔ an unlisted error passes through as the identical object (0.407631ms)
+✔ descriptor and policy pass through unchanged; only the handler is wrapped (0.257955ms)
+✔ childProcessCoverageEnv: sets NODE_V8_COVERAGE to exactly the given directory (2.181003ms)
+✔ childProcessCoverageEnv: overrides an ambient NODE_V8_COVERAGE rather than inheriting it (2.214924ms)
+✔ childProcessCoverageEnv: carries the rest of process.env through unchanged (0.626332ms)
+✔ U-001-B1: acquireOperationLock succeeds when no operation is in flight for the site (1.754104ms)
+✔ U-001-B1: a second acquireOperationLock for the same site is rejected while the first is held, regardless of operationKind (0.274421ms)
+✔ U-001-B1: acquireOperationLock for a DIFFERENT site succeeds even while site-1's lock is held (no cross-site interference) (0.291144ms)
+✔ releaseOperationLock frees the site so a subsequent acquireOperationLock for the same site succeeds (0.190667ms)
+✔ releasing a lock for a site with no held lock is a no-op, not an error (idempotent release) (6.019247ms)
+✔ isOperationInFlight (Finding 3 fix, 2026-07-16 re-audit): false for a site with no held lock, true while one is held, false again after release (0.338224ms)
+✔ releasing a stale handle cannot free a newer holder for the same site (1.504225ms)
+✔ currentIso returns the wall clock as round-trippable ISO text (1.755544ms)
+✔ isScheduledAt: only a published record with a future publishAt is scheduled (0.289767ms)
+✔ postDisplayDateIso prefers publishAt and falls back to updatedAt (0.161272ms)
+✔ comparePostsByDisplayDate sorts newest display date first, then ascending id (7.592327ms)
+✔ isLiveAt: published, not trashed and not still scheduled (0.218099ms)
+✔ CIC U-005-B1 (Binding): reverting a post-update change set must NOT call postRepo.findBySlug — a save-path-only side effect that reveals an illegal pass-through via updatePost() instead of a raw PostRepoPort.save() (7.938343ms)
+✔ AC-17: reverting a post-update restores bodyJson/title/slug/status, increments version by 1, and removes newly introduced ext (1.129052ms)
+✔ AC-17: reverting a post-update restores bodyJson/title/slug/status, increments version by 1, and restores historical ext (4.9028ms)
+✔ canary: every marker in every migrated theme file parses, with zero rejections (42.48483ms)
+✔ canary: no theme still carries an attribute from the retired vocabularies (11.109361ms)
+✔ canary: the nav partial marker carries type, id, and its current-page key (0.711553ms)
+✔ canary: the footer variant survived as a config key, not a lost attribute (0.462951ms)
+✔ canary: the docs sidebar keeps its tree variant AND its authored fallback content (0.797647ms)
+✔ canary: the real theme's content-slot marker carries no id, and a real id can be added without breaking the JSON (0.716583ms)
+✔ canary: other authored attributes on a marker element are preserved verbatim (0.582888ms)
+✔ canary: malformed config is REJECTED, never silently treated as an empty marker (0.60478ms)
+✔ canary: occurrence numbering is stable and 1-based, for entry_refs locators (0.65303ms)
+✔ html-entry-refs consistency fixture #0: every (type, id) the extractor indexes, the scanner also reports (17.311401ms)
+✔ html-entry-refs consistency fixture #1: every (type, id) the extractor indexes, the scanner also reports (0.663874ms)
+✔ html-entry-refs consistency fixture #2: every (type, id) the extractor indexes, the scanner also reports (0.373003ms)
+✔ html-entry-refs consistency fixture #3: every (type, id) the extractor indexes, the scanner also reports (0.322209ms)
+✔ html-entry-refs consistency fixture #4: every (type, id) the extractor indexes, the scanner also reports (0.250862ms)
+✔ html-entry-refs consistency fixture #5: every (type, id) the extractor indexes, the scanner also reports (0.221269ms)
+✔ html-entry-refs consistency fixture #6: every (type, id) the extractor indexes, the scanner also reports (0.141268ms)
+✔ html-entry-refs consistency fixture #7: every (type, id) the extractor indexes, the scanner also reports (7.07324ms)
+✔ html-entry-refs consistency fixture #8: every (type, id) the extractor indexes, the scanner also reports (0.372758ms)
+✔ html-entry-refs consistency fixture #9: every (type, id) the extractor indexes, the scanner also reports (0.147387ms)
+✔ html-entry-refs consistency fixture #10: every (type, id) the extractor indexes, the scanner also reports (0.188245ms)
+✔ html-entry-refs consistency: a media embed is indexed with targetKind "asset" (2026-08-07 §4) — never "entry", since a media asset lives in a different storage domain than the generic entries graph (0.554759ms)
+✔ html-entry-refs consistency: an unregistered/future embed type is scanned but not indexed, with neither side needing a code change to tolerate it (0.251405ms)
+✔ html-entry-refs consistency: DISCLOSED GAP — a slug-only "widget" marker (no id key) is scanned by scanHtmlEmbeds but produces NO entry_refs row, unlike an equivalent id-only marker (0.313104ms)
+✔ html-entry-refs consistency: a marker neither side can parse is dropped by BOTH, so they stay in step even on failure (0.847162ms)
+✔ a newly enqueued event cannot start another drain while the current delivery is in flight (28.19893ms)
+✔ an idle drainer does not keep its otherwise finished process alive (622.426675ms)
+✔ every event other than a form delivery keeps the outbox defaults (1.667415ms)
+✔ form deliveries get the outgoing-webhook cap of 8 attempts and its backoff curve (0.933622ms)
+✔ a form delivery's retryAfterMs lengthens the wait but never shortens the host backoff (0.421733ms)
+✔ only an explicit non-retryable delivery error stops form-delivery retries (0.269405ms)
+✔ processOutbox seals a form delivery at once when its error is not retryable (3.521618ms)
+✔ processOutbox schedules a retryable form-delivery failure on the webhook backoff, not the 15 s default (0.86452ms)
+✔ the background drainer applies the same table: a non-retryable form delivery is attempted once (13.489788ms)
+✔ AC-23 / REQ-16: the populated reference carries the composite (actorWorkspaceId, actorId) pair exactly as given, for a direct (non-delegated) user action (3.430232ms)
+✔ AC-23 / REQ-16: an agent-delegated action additionally carries (delegatedByWorkspaceId, delegatedById) identifying the delegator (0.255668ms)
+✔ REQ-16: an api_key action acting for its owning user carries the owning user as (delegatedByWorkspaceId, delegatedById) — symmetric with the agent case (0.19109ms)
+✔ AC-24 / REQ-17: the returned reference is a plain value object with no DB-level FK metadata — population is a pure, side-effect-free helper (1.079089ms)
+✔ INV-06: a composite actor-identity pair whose workspace does not match the referencing row's workspace is rejected (0.579808ms)
+✔ INV-06: a mismatched delegator workspace is also rejected, independent of the actor's own workspace matching (0.219658ms)
+✔ grants every permission to exactly the resolved owner principal (2.48621ms)
+✔ denies a non-owner principal, even a workspace-scoped admin holding the same permission string (0.222655ms)
+✔ is agnostic to the requested permission string — the owner is granted, and a non-owner is denied, regardless of which permission is asked for (0.540662ms)
+✔ resolves ownerPrincipalId fresh on every call, matching identity.ownerPrincipalId's fire-and-forget promise shape (0.219378ms)
+✔ buildGatewayDeps passes clock/idGen/authorize through unchanged and attaches a fresh, empty token store (0.401365ms)
+✔ buildGatewayDeps passes authorizeInstance through when supplied (0.220141ms)
+✔ buildGatewayDeps builds an independent token store per call (0.443563ms)
+✔ planHashOf is a deterministic sha256 hex digest of the JSON-stable details object (3.907617ms)
+✔ planHashOf produces the same hash for the same details object called twice (re-derivation for PLAN_STALE checks) (0.714932ms)
+✔ planHashOf produces a different hash when the details object differs (0.489424ms)
+✔ resolveActorClassIdentity returns principalId unconditionally, regardless of principalKind (0.161142ms)
+✔ buildConfirmOnlyHooks passes domain/permissions/scopeId through and defaults scopeKind to undefined (0.50266ms)
+✔ buildConfirmOnlyHooks passes scopeKind through when supplied (0.187384ms)
+✔ buildConfirmOnlyHooks's computePlan throws a tripwire error if gateway.ts ever calls it (1.272004ms)
+✔ buildConfirmOnlyHooks's executeMutation throws a tripwire error if gateway.ts ever calls it (0.227364ms)
+✔ an absent owner fails closed even when the caller identity is also absent (0.392487ms)
+✔ a changed owner promise is resolved on the next authorization call (0.200042ms)
+✔ AC-02 / U-002-B1: stampWatermark rejects when called outside an open transaction (1.746894ms)
+✔ behavior.spec.md §4: watermark per-transaction increment limit is exactly 1 per stampWatermark call (0.343354ms)
+✔ stampWatermark rejects a closed non-null transaction before incrementing (0.223755ms)
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+[agent-plugins] 'operator-plugin': plugins_uninstall (family agent-plugin) refused — agent-plugin activation: could not take the write lock (/tmp/tovu-agent-plugin-uninstall-busy-test-qyP4ig/ws/88888888-8888-4888-8888-888888888888/activations.json.lock) within 15s — held by pid 9301 on otherhost since 2026-10-30T00:42:26.321Z. Nothing was written, so no recorded enable/disable decision was changed. This clears by itself when the other host process (server, agent daemon, or the agent-plugin:activation CLI) finishes; a lock left by a crashed process is removed automatically once that process is gone or the lock is older than 10s. If it persists, stop every host process for this workspace and delete /tmp/tovu-agent-plugin-uninstall-busy-test-qyP4ig/ws/88888888-8888-4888-8888-888888888888/activations.json.lock.
+✔ t91 R2: a lock already busy before the call still raises the confirmation dialog — preview takes no lock — and only refuses the actual delete on confirm (206.345136ms)
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+[agent-plugins] 'operator-plugin': plugins_uninstall (family agent-plugin) refused — agent-plugin activation: could not take the write lock (/tmp/tovu-agent-plugin-uninstall-busy-test-6SyIJE/ws/88888888-8888-4888-8888-888888888888/activations.json.lock) within 15s — held by pid 9302 on otherhost since 2026-10-30T00:42:26.459Z. Nothing was written, so no recorded enable/disable decision was changed. This clears by itself when the other host process (server, agent daemon, or the agent-plugin:activation CLI) finishes; a lock left by a crashed process is removed automatically once that process is gone or the lock is older than 10s. If it persists, stop every host process for this workspace and delete /tmp/tovu-agent-plugin-uninstall-busy-test-6SyIJE/ws/88888888-8888-4888-8888-888888888888/activations.json.lock.
+✔ t91 R2: a lock that goes busy while the dialog is open removes nothing on confirm, and the package survives (149.773183ms)
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+[agent-plugins] 'operator-plugin': plugins_uninstall (family agent-plugin) refused — exclusive file lock timed out after 15000ms
+✔ Layout B: a busy per-plugin state lock on confirm is a not-removed RESULT (plugin-busy), never an opaque thrown error, and the package survives (68.592776ms)
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+✔ an unexpected failure of the confirmed delete propagates unchanged instead of being relabelled as bad input (33.326926ms)
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+✔ a run aborted while the human was confirming removes nothing and reports the uninstall as abandoned (56.067749ms)
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+✔ a run aborted during the post-confirmation permission re-check removes nothing and reports it abandoned (22.004138ms)
+✔ withAgentPluginStateLock runs the critical section under a per-plugin lock and returns its result (64.471634ms)
+✔ withAgentPluginStateLock refuses a plugin id that is not a safe path segment before locking (11.974652ms)
+✔ a legacy package whose manifest is not a valid Agent Plugin manifest is quarantined, not migrated (87.926897ms)
+✔ appendPluginNotes returns the guidance untouched when the plugin has no notes, and JSON-quotes them when it does (46.946947ms)
+✔ B1: setAgentPluginActivation maps a lock timeout to AgentPluginActivationsBusyError, writing nothing (150.578396ms)
+✔ B2: recordBundledAgentPluginIfAbsent maps a lock timeout to AgentPluginActivationsBusyError, writing nothing (16.586833ms)
+✔ B3: deleteAgentPluginActivation maps a lock timeout to AgentPluginActivationsBusyError, writing nothing (14.775433ms)
+✔ B4: assertAgentPluginActivationsWritable maps a lock timeout to AgentPluginActivationsBusyError (17.621659ms)
+✔ B5: a lock LOST right before the rename maps to AgentPluginActivationsBusyError with lost:true, and leaves no temp file (56.541134ms)
+[agent-plugins:migration-complete] /tmp/tovu-seed-lock-busy-fJDOLt/sites/tovu-dev/agent-plugins/ws/44444444-4444-4444-8444-444444444444
+✔ B6: a busy pre-flight fails every bundled plugin with a reason naming the write lock, installing nothing (134.187232ms)
+✔ B7: a REAL lock combined with a corrupt file rejects AgentPluginActivationsUnreadableError, not Busy — non-lock errors are not remapped (29.789021ms)
+✔ after the first OAuth callback, a plugin-provisioned row with empty lists is enabled with the declared tools (75.770179ms)
+✔ T21: OAuth sign-in respects an operator's explicit plugin-off decision (320.959636ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+✔ OAuth callback composes installed defaults with real plugin activation storage (164.756324ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+✔ an operator turning the plugin OFF after the off-check but before the enable keeps it off and grants nothing (51.190714ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+[external-mcp] 'supabase': post-connect step failed: 'supabase' is part of the 'acme-provider' plugin and turns on and off with it. Switch 'acme-provider' instead: Add-Ons → Plugins, or plugins_set_enabled with family 'site-runtime' and pluginId 'acme-provider'.
+✔ a sign-in never switches on a provider plugin's linked face (its provider's switch decides), and grants nothing (33.068205ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+[external-mcp] 'supabase': post-connect step failed: Plugin 'supabase' is not compatible with this host's Agent Plugin contract.
+✔ a sign-in never switches on a plugin this host is incompatible with, and grants nothing (35.964229ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+[external-mcp] 'supabase': post-connect step failed: Plugin 'supabase' is not compatible with this host's Agent Plugin contract.
+✔ an incompatible plugin whose activation is absent gets no grants from a sign-in, and its record is untouched (32.196104ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+✔ a compatible plugin whose activation is absent gets its grants, and its record is not rewritten (41.602943ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+[external-mcp] 'supabase': post-connect step failed: Plugin 'supabase' is not compatible with this host's Agent Plugin contract.
+✔ an incompatible plugin whose activation is operator-on gets no grants from a sign-in, and its record is untouched (48.270584ms)
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+Plugin 'supabase' has no publisher-qualified id; using 'unknown/supabase'.
+[external-mcp] 'supabase': post-connect step failed: activation store unwritable
+✔ a compatible plugin whose activation is operator-on gets its grants, and its record is not rewritten (84.715075ms)
+✔ a row the operator already edited is untouched by a sign-in (3.671314ms)
+✔ an operator's own row (no provisioning plugin) is untouched by a sign-in (4.787594ms)
+✔ a provisioned row whose url no longer matches the plugin's declaration is untouched (2.654451ms)
+✔ a second sign-in after the defaults applied changes nothing further (6.114993ms)
+✔ a failing post-connect step never fails the sign-in, and leaves the row for the next sign-in to retry (3.374281ms)
+✔ explicit skill and supporting-file pointers name Tovu’s registered loader (1.266866ms)
+Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+Plugin 'unrelated' has no publisher-qualified id; using 'unknown/unrelated'.
+Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+Plugin 'unrelated' has no publisher-qualified id; using 'unknown/unrelated'.
+Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+Plugin 'unrelated' has no publisher-qualified id; using 'unknown/unrelated'.
+Plugin 'requested' has no publisher-qualified id; using 'unknown/requested'.
+Plugin 'unrelated' has no publisher-qualified id; using 'unknown/unrelated'.
+✔ MCP resolution keeps each workspace's bundled declaration despite competing digests and plugins (389.102064ms)
+✔ deriveAgentPluginConnectionId sanitizes the server key verbatim, without hashing or namespacing by plugin (0.823073ms)
+✔ deriveAgentPluginConnectionId matches the trust tier's own CONNECTION_ID_PATTERN (0.357898ms)
+✔ deriveAgentPluginConnectionId returns null when the key sanitizes to nothing usable (0.121118ms)
+✔ deriveAgentPluginConnectionId truncates to 40 characters and stays a valid id (0.228114ms)
+✔ planAgentPluginMcpFederation: a stdio server is skipped, never planned for upsert (0.43073ms)
+✔ planAgentPluginMcpFederation: a remote streamable-http server is planned, authMode defaults to 'none' (0.192998ms)
+✔ planAgentPluginMcpFederation: tovuAuthMode: 'oauth' on the server carries through to authMode (0.131409ms)
+✔ planAgentPluginMcpFederation: an sse server is skipped as an unsupported transport, not silently dropped (0.167821ms)
+✔ planAgentPluginMcpFederation: a remote server declaring headers is skipped as unsupported, never planned with its headers dropped (0.964899ms)
+✔ provisionAgentPluginMcpServers: a remote server declaring headers produces no row rather than one silently missing them (1.093021ms)
+✔ planAgentPluginMcpFederation: a mixed set resolves each server independently (0.354894ms)
+✔ provisionAgentPluginMcpServers: enabling a plugin with one auto-admitted remote server creates a real, DISABLED row (4.945819ms)
+✔ provisionAgentPluginMcpServers: an oauth-mode server is saved with authMode oauth and an authorization_code grant (1.242526ms)
+✔ provisionAgentPluginMcpServers: stdio and sse servers never produce a row even when enabling (0.239788ms)
+✔ provisionAgentPluginMcpServers: the SAME plugin enabling twice reports alreadyProvisioned, not a second row or an adoption (1.462886ms)
+✔ provisionAgentPluginMcpServers: the SAME plugin's untouched row is re-provisioned at the plugin's NEW url, dropping its old sign-in state (2.100608ms)
+✔ provisionAgentPluginMcpServers: a disabled row holding a saved access token is kept when the plugin declares token sign-in (8.250768ms)
+✔ T15: re-enabling preserves an operator-edited disabled connection and its OAuth tokens (3.030438ms)
+✔ provisionAgentPluginMcpServers: the SAME plugin's row at an old url is left alone once it is enabled or has tools granted (1.560525ms)
+✔ provisionAgentPluginMcpServers: an operator's pre-existing row with a live allowlist, write grants and OAuth tokens survives enabling completely untouched — only provisionedByPluginId changes (3.675074ms)
+✔ provisionAgentPluginMcpServers: two different plugins declaring the same server key share one row via adoption, not two independent rows (0.694724ms)
+✔ provisionAgentPluginMcpServers: a different plugin declaring the same server key at a DIFFERENT endpoint is refused, never adopted or rebound (6.781217ms)
+✔ provisionAgentPluginMcpServers: a per-server existence-read rejection is reported and does not abort the remaining servers (1.211589ms)
+✔ provisioning reports created, recognized, adopted, refused, and failed servers independently (2.88763ms)
+✔ provisioning isolates adoption write failure (object) and continues (1.180221ms)
+✔ provisioning isolates adoption write failure (string) and continues (0.933685ms)
+✔ planAgentPluginMcpFederation: a remote server the trust rule does not auto-admit is skipped, never planned (0.396522ms)
+✔ planAgentPluginMcpFederation: a server key with no usable characters is skipped with a reason (0.142166ms)
+Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+✔ resolveAgentPluginMcpServers bundledOnly: only the exact build-seeded digest supplies servers (103.564319ms)
+Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+Plugin 'widget' has no publisher-qualified id; using 'unknown/widget'.
+✔ resolveAgentPluginReadOnlyRemoteNames: a bundled plugin's reviewed read names for its exact endpoint; nothing otherwise (58.634726ms)
+✔ findAgentPluginMcpServerDefaults matches stored identity and exact endpoint only (0.548324ms)
+✔ isEmptyJsonList treats null, blank, non-array and unreadable lists as empty (0.251352ms)
+✔ provisionAgentPluginMcpServers: a refused rebind of a plugin-owned row with no stored url names an empty url (0.845945ms)
+✔ agent_plugins_update: catalog and risk match the install tool; approval always asks (8.313024ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ agent_plugins_update: without a human confirmation an enabled plugin is not updated (297.850491ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ agent_plugins_update: a newer zip updates the plugin, keeps it enabled, and snapshots settings through the host owner (94.01802ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ agent_plugins_update: the installed bytes again report nothing changed (38.341312ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ agent_plugins_update: lifecycle refusals reach the model as input errors carrying the code (51.73443ms)
+✔ agent_plugins_update: malformed targets are input errors before any file is read (8.260507ms)
+✔ agent_plugins_update: a bundled source kind is refused like any non-archive source (2.508252ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ agent_plugins_update: a host without MCP effects or a settings snapshot owner fails as a wiring error, changing nothing (88.5162ms)
+✔ agent_plugins_update: permission is checked before the target (1.010818ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ agent_plugins_update: a version-less package updates through the host's identity admission and reports no version (91.455788ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ update: an enabled plugin moves to the newer package, stays enabled, keeps memory, re-provisions MCP and snapshots settings (767.589158ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ update: a disabled plugin stays disabled after its update (254.069568ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ update: the same bytes are a no-op that changes nothing (104.429494ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ update: a stale expectedOldDigest is PLUGIN_CHANGED and the installed revision stays (191.597414ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ update: a downgrade is refused and the installed revision stays (302.109621ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ update: a bundled plugin is refused (PLUGIN_BUNDLED) and its state is untouched (76.761002ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ update: an enabled plugin cannot move to a package this host cannot run (169.189517ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ update: another plugin's package is PLUGIN_ID_MISMATCH before any settings are snapshotted (40.073787ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ update: a host that did not bind the settings snapshot owner refuses with a wiring error, changing nothing (26.089002ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ update: runs under the plugin host's identity admission when one is bound (397.802075ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ replace (install path): a downgrade is refused too, and the installed revision stays (507.676212ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ replace (preview): a downgrade is refused before the operator is offered the install (257.983181ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ replace (preview): a newer version previews with the version it upgrades from (109.918079ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ boot recovery: Tovu's lifecycle binding exposes the owner's update reconciliation, a no-op with nothing to recover (45.180844ms)
+✔ isAgentPluginName (Jini's grammar, which the update route and tool check ids against): capped at 64 characters (0.4902ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ install: an ordinary install or replacement is refused while an update journal is unfinished, so boot recovery never restores beside it (80.704997ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes': the previous revision is back but its MCP servers could not be re-provisioned; it stays off until an operator enables it.
+✔ update: a host without MCP effects is refused as a wiring fault and the old package stays live and OFF (362.692227ms)
+✔ defaults to sites/<DEFAULT_SITE_NAME>/agent-plugins under the given cwd (15.860191ms)
+✔ the default root follows TOVU_SITE, so a second local site gets its own plugin tree (5.982494ms)
+✔ the default root follows TOVU_SITE_DIR — a site mounted outside the checkout keeps its plugins (0.203888ms)
+✔ TOVU_AGENT_PLUGINS_DIR overrides the default root (0.225712ms)
+✔ a relative TOVU_AGENT_PLUGINS_DIR is rejected (0.632838ms)
+✔ forWorkspace roots packages, data, and staging entirely under ws/<workspaceId> -- no shared path (9.03093ms)
+✔ two workspaces resolve to entirely disjoint trees -- neither path is a prefix of the other's sibling content (3.693341ms)
+✔ pluginDataDir joins the plugin id under this workspace's own data root (2.711635ms)
+✔ pluginDataDir rejects a plugin id that isn't a valid Agent Plugin name (2.523924ms)
+✔ forWorkspace rejects a workspace id that could escape its own path segment (2.626763ms)
+✔ forWorkspace accepts this instance's real, non-UUID workspace id (2.639611ms)
+✔ forWorkspace still normalizes an uppercase id to a lowercase path segment (2.771326ms)
+✔ forWorkspace rejects every shape that could escape or split the path segment (9.781356ms)
+✔ pluginRootDir, pluginPackagesDir and pluginMemoryDir refuse an id that could escape the workspace tree (8.889757ms)
+✔ pluginMemoryDir resolves only the learned/notes kinds and refuses any other kind (2.593034ms)
+✔ with no arguments the layout is wired to the real process cwd and environment (18.012178ms)
+✔ agent_plugin_deploy is Fly's own registration under the old name: same handler, same gate (2.714525ms)
+✔ a still-installed deploy package keeps its own agent_plugin_deploy, in either order, and nothing throws (0.364073ms)
+✔ no Fly tool (Fly off or not installed): no alias (0.173734ms)
+✔ Cloudflare Pages legacy tool aliases the successor handler and activation/digest gate (0.179949ms)
+✔ Cloudflare alias never overrides a retained old package; disabled successor has no alias (0.336802ms)
+✔ a successor registered without a description still yields a clean former-name description (0.181112ms)
+✔ limit truncates the result set to the requested size (4.152954ms)
+✔ every field of the source candidate is carried through onto the match, plus a score (0.634094ms)
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+✔ the seeder's default 'off' is switched on with the row, and only then reported on (379.536885ms)
+✔ an operator's own 'off' is kept and reported (21.945202ms)
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+✔ an operator disable during connection setup is reported even when activations become read-only (55.632826ms)
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+✔ no activation record reads as on and writes nothing (34.264397ms)
+[agent-plugins:migration-complete] /tmp/tovu-switch-on-1JcSNa/ws/ws-switch-on
+✔ the production fallback enables an untouched saved-token row with the installed plugin's declared grants (2701.561588ms)
+✔ a connection row an operator left disabled is reported as off, and the plugin is never switched on (17.985516ms)
+✔ a missing connection row is reported as off (4.57984ms)
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+✔ a plugin an operator already switched on stays on without a write (47.606355ms)
+✔ injected activation ports decide the outcome: an operator-off check short-circuits, a refused switch-on is off (7.609459ms)
+✔ describeSavedTokenSwitch names the screen that turns each kind of 'off' back on (0.509606ms)
+✔ refuses an unknown plugin id with AgentPluginNotFoundError (107.812898ms)
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ refuses a bundled plugin with AgentPluginNotUninstallableError, naming the disable alternative — and removes nothing (163.048531ms)
+Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+✔ t91 R4: a non-object entry for the plugin refuses preview AND uninstall — nothing removed, file bytes unchanged (69.777357ms)
+Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+✔ t91 R4: an entry with a non-boolean 'enabled' for the plugin refuses preview AND uninstall — nothing removed, file bytes unchanged (45.902958ms)
+Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+Plugin 'op-plugin' has no publisher-qualified id; using 'unknown/op-plugin'.
+✔ t91 R4: a malformed entry for a DIFFERENT plugin does not block uninstalling this one, and survives the delete (41.382262ms)
+Plugin 'my-custom-plugin' has no publisher-qualified id; using 'unknown/my-custom-plugin'.
+Plugin 'my-custom-plugin' has no publisher-qualified id; using 'unknown/my-custom-plugin'.
+✔ uninstalls an operator-installed plugin: removes the package root and deletes (not tombstones) its activation record (125.194099ms)
+Plugin 'never-toggled' has no publisher-qualified id; using 'unknown/never-toggled'.
+Plugin 'never-toggled' has no publisher-qualified id; using 'unknown/never-toggled'.
+✔ uninstalls an operator-installed plugin that was NEVER explicitly toggled (no activation record at all) (36.165577ms)
+Plugin 'frozen-check' has no publisher-qualified id; using 'unknown/frozen-check'.
+Plugin 'frozen-check' has no publisher-qualified id; using 'unknown/frozen-check'.
+✔ removing a frozen (read-only, 0o555) published package root does not throw EACCES (102.264738ms)
+﹣ a failed uninstall puts every staged package tree back — no digest is left half-deleted (1.405449ms) # running as root: a 0o555 directory does not deny root a write, so the failure cannot be forced here
+Plugin 'shared-name' has no publisher-qualified id; using 'unknown/shared-name'.
+Plugin 'shared-name' has no publisher-qualified id; using 'unknown/shared-name'.
+Plugin 'shared-name' has no publisher-qualified id; using 'unknown/shared-name'.
+✔ TENANT ISOLATION: uninstalling in one workspace never touches another workspace's own copy of the same plugin id (103.572569ms)
+Plugin 'preview-me' has no publisher-qualified id; using 'unknown/preview-me'.
+Plugin 'preview-me' has no publisher-qualified id; using 'unknown/preview-me'.
+✔ previewAgentPluginUninstall names what would be removed — id, versions, digests — without removing anything or carrying a host path (55.869826ms)
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ previewAgentPluginUninstall refuses exactly what uninstallAgentPlugin refuses — an unknown id and a bundled plugin (114.126271ms)
+Plugin 'changed-plugin' has no publisher-qualified id; using 'unknown/changed-plugin'.
+Plugin 'changed-plugin' has no publisher-qualified id; using 'unknown/changed-plugin'.
+Plugin 'changed-plugin' has no publisher-qualified id; using 'unknown/changed-plugin'.
+Plugin 'changed-plugin' has no publisher-qualified id; using 'unknown/changed-plugin'.
+✔ a confirmed preview refuses — removing nothing — when an archive for the same id was installed after it was taken (222.37739ms)
+Plugin 'shrunk-plugin' has no publisher-qualified id; using 'unknown/shrunk-plugin'.
+Plugin 'shrunk-plugin' has no publisher-qualified id; using 'unknown/shrunk-plugin'.
+Plugin 'shrunk-plugin' has no publisher-qualified id; using 'unknown/shrunk-plugin'.
+Plugin 'shrunk-plugin' has no publisher-qualified id; using 'unknown/shrunk-plugin'.
+Plugin 'shrunk-plugin' has no publisher-qualified id; using 'unknown/shrunk-plugin'.
+✔ a confirmed preview refuses when one of its previewed archives was removed before the answer (235.870487ms)
+Plugin 'unchanged-plugin' has no publisher-qualified id; using 'unknown/unchanged-plugin'.
+Plugin 'unchanged-plugin' has no publisher-qualified id; using 'unknown/unchanged-plugin'.
+Plugin 'unchanged-plugin' has no publisher-qualified id; using 'unknown/unchanged-plugin'.
+✔ an unchanged confirmed preview uninstalls normally (113.695686ms)
+✔ the vitest compat matchers fail wrong assertions and pass right ones (12.242859ms)
+✔ compat mocks retain exact arguments, resolve configured values and clear calls (1.246663ms)
+✔ compat timers fire at the deadline and globals restore to their original value (19.975215ms)
+✔ the network guard fails teardown even when the forbidden fetch rejection is caught (517.782994ms)
+✔ compat value and error matchers accept the right value and reject the wrong one (6.618553ms)
+✔ list (F11): own bindings with the connection id (never the ref) and form slugs; a stored binding without formIds is listed as allForms: true (4.557701ms)
+✔ list: a form id whose form is gone is left out of the slugs (0.560672ms)
+✔ T7: re-saving a binding preserves its temporarily hidden trashed form ids (1.199178ms)
+✔ security: list leaves out another adapter's binding and a binding on another plugin's connection (0.347621ms)
+✔ security: a scope in another workspace owns nothing and reads no binding (0.292407ms)
+✔ security: list without a signed-in admin is refused (admin-required) (0.475982ms)
+✔ save: a new binding gets a host id, the plugin's own ref and form row ids, is appended, and is written as the admin (0.573151ms)
+✔ save: an existing own binding is replaced in place, the others kept in order (0.514825ms)
+✔ save (F11): an allForms draft stores no formIds (the forms build's every form) and is answered as allForms: true (0.474054ms)
+✔ save (F11): a draft naming no forms (formIds: []) stores an empty list, never every form (0.417287ms)
+✔ security: saving an adapter the plugin does not contribute is refused (adapter-not-owned); nothing written (0.599817ms)
+✔ security: saving with a connection the plugin does not declare is refused (connection-not-declared); nothing written (0.339361ms)
+✔ save: a form slug this site does not have is refused (form-not-found); nothing written (0.417466ms)
+✔ security: overwriting another adapter's binding by id is refused (binding-not-found); nothing written (0.375587ms)
+✔ security: ownership is re-read inside the write: a binding that changed adapter after the list is not overwritten (0.553431ms)
+✔ security: save without a signed-in admin is refused (admin-required); nothing read or written (0.334829ms)
+✔ save: the binding owner's validation refusal becomes delivery-binding-invalid with its message and cause (0.594244ms)
+✔ save: any other write failure (authorization, ledger) propagates unchanged (1.614411ms)
+✔ save: a second bindings conflict stops retrying and gives the panel an actionable refusal (0.831231ms)
+✔ remove: deletes only that own binding, written as the admin (0.552589ms)
+✔ security: removing another adapter's binding is refused (binding-not-found); nothing written (0.42875ms)
+✔ security: remove without a signed-in admin is refused (admin-required); nothing written (0.263925ms)
+✔ the plugin id grammar refuses an underscore, so no installable id can collide with its hyphenated twin (2.070563ms)
+✔ the hyphenated twin is admitted, so the refusal above is about the underscore alone (1.103608ms)
+✔ the collision the grammar prevents is real at the id mapping: a-b and a_b share one tool id (0.196102ms)
+✔ distinct admissible plugin ids and tool names give distinct tool ids (0.449137ms)
+✔ vertical slice: connect -> public callback -> plugin access token -> form-delivery credential (169.301499ms)
+✔ security: a form-delivery credential stays on the job's frozen account, for the attempt and for every later request (82.149873ms)
+✔ security: the callback refuses an unknown state without any token exchange and renders no request data (8.723333ms)
+✔ security: a replayed callback state is refused; a wrong PKCE verifier never yields tokens (27.292487ms)
+✔ security: getAccessToken refuses another plugin's or another workspace's connectionRef with the same message (4.35754ms)
+✔ security (pin): hosted sign-in is refused when this site has no public origin (3.321874ms)
+✔ security (pin): hosted sign-in is refused from an origin the connection's web client did not register (2.370439ms)
+✔ security (pin): a registered origin gets the fixed public callback path (2.150179ms)
+✔ security: hosted sign-in fails closed when no callback origin is declared or configured (2.91362ms)
+✔ security: the configured callback-origin list admits only the origins it names (28.112725ms)
+✔ security: an attempt is consumed once even when two callbacks race on the same state (9.879438ms)
+✔ security: two open sign-in attempts for one connection and two connections' records never collide on a vault label (12.573587ms)
+✔ security: a desktop public client's provider-issued secret reaches only the token endpoint (15.193077ms)
+✔ security: a hosted (confidential) client without its server-held secret is refused before any sign-in starts (2.565811ms)
+✔ callback: a switch to the account already connected is refused with copy that says to reconnect instead (24.724901ms)
+✔ characterization: a connected account reads as connected through host.records, statusOf and readAccount (29.434147ms)
+✔ characterization: a connection's hooks reach its declared API origin (account) and its token endpoint's origin (revocation) (21.266832ms)
+✔ security: a connection's hooks get HTTP limited to its declared API origins and its token endpoint's origin (29.16631ms)
+✔ security: a saved BYO client replaces the Tovu-owned client for its own connection; its secret reaches only the token endpoint (33.351303ms)
+✔ security: a BYO client is used only for its own workspace and connection, and only when the connection allows one (36.18821ms)
+✔ security: switching the OAuth client makes a connected account reconnect-required, honestly, until it reconnects (64.279024ms)
+✔ security: a client switch is detected on status reads alone (no token read), durably (32.63425ms)
+✔ security: rotating the BYO secret under the same client id keeps the connection (25.882123ms)
+✔ security: a BYO client whose base URL is not the token endpoint's origin, or that has no client id, is refused before any sign-in (8.516604ms)
+✔ security: a hosted BYO web client returns to this site's own address, and still fails closed without one (7.315133ms)
+✔ security: a byoClient flag that is not true or false refuses the whole declaration (never read as allowed) (0.752102ms)
+✔ provider choice defaults to built-in, persists per site and CAS refuses a stale card without a revision write (13.037203ms)
+✔ built-in runtime gates route/tool mutations for provider disable and settings disable while keeping stored reads (7.091725ms)
+✔ an unregistered store still defaults safely, and native-clock writes persist through the ledger (1.435538ms)
+✔ boot guard: a stored provider that is not registered reads as built-in without rewriting the row (1.763341ms)
+✔ a stored value that is not a provider id string (cleared or malformed row) reads as built-in, keeping its revision (1.557497ms)
+✔ two confirmations of the same revision: exactly one commits (1.302667ms)
+✔ the guard compares at the value save: a revision that moved after the transaction opened is refused (1.755057ms)
+✔ bounded nonblank consent copy survives parsing unchanged (67.964742ms)
+✔ every copy field accepts its limit and rejects longer input (16.145662ms)
+✔ missing required fields and unknown fields never cross the configuration boundary (10.833114ms)
+✔ custom CSS accepts the boundary and rejects oversize input before compilation (21.951882ms)
+✔ enabled consent requires a safe policy link; auto is available with or without a header (42.009013ms)
+ℹ fast-check seed=20261021, numRuns=150
+✔ custom_credential_set_token has a catalog entry gated on the WRITE permission, with a schema that has no token field at all (2.958127ms)
+✔ custom_credential_set_token is classified as mutates-durable-state in this domain's own derived-risk map (0.296825ms)
+✔ custom_credential_set_token is wired to a real handler (3.155334ms)
+✔ rejects a model-issued call carrying a token-ish field alongside label — no dialog is ever raised, and nothing decrypts (48.479356ms)
+✔ the tool's own result never echoes the submitted token, on success or failure (39.747023ms)
+[custom-credentials] credential_save: save failed exchange=128d7345-45ce-4780-af91-08fb233436f5 credentialId=cred-1 error=CustomCredentialValidationError
+✔ a rotated token is trimmed of paste junk; an interior space is refused in plain words (66.137436ms)
+✔ the durable audit trail records only the model-issued call's key NAMES, never any value — describeInput never carries the label's own value, let alone a token (0.662724ms)
+✔ a token submitted through the delivery route never enters the durable tool-attempt records (12.791443ms)
+✔ with no emitSurface, the call is refused outright with the exact fail-closed message — no exchange, no decrypt, no seal (3.372599ms)
+✔ a denied principal never even sees the form, and nothing decrypts (1.743998ms)
+✔ an unknown label is refused with CustomCredentialNotFoundError-shaped message, before any form is raised (0.729163ms)
+✔ the call stays open after the form is shown, and nothing is sealed while it is pending (4.259712ms)
+✔ submit: a real token is sealed exactly once, the NEW token decrypts correctly, and the SAME call reports {saved:true} (12.840798ms)
+✔ submit: the credential's existing username is preserved across a token-only submission (6.120914ms)
+✔ submit: a username changed OUT-OF-BAND while the form was open survives a token-only submission (must not be overwritten by the value captured at form-open time) (6.055065ms)
+✔ submit: a whitespace-only token is refused as invalid, and nothing is written or re-sealed (2.380826ms)
+✔ submit: an exactly empty token keeps the stored token without re-sealing (3.71076ms)
+✔ cancel: a dismissed form saves nothing, never seals, and sends no outcome emission (2.40424ms)
+✔ an unanswered form expires and reports {saved:false, reason:'expired'} — never seals (1.961129ms)
+✔ a cancelled run abandons the form and reports {saved:false, reason:'abandoned'} — never seals (2.792125ms)
+✔ a run cancelled before the form opens returns {saved:false, reason:'abandoned'} at once — no form is emitted, nothing seals (1.330351ms)
+✔ token rotation preserves a saved metadata username (4.317022ms)
+✔ token rotation: abort wins over a buffered submit without re-sealing (1.774682ms)
+✔ token rotation aborted during its fresh username read keeps the existing credential untouched (3.158557ms)
+✔ the API rotation adapter itself rejects token fields before opening a form (0.529171ms)
+✔ API key rotation uses declared plugin copy while retaining the rotation field and save owner (4.478735ms)
+▶ database destination after 0012 [sqlite]
+  ✔ the migrated destination is read, recorded and replaced (775.692568ms)
+✔ database destination after 0012 [sqlite] (777.185875ms)
+▶ database destination after 0012 [pglite]
+  ✔ the migrated destination is read, recorded and replaced (7347.223931ms)
+✔ database destination after 0012 [pglite] (7349.480586ms)
+✔ AC-01: getTimeline returns rows with restore-point linkage present (1.47106ms)
+✔ AC-04 / REQ-04: getTimeline with a kind filter returns only matching rows (0.313912ms)
+✔ getTimeline returns an empty items array (never an error) when no rows match (3.23736ms)
+✔ REQ-04 / AC-34-adjacent: getTimeline rejects a limit above 200 (no raw SQL / unbounded query surface) (1.158165ms)
+✔ getTimeline forwards all filters, defaults to 50, and preserves pagination results (0.786094ms)
+✔ AC-05 / REQ-05: this module exposes no raw-row-edit, SQL-console, or DB-first-mode function — only getTimeline is exported (0.601519ms)
+✔ ctx.fail is a model-visible refusal and ctx.sleep clamps to [0, MAX_MODULE_SLEEP_MS] through the wait clock (88.981607ms)
+✔ ctx.sleep on the system clock resolves, and rejects when its signal aborts before or during the pause (79.497209ms)
+✔ transport failures are named per method; a credential removed after binding is reported as changed (27.18805ms)
+✔ a request fault the host does not classify (a row this site's sealer cannot open) passes through unchanged and sends nothing (34.987919ms)
+[custom-credentials] request label=ops host=api.example-host.dev method=GET status=200 bodyBytes=0 at=2026-10-01T12:00:00.000Z
+[custom-credentials] request label=ops host=api.example-host.dev method=GET status=200 bodyBytes=0 at=2026-10-01T12:00:00.000Z
+✔ cancellation is checked before each request and again after the response; no audit port is required (53.568238ms)
+✔ a cancellation while the credential is being bound stops runDeployOps and runDeploy before the module runs (50.220257ms)
+✔ wait: system clock and default timeout reach healthy on the first poll; a status that aborts as it answers is a cancellation (2.058567ms)
+✔ wait: an abort that lands while the final sleep crosses the deadline is still reported as a cancellation (0.463679ms)
+✔ a different stored value opens a replace card naming the source; declining writes nothing (51.556584ms)
+✔ an unreadable stored value says it could not be compared; an abort while the click is re-authorized is abandoned (15.832919ms)
+✔ contributeDeployOpsTools builds from the supplied registry, or from the deps' registry when none is given (9.140574ms)
+✔ copying from another secret on the target writes the source's value; list goes through the same handler (15.684594ms)
+✔ a custom Vercel key configures and resolves the same publish source as vendor keys (171.893536ms)
+✔ multiple case variants require selection; a vendor default wins without hiding custom keys (21.292174ms)
+✔ explicit works-for matches, while wrong ownership/binding and incomplete host credentials do not (7.99736ms)
+✔ crypto failures stay typed and do not become missing-credential results (15.808141ms)
+✔ sharing a vendor never lets a custom token satisfy a sibling host's extra required fields (2.877782ms)
+✔ a label alone never makes a custom key publishable (1.621856ms)
+✔ unmigrated custom keys gain publish eligibility only after an explicit works-for edit (11.48826ms)
+✔ compatibility edits invalidate only changed host memberships (0.843873ms)
+✔ create rejects null compatibility rather than treating it as omission (21.092523ms)
+✔ existing cloudflare compatibility stays Pages-only without rewriting the credential (16.303592ms)
+✔ existing cloudflare-pages compatibility stays Pages-only without rewriting the credential (14.155926ms)
+✔ new Workers connection stores an explicit Workers grant on the same Cloudflare vendor kind (59.58812ms)
+✔ plugin compatibility checks deny malformed metadata without treating a label as authority (0.594876ms)
+✔ a blank optional Zone ID means "not provided": the connection saves without a zoneId field (3.005008ms)
+✔ resolves GITHUB_TOKEN for the github-pages target, trimmed, for the bound workspace (185.07621ms)
+✔ resolves VERCEL_TOKEN for the vercel target — distinct env var from github-pages (0.409065ms)
+✔ a target's own token being unset never falls back to the OTHER target's env var (0.243182ms)
+✔ fails cleanly (ok:false with a guidance message) when the env var is unset — never throws, never returns an empty token (4.516325ms)
+✔ fails cleanly when the env var is present but blank/whitespace-only — never resolves an empty-string token (0.198867ms)
+✔ refuses (never silently serves) a resolve() call for a DIFFERENT workspace than the one it's bound to (0.244688ms)
+✔ isConfigured() also refuses a DIFFERENT workspace than the one it's bound to (0.218629ms)
+✔ cloudflare-pages requires BOTH CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID — token alone is not configured (0.196097ms)
+✔ cloudflare-pages resolves BOTH token and accountId once both env vars are set (0.233859ms)
+✔ netlify/vercel/github-pages never carry an accountId field (0.1676ms)
+✔ netlify falls back to NETLIFY_ACCESS_TOKEN when NETLIFY_TOKEN is unset (0.149457ms)
+✔ netlify falls back to NETLIFY_AUTH_TOKEN when neither NETLIFY_TOKEN nor NETLIFY_ACCESS_TOKEN is set (0.20046ms)
+✔ netlify prefers NETLIFY_TOKEN over its own aliases when more than one is set (0.136936ms)
+✔ netlify's failure reason names every alias it checked when none is set (0.204629ms)
+✔ cloudflare-pages accepts CLOUDFLARE_TOKEN (the vendor-official name) as its token, alongside the account id (0.142898ms)
+✔ cloudflare-pages prefers CLOUDFLARE_TOKEN over CLOUDFLARE_API_TOKEN when both are set (0.1349ms)
+✔ cloudflare-pages still names CLOUDFLARE_ACCOUNT_ID explicitly even when the token comes from an alias (0.149ms)
+✔ github-pages falls back to GH_TOKEN (the gh CLI's own name) when GITHUB_TOKEN is unset (0.13455ms)
+✔ github-pages falls back to GITHUB_ACCESS_TOKEN — the name operators reach for by analogy (0.127799ms)
+✔ github-pages prefers GITHUB_TOKEN over its own aliases when more than one is set (0.145912ms)
+✔ github-pages' failure reason names every alias it checked when none is set (4.419484ms)
+✔ vercel falls back to VERCEL_ACCESS_TOKEN — the name operators reach for by analogy (0.18989ms)
+✔ vercel prefers VERCEL_TOKEN over VERCEL_ACCESS_TOKEN when both are set (0.163841ms)
+✔ vercel's failure reason names every alias it checked when none is set (0.153199ms)
+✔ resolves the provider's DEFAULT saved connection — never 'ambiguous' even with 2+ saved (26.618798ms)
+✔ resolve() reports ok:false (not configured) with no default, never decrypts anything (4.748431ms)
+✔ isConfigured() never decrypts — a broken sealer does not fail it (2.505543ms)
+✔ isConfigured: env presence is workspace-bound; composition uses DB first and env only in self-hosted-cli (8.224686ms)
+✔ resolve() carries accountId for cloudflare-pages, sourced from the credential (never the publish config) (6.631108ms)
+✔ resolve() for a non-cloudflare target never carries an accountId field (1.686001ms)
+✔ tenant isolation: a saved connection in one workspace never resolves for another (5.486722ms)
+✔ self-hosted-cli: DB-backed wins over the env fallback when both are configured (1.66025ms)
+✔ self-hosted-cli: falls back to the env source when nothing is saved in the DB (0.419024ms)
+✔ hosted-api-only: the env source is never even constructed — a set env var is never used as a fallback (0.385021ms)
+✔ hosted-api-only: still resolves a DB-backed default when one is saved (1.892729ms)
+✔ createEnvPublishCredentialSource: s3-compatible has NO env-var fallback — always ok:false, regardless of any env vars set (0.245615ms)
+✔ createDbPublishCredentialSource: resolves a saved s3-compatible connection with secretAccessKey mapped to token, plus all five companion fields (2.550123ms)
+✔ createDbPublishCredentialSource: an omitted endpoint stays omitted on the resolved credential, never coerced to an empty string (1.719369ms)
+✔ composePublishCredentialSource: self-hosted-cli mode still never falls back to env for s3-compatible when nothing is saved in the DB (0.511853ms)
+✔ credentialId: readiness selects a named non-default key without decrypting an ambiguous inventory (10.411157ms)
+✔ credentialId: readiness refuses missing, foreign and incompatible IDs despite a valid default (5.560473ms)
+✔ credentialId: neither composed nor env readiness falls back for an unavailable saved connection (0.88629ms)
+✔ credentialId: resolves the NAMED connection, not the provider's current default, when the two differ (4.258118ms)
+✔ credentialId: another workspace's credential id is REFUSED — never resolved, never leaked (3.751075ms)
+✔ credentialId: a nonexistent id is refused with the SAME message as another workspace's id — no existence oracle (17.326081ms)
+✔ credentialId: a credential saved for a DIFFERENT provider than the publish target is refused (1.927208ms)
+✔ credentialId: the id-bound path carries cloudflare-pages' accountId, exactly like the default path (5.015867ms)
+✔ credentialId: self-hosted-cli NEVER falls back to the env token when the named credential does not resolve (0.48596ms)
+✔ credentialId: the env source itself refuses an id-bound resolve — env vars are not saved connections (0.189733ms)
+✔ credentialId: omitting it is unchanged — the provider's default still resolves (every non-admin caller stays on this path) (1.297104ms)
+✔ env source: a plugin-only host's token and extra fields come from the env vars its descriptor names (0.473275ms)
+✔ db source: a plugin-only host's saved token field becomes the resolved token; other declared fields pass through (3.328052ms)
+✔ saved API keys publish by worksFor, never by their label (11.592017ms)
+✔ historical Pages env variables do not silently configure Workers; its explicit env credential works (0.377939ms)
+✔ env source: a target the workspace registry does not know is refused with the plugin hint (0.232291ms)
+✔ db source (default connection): a host removed or re-specified while the row is decrypted is refused, never projected (7.761068ms)
+✔ db source (chosen connection): a host removed or re-specified while the row is decrypted is refused, never projected (2.490392ms)
+✔ postgres: two writers on the same base version, B blocked on A's row lock — A lands, B gets the version conflict (2482.923409ms)
+✔ postgres: two import-as-creates of one id, B blocked on A's uncommitted insert — one row, one revision, one event; B is a version conflict (13.64674ms)
+✔ two processes booting at once: the mismatched rows go exactly once, one marker, readable rows survive (1951.789464ms)
+✔ the managed roster defaults to empty when desktop did not supply it (4.054186ms)
+✔ the managed roster preserves server ids from a valid string array (0.972184ms)
+✔ an invalid or empty managed roster { grants no ownership (0.271989ms)
+✔ an invalid or empty managed roster null grants no ownership (0.107593ms)
+✔ an invalid or empty managed roster {} grants no ownership (1.547603ms)
+✔ an invalid or empty managed roster "desktop-a" grants no ownership (0.181373ms)
+✔ an invalid or empty managed roster ["desktop-a",42] grants no ownership (0.100683ms)
+✔ an invalid or empty managed roster [] grants no ownership (0.224055ms)
+✔ ownership matches ids exactly and never infers it from a server label (0.48381ms)
+✔ static streamable_http token has a human-only secret field (4.663883ms)
+✔ static stdio token has a human-only secret field (0.645854ms)
+✔ hosted static token entered through the form is sealed, used as bearer auth and kept on a blank update (80.092157ms)
+✔ none auth never asks for a static token (0.638921ms)
+✔ oauth auth never asks for a static token (0.491955ms)
+✔ an omitted auth mode uses the store's static-token default and a new token field has no prefill (0.39757ms)
+✔ stdio token env-name hints preserve stored names unless explicitly changed (4.104935ms)
+✔ an invalid human credential block never echoes the submitted secret to the model: line (12.924748ms)
+✔ an invalid human credential block never echoes the submitted secret to the model: name (3.637319ms)
+✔ a rejected saved static token returns a secure update-card diagnostic (10.022783ms)
+✔ a saved hosted connection reports connected and remains persisted (10.582389ms)
+✔ a saved hosted connection reports authentication and remains persisted (3.95594ms)
+✔ a saved hosted connection reports timeout and remains persisted (3.459474ms)
+✔ a saved hosted connection reports other refusal and remains persisted (2.243021ms)
+✔ a saved hosted connection reports missing code and remains persisted (2.034723ms)
+✔ a saved hosted connection reports thrown failure and remains persisted (1.417621ms)
+✔ the submitted stdio token and env reach runtime while optional non-string fields use safe defaults (8.760205ms)
+✔ OAuth form fields retain manual endpoints, scopes, client identity and the sealed client secret (5.077313ms)
+✔ a whitespace form secret cannot create a connection (1.110777ms)
+✔ a non-string form secret cannot create a connection (0.720118ms)
+✔ an expired connection form returns the explicit expiry result and saves nothing (0.893843ms)
+✔ an enabled connection that fails resolution returns the resolver's actionable reason (2.432112ms)
+✔ a connection deleted during configuration resolution returns the fallback reason (1.067449ms)
+✔ a successful probe of an unauthenticated server returns its exact result (1.090487ms)
+✔ a MCP_TIMEOUT probe of an unauthenticated server returns its exact result (0.53049ms)
+✔ a MCP_AUTH_REJECTED probe of an unauthenticated server returns its exact result (0.632634ms)
+✔ the contributor without a live probe retains the configuration-only connection check (0.290325ms)
+✔ OAuth driver failures propagate unchanged rather than becoming input errors (1.729972ms)
+✔ omitting the model auth mode saves with the store's static-token default (2.913441ms)
+✔ a configuration check resolves an OAuth token through its injected service without disclosing it (1.364033ms)
+✔ a submitted destination change is rejected before writing or probing (0.904122ms)
+✔ a hosted save without a probe binds routing and auth to preparation and reports not tested (1.500288ms)
+✔ a saved static connection preserves probe code MCP_TIMEOUT and offers setup only for rejected auth (1.4613ms)
+✔ a saved static connection preserves probe code MCP_AUTH_REJECTED and offers setup only for rejected auth (2.07315ms)
+✔ a saved static connection preserves probe code undefined and offers setup only for rejected auth (1.498295ms)
+✔ a disabled connection refuses before invoking an available probe (0.755488ms)

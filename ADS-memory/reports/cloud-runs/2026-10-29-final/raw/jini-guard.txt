@@ -1,0 +1,34 @@
+
+> jini@ guard /home/user/Jini
+> node --import tsx ./scripts/guard.ts
+
+[hardwiring] HW1-env-default: 17 total; 0 new
+[hardwiring] HW2-vendor-adapter: 18 total; 0 new
+[hardwiring] HW3-module-state: 136 total; 0 new
+[hardwiring] HW4-injected-fetch: 1 total; 0 new
+[hardwiring] HW5-jini-export: 0 total; 0 new
+[hardwiring] HW6-boot-default: 0 total; 0 new
+[hardwiring] HW7-public-react: 0 total; 0 new
+[hardwiring] HW8-provider-url: 49 total; 0 new
+[hardwiring] HW9-plugin-import: 0 total; 0 new
+[hardwiring] 27 stale debt occurrences; remove them from scripts/hardwiring-debt.json.
+[guard] R13-model-fallback-freshness claude: MF3 compared 16 live id(s) against 20 fallback entr(ies).
+[guard] R13-model-fallback-freshness codex: MF3 SKIPPED — `codex debug models` unavailable (spawn codex ENOENT). Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness antigravity: MF3 SKIPPED — `agy models` unavailable (spawn agy ENOENT). Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness pi: MF3 SKIPPED — MF3 does not apply to `pi` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness aider: MF3 SKIPPED — MF3 does not apply to `aider` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness opencode: MF3 SKIPPED — MF3 does not apply to `opencode` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R2-deep-path packages/plugin-ai-trace-langfuse/__tests__/package.test.ts: relative import "../../provider-plugins/scripts/build.js" reaches into another package's src (provider-plugins) — import by package name instead
+[guard] R2-deep-path packages/plugin-analytics-posthog/__tests__/pack.test.ts: relative import "../../provider-plugins/scripts/build.js" reaches into another package's src (provider-plugins) — import by package name instead
+[guard] R2-deep-path packages/plugin-analytics-posthog/__tests__/pack.test.ts: relative import "../../provider-plugins/src/analytics-posthog/consent.js" reaches into another package's src (provider-plugins) — import by package name instead
+[guard] R2-deep-path packages/plugin-catalog/scripts/generate.ts: relative import "../../core/plugin-directory.js" reaches into another package's src (core) — import by package name instead
+[guard] R2-deep-path packages/plugin-catalog/scripts/generate.ts: relative import "../../plugins/src/host/node/install.js" reaches into another package's src (plugins) — import by package name instead
+[guard] R2-deep-path packages/plugin-fixture-provider/__tests__/package.test.ts: relative import "../../provider-plugins/scripts/build.js" reaches into another package's src (provider-plugins) — import by package name instead
+[guard] R2-deep-path packages/plugin-observability-opentelemetry/__tests__/pack.test.ts: relative import "../../provider-plugins/scripts/build.js" reaches into another package's src (provider-plugins) — import by package name instead
+[guard] R2-deep-path packages/plugin-observability-sentry/__tests__/pack.test.ts: relative import "../../provider-plugins/scripts/build.js" reaches into another package's src (provider-plugins) — import by package name instead
+[guard] R2-deep-path packages/plugin-payments-stripe/__tests__/package.test.ts: relative import "../../provider-plugins/scripts/build.js" reaches into another package's src (provider-plugins) — import by package name instead
+[guard] SI-dependency packages/ui/package.json: @jini-ai/ui-kit is an install-time dependency used by 1/23 source closures; declare an optional peer and a development dependency
+
+10 guard violation(s).
+ ELIFECYCLE  Command failed with exit code 1.
+exit=1
