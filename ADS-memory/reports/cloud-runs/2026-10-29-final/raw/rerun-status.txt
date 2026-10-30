@@ -1,0 +1,2 @@
+apps/site-chat/src/__tests__/SiteAssistantActivation.test.ts exit=0 ℹ pass 4 ℹ fail 0 
+apps/site-chat/src/__tests__/SiteAssistantHeader.test.ts exit=0 ℹ pass 11 ℹ fail 0 

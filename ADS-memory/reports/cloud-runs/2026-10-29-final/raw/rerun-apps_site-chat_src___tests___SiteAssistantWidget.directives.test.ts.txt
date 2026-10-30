@@ -1,0 +1,5 @@
+✔ a highlight directive scrolls to and highlights its target on this page (566.307114ms)
+✔ a reply with no page action, or an action for a missing target, leaves the page alone (327.551987ms)
+Not implemented: navigation to another Document
+✔ a proposed navigation waits for the visitor, then queues the bundled effect and navigates (235.232997ms)
+Not implemented: navigation to another Document

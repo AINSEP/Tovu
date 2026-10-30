@@ -11224,3 +11224,2838 @@ Plugin 'needs-db' has no publisher-qualified id; using 'unknown/needs-db'.
 ✔ DISABLE_PRINCIPAL route: 404 RESOURCE_NOT_FOUND when the paired users row is missing (defensive check) (278.097123ms)
 ✔ DISABLE_PRINCIPAL route: 500 internal error when an unexpected error is thrown (252.687737ms)
 ✔ DISABLE_PRINCIPAL route: an IdentityValidationError from the transaction maps to 400 VALIDATION_ERROR (262.817198ms)
+✔ WRITE_POLICY_PERMISSION route: 404 when workspaceId does not match (434.764347ms)
+✔ WRITE_POLICY_PERMISSION route: direct invoke fallback for nullish params.workspaceId (221.9648ms)
+✔ WRITE_POLICY_PERMISSION route: direct invoke fallback for nullish params.policyId and nullish body (344.699102ms)
+✔ WRITE_POLICY_PERMISSION route: 403 FORBIDDEN when caller lacks role.manage (222.729375ms)
+✔ WRITE_POLICY_PERMISSION route: 400 PERMISSION_UNKNOWN for an unregistered permission string (240.286824ms)
+✔ WRITE_POLICY_PERMISSION route: 404 NOT_FOUND when the target policy does not exist (208.959924ms)
+✔ WRITE_POLICY_PERMISSION route: 400 VALIDATION_ERROR when the target policy is built-in (INV-06) (260.038424ms)
+✔ WRITE_POLICY_PERMISSION route: 400 VALIDATION_ERROR when the target policy is frozen (INV-06/AC-26) (243.908119ms)
+✔ INV-07: WRITE_POLICY_PERMISSION route: 403 GRANT_EXCEEDS_ISSUER when caller does not hold the permission unconstrained (226.739042ms)
+✔ WRITE_POLICY_PERMISSION route: 201 on success, with resourceType and constraintJson provided (244.524088ms)
+✔ WRITE_POLICY_PERMISSION route: 500 internal error when an unexpected error is thrown (207.070207ms)
+✔ WRITE_POLICY_PERMISSION pin: publish.backstop is refused before policy lookup (221.176318ms)
+✔ WRITE_POLICY_PERMISSION pin: publish_content.backstop is refused before policy lookup (238.489847ms)
+✔ WRITE_POLICY_PERMISSION pin: optional fields retain coercion {} (298.755028ms)
+✔ WRITE_POLICY_PERMISSION pin: optional fields retain coercion {"resourceType":null,"constraintJson":null} (218.018129ms)
+✔ WRITE_POLICY_PERMISSION pin: optional fields retain coercion {"resourceType":0,"constraintJson":false} (300.332166ms)
+✔ WRITE_POLICY_PERMISSION pin: unknown permission echoes original undefined (231.358991ms)
+✔ WRITE_POLICY_PERMISSION pin: unknown permission echoes original null (258.7436ms)
+✔ WRITE_POLICY_PERMISSION pin: unknown permission echoes original 123 (234.213794ms)
+✔ embed insert rejects a missing or mistyped version or widget id before touching the host (5.386687ms)
+✔ embed insert rejects a foreign workspace before authorization or mutation (0.690244ms)
+▶ resolveAttachmentRunFields
+  ✔ a message without attachments contributes no fields and never touches the store (114.863658ms)
+  ✔ a claim before the store is ready fails the run with a plain reason (22.243856ms)
+  ✔ a claim that yields no batch directory contributes no fields (15.376273ms)
+  ✔ a failed claim fails the run and logs the error message (16.917655ms)
+  ✔ a non-Error rejection is logged as its string form (20.82923ms)
+  ✔ a staged batch returns prepared paths, pixels and notice without adding directories (24.238003ms)
+  ✔ the default agent's definition is used when the run names none (14.779743ms)
+  ✔ native image delivery receives image access (13.466582ms)
+  ✔ prompt-path image delivery receives image access (13.898274ms)
+  ✔ a stream-json prompt receives image access (18.956545ms)
+  ✔ unsupported image delivery does not receive image access (15.983726ms)
+  ✔ an unknown agent does not receive image access (12.175713ms)
+✔ resolveAttachmentRunFields (306.987553ms)
+▶ site_describe_capabilities registry wiring in the agent daemon
+  ✔ imports listToolCatalogEntries through the assistant daemon port (1.299931ms)
+  ✔ buildAssistantToolRegistrations receives listCatalogTools bound to the daemon's own registry (0.46663ms)
+✔ site_describe_capabilities registry wiring in the agent daemon (3.393647ms)
+✔ the daemon's actual catalog reader exposes a tool registered after composition (695.916696ms)
+▶ createLiveRunTracker
+  ✔ run-to-conversation lookup isolates live registrations and removes only the unregistered run (1.666445ms)
+  ✔ hasConcurrentLiveRun is false for a conversation with no registered runs at all (0.241217ms)
+  ✔ hasConcurrentLiveRun is false for the only run registered for a conversation (checking against itself) (0.205299ms)
+  ✔ H2: hasConcurrentLiveRun is true for each of two runs registered concurrently on the same conversation (0.245344ms)
+  ✔ unregistering the other run clears the concurrency signal for the one still live (0.286931ms)
+  ✔ unregister is a silent no-op for a runId that was never registered (0.306963ms)
+  ✔ two different conversationIds never see each other's live runs (0.226645ms)
+  ✔ a fresh tracker instance starts with no memory of a prior instance's registrations (matches an in-process map's empty state after a daemon restart) (0.221787ms)
+✔ createLiveRunTracker (5.348602ms)
+▶ waitForStoppingRuns
+  ✔ waits for a run the user stopped to end, then no longer counts it as live (13.271955ms)
+  ✔ does not wait for a live run nobody stopped (0.353408ms)
+  ✔ gives up after the timeout when the stopped run never ends (27.421123ms)
+✔ waitForStoppingRuns (41.696743ms)
+▶ failRunBeforeStart
+  ✔ puts the plain reason on the run's stream before finishing it failed (1.492542ms)
+  ✔ still finishes the run when the stream refuses the event (0.260042ms)
+✔ failRunBeforeStart (1.90387ms)
+▶ createConversationStartLock
+  ✔ runs two critical sections for one conversation strictly one after the other (22.404829ms)
+  ✔ the second section observes the first section's write — the read-modify-write this exists for (11.240635ms)
+  ✔ different conversations do not block each other (48.950516ms)
+  ✔ a rejected section does not wedge the conversation for every later run (1.721262ms)
+  ✔ a rejection propagates to its own caller only, not to the next section in line (7.152825ms)
+  ✔ an absent conversation id runs immediately and serializes nothing (20.191481ms)
+  ✔ does not retain per-conversation state after its queue drains (0.722584ms)
+✔ createConversationStartLock (114.784064ms)
+✔ a third section arriving after the first finishes still waits for the held second section (2.477792ms)
+✔ each error maps to one message, in order, keyed by its field (26.613783ms)
+✔ the reason picks the template; required checkboxes ask to select (0.740427ms)
+✔ aria-label wins over label[for], which wins over a wrapping label (3.751006ms)
+✔ label text skips controls, scripts, styles and templates but keeps nested text and entities (1.92771ms)
+✔ a missing control, an unlabeled control or an empty label falls back to the generic noun (1.11644ms)
+✔ English copy turns Email and Your ... labels into natural phrases (0.410614ms)
+✔ the form's lang attribute beats the document locale, and other languages keep labels verbatim (2.083351ms)
+✔ label text is inserted literally, never as a replacement pattern (1.930019ms)
+✔ formDocumentLocale reads the html element's lang in any quoting, defaulting to en (0.748847ms)
+✔ renders a well-behaved template and resolves with the rendered HTML (332.666039ms)
+✔ the render_block seam resolves against the real component registry inside the worker (169.218849ms)
+✔ a disallowed tag is rejected by the worker's defensive re-lint even when it bypassed loadTheme's lint (e.g. hot-edited on disk) (206.572021ms)
+✔ Liquid templates cannot include an existing filesystem file (379.148854ms)
+✔ a runaway CPU-bound template (nested for-loops, each range within the lint cap) is force-terminated within the timeout, not hung (504.502752ms)
+✔ a memory-blowup template (range within the lint cap, accumulating retained allocations) is force-terminated by the worker's memory guards (200.064232ms)
+✔ a template whose literal for-loop range alone would risk a single catastrophic allocation is rejected before it ever reaches the worker's render step (190.844309ms)
+✔ renderSite renders the live themes/handlebars/ledger home page: header/footer components, entry rows, escaped titles, no leftover Handlebars syntax (348.891913ms)
+✔ renderSite renders the live ledger entry (post) page: content injected raw, title escaped in body and in the shell (243.84408ms)
+✔ renderSite escapes a hostile post title rather than emitting it as markup (autoescaping is on, mirroring Liquid's outputEscape) (184.735234ms)
+✔ renderSite falls back to the minimal built-in body (never 500s) when a handlebars theme's source is hostile at render time (182.235949ms)
+✔ renderSite falls back rather than throwing when a handlebars template is a syntax error (173.163595ms)
+✔ renderSite falls back when a handlebars theme has no template for the requested route (partial theme never 500s) (2.476559ms)
+✔ renderSite (Handlebars tier): {{render_block region="footer"}} resolves the same widget list over the same seam the Liquid tier uses (ADR-047 §2a) (220.324851ms)
+✔ renderSite (Handlebars tier): an unknown component id degrades to a comment, not a crash (216.641675ms)
+✔ both logic tiers see the identical render-data contract — the same fields resolve in Liquid and in Handlebars (424.344032ms)
+✔ both logic tiers date a post by its go-live time (publishAt) when it has one, in the list and on the post page — owner decision 2026-10-05 (726.626414ms)
+✔ registerThemePreviewStatic: a real preview build asset serves with the script-blocking CSP + nosniff headers, content unchanged (73.477803ms)
+✔ registerThemePreviewStatic: a preview build's font carries `Access-Control-Allow-Origin: *` without credentials; its CSS does not (45.983489ms)
+✔ registerThemePreviewStatic: an .svg with an embedded <script> planted in a preview build is served non-executable (same headers, same class this whole fix closes) (13.916367ms)
+✔ registerThemePreviewStatic: an absent root and an unbuilt preview fall through to 404 (13.955467ms)
+✔ registerThemePreviewStatic: missing assets and traversal within a registered mount retain security headers (22.051029ms)
+✔ rate limit: an over-limit caller gets 429 before any state lookup or token exchange (92.30452ms)
+✔ state: a missing, empty or oversized state is refused as no_state without touching the store (26.805259ms)
+✔ state: a repeated state parameter (not one string) is refused as no_state (14.330308ms)
+✔ security: an attempt row naming another workspace is answered like an unknown state, with no exchange (18.665426ms)
+✔ state: an attempt whose connection is no longer declared is answered like an unknown state, with no exchange (21.719469ms)
+✔ failures: an attempt that expired before its callback renders state_expired (invalid-attempt) (34.30417ms)
+✔ failures: an older attempt a newer completed sign-in superseded renders state_expired (81.851944ms)
+✔ failures: the person declining at the provider renders provider_denied, and nothing is exchanged (12.256446ms)
+✔ failures: a fault that is not an API-connection error renders exchange_failed and logs its name only (52.756573ms)
+✔ success: the page is the fixed no-store success page with the API-connection message type (15.727916ms)
+✔ log: without an injected log the failure goes to console.error by name and code; a callback on another address than the attempt's is refused (12.136321ms)
+✔ security (F1): a callback whose browser carries no binding cookie is refused as state_expired and installs nothing (16.212359ms)
+✔ security (F1): a callback carrying another sign-in's binding is refused as state_expired and installs nothing (7.536569ms)
+✔ security (F1): a malformed binding cookie counts as none (refused), never as a partial match (16.728288ms)
+✔ security (F1): the starting browser's callback succeeds and the binding cookie is cleared, on success and on a refusal (18.074402ms)
+✔ security (F1): a callback that never reaches a known attempt leaves the binding cookie alone (a stray request cannot cancel a sign-in) (2.942343ms)
+✔ failures: switching to the account that is already connected renders account_unchanged, not a retryable exchange failure (28.093094ms)
+✔ failures: an API-connection error with any other code still renders exchange_failed, logging only its code (28.236096ms)
+✔ memberPagePost: a published html Page per member path, titled like its own heading (2.120337ms)
+✔ login provider slots ship empty and hidden: core names no provider, the script fills them (0.473538ms)
+✔ GET each member page renders in the tovu-starter theme with the member script (1503.533195ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'basic-2', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'basic-2', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'basic-2', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'basic-2', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'basic-2', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'basic-2', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'basic-2', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'basic-2', which is whichever theme discovery happened to list first
+✔ GET each member page renders in the basic-2 theme with the member script (1003.629099ms)
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+✔ signed-out GET /account redirects to sign-in with a fixed local return path, before rendering (334.624181ms)
+✔ unknown, expired and revoked member sessions cannot render /account (669.663235ms)
+[widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'workspace-local' }
+✔ the tovu-starter header carries the member Sign in hook on every public page (501.722373ms)
+✔ /signin wins over an authored Page with the same slug (679.581921ms)
+[widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'workspace-local' }
+✔ a static export keeps the theme's plain Sign in link: no member script (324.22274ms)
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+✔ GET /signin with no themes installed answers like any other page (305.978355ms)
+✔ registerMemberPageRoutes: an unknown path 404s and a render failure answers 500 instead of hanging (2.812878ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] static page 'paging-theme/blog' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /blog: a paged listing of 30 posts shows the first 24 and links to page 2 (614.421633ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] static page 'paging-theme/blog' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /blog/page/2: serves the older posts with a link back to /blog (391.602871ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+✔ GET /blog/page/3: a page past the last answers 404 (304.859608ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] static page 'paging-theme/blog' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+✔ GET /blog: exactly 24 posts is one page, with no nav (445.117263ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] static page 'paging-theme/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /page/2: the home page's own paged listing is served at /page/2 (321.31083ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] static page 'paging-theme/about' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] static page 'paging-theme/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /about/page/2 and /page/2: a page with no paged listing answers 404, not a duplicate of itself (426.653893ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] static page 'paging-theme/listing' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /news/page/2: a Page rendered through a template carrying a paged listing pages too (307.307009ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+✔ GET /old-slug/page/3: a redirect rule on the numbered URL fires when its parent page does not exist (270.88342ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+✔ GET /blog/page/3: a redirect rule on a numbered page past the last fires instead of the 404 (280.693373ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+✔ GET /blog/page/2: an override rule on the numbered URL fires; one on /blog does not catch /blog/page/2 (289.056792ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+✔ GET /about-old/page/2: a not-found rule on the missing parent does not catch its numbered pages (339.705389ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] static page 'paging-theme/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+✔ GET /page/2: an override rule on / does not catch the home page's numbered pages (396.713958ms)
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'paging-theme', which is whichever theme discovery happened to list first
+[theme] static page 'paging-theme/about' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ GET /about/page/2: a redirect lookup that throws on a numbered page with no listing is handed to Express's error handling (256.89325ms)
+✔ a hit page maps to the public contract; collection, limit and cursor reach the service; responses are private (76.396471ms)
+✔ the member session cookie is the only source of audiences; the last page has nextCursor null (56.314659ms)
+✔ malformed input is a 400 before the runtime is touched (71.086161ms)
+✔ an invalid answer from the service is a 400; an unavailable one a 503 with its reason (14.773583ms)
+✔ a composition without search answers 503 not_configured (4.215281ms)
+✔ an unexpected failure is logged and answered with a 500 (4.628331ms)
+✔ a purchase preserves existing return query parameters and places the message before the fragment (8.354178ms)
+✔ rejectOversizedJsonBody calls next() and does not respond when the body is under the cap (1.628731ms)
+✔ rejectOversizedJsonBody responds 413 PAYLOAD_TOO_LARGE and does not call next() when the body exceeds the cap (1.279255ms)
+✔ rejectOversizedJsonBody treats an undefined body as zero-size (never throws) (0.276328ms)
+✔ rejectOversizedJsonBody accepts a body exactly at the byte boundary (0.16824ms)
+✔ rejectOversizedJsonBody accepts the exact UTF-8 byte cap and rejects one byte over it (0.358435ms)
+✔ a public route rejects a 200 KB JSON body with a JSON 413 (548.226873ms)
+✔ an anonymous admin request is refused by the session gate before its body is parsed (309.132253ms)
+✔ an authenticated media upload still accepts a 20 MB body (559.099791ms)
+✔ an authenticated ordinary admin route accepts 1 MB but rejects 16 MB with a JSON 413 (429.259119ms)
+✔ login stays reachable (parsed at the public limit, ahead of the gate) (506.569548ms)
+✔ isAuthenticatedBodyPath matches every session-gated prefix on a segment boundary, case-insensitively (0.702564ms)
+✔ jsonBodyLimitForAuthenticatedRequest gives the upload limit only to the three large-body routes (3.971348ms)
+✔ authenticated parsers deliver the complete 20 MB upload and 1 MB ordinary JSON to downstream handlers (86.326904ms)
+✔ login's public parser refuses 200 KB before authentication (3.133226ms)
+✔ an authenticated upload declared above 75 MB takes the JSON 413 error path (3.187271ms)
+✔ malformed authenticated JSON and errors after headers are sent are forwarded unchanged (1.772553ms)
+✔ telemetry's first authenticated parser limits decoded streamed bytes to 16 KiB (5.354839ms)
+[agent-plugins] could not apply this site's pending access tokens: disk went away
+[agent-plugins] could not connect 'supabase' with the access token given when this site was created (will retry next start).
+[agent-plugins] saved the access token given for 'supabase' when this site was created; it stays off because an operator turned it off.
+✔ pending onboarding tokens are applied first, and the env import skips every plugin that had one (2.46665ms)
+✔ a failed pending apply still keeps the env import off the pending plugins (1.228448ms)
+✔ memory mode has no site folder: only the env import runs, skipping nothing (0.184582ms)
+✔ default boot adapters preserve a failed onboarding token over a conflicting ambient token and retry it (21.381783ms)
+✔ agent-plugin-update-recovery: reconciles this workspace's updates through the lifecycle owner (2.71633ms)
+✔ agent-plugin-update-recovery: runs before the bundled seed (so before serving), never after it (0.252568ms)
+✔ agent-plugin-update-recovery: a failed recovery is logged and is optional, so boot still completes (1.62814ms)
+✔ agent-plugin-update-recovery: a non-Error rejection is still logged in plain words (0.3306ms)
+✔ resolveBindHost: undefined with fallback '127.0.0.1' returns the fallback (1.543634ms)
+✔ resolveBindHost: undefined with fallback undefined returns undefined (0.157443ms)
+✔ resolveBindHost: a whitespace-only raw value is treated as unset -- returns the fallback (0.156936ms)
+✔ resolveBindHost: '0.0.0.0' passes through verbatim (0.395424ms)
+✔ resolveBindHost: an arbitrary IPv4 literal passes through verbatim (0.3055ms)
+✔ resolveBindHost: '::1' passes through verbatim (3.191584ms)
+✔ resolveBindHost: '::' resolves to undefined (Node's own all-interfaces default) (0.168268ms)
+✔ resolveBindHost: 'localhost' throws ValidationError with the exact documented text (1.513354ms)
+✔ resolveBindHost: a hostname with a space throws ValidationError naming the given value (0.283957ms)
+✔ isLoopbackHost: 127.0.0.1 is loopback (0.120307ms)
+✔ isLoopbackHost: another 127.x.x.x literal is loopback (0.124558ms)
+✔ isLoopbackHost: ::1 is loopback (0.08539ms)
+✔ isLoopbackHost: 0.0.0.0 is not loopback (0.077719ms)
+✔ isLoopbackHost: undefined (all interfaces) is not loopback (0.543557ms)
+✔ isLoopbackHost: an arbitrary LAN literal is not loopback (0.204734ms)
+✔ DEFAULT_LOCAL_BIND_HOST is '127.0.0.1' (0.134133ms)
+✔ plugin-runtime-attach: once started, a plugin disabled by ANOTHER process is detached from this process's hook registry, and an enabled one attached; stop() ends polling (76.530589ms)
+✔ stop cancels a queued reconciliation waiting on readiness (8.462732ms)
+✔ stop cancels a queued reconciliation waiting on activation read (6.58596ms)
+✔ the daemon polling call reconciles external activation changes and stop halts it (1064.580933ms)
+✔ waitFor rejects at its deadline instead of silently accepting missing reconciliation (1.217571ms)
+[plugin-runtime] plugin activation poll failed to attach 'broken-plugin': package missing from disk
+✔ a plugin newly enabled in the durable repo is attached, and its id is added to attachedIds (2.638326ms)
+✔ an already-attached plugin is NOT re-attached on a later pass — no redundant reload, no reset quarantine counter (0.299033ms)
+✔ a plugin disabled elsewhere (no longer in the durable enabled set) is detached and dropped from attachedIds (0.224257ms)
+✔ a workspace this daemon does not serve is ignored, even if enabled there (0.210751ms)
+✔ one plugin's attach failure is logged and skipped, never blocking reconciliation of the rest (1.220443ms)
+✔ release uses the running manifest version and short SHA, with bounded dev fallbacks (1.857562ms)
+✔ telemetry environment retains the host bounded runtime selection (0.331531ms)
+✔ committed content events cover create, save and publish for both post and page, without content properties (5.20149ms)
+[migrations] /tmp/tovu-boot-options-pJt3bi/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-boot-options-PzSeBI/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ TOVU_ADMIN_RESET_PASSWORD resets the admin password at boot: the new one logs in and the seeded one no longer does (1616.259ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-boot-options-QB9uHq/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+[migrations] /tmp/tovu-boot-options-I2flwW/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+[migrations] /tmp/tovu-boot-options-0IlRG2/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ a boot reset for a username that does not exist resolves without throwing, reports FAILED, and leaves the seeded password working (1282.563219ms)
+✔ an unknown TOVU_MEDIA_BLOB_STORE refuses to boot, naming the accepted backends (522.455242ms)
+✔ TOVU_MEDIA_BLOB_STORE=s3 with missing variables refuses to boot, naming every required one and exactly the missing ones (599.506483ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-boot-options-hKkUGV/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ a complete S3 config boots with the S3 blob store, and the site backup then leaves uploads out (922.493776ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-boot-options-rP3q1F/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ the composed plugin callbacks: enabling word-count over HTTP makes the next post save carry its count, disabling it stops that (1257.043774ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ boot re-attaches a persisted enabled plugin after the SDK host exists (1049.537047ms)
+[migrations] /tmp/tovu-provider-boot-IfHE7f/site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ installed + enabled + configured provider plugin boots through the real composition root (no TDZ fallback to noop) (1906.316068ms)
+[migrations] /tmp/tovu-provider-project-r0oe0e/Tovu/site-a/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-provider-project-r0oe0e/Tovu/site-b/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-provider-unavailable-3ZmdCz/site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ two sites of one project: settings saved from site A land in project.db and configure site B's provider (2243.428561ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ a project store that can't open (EACCES on its folder): the site boots, warns, and a settings save is refused, never sent to the site vault (946.484207ms)
+✔ siteIdentityFor: Fly (production) is its own project; desktop is detected from the Electron child env; else local (0.837282ms)
+✔ siteIdentityFor: each site is named by its own .site-meta.json siteId, not the shared starter workspace id (2.407739ms)
+✔ siteIdentityFor: a deployed site with no .site-meta.json is named by TOVU_SITE_ID (set at deploy), never the shared workspace id (1.256435ms)
+✔ siteIdentityFor: only a UUID-like short token is taken as a site id (meta or TOVU_SITE_ID); anything else falls back, with a warning (2.922931ms)
+✔ stop returns within the grace while a pull hangs, and logs one line (1011.127356ms)
+✔ stop waits for the notification drain a finished pull started, and no longer (51.043226ms)
+✔ an owner/admin sign-in runs one automatic pull for the trigger's workspace (0.71198ms)
+✔ after stop, neither the startup nor the sign-in trigger starts another pull (0.844138ms)
+✔ with no composed automatic pull every trigger is a no-op and stop returns at once (0.365495ms)
+[migration-recovery] restored /tmp/tovu-open-site-content-db-bW8TiH/content.db from /tmp/tovu-open-site-content-db-bW8TiH/content.db.snapshot-crashed-plugin-1793327004507 (interrupted dataModule migration of plugin 'crashed-plugin')
+[migrations] /tmp/tovu-open-site-content-db-bW8TiH/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   backed up the database to /tmp/tovu-open-site-content-db-bW8TiH/ops/pre-migrations-2026-10-30T02-23-24-564Z.db before migrating it
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+[migrations] /tmp/tovu-open-site-content-db-fresh-DNasge/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ openSiteContentDb restores a crash-interrupted dataModule attempt, then prepares the restored file (868.488636ms)
+✔ openSiteContentDb on a fresh path creates, migrates, seeds once and writes the watermark row (508.655292ms)
+[migrations] /tmp/tovu-open-site-content-db-backup-GIIXA3/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   backed up the database to /tmp/tovu-open-site-content-db-backup-GIIXA3/ops/pre-migrations-2026-10-30T02-23-25-806Z.db before migrating it
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+[migrations] /tmp/tovu-open-site-content-db-fail-fCYjh0/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ openSiteContentDb copies an existing unadopted file to ops/ first and keeps only the newest copy (583.48897ms)
+✔ openSiteContentDb closes its connection when a boot step rejects (a checksum mismatch here) (537.392871ms)
+✔ a invalid site key refuses before any token file is written (6.653839ms)
+✔ a refuse site key refuses before any token file is written (1.244289ms)
+✔ tokens are sealed with the new site's sealer and import back through the apply path (5.357715ms)
+✔ listing pending token ids of a file holding null is empty (1.409917ms)
+✔ listing pending token ids of a file holding an array of tokens is empty (0.96702ms)
+✔ listing pending token ids of a file holding no tokens field is empty (0.811598ms)
+✔ applying a file with no tokens field removes it without importing anything (1.317663ms)
+✔ plugin install attachment reader enforces owner, accepted message/run, size and integrity on disk (63.86006ms)
+✔ plugin install attachment reader refuses as no-record when the composition gave it no upload directory (0.784088ms)
+✔ a committed save needing restart remains successful without submitted values (3.721418ms)
+✔ save refuses absent, blank and whitespace tokens unless the explicit local mode is selected (1.062967ms)
+✔ a saved token without auth keeps working; changing a public field still requires secret re-entry (0.621711ms)
+✔ boot and provider_status agree for absent auth, explicit local auth, and defaults (1.648081ms)
+✔ chat declares a default Token choice and conditional blank handling without exposing saved secrets (0.772884ms)
+✔ Grafana Cloud requires an instance ID on save, boot and status; a kept token satisfies it (0.775988ms)
+✔ a committed provider startup failure carries safe guidance instead of a restart promise (0.858766ms)
+✔ save refuses non-auth headers before writing; declared auth headers allow tokenless boot and status (2.333739ms)
+[migrations] /tmp/tovu-registrations-close-mRQwJV/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-registrations-close-Fughmt/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ closing the site store unbinds its SlugChangeCapture from the process-wide slot (1211.884824ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-registrations-close-XQOXpQ/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ closing the site store unsubscribes its redirect-hit fold from the bus (856.980417ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[migrations] /tmp/tovu-registrations-close-Ztu3UD/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ site composition owns independent agent runtime caches and clears them with the store (1864.425877ms)
+✔ installFirstPartyToolContributors also registers the publishable content types the publish tools read (29.297539ms)
+✔ a tool-hosting process booted only through installFirstPartyToolContributors is not told its site has nothing to publish (3.843051ms)
+✔ sqlite: plugin settings survive restart and the connection surface stays disconnected (769.192669ms)
+✔ pglite: plugin settings survive restart and the connection surface stays disconnected (4760.423622ms)
+✔ GET .../destination reads the candidate from TOVU_REPO_ROOT's deploy workflow, not the process's cwd (102.931565ms)
+✔ GET .../destination falls back to process.cwd() when TOVU_REPO_ROOT is unset — the plain `tovu serve`/production case (28.478583ms)
+✔ POST .../connect writes trust under TOVU_REPO_ROOT and the next request uses the saved destination (97.109124ms)
+✔ POST .../disconnect removes this install's grant from TOVU_REPO_ROOT, leaving the cwd trust file untouched (85.48273ms)
+✔ allocateFreePort resolves the port the OS-assigned address reports, after releasing the socket (4.660379ms)
+✔ allocateFreePort rejects with the close error instead of handing out a port it could not release (1.512362ms)
+✔ allocateFreePort rejects when the listener reports no TCP address (null) (0.466484ms)
+✔ allocateFreePort rejects when the listener reports no TCP address (/tmp/pipe.sock) (0.29676ms)
+✔ allocateFreePort's default probe binds a real ephemeral port (12.692651ms)
+✔ production resolver honors JINI_AGENT_DAEMON_URL across ensure/getUrl/getPortForSpawnEnv (0.54858ms)
+✔ before ensure() with nothing configured there is no spawn-env port to hand the daemon child (0.322808ms)
+✔ with neither env var set, ensure() self-allocates a port that is NOT the old fixed default 4319 (11.599828ms)
+✔ the proxy's resolved URL and the daemon child's spawn-env port agree on the SAME self-allocated port (2.202852ms)
+✔ getUrl() throws with an actionable message when read before ensure() resolves a self-allocated port (1.760451ms)
+✔ an explicit JINI_AGENT_DAEMON_PORT still wins outright — no self-allocation, no probe needed (0.307585ms)
+✔ an explicit JINI_AGENT_DAEMON_URL wins outright over JINI_AGENT_DAEMON_PORT, and reports no port to manage (0.295788ms)
+✔ ensure() is idempotent — a second call does not re-allocate a different port (1.302515ms)
+✔ two independent resolvers allocate distinct ports that can actually be bound (8.840292ms)
+✔ isDaemonLifecycleLogQuiet: exactly 'off' is quiet (1.414811ms)
+✔ isDaemonLifecycleLogQuiet: unset, 'on' or anything else logs as before (0.223492ms)
+external-mcp admissions read refused with status 401
+external-mcp admissions read failed
+external-mcp admissions read failed
+external-mcp admissions read failed
+external-mcp admissions read failed
+external-mcp admissions read failed
+external-mcp admissions read failed
+external-mcp admissions read failed
+external-mcp admissions read failed
+✔ shared probe refuses unknown server before connecting (12.010398ms)
+✔ shared probe refuses disabled before connecting (1.910831ms)
+✔ shared probe refuses local command before connecting (1.179162ms)
+✔ shared probe lists and closes without invoking tools or leaking its resolved auth headers (12.002934ms)
+✔ shared probe handles connect failure and closes an opened session (1.887692ms)
+✔ shared probe handles list failure and closes an opened session (1.036862ms)
+✔ shared probe handles close failure and closes an opened session (0.766464ms)
+✔ admissions uses the authenticated bounded daemon read and preserves current failures (4.939007ms)
+✔ missing admissions token refuses without a request (0.334721ms)
+✔ admissions non-200 is unavailable, never an empty success (1.559198ms)
+✔ admissions connection refused is unavailable, never an empty success (0.287367ms)
+✔ admissions invalid JSON is unavailable, never an empty success (0.475294ms)
+✔ admissions missing roster is unavailable, never an empty success (0.364432ms)
+✔ older daemon response omits configFailures (0.368561ms)
+✔ OAuth refresh errors never send provider credentials to the model (2.429135ms)
+✔ a credential decryption error cannot echo secret payloads (3.019935ms)
+✔ typed OAuth revocation remains a safe, actionable 409 (1.142175ms)
+✔ stored environment decryption failure uses fixed copy instead of a raw parser or crypto error (2.31382ms)
+✔ probe pins status 401 during connect, with cleanup (0.84994ms)
+✔ probe pins status 401 during list, with cleanup (0.595869ms)
+✔ probe pins status 403 during connect, with cleanup (0.6145ms)
+✔ probe pins status 403 during list, with cleanup (0.626275ms)
+✔ probe pins fallback statusCode during connect, with cleanup (0.651207ms)
+✔ probe pins fallback statusCode during list, with cleanup (0.67223ms)
+✔ probe pins null status falls back during connect, with cleanup (0.587581ms)
+✔ probe pins null status falls back during list, with cleanup (0.488683ms)
+✔ probe pins status takes precedence during connect, with cleanup (0.757137ms)
+✔ probe pins status takes precedence during list, with cleanup (0.544131ms)
+✔ probe pins string status is not numeric during connect, with cleanup (0.567021ms)
+✔ probe pins string status is not numeric during list, with cleanup (0.545234ms)
+✔ probe pins typed authentication during connect, with cleanup (0.677944ms)
+✔ probe pins typed authentication during list, with cleanup (0.793943ms)
+✔ probe pins protocol HTTP 401 during connect, with cleanup (0.588898ms)
+✔ probe pins protocol HTTP 401 during list, with cleanup (0.599369ms)
+✔ probe pins protocol HTTP 403 during connect, with cleanup (0.474925ms)
+✔ probe pins protocol HTTP 403 during list, with cleanup (0.538252ms)
+✔ probe pins HTTP suffix must match exactly during connect, with cleanup (0.469675ms)
+✔ probe pins HTTP suffix must match exactly during list, with cleanup (0.600443ms)
+✔ probe pins plain error HTTP text is not protocol during connect, with cleanup (0.465891ms)
+✔ probe pins plain error HTTP text is not protocol during list, with cleanup (0.519294ms)
+✔ probe pins abort error during connect, with cleanup (0.506135ms)
+✔ probe pins abort error during list, with cleanup (0.519331ms)
+✔ probe pins timeout error during connect, with cleanup (0.503475ms)
+✔ probe pins timeout error during list, with cleanup (0.476986ms)
+✔ probe pins protocol timeout during connect, with cleanup (0.560467ms)
+✔ probe pins protocol timeout during list, with cleanup (0.478405ms)
+✔ probe pins protocol abort during connect, with cleanup (0.518062ms)
+✔ probe pins protocol abort during list, with cleanup (51.834322ms)
+✔ probe pins plain timeout text is not protocol during connect, with cleanup (0.9792ms)
+✔ probe pins plain timeout text is not protocol during list, with cleanup (0.59751ms)
+✔ probe pins auth precedes timeout during connect, with cleanup (0.549429ms)
+✔ probe pins auth precedes timeout during list, with cleanup (0.645212ms)
+✔ probe pins plain object name is not an Error during connect, with cleanup (4.970399ms)
+✔ probe pins plain object name is not an Error during list, with cleanup (0.640864ms)
+✔ probe pins null during connect, with cleanup (0.59191ms)
+✔ probe pins null during list, with cleanup (1.009723ms)
+✔ probe pins undefined during connect, with cleanup (0.584134ms)
+✔ probe pins undefined during list, with cleanup (0.496215ms)
+✔ probe pins primitive during connect, with cleanup (0.658749ms)
+✔ probe pins primitive during list, with cleanup (0.505785ms)
+✔ admissions pins rejection of connections missing (1.290734ms)
+✔ admissions pins rejection of connections not array (0.346386ms)
+✔ admissions pins rejection of null body (0.738572ms)
+✔ admissions pins rejection of null config failures (0.287341ms)
+✔ admissions pins rejection of object config failures (0.541992ms)
+✔ admissions relays array entries verbatim but drops unrelated fields (0.399274ms)
+✔ an OAuth server already marked needs_reauth is a 409 with its settings link, answered before any connect or token resolution (0.971286ms)
+✔ with no injected connect, the real HTTP session factory is used: a refused endpoint is a 502 unreachable, not a thrown error (80.73877ms)
+✔ the D1 destination pulls and acknowledges through the same receiver client the Worker serves (2.164614ms)
+✔ the descriptor declares it co-hosted on Workers only, and the hosting target no longer pulls (7.128557ms)
+✔ a field that is missing or has no name is refused with the rename step (2.797191ms)
+✔ migrations run with the system clock when the kit has none, and tolerate query answers without rows (51.46012ms)
+✔ form page routes skip an entry with no file name (3.618199ms)
+✔ paging numbers that do not parse fall back: after 0, limit 50; a tiny limit is raised to 1 (3.725415ms)
+✔ a pending row needs a string submittedAt and an ip that is null or a string (1.881539ms)
+✔ the hosted connection supports browser sign-in without inline credentials (31.938647ms)
+✔ renders the fly config to stdout and its operator notes to stderr (59.189532ms)
+✔ --out writes the rendered fly.toml and reports where (10.312693ms)
+✔ without --region the generator receives an empty region and fly refuses to assume one (14.847538ms)
+✔ the committed Tovu deploy workflow is exactly the render of the plugin template (3.538091ms)
+✔ the render keeps the production deploy contract and adds no step the workflow never had (3.166872ms)
+✔ an enabled block un-comments its `#| ` lines and drops the matching `!` default (2.312009ms)
+✔ placeholders are substituted, and a missing value throws instead of shipping the token (0.637268ms)
+✔ malformed regions are template errors (0.262633ms)
+✔ the CLI writes the render, and --check reports a stale committed file (4.878093ms)
+▶ hosting plugin module contract (github-pages)
+  ✔ create() builds a target from the token and the config's owner/repo/branch, and publishes a .nojekyll marker (22.783248ms)
+  ✔ a site-supplied .nojekyll is not duplicated (4.5333ms)
+  ✔ responseHeaders are ignored: GitHub Pages has no header config, and no header file is published (2.301458ms)
+  ✔ verifyCredential classifies HTTP 200 with the exact account request (1.393115ms)
+  ✔ verifyCredential classifies HTTP 401 with the exact account request (0.584785ms)
+  ✔ verifyCredential classifies HTTP 403 with the exact account request (0.48677ms)
+  ✔ verifyCredential classifies HTTP 429 with the exact account request (0.285356ms)
+  ✔ verifyCredential classifies HTTP 503 with the exact account request (0.385305ms)
+  ✔ verifyCredential accepts a valid response without a usable login: {} (0.628003ms)
+  ✔ verifyCredential accepts a valid response without a usable login: {"login":""} (0.428344ms)
+  ✔ verifyCredential accepts a valid response without a usable login: {"login":42} (0.342869ms)
+  ✔ verifyCredential accepts a valid response without a usable login: null (0.243126ms)
+  ✔ verifyCredential accepts a valid response without a usable login: "not JSON" (0.391845ms)
+  ✔ basePath is /<repo>, the prefix a project site serves from (0.184531ms)
+  ✔ summarize folds owner and repo into one Repository row, plus the branch when one is given (0.290599ms)
+  ✔ validateConfig keeps the legacy exact refusal texts (0.639116ms)
+✔ hosting plugin module contract (github-pages) (38.094847ms)
+▶ GitHubPagesDeployTarget.publish
+  ✔ throws DeployError without making a network call when token is missing (1.218079ms)
+  ✔ throws DeployError without making a network call when owner is missing (0.585773ms)
+  ✔ throws DeployError without making a network call when repo is missing (0.388067ms)
+  ✔ refuses to follow a redirect on the branch-ref lookup, and requests redirect: manual on every call (0.56705ms)
+  ✔ publishes a brand-new site: no existing branch, no existing Pages config, dedupes identical file content into one blob (4013.318374ms)
+  ✔ bounds every call in the ref -> blob -> tree -> commit -> branch -> pages -> build-poll chain with a timeout signal (1005.744756ms)
+  ✔ aborts stalled request 1 (create branch) (18.894234ms)
+  ✔ aborts stalled request 2 (create branch) (17.200868ms)
+  ✔ aborts stalled request 3 (create branch) (16.308801ms)
+  ✔ aborts stalled request 4 (create branch) (17.155089ms)
+  ✔ aborts stalled request 5 (create branch) (21.861669ms)
+  ✔ aborts stalled request 6 (create branch) (16.515025ms)
+  ✔ aborts stalled request 7 (create branch) (21.63921ms)
+  ✔ aborts stalled request 8 (create branch) (21.907888ms)
+  ✔ aborts stalled request 5 (update branch) (16.295587ms)
+  ✔ bounds the PATCH branch-update call with a timeout signal too (1005.664535ms)
+  ✔ updates an existing branch (force push) instead of creating a new ref when the branch already has a tip commit (1004.349031ms)
+  ✔ flags sourceBranchMismatch when the existing Pages site is configured against a different branch (1002.160806ms)
+  ✔ uses a caller-supplied branch instead of the gh-pages default (1004.410761ms)
+  ✔ throws DeployError when the Pages build reaches a terminal errored state, surfacing error.message (1003.847893ms)
+  ✔ throws DeployError with a generic message when a terminal errored build carries no error.message (1004.388053ms)
+  ✔ proceeds to the reachability wait using whatever Pages URL it already has when the build poll exhausts its 30-attempt budget (7.939595ms)
+  ✔ throws DeployError with the message field when blob creation fails (0.946704ms)
+  ✔ throws DeployError when a blob response has no sha (0.99138ms)
+  ✔ throws DeployError with the message field when tree creation fails (0.822009ms)
+  ✔ throws DeployError when a tree response has no sha (0.64ms)
+  ✔ throws DeployError with the message field when commit creation fails (1.403344ms)
+  ✔ throws DeployError when a commit response has no sha (0.799855ms)
+  ✔ throws DeployError with the message field when creating a new branch ref fails (1.091803ms)
+  ✔ throws DeployError with the message field when updating an existing branch ref fails (1.152002ms)
+  ✔ throws DeployError with the message field when the branch lookup itself fails (not a 404) (0.765647ms)
+  ✔ throws DeployError with the message field when the Pages site lookup fails (not a 404) (1.413445ms)
+  ✔ throws DeployError with the message field when Pages site creation fails (1.457305ms)
+  ✔ falls back to HTTP 502 when a non-JSON response carries no HTTP status of its own (0.753759ms)
+  ✔ treats a malformed branch-ref response (200 OK, but no object.sha) the same as a not-yet-existing branch (1002.863694ms)
+  ✔ keeps polling past a builds/latest entry with a non-string commit or status field before matching the real build (3006.375747ms)
+  ✔ keeps polling past a builds/latest response that fails to parse as JSON instead of treating it as a hard failure (2007.287118ms)
+  ✔ throws DeployError when a build status check fails mid-poll (not a 404) (1004.914377ms)
+  ✔ throws DeployError when a response body is not valid JSON (0.945147ms)
+  ✔ falls back to a bare url when html_url is absent from the Pages site response (1002.544934ms)
+  ✔ falls back to an empty URL and link-delayed status when the Pages site response has no URL at all (1002.807498ms)
+  ✔ falls back to "site" in the commit message when projectName is blank/whitespace (1003.191775ms)
+  ✔ checkReachability probes the URL without any protected-response detection (1.761679ms)
+✔ GitHubPagesDeployTarget.publish (21273.241477ms)
+✔ github/github: correct title, destination, key page and minimum access guidance (1.72566ms)
+✔ github/github-source-control: correct title, destination, key page and minimum access guidance (0.469888ms)
+✔ source control uses the GitHub save destination (0.28591ms)
+✔ every credential card parses its task purposes (2.431899ms)
+✔ only the API-token card declares a parsed, same-origin read-only user probe (0.485738ms)
+✔ GitHub owns its token form and reuses its existing source-control credential card (8.576403ms)
+✔ GitHub declares its own reserved and executable workflow paths (0.648084ms)
+✔ GitHub credential admission needs only the token and probes through the injected transport after saving (32.971802ms)
+✔ tovu-admin-surfaces.json: the connection surface keeps its id, title and entry (15.2096ms)
+✔ only the form-destinations surface declares read-only form discovery (3.71589ms)
+✔ surface files: every served file is static (no inline script or style) and holds nothing secret-shaped (8.579006ms)
+✔ list, save and remove preserve forms through the declared capability and result schemas (54.00768ms)
+✔ a host without forms omits choices for the typed fallback (25.495495ms)
+✔ a forms permission refusal fails the action instead of returning a typed fallback (5.660864ms)
+✔ vertical slice: hosted sign-in asks for drive.file only, proves PKCE, and the account_info tool names the account without a token (127.922797ms)
+✔ PKCE: the verifier sent to the token endpoint matches the S256 challenge of the same attempt (the fake refuses any other) (10.229513ms)
+✔ state: a callback whose state was never issued is refused as invalid-attempt and no code is exchanged (2.171801ms)
+✔ state: a replayed callback is refused as invalid-attempt (consume once) (7.165752ms)
+✔ consent denial: access-denied, nothing exchanged or stored, still not connected (2.202938ms)
+✔ partial scopes: a grant without drive.file is refused as scope-not-granted and no token is served (6.986137ms)
+✔ missing refresh token: a hosted same-account reconnect that omits one keeps the stored refresh token (28.332352ms)
+✔ refresh rotation: a rotated refresh token is stored and the old one is never sent again (16.838325ms)
+✔ invalid_grant: the connection needs a reconnect and the plugin client says "Reconnect required" with a reconnect action (12.801703ms)
+✔ revoke hook: posts the token form-encoded to Google's revocation endpoint and resolves only on 200 (3.902787ms)
+✔ revoke hook: a refusal is never a confirmation (only invalid_token, "already revoked", is), and the error carries no token (7.721709ms)
+✔ revoke hook: Google's own error text never reaches the thrown message (7.181493ms)
+✔ revoke hook: a transport failure is pending (provider-unreachable), never confirmed (0.494664ms)
+✔ scopes: a product the catalog does not know is refused, never silently dropped from the sign-in (2.715984ms)
+✔ identity: a Drive answer that names no stable account id is refused, so no account is bound (2.241102ms)
+✔ revoke: a confirmed revocation clears local tokens; a failed one stays "revocation pending", serves no token, and a retry confirms (13.218696ms)
+✔ revoke over the vault token store reaches Google and clears the grant (7.81125ms)
+✔ revoke: Google answering that the token is already revoked counts as confirmed, so a retry can finish (6.871067ms)
+✔ revoke: any other refusal from Google stays pending (6.238031ms)
+✔ desktop: the installed-app sign-in forces consent without incremental grants, and re-consent replaces the old tokens (12.31508ms)
+✔ hosted incremental: include_granted_scopes=true and a grant carrying earlier scopes is accepted (10.581848ms)
+✔ redaction: no token or client secret reaches status, connection records or the tool output (9.217271ms)
+✔ redaction: a Google error that echoes request data becomes a fixed safe message (3.346245ms)
+✔ transport: the test fetch refuses every host but Google's (no real third-party call is possible) (0.399401ms)
+✔ browser binding (hosted): missing or another browser's proof burns the attempt before exchange (2.8674ms)
+✔ offline access (hosted): a first grant without a refresh token is refused before credential install (10.357621ms)
+✔ browser binding (desktop): missing or another browser's proof burns the attempt before exchange (2.488764ms)
+✔ offline access (desktop): a first grant without a refresh token is refused before credential install (5.169413ms)
+✔ hosted consent: a renewable same-account reconnect keeps incremental grants without forcing consent again (7.275602ms)
+✔ verified: a spreadsheet the account can open returns metadata only (id, title, account, link) (48.76248ms)
+✔ verified: Drive metadata AND the Sheets API are both called, in that order (real API access) (5.176268ms)
+✔ path safety: file id "../about" is refused before any request (invalid-selection) (1.133784ms)
+✔ path safety: file id "a/b" is refused before any request (invalid-selection) (0.35126ms)
+✔ path safety: file id "abc?x=1" is refused before any request (invalid-selection) (0.200096ms)
+✔ path safety: file id "abc#x" is refused before any request (invalid-selection) (0.206744ms)
+✔ path safety: file id "%2e%2e" is refused before any request (invalid-selection) (0.25768ms)
+✔ path safety: file id "short" is refused before any request (invalid-selection) (0.789417ms)
+✔ path safety: file id "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" is refused before any request (invalid-selection) (0.241151ms)
+✔ path safety: file id "" is refused before any request (invalid-selection) (0.167124ms)
+✔ path safety: file id " 1AbCdEfghIJklmn " is refused before any request (invalid-selection) (0.17145ms)
+✔ path safety: file id 42 is refused before any request (invalid-selection) (0.169614ms)
+✔ path safety: file id null is refused before any request (invalid-selection) (0.176336ms)
+✔ authorization: a selection made for another account is refused (account-changed) before the file is read (13.358863ms)
+✔ trashed: a spreadsheet in the trash is refused (file-not-granted, re-pick), the Sheets API is not called (4.49362ms)
+✔ MIME: a file that is not a Google Sheets spreadsheet is refused (not-a-spreadsheet), the Sheets API is not called (5.376819ms)
+✔ access: a file the drive.file grant does not cover is refused with a re-pick next step, never Google text or the token (2.957287ms)
+✔ access: Drive metadata alone is not enough; a Sheets API refusal refuses the selection (3.779928ms)
+✔ integrity: a Drive answer naming another file is refused (unexpected-response) (2.413809ms)
+✔ integrity: a Sheets answer naming another spreadsheet is refused (unexpected-response) (4.292076ms)
+✔ desktop: picked_file_ids with one valid id yields that id (0.338487ms)
+✔ desktop: an absent or empty picked_file_ids is a cancel (null), leaving settings unchanged (0.199427ms)
+✔ desktop: picked_file_ids "1AbC-dEf_ghIJklmnOPqrs,1AbC-dEf_ghIJklmn" is refused (invalid-selection), never echoed (0.265806ms)
+✔ desktop: picked_file_ids "../about" is refused (invalid-selection), never echoed (0.13451ms)
+✔ desktop: picked_file_ids "1AbC-dEf_ghIJklmnOPqrs/x" is refused (invalid-selection), never echoed (0.106841ms)
+✔ desktop: picked_file_ids "1AbC-dEf_ghIJklmnOPqrs&x=1" is refused (invalid-selection), never echoed (0.101898ms)
+✔ desktop: picked_file_ids "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" is refused (invalid-selection), never echoed (0.102783ms)
+✔ desktop: native Picker start params ask for one spreadsheet only (0.224409ms)
+✔ catalog: the shipped catalog asks only for drive.file as the base scope (2.1796ms)
+✔ catalog: a well-formed catalog is returned frozen, scopes included (0.391092ms)
+✔ catalog: a product scope that is not a Google scope URL is refused, naming the product (0.739518ms)
+✔ catalog: a Google scope with a path beyond auth/<name> is refused (0.250574ms)
+✔ catalog: base scopes that are not a list are refused (0.283201ms)
+✔ vertical slice: create, append and read a spreadsheet through the real projection; RAW, bearer token only in the header, no token in any result (127.959185ms)
+✔ approval class: each Sheets tool declares exactly its reviewed effect (write → confirm, destructive → confirm + danger) (0.766479ms)
+✔ disclosure: every write and destructive Sheets tool names what it changes before confirmation (3.208021ms)
+✔ disclosure: a 100-range destructive batch stays inside the card bound and states how many ranges are not listed (1.486834ms)
+✔ bounds: a values read over 500 rows returns 500 rows and the exact continuation range (11.634395ms)
+✔ bounds: batch reads share one 5,000-cell budget; the cut range carries its continuation (8.912486ms)
+✔ bounds: more than 20 ranges are refused by the schema before any request (1.282116ms)
+✔ bounds: a mutation body over 1 MiB is refused as limit-exceeded before any request (53.058364ms)
+✔ bounds: metadata over 64 KiB is an error, never a cut result (8.772254ms)
+✔ bounds: find refuses to scan more than 50,000 cells instead of returning a partial search (34.430681ms)
+✔ safe errors: a Google refusal that echoes the token and a cell value becomes a fixed message without either (5.668812ms)
+✔ path safety: a range is one encoded path segment, so slashes, dots, query and fragment text cannot change the endpoint (3.088667ms)
+✔ path safety: a dot-segment id or range is refused before any request (schema and helper) (1.075746ms)
+✔ query safety: batch ranges travel as separate encoded query values, so & and = in a tab name cannot add parameters (2.226272ms)
+✔ RAW: update and batch update send RAW unless USER_ENTERED is explicitly asked for (6.294245ms)
+✔ uncertain outcome: sheets_values_append answered 503 is reported unknown and never replayed (2.711205ms)
+✔ uncertain outcome: sheets_create answered 503 is reported unknown and never replayed (2.157307ms)
+✔ uncertain outcome: sheets_copy answered 503 is reported unknown and never replayed (2.756684ms)
+✔ uncertain outcome: sheets_copy_tab answered 503 is reported unknown and never replayed (2.869736ms)
+✔ uncertain outcome: sheets_find_replace answered 503 is reported unknown and never replayed (2.659266ms)
+✔ grid data opt-in: a fields mask with * or data is refused unless includeGridData (and, for sheets_get, ranges) are given (2.837608ms)
+✔ grid data opt-in: a grid mask with includeGridData and ranges is sent, and a mask naming dataSources is not grid data (8.006596ms)
+✔ the design-only package ships its API references without claiming executable chat tools (13.62702ms)
+✔ throws DeployError without making a network call when token is missing (8.635112ms)
+✔ throws DeployError without making a network call when a site name cannot be derived (0.643245ms)
+✔ finds an existing site, uploads only required files, polls to ready, and returns the reachable URL (15.922764ms)
+✔ bounds the site-lookup, deploy-creation, file-upload, and status-poll calls with a timeout each (3.537572ms)
+✔ creates a new site when none exists yet (3.590625ms)
+✔ bounds the site-creation call with a timeout too (1.632315ms)
+✔ recovers from a site-creation conflict by re-listing and using the now-existing site (1.588431ms)
+✔ throws the original creation error when the site truly cannot be found after a failed create (0.859803ms)
+✔ throws DeployError when Netlify reports a terminal error state, surfacing error_message (4.864538ms)
+✔ throws DeployError with a generic message when a terminal failure state carries no error_message (1.141368ms)
+✔ throws DeployError with the message field when site lookup fails (0.642213ms)
+✔ falls back to a generic message when an error body has no message field (0.495337ms)
+✔ throws DeployError when a response body is not valid JSON (0.65271ms)
+✔ throws DeployError when the site response has no id (0.799126ms)
+✔ throws DeployError when the deploy response has no id (0.828668ms)
+✔ throws DeployError when a required file upload fails (1.349482ms)
+✔ a failed file upload whose body is not JSON still fails with the upload step's own message (1.16231ms)
+✔ when no status poll is ever readable the URL comes from the site alone (12.704336ms)
+✔ skips uploading a hash Netlify reports as required but that is not in the sent manifest (1.836449ms)
+✔ URL-encodes nested file paths for the upload endpoint and treats duplicate-content files as one upload (1.579279ms)
+✔ keeps polling past a deploy status-check response that fails to parse as JSON instead of treating it as a hard failure (1.573169ms)
+✔ returns the last known deploy state once polling exhausts its 30-attempt budget without a terminal state (5.378162ms)
+✔ checkReachability probes the URL without any protected-response detection (0.721477ms)
+✔ checkReachability reports unreachable on 503 (0.891232ms)
+✔ checkReachability reports unreachable on network error (0.600088ms)
+✔ skips the required-uploads loop entirely when the deploy-creation response omits a `required` array (1.232228ms)
+✔ falls back to an empty URL and omits reachableAt when no response provides a candidate deployment URL (1.471452ms)
+✔ falls back to deploy_ssl_url / deploy_url when neither response carries ssl_url or url (1.195736ms)
+✔ handles a non-object (array) error body from a failed site lookup by falling back to a generic message (2.537592ms)
+✔ falls back to HTTP 502 when a non-JSON response carries no HTTP status of its own (0.703953ms)
+✔ throws DeployError with the message field when deploy creation itself fails (0.805331ms)
+✔ throws DeployError when a deploy status check fails mid-poll (1.23101ms)
+✔ renders responseHeaders into a root _headers file in Netlify's format (2.326153ms)
+✔ the rendered _headers replaces a site-supplied one (the header set is the host's, not the export's) (3.080873ms)
+✔ no responseHeaders (or an empty set) means no _headers file is added (3.739722ms)
+✔ the module accepts any config (Netlify needs no config fields) and serves from the root (0.275218ms)
+✔ verifyCredential classifies HTTP 200 using the authenticated user endpoint (0.650796ms)
+✔ verifyCredential classifies HTTP 204 using the authenticated user endpoint (0.356596ms)
+✔ verifyCredential classifies HTTP 401 using the authenticated user endpoint (0.639447ms)
+✔ verifyCredential classifies HTTP 403 using the authenticated user endpoint (0.279925ms)
+✔ verifyCredential classifies HTTP 429 using the authenticated user endpoint (0.306935ms)
+✔ verifyCredential classifies HTTP 503 using the authenticated user endpoint (0.428465ms)
+✔ renderRenderYaml: exact render.yaml contents for a known descriptor and region (1.770334ms)
+✔ renderRenderYaml: never emits a secret VALUE — sync: false prompts in the Dashboard instead (1.632482ms)
+✔ renderRenderYaml: notes state the headless-Chromium opt-in — the Dockerfile default is off (owner decision 2026-10-08) (0.402511ms)
+✔ renderRenderYaml: rejects a missing region rather than defaulting to Render's own "oregon" default (0.833769ms)
+✔ renderRenderYaml: rejects a region outside Render's own enum, e.g. a Fly region code (0.205191ms)
+✔ renderRenderYaml: accepts every documented Render region (1.281324ms)
+✔ renderRenderYaml: rejects a quote- or newline-bearing appName/volumeName (regression, same class of bug as the Fly TOML injection) (0.273073ms)
+✔ renderRenderYaml: rejects a colon in appName/volumeName — would end the plain scalar and start a new YAML key (0.372179ms)
+✔ renderRenderYaml: rejects a hash in appName — would start an inline YAML comment mid-scalar (0.197304ms)
+✔ renderRenderYaml: rejects a curly brace in appName — would open a YAML flow mapping (0.203778ms)
+✔ renderRenderYaml: rejects a leading hyphen in volumeName — would read as a YAML block-sequence entry (0.191812ms)
+✔ renderRenderYaml: a normal appName/volumeName still renders byte-identically to before this fix (happy path unmoved) (0.209153ms)
+✔ render is a seeded-disabled package with its config and deploy-ops descriptors, modules and skill packed (197.061483ms)
+✔ plugin.json parses under the Agent Plugins v1.0.0 validator with no warnings (24.02459ms)
+✔ mcp.json's only server is Resend's account MCP — the mail adapter still runs in-process through the mail-adapter registry (3.227446ms)
+✔ the credential label is byte-identical to the one sites already saved (no re-entry on upgrade) (14.25229ms)
+✔ the package packs through the real packer with its descriptor, module and skill (6.890589ms)
+[agent-plugins:migration-complete] /tmp/tovu-resend-plugin-n4ZVTt/ws/workspace-local
+✔ seeded by the real seeder, resend stays disabled until explicit enable loads its installed adapter (2099.924534ms)
+[agent-plugins:migration-complete] /tmp/tovu-resend-plugin-Y7aARH/ws/workspace-local
+✔ an operator who switched resend off stays switched off across boots, and the registry then has no adapter (4745.516306ms)
+[agent-plugins:migration-complete] /tmp/tovu-resend-plugin-3djDZ6/ws/workspace-local
+✔ mail_list_providers discovers the seeded, disabled resend plugin without loading or enabling its adapter (114.430649ms)
+✔ capabilities reports the resend driver shape (3.048518ms)
+✔ send() POSTs to /emails with bearer auth, JSON body, and the idempotency key header (0.860486ms)
+✔ send() uses the saved credential's baseUrl (0.309794ms)
+✔ send() forwards attachments using Resend's snake_case field shape (0.327046ms)
+✔ send() maps a 422 validation_error to a non-retryable failure with the provider's error name (0.460305ms)
+✔ send() maps a 429 rate_limit_exceeded to the shared throttling result (0.274572ms)
+✔ send() preserves Retry-After on the shared throttling result (0.217739ms)
+✔ send() maps a 500 to a retryable failure, and a 401 to a non-retryable one (0.208566ms)
+✔ send() handles a non-JSON error body without throwing (0.325642ms)
+✔ send() preserves HTTP acceptance for an undecodable success body "" (0.462123ms)
+✔ send() preserves HTTP acceptance for an undecodable success body "<html>Accepted</html>" (0.207275ms)
+✔ sendBatch() keeps every per-message result after empty and malformed successful replies (0.469598ms)
+✔ send() maps a thrown transport error (network failure/EgressPolicy refusal) to a retryable TRANSPORT_ERROR, never throws (0.207824ms)
+✔ send() handles a non-Error thrown during transport (0.212548ms)
+✔ sendBatch() loops send() once per message, preserving result[i] <-> messages[i] ordering under partial failure (0.321558ms)
+✔ sendBatch() gives each message its own Idempotency-Key, deterministically derived so a redelivery of the same batch reproduces the same keys (0.350495ms)
+✔ send() forwards replyTo, html, and custom headers when provided (0.273824ms)
+✔ send() falls back to opts.idempotencyKey if response JSON does not have string id (0.148855ms)
+✔ send() handles 409 conflict as retryable, and empty bodyText falls back to HTTP status message (0.151632ms)
+✔ send() uses timeoutMs from options when specified (0.218795ms)
+✔ the bundled descriptor owns the Resend key-card contract (11.700332ms)
+✔ the module is a valid Jini mail provider and matches its v2 descriptor (23.523849ms)
+✔ verify accepts a valid Svix signature, with or without the whsec_ prefix, under any listed secret (2.768749ms)
+✔ verify refuses wrong secrets, tampered bodies, stale or future timestamps and missing headers (4.644376ms)
+✔ parse normalizes bounces, complaints and deliveries per recipient (2.64554ms)
+✔ parse keys the event id on svix-id when the host passes headers, then the payload id (0.522625ms)
+✔ parse ignores other event types and reports malformed bodies (0.399205ms)
+✔ domainRequirements maps Resend records to qualified DNS requirements (1.582354ms)
+✔ domainRequirements: an unknown domain, a failed detail read, and odd list/record shapes (1.229122ms)
+✔ domainStatus maps Resend states and the custom base URL is used (0.768897ms)
+✔ domain calls never throw: HTTP failures, network errors and non-JSON bodies become results (1.240695ms)
+✔ send posts to /emails with the idempotency key and maps success, errors and 429 back-off (2.142063ms)
+✔ sendBatch sends one message per key suffix and capabilities stay as before (0.74439ms)
+✔ domain errors keep the canonical code and carry Resend name and human-readable message for restricted API keys (0.23805ms)
+✔ put() writes the bare key path-style under the bucket and hands the host signer the credential (40.416752ms)
+✔ blank/omitted endpoints derive the AWS host, trailing slashes are stripped, and keyPrefix namespaces every operation (9.080301ms)
+✔ object keys are byte-identical to S3BlobStore's keyPrefix + storageKey: each '/' segment is encoded independently (0.363893ms)
+✔ put() sends a real SigV4-signed request (AWS4-HMAC-SHA256) when the host signs with aws4fetch (30.681701ms)
+✔ put() then get() round-trips the exact bytes written (0.777153ms)
+✔ get() of a missing key resolves null (the object-store contract), not a rejection (0.244556ms)
+✔ head() reports the size right after put() and null after delete() (0.312583ms)
+✔ head() distinguishes a genuine 404 from 403/429/5xx instead of collapsing every non-ok response into null (2.202149ms)
+✔ head() rejects a missing, malformed or unsafe content-length rather than guessing a size, and accepts 0 (0.917913ms)
+✔ provider failures for writes, reads and deletes reject without changing stored objects (4.322534ms)
+✔ write failures bound provider error bodies at 200 characters and keep the HTTP error when the body is unreadable (1.429955ms)
+✔ put({ ifAbsent }) on a fresh key writes and reports written: true (0.479294ms)
+✔ put({ ifAbsent }) on an occupied key reports written: false and leaves the existing object untouched (0.552098ms)
+✔ a 412 on a plain put() (no ifAbsent) is a failure, not a silent written: false (0.335364ms)
+✔ put() sends contentType as content-type and passes caller headers through; contentType and ifAbsent win over a stray caller header (0.477657ms)
+✔ put(): enforced content-type and If-None-Match replace a caller header of ANY casing — never a combined 'etag-1, *' value (0.44997ms)
+✔ delete() is idempotent — deleting an already-absent key is not an error (0.690878ms)
+✔ a transport failure rejects every method as 'request failed' naming the key, for Error and non-Error causes (1.034015ms)
+✔ get() is bounded at 120s and head() at 30s, combined with the caller's signal; put()/delete() carry only the caller's signal (1.694439ms)
+✔ host.wrapFetch wraps the signed fetch once, and every object call goes through the wrapper (0.750064ms)
+✔ a transport failure surfacing through host.wrapFetch still rejects as 'request failed' (0.312189ms)
+✔ create() refuses missing input as not_configured naming every missing field, never throws, and never builds a signer (0.375752ms)
+✔ createArtifactStore() delegates to the publish target's share capability with the same input (1.45231ms)
+✔ all seven design skills and their entry references travel in the package (40.258734ms)
+✔ the WordPress package ships both guides without a deploy target or connection card (31.237585ms)
+✔ rejects a second composition via import { FetchQueryProvider as Shadow } from "@/lib/fetch-query/provider"; (97.137494ms)
+✔ rejects a second composition via import * as Cache from "../../lib/fetch-query/provider"; (2.439342ms)
+✔ rejects a second composition via export { FetchQueryProvider } from "@/lib/fetch-query/provider.tsx"; (2.404212ms)
+✔ rejects a second composition via export * from "@/lib/fetch-query/provider"; (1.565411ms)
+✔ rejects a second composition via const provider = import("@/lib/fetch-query/provider"); (3.302911ms)
+✔ allows the registered composition main.tsx (2.495105ms)
+✔ allows the registered composition __tests__/fetch-query-provider.test-helper.tsx (1.567446ms)
+✔ allows the registered composition lib/fetch-query/__tests__/provider.unit.test.tsx (2.185982ms)
+✔ allows read hooks from the shared library boundary (1.736939ms)
+✔ falls back to context.getFilename() on pre-ESLint-9 hosts without context.filename (3.474687ms)
+✔ resolveExistingDbPath: returns the resolved path when the database is really there (2.989448ms)
+✔ resolveExistingDbPath: throws the exact loud message, naming the path it looked for (1.196225ms)
+✔ resolveExistingDbPath: rejects a directory as loudly as a missing file (0.865412ms)
+▶ every backfill, convert, migrate and cleanup CLI refuses its effective default in an isolated repository
+  ✔ backfill-media-slugs.ts (2173.867565ms)
+  ✔ backfill-reset-admin-password.ts (2546.476783ms)
+  ✔ backfill-slug-collision-defaults.ts (9799.462885ms)
+  ✔ backfill-trashed-items.ts (2141.135612ms)
+  ✔ cleanup-stale-owner-sessions.ts (1890.647635ms)
+  ✔ convert-legacy-doc-pages-to-html.ts (2906.911809ms)
+  ✔ migrate-page-embed-markers.ts (1672.299684ms)
+✔ every backfill, convert, migrate and cleanup CLI refuses its effective default in an isolated repository (23151.535951ms)
+  NEW cross-feature edge: apps/website/src/features/sample/value.ts -> apps/website/src/features/neighbor/types.ts
+
+check:architecture — FAILED: 1 metric(s) regressed against a hard constraint.
+Either fix the regression or, if genuinely intended, run with --update to move the baseline.
+  NEW cross-feature edge: apps/website/src/features/sample/value.ts -> apps/website/src/features/neighbor/types.ts
+
+check:architecture — FAILED: 1 metric(s) regressed against a hard constraint.
+Either fix the regression or, if genuinely intended, run with --update to move the baseline.
+  NEW cross-feature edge: apps/website/src/features/sample/value.ts -> apps/website/src/features/neighbor/types.ts
+
+check:architecture — FAILED: 1 metric(s) regressed against a hard constraint.
+Either fix the regression or, if genuinely intended, run with --update to move the baseline.
+  NEW cross-feature edge: apps/website/src/features/sample/value.ts -> apps/website/src/features/neighbor/types.ts
+
+check:architecture — FAILED: 1 metric(s) regressed against a hard constraint.
+Either fix the regression or, if genuinely intended, run with --update to move the baseline.
+✔ runtime metrics exclude erased edges and retain values: type-only import (3043.21199ms)
+✔ runtime metrics exclude erased edges and retain values: inline type-import query (3216.44371ms)
+✔ runtime metrics exclude erased edges and retain values: mixed value and type import (3575.632515ms)
+✔ runtime metrics exclude erased edges and retain values: dynamic value import (3376.829162ms)
+✔ extractBalancedBraces: a flat block with no nesting (2.682162ms)
+✔ extractBalancedBraces: nested braces (if/try inside the outer block) do not truncate early (0.33628ms)
+✔ extractBalancedBraces: throws when the index does not point at '{' (0.723583ms)
+✔ extractBalancedBraces: throws on unbalanced input rather than returning a truncated slice (0.177108ms)
+✔ extractSafeHrefDeclaration: pulls the const pair and the whole function, and the result is importable JS/TS (0.655519ms)
+✔ extractSafeHrefDeclaration: throws (not a silent empty result) when the const pair is missing (0.335083ms)
+✔ extractSafeHrefDeclaration: throws when 'function safeHref(' is missing entirely (0.503378ms)
+✔ compareCheckers: no mismatches when every checker agrees with the expected outcome (1.365552ms)
+✔ compareCheckers: SYNTHETIC MISMATCH — a deliberately-wrong checker is caught and named by the comparator (0.573612ms)
+✔ buildSharedTable: every REJECTED_HREFS row is expectedAccept:false and every ACCEPTED_HREFS row is expectedAccept:true (0.425933ms)
+✔ loadHrefChecker: extracts a real, callable checker from render.ts that behaves correctly (30.663838ms)
+✖ live: jini:isAllowedHref, render.ts:safeHref, and static-render.ts:safeHref agree on every table row (14.306583ms)
+✖ CLI returns nonzero for mismatch and reports the reason (597.802114ms)
+✔ CLI returns nonzero for extraction and reports the reason (439.890589ms)

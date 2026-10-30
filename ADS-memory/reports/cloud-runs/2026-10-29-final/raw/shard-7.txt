@@ -127,3 +127,1335 @@ Could not parse CSS @import URL "./page-actions.css" relative to base URL "about
 ✔ shipped search data is inert, ordered, optional and independent of activation (2.918531ms)
 ✔ registered metadata retains its authority and enrichment strips back to authored text (1.648786ms)
 ✔ shipped tool words enrich both legacy and registered search without plugin activation (18.612226ms)
+✔ ROUTE: an unknown tool id (the executor throws) reaches the model as its real reason, not a bare 500 (6.758573ms)
+✔ ROUTE: a tool that runs past its timeout says it timed out (11.420452ms)
+✔ ROUTE: a call abandoned before it ran says it was cancelled (0.998939ms)
+✔ ROUTE: a resolvePrincipal throw carries its reason, with secret-shaped values blanked (1.313322ms)
+✔ ROUTE: a failed result that skipped the redaction layer is redacted here instead of becoming a bare 500 (0.977013ms)
+✔ ROUTE: a failure the redaction layer already ID-tagged keeps its 422 TOOL_EXECUTION_FAILED (0.864255ms)
+✔ describeDelegatedInternalError: a non-Error, empty-message, or missing error falls back to naming the tool (2.055429ms)
+✔ describeDelegatedInternalError: the server-side record correlates to http-kit's own log line (0.328151ms)
+✔ A4/A6: untouched local owner permissions default personal MCP OFF and other capabilities ON (6.399065ms)
+✔ A6: empty definition default inherits a persisted legacy OFF, including after another boot (5.014575ms)
+[external-mcp] 'acme': federated tool call refused — its connection row could not be read (SQLITE_BUSY /secret/path/content.db)
+✔ T1-1 control: an enabled connection's admitted tool completes and reaches the remote (18.216908ms)
+✔ T1-2: a connection turned off after admission refuses its tool on the next call, without a restart (4.106048ms)
+✔ T1-3: turning it back on (same fields) lets the same admitted tool complete again (3.320819ms)
+✔ T1-4: a deleted connection refuses its tool on the next call (1.490134ms)
+✔ T1-5: a connection deleted and re-created under the same id refuses as changed (3.106397ms)
+✔ T1-6: editing the URL of an admitted connection refuses as changed (1.421468ms)
+✔ T1-7: removing write_thing from the write list refuses it ('may write' is enforced); read_thing still completes (2.636886ms)
+✔ T1-7b: granting write_thing 'may write' after boot lets its next call run, without an assistant restart (2.139179ms)
+✔ T1-8: removing read_thing from the allowlist refuses it (1.531888ms)
+✔ T1-9: a row read that throws refuses without reaching the remote, and the model text has no read-error detail (2.77827ms)
+✔ T1-10: a preset connection with no row still completes (1.257741ms)
+✔ an admitted stdio connection refuses after changing command (9.339541ms)
+✔ an admitted stdio connection refuses after changing args (3.618956ms)
+✔ an admitted stdio connection refuses after changing env (2.861085ms)
+✔ an admitted stdio connection refuses after changing authMode (4.309473ms)
+✔ External MCP setup and live diagnostics rank in the top 3 of the production catalog (495.832834ms)
+✔ a saved row reads back with both envelopes bound to this server's vault rows (10.31588ms)
+✔ a row without envelopes reads back with null envelopes (1.059849ms)
+✔ re-saving the hydrated envelopes keeps them (2.956502ms)
+✔ rotating the env envelope deletes the replaced vault row (3.441302ms)
+✔ clearing the OAuth envelope deletes its vault row and reads back null (5.422633ms)
+✔ a failed save leaves the live row untouched and later writes still run (1.933795ms)
+✔ list returns only the requested workspace's rows (0.968877ms)
+✔ finding an unknown server returns null (0.138327ms)
+✔ deleting an unknown server reports false (0.600754ms)
+✔ deleting a server removes the row and both vault payloads (1.127113ms)
+✔ deleting a server with only an env envelope succeeds (0.619874ms)
+✔ a refresh lease is claimable on a row with no lease and is recorded (0.261765ms)
+✔ a live refresh lease cannot be claimed by a second claimant (0.146294ms)
+✔ a lease expiring exactly now is abandoned and can be reclaimed (0.244534ms)
+✔ a lease cannot be claimed on an unknown server (0.106264ms)
+✔ releasing a lease clears it (0.211821ms)
+✔ releasing a lease on an unknown server creates no row (0.095459ms)
+✔ an attempted call to a not-in-operator-allowlist federated tool comes back naming the tool, the server, and the fix — not a bare 'unknown tool' (4.188547ms)
+✔ this is a REAL 400-mappable outcome, not a thrown exception — the property that lets it reach the model at all (0.786328ms)
+✔ a refused tool whose remote-advertised name is secret-shaped is redacted, not leaked verbatim (0.772797ms)
+✔ a write-grant refusal attempted directly is also legible, with its own distinct fix text (0.506193ms)
+✔ an admitted federated tool's normal completion is untouched (1.59379ms)
+✔ a native (non-federated) unknown tool id still throws unchanged — this decorator only ever touches mcp__-prefixed ids (1.26607ms)
+✔ a federated-SHAPED id this boot never refused still throws unchanged — no snapshot entry means nothing to diagnose (0.585399ms)
+✔ a genuinely unrelated throw (not 'unknown tool') passes straight through, never reinterpreted as a refusal (0.446517ms)
+✔ the snapshot is read LIVE at call time — a refusal that only exists after boot is still diagnosed (0.947269ms)
+✔ a federated id with no snapshot refusal, while the boot pass has not settled, is diagnosed as still connecting (0.729295ms)
+✔ a federated id with no snapshot refusal, once the boot pass has settled with a recorded connect failure, gets that failure's own reason (2.280303ms)
+✔ a federated id whose connectionId IS in the known boot roster, while the boot pass has not settled, is still diagnosed as still connecting (0.477901ms)
+✔ a federated id whose connectionId is NOT in the known boot roster, while the boot pass has not settled, still throws unchanged — a server that was never configured is not told to 'wait' (0.528728ms)
+✔ configuredConnectionIds omitted (the boot roster is not yet known) still defaults to 'still connecting' — same as before this field existed (0.517135ms)
+✔ a settled boot pass with no matching connect failure still throws unchanged — a genuinely unrelated/hallucinated id is not reinterpreted as 'still connecting' (0.397322ms)
+✔ getBootStatus omitted (the daemon's own call site) is byte-identical to before this parameter existed — still throws for an undiagnosed federated id (2.214741ms)
+✔ resumeConfirmation, cancel, and getAuditRecord are untouched pass-throughs (0.57576ms)
+✔ stdioLaunchResolverFromEnv: env missing both vars returns the identity resolver (3.938503ms)
+✔ stdioLaunchResolverFromEnv: env with exactly one var set refuses instead of running a PATH binary (1.177189ms)
+✔ stdioLaunchResolverFromEnv: both vars set but npx-cli.js missing refuses instead of running a PATH binary (0.419366ms)
+✔ stdioLaunchResolverFromEnv: an explicitly permitted missing npx-cli.js falls back to identity plus a warning (0.693617ms)
+✔ stdioLaunchResolverFromEnv: both vars set and npx-cli.js present delegates to the bundled resolver (0.914319ms)
+✔ createBundledNodeLaunchResolver: posix npx is rewritten to execPath running npx-cli.js, launchEnv pinned exactly (0.518399ms)
+✔ createBundledNodeLaunchResolver: posix npm is rewritten to execPath running npm-cli.js (0.426739ms)
+✔ createBundledNodeLaunchResolver: posix node is rewritten to execPath with args unchanged (0.315939ms)
+✔ createBundledNodeLaunchResolver: win32 npx.cmd/npm.cmd/node.exe are matched too, using ';' and backslashes (0.754672ms)
+✔ createBundledNodeLaunchResolver: PATH order is toolchain bin, then parent PATH, then darwin well-known dirs, deduped (0.443469ms)
+✔ createBundledNodeLaunchResolver: darwin well-known $HOME dirs are skipped when HOME is unset (0.237669ms)
+✔ createBundledNodeLaunchResolver: a bare non-Node command found on the search path resolves to its absolute path, no ELECTRON_RUN_AS_NODE (0.639626ms)
+✔ createBundledNodeLaunchResolver: uvx not found on the search path throws McpLaunchUnavailableError with the exact §2 message (1.070461ms)
+✔ createBundledNodeLaunchResolver: docker not found on the search path throws McpLaunchUnavailableError with the exact §2 message (0.39625ms)
+✔ createBundledNodeLaunchResolver: foo not found on the search path throws McpLaunchUnavailableError with the exact §2 message (0.215221ms)
+✔ createBundledNodeLaunchResolver: an existing absolute command is left unchanged but still gets the PATH extras (0.397129ms)
+✔ createBundledNodeLaunchResolver: a missing absolute command throws a generic McpLaunchUnavailableError (0.338251ms)
+✔ createBundledNodeLaunchResolver: a relative command with a path separator is checked against the spec's cwd and left unchanged, not searched on PATH (0.360032ms)
+✔ createBundledNodeLaunchResolver: on win32 a bare command is also found as <name>.exe, as spawn itself would (0.387186ms)
+✔ the parser enumerates alternate opener shapes and reports unresolved bindings (10.932352ms)
+✔ the federated card adapter permits only its reviewed dynamic spec expression (0.836675ms)
+✔ the sealer adapter exemption leaves other unresolved open calls visible (0.976319ms)
+✔ reviewed non-exchange open calls do not hide new surface bindings in the same file (8.167211ms)
+✔ every surfaceExchanges.open(...) call names a toolId constant this scan can resolve (0.245958ms)
+✔ the scan finds the known exchange openers (guards against a scan that silently matches nothing) (0.504694ms)
+✔ every tool that opens an MCP-UI exchange is on MCP_UI_REDEEMABLE_TOOL_IDS (0.666702ms)
+✔ the completeness check reports a tool whose allowlist entry is missing (0.263503ms)
+✔ every allowlisted id opens an exchange or is a named carve-out (0.284831ms)
+✔ real round trip: a browser confirmation click for external_mcp_save is accepted by the allowlist and actually saves the server (369.896467ms)
+✔ SECURITY: a Cancel click for external_mcp_save also reaches the allowlist and reports the cancellation, not a 403 (205.148425ms)
+✔ a hosted token delivered by the human MCP-UI form is stored without echoing it to the model (272.746044ms)
+✔ owner replacement requests find the in-place tool among the competing upload and metadata tools (423.260408ms)
+✔ content_post_get: three ids succeed through the merged card with the 25-item schema (49.69257ms)
+✔ content_post_get: isolates a nonexistent id and reads the next item (22.190923ms)
+✔ content_post_get: isolates an absent id field and reads the next item (50.325436ms)
+✔ content_post_get: refuses an unauthorized item without stopping later reads (14.148565ms)
+✔ content_post_get: accepts 25 and refuses 26 items before authorization (20.294964ms)
+✔ content_post_get: malformed items cannot fall through to the list (13.849807ms)
+✔ content_post_get: cannot override the workspace to read a foreign record (17.544925ms)
+✔ content_post_get: single get and list calls keep the unbatched shape and card (15.51337ms)
+✔ newsletter_get_campaign: three ids succeed through the merged card with the 25-item schema (12.182868ms)
+✔ newsletter_get_campaign: isolates a nonexistent id and reads the next item (14.205133ms)
+✔ newsletter_get_campaign: isolates an absent id field and reads the next item (12.329857ms)
+✔ newsletter_get_campaign: refuses an unauthorized item without stopping later reads (11.210927ms)
+✔ newsletter_get_campaign: accepts 25 and refuses 26 items before authorization (39.552251ms)
+✔ newsletter_get_campaign: malformed items cannot fall through to the list (11.357875ms)
+✔ newsletter_get_campaign: cannot override the workspace to read a foreign record (13.570526ms)
+✔ newsletter_get_campaign: single get and list calls keep the unbatched shape and card (15.765758ms)
+✔ redirects_get: three ids succeed through the merged card with the 25-item schema (10.952106ms)
+✔ redirects_get: isolates a nonexistent id and reads the next item (10.889143ms)
+✔ redirects_get: isolates an absent id field and reads the next item (11.071424ms)
+✔ redirects_get: refuses an unauthorized item without stopping later reads (10.613813ms)
+✔ redirects_get: accepts 25 and refuses 26 items before authorization (12.989116ms)
+✔ redirects_get: malformed items cannot fall through to the list (10.534156ms)
+✔ redirects_get: cannot override the workspace to read a foreign record (17.687011ms)
+✔ redirects_get: single get and list calls keep the unbatched shape and card (10.3908ms)
+✔ widgets_get_instance: three ids succeed through the merged card with the 25-item schema (12.276779ms)
+✔ widgets_get_instance: isolates a nonexistent id and reads the next item (10.782615ms)
+✔ widgets_get_instance: isolates an absent id field and reads the next item (34.794048ms)
+✔ widgets_get_instance: refuses an unauthorized item without stopping later reads (11.200037ms)
+✔ widgets_get_instance: accepts 25 and refuses 26 items before authorization (15.179103ms)
+✔ widgets_get_instance: malformed items cannot fall through to the list (10.702376ms)
+✔ widgets_get_instance: cannot override the workspace to read a foreign record (14.991809ms)
+✔ widgets_get_instance: single get and list calls keep the unbatched shape and card (13.228543ms)
+✔ widgets_get_region: three ids succeed through the merged card with the 25-item schema (10.937344ms)
+✔ widgets_get_region: isolates a nonexistent id and reads the next item (10.379037ms)
+✔ widgets_get_region: isolates an absent id field and reads the next item (11.613859ms)
+✔ widgets_get_region: refuses an unauthorized item without stopping later reads (10.686124ms)
+✔ widgets_get_region: accepts 25 and refuses 26 items before authorization (13.499106ms)
+✔ widgets_get_region: malformed items cannot fall through to the list (10.819964ms)
+✔ widgets_get_region: cannot override the workspace to read a foreign record (11.809588ms)
+✔ widgets_get_region: single get and list calls keep the unbatched shape and card (22.363654ms)
+✔ all five merged reader cards refuse non-owner peer-site items before opening a database (1209.130568ms)
+✔ all five merged reader cards reject nested peer-site batches at the closed item gate (872.19456ms)
+✔ the merged post card scopes each item before reading and continues after an unknown site (878.528627ms)
+✔ collapsed batches retain the retired source policy and never turn a missing item id into a list (3.148552ms)
+✔ permanent deletes rank in the top three for owner vocabulary (736.013036ms)
+✔ get_run: a run's own bridge reads its own run (92.231855ms)
+✔ cancel_run: a run's own bridge cancels its own run, and only that run (17.180881ms)
+✔ another principal's run is denied with the unknown-run body, for both read and cancel (22.174078ms)
+✔ no credential is a 401, even with a principal header (14.321221ms)
+✔ a forged principal header on a run credential is overwritten, never trusted (20.918863ms)
+✔ start_run: a run credential cannot start runs, so it cannot start one as another principal (13.358843ms)
+✔ a run credential reaches only the bridge's own routes, never proxy-only ones (17.120464ms)
+✔ a run credential stops working once its run is no longer live (12.041591ms)
+✔ a revoked run credential is a 401 (25.497853ms)
+✔ the proxy token still trusts the proxy's principal header (7.018333ms)
+✔ mint refuses a run that is not live, rather than issuing an orphan credential (0.868093ms)
+✔ each run gets its own 256-bit token, and minting twice for one run returns the same token (0.662499ms)
+✔ SCOPE: own run reads and cancels, ignoring a forged principal header (1.912211ms)
+✔ SCOPE: sibling run reads and cancels return the exact nonexistent-run body (0.773058ms)
+✔ SCOPE: other run reads and cancels return the exact nonexistent-run body (0.477319ms)
+✔ SCOPE: nonexistent run reads and cancels return the exact nonexistent-run body (0.413226ms)
+✔ SCOPE: other run-addressed routes hide siblings before the route allowlist (0.608064ms)
+✔ SCOPE: URL decoding uses the same target run identity as Express (0.548472ms)
+✔ SCOPE: mixed-case run paths still hide sibling identities (1.290509ms)
+✔ SCOPE: malformed encoded run ids fail closed before route parameter decoding (0.54514ms)
+✔ SCOPE: delegated matching runId executes as the credential's principal (3.570071ms)
+✔ SCOPE: delegated mismatches are 403 with no effects (exemptPaths=false) (0.678117ms)
+✔ SCOPE: delegated mismatches are 403 with no effects (exemptPaths=true) (0.470678ms)
+✔ SCOPE: delegated calls require a credential, including forged, expired and revoked ones (0.590437ms)
+✔ SCOPE: missing or non-string delegated runId fails closed (0.642315ms)
+✔ SCOPE: proxy credentials retain sibling-run access and delegated execution (0.795347ms)
+✔ SCOPE: production closes the exemption and binds delegated runId after parsing, before routes (215.037098ms)
+✔ four site-insight tools rank top three through the full production FTS catalog (426.132674ms)
+✔ TW3 local classification preserves each dynamic rule and rejects inherited ids (2.147654ms)
+✔ TW3 a rule name that is only inherited (not an own classifier) falls back to the static class (0.221476ms)
+✔ TW3 federated classification pins action, declaration, hint and fallback precedence (2.10814ms)
+✔ tool_gaps_list is read-only and the real executor refuses other admins before a read (6.149078ms)
+✔ tool_gaps_list without audit storage fails with a clear error for the owner (0.989635ms)
+✔ the handler re-checks ownership even when reached without the registry policy (1.051312ms)
+✔ exactly the 5 Entries operations are wired — the entire catalog, no delete/purge tool (13.591665ms)
+✔ every wired Entries registration publishes its catalog entry's inputSchema and description verbatim (2.418083ms)
+✔ requiresConfirmation is unset on every wired Entries tool (1.733932ms)
+✔ the independent risk classification agrees with the catalog for all 5 wired Entries tools (1.831598ms)
+✔ a catalog entry cannot downgrade its own risk — declaring collections_entry_create sideEffects:'none' fails the build (0.573205ms)
+✔ the ToolPolicy layer is a pass-through 'allow' for every wired Entries registration (1.265345ms)
+✔ collections_entry_list: calls authorize() with admin.collections.read, inline (listEntries has no authorize of its own) (2.495143ms)
+✔ collections_entry_list: a denied principal is rejected (1.854187ms)
+✔ collections_entry_create: calls authorize() with admin.collections.manage (createEntry's own self-enforced check) (4.365022ms)
+✔ collections_entry_create: a denied principal is rejected and nothing is written (27.505347ms)
+✔ collections_entry_update: a denied principal is rejected (3.078176ms)
+✔ collections_entry_publish: a denied principal is rejected (1.820133ms)
+✔ collections_entry_unpublish: a denied principal is rejected (2.013071ms)
+✔ collections_entry_create rejects fieldsJson missing a required field, with the schema attached for retry (2.370855ms)
+✔ workflow: create an entry, update it, publish it, then unpublish it — version and id thread through consistently (11.354222ms)
+✔ plugins_set_enabled is present in the BUILT registration list, reached through the real contributor seam (33.989548ms)
+✔ plugins_set_enabled has a DERIVED_RISK_BY_TOOL_ID entry — the wiring gate fails closed without one (0.339194ms)
+✔ plugins_set_enabled is redeemable from the MCP-UI callback endpoint — its confirmation dialog posts back through it (0.133871ms)
+✔ the catalog schema requires 'family' and enumerates exactly the two real plugin systems (1.121607ms)
+✔ plugins_set_enabled: a missing 'family' is a ToolInputError, not an opaque 500 (3.913487ms)
+✔ plugins_set_enabled: an unrecognized 'family' is a ToolInputError naming both valid values (2.815606ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: enabling refuses outright when the execution context has no confirmation channel (302.866982ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: disabling an Agent Plugin needs no confirmation — it only ever removes capability (54.125489ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: disabling an explicitly enabled Agent Plugin persists false without a confirmation channel (38.360651ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+[agent-plugins] 'higgsfield-media': plugins_set_enabled refused — agent-plugin activation: activations.json is not valid JSON (Expected property name or '}' in JSON at position 2 (line 1 column 3)) (/tmp/tovu-plugin-family-GVFvIL/ws/55555555-5555-4555-8555-555555555555/activations.json). The file was left untouched and nothing was written, so no recorded enable/disable decision was lost. Until it is repaired, this workspace's Agent Plugin tool calls and plugin-pinned runs are refused, and no Agent Plugin can be enabled, disabled, seeded or uninstalled. To recover, fix the JSON by hand; or stop the host, move the file aside and start the host again — bundled plugins are then recorded as disabled again, but every operator-installed plugin you had disabled starts enabled and must be disabled again.
+✔ plugins_set_enabled: a corrupt activations file returns changed:false with an activations-unreadable reason — no confirmation, no throw (21.114923ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ t91 §7.2: ENABLING on a corrupt activations file returns activations-unreadable WITHOUT raising the confirmation dialog (15.734879ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: a confirmed enable writes the Agent Plugin's activation record (38.914329ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: a confirmed in-chat enable also provisions the plugin's declared remote MCP server, exactly like the admin toggle (50.588008ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: a declined enable writes nothing and says so (27.868318ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ the confirmation dialog is a real MCP-UI resource naming the plugin, and calls back into THIS tool id (120.293973ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ enabling an Agent Plugin reports restartRequired:true and says why — its tool is registered only at daemon boot (43.224292ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ disabling reports restartRequired:false — the activation gate is re-read per run, so an off switch lands immediately (36.189239ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: an Agent Plugin id that is not installed in this workspace is a ToolInputError (24.067562ms)
+✔ plugins_set_enabled: family 'site-runtime' still enables a .tovu-plugin through executeCommand, behind the same confirmation (5.200387ms)
+✔ plugins_set_enabled: disabling a site-runtime plugin says its tool is refused from now on, not merely that it stays listed (2.327124ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ disabling an Agent Plugin says exactly what stopped — and that its provisioned external MCP connections did NOT (53.246632ms)
+✔ plugins_set_enabled: authorize() runs before any confirmation dialog is raised (9.032358ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: a denied Agent Plugin enable emits nothing and preserves activations (32.007077ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ plugins_set_enabled: a denied Agent Plugin disable emits nothing and preserves activations (48.067083ms)
+✔ enabling reuses one saved identity grant; changed versions ask again and revocation still refuses (5.836874ms)
+✔ a version changed while enabling was approved is refused without an activation write (2.975878ms)
+✔ daemon-composed approval memory asks on first enable, skips the same version, and asks on a new version (329.633253ms)
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+Plugin 'higgsfield-media' has no publisher-qualified id; using 'unknown/higgsfield-media'.
+✔ a provider plugin's assistant face is never switched on its own: no dialog, nothing written, the note names the provider plugin (145.51785ms)
+✔ plugins_uninstall is wired alongside plugins_list/plugins_set_enabled — 3 wired tools, catalog has exactly 3 entries (5.319099ms)
+✔ plugins_uninstall's catalog says the plugin moves to the 60-day Trash (0.448144ms)
+✔ plugins_uninstall requires admin.plugins.enable — the SAME permission plugins_set_enabled uses, no new grant introduced (0.165906ms)
+✔ plugins_uninstall: calls authorize() with admin.plugins.enable and the run's principal before touching anything (61.018004ms)
+✔ plugins_uninstall: with no interactive confirmation channel, the call fails closed and nothing is removed (1.938764ms)
+✔ plugins_uninstall: a cancelled confirmation removes nothing and reports cancelled:true, not an error (3.990692ms)
+✔ plugins_uninstall: a denied principal is rejected and nothing is removed (0.900198ms)
+✔ plugins_uninstall: refuses a built-in plugin — nothing to remove (0.634487ms)
+✔ plugins_uninstall: refuses a plugin still enabled in a workspace (0.640624ms)
+✔ plugins_uninstall: refuses an unknown plugin id (0.48518ms)
+✔ plugins_uninstall: moves the on-disk artifact to Trash and retains activation rows (3.469127ms)
+✔ plugins_uninstall: a plugin never activated anywhere moves to Trash cleanly (2.048927ms)
+✔ plugins_uninstall: a plugin whose version changed while the dialog was open is NOT removed, and the result says so (3.713962ms)
+✔ plugins_uninstall: a plugin that disappeared from discovery while the dialog was open is refused on the fresh read, and nothing is removed (2.42198ms)
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+Plugin 'operator-plugin' has no publisher-qualified id; using 'unknown/operator-plugin'.
+✔ plugins_uninstall with family:'agent-plugin' opens a dialog whose confirm toolName is plugins_uninstall, and confirming removes the package dir (189.23975ms)
+✔ plugins_uninstall: a call with no 'family' is rejected before any dialog, for either family's id (0.82646ms)
+✔ the registry this file builds has no agent_plugins_uninstall id — the standalone tool was deleted; both families redeem through plugins_uninstall now (0.378016ms)
+✔ exactly the 6 wireable redirects entries plus redirects_import are registered — nothing else (15.940925ms)
+✔ redirects_import is agent-callable across the whole assistant tool set (7.552883ms)
+✔ every wired redirects registration publishes its catalog entry's inputSchema and description verbatim (3.614263ms)
+✔ requiresConfirmation is unset on every wired redirects tool (1.476865ms)
+✔ the independent risk classification agrees with the catalog for every wired redirects tool (2.042406ms)
+✔ a redirects catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for redirects_create fails the build (0.578878ms)
+✔ the ToolPolicy layer is a pass-through 'allow' for every wired redirects registration (4.982591ms)
+✔ content_read.redirect: calls authorize() with 'admin.redirects.manage' and the run's principal (2.722053ms)
+✔ content_read.redirect: a denied principal is rejected and nothing is written (3.342274ms)
+✔ redirects_update: calls authorize() with 'admin.redirects.manage' and the run's principal (23.851264ms)
+✔ redirects_update: a denied principal is rejected and nothing is written (3.370333ms)
+✔ redirects_get_hits: calls authorize() with 'admin.redirects.manage' and the run's principal (3.189568ms)
+✔ redirects_get_hits: a denied principal is rejected and nothing is written (1.444416ms)
+✔ redirects_create: calls authorize() with 'admin.redirects.manage' and the run's principal (2.035011ms)
+✔ redirects_create: a denied principal is rejected and nothing is written (1.508974ms)
+✔ redirects_import: calls authorize() with 'admin.redirects.manage' and the run's principal (2.54112ms)
+✔ redirects_import: a denied principal is rejected and nothing is written (1.465896ms)
+✔ redirects_get: an unknown id reaches the model as its not-found message (1.75323ms)
+✔ redirects_create: rejects matchType 'regex' the same way the chokepoint does (1.708756ms)
+✔ redirects_import: rejects a non-array 'rules' with the exact validation text, before any write (1.487245ms)
+✔ redirects_import: rejects an empty 'rules' array with the exact validation text (1.465932ms)
+✔ redirects_import: rejects a batch over 500 rules with the exact validation text (2.281143ms)
+✔ redirects_import: a non-object rule entry is refused by index, not silently coerced (1.383106ms)
+✔ redirects_import: a per-rule failure (duplicate fromPattern) does NOT abort the rest of the batch — mixed created/failed in one response (4.081072ms)
+✔ redirects_import: every created row is source:'import', distinguishable from a manual redirects_create row (1.637325ms)
+✔ redirects_import: every row lands under the caller's real workspace and actor, not per-row input — mirrors redirects_create's attribution (3.994109ms)
+✔ workflow: create a redirect, update it, tombstone it — state stays consistent at every step (11.751927ms)
+✔ redirects_get_hits selects the requested redirect's counts (5.611324ms)
+▶ chat expiry sweep [sqlite]
+  ✔ one host pass drains more than one 500-row package batch and retains never-expiring chats (41.720858ms)
+  ✔ deletes an expired guest chat and its messages; keeps unexpired and never-expiring chats (17.586185ms)
+  ✔ a chat expiring exactly now is swept; a second pass deletes nothing (2.499673ms)
+  ✔ startChatExpirySweep sweeps at start and stops cleanly (3.304343ms)
+  ✔ stop() resolves only after the pass in flight has finished (12.679134ms)
+  ✔ a tick that fires while a pass is still running is skipped, never overlapped, and later ticks sweep again (4.831626ms)
+  ✔ a failed sweep reports the error and a later tick still sweeps (4.310451ms)
+✔ chat expiry sweep [sqlite] (89.439854ms)
+▶ chat expiry sweep [pglite]
+  ✔ one host pass drains more than one 500-row package batch and retains never-expiring chats (4088.725642ms)
+  ✔ deletes an expired guest chat and its messages; keeps unexpired and never-expiring chats (69.178886ms)
+  ✔ a chat expiring exactly now is swept; a second pass deletes nothing (18.248444ms)
+  ✔ startChatExpirySweep sweeps at start and stops cleanly (21.730124ms)
+  ✔ stop() resolves only after the pass in flight has finished (28.101458ms)
+  ✔ a tick that fires while a pass is still running is skipped, never overlapped, and later ticks sweep again (22.888386ms)
+  ✔ a failed sweep reports the error and a later tick still sweeps (27.316162ms)
+✔ chat expiry sweep [pglite] (4285.042494ms)
+▶ createChatStoreFactory
+  ✔ returns a store scoped to the given principal, backed by the supplied db (35.284835ms)
+  ✔ returns a fresh scoped store per call, all against the SAME db handle (10.066705ms)
+✔ createChatStoreFactory (47.307166ms)
+▶ createInMemoryChatHistory
+  ✔ opens its db lazily and reuses it across calls, so writes persist between calls (3.072866ms)
+  ✔ gives two independent factory instances two independent in-memory dbs (3.121484ms)
+  ✔ enables foreign_keys, so deleting a conversation cascades to its messages (12.613554ms)
+✔ createInMemoryChatHistory (19.718008ms)
+✔ 30/hour/IP includes the boundary; other tools/sites/IPs have separate counters (10.13343ms)
+✔ 1000/day/site/tool is shared across IPs and renewed only at the day boundary (57.814626ms)
+✔ IP refusals never charge the site allowance or lock out another visitor (50.294695ms)
+✔ lowering or restoring limits cannot reset counters, including concurrent profile changes (1.416233ms)
+✔ independent processes have independent counters; queue recovers after a clock failure (1.122411ms)
+✔ CLI init with and without --admin-password ignores the parent env and persists the chosen login (19991.710339ms)
+created site 'private' at /tmp/tovu-stdin-owner-3dRSJa/private
+next: tovu serve /tmp/tovu-stdin-owner-3dRSJa/private
+agent-plugin-tokens: saved supabase
+✔ desktop stdin envelope accepts a password and service tokens together without changing either (1047.024908ms)
+✔ CLI refuses malformed credentials and conflicting stdin options before creating a site (2.131079ms)
+created site 'env-site' at /tmp/r1f2-init-pg-SOfGXQ/env-site
+next: tovu serve /tmp/r1f2-init-pg-SOfGXQ/env-site
+✔ --storage-env: the site names the variable, keeps no secret, and its database is at head with the template (2027.185407ms)
+created site 'sealed-site' at /tmp/r1f2-init-pg-SOfGXQ/sealed-site
+next: tovu serve /tmp/r1f2-init-pg-SOfGXQ/sealed-site
+✔ sealed: the connection string is sealed in the site folder (0600, no plaintext) and the site reopens from its meta (1926.830337ms)
+created site 'first-site' at /tmp/r1f2-init-pg-SOfGXQ/first-site
+next: tovu serve /tmp/r1f2-init-pg-SOfGXQ/first-site
+✔ a database that already holds a Tovu site is refused, before any folder, secret or key is made (1658.966825ms)
+✔ pinServedSiteDirIntoEnv points the site root at the directory this invocation was told to serve (10.287325ms)
+✔ pinServedSiteDirIntoEnv overrides an operator's own TOVU_SITE_DIR — the explicit <dir> argument is what this process serves (0.743804ms)
+✔ tovu serve <dir>: the API and the daemon it spawns resolve the SAME chat-attachment directory (6.190168ms)
+✔ the pinned value is what the daemon child inherits — buildDaemonSpawnEnvOverrides leaves an already-set TOVU_SITE_DIR alone (0.619359ms)
+✔ tovu serve <dir>: the daemon reconstructs a NON-switchable binding, matching the API's own refusal (0.606542ms)
+✔ tovu serve <dir>: the sites agent-tool deps built from the daemon's own binding are non-switchable (0.745475ms)
+✔ a switcher-chosen boot is untouched — the default dev boot keeps site switching enabled (2.207228ms)
+✔ pinPlainHttpIntoEnv makes dev TLS resolve inactive even when the cert pair exists (1.38854ms)
+✔ serve <dir> ignores legacy DB overrides so the web server and daemon share chat.db (13.090585ms)
+✔ prints a per-theme summary and writes each theme's original (10.341906ms)
+✔ --json prints the generator result (2.796284ms)
+✔ says so when there are no shipped themes, writing to stdout by default (1.228597ms)
+✔ local owner defaults ON; other principals and the off switch stay locked (2.675659ms)
+✔ hosted signal {"TOVU_RUNTIME_MODE":"production"} overrides owner opt-ins and permission bypass (0.365797ms)
+✔ hosted signal {"TOVU_HOSTED":"1"} overrides owner opt-ins and permission bypass (0.191154ms)
+✔ hosted signal {"TOVU_HOSTED":"true"} overrides owner opt-ins and permission bypass (0.170729ms)
+✔ hosted signal {"TOVU_PUBLIC_URL":"https://tovu.dev"} overrides owner opt-ins and permission bypass (0.210489ms)
+✔ hosted signal {"TOVU_PUBLIC_URL":"https://owner.tovu.dev/"} overrides owner opt-ins and permission bypass (0.198368ms)
+✔ Full CLI access is a single owner setting, with a reversible legacy environment alias (0.497094ms)
+✔ injected native restrictions override owner grants and granular capability choices (0.262229ms)
+✔ delete refusals point to the human admin screen when one exists (3.842853ms)
+✔ deployment_ops_unset_secret refusal honestly says there is no admin screen (0.231715ms)
+✔ unknown_delete refusal honestly says there is no admin screen (0.172393ms)
+✔ ordinary tools need no delete grant and never call the grant reader (4.856888ms)
+✔ eligible deletes fail closed when the grant reader is missing (1.089597ms)
+✔ eligible deletes await a fresh grant on every call and propagate a later revocation (1.163621ms)
+✔ each eligible permanent delete needs both the enabled switch and its own grant (0.381927ms)
+✔ workspace_delete stays forbidden even when explicitly listed in an enabled policy (0.227016ms)
+✔ collections_execute_cleanup stays forbidden even when explicitly listed in an enabled policy (0.124628ms)
+✔ ordinary tools stay visible when permanent deletes are disabled (0.119119ms)
+✔ eligible deletes forward the acting principal to the grant reader when one is known (0.387229ms)
+✔ theme data keeps the entire shared public header set byte-identical (3.906958ms)
+✔ origins derive from data, deduplicate stably, and retain all core directives (0.811618ms)
+✔ theme data reader uses its port and preserves malformed/missing-data failures (0.459273ms)
+✔ an allowed caller's mutation executes and records exactly one change set (4.505454ms)
+✔ a denied caller's mutation never executes and no change set is written (REQ-05) (0.895103ms)
+✔ EC-08/INV-04: authorize() runs before the idempotency check — a denied replay never leaks DUPLICATE_COMMAND (0.461648ms)
+✔ wiring guard: supplying only command.permission without deps.authorize throws (not a silent skip) (0.554068ms)
+✔ wiring guard: supplying only deps.authorize without command.permission throws (not a silent allow) (0.27573ms)
+✔ legacy path: omitting both permission and authorize preserves pre-identity behavior (no regression) (0.379474ms)
+✔ the registry routes ('post','delete') and ('post','update') to two distinct reverters (5.911363ms)
+✔ applyInverse clears the trash marker, restoring the row losslessly (1.385187ms)
+✔ restoring a PUBLISHED row re-emits entry.published — symmetric to the delete's entry.unpublished (0.638639ms)
+✔ restoring a DRAFT row emits nothing — it never re-entered the public site (1.838123ms)
+✔ currentVersion reads the trashed row's version — the revert guard must see through the trash (0.552771ms)
+✔ applyInverse on a row that no longer exists throws rather than silently succeeding (0.951136ms)
+✔ page clicks with missing or malformed handles require approval (1.825872ms)
+✔ a declared non-direct capability still requires approval (0.273157ms)
+✔ descriptor policy takes precedence over a native tool's default policy (0.72374ms)
+✔ a metadata object without an approval falls back to native classification (13.75433ms)
+✔ an unclassified descriptor with metadata still fails closed (0.713354ms)
+✔ extension classification preserves unrelated metadata without mutating the registration (0.326802ms)
+✔ an extension descriptor with no metadata receives its family's classification (0.300645ms)
+✔ an executable plugin tool in family agent-plugin-read is classified read/direct (0.195615ms)
+✔ an executable plugin tool in family agent-plugin-write is classified publish/policy (0.133874ms)
+✔ an executable plugin tool in family agent-plugin-destructive is classified delete/policy (5.395403ms)
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ search results carry host maturity untested (169.421809ms)
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ search results carry host maturity soon (37.591277ms)
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ search results carry host maturity (absent) (51.302867ms)
+✔ the catalog carries exactly one tool, search_agent_plugin_local, with optional 'query' and 'limit' (11.245998ms)
+✔ the description sends the model to plugins_set_enabled's 'agent-plugin' family — it no longer claims that tool manages only .tovu-plugin site plugins (4.233349ms)
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ finds a real installed plugin by keyword, with compact discovery and full metadata retained by the detail loader (94.306157ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ a query matching nothing still reports totalInstalled, distinguishing 'nothing installed' from 'nothing matched' (27.984265ms)
+✔ an empty workspace (nothing installed) returns zero matches and totalInstalled 0, no throw (2.406303ms)
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ a DISABLED plugin is still found (unlike the dynamic agent_plugin_<id> tools) — search must not gate on activation (111.850828ms)
+Plugin 'example-host-deploy' has no publisher-qualified id; using 'unknown/example-host-deploy'.
+Plugin 'example-host-deploy' has no publisher-qualified id; using 'unknown/example-host-deploy'.
+Plugin 'example-host-deploy' has no publisher-qualified id; using 'unknown/example-host-deploy'.
+✔ MCP server ids stay on the detail path, while discovery omits transport config (34.099689ms)
+Plugin 'no-mcp-plugin' has no publisher-qualified id; using 'unknown/no-mcp-plugin'.
+Plugin 'no-mcp-plugin' has no publisher-qualified id; using 'unknown/no-mcp-plugin'.
+Plugin 'no-mcp-plugin' has no publisher-qualified id; using 'unknown/no-mcp-plugin'.
+✔ a plugin with no mcp.json remains discoverable and has no servers on the detail path (29.213544ms)
+﹣ SINK: a plugin whose SKILL.md is no longer readable does not take another installed plugin's search entry down with it (0.244683ms) # root bypasses chmod read permissions
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ two installed digests of the same plugin id do not crash search — unlike the dynamic tool loader's refusal (53.188771ms)
+Plugin 'compliance-tool-0' has no publisher-qualified id; using 'unknown/compliance-tool-0'.
+Plugin 'compliance-tool-1' has no publisher-qualified id; using 'unknown/compliance-tool-1'.
+Plugin 'compliance-tool-2' has no publisher-qualified id; using 'unknown/compliance-tool-2'.
+Plugin 'compliance-tool-3' has no publisher-qualified id; using 'unknown/compliance-tool-3'.
+Plugin 'compliance-tool-4' has no publisher-qualified id; using 'unknown/compliance-tool-4'.
+Plugin 'compliance-tool-5' has no publisher-qualified id; using 'unknown/compliance-tool-5'.
+Plugin 'compliance-tool-6' has no publisher-qualified id; using 'unknown/compliance-tool-6'.
+Plugin 'compliance-tool-7' has no publisher-qualified id; using 'unknown/compliance-tool-7'.
+Plugin 'compliance-tool-8' has no publisher-qualified id; using 'unknown/compliance-tool-8'.
+Plugin 'compliance-tool-9' has no publisher-qualified id; using 'unknown/compliance-tool-9'.
+Plugin 'compliance-tool-10' has no publisher-qualified id; using 'unknown/compliance-tool-10'.
+Plugin 'compliance-tool-11' has no publisher-qualified id; using 'unknown/compliance-tool-11'.
+Plugin 'compliance-tool-12' has no publisher-qualified id; using 'unknown/compliance-tool-12'.
+Plugin 'compliance-tool-13' has no publisher-qualified id; using 'unknown/compliance-tool-13'.
+Plugin 'compliance-tool-14' has no publisher-qualified id; using 'unknown/compliance-tool-14'.
+Plugin 'compliance-tool-15' has no publisher-qualified id; using 'unknown/compliance-tool-15'.
+Plugin 'compliance-tool-16' has no publisher-qualified id; using 'unknown/compliance-tool-16'.
+Plugin 'compliance-tool-17' has no publisher-qualified id; using 'unknown/compliance-tool-17'.
+Plugin 'compliance-tool-18' has no publisher-qualified id; using 'unknown/compliance-tool-18'.
+Plugin 'compliance-tool-19' has no publisher-qualified id; using 'unknown/compliance-tool-19'.
+Plugin 'compliance-tool-20' has no publisher-qualified id; using 'unknown/compliance-tool-20'.
+Plugin 'compliance-tool-21' has no publisher-qualified id; using 'unknown/compliance-tool-21'.
+Plugin 'compliance-tool-22' has no publisher-qualified id; using 'unknown/compliance-tool-22'.
+Plugin 'compliance-tool-23' has no publisher-qualified id; using 'unknown/compliance-tool-23'.
+Plugin 'compliance-tool-24' has no publisher-qualified id; using 'unknown/compliance-tool-24'.
+Plugin 'compliance-tool-25' has no publisher-qualified id; using 'unknown/compliance-tool-25'.
+Plugin 'compliance-tool-26' has no publisher-qualified id; using 'unknown/compliance-tool-26'.
+Plugin 'compliance-tool-27' has no publisher-qualified id; using 'unknown/compliance-tool-27'.
+Plugin 'compliance-tool-28' has no publisher-qualified id; using 'unknown/compliance-tool-28'.
+Plugin 'compliance-tool-29' has no publisher-qualified id; using 'unknown/compliance-tool-29'.
+Plugin 'compliance-tool-30' has no publisher-qualified id; using 'unknown/compliance-tool-30'.
+Plugin 'compliance-tool-31' has no publisher-qualified id; using 'unknown/compliance-tool-31'.
+Plugin 'compliance-tool-32' has no publisher-qualified id; using 'unknown/compliance-tool-32'.
+Plugin 'compliance-tool-33' has no publisher-qualified id; using 'unknown/compliance-tool-33'.
+Plugin 'compliance-tool-34' has no publisher-qualified id; using 'unknown/compliance-tool-34'.
+Plugin 'compliance-tool-35' has no publisher-qualified id; using 'unknown/compliance-tool-35'.
+Plugin 'compliance-tool-36' has no publisher-qualified id; using 'unknown/compliance-tool-36'.
+Plugin 'compliance-tool-37' has no publisher-qualified id; using 'unknown/compliance-tool-37'.
+Plugin 'compliance-tool-38' has no publisher-qualified id; using 'unknown/compliance-tool-38'.
+Plugin 'compliance-tool-39' has no publisher-qualified id; using 'unknown/compliance-tool-39'.
+Plugin 'compliance-tool-40' has no publisher-qualified id; using 'unknown/compliance-tool-40'.
+Plugin 'compliance-tool-41' has no publisher-qualified id; using 'unknown/compliance-tool-41'.
+Plugin 'compliance-tool-42' has no publisher-qualified id; using 'unknown/compliance-tool-42'.
+Plugin 'compliance-tool-43' has no publisher-qualified id; using 'unknown/compliance-tool-43'.
+Plugin 'compliance-tool-44' has no publisher-qualified id; using 'unknown/compliance-tool-44'.
+Plugin 'compliance-tool-45' has no publisher-qualified id; using 'unknown/compliance-tool-45'.
+Plugin 'compliance-tool-46' has no publisher-qualified id; using 'unknown/compliance-tool-46'.
+Plugin 'compliance-tool-47' has no publisher-qualified id; using 'unknown/compliance-tool-47'.
+Plugin 'compliance-tool-48' has no publisher-qualified id; using 'unknown/compliance-tool-48'.
+Plugin 'compliance-tool-49' has no publisher-qualified id; using 'unknown/compliance-tool-49'.
+Plugin 'compliance-tool-50' has no publisher-qualified id; using 'unknown/compliance-tool-50'.
+Plugin 'compliance-tool-0' has no publisher-qualified id; using 'unknown/compliance-tool-0'.
+Plugin 'compliance-tool-1' has no publisher-qualified id; using 'unknown/compliance-tool-1'.
+Plugin 'compliance-tool-10' has no publisher-qualified id; using 'unknown/compliance-tool-10'.
+Plugin 'compliance-tool-11' has no publisher-qualified id; using 'unknown/compliance-tool-11'.
+Plugin 'compliance-tool-12' has no publisher-qualified id; using 'unknown/compliance-tool-12'.
+Plugin 'compliance-tool-13' has no publisher-qualified id; using 'unknown/compliance-tool-13'.
+Plugin 'compliance-tool-14' has no publisher-qualified id; using 'unknown/compliance-tool-14'.
+Plugin 'compliance-tool-15' has no publisher-qualified id; using 'unknown/compliance-tool-15'.
+Plugin 'compliance-tool-16' has no publisher-qualified id; using 'unknown/compliance-tool-16'.
+Plugin 'compliance-tool-17' has no publisher-qualified id; using 'unknown/compliance-tool-17'.
+Plugin 'compliance-tool-18' has no publisher-qualified id; using 'unknown/compliance-tool-18'.
+Plugin 'compliance-tool-19' has no publisher-qualified id; using 'unknown/compliance-tool-19'.
+Plugin 'compliance-tool-2' has no publisher-qualified id; using 'unknown/compliance-tool-2'.
+Plugin 'compliance-tool-20' has no publisher-qualified id; using 'unknown/compliance-tool-20'.
+Plugin 'compliance-tool-21' has no publisher-qualified id; using 'unknown/compliance-tool-21'.
+Plugin 'compliance-tool-22' has no publisher-qualified id; using 'unknown/compliance-tool-22'.
+Plugin 'compliance-tool-23' has no publisher-qualified id; using 'unknown/compliance-tool-23'.
+Plugin 'compliance-tool-24' has no publisher-qualified id; using 'unknown/compliance-tool-24'.
+Plugin 'compliance-tool-25' has no publisher-qualified id; using 'unknown/compliance-tool-25'.
+Plugin 'compliance-tool-26' has no publisher-qualified id; using 'unknown/compliance-tool-26'.
+Plugin 'compliance-tool-27' has no publisher-qualified id; using 'unknown/compliance-tool-27'.
+Plugin 'compliance-tool-28' has no publisher-qualified id; using 'unknown/compliance-tool-28'.
+Plugin 'compliance-tool-29' has no publisher-qualified id; using 'unknown/compliance-tool-29'.
+Plugin 'compliance-tool-3' has no publisher-qualified id; using 'unknown/compliance-tool-3'.
+Plugin 'compliance-tool-30' has no publisher-qualified id; using 'unknown/compliance-tool-30'.
+Plugin 'compliance-tool-31' has no publisher-qualified id; using 'unknown/compliance-tool-31'.
+Plugin 'compliance-tool-32' has no publisher-qualified id; using 'unknown/compliance-tool-32'.
+Plugin 'compliance-tool-33' has no publisher-qualified id; using 'unknown/compliance-tool-33'.
+Plugin 'compliance-tool-34' has no publisher-qualified id; using 'unknown/compliance-tool-34'.
+Plugin 'compliance-tool-35' has no publisher-qualified id; using 'unknown/compliance-tool-35'.
+Plugin 'compliance-tool-36' has no publisher-qualified id; using 'unknown/compliance-tool-36'.
+Plugin 'compliance-tool-37' has no publisher-qualified id; using 'unknown/compliance-tool-37'.
+Plugin 'compliance-tool-38' has no publisher-qualified id; using 'unknown/compliance-tool-38'.
+Plugin 'compliance-tool-39' has no publisher-qualified id; using 'unknown/compliance-tool-39'.
+Plugin 'compliance-tool-4' has no publisher-qualified id; using 'unknown/compliance-tool-4'.
+Plugin 'compliance-tool-40' has no publisher-qualified id; using 'unknown/compliance-tool-40'.
+Plugin 'compliance-tool-41' has no publisher-qualified id; using 'unknown/compliance-tool-41'.
+Plugin 'compliance-tool-42' has no publisher-qualified id; using 'unknown/compliance-tool-42'.
+Plugin 'compliance-tool-43' has no publisher-qualified id; using 'unknown/compliance-tool-43'.
+Plugin 'compliance-tool-44' has no publisher-qualified id; using 'unknown/compliance-tool-44'.
+Plugin 'compliance-tool-45' has no publisher-qualified id; using 'unknown/compliance-tool-45'.
+Plugin 'compliance-tool-46' has no publisher-qualified id; using 'unknown/compliance-tool-46'.
+Plugin 'compliance-tool-47' has no publisher-qualified id; using 'unknown/compliance-tool-47'.
+Plugin 'compliance-tool-48' has no publisher-qualified id; using 'unknown/compliance-tool-48'.
+Plugin 'compliance-tool-49' has no publisher-qualified id; using 'unknown/compliance-tool-49'.
+Plugin 'compliance-tool-5' has no publisher-qualified id; using 'unknown/compliance-tool-5'.
+Plugin 'compliance-tool-50' has no publisher-qualified id; using 'unknown/compliance-tool-50'.
+Plugin 'compliance-tool-6' has no publisher-qualified id; using 'unknown/compliance-tool-6'.
+Plugin 'compliance-tool-7' has no publisher-qualified id; using 'unknown/compliance-tool-7'.
+Plugin 'compliance-tool-8' has no publisher-qualified id; using 'unknown/compliance-tool-8'.
+Plugin 'compliance-tool-9' has no publisher-qualified id; using 'unknown/compliance-tool-9'.
+Plugin 'compliance-tool-0' has no publisher-qualified id; using 'unknown/compliance-tool-0'.
+Plugin 'compliance-tool-1' has no publisher-qualified id; using 'unknown/compliance-tool-1'.
+Plugin 'compliance-tool-10' has no publisher-qualified id; using 'unknown/compliance-tool-10'.
+Plugin 'compliance-tool-11' has no publisher-qualified id; using 'unknown/compliance-tool-11'.
+Plugin 'compliance-tool-12' has no publisher-qualified id; using 'unknown/compliance-tool-12'.
+Plugin 'compliance-tool-13' has no publisher-qualified id; using 'unknown/compliance-tool-13'.
+Plugin 'compliance-tool-14' has no publisher-qualified id; using 'unknown/compliance-tool-14'.
+Plugin 'compliance-tool-15' has no publisher-qualified id; using 'unknown/compliance-tool-15'.
+Plugin 'compliance-tool-16' has no publisher-qualified id; using 'unknown/compliance-tool-16'.
+Plugin 'compliance-tool-17' has no publisher-qualified id; using 'unknown/compliance-tool-17'.
+Plugin 'compliance-tool-18' has no publisher-qualified id; using 'unknown/compliance-tool-18'.
+Plugin 'compliance-tool-19' has no publisher-qualified id; using 'unknown/compliance-tool-19'.
+Plugin 'compliance-tool-2' has no publisher-qualified id; using 'unknown/compliance-tool-2'.
+Plugin 'compliance-tool-20' has no publisher-qualified id; using 'unknown/compliance-tool-20'.
+Plugin 'compliance-tool-21' has no publisher-qualified id; using 'unknown/compliance-tool-21'.
+Plugin 'compliance-tool-22' has no publisher-qualified id; using 'unknown/compliance-tool-22'.
+Plugin 'compliance-tool-23' has no publisher-qualified id; using 'unknown/compliance-tool-23'.
+Plugin 'compliance-tool-24' has no publisher-qualified id; using 'unknown/compliance-tool-24'.
+Plugin 'compliance-tool-25' has no publisher-qualified id; using 'unknown/compliance-tool-25'.
+Plugin 'compliance-tool-26' has no publisher-qualified id; using 'unknown/compliance-tool-26'.
+Plugin 'compliance-tool-27' has no publisher-qualified id; using 'unknown/compliance-tool-27'.
+Plugin 'compliance-tool-28' has no publisher-qualified id; using 'unknown/compliance-tool-28'.
+Plugin 'compliance-tool-29' has no publisher-qualified id; using 'unknown/compliance-tool-29'.
+Plugin 'compliance-tool-3' has no publisher-qualified id; using 'unknown/compliance-tool-3'.
+Plugin 'compliance-tool-30' has no publisher-qualified id; using 'unknown/compliance-tool-30'.
+Plugin 'compliance-tool-31' has no publisher-qualified id; using 'unknown/compliance-tool-31'.
+Plugin 'compliance-tool-32' has no publisher-qualified id; using 'unknown/compliance-tool-32'.
+Plugin 'compliance-tool-33' has no publisher-qualified id; using 'unknown/compliance-tool-33'.
+Plugin 'compliance-tool-34' has no publisher-qualified id; using 'unknown/compliance-tool-34'.
+Plugin 'compliance-tool-35' has no publisher-qualified id; using 'unknown/compliance-tool-35'.
+Plugin 'compliance-tool-36' has no publisher-qualified id; using 'unknown/compliance-tool-36'.
+Plugin 'compliance-tool-37' has no publisher-qualified id; using 'unknown/compliance-tool-37'.
+Plugin 'compliance-tool-38' has no publisher-qualified id; using 'unknown/compliance-tool-38'.
+Plugin 'compliance-tool-39' has no publisher-qualified id; using 'unknown/compliance-tool-39'.
+Plugin 'compliance-tool-4' has no publisher-qualified id; using 'unknown/compliance-tool-4'.
+Plugin 'compliance-tool-40' has no publisher-qualified id; using 'unknown/compliance-tool-40'.
+Plugin 'compliance-tool-41' has no publisher-qualified id; using 'unknown/compliance-tool-41'.
+Plugin 'compliance-tool-42' has no publisher-qualified id; using 'unknown/compliance-tool-42'.
+Plugin 'compliance-tool-43' has no publisher-qualified id; using 'unknown/compliance-tool-43'.
+Plugin 'compliance-tool-44' has no publisher-qualified id; using 'unknown/compliance-tool-44'.
+Plugin 'compliance-tool-45' has no publisher-qualified id; using 'unknown/compliance-tool-45'.
+Plugin 'compliance-tool-46' has no publisher-qualified id; using 'unknown/compliance-tool-46'.
+Plugin 'compliance-tool-47' has no publisher-qualified id; using 'unknown/compliance-tool-47'.
+Plugin 'compliance-tool-48' has no publisher-qualified id; using 'unknown/compliance-tool-48'.
+Plugin 'compliance-tool-49' has no publisher-qualified id; using 'unknown/compliance-tool-49'.
+Plugin 'compliance-tool-5' has no publisher-qualified id; using 'unknown/compliance-tool-5'.
+Plugin 'compliance-tool-50' has no publisher-qualified id; using 'unknown/compliance-tool-50'.
+Plugin 'compliance-tool-6' has no publisher-qualified id; using 'unknown/compliance-tool-6'.
+Plugin 'compliance-tool-7' has no publisher-qualified id; using 'unknown/compliance-tool-7'.
+Plugin 'compliance-tool-8' has no publisher-qualified id; using 'unknown/compliance-tool-8'.
+Plugin 'compliance-tool-9' has no publisher-qualified id; using 'unknown/compliance-tool-9'.
+✔ limit is clamped, not rejected — an out-of-range value still returns a result within [1, 50] (4085.900427ms)
+Plugin 'zeta' has no publisher-qualified id; using 'unknown/zeta'.
+Plugin 'alpha' has no publisher-qualified id; using 'unknown/alpha'.
+Plugin 'alpha' has no publisher-qualified id; using 'unknown/alpha'.
+Plugin 'zeta' has no publisher-qualified id; using 'unknown/zeta'.
+Plugin 'alpha' has no publisher-qualified id; using 'unknown/alpha'.
+Plugin 'zeta' has no publisher-qualified id; using 'unknown/zeta'.
+Plugin 'alpha' has no publisher-qualified id; using 'unknown/alpha'.
+Plugin 'zeta' has no publisher-qualified id; using 'unknown/zeta'.
+✔ blank queries list the existing loader's enabled and disabled plugins (87.661098ms)
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+Plugin 'site-compliance' has no publisher-qualified id; using 'unknown/site-compliance'.
+✔ SECURITY: no absolute host path leaks into the response, even for a matched plugin (34.38108ms)
+Plugin 'only-in-other' has no publisher-qualified id; using 'unknown/only-in-other'.
+✔ workspace isolation: a search in workspace A finds nothing installed only under a different workspace (53.383836ms)
+Plugin 'minimal-pinned' has no publisher-qualified id; using 'unknown/minimal-pinned'.
+Plugin 'bad-pinned' has no publisher-qualified id; using 'unknown/bad-pinned'.
+Plugin 'minimal-pinned' has no publisher-qualified id; using 'unknown/minimal-pinned'.
+✔ L025b search projection preserves optional metadata and isolates invalid identities (77.550558ms)
+Plugin 'paged-tool-0' has no publisher-qualified id; using 'unknown/paged-tool-0'.
+Plugin 'paged-tool-1' has no publisher-qualified id; using 'unknown/paged-tool-1'.
+Plugin 'paged-tool-2' has no publisher-qualified id; using 'unknown/paged-tool-2'.
+Plugin 'paged-tool-0' has no publisher-qualified id; using 'unknown/paged-tool-0'.
+Plugin 'paged-tool-1' has no publisher-qualified id; using 'unknown/paged-tool-1'.
+Plugin 'paged-tool-2' has no publisher-qualified id; using 'unknown/paged-tool-2'.
+Plugin 'paged-tool-0' has no publisher-qualified id; using 'unknown/paged-tool-0'.
+Plugin 'paged-tool-1' has no publisher-qualified id; using 'unknown/paged-tool-1'.
+Plugin 'paged-tool-2' has no publisher-qualified id; using 'unknown/paged-tool-2'.
+✔ offset pages the ranked catalog; a negative or fractional offset is an input error (71.440551ms)
+✔ renameToolNames: replaces renamed names in place, drops a duplicate the rename creates, null when nothing matched (4.177637ms)
+✔ a provisioned row's saved allowlist follows the declared rename, and the roster is notified once (10.705583ms)
+✔ a renamed WRITE grant stays a write grant, attributed to the rename; a read-only name never gains write (3.609167ms)
+✔ a second boot finds nothing to rename: no write, no log, no notification (1.396902ms)
+✔ a row selecting no renamed tool is left byte-identical (1.16878ms)
+✔ an operator's own row (no provisioning plugin) is never touched (1.528739ms)
+✔ a row provisioned by a DIFFERENT plugin is never touched (1.115507ms)
+✔ a row pointed at a different url than the plugin declares is never touched (1.031191ms)
+✔ a plugin that declares no renames writes nothing (1.624025ms)
+✔ a plugin listing that throws is a warning, never a boot failure (0.6752ms)
+✔ a per-server findByServerId failure preserves that row and still renames a later server (2.324073ms)
+✔ a per-server upsert failure preserves that row and still renames a later server (0.966358ms)
+✔ tool renames skip local, invalid, missing, and unreadable rows while later eligible rows still change (0.980612ms)
+✔ tool renames propagate a roster notification failure after persisting the rename (reported, not fixed) (1.270713ms)
+✔ tool renames still notify after a successful write when its info logger throws (1.250267ms)
+✔ a non-Error thrown by the plugin listing is still reported as text (0.858118ms)
+✔ without an injected listing, the workspace's installed plugins are read (none here) and nothing is touched (44.285685ms)
+✔ a row whose read list no longer names the old tool still has its write grant renamed, read list untouched (4.204035ms)
+✔ an empty stored read list counts as no tools, not as an unreadable list (1.364713ms)
+✔ a non-Error upsert failure is reported as text and the row is kept (1.241122ms)
+✔ the github plugin contributes the github-actions ops platform and declares it (116.413166ms)
+✔ there is no separate github-actions plugin, seed id (0.596268ms)
+✔ the github skill routes source control/backup apart from deploying with GitHub Actions (2.657991ms)
+✔ plugin.json parses under the Agent Plugins v1.0.0 validator (39.558353ms)
+✔ plugin.json's keywords carry the vocabulary an operator would actually search for (3.824985ms)
+✔ mcp.json declares the real higgsfield connection, auto-admitted per classifyAgentPluginMcpServerTrust (5.611321ms)
+✔ the eponymous skill folder exists — run-start injection resolves skills/<pluginId>/SKILL.md by that exact name (2.146644ms)
+✔ the package packs through the real installer's own packer, references included (14.356677ms)
+✔ SKILL.md points at every reference file that exists — an unreferenced reference is never read (2.63713ms)
+✔ SKILL.md says EARLY and plainly that generate_image returns a job id, not an image (2.697689ms)
+✔ SKILL.md forbids sync:true AND carries the two numbers that make it unarguable (13.124794ms)
+✔ SKILL.md documents the TWO-list write grant and quotes the exact refusal line (9.375455ms)
+✔ SKILL.md states that federation config is read at daemon start, so a saved grant needs a restart (4.050163ms)
+✔ SKILL.md forbids inventing a cause for an absent or refused federated tool (2.151938ms)
+✔ SKILL.md records the plan gate's exact string and defers model facts to the account; the reference keeps the observed table (2.446276ms)
+✔ SKILL.md says the auth is OAuth — never an API key — and that Tovu mints its own client (1.847726ms)
+✔ SKILL.md is honest that the cold start leaves chat — the enable step, and TOVU_PUBLIC_URL (1.827349ms)
+✔ plugin.json's keywords also reach an operator who says 'photo' or 'illustration' (2.08281ms)
+✔ SKILL.md forbids the two wrong recoveries — silent media_generate_asset, and re-attaching by hand (1.901669ms)
+✔ failure-modes.md maps every observed failure string to a real cause (3.155253ms)
+✔ failure-modes.md routes an expired OAuth token to the one tool that can surface it (4.04733ms)
+✔ no file in the package carries credential material (20.444831ms)
+✔ meilisearch › has a valid provider shape (1.76346ms)
+✔ meilisearch › upsert then query finds the document (7.735597ms)
+✔ meilisearch › a newer revision replaces the document (2.190483ms)
+✔ meilisearch › an equal or older revision is stale and changes nothing (1.374607ms)
+✔ meilisearch › remove makes the document absent (1.296061ms)
+✔ meilisearch › removing a never-indexed key leaves a tombstone that blocks lower revisions (1.571166ms)
+✔ meilisearch › published then draft (tombstone) removes it from queries (1.253338ms)
+✔ meilisearch › a public-only provider never returns restricted documents (1.302192ms)
+✔ meilisearch › indexes and sites never cross (2.445533ms)
+✔ meilisearch › sites and workspaces sharing one index never cross (2.055853ms)
+✔ meilisearch › field filters match exactly and by type (3.639049ms)
+✔ meilisearch › query text no document contains finds nothing (3.892384ms)
+✔ meilisearch › collections filter (1.29235ms)
+✔ meilisearch › limit and cursor pagination is stable and non-overlapping (3.61812ms)
+✔ meilisearch › empty or whitespace query text is rejected as invalid_request (0.46114ms)
+✔ meilisearch › revisionOf agrees with the last write (1.170927ms)
+✔ meilisearch › overlapping writes issued before earlier ones settle still honour revision order (1.815903ms)
+✔ meilisearch › dropIndex removes everything in the index (1.08763ms)
+✔ meilisearch › locale filter (1.144596ms)
+✔ meilisearch › tolerates a one-edit typo (5.87606ms)
+✔ meilisearch › an unavailable backend answers unknown and never throws (1.330654ms)
+✔ every capability-dependent conformance case is registered (typo, locale, public-only, unavailable) (0.242646ms)
+✔ no conformance request ever carried a restricted document's text to the vendor (0.262263ms)
+✔ agent_plugin_connect: a bundled plugin with one OAuth server shows exactly one https sign-in link and no token (107.714636ms)
+✔ agent_plugin_connect: a fake callback flipping the row to connected resolves { status: 'connected' } (7.373897ms)
+✔ agent_plugin_connect: a plugin with no OAuth server is refused (1.731416ms)
+✔ connect_token_only_uses_plugin_card_without_oauth (0.85232ms)
+✔ token-only card cancelled is never reported connected (0.525063ms)
+✔ token-only card expired is never reported connected (0.258986ms)
+✔ token-only card abandoned is never reported connected (0.293559ms)
+✔ token-only card refused is never reported connected (0.25225ms)
+✔ token-only card invalid is never reported connected (0.211105ms)
+✔ token-only card unavailable is never reported connected (0.237118ms)
+✔ token-only card error is never reported connected (0.20632ms)
+✔ token-only connect reuses a stored credential without prompting or changing grants (8.389721ms)
+✔ oauth_with_token_fallback_still_starts_oauth (1.663702ms)
+✔ a saved token with a different owner cannot report this plugin connected (3.433437ms)
+✔ a saved token with a different endpoint cannot report this plugin connected (2.912567ms)
+✔ token-only declarations refuse ambiguous or invalid targets and provide a key-card path without an adapter (0.891196ms)
+✔ agent_plugin_connect: an OAuth server provisioning skipped (legacy sse) is refused before any sign-in starts (0.600596ms)
+✔ agent_plugin_connect: a skipped stdio helper does not block its OAuth server (1.499936ms)
+✔ agent_plugin_connect: a device-code grant is refused rather than showing a link with no code (1.173465ms)
+✔ OAuth metadata failure reports that no card opened and points to the plugin key card (1.264768ms)
+✔ agent_plugin_connect: a failed 'connected' card update never turns a real connection into a tool failure (1.546985ms)
+✔ agent_plugin_connect: refuses unknown-plugin before starting sign-in (0.694146ms)
+✔ agent_plugin_connect: refuses two-servers before starting sign-in (1.457764ms)
+✔ agent_plugin_connect: refuses no-oauth before starting sign-in (0.249311ms)
+✔ agent_plugin_connect: refuses no-surface before starting sign-in (1.269211ms)
+✔ agent_plugin_connect: abort closes the exchange and returns waiting (4.463045ms)
+✔ agent_plugin_connect: denied permission provisions no row and emits no card (0.711864ms)
+✔ agent_plugin_connect: an already saved oauth starts no sign-in and preserves the row (1.55021ms)
+✔ agent_plugin_connect: an already saved static-token starts no sign-in and preserves the row (7.883275ms)
+[agent-plugins:migration-complete] /tmp/connect-installed-G1eiTK/ws/77777777-7777-4777-8777-777777777777
+✔ agent_plugin_connect resolves the installed package without an injected resolver (3382.150896ms)
+✔ agent_plugin_connect aborts during the polling sleep and cleans up promptly (5.435778ms)
+✔ connect pre-card behavior: unknown (1.285642ms)
+✔ connect pre-card behavior: no-oauth-service (0.611274ms)
+✔ connect pre-card behavior: already-connected (1.255159ms)
+✔ connect pre-card behavior: multiple (1.799589ms)
+✔ connect pre-card behavior: no-emitter (1.331808ms)
+✔ connect closes its exchange when the initial waiting card fails (1.946378ms)
+✔ connect refuses a different plugin's endpoint before OAuth: provisioning-refused (1.796157ms)
+✔ connect refuses a different plugin's endpoint before OAuth: ownership-changed (1.301644ms)
+✔ agent_plugin_connect: a non-http TOVU_PUBLIC_URL falls back to the derived origin (2.350129ms)
+✔ agent_plugin_connect: a malformed TOVU_PUBLIC_URL is treated as absent (1.855847ms)
+✔ agent_plugin_connect: no configured or derived origin leaves the redirect to the OAuth service (2.092706ms)
+✔ agent_plugin_connect: an OAuth validation refusal becomes a ToolInputError; any other failure propagates unchanged (2.659678ms)
+✔ agent_plugin_connect: a server key with no usable connection id is refused before any sign-in (0.690675ms)
+✔ agent_plugin_connect: an abort landing during a poll read ends the wait without sleeping (1.843754ms)
+✔ agent_plugin_connect: default poll timing still reports a connection observed on the first poll (2.049682ms)
+✔ defaultResolveInstalledAgentPlugin returns null for a plugin this workspace never installed (6.336841ms)
+✔ agent_plugin_connect carries plugin-owned connection and permission copy into the sign-in card (1.739201ms)
+✔ OAuth card copy comes only from the trusted merged loader and the declaring plugin (11.391467ms)
+Plugin 'fixture-mail' has no publisher-qualified id; using 'unknown/fixture-mail'.
+Plugin 'fixture-mail' has no publisher-qualified id; using 'unknown/fixture-mail'.
+Plugin 'fixture-mail' has no publisher-qualified id; using 'unknown/fixture-mail'.
+✔ lists an adapter from an enabled, Tovu-bundled plugin and builds a working mailer from its module (199.108383ms)
+Plugin 'fixture-mail' has no publisher-qualified id; using 'unknown/fixture-mail'.
+Plugin 'fixture-mail' has no publisher-qualified id; using 'unknown/fixture-mail'.
+Plugin 'fixture-mail' has no publisher-qualified id; using 'unknown/fixture-mail'.
+✔ refuses a plugin whose installed digest is not the one Tovu shipped (116.282645ms)
+Plugin 'fixture-mail' has no publisher-qualified id; using 'unknown/fixture-mail'.
+Plugin 'fixture-mail' has no publisher-qualified id; using 'unknown/fixture-mail'.
+Plugin 'fixture-mail' has no publisher-qualified id; using 'unknown/fixture-mail'.
+✔ a disabled bundled plugin contributes nothing and is not an error (67.333087ms)
+Plugin 'fixture-mail' has no publisher-qualified id; using 'unknown/fixture-mail'.
+Plugin 'fixture-mail' has no publisher-qualified id; using 'unknown/fixture-mail'.
+Plugin 'fixture-mail' has no publisher-qualified id; using 'unknown/fixture-mail'.
+✔ a module without create() is refused, and a module path escaping the plugin root is refused (44.185866ms)
+✔ parseMailAdaptersFile rejects a bad schema version, a non-.mjs module, a missing credential label and a duplicate id (0.651396ms)
+Plugin 'healthy-mail' has no publisher-qualified id; using 'unknown/healthy-mail'.
+Plugin 'throwing-mail' has no publisher-qualified id; using 'unknown/throwing-mail'.
+Plugin 'malformed-mail' has no publisher-qualified id; using 'unknown/malformed-mail'.
+Plugin 'healthy-mail' has no publisher-qualified id; using 'unknown/healthy-mail'.
+Plugin 'malformed-mail' has no publisher-qualified id; using 'unknown/malformed-mail'.
+Plugin 'throwing-mail' has no publisher-qualified id; using 'unknown/throwing-mail'.
+Plugin 'healthy-mail' has no publisher-qualified id; using 'unknown/healthy-mail'.
+Plugin 'malformed-mail' has no publisher-qualified id; using 'unknown/malformed-mail'.
+Plugin 'throwing-mail' has no publisher-qualified id; using 'unknown/throwing-mail'.
+✔ throwing modules and malformed descriptors are refused while healthy mail adapters still load (192.93721ms)
+✔ parseMailAdaptersFile refuses every malformed top-level shape and descriptor field (1.403306ms)
+✔ parse: absent is none; blanks are dropped; values are trimmed (2.313048ms)
+✔ parse: a non-object, a bad plugin id, a non-string, an over-long token, or too many entries are refused (0.423099ms)
+✔ refusals: invalid and unsupported stop the create with the plugin's name; ok and unavailable do not (0.413286ms)
+✔ firstNewSiteAgentPluginTokenRefusal names the first refused plugin and never carries a token (0.562451ms)
+✔ a permission refusal stops onboarding without calling the token invalid (0.355652ms)
+✔ bundled plugins: read by manifest name; retired and manifest-less dirs are skipped; an absent root is empty (65.40812ms)
+✔ the token sign-in list over bundled plugins offers only plugins that declare tovuTokenAuth (21.174451ms)
+✔ the bundled source root is the env override when set, else <product>/content/agent-plugins (1.574975ms)
+✔ the new-site sign-in list reads the given bundled root (34.035224ms)
+✔ a bundled dir whose manifest name is not a valid plugin id is skipped (12.638186ms)
+✔ a token the vendor accepts is ok: one GET to the declared probe URL with the token as a Bearer header (3.528251ms)
+✔ 401 and 403 are refused; any other failure or an unreachable vendor is unavailable (1.210634ms)
+✔ unsupported, with no network call: not installed, lookup throws, no token-auth server, or more than one (0.655056ms)
+✔ a stdio server never counts as the token-auth server (0.283651ms)
+✔ the sign-in list names each token plugin once, sorted by id, with its tokens page (15.821655ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ real installed plugin reads supporting references, resources and examples, with sorted recursive files and skill descriptions (283.831729ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ unknown and unsafe file requests recover with valid files and never disclose host paths or another skill (85.339179ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ realpath refuses file and directory symlinks into another skill or outside the package (97.199205ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ binary, disallowed extensions and oversize files are refused and excluded from readable files (51.333925ms)
+Plugin 'zeta-seam' has no publisher-qualified id; using 'unknown/zeta-seam'.
+Plugin 'alpha-seam' has no publisher-qualified id; using 'unknown/alpha-seam'.
+Plugin 'mid-seam' has no publisher-qualified id; using 'unknown/mid-seam'.
+Plugin 'alpha-seam' has no publisher-qualified id; using 'unknown/alpha-seam'.
+Plugin 'mid-seam' has no publisher-qualified id; using 'unknown/mid-seam'.
+Plugin 'zeta-seam' has no publisher-qualified id; using 'unknown/zeta-seam'.
+✔ orderByPluginId returns trusted packages sorted by plugin id (350.694969ms)
+Plugin 'on-seam' has no publisher-qualified id; using 'unknown/on-seam'.
+Plugin 'off-seam' has no publisher-qualified id; using 'unknown/off-seam'.
+Plugin 'off-seam' has no publisher-qualified id; using 'unknown/off-seam'.
+Plugin 'on-seam' has no publisher-qualified id; using 'unknown/on-seam'.
+✔ onInactive hears a switched-off plugin, which is neither trusted nor refused (107.39337ms)
+Plugin 'off-seam' has no publisher-qualified id; using 'unknown/off-seam'.
+Plugin 'off-seam' has no publisher-qualified id; using 'unknown/off-seam'.
+✔ without requireActive a switched-off plugin is trusted and onInactive is never called (27.744735ms)
+Plugin 'blocked-mail' has no publisher-qualified id; using 'unknown/blocked-mail'.
+Plugin 'blocked-mail' has no publisher-qualified id; using 'unknown/blocked-mail'.
+Plugin 'blocked-mail' has no publisher-qualified id; using 'unknown/blocked-mail'.
+Plugin 'blocked-mail' has no publisher-qualified id; using 'unknown/blocked-mail'.
+✔ unreadable activation refuses a bundled executable contribution before its module runs (51.408406ms)
+✔ MCP adapter retains stdio, optional remote fields, declared invalid ids and null-prototype server keys (4.077563ms)
+✔ create-time token parser preserves absence, entry validation, raw limits, trimming and own-key semantics (0.718112ms)
+[agent-plugins:migration-complete] /tmp/tw2-L224-missing-wobLto/plugins/ws/active
+✔ site migration handles a missing workspace directory and propagates a non-directory error (94.390562ms)
+✔ site migration skips files and invalid workspace folders, deduplicates active id and returns its result (29.751984ms)
+✔ the file URL sits under the public prefix and encodes every segment but keeps the path separators (3.343264ms)
+✔ the default host has no handlers and starts every surface with null data (1.0318ms)
+✔ the lifecycle source loads the surfaces file for the workspace, active plugins only, ordered by plugin id (1.558774ms)
+✔ the lifecycle source reads a file through the lifecycle's contained read for that plugin (0.337411ms)
+✔ findAdminSurface needs both the plugin id and the surface id to match (0.557371ms)
+✔ readSurfaceFile serves a declared file through the source and refuses an undeclared one without reading (0.745887ms)
+✔ screen and assistant actions return host-issued sign-in URLs without opening a browser (0.574729ms)
+✔ failed actions never expose a collected sign-in URL, and hosts without collectors preserve the outcome (0.29783ms)
+✔ binding: the fan-out sink delegates every primary method to the host sink and passes host presets (3.366167ms)
+✔ binding: forwarders receive batch hits too, and host hooks are adapted to the engine shape (6.670792ms)
+✔ createLocalAnalyticsSink seeds initial hits and exposes all() (0.497703ms)
+✔ binding: a shared limiter over its cap drops the forward but the built-in sink still accepts (0.598491ms)
+✔ the binding forwards each sink call, workspace lookup and the host's fixed privacy/salt policy (3.017383ms)
+✔ host hooks are adapted to Jini's object-argument beforeIngest (0.334624ms)
+✔ the local sink adapts Jini's buffer to the positional Tovu sink port, seeded with initial hits (0.753603ms)
+✔ already connected with every requested scope: connected, with no sign-in card (120.720726ms)
+✔ connected but missing a scope the connection now requests: a new sign-in card is shown (143.0957ms)
+✔ hosted: the call polls the record until the public callback installs a newer credential (77.858089ms)
+✔ hosted: no callback within the wait returns waiting-for-sign-in with the ref to use later (45.892459ms)
+✔ hosted: aborting the run ends the wait early (24.905227ms)
+✔ hosted: an API-connection refusal at start is a caller-facing input error with its safe message (4.486914ms)
+✔ a fault that is not an API-connection refusal propagates unchanged (not dressed up as input error) (8.146099ms)
+✔ desktop: the call completes the sign-in itself through its loopback listener (23.403541ms)
+✔ desktop: a failed code exchange is a caller-facing input error (12.08449ms)
+✔ desktop: a card that cannot be shown closes the loopback listener instead of leaving it to its timeout (6.371977ms)
+✔ desktop: aborting the run closes the listener and returns waiting-for-sign-in (25.976584ms)
+✔ desktop start: a start the service refuses closes the listener it armed and propagates the refusal (4.508746ms)
+✔ desktop start: the caller's own signal closes the pending listener, and the completion reads null (4.392321ms)
+✔ a legacy OAuth credential requires reconnect without deleting or rewriting its token row (121.554166ms)
+✔ desktop: a connection with no installed-app client is refused as not set up on this desktop app (14.064412ms)
+✔ desktop: an installed-app client that names no secret setting signs in as a public client and never sends a secret (26.692091ms)
+✔ honest record: a connected record whose connection is no longer declared is served as it stands (24.790412ms)
+✔ honest record: a connected record is left as it stands when this host has no usable client (its actions refuse on their own) (53.002946ms)
+✔ honest record: a storage fault while opening the tokens propagates and never reads as a client change (26.503726ms)
+✔ honest record: losing the revision race while marking reconnect-required returns the record that won (26.155931ms)
+✔ refresh: a token read waits for another process's refresh lease on the host's real sleep, then serves the still-valid token (271.121138ms)
+✔ token read: tokens sealed for another client are refused as reconnect-required and the stored record is marked by that read itself (26.490593ms)
+✔ vault: every other workspace, kind, owner, principal or binding is refused as a context error (3.507849ms)
+✔ vault: a row is never given a generated id (every row id is derived by its store) (0.760139ms)
+✔ records: a row sealed under another key is never served (4.981836ms)
+✔ records: a row whose payload holds no record reads as none (4.362379ms)
+✔ records: writing a record under a key that is not its own is refused before anything is stored (0.420166ms)
+✔ records: a stale expected revision loses the CAS (false) and the stored record is unchanged (0.93017ms)
+✔ records: a storage fault that is not a conflict propagates from CAS (0.342562ms)
+✔ attempts: an unknown state is null for take and peek (0.495728ms)
+✔ attempts: a row whose payload holds no attempt reads as none (0.936644ms)
+✔ attempts: peek does not consume; take consumes once (1.881479ms)
+✔ attempts: a take that loses the delete race to another callback reads as already used (1.014386ms)
+✔ attempts: a storage fault on the consuming delete propagates (1.257576ms)
+✔ sweep: a new attempt removes expired attempts and keeps live attempts and every other row (2.524917ms)
+✔ sweep: an expired attempt another process already removed (conflict) does not block the new attempt (1.384209ms)
+✔ sweep: a storage fault while removing an expired attempt propagates and stores no new attempt (0.796864ms)
+✔ row ids: an attempt whose state equals a connection key never touches that connection's record row (1.230553ms)
+✔ vault: rows are stamped with the host clock, not the machine's (0.529717ms)
+✔ security (T4): listed vault ids, labels and metadata contain a digest instead of the OAuth state (1.405693ms)
+✔ comments.delete is checked before any dialog is raised, and a denied principal never sees one (4.789549ms)
+✔ a nonexistent comment id is refused before any dialog is raised (0.779717ms)
+✔ n06: reversible removal runs without a confirmation channel (1.391397ms)
+✔ a stale expectedVersion still refuses the trash (1.006003ms)
+✔ trashing a comment preserves the caller's note in its moderation audit log (1.552898ms)
+✔ approving a comment records a string note and treats a non-string note as no note (0.895944ms)
+✔ createCommentsModule uses the injected spamCheck, not a hardcoded HeuristicSpamCheck (3.42857ms)
+✔ BUG REGRESSION: a draft entry (never published) rejects a public comment as entry-closed (0.360788ms)
+✔ BUG REGRESSION: an unpublished (retracted) entry rejects a public comment as entry-closed, even though publishedAt is still set (0.406424ms)
+✔ a published entry with no closeAfterDays cap still accepts a public comment (positive control) (0.570531ms)
+✔ a published entry aged 6 days respects the seven-day closing window (0.534131ms)
+✔ a published entry aged 7 days respects the seven-day closing window (0.230386ms)
+✔ a published entry aged 7.000011574074074 days respects the seven-day closing window (0.290753ms)
+✔ a published entry aged 8 days respects the seven-day closing window (0.307273ms)
+✔ one composed module reads ledger changes live for both ingress and the entry closing window (7.255471ms)
+✔ the composed writeService forwards removal, restore, and transaction dependencies (1.229894ms)
+✔ enabled consent falls back for definitions missing during a partial registration (7.672827ms)
+✔ a malformed persisted enabled flag is refused instead of enabling or disabling consent (5.96054ms)
+✔ a persisted copy value with the wrong type fails visibly (5.596081ms)
+✔ an unknown persisted region mode is refused (1.4764ms)
+✔ explicit opt-in mode is returned without replacing it with the automatic default (1.447414ms)
+✔ a policy version beyond 128 characters is refused even within the general copy limit (1.281245ms)
+✔ all sites default ON through the existing ledger and isolate explicit site choices (4.59767ms)
+✔ WebMCP bootstrap does not own or register public consent settings (6.414693ms)
+✔ invalid enabled copy fails visibly, but disabling remains a safe rollback (1.502448ms)
+✔ request ports ignore region headers until configured and parse malformed cookies without throwing (1.318509ms)
+✔ consent request ports use the injected platform rate-key owner after trusted IP resolution (0.351017ms)
+✔ a configured region header missing from the request yields an unknown region (0.145696ms)
+✔ a request without a consent cookie has no receipt (0.165822ms)
+✔ consent has independent readiness after the shared ledger boot and cannot reject WebMCP readiness (1.46242ms)
+✔ all no-choice sites default ON, including missing definitions (2.995156ms)
+✔ the ledger default stays distinguishable from an explicit owner choice (2.998944ms)
+✔ an explicit empty owner privacy URL is not replaced by the host default (0.803808ms)
+✔ explicit owner ON and OFF win over the product default (1.526483ms)
+✔ enabled consent refuses an unknown banner placement (6.880269ms)
+✔ policy versions reject whitespace and preserve exactly 128 characters without trimming (1.137112ms)
+✔ readiness registers definitions before privacy creation and awaits its completion (25.00192ms)
+✔ privacy bootstrap failure is reported without blocking consent and retries on next open (6.525432ms)
+✔ region resolution reads only the configured header and fails strict for missing or invalid values (0.463548ms)
+✔ an empty link means "no link" and is acceptable (2.021243ms)
+✔ a local path is accepted unless it carries spaces, control characters or backslashes (0.445404ms)
+✔ a protocol-relative //host link is not a local path and must be a full https address (0.362093ms)
+✔ an https URL without credentials is accepted; other schemes are refused (0.249117ms)
+✔ credentials embedded in an https URL are refused, user name or password alike (0.284787ms)
+✔ text that is neither a local path nor a parseable URL gets the same fix sentence (0.289064ms)
+✔ the default banner CSS passes the engine policy unchanged and sets no colors, so the theme colors stay (4.497431ms)
+✔ an unset or blank Custom CSS gets the default style; the owner's own CSS is never replaced (0.366703ms)
+✔ new sites default to a corner card, not a full-width bar (0.344172ms)
+✔ copy card shows custom keys alongside vendor keys and their publish hosts; only selected IDs are copied (17.960309ms)
+✔ C3: one tool, exchange-only metadata, no direct model selection (1.146955ms)
+✔ C3: source, unchecked keys/overwrite, masked outcomes replace one card; C2 receives exact selection (4.090504ms)
+✔ C3: forged source and mixed valid/forged keys fail the entire selection (8.80386ms)
+✔ C3: owner, RBAC, instance and local capability are checked before discovery and after submit (9.731191ms)
+✔ C3: cancellation, expiry and abort during either step never copy (9.092576ms)
+✔ C3: upgrade refusal uses the exact reviewed message, no legacy reader or copy (1.015153ms)
+✔ C3: C2 revision conflicts and missing keys stay safe; overwrite is explicit (4.295803ms)
+✔ C3: abort before discovery, inventory exceptions and failed emission do not leak or leave an exchange (1.039267ms)
+✔ C3: null and primitive model inputs are refused before inventory discovery (0.481256ms)
+✔ C3: an absent local capability refuses discovery (0.407479ms)
+✔ C3: an installation without an instance authorizer still requires workspace admission (2.920153ms)
+✔ C3: cancellation during inventory discovery emits no card (0.476312ms)
+✔ C3: cancellation while the exchange opens is observed before its first question (0.656527ms)
+✔ C3: cancellation during the final permission check prevents a copy (2.711292ms)
+✔ C3: an extra source-card field refuses the entire selection (1.206181ms)
+✔ C3: malformed key IDs undefined are refused without copying (1.909371ms)
+✔ C3: malformed key IDs "one" are refused without copying (1.555732ms)
+✔ C3: malformed key IDs [1] are refused without copying (2.89459ms)
+✔ C3: inventory refusal source-busy uses fixed safe copy (1.425793ms)
+✔ C3: inventory refusal unrecognized-source-state uses fixed safe copy (1.532951ms)
+✔ C3: a source that needs upgrading during copy shows the reviewed instruction (2.488897ms)
+✔ C3: unexpected copy failure null is reduced to fixed failure text (2.239012ms)
+✔ C3: unexpected copy failure secret-canary is reduced to fixed failure text (1.739677ms)
+✔ C3: unexpected copy failure Error: secret-canary is reduced to fixed failure text (1.755216ms)
+✔ C3: unexpected copy failure [object Object] is reduced to fixed failure text (1.899096ms)
+✔ C3: unexpected copy failure [object Object] is reduced to fixed failure text (2.482366ms)
+✔ C3: mixed outcomes preserve safe summaries, truncate tails, and display missing metadata safely (9.578344ms)
+✔ copy outcome renders empty success (1.607643ms)
+✔ copy outcome renders failure without a copied row (1.353743ms)
+✔ key picker preserves custom kind and empty publish-host labels (1.397697ms)
+✔ a denied principal gets the real authorization reason, naming the permission (17.978419ms)
+✔ EVERY wired custom-credentials tool surfaces the denial, not just the first one — the sibling-arm check (16.863091ms)
+✔ an unknown label says not-found on every tool that resolves one, rather than 'an internal error occurred' (12.654146ms)
+✔ custom_credential_set_username refuses a smuggled token field by NAME, and never echoes the token value (2.15463ms)
+✔ custom_credential_set_token refuses a smuggled token field by NAME, and never echoes the token value or the saved one (1.394489ms)
+✔ custom_credential_set_username with a blank username says why (1.51937ms)
+✔ a DELETE to an off-allowlist url is refused by the pre-check with the real reason, and nothing is sent (2.009364ms)
+✔ a GET off-allowlist rejection keeps its schema decoration and gains no second code prefix (2.591095ms)
+✔ a secret-store failure names its KIND under a fixed message — its own text can carry decrypted plaintext, so that never reaches the wire (2.015599ms)
+✔ a MISSING SITE KEY reaches the model as the actionable secret-store reason, not a redacted 500 (2.371634ms)
+[@jini-ai/http-kit] internal error (delegated-tool-execute, correlationId=1062be61-e392-45ba-bd91-087cbcbe44f8) request to 'example-host.io' failed: connect ECONNREFUSED 10.0.4.7:443
+✔ a transport failure stays redacted — its message can carry an internal address (20.787956ms)
+✔ a make-request egress refusal exposes only its caller-safe reason on the wire and in run events (3.448156ms)
+✔ every no-emitSurface guard carries the ToolInputError marker, so it cannot be redacted (23.345888ms)
+✔ the model's own schema publishes only label/owner/repo/branch/commitMessage/files — no decision or exchange-id field (12.497589ms)
+✔ the direct call performs the real write (blob, tree, commit, ref) and reports it (34.236073ms)
+✔ an invalid input (bad owner) is refused before any decrypt or network call, and no dialog is raised (7.685675ms)
+✔ a caller-fixable validation refusal arrives as a ToolInputError carrying this tool's schema, not as a bare Error the daemon redacts to INTERNAL_ERROR (2.009516ms)
+✔ a branch that does not exist is refused before any dialog (6.268921ms)
+✔ insufficient permission is refused before any decrypt or network call (1.739391ms)
+✔ n06: repository write runs without a confirmation channel (6.747485ms)
+✔ write_files refuses an unknown label before decrypting or contacting a provider (0.713689ms)
+✔ write_files reports a missing provider without decrypting the saved credential (1.809914ms)
+✔ write_files refuses a credential deleted between the summary lookup and decrypting resolution (41.271979ms)
+✔ write_files stops after planning when its run was aborted during reconnaissance (6.286583ms)
+✔ recordRun without a destination does not create a vault row (2.095627ms)
+✔ recordRun retries at most three times (0 conflicts) (9.935772ms)
+✔ recordRun retries at most three times (1 conflicts) (3.501918ms)
+✔ recordRun retries at most three times (2 conflicts) (3.350276ms)
+✔ recordRun retries at most three times (3 conflicts) (3.580237ms)
+✔ recordRun propagates repo unavailable without retrying (2.047223ms)
+✔ recordRun propagates Secrets vault: invalid-record without retrying (1.793487ms)
+✔ recordRun preserves concurrent identity (2.507928ms)
+✔ recordRun preserves concurrent envelope (13.21998ms)
+✔ recordRun preserves concurrent deletion (1.788771ms)
+✔ recordRun preserves concurrent metadata (2.034936ms)
+✔ first copy runs headlessly; replacement waits for Copy; the password never shows (2275.581481ms)
+✔ Cancel writes nothing, and a used planId is gone (1561.735543ms)
+✔ the model never passes a connection string: no tool takes one, and the plan asks for the private form first (3.901336ms)
+✔ the private form saves a reachable destination, and neither the form, its result nor the log shows the password (592.088024ms)
+✔ a malformed or unreachable address is refused in the form, nothing is saved, and the password is never quoted (44.882245ms)
+✔ database_transfer_status reports the saved destination, this process's last run and the copy found there (1219.381095ms)
+✔ row 2: executeMutation() persists the restore point with the REAL artifactRef, costClass and kind it just captured (3.172387ms)
+✔ row 2: getCapabilities() is read fresh inside executeMutation(), not reused from computePlan() (0.720068ms)
+✔ listRestorePoints: passes through whatever order/shape the port returns (the port owns query shape) (2.541229ms)
+✔ listRestorePoints: a brand-new site with zero restore points returns an empty items array (0.342389ms)
+✔ listRestorePoints: renders a null watermarkAtCapture as null, never coerced to 0 (EC-02, ADR-045 §2) (0.264101ms)
+✔ Dockerfile.dockerignore (BuildKit — the file that governs every real build): exists (1.523648ms)
+✔ Dockerfile.dockerignore (BuildKit — the file that governs every real build): excludes every secret/live-db path (4.334204ms)
+✔ Dockerfile.dockerignore (BuildKit — the file that governs every real build): does not exclude anything the build actually needs (0.512072ms)
+✔ .dockerignore (repo root — legacy non-BuildKit backstop): exists (0.109369ms)
+✔ .dockerignore (repo root — legacy non-BuildKit backstop): excludes every secret/live-db path (0.36732ms)
+✔ .dockerignore (repo root — legacy non-BuildKit backstop): does not exclude anything the build actually needs (0.358921ms)
+✔ Docker bare patterns match from the context root; globstar also reaches nested files (0.266298ms)
+✔ all 5 deployments tools are registered with input schemas the model needs (266.919958ms)
+✔ deployment_set_dockerfile refuses when the caller lacks system.write, and never touches the file (209.182593ms)
+✔ deployment_set_dockerfile refuses when 'ifMatch' is missing from input, even for an otherwise-authorized caller, and never touches the file (201.317273ms)
+✔ deployment_get_dockerfile / deployment_set_dockerfile round-trip the repo-root Dockerfile with a real etag (169.862112ms)
+✔ deployment_set_dockerfile refuses a stale ifMatch with a message the assistant can act on, and never touches the file — the actual lost-update reproduction (186.902372ms)
+✔ deployment_get_export_status reports idle before any trigger in this process (183.369841ms)
+✔ RouteDeps.exportSiteBound ignores a caller-forwarded 'routeDeps' key and always exports with its own closed-over RouteDeps — regression for the composition-root spread-ordering bug (1727.330582ms)
+✔ deployment_trigger_export: a non-object input is a ToolInputError (400), not a bare Error (redacted 500) (156.670321ms)
+✔ deployment_trigger_export starts a real run, a concurrent second call is refused, and status settles to completed (1102.273901ms)
+✔ two triggers held in authorization start exactly one export when both grants settle (179.314752ms)
+✔ a refused publish is one site.publish operation labelled by target and failure code (5.098632ms)
+▶ email templates on Pages storage [sqlite]
+  ✔ create births an html row through the store; edit is version-conditioned and ledgered (174.229542ms)
+✔ email templates on Pages storage [sqlite] (176.163411ms)
+▶ email templates on Pages storage [pglite]
+  ✔ create births an html row through the store; edit is version-conditioned and ledgered (5531.506367ms)
+✔ email templates on Pages storage [pglite] (5532.65064ms)
+✔ each known mode reads back as itself (2.221149ms)
+✔ a row written before the column existed, or with an unknown mode, reads as static_env (never none) (0.296265ms)
+✔ only a static_env row with a sealed blob holds a static access token (0.219071ms)
+✔ the connection port opens the vault entry whose stable id the binding names (15.63664ms)
+✔ a credential whose worksFor does not name the binding's adapter is refused: authorization-required, adapter never called (4.908835ms)
+✔ the adapter's kit carries only the members the destination kit names, never the host kit's other network helpers (0.719415ms)
+✔ an adapter's fetch outside the credential's saved hosts is refused before any network call (1.401565ms)
+✔ an adapter's fetch to the credential's baseUrl origin or an additional host reaches the kit (1.303604ms)
+✔ a label swapped to another entry between the id read and the open yields no credential (7.18553ms)
+✔ a connectionRef saved in another workspace yields no credential (1.437952ms)
+✔ each attempt resolves the credential fresh for the job's workspace and never writes it into the job (0.525714ms)
+✔ no credential for the binding refuses as non-retryable authorization-required without calling the adapter (0.532041ms)
+✔ a loaded receive-only destination (no deliver) refuses as adapter-unavailable before any credential is opened (0.691533ms)
+✔ an adapter id no loaded destination has refuses as adapter-unavailable (0.259781ms)
+✔ pages are imported in order and only committed ids are acknowledged, once each (5.263726ms)
+✔ an empty first page ends the pull; a page with nothing committed sends no acknowledgement (0.985054ms)
+✔ the page cap stops the loop and reports that more rows are waiting (0.854746ms)
+✔ a scope no installed destination resolves is refused with the next step (1.075476ms)
+✔ host and import failures name the address and never the key (1.261333ms)
+✔ destination keys use the origin only (0.248541ms)
+✔ without overrides a pull stops after 10 pages of 50, two receiver requests per page (the bound the pull lease relies on) (1.629799ms)
+✔ security: the pull lease outlasts the worst-case pull (the time budget, one capped request, then local work) (0.207152ms)
+✔ security: a slow receiver stops paging once the time budget is spent, and more is reported waiting (0.864787ms)
+✔ security: a request waits at most until budget + one request, and none starts after it (43.133716ms)
+✔ security: a module asking for a longer request timeout is cut to the pull's 15 s cap; a shorter one is kept (0.631372ms)
+✔ the bounded kit hands the module the caller's other kit members and the request's url and init unchanged (0.451716ms)
+✔ acknowledgement requests go through the same bounded kit as page requests (0.472879ms)
+✔ a pull whose budget runs out while the last page imports still acknowledges that page, then stops with more waiting (0.329236ms)
+✔ a valid file parses, keeping only declared fields (2.938544ms)
+✔ invalid files are refused with the field that is wrong (0.706805ms)
+✔ a module missing what its receive mode needs is dropped with the reason (0.639344ms)
+✔ an id two plugins declare, and a host two co-hosted destinations claim, are dropped for both (0.700479ms)
+✔ resolve maps a saved scope by destination id or by co-hosted host; get is by id only (0.264781ms)
+✔ the bundled plugin's real file loads and resolves its hosting target to the D1 destination (38.985462ms)
+✔ a destination module whose default export is not an object is refused by name; installed loading orders by plugin id (20.311655ms)
+✔ 'form' is a supported resource of content_duplicate (2.474758ms)
+✔ copying a form defaults the name to the source's own name with a numeric suffix, derives a matching free slug, and deep-copies fields and notify (7.387314ms)
+✔ the copy's fields and notify.recipients are fresh objects — mutating the copy cannot reach the source row (1.317544ms)
+✔ an explicit title and slug are honored (0.501828ms)
+✔ copying the same form twice increments the name/slug suffix instead of failing on the unique index (1.060543ms)
+✔ a copy of a DISABLED form comes back disabled — a copy is never more exposed than its source (1.011581ms)
+✔ a copy of an ACTIVE form stays active (0.435761ms)
+✔ the draft/published status override is REJECTED for forms rather than silently dropped, naming what IS honored (0.935464ms)
+✔ duplicating a nonexistent form is rejected as not-found, before anything is written (0.485196ms)
+✔ a caller holding content.write but NOT admin.forms.manage cannot copy a form — the permission is the RESOURCE's own (0.344341ms)
+✔ a trashed copy still reserves the derived slug, so the next copy uses the next free suffix (1.469841ms)
+✔ an ordinary relative path inside the root resolves (4.449119ms)
+✔ a ../ traversal out of the root is refused (1.468943ms)
+✔ a SIBLING folder whose name merely extends the root's is refused (the classic startsWith defect) (2.443192ms)
+✔ an absolute path is refused even when it points inside the root (0.690632ms)
+✔ an empty path and a NUL byte are both refused (0.899631ms)
+✔ a symlinked DIRECTORY inside the root cannot be read through (1.291107ms)
+✔ a symlinked FILE inside the root cannot be read through (1.301684ms)
+✔ a same-directory symlink alias cannot smuggle a denied filename or segment past the denylist (1.676838ms)
+✔ listFsFiles does not follow or report symlinks out of the root (1.653955ms)
+✔ listFsFiles returns cleanly (never throws ELOOP) when the root contains a CIRCULAR symlink (a -> b -> a) (1.00243ms)
+✔ isDeniedFsFileName matches every documented pattern (0.403439ms)
+✔ isDeniedFsFileName matches every .env variant, not just the literal '.env' (0.185607ms)
+✔ isDeniedFsFileName matches .mcp.json and every .mcp.*.json variant — these carry a live JINI_DAEMON_TOKEN (0.172392ms)
+✔ a .mcp.jini-*.json file is refused on read and excluded from listFsFiles (0.936001ms)
+✔ isDeniedFsFileName matches the certificate/keystore family (0.205529ms)
+✔ a certificate-family file is refused on read and excluded from listFsFiles (0.792897ms)
+✔ isDeniedFsFileName matches .npmrc/.netrc but not an unrelated file merely containing the name (0.211178ms)
+✔ .npmrc is refused on read and excluded from listFsFiles (0.899815ms)
+✔ isDeniedFsFileName matches the id_rsa/id_dsa/id_ecdsa/id_ed25519 family and its variants, but NEVER the .pub public half (0.455446ms)
+✔ id_rsa is refused on read while id_rsa.pub reads cleanly (1.573202ms)
+✔ isDeniedFsFileName matches credentials.json and the client_secret*.json family (0.238535ms)
+✔ credentials.json is refused on read and excluded from listFsFiles (0.871479ms)
+✔ common home-directory credential stores are refused on read and excluded from listFsFiles (1.99591ms)
+✔ reading a denied-pattern filename is refused even though it lives inside an allowed root (0.72298ms)
+✔ a denied-pattern file is silently excluded from listFsFiles, not merely refused on read (0.796458ms)
+✔ isDeniedFsFileName matches any '*-key*.hex' site key basename, not just the literal generated filename (0.286352ms)
+✔ a '*-key*.hex' site key file is refused on read and excluded from listFsFiles even outside a .tovu directory (1.022407ms)
+✔ the production site key layout (sites/.tovu/integrations-root-key.hex) is refused via the denied '.tovu' segment (0.989916ms)
+✔ the local home-dir custom-root layout (.tovu/integrations-root-key.hex) is refused via the denied '.tovu' segment (0.819862ms)
+✔ a '.tovu' directory is never descended into or reported by listFsFiles (1.083129ms)
+✔ isDeniedFsFileName matches the shell rc family that carries exported notarization/API creds (0.310808ms)
+✔ .bash_profile, .zshrc, and .profile are refused on read and excluded from listFsFiles (1.210111ms)
+✔ isDeniedFsFileName matches '.credentials.json' (Claude's own OAuth store) without over-matching 'credentials.json' (0.250196ms)
+✔ .claude/.credentials.json is refused on read and excluded from listFsFiles (1.096534ms)
+✔ isDeniedFsPathSegment matches 'secrets' case-insensitively and nothing else (0.240967ms)
+✔ a 'secrets/' segment is refused at any depth, not just at the root (0.659439ms)
+✔ a 'secrets' directory is never descended into or reported by listFsFiles (0.479271ms)
+✔ a file over MAX_FS_FILE_BYTES is refused (2.434336ms)
+✔ a file at exactly MAX_FS_FILE_BYTES is allowed (3.93202ms)
+✔ a file containing a NUL byte sniffs as binary and is refused (1.311332ms)
+✔ an ordinary text file with no NUL byte reads cleanly (1.154724ms)
+✔ listFsFiles lists recursively, relative to the root, sorted (1.818481ms)
+✔ listFsFiles scoped to a subdirectory returns paths relative to THAT subdirectory (0.845854ms)
+✔ listFsFiles on a root that does not exist yet returns an empty list, not an error (0.435392ms)
+✔ listFsFiles refuses a relativePath that resolves to a file, not a directory (0.793997ms)
+✔ the traversal bound never fires before the result cap — a wide directory still yields MAX_LISTED_FILES results, and says it was truncated (267.563373ms)
+✔ an ordinary listing is not reported as truncated (0.911221ms)
+✔ an ordinary source file with no special extension reads cleanly under the new default-allow model (0.927847ms)
+✔ node_modules, .git, and dist are excluded from listFsFiles but not from fs_read_file itself (1.659923ms)
+✔ a Unicode case-fold spelling of a denied filename is refused before the file system can fold it (1.108679ms)
+✔ a Unicode case-fold spelling of a denied path segment is refused (0.595526ms)
+✔ Windows trailing-dot, trailing-space, and ::$DATA spellings of denied names are refused (0.76386ms)
+✔ storage-secret files and crashed-write variants are denied on read and omitted from listings (2.913527ms)
+✔ listing truncates beyond depth 12 and never enumerates the deeper directory (5.329062ms)
+✔ a wide denied-file listing spends at most 20000 entries even though it yields no results (54.155572ms)
+✔ local file owner requests rank media_import_local_file in the top 3 of the real catalog (436.420687ms)
+✔ adding the local importer introduces no misses in the 138 operator requests (477.415426ms)
+ℹ Compared 104 baseline hits; misses already present without media_import_local_file: pg-04, md-02, dp-05, pl-12, nl-03
+✔ ensureCoreMediaTransform: on an empty registry, registers a new 'public' definition (format-only, no resize) (5.064256ms)
+✔ ensureCoreMediaTransform: called again, returns the SAME definition and does NOT mint a second version (the idempotency property this guard exists for) (0.513056ms)
+✔ ensureCoreMediaTransform: ten repeated calls (a tight restart loop) still leave exactly one 'public' row (1.031687ms)
+✔ ensureCoreMediaTransform: an existing higher version (simulating a prior manual redefinition) is returned as-is, never re-registered under it (9.513345ms)
+✔ ensureCoreMediaTransform: an unrelated transform name in the same workspace does not satisfy the find-existing check — 'public' still gets created (0.782456ms)
+✔ ensureCoreMediaTransform: workspaces are isolated — registering 'public' in one workspace does not satisfy the guard for another (0.655394ms)
+✔ og boot: registers one JPEG share transform and preserves both versions across restarts (0.772199ms)
+✔ hydrateBlobStoreFromSeed: no-op when the seed payload does not exist (25.447814ms)
+✔ hydrateBlobStoreFromSeed: fills in a missing blob — reproduces the failure, then the fix (26.756552ms)
+✔ hydrateBlobStoreFromSeed: never overwrites a key that already exists in the live store (27.521175ms)
+✔ hydrateBlobStoreFromSeed: is a no-op on a second run once the store already caught up (36.788171ms)
+✔ hydrateBlobStoreFromSeed: a malformed seed entry is reported, not thrown, and does not block a valid sibling (16.273701ms)
+✔ hydrateBlobStoreFromSeed: REGRESSION — a concurrent production write landing in the exists->put gap must survive, not be clobbered by the seed (21.331182ms)
+✔ hydrateBlobStoreFromSeed: a putIfAbsent failure for one file is reported, not thrown, and does not block a valid sibling (7.509966ms)
+✔ hydrateBlobStoreFromSeed: a putIfAbsent rejection with a non-Error value is still reported, not thrown (5.336836ms)
+✔ hydrateBlobStoreFromSeed: an unreadable seed directory (not merely absent) fails loudly instead of skipping (3.038309ms)
+✔ media provenance: destination creates use the applying actor and updates keep that actor (4.350463ms)
+✔ importMediaEntity: the imported row is saved under the SOURCE id, never a freshly minted one (1.664959ms)
+✔ importMediaEntity: a slug already held by a different id is blocked and writes nothing — no blob bytes, no blob row, no media row (0.827225ms)
+✔ importMediaEntity: re-importing an existing id with a DIFFERENT claimed sha256 is blocked — source.sha256 is write-once, never silently rewritten (0.450404ms)
+✔ importMediaEntity: re-importing an existing id with the SAME claimed sha256 is idempotent and succeeds (0.436173ms)
+✔ importMediaEntity: a missing staged byte payload is an authoritative typed block and writes nothing (0.266322ms)
+✔ importMediaEntity: bytes that do not hash to the claimed sha256 are refused before putIfAbsent is ever called (0.494163ms)
+✔ importMediaEntity: a malformed (non-hex-64) claimed sha256 is refused before putIfAbsent, same as a real mismatch (0.272148ms)
+✔ importMediaEntity: a blob that already exists at the destination is never re-saved — its original createdByPrincipal survives a re-import by a DIFFERENT operator (0.486631ms)
+✔ importMediaEntity: a brand-new blob IS stamped with the supplied blobCreatedByPrincipal (0.395935ms)
+✔ importMediaEntity translates a slug acquired during the write window into a typed block (173.176616ms)
+✔ importMediaEntity: an empty slug skips the slug lookup entirely and imports (0.551649ms)
+✔ importMediaEntity: a create against an existing row is an early conflict naming its version (0.322901ms)
+✔ importMediaEntity: an update whose row is gone is an early conflict (0.223612ms)
+✔ importMediaEntity: an update against a different version is an early conflict naming both (0.249556ms)
+✔ importMediaEntity: an update keeps the destination createdAt and bumps the version past its basis (0.337667ms)
+✔ importMediaEntity: an update of a legacy row with no recorded creator keeps it honestly unknown (0.268873ms)
+✔ importMediaEntity: a create that loses the insert race reports the winner's version (0.31571ms)
+✔ importMediaEntity: a create refused with no row to re-read reports the id as in use (0.255884ms)
+✔ importMediaEntity: an update that loses the version race reports the newer version (0.30692ms)
+✔ importMediaEntity: an update refused while the re-read matches its basis (ABA) is still a conflict (0.27726ms)
+✔ importMediaEntity: a slug race whose holder cannot be re-read names it unknown (0.300043ms)
+✔ importMediaEntity: a write failure other than a slug conflict is rethrown unchanged (0.784786ms)
+✔ Library documents and their blobs are absent from publish output; forged apply and public duplication fail (9.328259ms)
+(node:22648) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22648) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ an unexpected failure checking the provider id is rethrown unchanged (6.592592ms)
+✔ an unexpected failure checking a metadata field is rethrown unchanged (3.380748ms)
+✔ an unexpected failure normalizing a new key is rethrown unchanged (2.114672ms)
+✔ save stores a key and returns markers only, never the key (15.354931ms)
+✔ the stored value round-trips through a fresh read (3.362391ms)
+✔ a provider omitted from the payload is DELETED, not left alone (4.012491ms)
+✔ an entry with no apiKey keeps the stored key while editing other fields (1.523141ms)
+✔ T17: a legacy keyless provider does not block another provider's metadata edit (4.574153ms)
+✔ a blank apiKey is treated as absent, not as a clear (4.806555ms)
+✔ a provider create with an absent or blank key fails without changing stored providers (2.120699ms)
+✔ UI-spelled provider ids are rejected so only engine-canonical ids reach storage (6.113028ms)
+✔ a non-string or oversized field is rejected (0.89373ms)
+✔ providers itself must be an object: null and an array are both rejected, never treated as an empty map (0.486799ms)
+✔ a provider entry that is null or an array is rejected as not-an-object, distinct from an unknown-field entry (0.84751ms)
+✔ a non-Error rejection from the keyring returns only the safe secret-store-unconfigured message (0.61524ms)
+✔ a missing site key fails closed WITHOUT writing or deleting anything (1.852561ms)
+✔ one workspace's providers are invisible to another (1.18847ms)
+✔ an empty map clears every provider and reads back empty (0.781273ms)
+✔ preserved-state merging and every write stay inside deps.repo.replaceWorkspace() (2.469102ms)
+✔ a metadata-only save cannot resurrect a key that another save rotated while it was sealing (7.947453ms)
+✔ a reader polling throughout a save never observes a half-replaced map (4.008634ms)
+✔ the in-memory adapter stages its writes: a planner that throws leaves storage exactly as it was (1.082995ms)
+✔ resolveMediaProviderCredential decrypts a saved key back to its exact original plaintext (1.673288ms)
+✔ resolveMediaProviderCredential returns null for a provider with no saved row at all (0.247077ms)
+✔ resolveMediaProviderCredential returns null (not an error) for a row saved with baseUrl/model but no key yet (0.588504ms)
+✔ resolveMediaProviderCredential fails closed with MediaProviderCredentialSecretStoreUnconfiguredError when the site key is unavailable at decrypt time (1.406544ms)
+✔ resolveMediaProviderCredential never includes the plaintext key anywhere in a JSON-serialized result other than the intended apiKey field (1.470909ms)
+✔ a freshly saved key is sealed as JSON under vault AAD and retains its compatibility marker (1.124434ms)
+✔ AAD binding: swapping one provider's ciphertext onto another provider's row fails closed (adversarial cross-row transplant) (1.554594ms)
+✔ AAD binding: the same provider's ciphertext cannot be transplanted to another workspace (1.451848ms)
+✔ provider resolution uses one exact-provider read and one open, even without a default flag (1.524087ms)
+✔ media metadata reads and blank-key saves retain hints without opening or sealing (1.469479ms)
+✔ a keyless singleton resolves with one read and zero opens (0.643282ms)
+✔ short media keys never expose a suffix through saved hints (0.717696ms)
+✔ a provider id that itself looks like a credential is refused before the catalogue check (1.17022ms)
+✔ an unknown provider id is refused with the engine-canonical hint (0.539131ms)
+✔ a registry-held plugin vendor id is accepted; an alias it would resolve is still refused (1.56924ms)
+✔ a whole-map save that omits a plugin vendor keeps its key; omitted built-ins are still tombstoned (1.225716ms)
+✔ a whole-map save after the plugin vendor left the registry still keeps its stored key (3.905355ms)
+✔ a primitive provider entry is refused as not-an-object (0.617726ms)
+✔ a non-string apiKey is refused naming the field and provider (0.425325ms)
+✔ a non-string baseUrl is refused naming the field and provider (0.429475ms)
+✔ a non-string model is refused naming the field and provider (0.253485ms)
+✔ a baseUrl carrying a credential is refused (0.434944ms)
+✔ a baseUrl over 2048 characters is refused with the limit (0.404509ms)
+✔ a baseUrl of exactly 2048 characters is accepted (1.340459ms)
+✔ a model carrying a credential is refused (0.443083ms)
+✔ a model over 2048 characters is refused with the limit (0.34634ms)
+✔ a model of exactly 2048 characters is accepted (1.430082ms)
+✔ an apiKey is exempt from the field length bound and refused only by the token limit (0.469709ms)
+✔ an apiKey with interior whitespace is refused by token normalization (0.7052ms)
+✔ a whitespace-only apiKey is refused as a validation error, not treated as absent (0.353645ms)
+✔ a rotated key reuses the stored vault id and revision, keeping extra stored meta (1.919328ms)
+✔ a sealed DTO without private vault context reads as configured with no hint (0.349523ms)
+✔ a sealed row with an unknown token length reads as configured with no hint (0.196819ms)
+✔ a long sealed token with no stored last4 reads its length but no tail (0.187277ms)
+✔ a sealed token of exactly 12 characters exposes its tail (0.144744ms)
+✔ a sealed token of 11 characters withholds its tail (0.315418ms)
+✔ a legacy sealed row written without hints reads as configured with no hint (0.40098ms)
+✔ an envelope whose payload apiKey is not a string fails closed with the safe storage message (2.890141ms)
+✔ sanity: the fixture sha256 is the real digest of the staged bytes (12.328573ms)
+✔ write refuses a packed document discriminant before reading any bytes (3.649836ms)
+✔ write refuses to overwrite a destination document even when the packed state has no discriminant (1.058656ms)
+✔ write refuses media whose bytes are owned only by a Library document (0.592503ms)
+✔ write imports an explicit media discriminant and records the sniffed content type (3.729134ms)
+✔ write reports an unstaged blob as blocked:missing-blob naming the sha (0.732762ms)
+✔ write reports a slug held by another id as blocked:slug-taken (1.818142ms)
+✔ write reports a moved destination row as a conflict (0.749746ms)
+✔ write returns a typed block on forged packed state with no source (0.945902ms)
+✔ T12: malformed bundle hashes are refused before any filesystem blob probe or read (134.286733ms)
+✔ precheck refuses a packed document discriminant (0.61068ms)
+✔ precheck refuses to overwrite a destination document (1.168846ms)
+✔ precheck skips the document-blob probe for state with no sha256 and passes with nothing required (0.301021ms)
+✔ precheck passes an explicit media discriminant with its blob staged (0.290501ms)
+✔ the change-set summary names a new blob when the import created it (1.287759ms)
+✔ the change-set summary names a reused blob when the bytes were already there (0.869788ms)
+✔ verifyApplied reports nothing when no media port is wired (0.30667ms)
+✔ precheck refuses media whose bytes are owned only by a Library document (0.370743ms)
+✔ an unknown input key is refused naming the accepted keys (9.358068ms)
+✔ no source is refused as an invalid source (0.58349ms)
+✔ both sources is refused as an invalid source (0.381322ms)
+✔ a non-string mediaId is refused as an invalid source (0.580667ms)
+✔ an empty mediaId is refused as an invalid source (0.396578ms)
+✔ a mediaId with a slash is refused as an invalid source (1.017637ms)
+✔ a mediaId with a backslash is refused as an invalid source (0.222936ms)
+✔ a mediaId with a NUL is refused as an invalid source (0.180805ms)
+✔ an attachmentRef outside the ref pattern is refused as an invalid source (0.250401ms)
+✔ frames 0 is accepted as nonnegative and forwarded (2.805901ms)
+✔ an unknown media id is refused as unavailable (0.597573ms)
+✔ a media row from another workspace is refused even when the repo returns it (4.625709ms)
+✔ a caller with an empty principal id never matches media with an empty creator (1.354369ms)
+✔ media created by another principal is refused (0.955661ms)
+✔ owned media with no stored blob row is refused (1.137542ms)
+✔ owned media with a store that cannot report sizes is refused before download (0.814948ms)
+✔ owned media with a null size is refused before download (0.546757ms)
+✔ owned media with a NaN size is refused before download (0.643094ms)
+✔ owned media with a zero size is refused before download (0.804269ms)
+✔ owned media with a negative size is refused before download (0.665036ms)
+✔ owned media with a size one byte over the limit is refused before download (1.502922ms)
+✔ owned media exactly at the size limit is downloaded and previewed (2.028852ms)
+✔ an attachment the caller does not own is refused (0.446818ms)
+✔ source bytes over the preview limit are refused (7.353469ms)
+✔ source bytes that are not a video are refused (0.495772ms)
+✔ a frames result with no frames is refused (0.417811ms)
+✔ frame names carry their timestamp and the text block reports frames layout (2.237239ms)
+✔ a valid sheet result is accepted (9.150513ms)
+✔ a sheet result that also carries frames is refused (0.327256ms)
+✔ a sheet with a non-JPEG sheet is refused (0.272969ms)
+✔ a sheet with a fractional column count is refused (0.229766ms)
+✔ a sheet with zero columns is refused (0.194163ms)
+✔ a sheet with five columns is refused (0.269693ms)
+✔ a sheet with a fractional row count is refused (0.247094ms)
+✔ a sheet with zero rows is refused (0.224411ms)
+✔ a sheet with five rows is refused (0.185141ms)
+✔ a sheet with a fractional tile edge is refused (0.229645ms)
+✔ a sheet with a zero tile edge is refused (0.227643ms)
+✔ a sheet with a tile edge over 768px is refused (0.28167ms)
+✔ a sheet with a non-array tile map is refused (0.211291ms)
+✔ a sheet with an empty tile map is refused (0.168298ms)
+✔ a sheet with more tiles than grid cells is refused (0.212927ms)
+✔ a sheet with a tile with the wrong index is refused (0.216363ms)
+✔ a sheet with a tile in the wrong row is refused (0.184571ms)
+✔ a sheet with a tile at a non-finite time is refused (0.215853ms)
+✔ a sheet with a tile at a negative time is refused (0.233565ms)
+✔ sheets exactly at the combined tile pixel budget are accepted (2.369924ms)
+✔ sheets one pixel edge over the combined tile pixel budget are refused (0.343768ms)
+✔ the contributor binds its ports into the registrations it builds (0.938326ms)
