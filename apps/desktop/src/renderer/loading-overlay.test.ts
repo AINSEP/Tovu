@@ -43,6 +43,8 @@ test('the loading overlay on the Site view says "Loading <site>…"', () => {
     useComposedGuestRef: () => noop,
     SITE_SURFACES: ['admin', 'site'],
     NavIcon: () => null,
+    // SiteWorkspace builds its start panel up front (1e786cb14); a running site never shows it.
+    SiteStartPanel: () => null,
     ExpandToggle: sourceFunction(source, 'ExpandToggle'),
     WorkspaceLoadingOverlay: sourceFunction(source, 'WorkspaceLoadingOverlay', { Spinner: sourceFunction(source, 'Spinner') }),
   });
