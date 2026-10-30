@@ -5,7 +5,7 @@ import { createDocumentArchiveReader } from "#src/features/media/document-archiv
 import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import { createAutomaticPluginRuns } from "../../../features/agent-plugins/automatic-agent-plugins.js";
 import { readLoginShellEnvironment } from "@jini-ai/platform/child-environment";
-import { resolveNativeToolPolicy, assessNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
+import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { assistantCliPermissions } from "#src/assistant/runtime-settings";
@@ -1361,13 +1361,8 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         settingsReady: routeDeps.settingsUiTabsReady, workspaceId: routeDeps.workspaceId, principalId: principal.id }, {})
       : assistantCliPermissions({ enabled: false });
     const def = getAgentDef({ id: sessionBinding.agentId });
-    const canGrantFullCliAccess = resolveFullCliAccess({ isOwner, env: process.env }, { hostSignals });
-    const policy = resolveNativeToolPolicy({ def: def ?? {}, policy: { canGrantFullCliAccess,
+    const policy = resolveNativeToolPolicy({ def: def ?? {}, policy: {
       nativeCapabilities: resolveAssistantCliPermissions({ isOwner, env: process.env, settings }, { hostSignals }).capabilities } });
-    if (def?.fullCliAccessOnly) {
-      const reason = assessNativeToolPolicy({ def, policy });
-      if (reason) { await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: reason }, {}); return; }
-    }
     const nativeCapabilities = assistantCliPermissions({ enabled: false, capabilities: policy.nativeCapabilities ?? {} }).capabilities;
     const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
     if (sessionBinding.agentId === 'claude' && process.platform === 'win32' && nativeCapabilities.shell) {
@@ -1417,7 +1412,6 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       filesystemRoot: routeDeps.siteBinding.dir,
       permissionMode: policy.permissionMode ?? resolvePermissionMode(),
       nativeToolAccess,
-      canGrantFullCliAccess,
       nativeCapabilities,
       cliParity: nativeToolAccess,
       ...(parityEnv ? { env: parityEnv } : {}),

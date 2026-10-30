@@ -1,5 +1,5 @@
 import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
-import { resolveNativeToolPolicy, assessNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
+import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
 import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
@@ -84,7 +84,7 @@ export async function captureDaemonRun(
     // No picked folder unless a fixture sets one (the run reads the site's custom fs root).
     getCustomFsRoot: () => undefined,
     verifyJsonAgentInstall: async () => {}, bridgeInjection: { command: "host-bridge" }, readFile: async () => "",
-    resolveNativeToolPolicy, assessNativeToolPolicy, resolveFullCliAccess, resolveAssistantCliPermissions, resolveHostSignals, assistantCliPermissions, createToolGapCollector, redactSecretShapes,
+    resolveNativeToolPolicy, resolveFullCliAccess, resolveAssistantCliPermissions, resolveHostSignals, assistantCliPermissions, createToolGapCollector, redactSecretShapes,
     readLoginShellEnvironment: async () => ({ PATH: "/test/login-shell" }),
     deleteScope: { fresh: ({ run }: { run: () => unknown }) => run() },
     DEFAULT_AGENT_ID: "claude",
