@@ -19,3 +19,2046 @@
 ✔ site-key plan §A3a: a fresh tovu serve boot, with no key anywhere, mints this site's own per-site key file under HOME/.tovu/site-keys/<siteId>.hex (32507.621896ms)
 ✔ site-key plan §A3a: a site with sealed key-dependent data and no key anywhere still boots successfully (refuse must never block boot) but mints no per-site file (31958.043366ms)
 ✔ 2026-10-05: a dev site whose .site-meta.json holds only the site-key fields boots via tovu serve, keeps its siteKeyId/fingerprint, and uses the same key file (29524.656278ms)
+✔ behavior.spec.md §4: --port outside 1..65535, or non-integer, is rejected as VALIDATION (exit 2) rather than falling through to a default — boundary-value coverage of the documented range (80828.557568ms)
+✔ behavior.spec.md §4: --port at the exact boundary values 1 and 65535 is ACCEPTED (not a validation error) — proves the range check is inclusive, not off-by-one (49544.48515ms)
+✔ AC-05: serve against a dir missing .site-meta.json (crashed init) exits 3 with SITE_DIR_INVALID (11920.063579ms)
+✔ AC-06: serve against a site with a newer schemaVersion than the runtime exits 4 with SITE_NEWER_THAN_RUNTIME (23480.329394ms)
+✔ AC-09: serve against a site whose content.db has zero workspace rows exits 5 with SITE_CORRUPT (23381.426615ms)
+✔ EC-04: serve exits 1 with PORT_IN_USE when the resolved port is already bound (28222.99648ms)
+✔ BR-02/AC-11: --port flag takes precedence over config.json.port (29676.293984ms)
+✔ BR-02/AC-11: config.json.port is used when no --port flag is given (31688.308373ms)
+✔ BR-07: SIGTERM triggers a graceful stop (exit 0), and BR-04/EC-08: an explicit dir argument overrides TOVU_CONTENT_DB with a logged warning, serving the DIR's real content rather than the (nonexistent) env-var path (30251.82183ms)
+✔ B1: serve against a site whose content.db has 2 workspace rows succeeds (boots + responds), defaulting to the oldest — no more boot-bricking on a legitimately multi-workspace install (51103.314484ms)
+✔ B1: --workspace <id> selects a non-default workspace explicitly (31772.377811ms)
+✔ --workspace <id> naming no existing workspace is rejected as VALIDATION (exit 2) (23225.723575ms)
+✔ CR-R04/CR-R01 (systemic gap): tovu serve spawned from a DIFFERENT cwd than the install dir still finds built-in themes and never leaks a themes/uploads dir into that foreign cwd — the whole suite otherwise always spawns from the repo root, which accidentally made the process.cwd()-relative bug invisible (28829.850493ms)
+✔ AC-08 (CLI-specific slice): a real HTTP request against a spawned tovu serve process reaches the seeded content end to end (31397.599908ms)
+✔ an identity re-seed failure from a non-built-in owner role conflict must be logged while the serve process continues serving content (49147.541219ms)
+✔ Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu serve` process — not the in-memory or SQLite composition-root tier, the actual packaged CLI boot path this whole groundwork report was worried an instrumentation plan could silently miss — exports a real span through its saved, enabled provider plugin (48254.72499ms)
+✔ 2026-09-05 dispatch: tovu serve mints TOVU_AGENT_DAEMON_TOKEN before spawning the agent daemon — `src/index.ts`'s `main()` calls `ensureAgentDaemonToken()` as its first statement (see `daemon-auth.ts`), but `serve.ts` never did, so every `tovu serve`-booted daemon answered fail-closed 503 to its own proxy. An unauthenticated request straight against the daemon's own port must get 401 (a real token is configured), never 503 (AGENT_DAEMON_UNCONFIGURED) (40597.623124ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ export: a composition failure after the boot closes the store (10596.801867ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ serve: an invalid --host after the boot closes the store (7334.273864ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+
+  ⚠  THIS SERVER HAS NO USABLE SITE KEY
+     TOVU_SITE_KEY is not set and there is no key file at /tmp/tovu-test-catalog-snPvmh/.tovu/site-keys/97c2e3e5-eb81-42c6-b1c7-accabf584ec9.hex.
+
+     It will serve pages and list credentials normally. Anything that READS a stored
+     credential — a deploy, a saved API key, a custom credential request — will fail,
+     far from this cause.
+
+     If this was started by the desktop app: quit it and relaunch with `npm run desktop`
+     from the REPO ROOT. Only that launcher loads the repo's .env; `electron .` inside
+     apps/desktop does not.
+     If this is `npm run dev`: that launcher DOES load .env — check the file actually
+     defines TOVU_SITE_KEY.
+     Otherwise restore the original site key at /tmp/tovu-test-catalog-snPvmh/.tovu/site-keys/97c2e3e5-eb81-42c6-b1c7-accabf584ec9.hex, or set TOVU_SITE_KEY.
+     New local sites create their own site key automatically when they start.
+
+     Credentials already stored are sealed under whatever key was in place when they were
+     saved. Generating a new key will not recover them.
+
+✔ serve: a composition failure after the boot closes the store (7121.443217ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+
+  ⚠  THIS SERVER HAS NO USABLE SITE KEY
+     TOVU_SITE_KEY is not set and there is no key file at /tmp/tovu-test-catalog-snPvmh/.tovu/site-keys/936af921-4bb4-4565-8346-e2ba180358e7.hex.
+
+     It will serve pages and list credentials normally. Anything that READS a stored
+     credential — a deploy, a saved API key, a custom credential request — will fail,
+     far from this cause.
+
+     If this was started by the desktop app: quit it and relaunch with `npm run desktop`
+     from the REPO ROOT. Only that launcher loads the repo's .env; `electron .` inside
+     apps/desktop does not.
+     If this is `npm run dev`: that launcher DOES load .env — check the file actually
+     defines TOVU_SITE_KEY.
+     Otherwise restore the original site key at /tmp/tovu-test-catalog-snPvmh/.tovu/site-keys/936af921-4bb4-4565-8346-e2ba180358e7.hex, or set TOVU_SITE_KEY.
+     New local sites create their own site key automatically when they start.
+
+     Credentials already stored are sealed under whatever key was in place when they were
+     saved. Generating a new key will not recover them.
+
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[agent-plugins:migration-complete] /tmp/serve-export-teardown-iIlrY1/site-4/agent-plugins/ws/workspace-local
+✔ serve: EADDRINUSE stops the started workers and closes the store (11806.921631ms)
+[plugin-runtime] plugin activation poll failed: driver has already been destroyed
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ serve: an invalid --port (non-integer or outside 1..65535) after the boot is VALIDATION and closes the store (8014.719369ms)
+[plugin-runtime] plugin activation poll failed: driver has already been destroyed
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ serve: with no --port, a present-but-invalid config.json port is VALIDATION, never a fall-through to PORT (6395.026801ms)
+[plugin-runtime] plugin activation poll failed: driver has already been destroyed
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ serve: with no --port and no config.json port, a present-but-invalid PORT env is VALIDATION (7006.023684ms)
+[plugin-runtime] plugin activation poll failed: driver has already been destroyed
+tovu: warning: TOVU_CONTENT_DB is ignored when a dir argument is given
+tovu: warning: TOVU_DB is ignored when a dir argument is given
+(node:9616) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 unhandledRejection listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ serve: a dir argument logs that TOVU_CONTENT_DB and TOVU_DB are ignored (BR-04/EC-08) (7947.804033ms)
+✔ serve: a dir bootSiteDir refuses releases the running-site claim before the error propagates (35.055904ms)
+[plugin-runtime] plugin activation poll failed: driver has already been destroyed
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+
+  ⚠  THIS SERVER HAS NO USABLE SITE KEY
+     TOVU_SITE_KEY is not set and there is no key file at /tmp/tovu-test-catalog-snPvmh/.tovu/site-keys/884af3f0-897f-43d8-92b2-326d7b97352a.hex.
+
+     It will serve pages and list credentials normally. Anything that READS a stored
+     credential — a deploy, a saved API key, a custom credential request — will fail,
+     far from this cause.
+
+     If this was started by the desktop app: quit it and relaunch with `npm run desktop`
+     from the REPO ROOT. Only that launcher loads the repo's .env; `electron .` inside
+     apps/desktop does not.
+     If this is `npm run dev`: that launcher DOES load .env — check the file actually
+     defines TOVU_SITE_KEY.
+     Otherwise restore the original site key at /tmp/tovu-test-catalog-snPvmh/.tovu/site-keys/884af3f0-897f-43d8-92b2-326d7b97352a.hex, or set TOVU_SITE_KEY.
+     New local sites create their own site key automatically when they start.
+
+     Credentials already stored are sealed under whatever key was in place when they were
+     saved. Generating a new key will not recover them.
+
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[agent-plugins:migration-complete] /tmp/serve-export-teardown-iIlrY1/site-10/agent-plugins/ws/workspace-local
+[plugin-runtime] plugin activation poll failed: driver has already been destroyed
+✔ serve: with no port anywhere it binds 3000, and a listen error other than EADDRINUSE propagates as-is after closing the store (14795.669454ms)
+[plugin-runtime] plugin activation poll failed: driver has already been destroyed
+[plugin-runtime] plugin activation poll failed: driver has already been destroyed
+✔ refuses a target other than postgres, and a --storage-env that is not set (1.67867ms)
+✔ the program routes `storage move` to the command (32.730831ms)
+✔ --storage-env moves the site and leaves the connection string in that variable (14633.584796ms)
+✔ tovu theme migrate <dir>: migrates a valid v1 declarative theme in place and exits 0 (20810.833526ms)
+✔ tovu theme migrate <dir> --dry-run --json: prints the machine-readable staged result, real dir untouched (9777.958156ms)
+✔ tovu theme migrate <dir>: an already-migrated theme is a no-op and exits 0 (21930.312194ms)
+✔ tovu theme migrate <dir>: a theme that fails staged-output verification exits 1 and prints validator + loadTheme findings plus the staged output path (11040.901219ms)
+✔ tovu theme migrate <dir>: refusing an unrecognized file exits 1 (a finding, not a crash) (10855.293826ms)
+✔ tovu theme normalize-build <dir> --primary-stylesheet styles.css: relocates assets and rewrites the page in place, exits 0 (10254.794947ms)
+✔ tovu theme normalize-build <dir> --json: prints the machine-readable plan and result (11077.443758ms)
+✔ tovu theme normalize-build <dir>: missing --primary-stylesheet exits 2 (VALIDATION) and never touches the directory (10861.504572ms)
+✔ tovu theme normalize-build <dir> --pages a.html,b.html: rewrites every named page file, defaulting off just index.html (10645.972658ms)
+✔ tovu theme normalize-build <dir>: a precondition violation (Beasties-shape critical-CSS inlining left enabled) surfaces as INTERNAL, not a silent no-op (10684.165825ms)
+✔ tovu theme sync-originals <themesRoot>: writes a matching original for every shipped theme, exits 0 (9402.295788ms)
+✔ tovu theme sync-originals <themesRoot> --json: prints the machine-readable per-theme result (9632.502872ms)
+✔ tovu theme sync-originals <themesRoot>: an empty themes root reports zero themes instead of throwing (9646.976251ms)
+✔ tovu theme validate <dir>: a valid theme exits 0 and prints a human-readable VALID summary (8964.006493ms)
+✔ tovu theme validate <dir> --json: prints the full machine-readable result (8880.606506ms)
+✔ tovu theme validate <dir>: an invalid theme exits 1 (a finding, not a crash) and reports errors (8864.479366ms)
+✔ tovu theme validate <dir>: a valid theme missing author-profile-advisory fields exits 0 and prints a warnings section (9759.486724ms)
+✔ tovu theme validate <dir> --profile <bad>: rejected as VALIDATION (exit 2), not a silent fallback (8941.41343ms)
+✔ adopt writes both markers for a marker-less site and reports the derived stamp (1107.304769ms)
+✔ adopt --dry-run previews the markers and writes nothing (801.328649ms)
+✔ adopt on a fully adopted directory is an idempotent no-op (796.291613ms)
+✔ adopt refuses a partially adopted directory and writes nothing (730.870646ms)
+✔ adopt completes a key-only .site-meta.json in place and keeps config.json (708.328608ms)
+✔ adopt --dry-run on a key-only meta previews the completion and leaves the file as it was (689.017598ms)
+✔ a no-content.db refusal is relabelled adopt: and names the sibling .db files it declined to guess at (4.439418ms)
+✔ a no-content.db refusal without sibling databases carries no candidate list (dry run too) (2.844274ms)
+✔ a non-refusal error (an invalid --name) propagates unchanged (863.140611ms)
+✔ any other refusal (a never-migrated content.db) is relabelled but never carries the candidate list (11.782763ms)
+✔ the CLI and server share the bundled plugin source root (1.394098ms)
+✔ readAllStdin returns every chunk of the stream as one UTF-8 string (3.61844ms)
+✔ the default token check refuses a plugin the bundled root does not provide, without probing (186.768229ms)
+✔ token-sign-in defaults to the bundled root and stdout (32.678632ms)
+✔ renders the generator's config to stdout and its operator notes to stderr (79.548639ms)
+✔ the deployed server is named by the local site's .site-meta.json siteId (TOVU_SITE_ID in the generated env) (22.002003ms)
+✔ a site that cannot be resolved still renders, without TOVU_SITE_ID, and says why on stderr (15.963161ms)
+✔ --out writes the rendered file and reports where (11.249088ms)
+✔ without --region the generator receives an empty region and refuses to assume one (10.462663ms)
+✔ a missing or unknown --target is refused with the loaded ids (73.48054ms)
+✔ a refused generator is explained on stderr before the target is rejected (20.339073ms)
+✔ by default the rendered config goes to stdout (9.723013ms)
+✔ --site <name> picks which local site's id is stamped, and stderr says which site it was (18.722505ms)
+✔ a site id that is not a short token (a newline, quotes, a long string) is never stamped into the config (9.806582ms)
+✔ with the split bundled plugins, --target help follows plugin-id order (6.337705ms)
+✔ formatTargetOptionHelp: joins one, two, and many ids (0.212586ms)
+✔ CLI help discovers all contributing packages through the same bundled source selector (248.87336ms)
+✔ commander success commander.helpDisplayed omits diagnostics (2.219112ms)
+✔ commander success commander.help omits diagnostics (0.194486ms)
+✔ commander success commander.version omits diagnostics (0.240421ms)
+✔ commander commander.missingArgument preserves usage property presence (0.245067ms)
+✔ commander commander.invalidArgument preserves usage property presence (0.179731ms)
+✔ commander commander.excessArguments preserves usage property presence (0.184538ms)
+✔ commander commander.unknownOption preserves usage property presence (0.86124ms)
+✔ commander commander.unknownCommand preserves usage property presence (0.205033ms)
+✔ commander commander.missingMandatoryOptionValue preserves usage property presence (0.390951ms)
+✔ commander commander.optionMissingArgument preserves usage property presence (0.356641ms)
+✔ commander commander.futureCode preserves usage property presence (0.194875ms)
+✔ maps PLUGIN_REFUSED/PluginInstallError: detail by class (0.113396ms)
+✔ maps VALIDATION/ValidationError: detail by class (0.678607ms)
+✔ maps INIT_DIR_NOT_EMPTY/InitDirNotEmptyError: detail by class (0.085938ms)
+✔ maps SITE_DIR_INVALID/SiteDirInvalidError: detail by class (0.132917ms)
+✔ maps SITE_NEWER_THAN_RUNTIME/SiteNewerThanRuntimeError: detail by class (0.20276ms)
+✔ maps SITE_CORRUPT/SiteCorruptError: detail by class (0.060419ms)
+✔ maps PORT_IN_USE/PortInUseError: detail by class (0.065892ms)
+✔ maps EXPORT_OUTPUT_NOT_EMPTY/Error: detail by class (0.099095ms)
+✔ maps EXPORT_INCOMPLETE/ExportIncompleteError: detail by class (0.063978ms)
+✔ maps EXPORT_BLOCKED_PENDING_RECOVERY/ExportBlockedPendingRecoveryError: detail by class (0.052054ms)
+✔ maps INTERNAL/InternalError: detail by class (0.055516ms)
+✔ maps INTERNAL/Error: detail by class (0.120727ms)
+✔ maps INTERNAL/detail by class (0.065002ms)
+✔ repair refusal NOT_A_DIRECTORY uses its typed reason (0.173878ms)
+✔ repair refusal MARKER_ALREADY_EXISTS uses its typed reason (0.068346ms)
+✔ repair refusal CONTENT_DB_MISSING uses its typed reason (0.073411ms)
+✔ repair refusal CONTENT_DB_UNMIGRATED uses its typed reason (0.11393ms)
+✔ repair refusal CONTENT_DB_DIVERGED uses its typed reason (0.068674ms)
+✔ an error name cannot impersonate a domain class (0.114237ms)
+✔ exportSite preserves and exports srcset candidates with base path '/my-repo' (520.803957ms)
+✔ exportSite preserves and exports srcset candidates with base path '' (222.902874ms)
+✔ export: a failed export closes the store only after the legacy tail and createSiteApp's BYOK pass settle (21.679697ms)
+✔ export: dropped references are printed as warnings without failing a completed export (5.155231ms)
+✔ export reports all failures and warnings honestly, honors flags, and closes after an incomplete export (3.251067ms)
+✔ export refuses pending migration recovery before crawling and closes even without composed boot work (3.028405ms)
+[widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'workspace-local' }
+tovu export: skipped (no-favicon-or-manifest-route): Tovu has no /favicon.ico or web-app-manifest route today — nothing to export for either convention
+tovu export: warning: dropped href on /: /signin (not-exported)
+tovu export: warning: dropped href on /: /admin/pages (not-exported)
+tovu export: warning: dropped href on /blog: /signin (not-exported)
+tovu export: warning: dropped href on /tovu-export-404-check: /signin (not-exported)
+tovu export: warning: 18 theme file(s) were never referenced by a rendered page and were not exported (template shells, build/preview artifacts, and anything a theme's own JS builds a path to at runtime all look identical from here):
+  - NOTICE.md
+  - assets/fonts/geist-LICENSE.txt
+  - render/pages/listing-default.html
+  - render/pages/pages-default.html
+  - render/pages/posts-default.html
+  - render/pages/posts-sidebar.html
+  - render/partials/footer-minimal.html
+  - render/partials/footer.html
+  - render/partials/nav.html
+  - screenshots/index-light.png
+  - screenshots/index.png
+  - scripts/docs-sidebar.js
+  - scripts/docs-toc.js
+  - scripts/vendor/kuinetic-LICENSE.md
+  - scripts/vendor/lightbox.js
+  - theme.json
+  - tokens.json
+  - tokens.light.json
+✔ exports a fresh site to static files with the default boot, composition and close (2502.861906ms)
+✔ export waits for both boot work before closing (7.041351ms)
+✔ export closes the boot and partially composed store when composition fails (6.40049ms)
+✔ bare usage writes complete help to stdout before exiting with zero (2.967232ms)
+✔ unknown-command usage writes complete help only to stderr and does not exit (0.76157ms)
+✔ import rejects invalid before stdin (2.736809ms)
+✔ import rejects https://user@admin.example before stdin (0.235662ms)
+✔ import rejects https://:password@admin.example before stdin (0.2824ms)
+✔ import rejects https://admin.example/path before stdin (0.11868ms)
+✔ import rejects https://admin.example/?q=1 before stdin (0.558157ms)
+✔ import rejects https://admin.example/#hash before stdin (0.169105ms)
+✔ import rejects ftp://admin.example before stdin (0.792033ms)
+✔ import rejects http://localhost before stdin (3.251943ms)
+✔ import rejects http://192.0.2.1 before stdin (0.913472ms)
+✔ import rejects non-object stdin { (1.001326ms)
+✔ import rejects non-object stdin null (0.270127ms)
+✔ import rejects non-object stdin [] (0.12718ms)
+✔ import rejects non-object stdin false (0.112891ms)
+✔ import rejects non-object stdin 1 (0.083516ms)
+✔ import rejects non-object stdin "text" (0.094204ms)
+✔ import rejects invalid authorization 9 (0.266234ms)
+✔ import rejects invalid authorization 1 (0.116739ms)
+✔ import rejects invalid authorization 13 (0.248331ms)
+✔ import rejects invalid authorization 7 (0.151681ms)
+✔ import rejects invalid authorization 11 (0.107373ms)
+✔ import rejects invalid authorization 4104 (0.181612ms)
+✔ import requires workspace before stdin (0.215088ms)
+✔ import https://admin.example preserves/normalizes null (1.039006ms)
+✔ import https://admin.example preserves/normalizes false (0.211647ms)
+✔ import https://admin.example preserves/normalizes 0 (0.608364ms)
+✔ import https://admin.example preserves/normalizes "done" (0.146411ms)
+✔ import https://admin.example preserves/normalizes {} (0.107665ms)
+✔ import https://admin.example preserves/normalizes {"setupUrl":4} (0.124631ms)
+✔ import https://admin.example preserves/normalizes {"setupUrl":"/owner"} (0.133713ms)
+✔ import http://127.0.0.1:3010 preserves/normalizes null (0.573002ms)
+✔ import http://127.0.0.1:3010 preserves/normalizes false (0.529802ms)
+✔ import http://127.0.0.1:3010 preserves/normalizes 0 (0.141775ms)
+✔ import http://127.0.0.1:3010 preserves/normalizes "done" (0.109255ms)
+✔ import http://127.0.0.1:3010 preserves/normalizes {} (0.236796ms)
+✔ import http://127.0.0.1:3010 preserves/normalizes {"setupUrl":4} (0.107251ms)
+✔ import http://127.0.0.1:3010 preserves/normalizes {"setupUrl":"/owner"} (0.107762ms)
+✔ import http://[::1]:3010 preserves/normalizes null (1.039482ms)
+✔ import http://[::1]:3010 preserves/normalizes false (0.116548ms)
+✔ import http://[::1]:3010 preserves/normalizes 0 (0.353949ms)
+✔ import http://[::1]:3010 preserves/normalizes "done" (0.664799ms)
+✔ import http://[::1]:3010 preserves/normalizes {} (0.124841ms)
+✔ import http://[::1]:3010 preserves/normalizes {"setupUrl":4} (0.079382ms)
+✔ import http://[::1]:3010 preserves/normalizes {"setupUrl":"/owner"} (0.079052ms)
+✔ import accepts an external setup URL (reported, not fixed) (0.200169ms)
+✔ import posts to the real daemon client over loopback HTTP and returns a result without a setup URL unchanged (203.070452ms)
+✔ piped input: only the first line is the connection string and nothing is printed (4.55981ms)
+✔ piped input with no newline and empty input both resolve to the whole (possibly empty) text (1.230701ms)
+✔ a terminal is prompted once, the typed value is not echoed, and the prompt line is closed (3.601498ms)
+✔ init refuses shared Postgres stdin for createInputStdin before reading (1.803702ms)
+✔ init refuses shared Postgres stdin for agentPluginTokensStdin before reading (0.231401ms)
+✔ init none checks before creation and seals after success output (1026.95503ms)
+✔ init tokens checks before creation and seals after success output (668.095591ms)
+✔ init envelope checks before creation and seals after success output (608.930005ms)
+✔ init empty-envelope checks before creation and seals after success output (715.836523ms)
+✔ defaults to the raw commander manifest as pretty JSON plus a newline (2.315445ms)
+✔ --format mcp reshapes the manifest into MCP tool definitions (0.600838ms)
+✔ an unknown --format is refused without printing (0.720905ms)
+✔ without an injected output it writes to stdout (0.9233ms)
+✔ introspectProgram: reads real commands/arguments/options off the live Command tree (3.184065ms)
+✔ toMcpTools: reshapes the manifest into MCP tool definitions, one per command, prefixed tovu_ (0.930594ms)
+✔ introspectProgram: a nested subcommand group (theme -> validate) is flattened to its full invocation path, and the empty parent group itself is not listed (0.362433ms)
+✔ toMcpTools: a nested subcommand's tool name replaces spaces with underscores (tovu_theme_validate) (0.246829ms)
+✔ toMcpTools: a boolean switch (--dry-run) is omitted from inputSchema properties — an agent has nothing to supply for it (0.556826ms)
+✔ a dry run plans every entry and writes nothing, not even a transaction (2.978298ms)
+✔ apply writes only the new entries, non-default and project-owned, in one transaction (0.651705ms)
+✔ a vault refusal mid-apply rejects the whole import; the transaction owns the rollback (2.454218ms)
+✔ the same id with the same metadata and decrypted payload is already imported; apply writes nothing (0.409011ms)
+✔ the same id with a different secret, metadata or identity is a conflict and stays untouched (1.010291ms)
+✔ a taken name (same kind, provider and label) is a conflict; another provider or kind is not (0.539829ms)
+✔ media-provider and publish-peer keys are listed as unsupported, not imported: no project reader uses them yet (0.494236ms)
+✔ site-assistant and database-destination kinds are refused by name; plugin-owned rows by owner (0.893901ms)
+✔ every recorded site destination is reported pending: grants keep a copy, revocations may still hold one (0.745259ms)
+✔ an empty snapshot is the empty report and touches nothing (0.70389ms)
+✔ plugin group declares install folder, site, yes, replace and integrity write (5.815196ms)
+✔ CLI install cancel: real disk, no import, closes store (252.520973ms)
+✔ CLI install yes: real disk, no import, closes store (66.641971ms)
+✔ CLI install changed: real disk, no import, closes store (11.570761ms)
+✔ integrity reads jini.plugin.json and writes only the canonical manifest (3.918375ms)
+✔ integrity reads tovu.plugin.json and writes only the canonical manifest (3.139373ms)
+✔ integrity prefers the canonical manifest and never falls back from malformed canonical JSON (7.990611ms)
+✔ plugin integrity without --write prints the digests to stdout and writes nothing (2.362678ms)
+✔ plugin integrity --write without any manifest fails and leaves no staged file behind (3.898825ms)
+✔ plugin integrity --write removes its staged file when the manifest cannot be replaced (3.276191ms)
+✔ terminal consent answer "y" -> true (2.416755ms)
+✔ terminal consent answer " YES " -> true (0.610892ms)
+✔ terminal consent answer "n" -> false (0.57388ms)
+✔ terminal consent answer "" -> false (0.481729ms)
+✔ terminal consent answer "yess" -> false (0.639082ms)
+✔ terminal consent refuses a non-interactive input without asking (0.304305ms)
+✔ CLI install without --yes or an injected confirm refuses on a non-interactive stdin, writing the warning to stdout (7.431986ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ install into a real site: default opener, <site>/plugins by default, TOVU_PLUGINS_DIR when set (1134.487124ms)

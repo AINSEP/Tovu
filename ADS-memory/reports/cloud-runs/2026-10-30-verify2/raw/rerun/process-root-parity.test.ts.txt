@@ -1,0 +1,26 @@
+✔ BYOK adds only its run-scoped guidance loader to the shared base and preserves all resource sets (855.791741ms)
+✔ the daemon construction seam and real BYOK root expose identical installed-skill, native-tool and resource sets (1704.751305ms)
+✔ BYOK's search_tools catalog finds an installed skill's tool once ready resolves — proving the catalog rebuild, not just the registry, picks it up (551.55102ms)
+✔ BYOK's federation is a real, non-stubbed FederationRuntime that boots lazily — built but not started before any turn (328.745497ms)
+✖ daemon dev mode passes bypass in the executor's options bag (16.44486ms)
+✔ daemon termination signals stay registered throughout asynchronous disposal (0.458158ms)
+✔ daemon shutdown waits for publication even when durability fails after rename (16.030328ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11243.869437
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/process-root-parity.test.ts:10:7962
+✖ daemon dev mode passes bypass in the executor's options bag (16.44486ms)
+  ReferenceError [Error]: policy is not defined
+      at eval (eval at evaluateDaemonExpression (file:///home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2912), <anonymous>:13:21)
+      at evaluateDaemonExpression (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:53:53)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/process-root-parity.test.ts:376:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

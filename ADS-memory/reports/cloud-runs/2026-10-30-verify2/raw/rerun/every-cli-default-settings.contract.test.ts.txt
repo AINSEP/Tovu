@@ -1,0 +1,17 @@
+✖ every registered CLI starts, or is refused naming the CLI and each OFF switch, under Tovu's default chat settings (1411.750853ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5896.895374
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/assistant/__tests__/every-cli-default-settings.contract.test.ts:1:5048
+✖ every registered CLI starts, or is refused naming the CLI and each OFF switch, under Tovu's default chat settings (1411.750853ms)
+  Error: [agent-daemon] run daemon-test-run failed to start TypeError: runLifecycle.emit is not a function
+      at Object.error (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:110:86)
+      at eval (eval at evaluateDaemonExpression (file:///home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/helpers/daemon-source.ts:1:2912), <anonymous>:336:17)

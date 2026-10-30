@@ -17,3 +17,6 @@ Started shard 7 manually in parallel (5 shards concurrent) to fit cap; shard 0 h
 
 ## 2026-10-30T08:41:41Z — PROGRESS
 Shard 0 hit my 3000s timeout (exit 124): ~111 files (cli/ onward) were cancelled, not failed; re-running exactly those as shard 0b. Shards 3,4,5,6,7,0b running, 0 failures so far. Tried a NoInfer fix for the 2 test-tsc errors: made it worse (more errors) -> reverted, not pushed; listed instead. Remaining: wait for shards until ~08:55Z, then write RESULTS.md.
+
+## 2026-10-30T08:58:35Z — DONE (partial)
+Cap reached (~83 min) and worker restart killed shards 4-7/0b. RESULTS.md written. Fixes on cloud/verify2-1030-fixes: 36547797, 5909ee3d.
