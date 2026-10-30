@@ -7,7 +7,7 @@
  * `executeMetaTool` forwards its live emitter; the admin redemption proxy tries this store first,
  * falling back to the daemon only on unknown-or-closed exchanges. The A2UI proxy does likewise.
  */
-import type { AssistantToolContributions } from "./tool-contribution-registry.js";
+import type { AssistantToolContributions } from "./tool-registrations.js";
 import {
   createToolRegistry,
   createToolExposure,
@@ -37,7 +37,7 @@ import type { McpSessionPort } from "@jini-ai/mcp/federation";
 import { buildToolCatalogQuery, listToolCatalogEntries } from "./tool-catalog-query.js";
 import { createChatDeleteScope, ALL_CHAT_DELETE_TOOLS } from "./permanent-delete-tool-gate.js";
 import { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
-import { isChatToolAllowed } from "../contracts/headless/assistant-permanent-deletes-policy.js";
+import { isChatToolAllowed } from "./assistant-permanent-deletes-policy.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
 import { createAssistantToolExecutor } from "./tool-recovery-preset.js";
 import { err, isRecord, mapToolExecutionResult, ok, resolveDelegatedInput, type ByokMetaToolResult } from "./byok-meta-tool-result.js";

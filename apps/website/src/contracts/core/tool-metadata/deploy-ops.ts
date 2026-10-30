@@ -1,9 +1,11 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** deploy-ops registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
   "deployment_ops_deploy": {
+    title: 'Deploy your app',
+    summary: 'This starts a deployment of the selected app on its hosting service.',
     search: {
       keywords: "deploy now redeploy ship release roll out push the server app to production start a deploy actions workflow dispatch latest commit main",
       queries: [
@@ -40,6 +42,8 @@ export const toolMetadata = {
     approval: { class: 'read', confirmation: 'direct' },
   },
   "deployment_ops_set_secret": {
+    title: 'Set this hosting secret',
+    summary: 'This adds or replaces the selected secret on the hosted app.',
     search: {
       keywords: "set secret API_KEY on my app add environment variable env var copy site key to host server rename secret copy secret stage",
       queries: [
@@ -59,6 +63,8 @@ export const toolMetadata = {
     approval: { class: 'read', confirmation: 'direct' },
   },
   "deployment_ops_unset_secret": {
+    title: 'Remove this hosting secret',
+    summary: 'This removes the selected secret from the hosted app and may affect its operation.',
     search: {
       keywords: "unset secret remove delete environment variable env var old secret from host server app",
       queries: [

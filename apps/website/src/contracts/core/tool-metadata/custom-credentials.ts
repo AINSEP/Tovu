@@ -1,11 +1,14 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** custom-credentials registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
   project_keys_list: { search: { keywords: "project keys saved credentials used sites attach" }, approval: { class: "read", confirmation: "direct" } },
   project_key_use: { search: { keywords: "apply use attach detach project saved key stop using site" }, approval: { class: "edit", confirmation: "direct" } },
-  site_restart: { search: { keywords: "restart site provider settings apply" }, approval: { class: "edit", confirmation: "plan", input: "human-form" }, mcpUi: { redeemable: true, exchangeOnly: true } },
+  site_restart: {
+    title: 'Restart this site',
+    summary: 'This restarts the site so its saved provider settings can take effect.',
+    search: { keywords: "restart site provider settings apply" }, approval: { class: "edit", confirmation: "plan", input: "human-form" }, mcpUi: { redeemable: true, exchangeOnly: true } },
   "credential_copy_from_project": {
     search: {
       keywords: "copy import reuse keys credentials tokens local project site source overwrite",
@@ -27,6 +30,7 @@ export const toolMetadata = {
         "Rotate the token on an existing saved account without changing the username.",
         "Connect an image or video generation provider with an API key.",
         "Save a source control credential for a repository host for commits and site backups.",
+        "Save a repository host source control credential.",
         "Set up repository backup credentials.",
         "Connect a static publishing host or object storage account.",
         "Use personal access token sign-in when a plugin OAuth connection cannot start.",
@@ -56,6 +60,8 @@ export const toolMetadata = {
     approval: { class: 'read', confirmation: 'direct' },
   },
   "custom_credential_make_request": {
+    title: 'Send this provider request',
+    summary: 'This sends the selected request using your saved credential and may permanently delete provider data.',
     search: {
       keywords: "call calling request requests curl wget http https api endpoint third-party thirdparty external outside " +
         "service services vendor provider dns registrar hosting deployment domain credential credentials token tokens use using saved fetch " +

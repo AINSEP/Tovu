@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
-import { readPluginInstallRequest, readPluginInstallArchive } from '../plugin-install-source.js';
-import { CHAT_ATTACHMENT_REF_PATTERN } from '../chat-attachment.js';
+import { readPluginInstallRequest, readPluginInstallArchive } from '../../../features/plugin-runtime/install-source.js';
+import { CHAT_ATTACHMENT_REF_PATTERN } from '../index.js';
 
 for (const filename of ['plugin-host.ts', 'plugin-install-source.ts', 'chat-attachment.ts']) {
   test(`fxpid: ${filename} has no imports or re-exports into feature/server/app layers`, async () => {

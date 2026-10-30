@@ -145,6 +145,7 @@ function projectAssistantAgent({ def, launch, modelResult }: {
     // keyed off the def's own `externalMcpInjection` declaration rather than a hardcoded
     // runtime-id list here.
     supportsTools: runtimeSupportsExternalTools({ def }),
+    supportsNativeToolAccess: def.supportsNativeToolAccess === true,
     // See `AssistantAgentSummary.carriesOwnMemory`'s own doc — either resume mechanism means
     // the CLI itself, not this transport, owns the def's multi-turn memory.
     carriesOwnMemory: Boolean(def.resumesSessionViaCli) || Boolean(def.resumesSessionViaAcpLoad),
@@ -200,6 +201,19 @@ export function createAssistantAgentInventory(
 
   function assistantAgentDiscoveryPending(_input = {}, _options = {}): boolean { return cachedAgents.isPending({}); }
 
+  function projectDetectedAgent({ agent, discoveryPending }: { agent: DetectedAgent; discoveryPending: boolean }): AssistantAgentSummary {
+    const registered = defs.find(candidate => candidate.id === agent.id)!;
+    const def = { ...registered, ...(agent.reasoningOptions ? { reasoningOptions: agent.reasoningOptions } : {}) };
+    return { ...projectAssistantAgent({ def, launch: { launchPath: agent.available ? agent.path : undefined }, modelResult: {
+      models: agent.models, source: agent.modelsSource,
+      ...(agent.modelCatalog ? { catalog: agent.modelCatalog } : {}),
+      ...(agent.defaultModelResolution ? { defaultModelResolution: agent.defaultModelResolution } : {}),
+    } }), discoveryPending,
+      ...(agent.version ? { version: agent.version } : {}),
+      ...(agent.authStatus ? { authStatus: agent.authStatus } : {}),
+    };
+  }
+
   /** Preserve promise identity until the runtime snapshot changes, including while a scan runs. */
   function listAssistantAgents(_input = {}, { waitForProbe = false } = {}): Promise<AssistantAgentSummary[]> {
     const source = listDetectedAssistantAgents();
@@ -208,18 +222,7 @@ export function createAssistantAgentInventory(
     if (source !== projectedSource || discoveryPending !== projectedPending) {
       projectedPending = discoveryPending;
       projectedSource = source;
-      projectedAgents = source.then(agents => agents.map(agent => {
-        const registered = defs.find(candidate => candidate.id === agent.id)!;
-        const def = { ...registered, ...(agent.reasoningOptions ? { reasoningOptions: agent.reasoningOptions } : {}) };
-        return { ...projectAssistantAgent({ def, launch: { launchPath: agent.available ? agent.path : undefined }, modelResult: {
-          models: agent.models, source: agent.modelsSource,
-          ...(agent.modelCatalog ? { catalog: agent.modelCatalog } : {}),
-          ...(agent.defaultModelResolution ? { defaultModelResolution: agent.defaultModelResolution } : {}),
-        } }), discoveryPending,
-          ...(agent.version ? { version: agent.version } : {}),
-          ...(agent.authStatus ? { authStatus: agent.authStatus } : {}),
-        };
-      }));
+      projectedAgents = source.then(agents => agents.map(agent => projectDetectedAgent({ agent, discoveryPending })));
     }
     return projectedAgents!;
   }

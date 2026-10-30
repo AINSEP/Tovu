@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** newsletter registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
@@ -174,6 +174,8 @@ export const toolMetadata = {
     approval: { class: 'edit', confirmation: 'direct' },
   },
   "newsletter_resume_campaign": {
+    title: 'Resume this email campaign',
+    summary: 'This resumes delivery of the selected campaign to its recipients.',
     search: {
       keywords: "newsletter resume paused continue sending restart delivery remaining campaign email mailing list",
       queries: [
@@ -187,6 +189,8 @@ export const toolMetadata = {
     approval: { class: 'publish', confirmation: 'plan' },
   },
   "newsletter_schedule_campaign": {
+    title: 'Schedule this email campaign',
+    summary: 'This schedules the selected campaign for delivery to its recipients.',
     search: {
       keywords: "newsletter schedule campaign scheduled date time tomorrow later future issue email send",
       queries: [
@@ -200,6 +204,8 @@ export const toolMetadata = {
     approval: { class: 'publish', confirmation: 'plan' },
   },
   "newsletter_send_campaign": {
+    title: 'Send this email campaign',
+    summary: 'This sends the selected campaign to its recipients.',
     search: {
       keywords: "newsletter send now launch issue subscribers mailing list email everyone blast deliver announcement",
       queries: [

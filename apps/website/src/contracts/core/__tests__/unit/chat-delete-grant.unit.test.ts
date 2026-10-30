@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { chatDeleteRefusal, requireChatDeleteGrant, type ChatDeleteSurfaceDeps } from "../../chat-delete-grant.js";
-import { PERMANENT_DELETE_TOOLS, isChatToolAllowed } from "../../../headless/assistant-permanent-deletes-policy.js";
+import { PERMANENT_DELETE_TOOLS } from "../../../headless/index.js";
+import { isChatToolAllowed } from "../../../../assistant/assistant-permanent-deletes-policy.js";
 
 test("delete refusals point to the human admin screen when one exists", () => {
   assert.equal(chatDeleteRefusal({ toolId: "trash_empty" }, {}).message,

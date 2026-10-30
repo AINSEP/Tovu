@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** database registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
@@ -20,6 +20,8 @@ export const toolMetadata = {
   // Deliberately UNWIRED (never agent-callable — see file headers); entries added for consistency,
     // same reasoning as backup_execute_restore above.
   "database_execute_migrate_forward": {
+    title: 'Apply database changes',
+    summary: 'This applies the planned database changes and may permanently change stored data.',
     search: {
       keywords: "database migration migrate run execute apply confirm confirmed upgrade schema forward proceed go ahead",
     },

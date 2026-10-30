@@ -1,6 +1,6 @@
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
-import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY, ASSISTANT_CLI_PERMISSIONS_KEY,
-  ASSISTANT_CLI_CAPABILITIES, assistantCliPermissions, type AssistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_CLI_CAPABILITIES, type AssistantCliPermissions } from "#src/contracts/headless/index";
+import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
 
 /** Fresh, owner/site-scoped launch snapshot in the existing ledger. Legacy booleans are read only
  * when no owner snapshot exists. Invalid persisted permissions and read failures deny access.

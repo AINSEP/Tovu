@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** frontend-control registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
@@ -15,6 +15,8 @@ export const toolMetadata = {
   // A click's effect is opaque. Reviewed ordinary install controls are direct; all other
     // clicks retain explicit consent, including every destructive final-dialog button.
   "page.click": {
+    title: 'Activate the selected control',
+    summary: 'This activates the selected control in the admin interface and may make a permanent change.',
     approval: { class: 'delete', confirmation: 'policy', rule: 'page-control' },
   },
   "page.fill": {

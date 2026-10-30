@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** mail-status registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
@@ -17,6 +17,8 @@ export const toolMetadata = {
     approval: { class: 'read', confirmation: 'direct' },
   },
   "mail_set_provider": {
+    title: 'Change the email provider',
+    summary: 'This changes the service used to send email from this site.',
     // Vendor-neutral on purpose: core names no hosted mail provider (no-vendor-in-core.boundary.test.ts);
     // a provider's own name and setup know-how ship in its agent plugin (content/agent-plugins/<vendor>/).
     search: {
@@ -26,6 +28,8 @@ export const toolMetadata = {
     approval: { class: 'escalation', confirmation: 'plan' },
   },
   "mail_send_test": {
+    title: 'Send a test email',
+    summary: 'This sends a real email to the selected recipient.',
     search: {
       keywords: "send test email mail check delivery works inbox try verify",
       queries: ["Send me a test email.", "Check that my site can actually send email."],
@@ -75,6 +79,8 @@ export const toolMetadata = {
     approval: { class: 'read', confirmation: 'direct' },
   },
   "mail_remove_suppression": {
+    title: 'Allow email to this recipient again',
+    summary: 'This removes the selected suppression so email delivery can resume.',
     search: {
       keywords: "email unblock remove suppression allow email again bounced complained do not send list",
       queries: ["Let my site email this address again.", "Remove this address from the do-not-send list."],

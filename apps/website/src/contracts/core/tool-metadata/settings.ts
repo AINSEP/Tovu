@@ -1,9 +1,11 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** settings registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
   "settings_clear_value": {
+    title: 'Reset this setting',
+    summary: 'This removes the selected override and applies the inherited setting.',
     search: {
       keywords: "reset setting back to default clear override undo setting",
       queries: [
@@ -85,6 +87,8 @@ export const toolMetadata = {
   },
   // Added for t07, after the original blind catalog: owner settings writes and single-layer undo.
   "settings_set_value": {
+    title: 'Change this setting',
+    summary: 'This applies the selected setting and may change how the assistant runs.',
     search: {
       keywords: "change set update setting settings option config configuration timezone time zone date format site setting turn on turn off enable disable agent plugins plugin mode auto ask first off change model switch to opus sonnet gpt effort thinking level chat agent runtime",
       queries: [

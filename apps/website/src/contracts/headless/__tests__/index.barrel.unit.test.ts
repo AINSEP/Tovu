@@ -2,18 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import * as headless from "../index.js";
-import { deriveContentConversationTitle } from "../content-chat-title.js";
-import { directPageAction, TOOL_APPROVAL_POLICY } from "../assistant-tool-approval-policy.js";
+import * as approvals from "../assistant-tool-approval-policy.js";
 import * as permanentDeletes from "../assistant-permanent-deletes-policy.js";
-import { ASSISTANT_CLI_CAPABILITIES, ASSISTANT_SUBAGENTS_KEY, ASSISTANT_SUBAGENTS_NAMESPACE, assistantCliPermissions } from "../assistant-subagents-policy.js";
+import * as subagents from "../assistant-subagents-policy.js";
+import * as attachments from "../chat-attachment.js";
+import * as delivery from "../form-delivery-status.js";
+import * as secrets from "../secret-form-cards.js";
+import * as memberLogin from "../member-login.js";
+import * as installSource from "../plugin-install-source.js";
 
-/** @file The headless contract barrel re-exports the owning modules' values unchanged (same identities, nothing extra). */
-
+/** @file The browser contract barrel exposes metadata unchanged; implementations stay with their owners. */
 test("the headless barrel exposes exactly the owning modules' runtime values", () => {
   const expected: Record<string, unknown> = {
-    deriveContentConversationTitle, directPageAction, TOOL_APPROVAL_POLICY,
-    ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY, ASSISTANT_CLI_CAPABILITIES, assistantCliPermissions,
-    ...permanentDeletes,
+    ...approvals, ...permanentDeletes, ...subagents, ...attachments, ...delivery, ...secrets, ...memberLogin, ...installSource,
   };
   assert.deepEqual(Object.keys(headless).sort(), Object.keys(expected).sort());
   for (const [name, value] of Object.entries(expected)) {

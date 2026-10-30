@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** agent-plugins registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
@@ -20,6 +20,8 @@ export const toolMetadata = {
   // prompt injection) could make a new unverified local/zip package live. Install lands OFF and
   // enabling goes through plugins_set_enabled's own escalation, so install stays direct.
   "agent_plugins_update": {
+    title: 'Change agent plugin access',
+    summary: 'This changes the selected agent plugin installation or the access it has.',
     search: { keywords: "agent plugin update upgrade replace zip folder version digest" },
     approval: { class: 'escalation', confirmation: 'policy' },
   },

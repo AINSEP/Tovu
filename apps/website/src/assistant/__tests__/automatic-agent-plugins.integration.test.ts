@@ -13,14 +13,14 @@ import { createToolExecutor } from '@jini-ai/daemon';
 import { AWAITING_ANSWER_NOTICE, createDurableRecovery, type DurableRun, type DurableRunStore, type RecoveryPorts } from '@jini-ai/chat/server/durable-runs';
 import { createTempSiteLayoutFixture } from '#src/__tests__/fixtures/site-layout-context';
 import { toolMetadata as themeMetadata } from '../../contracts/core/tool-metadata/theme.js';
-import { ASK_CHOICE_TOOL_ID } from '../ask-choice-tool.js';
+import { ASK_CHOICE_TOOL_ID, askAgentPluginChoice } from '../ask-choice-tool.js';
 import { ensureAdminInterfaceSettingDefinitions } from '../../features/settings/admin-interface.js';
 import { createSettingsPrincipalLookup, set } from '../../features/settings/index.js';
 import { captureDaemonRun } from '../../server/inbound/assistant/__tests__/helpers/daemon-source.js';
 import { buildAgentPluginSearchRegistrations } from '../../features/agent-plugins/tool-registrations.js';
 import { resolveAgentPluginRefs } from '../../features/agent-plugins/lifecycle.js';
 import { setAgentPluginEnabled } from '../../features/agent-plugins/set-enabled.js';
-import { createAutomaticPluginRuns, type AutomaticPluginRun } from '../automatic-agent-plugins.js';
+import { createAutomaticPluginRuns, type AutomaticPluginRun } from '../../features/agent-plugins/automatic-agent-plugins.js';
 
 // Real catalog, activation, ranker, skill resolution and effective settings. No daemon boot.
 async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 1, trusted = true, maturity }: { pluginId?: string; count?: number; trusted?: boolean; maturity?: 'untested' | 'soon' } = {}) {
@@ -47,7 +47,7 @@ async function fixture(t: TestContext, { pluginId = 'synthetic-author', count = 
   const principalRepo = Object.assign(principalRecords, createSettingsPrincipalLookup({ repo: principalRecords }));
   const settingsUiTabsReady = ensureAdminInterfaceSettingDefinitions({ settingsRepo, clock, ids: idGen, principals: { findActiveById: async ({ id }) => ({ id }) } }, { systemPrincipalId: 'system' });
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' });
-  const runs = createAutomaticPluginRuns({ deps: { workspaceId, agentPluginLayout: layout, settingsRepo, getEffective, set, siteTitleReady: settingsUiTabsReady, principalRepo, clock, idGen, authorize: async () => ({ allowed: true, reason: 'test' }) }, surfaces: { surfaceExchanges } });
+  const runs = createAutomaticPluginRuns({ askAgentPluginChoice, deps: { workspaceId, agentPluginLayout: layout, settingsRepo, getEffective, set, siteTitleReady: settingsUiTabsReady, principalRepo, clock, idGen, authorize: async () => ({ allowed: true, reason: 'test' }) }, surfaces: { surfaceExchanges } });
   const published: Parameters<AutomaticPluginRun['publish']>[0][] = [];
   const context: AutomaticPluginRun = { principal: { id: 'alice' }, conversationId: 'chat', state: { decision: null, excluded: [] }, query: 'Design holography', pinned: [], signal: new AbortController().signal, emitSurface: async () => { assert.fail('Auto must not ask'); }, publish: async value => { published.push(value); } };
   await settingsUiTabsReady;

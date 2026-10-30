@@ -1,4 +1,4 @@
-import { POLICY_CONFIRMATION_TOOL_IDS } from "../../contracts/headless/assistant-tool-approval-policy.js";
+import { POLICY_CONFIRMATION_TOOL_IDS } from "../../contracts/headless/index.js";
 /**
  * @file Structural guard for `MCP_UI_REDEEMABLE_TOOL_IDS` (2026-09-24 unwired-sink sweep).
  *

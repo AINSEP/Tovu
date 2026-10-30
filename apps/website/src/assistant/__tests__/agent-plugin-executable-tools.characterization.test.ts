@@ -1,7 +1,7 @@
 /**
- * @file Characterization pins taken BEFORE executable Agent Plugin tools were wired into the
- * approval owner (feature lot G7). They hold behaviour that change must not alter:
- * the existing confirmation card's Tool/Input rows, the existing extension approval families, and
+ * @file Characterization pins for executable Agent Plugin tools wired into the
+ * approval owner (feature lot G7), updated for the approved r9/r9b structured input layout:
+ * the confirmation card's exact input rows, the existing extension approval families, and
  * the MCP-UI callback refusing a fresh execution of a plugin tool id.
  */
 import assert from 'node:assert/strict';
@@ -13,12 +13,13 @@ import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/core/prim
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { applyToolApprovalPolicy } from '../tool-approval-policy.js';
 import { isMcpUiToolCallPermitted } from '../mcp-ui-tool-calls.js';
-import { EXTENSION_TOOL_APPROVAL_POLICY, withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
+import { EXTENSION_TOOL_APPROVAL_POLICY } from '../../contracts/headless/index.js';
+import { withExtensionApprovalPolicy } from '../assistant-tool-approval-policy.js';
 
 const surfaces = () => ({ surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) });
 const registrationFor = (id: string): ToolRegistration => ({ descriptor: { id, description: id, inputSchema: { type: 'object' } }, policy: { authorize: () => 'allow' }, handler: async () => ({ ok: true }) });
 
-test('a policy confirmation card shows exactly the Tool and Input rows (pinned before G7)', async () => {
+test('a policy confirmation card shows exactly the structured ID row (r9/r9b)', async () => {
   const bound = surfaces();
   const registry = createToolRegistry({});
   registry.register(applyToolApprovalPolicy({ registration: registrationFor('publish_content_publish'), surfaces: bound }));
@@ -31,7 +32,9 @@ test('a policy confirmation card shows exactly the Tool and Input rows (pinned b
   bound.surfaceExchanges.deliver({ exchangeId, principalId: 'owner', params: { decision: 'cancel' } }, { toolId: 'publish_content_publish' });
   await pending;
   const labels = [...html.matchAll(/<dt>([^<]+)<\/dt>/g)].map((match) => match[1]);
-  assert.deepEqual(labels, ['Tool', 'Input']);
+  assert.deepEqual(labels, ['ID']);
+  const rows = [...html.matchAll(/<dt>([^<]+)<\/dt><dd>([^<]*)<\/dd>/g)].map(match => [match[1], match[2]]);
+  assert.deepEqual(rows, [['ID', 'post-1']]);
 });
 
 test('existing extension approval families keep their classes (pinned before G7)', () => {

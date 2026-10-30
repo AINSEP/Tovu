@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readAssistantCliPermissions } from "../subagent-settings.js";
-import { ASSISTANT_CLI_PERMISSIONS_KEY, assistantCliPermissions } from "../../contracts/headless/assistant-subagents-policy.js";
+import { ASSISTANT_CLI_PERMISSIONS_KEY } from "../../contracts/headless/index.js";
+import { assistantCliPermissions } from "../assistant-subagents-policy.js";
 
 test("launch permissions are read per site/owner and freshly on every turn", async () => {
   let saved = assistantCliPermissions({ enabled: true, capabilities: { shell: false } });

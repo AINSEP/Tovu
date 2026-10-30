@@ -10,8 +10,10 @@ export function credentialViewFields({ record, tokenHint = null }: { record: Vau
 /** Omitted keys preserve envelopes; a new settings-only singleton has no payload. Jini still
  * owns preparation, sealing and CAS; these are the two feature adapters' shared input fields. */
 export function credentialWriteFields({ existing, apiKey }: { existing: VaultRecord | null; apiKey: string | undefined }, _options = {}) {
+  let payload: { apiKey: string } | null | undefined = existing ? undefined : null;
+  if (apiKey !== undefined) payload = { apiKey };
   return { ...(existing ? { id: existing.id } : {}), expectedRevision: existing?.revision ?? null,
     label: existing?.label ?? '',
-    payload: apiKey === undefined ? (existing ? undefined : null) : { apiKey },
+    payload,
     ...(apiKey === undefined ? {} : { hintToken: apiKey }) };
 }

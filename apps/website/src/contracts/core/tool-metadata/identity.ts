@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** identity registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
@@ -37,6 +37,8 @@ export const toolMetadata = {
     approval: { class: 'edit', confirmation: 'direct' },
   },
   "identity_policy_delete": {
+    title: 'Permanently delete this access policy',
+    summary: 'This permanently removes the selected access policy.',
     search: {
       keywords: "permission access rule delete remove",
       queries: [
@@ -117,6 +119,8 @@ export const toolMetadata = {
     approval: { class: 'edit', confirmation: 'direct' },
   },
   "identity_role_delete": {
+    title: 'Permanently delete this role',
+    summary: 'This permanently removes the selected role and its policy links.',
     search: {
       keywords: "role access level delete remove",
       queries: [

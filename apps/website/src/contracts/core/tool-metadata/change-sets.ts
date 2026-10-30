@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** change-sets registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
@@ -11,6 +11,8 @@ export const toolMetadata = {
     approval: { class: 'read', confirmation: 'direct' },
   },
   "change_sets_revert": {
+    title: 'Restore the previous content',
+    summary: 'This replaces the current content with the selected earlier version.',
     search: {
       keywords: "change set undo revert restore rollback previous version post page edit",
     },

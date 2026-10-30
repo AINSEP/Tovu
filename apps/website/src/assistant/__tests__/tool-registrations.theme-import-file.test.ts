@@ -71,6 +71,7 @@ function fakeDeps(
     logged,
     workspaceId: "ws-theme-import-file",
     themesDir,
+    resolveActiveThemeId: async () => "match",
     siteBinding: { dir: themesDir },
     resolveRoots: () => ({ repo: themesDir, site: themesDir, custom: themesDir }),
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }),
@@ -249,17 +250,18 @@ test("theme_import_local_file: preview, trash and compiled destinations refuse v
   }
 });
 
-test("site theme import refuses repo and outside custom roots before reading or creating output", async t => {
+// Owner s5 supersedes e0d811ab0 for picked-folder reads; unpicked paths remain denied.
+test("site theme import refuses repo and unpicked paths before reading or creating output", async t => {
   const deps = fakeDeps();
   const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'theme-import-outside-'));
   t.after(() => { fs.rmSync(outside, { recursive: true, force: true }); fs.rmSync(deps.themesDir, { recursive: true, force: true }); });
   fs.writeFileSync(path.join(outside, 'payload.woff2'), Buffer.concat([WOFF2, Buffer.from('OUTSIDE_CANARY_CONTENT')]));
   fs.writeFileSync(path.join(outside, 'OUTSIDE_CANARY_NAME.woff2'), WOFF2);
-  deps.resolveRoots = () => ({ repo: outside, custom: outside, site: deps.themesDir });
+  deps.resolveRoots = () => ({ repo: outside, custom: deps.themesDir, site: deps.themesDir });
   const readSpy = t.mock.method(fs, 'createReadStream');
-  for (const root of ['repo', 'custom']) {
+  for (const input of [{ root: 'repo', sourcePath: 'payload.woff2' }, { root: 'custom', sourcePath: path.relative(deps.themesDir, path.join(outside, 'payload.woff2')) }]) {
     await assert.rejects(() => handlerFor(deps, 'theme_import_local_file')(ctxFor({
-      themeId: 'match', path: 'assets/private.woff2', root, sourcePath: 'payload.woff2',
+      themeId: 'match', path: 'assets/private.woff2', ...input,
     })), error => {
       assert.ok(error instanceof Error);
       assert.doesNotMatch(error.message, /OUTSIDE_CANARY_CONTENT|OUTSIDE_CANARY_NAME/);

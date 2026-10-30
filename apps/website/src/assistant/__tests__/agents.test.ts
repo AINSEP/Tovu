@@ -64,6 +64,15 @@ test("listAssistantAgents projects fallback models and reasoning options for cla
   }
 });
 
+test("agent discovery exposes native-policy support for every CLI before a chat is sent", async () => {
+  const agents = await listAssistantAgents({}, { waitForProbe: true });
+  for (const def of AGENT_DEFS) {
+    const agent = agents.find(candidate => candidate.id === def.id);
+    assert.ok(agent, `missing inventory entry for ${def.id}`);
+    assert.equal(agent.supportsNativeToolAccess, def.supportsNativeToolAccess === true, def.id);
+  }
+});
+
 /**
  * @file Regression coverage for the transcript-duplication bug: the admin transport used to resend
  * the full rendered transcript on every turn regardless of the target agent, even for defs whose CLI

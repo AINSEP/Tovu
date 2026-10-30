@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** database-transfer registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
@@ -11,6 +11,8 @@ export const toolMetadata = {
     approval: { class: 'read', confirmation: 'direct' },
   },
   "database_transfer_run": {
+    title: 'Transfer this database',
+    summary: 'This transfers the selected database and may replace data at the destination.',
     search: {
       keywords: "transfer move copy migrate export data database postgres postgresql confirm copy run",
     },

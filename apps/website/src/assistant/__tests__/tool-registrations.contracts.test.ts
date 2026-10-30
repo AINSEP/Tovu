@@ -6,7 +6,7 @@ import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-conte
 import { serverLogsAgentToolCatalog } from "../../features/server-logs/agent-tools.js";
 import { catalog as mediaVideoCatalog } from "../../features/media/view-video-tool.js";
 import { catalog as agentPluginsInstallCatalog } from "../../features/agent-plugins/install-tool.js";
-import { createAutomaticPluginRuns, agentPluginGuidanceCatalog, agentPluginGuidanceRisk } from "../automatic-agent-plugins.js";
+import { createAutomaticPluginRuns, agentPluginGuidanceCatalog, agentPluginGuidanceRisk } from "../../features/agent-plugins/automatic-agent-plugins.js";
 import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
 import { createContributionRegistry } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
@@ -39,7 +39,7 @@ import { getTrashItemAgentToolCatalog } from "../../features/trash/trash-item-to
 import { getFsFilesAgentToolCatalog } from "../../features/fs-files/agent-tools.js";
 import { externalMcpAgentToolCatalog } from "../../features/external-mcp/agent-tools.js";
 import { externalMcpOperationsToolCatalog } from "../../features/external-mcp/operations-tools.js";
-import { askChoiceAgentToolCatalog } from "../ask-choice-tool.js";
+import { askAgentPluginChoice, askChoiceAgentToolCatalog } from "../ask-choice-tool.js";
 import { componentCatalogAgentToolCatalog } from "../component-catalog-tool.js";
 import { demoA2uiAgentToolCatalog } from "../demo-a2ui-tool.js";
 import { demoChoicesAgentToolCatalog } from "../demo-choices-tool.js";
@@ -92,7 +92,7 @@ import { setActiveThemeAgentToolCatalog } from "../../features/theme/set-active-
 import { previewSwitcherAgentToolCatalog } from "../../features/theme/preview-switcher-tools.js";
 import { duplicateThemeAgentToolCatalog } from "../../features/theme/duplicate-theme-tool.js";
 import { importThemeFileAgentToolCatalog } from "../../features/theme/import-theme-file-tool.js";
-import { filesCopyAgentToolCatalog } from "../../features/fs-files/copy-tool.js";
+import { filesCopyAgentToolCatalog } from "../../features/asset-transfer/copy-tool.js";
 import { imageTransformAgentToolCatalog } from "../../features/image-transform/tool.js";
 import { getChangeSetsAgentToolCatalog } from "../../features/change-sets/agent-tools.js";
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
@@ -187,7 +187,7 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
 function registrationsById(existing?: ContentTypeRecord): Map<string, ToolRegistration> {
   const routeDeps = fakeRouteDeps(existing);
   // Both production roots add this run-scoped registration after the static contributions.
-  const guidance = createAutomaticPluginRuns({ deps: createRouteDeps(), surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } });
+  const guidance = createAutomaticPluginRuns({ askAgentPluginChoice, deps: createRouteDeps(), surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } });
   return new Map([...buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps }), options: { contributions } }), guidance.loadRegistration].map((r) => [r.descriptor.id, r]));
 }
 
@@ -656,7 +656,7 @@ async function buildRealAssembledSurface() {
   for (const registration of buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps }), options: { contributions } })) {
     registry.register(registration);
   }
-  registry.register(createAutomaticPluginRuns({ deps: routeDeps, surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } }).loadRegistration);
+  registry.register(createAutomaticPluginRuns({ askAgentPluginChoice, deps: routeDeps, surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } }).loadRegistration);
   const toolExecutor = createToolExecutor({ registry });
   const catalog = buildToolCatalogQuery(registry);
   return { routeDeps, registry, toolExecutor, catalog };

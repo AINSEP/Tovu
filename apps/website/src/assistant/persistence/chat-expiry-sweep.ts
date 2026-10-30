@@ -8,9 +8,9 @@ export { CHAT_EXPIRY_SWEEP_INTERVAL_MS } from "@jini-ai/chat/store/runtime";
 /** Maintenance authority stays at composition time; no owner-scoped store can sweep others. */
 function maintenanceFor(store: ChatKernel | SqliteConnectionSource) {
   const kernel = chatKernel(store);
-  return kernel.transport === "better-sqlite3" ? createSqliteChatMaintenance({ kernel })
-    : kernel.transport === "pglite" || kernel.transport === "pglite-socket" ? createPgliteChatMaintenance({ kernel })
-    : createPostgresChatMaintenance({ kernel });
+  if (kernel.transport === "better-sqlite3") return createSqliteChatMaintenance({ kernel });
+  if (kernel.transport === "pglite" || kernel.transport === "pglite-socket") return createPgliteChatMaintenance({ kernel });
+  return createPostgresChatMaintenance({ kernel });
 }
 export function sweepExpiredChats(store: ChatKernel | SqliteConnectionSource, now = Date.now()): Promise<number> {
   return sweep({ maintenance: maintenanceFor(store) }, { now });

@@ -1,10 +1,13 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** comments registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
   comments_get_provider: { search: { keywords: 'comments provider built-in active readiness pending', queries: ['Where do my comments live?'] }, approval: { class: 'read', confirmation: 'direct' } },
-  comments_set_provider: { search: { keywords: 'comments provider select switch disable built-in', queries: ['Switch my comments provider.'] }, approval: { class: 'escalation', confirmation: 'plan' } },
+  comments_set_provider: {
+    title: 'Change the comments provider',
+    summary: 'This changes the service that handles comments on this site.',
+    search: { keywords: 'comments provider select switch disable built-in', queries: ['Switch my comments provider.'] }, approval: { class: 'escalation', confirmation: 'plan' } },
   "comments_get_comment": {
     search: { keywords: "comment single details read approved spam trash id version" },
     approval: { class: 'read', confirmation: 'direct' },

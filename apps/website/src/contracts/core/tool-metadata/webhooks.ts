@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** webhooks registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
@@ -23,6 +23,8 @@ export const toolMetadata = {
     approval: { class: 'edit', confirmation: 'direct' },
   },
   "webhooks_delete_subscription": {
+    title: 'Delete this webhook subscription',
+    summary: 'This permanently removes the selected webhook subscription and stops its deliveries.',
     search: {
       keywords: "webhook webhooks endpoint remove delete disconnect integration",
       queries: [

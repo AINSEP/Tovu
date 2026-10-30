@@ -11,7 +11,7 @@ test("daemon and BYOK pin the same credential-card policy", () => {
       "Never ask the human to type or paste a key, token, password or connection string into chat, assistant_ask_choice or a question-form.",
       "Open credential_save with kind media-provider for AI image/video keys, source-control for git host credentials, publish-host for static hosting, or api for any other API (a payments or email API, registrar, or hosting provider).",
       "After a successful card save, retry the original request exactly once; never start a second recovery cycle.",
-      "If a secret was pasted, or the message contains [token removed], do not repeat it.",
+      "Only notify about a secret removed from the current user message when this turn carries an explicit redaction notice.",
     ]) assert.equal(prompt.includes(clause), true);
   }
 });

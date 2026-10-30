@@ -1,13 +1,13 @@
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
-import { PERMANENT_DELETE_TOOLS } from "../../contracts/headless/assistant-permanent-deletes-policy.js";
+import { PERMANENT_DELETE_TOOLS } from "../../contracts/headless/index.js";
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { nativeToolMetadata } from '../../contracts/core/tool-metadata/index.js';
 import { toolSearchKeywords } from '../tool-search-keywords.js';
 import { DOC2QUERY } from '../tool-search-doc2query.js';
-import { TOOL_APPROVAL_POLICY, POLICY_CONFIRMATION_TOOL_IDS } from '../../contracts/headless/assistant-tool-approval-policy.js';
-import { SECRET_FORM_CARD_DEFINITIONS, SECRET_FORM_TOOL_IDS } from '../../contracts/headless/secret-form-cards.js';
+import { TOOL_APPROVAL_POLICY, POLICY_CONFIRMATION_TOOL_IDS } from '../../contracts/headless/index.js';
+import { SECRET_FORM_CARD_DEFINITIONS, SECRET_FORM_TOOL_IDS } from '../../contracts/headless/index.js';
 import { MCP_UI_REDEEMABLE_TOOL_IDS, isMcpUiToolCallPermitted } from '../mcp-ui-tool-calls.js';
 import { realToolCatalog } from './real-tool-catalog.fixture.js';
 

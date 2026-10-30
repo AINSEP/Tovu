@@ -7,13 +7,13 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { applyToolApprovalPolicy, approvalClassFor } from '../tool-approval-policy.js';
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { directPageAction } from '../../contracts/headless/assistant-tool-approval-policy.js';
+import { directPageAction } from '../assistant-tool-approval-policy.js';
 
 
 const ctx = (input: unknown = {}): ToolExecutionContext => ({executionId:'exec',principal:{id:'owner'},run:{id:'run'},input,signal:new AbortController().signal});
-function fixture(id: string, options: Parameters<typeof applyToolApprovalPolicy>[1] = {}) {
+function fixture(id: string, options: Parameters<typeof applyToolApprovalPolicy>[1] = {}, descriptor: Partial<ToolRegistration['descriptor']> = {}) {
   let calls = 0; let executed: unknown;
-  const registration: ToolRegistration = {descriptor:{id,description:id,inputSchema:{type:'object'}},policy:{authorize:()=> 'allow'},handler:async context=>{calls++; executed=context.input; return {changed:true};}};
+  const registration: ToolRegistration = {descriptor:{id,description:id,inputSchema:{type:'object'},...descriptor},policy:{authorize:()=> 'allow'},handler:async context=>{calls++; executed=context.input; return {changed:true};}};
   const surfaces = {surfaceExchanges:createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })};
   const registry = createToolRegistry({});
   registry.register(applyToolApprovalPolicy({registration,surfaces},options));
@@ -54,7 +54,7 @@ test('reversible writes (publish on this site, trash, moderation) run without an
   }
 });
 test('only read, edit and trash run directly; every other class, including an unknown one, asks',async()=>{
-  const { approvalClassAsks }=await import('../../contracts/headless/assistant-tool-approval-policy.js');
+  const { approvalClassAsks }=await import('../assistant-tool-approval-policy.js');
   for (const cls of ['read','edit','trash']) assert.equal(approvalClassAsks({class:cls}),false,cls);
   for (const cls of ['delete','restore-over-existing','publish','replace-secret','escalation','not-a-known-class']) assert.equal(approvalClassAsks({class:cls}),true,cls);
 });
@@ -95,21 +95,21 @@ test('every supported locale translates the exact approval text and choices', as
   const { APPROVAL_COPY, approvalText }=await import('../../contracts/core/approval-i18n.js');
   const { ADMIN_LOCALES }=await import('../../contracts/core/admin-locales.js');
   assert.deepEqual(Object.keys(APPROVAL_COPY).sort(),ADMIN_LOCALES.map(locale=>locale.code).sort());
-  for(const locale of ADMIN_LOCALES)for(const key of ['Confirm action?','Confirm','Cancel','Tool','Input'] as const) {
+  for(const locale of ADMIN_LOCALES)for(const key of ['Confirm action?','Confirm','Cancel','Tool','Input','Technical name','Publish static site','Publish'] as const) {
     assert.ok(approvalText({locale:locale.code,key}));
     if(locale.code!=='en')assert.notEqual(approvalText({locale:locale.code,key}),key);
   }
 });
 test('unsupported approval locales fall back to English for every label', async()=>{
   const { approvalText }=await import('../../contracts/core/approval-i18n.js');
-  for(const locale of ['unsupported-locale',''])for(const key of ['Confirm action?','Confirm','Cancel','Tool','Input'] as const) {
+  for(const locale of ['unsupported-locale',''])for(const key of ['Confirm action?','Confirm','Cancel','Tool','Input','Technical name','{action}?','Publish static site','Publish','Unknown catalog title'] as const) {
     assert.equal(approvalText({locale,key}),key);
   }
 });
 
 test('page verbs are classified, ordinary install controls are direct, opaque destructive clicks ask',async()=>{
   const {PAGE_CAPABILITIES}=await import('@jini-ai/agentic');
-  const { TOOL_APPROVAL_POLICY }=await import('../../contracts/headless/assistant-tool-approval-policy.js');
+  const { TOOL_APPROVAL_POLICY }=await import('../../contracts/headless/index.js');
   for(const capability of PAGE_CAPABILITIES)assert.ok(Object.hasOwn(TOOL_APPROVAL_POLICY,capability.id),capability.id);
   assert.equal(approvalClassFor({toolId:'page.click',input:{handle:'plugins-install-confirm'}}),'edit');
   assert.equal(approvalClassFor({toolId:'page.click',input:{handle:'trash-purge-confirm'}}),'delete');
@@ -145,17 +145,93 @@ async function cardFor(f: ReturnType<typeof fixture>, toolId: string, input: unk
   return { html, pending, exchangeId: html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1] ?? '' };
 }
 
-test('disclosed rows follow the Tool and Input rows, computed from the frozen call before asking', async () => {
+test('disclosed approval facts precede technical Input, computed from the frozen call before asking', async () => {
   const seen: unknown[] = [];
   const f = fixture('publish_content_publish', { disclose: async ({ ctx: call }) => { seen.push(call.input); return [{ label: 'Account', value: 'alice@acme.test' }]; } });
   const card = await cardFor(f, 'publish_content_publish', { id: 'post-1' });
   const rows = [...card.html.matchAll(/<dt>([^<]+)<\/dt>/g)].map((match) => match[1]);
-  assert.deepEqual(rows, ['Tool', 'Input', 'Account']);
+  assert.deepEqual(rows, ['Account', 'ID']);
+  assert.match(card.html, /<dt>Input<span class="mcpui-hint">Technical name: publish_content_publish<\/span><\/dt>/);
   assert.match(card.html, /<dd>alice@acme\.test<\/dd>/);
   assert.deepEqual(seen, [{ id: 'post-1' }]);
   f.surfaces.surfaceExchanges.deliver({ exchangeId: card.exchangeId, principalId: 'owner', params: { decision: 'cancel' } }, { toolId: 'publish_content_publish' });
   assert.equal((await card.pending).status, 'completed');
   assert.equal(f.calls(), 0);
+});
+
+test('generic approval input uses the shared structured renderer and escapes untrusted values', async () => {
+  const f = fixture('publish_content_publish');
+  const card = await cardFor(f, 'publish_content_publish', { enabled: false, privacyPolicyUrl: '/privacy', template: '<img src=x onerror="alert(1)">' });
+  try {
+    assert.match(card.html, /<dt>Enabled<\/dt><dd>Off<\/dd>/);
+    assert.match(card.html, /<dt>Privacy policy URL<\/dt>/);
+    assert.match(card.html, /HTML · 1 line/);
+    assert.match(card.html, /&lt;img src=x onerror=&quot;alert\(1\)&quot;&gt;/);
+    assert.doesNotMatch(card.html, /<img src=x/);
+  } finally {
+    f.surfaces.surfaceExchanges.deliver({ exchangeId: card.exchangeId, principalId: 'owner', params: { decision: 'cancel' } }, { toolId: 'publish_content_publish' });
+    await card.pending;
+  }
+  assert.equal(f.calls(), 0);
+});
+
+test('deployment approval shows catalog title and summary with technical input only behind Details', async () => {
+  const { toolMetadata } = await import('../../contracts/core/tool-metadata/deployments.js');
+  const toolId = 'deployment_execute_static_publish';
+  const f = fixture(toolId, {}, { metadata: toolMetadata[toolId] });
+  const card = await cardFor(f, toolId, { target: 'vercel', projectName: 'zoran-new' });
+  try {
+    assert.match(card.html, /<h1[^>]*>Publish static site\?<\/h1>/);
+    assert.match(card.html, /<p[^>]*class="mcpui-description"[^>]*>This publishes the current site to the selected hosting project\.<\/p>/);
+    const disclosureStart = card.html.indexOf('<details class="mcpui-detail-disclosure mcpui-technical-details">');
+    const disclosureEnd = card.html.indexOf('</details>', card.html.indexOf('Technical name:', disclosureStart));
+    assert.ok(disclosureStart > 0, 'the actual ui://tovu card must contain a closed technical disclosure');
+    assert.match(card.html.slice(disclosureStart, disclosureEnd), /<summary aria-expanded="false">Details<\/summary>/);
+    assert.ok(card.html.indexOf('Technical name: deployment_execute_static_publish') > disclosureStart);
+    assert.doesNotMatch(card.html.slice(card.html.indexOf('<body'), disclosureStart), /deployment_execute_static_publish|zoran-new/);
+    assert.match(card.html, /<button[^>]*data-mcpui-action="confirm"[^>]*>Publish<\/button>/);
+    assert.match(card.html, /class="mcpui-hint">Technical name: deployment_execute_static_publish<\/span>/);
+    assert.match(card.html, /<dt>Project name<\/dt><dd>zoran-new<\/dd>/);
+    assert.doesNotMatch(card.html, /Confirm action\?|<dt>Tool<\/dt>/);
+  } finally {
+    f.surfaces.surfaceExchanges.deliver({ exchangeId: card.exchangeId, principalId: 'owner', params: { decision: 'cancel' } }, { toolId });
+    await card.pending;
+  }
+  assert.equal(f.calls(), 0);
+});
+
+test('approval without metadata has a readable title and localized fallback choices', async () => {
+  const toolId = 'publish_content_publish';
+  const f = fixture(toolId, { localeFor: async () => 'es' });
+  const card = await cardFor(f, toolId, {});
+  try {
+    assert.match(card.html, /<h1[^>]*>¿Publish content publish\?<\/h1>/);
+    assert.match(card.html, /<p[^>]*class="mcpui-description"[^>]*>This sends the selected content to the destination site and may replace its existing content\.<\/p>/);
+    assert.match(card.html, /<button[^>]*data-mcpui-action="confirm"[^>]*>Confirmar<\/button>/);
+    assert.match(card.html, /Nombre técnico: publish_content_publish/);
+    assert.match(card.html, />Cancelar<\/button>/);
+  } finally {
+    f.surfaces.surfaceExchanges.deliver({ exchangeId: card.exchangeId, principalId: 'owner', params: { decision: 'cancel' } }, { toolId });
+    await card.pending;
+  }
+});
+
+test('approval uses input-schema titles and descriptions through the shared field renderer', async () => {
+  const toolId = 'publish_content_publish';
+  const f = fixture(toolId, {}, { inputSchema: { type: 'object', properties: {
+    projectName: { title: 'Site name', description: 'Ignored when a title exists' },
+    target: { description: 'Hosting provider' },
+  } } });
+  const card = await cardFor(f, toolId, { projectName: 'zoran-new', target: 'vercel', dryRun: false });
+  try {
+    assert.match(card.html, /<dt>Site name<\/dt><dd>zoran-new<\/dd>/);
+    assert.match(card.html, /<dt>Hosting provider<\/dt><dd>vercel<\/dd>/);
+    assert.match(card.html, /<dt>Dry run<\/dt><dd>Off<\/dd>/);
+    assert.match(card.html, /View raw/);
+  } finally {
+    f.surfaces.surfaceExchanges.deliver({ exchangeId: card.exchangeId, principalId: 'owner', params: { decision: 'cancel' } }, { toolId });
+    await card.pending;
+  }
 });
 
 test('a disclose failure refuses the call before any card or effect', async () => {
@@ -177,7 +253,7 @@ test('a failing locale lookup still asks, in English, and never bypasses the gat
   const f = fixture('publish_content_publish', { localeFor: async () => { throw new Error('profile read failed'); } });
   const card = await cardFor(f, 'publish_content_publish', { id: 'post-1' });
   assert.notEqual(card.html, '', 'the confirmation card is still shown');
-  assert.match(card.html, /Confirm action\?/);
+  assert.match(card.html, /Publish content publish\?/);
   assert.equal(f.calls(), 0);
   f.surfaces.surfaceExchanges.deliver({ exchangeId: card.exchangeId, principalId: 'owner', params: { decision: 'cancel' } }, { toolId: 'publish_content_publish' });
   assert.equal((await card.pending).status, 'completed');

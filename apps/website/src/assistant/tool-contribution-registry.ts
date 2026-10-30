@@ -1,7 +1,4 @@
-import type { DerivedRiskByToolId, ToolRegistration } from "@jini-ai/core";
-
-import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
+import type { ToolRegistration, ToolContributions } from "@jini-ai/core";
 
 /**
  * @file The boot-installed registry a first-party (or, eventually, policy-checked third-party)
@@ -19,7 +16,8 @@ import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
  * established for MCP federation.
  *
  * Why `assistant/` owns this file rather than `server/`: `AssistantToolRegistryDeps` (the deps bag
- * every contributor's `build` reads) is assembled here from every domain's own `*ToolDeps`
+ * every contributor's `build` reads) binds these generic contracts in `tool-registrations.ts`
+ * from every domain's own `*ToolDeps`
  * interface via TYPE-ONLY imports in `tool-registrations.ts` — erased at compile time, so they
  * never register as runtime module edges (`check:architecture`'s "module cycles"/"largest SCC"
  * metrics are computed on the runtime-only graph). Moving that type assembly into `server/` would
@@ -50,11 +48,7 @@ import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
  * Each test owns or clears its registry instance before selecting contributors; composition
  * state otherwise persists for the lifetime of that instance.
  */
-export interface ToolContributor {
-  readonly domain: string;
-  readonly build: (routeDeps: AssistantToolRegistryDeps, surfaces: AssistantSurfaceDeps) => ToolRegistration[];
-  readonly risk: DerivedRiskByToolId;
-}
+export type ToolContributor<TDeps, TSurfaces> = import("@jini-ai/core").ToolContributor<TDeps, TSurfaces>;
 
 /** A post-processing contribution: tools DERIVED from the registrations every {@link ToolContributor}
  * already built (today: `trash_item`, which reuses the per-domain delete tools' handlers — see
@@ -72,21 +66,11 @@ export interface ToolContributor {
  * Clearing derived contributions is separate from clearing normal contributions, so tests
  * can retain the composition's derived passes when selecting domain contributors.
  */
-export interface DerivedToolContributor {
-  readonly domain: string;
-  readonly derive: (input: {
-    readonly registrations: readonly ToolRegistration[];
-    readonly routeDeps: AssistantToolRegistryDeps;
-    readonly surfaces: AssistantSurfaceDeps;
-  }) => ToolRegistration[];
-  readonly risk: DerivedRiskByToolId;
-}
+export type DerivedToolContributor<TDeps, TSurfaces> = import("@jini-ai/core").DerivedToolContributor<TDeps, TSurfaces>;
 
 /** The two ordered registries belong to one composition root, never shared across workspaces. */
-export interface AssistantToolContributions {
+export interface AssistantToolContributions<TDeps, TSurfaces> extends ToolContributions<TDeps, TSurfaces> {
   /** Host binds CMS target lookup to its existing domain services; assistant has no feature value edge. */
-  contentTargetInputs?: (input: { registrations: readonly ToolRegistration[]; routeDeps: AssistantToolRegistryDeps;
+  contentTargetInputs?: (input: { registrations: readonly ToolRegistration[]; routeDeps: TDeps;
     beforeLookup?: import("./content-target-inputs.js").ContentTargetDeps["beforeLookup"] }, options?: Record<string, never>) => ToolRegistration[];
-  readonly contributors: import("@jini-ai/core").ContributionRegistry<ToolContributor>;
-  readonly derivedContributors: import("@jini-ai/core").ContributionRegistry<DerivedToolContributor>;
 }

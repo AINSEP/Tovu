@@ -4,14 +4,16 @@ import type { KeyringPort, SecretSealerPort } from "../features/webhooks/index.j
 import { credentialTokenHint, type CredentialTokenHint } from "../contracts/core/credential-token.js";
 import { createTovuStoreVault, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 
+const INVALID_RECORD = "invalid-record";
+
 export type AssistantVaultRepo = VaultRepoPort & { findOne: NonNullable<VaultRepoPort["findOne"]> };
 
 /** Compatibility adapters expose their Jini persistence port without changing the public stores.
  * Missing capabilities fail closed; there is no parallel legacy persistence/crypto path. */
 export function assistantVaultRepo({ repo }: { repo: object }, _options = {}): AssistantVaultRepo {
-  if (!("vault" in repo)) throw new VaultError({ code: "invalid-record" });
+  if (!("vault" in repo)) throw new VaultError({ code: INVALID_RECORD });
   const vault = repo.vault as VaultRepoPort | undefined;
-  if (!vault?.findOne) throw new VaultError({ code: "invalid-record" });
+  if (!vault?.findOne) throw new VaultError({ code: INVALID_RECORD });
   return vault as AssistantVaultRepo;
 }
 
@@ -33,13 +35,13 @@ export function assistantVaultId({ context }: { context: VaultContext }, _option
 export function createAssistantVault({ repo, context, sealer, keyring, clock }: {
   repo: VaultRepoPort; context: VaultContext; sealer?: SecretSealerPort; keyring?: KeyringPort; clock?: Clock;
 }, { onSealFailure }: { onSealFailure?: (error: unknown) => never } = {}): SecretsVaultService {
-  const unavailable = (): Promise<never> => Promise.reject(new VaultError({ code: "invalid-record" }));
+  const unavailable = (): Promise<never> => Promise.reject(new VaultError({ code: INVALID_RECORD }));
   if (context.kind !== "site-assistant" && context.kind !== "personal-execution") throw new VaultError({ code: "context" });
   return createTovuStoreVault({ repo: { vault: repo }, kind: context.kind, context, keyring, clock,
     sealer: sealer ?? { seal: unavailable, open: unavailable },
     storageError: error => {
       if (onSealFailure) onSealFailure(error);
-      return error instanceof Error ? error : new VaultError({ code: "invalid-record" });
+      return error instanceof Error ? error : new VaultError({ code: INVALID_RECORD });
     },
     newId: () => assistantVaultId({ context }),
   });
@@ -51,7 +53,7 @@ export function createAssistantVault({ repo, context, sealer, keyring, clock }: 
 export async function readAssistantVault({ repo, context, sealer }: {
   repo: VaultRepoPort; context: VaultContext; sealer?: SecretSealerPort;
 }, { record: supplied }: { record?: VaultRecord } = {}): Promise<{ record: VaultRecord | null; tokenHint: CredentialTokenHint | null }> {
-  if (!repo.findOne) throw new VaultError({ code: "invalid-record" });
+  if (!repo.findOne) throw new VaultError({ code: INVALID_RECORD });
   const raw = supplied ?? await repo.findOne(context);
   if (!raw) return { record: null, tokenHint: null };
   if (buildVaultAad({ ...context, id: raw.id }) !== buildVaultAad(raw)) throw new VaultError({ code: "context" });

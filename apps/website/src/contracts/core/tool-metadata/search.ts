@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** site-search registration declarations; shared placement rationale is in ./index.ts.
  * The two writes are `plan`: their own handler asks the human (`server/runtime/composition/site-search-tools.ts`),
@@ -21,10 +21,14 @@ export const toolMetadata = {
     approval: { class: 'read', confirmation: 'direct' },
   },
   search_reindex: {
+    title: 'Rebuild the search index',
+    summary: 'This sends site content to the configured search provider to rebuild its index.',
     search: { keywords: "search reindex rebuild refresh index full backfill" },
     approval: { class: 'publish', confirmation: 'plan' },
   },
   search_set_provider: {
+    title: 'Change the search provider',
+    summary: 'This changes the search service and may send site content to that service.',
     search: { keywords: "search provider switch change backend builtin engine" },
     approval: { class: 'publish', confirmation: 'plan' },
   },

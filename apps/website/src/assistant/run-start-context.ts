@@ -1,6 +1,6 @@
 import { readChatAgentPluginState, type ChatAgentPluginState } from "@jini-ai/agent-plugins/lifecycle";
 import { CREDENTIAL_PASTE_MODEL_NOTE } from "./credential-guidance.js";
-import { guardUserText } from "@jini-ai/chat/core";
+import { guardUserText, redactUserText } from "@jini-ai/chat/core";
 /**
  * @file `parseRunStartContextRef` — the decode/validate step for a run-start request's
  * `contextRef` JSON. Kept outside the daemon entry point because importing that side-effecting
@@ -67,7 +67,8 @@ function readRecoveryContext(
  *   rendered from.
  * @throws If `contextRef` is not valid JSON, or decodes without a non-empty string `prompt` or
  *   `principalId`.
- * @complexity O(n + m) in `attachmentIds` and `pluginRefIds` length combined; O(1) otherwise.
+ * @complexity O(n + m) in `attachmentIds` and `pluginRefIds` length combined, plus redaction cost
+ *   across the supplied prompt/context text; no I/O.
  * @overallScore 100/100
  */
 export function parseRunStartContextRef(contextRef: string): {
@@ -103,9 +104,13 @@ export function parseRunStartContextRef(contextRef: string): {
     recoverySessionId?: unknown;
     secretRedacted?: unknown;
   };
-  const prompt = guardUserText({ text: requireNonEmptyContextField(parsed.prompt, "prompt") }, {
-    modelNote: CREDENTIAL_PASTE_MODEL_NOTE, secretRedacted: parsed.secretRedacted === true,
-  });
+  const rawPrompt = requireNonEmptyContextField(parsed.prompt, "prompt");
+  const currentText = typeof parsed.userPrompt === "string" ? parsed.userPrompt : rawPrompt;
+  const currentRedacted = parsed.secretRedacted === true || redactUserText({ text: currentText }, {}).secretRedacted;
+  // Always sanitize complete context, but a new redaction in OLD history must not add a paste
+  // notice. The same options cover resume tails, stateless CLIs and cold native sessions.
+  const guardOptions = { modelNote: currentRedacted ? CREDENTIAL_PASTE_MODEL_NOTE : "", secretRedacted: currentRedacted };
+  const prompt = guardUserText({ text: rawPrompt }, guardOptions);
   const principalId = requireNonEmptyContextField(parsed.principalId, "principalId");
   const coldStartContext = readOptionalContextString(parsed.coldStartContext);
   const attachmentIds = readContextStringArray(parsed.attachmentIds);
@@ -126,14 +131,12 @@ export function parseRunStartContextRef(contextRef: string): {
   const pageContext = readRunPageContext(parsed.pageContext);
   return {
     prompt,
-    ...(coldStartContext === undefined ? {} : { coldStartContext: guardUserText({ text: coldStartContext.slice(-500_000) }, {
-      modelNote: CREDENTIAL_PASTE_MODEL_NOTE, secretRedacted: parsed.secretRedacted === true,
-    }) }),
+    ...(coldStartContext === undefined ? {} : { coldStartContext: guardUserText({ text: coldStartContext.slice(-500_000) }, guardOptions) }),
     principalId,
     attachmentIds,
     pluginRefIds,
     agentPluginState: readChatAgentPluginState({ value: parsed.agentPluginState }),
-    ...(typeof parsed.userPrompt === "string" ? { userPrompt: guardUserText({ text: parsed.userPrompt.slice(0, 16000) }, { modelNote: CREDENTIAL_PASTE_MODEL_NOTE, secretRedacted: parsed.secretRedacted === true }) } : {}),
+    ...(typeof parsed.userPrompt === "string" ? { userPrompt: guardUserText({ text: parsed.userPrompt.slice(0, 16000) }, guardOptions) } : {}),
     ...(model === undefined ? {} : { model }),
     ...(reasoning === undefined ? {} : { reasoning }),
     ...(conversationId === undefined ? {} : { conversationId }),

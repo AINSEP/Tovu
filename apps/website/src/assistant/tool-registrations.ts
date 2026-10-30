@@ -1,9 +1,10 @@
 import { buildToolGapsRegistrations, toolGapsDerivedRisk, type ToolGapsToolDeps } from "./tool-gaps-tool.js";
-import { isChatToolAllowed, DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../contracts/headless/assistant-permanent-deletes-policy.js";
+import { isChatToolAllowed } from "./assistant-permanent-deletes-policy.js";
+import { DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../contracts/headless/index.js";
 import { readChatPermanentDeletesPolicy } from "./permanent-delete-settings.js";
 import { chatDeleteRefusal, type ChatDeleteSurfaceDeps } from "../contracts/core/chat-delete-grant.js";
 import { applyToolApprovalPolicy } from "./tool-approval-policy.js";
-import { toolApprovalPolicyFor } from "../contracts/headless/assistant-tool-approval-policy.js";
+import { toolApprovalPolicyFor } from "./assistant-tool-approval-policy.js";
 import { getEffective as getEffectiveSetting, LANGUAGE_NAMESPACE } from "@jini-ai/core/settings";
 import type { Deps as SitesListToolDeps } from "../features/sites/list-tool.js";
 /**
@@ -39,7 +40,7 @@ import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/
 import type { PermanentDeleteHostDeps } from "../features/permanent-delete/tool-registrations.js";
 import { currentToolIdFor, deriveContentReadRegistrations } from "./content-read-tool.js";
 import { applyBatchInputs, withBatchInput, type BatchableTool } from "./batch-tool-inputs.js";
-import type { AssistantToolContributions, ToolContributor } from "./tool-contribution-registry.js";
+import type { AssistantToolContributions as GenericToolContributions } from "./tool-contribution-registry.js";
 
 export type { AssistantSurfaceDeps };
 import type { ContentTypesToolDeps } from "../features/content-types/tool-registrations.js";
@@ -71,7 +72,7 @@ import { isSiteSwitcherEnabled as REAL_IS_SITE_SWITCHER_ENABLED } from "../platf
 import { devRestartPortFromEnv } from "../platform/dev-supervisor/index.js";
 import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.js";
 import type { ThemeToolDeps } from "../features/theme/tool-registrations.js";
-import type { SetActiveThemeToolDeps } from "../features/theme/set-active-theme-tool.js";
+import type { SetActiveThemeToolDeps } from "../features/theme/tool-registrations.js";
 import type { ChangeSetToolDeps } from "../features/change-sets/tool-registrations.js";
 import type { WorkspaceToolDeps } from "../features/workspace/tool-registrations.js";
 import type { FormsToolDeps } from "../features/forms/tool-registrations.js";
@@ -90,18 +91,25 @@ import type { RedirectsToolDeps } from "../features/redirects/tool-registrations
 import type { SeoToolDeps } from "../features/seo/tool-registrations.js";
 import type { SiteEvidenceToolDeps } from "../features/site-evidence/tool-registrations.js";
 import type { WidgetsToolDeps } from "../features/widgets/tool-registrations.js";
-import { applyTargetScope, isReadOnlyTool, ToolInputError, assertToolIsWirable, mergeDerivedRiskMaps, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
-import type { PeerSiteReads } from "../server/runtime/composition/peer-site-reads.js";
+import { applyTargetScope, isReadOnlyTool, ToolInputError, assertToolIsWirable, mergeDerivedRiskMaps, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition, type ToolExecutionContext, type ToolExecutionOptions } from "@jini-ai/core";
+import type { PeerSiteReads as GenericPeerSiteReads, ProviderConfigSource, AssistantHistoryHostDeps } from "./host-contracts.js";
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import { createSystemClock, createRandomUuidGenerator, nowIso } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
+/** Compatibility names bind neutral contracts only where the full assistant is assembled. */
+export type ToolContributor = import("@jini-ai/core").ToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps>;
+export type DerivedToolContributor = import("@jini-ai/core").DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps>;
+export type AssistantToolContributions = GenericToolContributions<AssistantToolRegistryDeps, AssistantSurfaceDeps>;
+export type PeerSiteReads = GenericPeerSiteReads<AssistantToolRegistryDeps>;
+export type DuplicateResourceHandlerContributor = import("./tool-contributions.js").DuplicateResourceHandlerContributor<AssistantToolRegistryDeps>;
 
 
 /**
  * The union of every wired domain's own narrow tool-deps contract — never `server/routes/types`'s
  * `RouteDeps` (ADR-049 forbids that dependency here). This is
  * the one place that needs every domain at once: {@link buildAssistantToolRegistrations} fans
- * the SAME deps bag out to every domain's builder, so its parameter (and {@link DomainSlice.build}'s
+ * the SAME deps bag out to every domain's builder, so its parameter (and {@link ToolContributor.build}'s
  * field type below) must satisfy every domain's own declared shape simultaneously. Each domain still
  * only ever imports its own slice — this union is assembled here, in the one file whose whole job is
  * seeing every domain at once, not re-exported for any domain to depend on.
@@ -118,9 +126,9 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
     projectKeys?: import("../features/project-keys/service.js").ProjectKeysPort;
     providerAppliesAt?: (required: { pluginId: string }) => "now" | "restart" | "failed";
     reapplyProvider?: (required: { pluginId: string }) => Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>;
-    providerConfig?: import("../server/runtime/composition/provider-config-source.js").ProviderConfigSource;
+    providerConfig?: ProviderConfigSource;
   } &
-  import("../server/runtime/composition/assistant-history-tools.js").AssistantHistoryHostDeps &
+  AssistantHistoryHostDeps &
   import("../features/post/tool-registrations.js").ContentStatsToolDeps &
   import("../features/mail-status/tool-registrations.js").MailStatusToolDeps &
   DeployOpsToolDeps & CommentsToolDeps &
@@ -135,11 +143,12 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
   EntriesToolDeps &
   PluginsToolDeps &
   AgentPluginSearchToolDeps &
+  Pick<import("../features/agent-plugins/access-token-tool.js").AgentPluginAccessTokenToolDeps, "externalMcpStore" | "notifyRosterChanged"> &
   PostToolDeps &
   PublishContentToolDeps &
   PagesToolDeps &
   RecoveryToolDeps &
-  SettingsToolDeps & import("../features/settings/visitor-tools-registrations.js").VisitorToolsToolDeps &
+  SettingsToolDeps & import("../features/settings/tool-registrations.js").VisitorToolsToolDeps &
   SiteBackupToolDeps &
   SiteInspectionToolDeps &
   SitesToolDeps &
@@ -147,14 +156,15 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
   TaxonomyToolDeps &
   ThemeToolDeps &
   SetActiveThemeToolDeps &
-  import("../features/theme/preview-switcher-tools.js").PreviewSwitcherToolDeps &
-  import("../features/theme/trash-theme-tool.js").TrashThemeToolDeps &
+  import("../features/theme/tool-registrations.js").PreviewSwitcherToolDeps &
+  import("../features/theme/tool-registrations.js").TrashThemeToolDeps &
   ChangeSetToolDeps &
   WorkspaceToolDeps &
   FormsToolDeps &
   IdentityToolDeps &
   IntegrationsToolDeps &
   MediaToolDeps &
+  Pick<import("../features/image-transform/tool.js").ImageTransformToolDeps, "imageCodec"> &
   MediaTrashToolDeps &
   MediaGenerationToolDeps &
   MediaImportToolDeps &
@@ -180,18 +190,15 @@ export type AssistantToolRegistryDeps = import("../features/consent/tool-registr
  * `build`'s second parameter is optional to implement, not optional to pass — every domain builder
  * that ignores surfaces simply declares one parameter, which is assignable.
  *
- * Local name for the assistant-owned static contributions; the contract is {@link ToolContributor}.
- */
-type DomainSlice = ToolContributor;
-
-/**
+ * The contract is {@link ToolContributor}.
+ *
  * Assistant-owned tools, in stable registration order. Feature-owned tools arrive through the
  * composition-owned registry; see `tool-contribution-registry.ts`.
  *
  * Ordering is not required for correctness: {@link buildAssistantToolRegistrations} refuses
  * duplicate ids rather than letting a later entry win. Stable order keeps catalog snapshots readable.
  */
-const DOMAIN_SLICES: readonly DomainSlice[] = [
+const DOMAIN_SLICES: readonly ToolContributor[] = [
   { domain: "tool-gaps", build: buildToolGapsRegistrations, risk: toolGapsDerivedRisk },
   // The four in-chat UI surfaces register unconditionally. Each module explains why its
   // transport demonstration belongs in a real chat pane.
@@ -232,7 +239,7 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
  * module load could observe zero contributors if evaluated before the composition root's install
  * call runs. This function is cheap (one array concat) and is not on any hot request path.
  */
-function allToolContributors(contributions?: AssistantToolContributions): readonly DomainSlice[] {
+function allToolContributors(contributions?: AssistantToolContributions): readonly ToolContributor[] {
   return [...DOMAIN_SLICES, ...(contributions?.contributors.list({}) ?? [])];
 }
 
@@ -360,6 +367,34 @@ function prepareReadRegistrations({ registrations, ownerByToolId, routeDeps, opt
   return options.contributions?.contentTargetInputs?.({ registrations: readRegistrations, routeDeps, beforeLookup }) ?? readRegistrations;
 }
 
+/** Build only the peer-readable CMS catalog; excluded builders must never touch peer credentials. */
+function buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadable }: {
+  peerDeps: AssistantToolRegistryDeps; surfaces: AssistantSurfaceDeps;
+  options: NonNullable<Parameters<typeof buildAssistantToolRegistrations>[2]>;
+  peer: NonNullable<AssistantToolRegistryDeps["peerSiteReads"]>;
+  peerReadable: (input: { registration: ToolRegistration }) => boolean;
+}, _optional = {}): ToolRegistration[] {
+  const peerContributions = options.contributions ? {
+    ...options.contributions,
+    // Excluded builders may touch credentials/live hosts during construction. Never run
+    // them over a peer bag, even if their registrations would be discarded afterwards.
+    contributors: { ...options.contributions.contributors, list: (required: Record<string, never>) => options.contributions!.contributors.list(required).filter(slice => peer.readDomains.has(slice.domain)) },
+    derivedContributors: { ...options.contributions.derivedContributors, list: (required: Record<string, never>) => options.contributions!.derivedContributors.list(required).filter(slice => peer.readDomains.has(slice.domain)) },
+    // Adapt once after deriving cards so a card cannot resolve the same target twice.
+    contentTargetInputs: undefined,
+  } : undefined;
+  const raw = buildAssistantToolRegistrations(peerDeps, surfaces, {
+    ...options, targetScope: "off", includeContentReadCollapse: false,
+    batchableTools: [], contributions: peerContributions,
+  });
+  // A peer bag is cached across callers using raw or collapsed catalogs. Retain both
+  // names over the same domain handlers instead of making the first caller choose its ABI.
+  const rawIds = new Set(raw.map(tool => tool.descriptor.id));
+  const combined = [...raw, ...deriveContentReadRegistrations(raw).filter(tool => !rawIds.has(tool.descriptor.id))];
+  const adapted = options.contributions?.contentTargetInputs?.({ registrations: combined, routeDeps: peerDeps }) ?? combined;
+  return adapted.filter(registration => peerReadable({ registration }));
+}
+
 /**
  * Builds the complete agent-tool surface for one workspace's route-deps bag.
  *
@@ -419,7 +454,7 @@ export function buildAssistantToolRegistrations(
   // approval covers the selected action instead of asking again inside its delegate.
   // Before collapse: content_read cards inherit the checked read registrations.
   const guardedRegistrations = registrations.map(registration => PERMANENT_DELETE_TOOLS.some(tool => tool.id === registration.descriptor.id)
-    ? { ...registration, handler: async (ctx: import("@jini-ai/core").ToolExecutionContext, optional?: import("@jini-ai/core").ToolExecutionOptions) => {
+    ? { ...registration, handler: async (ctx: ToolExecutionContext, optional?: ToolExecutionOptions) => {
       await assertChatDeleteAllowed({ toolId: registration.descriptor.id, principalId: ctx.principal.id });
       return registration.handler(ctx, optional);
     } } : registration);
@@ -446,30 +481,10 @@ export function buildAssistantToolRegistrations(
       // Installation ownership is checked BEFORE registry discovery or opening another site's files.
       if (principal.id !== await routeDeps.ownerPrincipalId) throw new ToolInputError({ message: "Only this installation's owner can read other sites." });
       const resolved = await peer.resolve({ siteName: target, toolId, callerPrincipalId: principal.id,
-        buildRegistrations: peerDeps => {
-          const peerContributions = options.contributions ? {
-            ...options.contributions,
-            // Excluded builders may touch credentials/live hosts during construction. Never run
-            // them over a peer bag, even if their registrations would be discarded afterwards.
-            contributors: { ...options.contributions.contributors, list: (required: Record<string, never>) => options.contributions!.contributors.list(required).filter(slice => peer.readDomains.has(slice.domain)) },
-            derivedContributors: { ...options.contributions.derivedContributors, list: (required: Record<string, never>) => options.contributions!.derivedContributors.list(required).filter(slice => peer.readDomains.has(slice.domain)) },
-            // Adapt once after deriving cards so a card cannot resolve the same target twice.
-            contentTargetInputs: undefined,
-          } : undefined;
-          const raw = buildAssistantToolRegistrations(peerDeps, surfaces, {
-            ...options, targetScope: "off", includeContentReadCollapse: false,
-            batchableTools: [], contributions: peerContributions,
-          });
-          // A peer bag is cached across callers using raw or collapsed catalogs. Retain both
-          // names over the same domain handlers instead of making the first caller choose its ABI.
-          const rawIds = new Set(raw.map(tool => tool.descriptor.id));
-          const combined = [...raw, ...deriveContentReadRegistrations(raw).filter(tool => !rawIds.has(tool.descriptor.id))];
-          const adapted = options.contributions?.contentTargetInputs?.({ registrations: combined, routeDeps: peerDeps }) ?? combined;
-          return adapted.filter(registration => peerReadable({ registration }));
-        },
+        buildRegistrations: peerDeps => buildPeerRegistrations({ peerDeps, surfaces, options, peer, peerReadable }),
       });
       if (resolved === "current") return resolved;
-      return { principal: resolved.principal, handler: async (ctx: import("@jini-ai/core").ToolExecutionContext, optional?: import("@jini-ai/core").ToolExecutionOptions) => {
+      return { principal: resolved.principal, handler: async (ctx: ToolExecutionContext, optional?: ToolExecutionOptions) => {
         // The extra row belongs to the ACTIVE site. Input-key-only executor telemetry cannot
         // identify the selected registry name; no audit sink is constructed on the target.
         await routeDeps.toolAttemptAuditSink.append({
@@ -502,3 +517,5 @@ export function buildAssistantToolRegistrations(
   for (const registration of finalRegistrations) toolApprovalPolicyFor({ registration });
   return finalRegistrations;
 }
+
+export { toolSearchKeywords } from "./tool-search-keywords.js";

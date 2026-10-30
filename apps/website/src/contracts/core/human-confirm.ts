@@ -17,6 +17,7 @@
  * Tovu keeps the surface exchange, allowlist, dialog wording and fail-closed confirmation policy here.
  */
 import { requireChatDeleteGrant, type ChatDeleteSurfaceDeps } from "./chat-delete-grant.js";
+import { nativeToolMetadata } from './tool-metadata/index.js';
 import { createApprovalHandler, createBatchApprovalHandler, type ApprovalSteps, type HumanConfirmer, type RememberedApprovalPort } from "@jini-ai/core";
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler } from "@jini-ai/core";
 import { buildConfirmationSurface, type SurfaceDetail, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
@@ -35,7 +36,9 @@ export interface HumanConfirmSpec {
   readonly errorCode: string;
   readonly title: string;
   readonly description?: string;
+  /** Jini renders structured JSON values, optional previous snapshots and explicit field labels. */
   readonly details: readonly SurfaceDetail[];
+  readonly detailDisclosure?: { readonly label: string; readonly details: readonly SurfaceDetail[] };
   readonly warning?: string;
   readonly danger?: boolean;
   readonly confirmLabel: string;
@@ -234,11 +237,13 @@ function renderHumanConfirmation(
     toolName: toolId,
     params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, decision, ...(choice === undefined ? {} : { [HUMAN_CONFIRM_CHOICE_PARAM]: choice }) },
   });
+  const description = spec.description ?? nativeToolMetadata.byId[toolId]?.summary;
   return buildConfirmationSurface({
     uri: `ui://tovu/${toolId.replaceAll("_", "-")}/${exchange.id}` as UIResourceUri,
     title: spec.title,
-    ...(spec.description ? { description: spec.description } : {}),
+    ...(description ? { description } : {}),
     details: spec.details,
+    ...(spec.detailDisclosure ? { detailDisclosure: spec.detailDisclosure } : {}),
     ...(spec.warning ? { warning: spec.warning } : {}),
     danger: spec.danger ?? false,
     confirm: { label: spec.confirmLabel, ...action("confirm") },

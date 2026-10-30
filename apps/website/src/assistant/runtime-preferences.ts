@@ -1,6 +1,6 @@
 /** Per-person assistant runtime preferences (`core.interface`), read fresh for every run launch. */
 import type { SettingsRepoPort, getEffective } from "../features/settings/index.js";
-import { ADMIN_INTERFACE_NAMESPACE, PREFER_SUBAGENTS_KEY, REPLY_LENGTH_KEY, USE_CLAUDE_IN_CHROME_KEY } from "../features/settings/admin-interface.js";
+import { ADMIN_INTERFACE_NAMESPACE, PREFER_SUBAGENTS_KEY, REPLY_LENGTH_KEY, USE_CLAUDE_IN_CHROME_KEY } from "../features/settings/index.js";
 
 export interface AssistantRuntimePreferenceDeps {
   settingsRepo: SettingsRepoPort;

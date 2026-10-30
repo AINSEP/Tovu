@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { redactAdminRunContextRef } from "../credential-chat-intake.js";
 import { parseRunStartContextRef } from "../run-start-context.js";
+import { CREDENTIAL_PASTE_MODEL_NOTE } from "../credential-guidance.js";
 
 test("cold-session history is redacted before durable acceptance", () => {
   const secret = "sk-" + "A1b2C3d4E5f6G7h8I9j0";
@@ -26,9 +27,9 @@ test("malformed context never echoes the failed input", () => {
 test("a sanitized or client-redacted prompt gets one non-secret card request in model context", () => {
   const contextRef = redactAdminRunContextRef({ contextRef: JSON.stringify({ prompt: "Connect api_key=x please", principalId: "owner" }) }, {});
   const once = parseRunStartContextRef(redactAdminRunContextRef({ contextRef }, {})).prompt;
-  assert.equal(once, "Connect api_key=[token removed] please\n\nThe user tried to share a credential; open the matching card. Do not repeat the removed value. Tell them to rotate it if it was real.");
+  assert.equal(once, `Connect api_key=[token removed] please\n\n${CREDENTIAL_PASTE_MODEL_NOTE}`);
   assert.equal(parseRunStartContextRef(JSON.stringify({ prompt: once, principalId: "owner", secretRedacted: true })).prompt, once);
-  assert.equal(parseRunStartContextRef(JSON.stringify({ prompt: "Connect [token removed] please", principalId: "owner", secretRedacted: true })).prompt, "Connect [token removed] please\n\nThe user tried to share a credential; open the matching card. Do not repeat the removed value. Tell them to rotate it if it was real.");
+  assert.equal(parseRunStartContextRef(JSON.stringify({ prompt: "Connect [token removed] please", principalId: "owner", secretRedacted: true })).prompt, `Connect [token removed] please\n\n${CREDENTIAL_PASTE_MODEL_NOTE}`);
   assert.equal(parseRunStartContextRef(JSON.stringify({ prompt: "Connect my account", principalId: "owner" })).prompt, "Connect my account");
 });
 
@@ -50,11 +51,11 @@ test("a plain URL message is not a credential paste, even when earlier history i
   assert.equal(String(envelope.coldStartContext).includes(dkim.slice(2)), false, "history is still redacted before storage");
   const parsed = parseRunStartContextRef(contextRef);
   assert.equal(parsed.prompt, message);
-  assert.equal(parsed.coldStartContext?.includes("tried to share a credential"), false);
+  assert.equal(parsed.coldStartContext?.includes(CREDENTIAL_PASTE_MODEL_NOTE), false);
 });
 
 test("real keys in the current prompt are still caught and still get the card note", () => {
-  const note = "The user tried to share a credential";
+  const note = CREDENTIAL_PASTE_MODEL_NOTE;
   for (const secret of ["sk-" + "A1b2C3d4E5f6G7h8I9j0", "aB3dE5gH7jK9mN1pQ3sT5vX7zA9cE1gI3kM5oQ7sU9"]) {
     const contextRef = redactAdminRunContextRef({ contextRef: JSON.stringify({ prompt: `here it is ${secret}`, principalId: "owner", coldStartContext: "User: hi" }) }, {});
     assert.equal(contextRef.includes(secret), false);

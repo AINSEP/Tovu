@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** taxonomy registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
@@ -51,6 +51,8 @@ export const toolMetadata = {
   // Deliberately UNWIRED (never agent-callable, token-gated confirmation step — see file header);
     // entry added for consistency per this dispatch's explicit instruction.
   "taxonomy_execute_merge_term": {
+    title: 'Merge these terms',
+    summary: 'This moves content to the destination term and permanently removes the source term.',
     search: {
       keywords: "tag category term merge combine execute run confirm confirmed apply proceed",
     },

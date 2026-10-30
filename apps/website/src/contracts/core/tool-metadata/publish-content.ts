@@ -1,5 +1,5 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** publish-content registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
@@ -22,6 +22,8 @@ export const toolMetadata = {
     approval: { class: 'edit', confirmation: 'direct' },
   },
   "publish_content_execute_pull": {
+    title: 'Replace local content from the source site',
+    summary: 'This pulls the selected source content and may overwrite content on this site.',
     search: {
       keywords: "apply pull overwrite local with live confirm sync",
       queries: [
@@ -47,6 +49,8 @@ export const toolMetadata = {
   },
   // Avoid push/site terms: they belong to hosting publication, not backstop inspection.
   "publish_content_publish": {
+    title: 'Publish content to the destination site',
+    summary: 'This sends the selected content to the destination site and may replace its existing content.',
     search: {
       keywords: "publish pending changes live posts pages publish selected items exclude leave out overwrite replace live content",
       queries: ["Publish my changes to the live site.", "Publish only the About page.", "Publish everything except the contact page.", "Overwrite the live blog post."],

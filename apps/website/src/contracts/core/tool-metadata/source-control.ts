@@ -1,9 +1,11 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** source-control registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
   "source_control_execute_commit": {
+    title: 'Publish site files to your repository',
+    summary: 'This commits the exported site files to the selected repository and may remove stale exported paths.',
     search: {
       keywords: "commit my site to a git repository push the site code export to repo commit changes",
     },

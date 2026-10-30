@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { deriveConversationTitle } from "@jini-ai/chat/core";
-import { deriveContentConversationTitle } from "../content-chat-title.js";
+import { deriveContentConversationTitle } from "../../../assistant/content-chat-title.js";
 
 const title = (prompt: string) => deriveContentConversationTitle({ prompt, deriveFallback: deriveConversationTitle });
 test("a publishing chat title preserves the complete named post", () => {

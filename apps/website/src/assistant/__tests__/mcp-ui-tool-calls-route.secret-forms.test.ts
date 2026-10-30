@@ -3,7 +3,7 @@ import test from "node:test";
 import express from "express";
 import type { ToolExecutor } from "@jini-ai/daemon";
 
-import { SECRET_FORM_TOOL_IDS } from "../../contracts/headless/secret-form-cards.js";
+import { SECRET_FORM_TOOL_IDS } from "../../contracts/headless/index.js";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, SURFACE_TYPED_ANSWER_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";

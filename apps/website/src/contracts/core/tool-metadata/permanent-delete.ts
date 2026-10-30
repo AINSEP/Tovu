@@ -1,9 +1,11 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** permanent-delete registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
   "comments_purge_comment": {
+    title: 'Permanently delete this comment',
+    summary: 'This permanently removes the selected comment with no undo.',
     search: {
       keywords: "permanently delete purge erase comment comments spam forever remove",
       queries: [
@@ -15,6 +17,8 @@ export const toolMetadata = {
     mcpUi: { exchangeOnly: true },
   },
   "custom_credential_delete": {
+    title: 'Permanently delete this saved credential',
+    summary: 'This removes the saved credential so it can no longer be used here.',
     search: {
       keywords: "delete remove erase permanently saved custom provider credential credentials api key keys token tokens",
       queries: [
@@ -26,6 +30,8 @@ export const toolMetadata = {
     mcpUi: { exchangeOnly: true },
   },
   "deployment_delete_provider_credential": {
+    title: 'Delete this hosting credential',
+    summary: 'This removes the saved hosting credential so it can no longer publish from here.',
     search: {
       keywords: "delete remove erase permanently saved publish publishing host hosting deployment provider credential credentials token tokens",
       queries: [
@@ -37,6 +43,8 @@ export const toolMetadata = {
     mcpUi: { exchangeOnly: true },
   },
   "external_mcp_delete": {
+    title: 'Delete this external tool connection',
+    summary: 'This removes the saved connection and its access to external tools.',
     search: {
       keywords: "delete permanently remove erase external mcp server servers connection connections integration integrations saved",
       queries: [
@@ -48,6 +56,8 @@ export const toolMetadata = {
     mcpUi: { exchangeOnly: true },
   },
   "identity_user_delete": {
+    title: 'Permanently delete this user account',
+    summary: 'This permanently removes the selected user account with no undo.',
     search: {
       keywords: "permanently delete purge erase user users account accounts trashed forever remove",
       queries: [
@@ -59,6 +69,8 @@ export const toolMetadata = {
     mcpUi: { exchangeOnly: true },
   },
   "media_purge_asset": {
+    title: 'Permanently delete this media file',
+    summary: 'This permanently removes the selected media file with no undo.',
     search: {
       keywords: "permanently delete purge erase media asset assets image images photo photos picture pictures file files forever",
       queries: [
@@ -70,6 +82,8 @@ export const toolMetadata = {
     mcpUi: { exchangeOnly: true },
   },
   "source_control_delete_credential": {
+    title: 'Delete this repository credential',
+    summary: 'This removes the saved repository credential so it can no longer be used here.',
     search: {
       keywords: "delete remove erase permanently saved source control git repository credential credentials api key keys token tokens",
       queries: [
@@ -82,6 +96,8 @@ export const toolMetadata = {
   },
 
   "trash_empty": {
+    title: 'Permanently empty the Trash',
+    summary: 'This permanently deletes the selected items in the Trash with no undo.',
     search: {
       keywords: "empty clear trash bin recycle permanently purge everything all deleted items forever erase",
       queries: [
@@ -94,6 +110,8 @@ export const toolMetadata = {
   },
 
   "trash_purge_item": {
+    title: 'Permanently delete this trashed item',
+    summary: 'This permanently removes the selected item from the Trash with no undo.',
     search: {
       keywords: "purge one item trash trashed permanently delete deleted post page remove forever erase",
       queries: [

@@ -1,10 +1,12 @@
 import type { ToolMetadataById } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 
 /** recovery registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
   // Restore execution completes the human ceremony; it is deliberately not agent-callable.
   "backup_execute_restore": {
+    title: 'Restore this site backup',
+    summary: 'This replaces current site data with the selected backup.',
     search: {
       keywords: "restore rollback revert recover undo run execute confirm confirmed apply go back to an earlier version snapshot restore point actually do the restore",
     },
