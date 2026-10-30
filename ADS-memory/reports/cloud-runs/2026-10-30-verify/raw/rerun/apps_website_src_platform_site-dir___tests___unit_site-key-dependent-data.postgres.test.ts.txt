@@ -1,0 +1,10 @@
+✔ findSiteKeyDependentData: Postgres (env) site — a clean database is no data; a sealed row is data (291.813738ms)
+✔ findSiteKeyDependentData: Postgres (env) site whose database cannot be reached fails closed (4.218811ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1695.73087

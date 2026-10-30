@@ -1,0 +1,12 @@
+✔ runner-to-head, then prepare twice: one watermark row, one seeded workspace with its posts and presentation (981.82661ms)
+✔ a restart never overwrites operator edits: edited, deleted and re-themed rows survive a second prepare byte for byte (919.302255ms)
+✔ an existing workspace with the seed's SLUG but a different id is never seeded over: no second workspace, no demo posts (690.633824ms)
+✔ two processes booting at once: the second prepare WAITS on the seed lock the first holds, then seeds nothing twice (1137.519476ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5938.210417

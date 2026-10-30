@@ -724,3 +724,3028 @@ vault boot coverage {
     }
   }
 }
+preserveLegacySiteTitles: pinned=1 skipped=0 failed=0
+✖ AC-12 (REQ-07, T-W3): with the definition registered and the pin held open, a pre-existing site renders Tovu Demo Site, never its display name (302437.28915ms)
+[migrations] /tmp/site-title-preservation-R2hZNx/site/data.nosync/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   backed up the database to /tmp/site-title-preservation-R2hZNx/site/data.nosync/ops/pre-migrations-2026-10-30T06-03-03-626Z.db before migrating it
+[migrations]   applied legacy migrations 0063_site_title_preexisting_workspaces … 0077_external_mcp_tool_approvals (15)
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[widgets] resolveHtmlPageEmbeds: unresolved "content" reference — missing or invalid "id"/"slug" in data-embed-config { workspaceId: 'workspace-local' }
+✔ AC-13 (T-W4): with preservation disabled in the harness, the AC-10 check fails, so AC-10 does not pass by coincidence (1540.538089ms)
+[migrations] /tmp/site-title-preservation-8OPJk8/site/data.nosync/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   backed up the database to /tmp/site-title-preservation-8OPJk8/site/data.nosync/ops/pre-migrations-2026-10-30T06-03-05-181Z.db before migrating it
+[migrations]   applied legacy migrations 0063_site_title_preexisting_workspaces … 0077_external_mcp_tool_approvals (15)
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+preserveLegacySiteTitles: pinned=1 skipped=0 failed=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ AC-08 (REQ-06): after the owner resets the pinned title, two restarts append no system pin and the site renders its display name (1917.957895ms)
+[migrations] /tmp/site-title-preservation-k1BrGq/site/data.nosync/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   backed up the database to /tmp/site-title-preservation-k1BrGq/site/data.nosync/ops/pre-migrations-2026-10-30T06-03-07-075Z.db before migrating it
+[migrations]   applied legacy migrations 0063_site_title_preexisting_workspaces … 0077_external_mcp_tool_approvals (15)
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+preserveLegacySiteTitles: pinned=1 skipped=0 failed=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ AC-20 (REQ-12, INV-07): a duplicate of a pinned pre-existing site carries neither the pin nor its marker, and renders its own name (1788.236979ms)
+[migrations] /tmp/site-title-preservation-4C9zDK/site/data.nosync/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   backed up the database to /tmp/site-title-preservation-4C9zDK/site/data.nosync/ops/pre-migrations-2026-10-30T06-03-08-910Z.db before migrating it
+[migrations]   applied legacy migrations 0063_site_title_preexisting_workspaces … 0077_external_mcp_tool_approvals (15)
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+preserveLegacySiteTitles: pinned=1 skipped=0 failed=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ AC-21 (REQ-12, INV-07, EC-09): an owner's own title travels into a duplicate; only the marker is reset (1826.779503ms)
+[migrations] /tmp/site-title-preservation-5YbFJk/site/data.nosync/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   backed up the database to /tmp/site-title-preservation-5YbFJk/site/data.nosync/ops/pre-migrations-2026-10-30T06-03-10-715Z.db before migrating it
+[migrations]   applied legacy migrations 0063_site_title_preexisting_workspaces … 0077_external_mcp_tool_approvals (15)
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+preserveLegacySiteTitles: pinned=1 skipped=0 failed=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+seed-site: site "site-title-seed"
+  live db:  /tmp/site-title-preservation-5YbFJk/site/data.nosync/content.db (1.40 MB, untouched)
+  seed db:  /tmp/site-title-preservation-5YbFJk/content.seed.db (1.38 MB)
+  pruned:   sessions=1, agent_tool_attempts=0, outbox_events=4, change_set_items=0, change_sets=0, setting_revisions=90, entry_revisions=0, content_type_revisions=0, redirect_revisions=0, taxonomy_revisions=0, member_revisions=0, newsletter_campaign_revisions=0, external_mcp_servers=0, secrets_vault=0, oauth_device_authorizations=0, api_keys=0, form_submissions=0
+  skipped:  ai_chat_messages, assistant_agent_sessions, ai_chats, admin_execution_credentials, site_assistant_credentials, publish_credential_sets, database_transfer_destinations, publish_content_peers, oauth_pending_authorizations, composio_config, composio_connector_credentials, vendor_credential_sets, media_provider_credentials, custom_credential_sets, source_control_credential_sets (table(s) not present — nothing to prune)
+  scrubbed: identity_users.last_login_at nulled on 1 row(s)
+  site title: 1 legacy marker row(s) and 1 system pin(s) reset
+  blobs:    every asset_blobs.storage_key has a matching, git-tracked file under /tmp/site-title-preservation-5YbFJk/site/uploads
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[theme] active theme 'tovu-theme' did not resolve; falling back to the default theme 'tovu-starter'
+✔ AC-23, AC-24 (REQ-14, INV-07): a seed published from a pinned site ships neither the pin nor its marker, and a deploy hydrated from it renders its own name (2232.768834ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ AC-22 (REQ-13, EC-01): a config.json rename on a running new site renders on the next request with no restart, and an owner title still wins over a later one (843.070684ms)
+[migrations] /tmp/site-title-preservation-QnRM0C/site/data.nosync/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   backed up the database to /tmp/site-title-preservation-QnRM0C/site/data.nosync/ops/pre-migrations-2026-10-30T06-03-13-758Z.db before migrating it
+[migrations]   applied legacy migrations 0063_site_title_preexisting_workspaces … 0077_external_mcp_tool_approvals (15)
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+preserveLegacySiteTitles: pinned=1 skipped=0 failed=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ AC-22 (REQ-13, INV-01): a config.json rename never moves a pinned pre-existing site off Tovu Demo Site (1491.140208ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ AC-22 (REQ-13): the root the agent daemon builds (createSiteRouteDepsForWorkspace) resolves a config.json rename too (698.271369ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 10
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 322993.060702
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/site-title-preservation.integration.test.ts:1:8769
+✖ AC-12 (REQ-07, T-W3): with the definition registered and the pin held open, a pre-existing site renders Tovu Demo Site, never its display name (302437.28915ms)
+  [TypeError [Error]: fetch failed] {
+    [cause]: Error [HeadersTimeoutError]: Headers Timeout Error
+        at FastTimer.onParserTimeout [as _onTimeout] (node:internal/deps/undici/undici:7717:32)
+        at Timeout.onTick [as _onTimeout] (node:internal/deps/undici/undici:731:17)
+        at listOnTimeout (node:internal/timers:685:17)
+        at process.processTimers (node:internal/timers:618:7) {
+      code: 'UND_ERR_HEADERS_TIMEOUT'
+    }
+  }

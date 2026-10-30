@@ -1,0 +1,25 @@
+✔ memory gauges follow usage consent with fixed labels; warnings retain crash consent and severity (58.15401ms)
+✔ unset or incomplete child env never loads providers or reads config, and returns no product branch (0.400614ms)
+✔ catalog event uses installation identity; unknown and visitor events are dropped, free-text enum properties are omitted (10.590504ms)
+✔ unknown enum drops only its property and still sends the event; known enum is kept (16.071359ms)
+✔ admin route is renamed and projected to two segments; queries and later slugs do not escape (20.476159ms)
+✔ each next event sees mtime consent changes; usage and crashes are independent; no identity drops usage (37.055452ms)
+✔ error payload masks POSIX/Windows/UNC/file paths, credentials and email; context and lifecycle signals are restricted (7.047979ms)
+✔ preference reader parses only on mtime change, and stat/read/JSON/malformed booleans fail closed (1.208843ms)
+✔ missing/corrupt config, invalid shape and load/init failure yield both noops and exactly one fixed warning (20.794085ms)
+✔ post-load failure disposes resources and a throwing warning sink cannot fail boot (4.038169ms)
+✔ catalog is frozen; declared free-text enum values and unknown identity fields are omitted (0.422243ms)
+✔ maker errors discard site trace IDs and arbitrary attributes while preserving permitted context (5.477323ms)
+✔ standalone catalog resolves only configured packages; real provider ports retain live consent and attribution (164.488714ms)
+✔ one configured standalone provider leaves the other noop without resolving its package (52.880523ms)
+✔ standalone lookup, discovery, integrity and init failures release earlier providers and disable both outputs (237.759842ms)
+✔ missing or malformed catalog and unknown selections fail closed before importing any provider (20.909836ms)
+✔ Tovu declares no production vendor plugins; OTLP is development-only and lock entries match the selected packages (5.850479ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1269.603415

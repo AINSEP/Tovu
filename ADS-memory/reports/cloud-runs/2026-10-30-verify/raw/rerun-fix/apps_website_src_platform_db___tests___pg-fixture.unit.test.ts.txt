@@ -1,0 +1,14 @@
+✔ psql() returns ok:true with stdout for a successful query (68.999201ms)
+✔ psql() returns ok:false with stderr populated, never throwing, for a failing statement (46.732474ms)
+✔ psql() throws when the psql binary cannot be found on PATH (2.599867ms)
+✔ dropDatabase() throws the exact wrapped message when the underlying DROP fails (67.916548ms)
+✔ recreateDatabase() throws the exact wrapped DROP message and never attempts CREATE when DROP fails (123.205978ms)
+✔ recreateDatabase() + dropDatabase() happy path round-trips a real throwaway database (443.490676ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1128.429892

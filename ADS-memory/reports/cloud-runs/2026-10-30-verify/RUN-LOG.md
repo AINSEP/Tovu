@@ -37,3 +37,6 @@ Step 1 shards COMPLETE: 2788 files, 65 non-zero (raw/failing-files.txt; 25 are *
 
 ## 2026-10-30T05:59:51Z — PROGRESS
 Solo reruns: 42/65 done on main tree; fix-branch reruns 5/36. Writing RESULTS.md next.
+
+## 2026-10-30T06:06:00Z — DONE
+All steps complete (1-7). RESULTS.md written. Fixes pushed to cloud/verify-1030-fixes (Tovu HEAD d3482abe, Jini 813e3071). Unfixed items listed in RESULTS §1/§4. Never pushed other branches; no PRs/force-push/RemoteTrigger. ASSUMPTION: used 'apt-get update' before installing Postgres; ran fixes in a separate worktree /home/user/Tovu-fix so shards stayed valid.

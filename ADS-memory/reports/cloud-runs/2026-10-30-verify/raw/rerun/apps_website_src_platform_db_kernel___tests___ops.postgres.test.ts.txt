@@ -1,0 +1,10 @@
+✔ Postgres copyTo is refused with what to do instead (1.334234ms)
+✔ Postgres compactAndVerify refuses a missing ledger, then passes once it has a step (165.043191ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1648.55084

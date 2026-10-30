@@ -1,0 +1,24 @@
+✔ FIXTURE_DB is namespaced by this run's own process.pid — two different pids can never compute the same fixture database name, which is the entire fix for the collision (0.908037ms)
+✔ sweepStaleFixtureDatabases: reclaims a fixture database whose owning pid has died, and leaves one whose pid is still alive completely untouched (1017.570239ms)
+✔ sweepStaleFixtureDatabases: a non-canonical suffix Number() would coerce into a plausible dead pid is never touched, even though the pre-fix Number()-based guard would have dropped it (2403.894552ms)
+✔ CANONICAL_PID_SUFFIX: matches only a bare decimal pid shape; rejects every adversarial suffix Number() would otherwise coerce (0.329148ms)
+✔ int4 rejects 2147483648 on a live server; int8 accepts the identical value (112.821128ms)
+✔ reseedSequenceSql, executed after a copy that preserved original ids, makes the next plain insert land at max+1 with no collision (147.93937ms)
+✔ reseedSequenceSql handles the empty-table edge case: reseeding an empty table still starts identity at 1 (100.86535ms)
+✔ reseedSequenceSql: a table containing ONLY non-positive copied ids (0 and -1) reseeds to 1, not a collision and not a jump to 2 (161.93161ms)
+✔ reseedSequenceSql: a mixed-sign table (some non-positive, some positive ids) still reseeds to max+1 — the non-positive-id fix does not regress the ordinary case (130.831897ms)
+✔ a plain INSERT naming an explicit identity-column value fails WITHOUT OVERRIDING SYSTEM VALUE, and succeeds WITH it (114.098984ms)
+✔ COPY accepts an explicit identity-column value with NO override syntax at all — the override clause this manifest exports must never be prepended to a COPY statement (120.879441ms)
+✔ a naive-local timestamp string casts to a DIFFERENT instant depending on the reading session's timezone; a UTC-offset string does not (68.189843ms)
+✔ string-collation ORDER BY on a text timestamp column disagrees with chronological ORDER BY when Z and offset forms mix — the concrete mechanism TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z documents (148.751405ms)
+✔ Postgres accepts a UTC offset up to and including ±15:59 and rejects ±16:00 and beyond, in both directions — the bound a UTC-offset check must enforce, not the ±23:59 Date.parse allows (179.316631ms)
+✔ a plain Postgres text column silently accepts malformed JSON — proving a json-text column needs a semantic check beyond either dialect's type system (104.580584ms)
+✔ publish backstop audit is workspace-scoped core data included once in the Postgres copy catalog (14.450758ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6165.830906

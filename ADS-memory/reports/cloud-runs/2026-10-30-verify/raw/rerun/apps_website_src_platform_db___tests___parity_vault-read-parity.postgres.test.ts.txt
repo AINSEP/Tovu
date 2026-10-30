@@ -1,0 +1,31 @@
+▶ vault read parity [postgres]
+  ✔ the transcript covers every golden key and nothing else (1.67563ms)
+  ✔ site-assistant (0.303761ms)
+  ✔ personal-execution (0.175898ms)
+  ✔ media-provider (0.154051ms)
+  ✔ custom (0.243123ms)
+  ✔ publish-peer (0.158065ms)
+  ✔ database-destination (0.130969ms)
+  ✔ vendor (with the folded publish_credential_sets) (0.291996ms)
+  ✔ source-control (0.231673ms)
+  ✔ mcp-env (enabled configs) (0.217883ms)
+  ✔ mcp-auth (server views) (0.249159ms)
+  ✔ isolation: a second and an empty workspace see only their own rows (0.406241ms)
+  ✔ isolation: personal keys stay per principal and per workspace (0.093792ms)
+  ✔ order: custom-credential and peer lists (0.129347ms)
+  ✔ order: vendor and source-control lists, defaults first-class (0.153516ms)
+  ✔ order: MCP server views and enabled configs (0.115816ms)
+✔ vault read parity [postgres] (1248.700995ms)
+▶ vault hot paths [postgres]
+  ✔ vendor group default repository lookup: one LIMIT 1 read on the default index, no group scan (10.130619ms)
+  ✔ publish compatibility selection: one inventory per kind and one selected row read (6.413124ms)
+  ✔ MCP server list: statement count does not grow with the number of servers (30.37639ms)
+✔ vault hot paths [postgres] (47.63729ms)
+ℹ tests 19
+ℹ suites 2
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3112.462903

@@ -1,0 +1,61 @@
+✖ a successful contact form is hidden by the emitted stylesheet in a browser (48.335994ms)
+✖ contact form fallback error and success colors apply in both modes without theme tokens (14.865775ms)
+✖ checkbox fields render inline before their label with only the emitted stylesheet (11.677297ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1483.639287
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts:1:504
+✖ a successful contact form is hidden by the emitted stylesheet in a browser (48.335994ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts:14:34) {
+    name: 'Error',
+    log: []
+  }
+
+test at apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts:1:1182
+✖ contact form fallback error and success colors apply in both modes without theme tokens (14.865775ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts:31:34) {
+    name: 'Error',
+    log: []
+  }
+
+test at apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts:1:2339
+✖ checkbox fields render inline before their label with only the emitted stylesheet (11.677297ms)
+  browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell
+  ╔════════════════════════════════════════════════════════════╗
+  ║ Looks like Playwright was just installed or updated.       ║
+  ║ Please run the following command to download new browsers: ║
+  ║                                                            ║
+  ║     npx playwright install                                 ║
+  ║                                                            ║
+  ║ <3 Playwright Team                                         ║
+  ╚════════════════════════════════════════════════════════════╝
+      at TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts:64:34) {
+    name: 'Error',
+    log: []
+  }

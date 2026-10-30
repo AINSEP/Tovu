@@ -1,0 +1,10 @@
+✔ postgres: two writers on the same base version, B blocked on A's row lock — A lands, B gets the version conflict (1153.201579ms)
+✔ postgres: two creates of one id, B blocked on A's uncommitted insert — A lands, B gets the version conflict (6.941074ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2948.469735

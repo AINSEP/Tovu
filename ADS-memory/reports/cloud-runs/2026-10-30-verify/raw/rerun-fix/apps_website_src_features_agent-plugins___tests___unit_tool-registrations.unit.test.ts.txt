@@ -57,3 +57,83 @@ Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-ro
 Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
 ✖ the executor denies cached guidance after unreadable-activation (26.461013ms)
 [agent-plugins:migration-complete] /tmp/tovu-agent-plugin-tool-registrations-test-8pSqKJ/ws/55555555-5555-4555-8555-555555555555
+✖ the registered connect handler resolves a real installed plugin and recognizes its saved sign-in (3175.908428ms)
+✔ plugin guidance carries maturity and warns before keys/actions for every maturity flag (2.415857ms)
+✔ L025b guidance pins selection guards, reader recovery and sanitized unknown names (0.804997ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 16
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6860.726323
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:21:1560
+✖ registerInstalledAgentPluginTools registers one guidance tool plus its scoped memory read/write pair per plugin directly onto a real ToolRegistry, the same registration call agent-daemon-server.ts makes for every other domain (28.131063ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu-fix/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu-fix/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu-fix/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at resolveSkillLayout (/home/user/Tovu-fix/apps/website/src/features/skills/layout.ts:80:71)
+      at Object.get (/home/user/Tovu-fix/apps/website/src/__tests__/fixtures/site-layout-context.ts:64:69)
+      at <anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:215:60)
+      at async withAgentPluginsDir (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:106:12)
+      at async TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:210:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:21:14964
+✖ the executor denies cached guidance after disable (70.105428ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu-fix/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu-fix/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu-fix/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at resolveSkillLayout (/home/user/Tovu-fix/apps/website/src/features/skills/layout.ts:80:71)
+      at Object.get (/home/user/Tovu-fix/apps/website/src/__tests__/fixtures/site-layout-context.ts:64:69)
+      at <anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:501:62)
+      at async withAgentPluginsDir (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:106:12)
+      at async TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:498:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:21:14964
+✖ the executor denies cached guidance after uninstall (21.560105ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu-fix/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu-fix/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu-fix/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at resolveSkillLayout (/home/user/Tovu-fix/apps/website/src/features/skills/layout.ts:80:71)
+      at Object.get (/home/user/Tovu-fix/apps/website/src/__tests__/fixtures/site-layout-context.ts:64:69)
+      at <anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:501:62)
+      at async withAgentPluginsDir (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:106:12)
+      at async TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:498:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:21:14964
+✖ the executor denies cached guidance after unreadable-activation (26.461013ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu-fix/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu-fix/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu-fix/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at resolveSkillLayout (/home/user/Tovu-fix/apps/website/src/features/skills/layout.ts:80:71)
+      at Object.get (/home/user/Tovu-fix/apps/website/src/__tests__/fixtures/site-layout-context.ts:64:69)
+      at <anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:501:62)
+      at async withAgentPluginsDir (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:106:12)
+      at async TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:498:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:21:16318
+✖ the registered connect handler resolves a real installed plugin and recognizes its saved sign-in (3175.908428ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'loadSafe')
+      at findPluginOAuthCard (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/connect-tool.ts:489:45)
+      at runAgentPluginConnect (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/connect-tool.ts:401:32)
+      at async <anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:537:22)
+      at async withAgentPluginsDir (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:106:12)
+      at async TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/unit/tool-registrations.unit.test.ts:518:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

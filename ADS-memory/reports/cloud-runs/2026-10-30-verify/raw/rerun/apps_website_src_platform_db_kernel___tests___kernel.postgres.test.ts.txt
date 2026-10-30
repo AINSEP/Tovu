@@ -1,0 +1,11 @@
+✔ postgres: transactions commit, roll back and nest on a pooled connection (49.851099ms)
+✔ two connections WITHOUT lockKey: both appends read the same latest row (the hazard is real) (9.269421ms)
+✔ two connections WITH lockKey: the second append waits and chains after the first (159.673723ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1473.34303

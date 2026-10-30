@@ -1,0 +1,42 @@
+✔ listToolCatalogEntries: each entry's source and description equal describe_tool's for the same id (22.197585ms)
+✔ listToolCatalogEntries: reads the registry on every call, so a tool registered later is included (0.908098ms)
+✖ describe_tool HTTP path: content_read.content_region describes the sub-read or points to content_read.widget_region (664.270791ms)
+✖ describe_tool HTTP path: content_read.form describes the sub-read or points to content_read.form_definition (310.067077ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12306.87741
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/tool-catalog-query.entries.test.ts:1:2080
+✖ describe_tool HTTP path: content_read.content_region describes the sub-read or points to content_read.widget_region (664.270791ms)
+  AssertionError [ERR_ASSERTION]: describe_tool(content_read.content_region) must return actionable guidance, got {"ok":false,"error":{"code":"NOT_FOUND","message":"no catalog entry for tool id \"content_read.content_region\""}}
+      at TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/assistant/__tests__/tool-catalog-query.entries.test.ts:67:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/tool-catalog-query.entries.test.ts:1:2080
+✖ describe_tool HTTP path: content_read.form describes the sub-read or points to content_read.form_definition (310.067077ms)
+  AssertionError [ERR_ASSERTION]: describe_tool(content_read.form) must return actionable guidance, got {"ok":false,"error":{"code":"NOT_FOUND","message":"no catalog entry for tool id \"content_read.form\""}}
+      at TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/assistant/__tests__/tool-catalog-query.entries.test.ts:67:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

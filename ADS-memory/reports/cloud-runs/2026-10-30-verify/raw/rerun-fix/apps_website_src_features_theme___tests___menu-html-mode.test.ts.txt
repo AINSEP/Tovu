@@ -1,0 +1,17 @@
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ menu mode html takes the static injection path and emits an unstyled semantic tree (12.473956ms)
+✔ HTML menu preserves live descendants and applies the existing public URL policy (0.865083ms)
+✔ missing or empty HTML menus keep authored fallback; default modes keep their established markup (1.713478ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 479.398473

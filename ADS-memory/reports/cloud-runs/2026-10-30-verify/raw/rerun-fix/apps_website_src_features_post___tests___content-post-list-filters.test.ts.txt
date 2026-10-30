@@ -1,0 +1,42 @@
+✔ t02: no new params retains the pinned pre-change output and bytes (9.083169ms)
+✔ t02: query matches title OR slug case-insensitively, excluding body-only matches (2.378207ms)
+✔ t02: status filters both drafts and published entries (2.813376ms)
+✔ t02: fields returns exactly the requested keys plus id, even with includeBody (3.72183ms)
+✔ t02: combined filters run before limit and total/hasMore count only their matches (4.942088ms)
+✔ t02: filters also work through the post lens (1.307883ms)
+✔ t02: list publishes the optional query, real status enum and exact projection enum (1.393478ms)
+✔ t02: invalid status and projection inputs refuse with ToolInputError (10.739737ms)
+✔ chat-input regression: comma-separated fields project the same rows through the merged read card (6.280039ms)
+✔ id-only reads derive both public kinds and retain workspace, trash and template isolation (3.71688ms)
+✔ omitted-kind listing filters both public kinds before one global limit in repository order (1.703566ms)
+✖ search aliases query through the execution gate and batch items; conflicting spellings never read (8.779706ms)
+✔ omitted-kind reads still authorize and supplied invalid kinds fail before repository reads (3.970747ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 12
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2250.257598
+
+✖ failing tests:
+
+test at apps/website/src/features/post/__tests__/content-post-list-filters.test.ts:1:9819
+✖ search aliases query through the execution gate and batch items; conflicting spellings never read (8.779706ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'completed'
+  - 'failed'
+  
+      at TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/features/post/__tests__/content-post-list-filters.test.ts:328:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'completed',
+    expected: 'failed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

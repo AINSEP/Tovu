@@ -1,0 +1,21 @@
+✔ REQ-08/AC-10: @tovu/sdk's runtime export surface is exactly the certified set — no more, no less (2.84766ms)
+✔ REQ-04: the three v1 capability tokens are the exact, pinned literal strings (0.279473ms)
+✔ REQ-05: the hook-point constant is the exact, pinned literal string (0.112082ms)
+✔ hooks v2 §3.1: HOOK_POINTS has exactly one entry, content.entry.beforeSave, kind filter, capability hooks.attach, since 0.1.0 (0.194201ms)
+✔ REQ-08/C-001: definePlugin is a function export (0.120904ms)
+✔ REQ-08/C-001: definePlugin(def) returns the same definition, typed as Plugin (pure identity, no I/O) (0.207766ms)
+✔ REQ-08/C-001: definePlugin performs no filesystem writes or fetches and throws nothing (1.13334ms)
+✔ SDK consumer types resolve for sync/async filters and route/tool/widget/provider contributions (618.31412ms)
+✔ SDK external type contracts are declared package dependencies for standalone consumers (3.704246ms)
+✔ REQ-08/ADR-005 rule 1: @tovu/sdk exports nothing from @tovu/core — no import of '@tovu/core' or a relative reach into ../../../../src anywhere in the package's own source (5.083102ms)
+✔ REQ-08/AC-10: package.json's exports map blocks deep imports into anything but the package root (29.23298ms)
+✔ the package root export targets exist and @tovu/sdk is importable (3.309001ms)
+✔ plugwire: executable route/tool/widget capability names are pinned public exports (0.105116ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1480.601672

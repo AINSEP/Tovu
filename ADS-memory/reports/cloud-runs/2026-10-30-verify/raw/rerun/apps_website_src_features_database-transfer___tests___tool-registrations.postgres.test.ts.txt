@@ -1,0 +1,14 @@
+✔ first copy runs headlessly; replacement waits for Copy; the password never shows (3307.088336ms)
+✔ Cancel writes nothing, and a used planId is gone (1759.271708ms)
+✔ the model never passes a connection string: no tool takes one, and the plan asks for the private form first (2.43938ms)
+✔ the private form saves a reachable destination, and neither the form, its result nor the log shows the password (609.592257ms)
+✔ a malformed or unreachable address is refused in the form, nothing is saved, and the password is never quoted (58.798255ms)
+✔ database_transfer_status reports the saved destination, this process's last run and the copy found there (1491.101401ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9706.984777

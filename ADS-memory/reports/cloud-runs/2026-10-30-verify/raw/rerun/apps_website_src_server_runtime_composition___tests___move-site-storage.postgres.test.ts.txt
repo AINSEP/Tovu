@@ -1,0 +1,13 @@
+✔ a running site is refused; nothing changes (4095.839138ms)
+✔ a target that already holds data is refused; nothing changes (179.808911ms)
+✔ a row written to the target after the emptiness check refuses the copy; nothing is truncated (1064.052667ms)
+✔ a failure after the copy rolls the target back and leaves the site on PGlite (1520.578296ms)
+✔ the move copies every table, seals the secret, switches the meta last, and the site boots on Postgres (1342.973613ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10859.031291

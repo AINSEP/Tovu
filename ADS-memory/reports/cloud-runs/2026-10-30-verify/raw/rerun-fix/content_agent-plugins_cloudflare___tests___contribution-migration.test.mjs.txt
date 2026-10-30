@@ -1,0 +1,106 @@
+✖ cloudflare-pages retained after failed retirement; successor trusted yields at most one Pages owner (25.626695ms)
+✖ cloudflare-pages retained after failed retirement; successor untrusted yields at most one Pages owner (14.166121ms)
+✖ cloudflare-pages retained after failed retirement; successor disabled yields at most one Pages owner (6.317768ms)
+✖ cloudflare-pages retained after failed retirement; successor absent yields at most one Pages owner (3.917545ms)
+✖ deploy retained after failed retirement; successor trusted yields at most one Pages owner (1.369622ms)
+✖ deploy retained after failed retirement; successor untrusted yields at most one Pages owner (1.277408ms)
+✖ deploy retained after failed retirement; successor disabled yields at most one Pages owner (1.97533ms)
+✖ deploy retained after failed retirement; successor absent yields at most one Pages owner (1.119325ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 0
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 501.874953
+
+✖ failing tests:
+
+test at content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:35:121
+✖ cloudflare-pages retained after failed retirement; successor trusted yields at most one Pages owner (25.626695ms)
+  TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+      at Object.join (node:path:1336:7)
+      at resolveAgentPluginLayout (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/layout.ts:66:46)
+      at TestContext.<anonymous> (file:///home/user/Tovu-fix/content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:38:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }
+
+test at content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:35:121
+✖ cloudflare-pages retained after failed retirement; successor untrusted yields at most one Pages owner (14.166121ms)
+  TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+      at Object.join (node:path:1336:7)
+      at resolveAgentPluginLayout (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/layout.ts:66:46)
+      at TestContext.<anonymous> (file:///home/user/Tovu-fix/content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:38:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }
+
+test at content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:35:121
+✖ cloudflare-pages retained after failed retirement; successor disabled yields at most one Pages owner (6.317768ms)
+  TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+      at Object.join (node:path:1336:7)
+      at resolveAgentPluginLayout (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/layout.ts:66:46)
+      at TestContext.<anonymous> (file:///home/user/Tovu-fix/content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:38:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }
+
+test at content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:35:121
+✖ cloudflare-pages retained after failed retirement; successor absent yields at most one Pages owner (3.917545ms)
+  TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+      at Object.join (node:path:1336:7)
+      at resolveAgentPluginLayout (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/layout.ts:66:46)
+      at TestContext.<anonymous> (file:///home/user/Tovu-fix/content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:38:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }
+
+test at content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:35:121
+✖ deploy retained after failed retirement; successor trusted yields at most one Pages owner (1.369622ms)
+  TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+      at Object.join (node:path:1336:7)
+      at resolveAgentPluginLayout (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/layout.ts:66:46)
+      at TestContext.<anonymous> (file:///home/user/Tovu-fix/content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:38:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }
+
+test at content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:35:121
+✖ deploy retained after failed retirement; successor untrusted yields at most one Pages owner (1.277408ms)
+  TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+      at Object.join (node:path:1336:7)
+      at resolveAgentPluginLayout (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/layout.ts:66:46)
+      at TestContext.<anonymous> (file:///home/user/Tovu-fix/content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:38:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }
+
+test at content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:35:121
+✖ deploy retained after failed retirement; successor disabled yields at most one Pages owner (1.97533ms)
+  TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+      at Object.join (node:path:1336:7)
+      at resolveAgentPluginLayout (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/layout.ts:66:46)
+      at TestContext.<anonymous> (file:///home/user/Tovu-fix/content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:38:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }
+
+test at content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:35:121
+✖ deploy retained after failed retirement; successor absent yields at most one Pages owner (1.119325ms)
+  TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string. Received undefined
+      at Object.join (node:path:1336:7)
+      at resolveAgentPluginLayout (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/layout.ts:66:46)
+      at TestContext.<anonymous> (file:///home/user/Tovu-fix/content/agent-plugins/cloudflare/__tests__/contribution-migration.test.mjs:38:20)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }

@@ -1,0 +1,16 @@
+✔ [postgres] identity round-trip is scoped and independent of email or tokens (940.797891ms)
+✔ [postgres] both natural keys reserve ownership, including unlinked rows (19.815929ms)
+✔ [postgres] an id cannot move ownership, even during explicit reconnect (20.491488ms)
+✔ [postgres] unlink survives stale callbacks and is idempotent and workspace-scoped (16.230448ms)
+✔ [postgres] explicit connect reuses the marker row and can change the subject (5.390285ms)
+✔ [postgres] conflicting concurrent inserts produce exactly one owner (22.240777ms)
+✔ [postgres] listing orders multiple providers and active upserts retain a single row (12.576601ms)
+✔ [postgres] records cannot mutate storage through input or output references (8.352922ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3147.141992

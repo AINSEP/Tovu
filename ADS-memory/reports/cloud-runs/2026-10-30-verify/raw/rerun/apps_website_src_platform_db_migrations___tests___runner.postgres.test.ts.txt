@@ -1,0 +1,11 @@
+✔ two connections migrating at once apply a step exactly once (219.962759ms)
+✔ the content history through the current head applies on real Postgres (830.878409ms)
+✔ the chat history lands in ai_chat with its own ledger there; public gets no chat table (48.191657ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2669.181178

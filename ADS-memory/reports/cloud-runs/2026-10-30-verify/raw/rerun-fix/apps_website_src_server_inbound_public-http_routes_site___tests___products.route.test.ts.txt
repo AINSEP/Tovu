@@ -1,0 +1,53 @@
+[theme] active theme 'tovu-starter' did not resolve and none of the default themes (tovu-starter, tovu-theme) are installed or valid; substituting 'fashion-modern', which is whichever theme discovery happened to list first
+✔ GET /products renders a store-plugin product with its formatted price and compare-at price (1304.381528ms)
+✔ GET /products/:id renders the single store-plugin product's detail route (389.782764ms)
+✔ GET /products/:slug resolves a store-plugin product by its slug (455.663929ms)
+✔ GET /products/:id prefers an id match over another product's identical slug (309.327507ms)
+✔ GET /products renders the sample store plugin catalog (364.313321ms)
+✔ GET /products renders an empty grid when no store plugin is wired (deps.store itself undefined) (347.629026ms)
+✔ GET /products/:id returns 404 for an id that doesn't match any product (375.226303ms)
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+✔ GET /products 500s with 'No themes installed' when resolveActiveTheme finds none (345.345799ms)
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+✔ GET /products/:id 500s with 'No themes installed' when resolveActiveTheme finds none (329.190805ms)
+✔ GET /products 500s with a generic 'Site error' when an unexpected exception is thrown (330.687907ms)
+✔ GET /products/:id 500s with a generic 'Site error' when an unexpected exception is thrown (269.080834ms)
+✔ GET /products/:id -- `req.params.id ?? ""` fallback, forced via a direct handler call with id omitted -- still 404s (no product has an empty-string id), not a crash (182.886722ms)
+[theme] active theme '' did not resolve; falling back to the default theme 'tovu-starter'
+[theme] active theme '' did not resolve; falling back to the default theme 'tovu-starter'
+[theme] active theme '' did not resolve; falling back to the default theme 'tovu-starter'
+✔ GET /products survives a workspace with no presentation_settings row, exactly as GET / already does (491.532782ms)
+[theme] active theme '' did not resolve; falling back to the default theme 'tovu-starter'
+✔ GET /products/:id survives a workspace with no presentation_settings row (325.017688ms)
+✔ the product adapter preserves store-plugin sale prices and the handler renders the unwired empty state (278.084413ms)
+✖ GET /products and /products/:id are shared-cacheable, except under the static-export marker, which must never be stored (384.827231ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 15
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12398.780852
+
+✖ failing tests:
+
+test at apps/website/src/server/inbound/public-http/routes/site/__tests__/products.route.test.ts:1:10400
+✖ GET /products and /products/:id are shared-cacheable, except under the static-export marker, which must never be stored (384.827231ms)
+  AssertionError [ERR_ASSERTION]: /products
+  + actual - expected
+  
+  + 'private, no-store'
+  - 'public, max-age=60, stale-while-revalidate=300'
+  
+      at TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/server/inbound/public-http/routes/site/__tests__/products.route.test.ts:345:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'private, no-store',
+    expected: 'public, max-age=60, stale-while-revalidate=300',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

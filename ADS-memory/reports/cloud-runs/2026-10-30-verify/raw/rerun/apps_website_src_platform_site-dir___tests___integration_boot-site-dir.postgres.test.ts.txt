@@ -1,0 +1,712 @@
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+resolveWorkspace: content.db has 3 workspace rows; defaulting to the oldest (id="ws-boot-oldest"). Pass --workspace <id> (tovu serve) to pick a different one — other ids: ws-boot-selected, workspace-local.
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ bootSiteDir on a postgres site opens the store (migrated, workspace resolved) without a content.db (1604.600069ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ bootSiteDir honors an explicit Postgres workspace instead of the oldest (39.526904ms)
+resolveWorkspace: content.db has 3 workspace rows; defaulting to the oldest (id="ws-boot-oldest"). Pass --workspace <id> (tovu serve) to pick a different one — other ids: ws-boot-selected, workspace-local.
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass it as overrides.store) (529.392806ms)
+✔ bootSiteDir on a postgres site rejects an unknown --workspace and closes the store it opened (57.774678ms)
+resolveWorkspace: content.db has 3 workspace rows; defaulting to the oldest (id="ws-boot-oldest"). Pass --workspace <id> (tovu serve) to pick a different one — other ids: ws-boot-selected, workspace-local.
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ createSiteRouteDeps refuses overrides.store without workspaceId (the pair rule covers the store too) (29.081761ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6676.257487

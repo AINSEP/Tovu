@@ -1,0 +1,255 @@
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+▶ Postgres composition boot sequence preserves data across env, sealed-secret and wrong-key boots
+  ✔ first boot (secretRef env): the composition migrates the database and every route family works on it (2119.297329ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 1,
+      envelopes: 1,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme 'tovu-starter' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+  ✔ second boot (sealed .storage-secret.json): same database, no migration re-runs, data still there (808.274052ms)
+  ✔ a sealed secret that does not open with the site key refuses to boot, naming the file, never the value (12.158638ms)
+✔ Postgres composition boot sequence preserves data across env, sealed-secret and wrong-key boots (2941.598028ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7061.515224

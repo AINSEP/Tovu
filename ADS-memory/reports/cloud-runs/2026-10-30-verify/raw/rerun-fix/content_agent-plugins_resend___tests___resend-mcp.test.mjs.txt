@@ -1,0 +1,38 @@
+✔ mcp.json declares Resend's hosted token-authenticated server, auto-provisioned as 'resend' (10.045153ms)
+✔ the account key points at Resend's API keys page and probes an endpoint a Sending access key cannot read (8.643945ms)
+✔ default tools: within the cap, read and write partition allow, and the happy path is granted (2.381829ms)
+✔ default tools leave out removals, mass sends, and anything that would put a new secret in the chat (2.468845ms)
+✔ every granted tool that mails a person asks the person first (2.660156ms)
+✔ SKILL.md keeps site mail on Tovu's tools and connects before any Resend account tool (1.138626ms)
+✔ SKILL.md saves both keys through the secure form, each with the permission it needs (1.209616ms)
+✖ the Full access card is the plugin's own, saves to the account connection, and says which key to make (2.729038ms)
+✖ resend_account_connection_is_key_based (17.388875ms)
+✔ every mcp__resend__ tool SKILL.md names is granted by default (4.396266ms)
+✔ no file in the package carries a Resend key or webhook secret (4.054263ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 9
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 977.176766
+
+✖ failing tests:
+
+test at content/agent-plugins/resend/__tests__/resend-mcp.test.mjs:117:1
+✖ the Full access card is the plugin's own, saves to the account connection, and says which key to make (2.729038ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'apply')
+      at buildAgentPluginAccessTokenForm (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/connect-card-ui.ts:85:27)
+      at TestContext.<anonymous> (file:///home/user/Tovu-fix/content/agent-plugins/resend/__tests__/resend-mcp.test.mjs:124:31)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at content/agent-plugins/resend/__tests__/resend-mcp.test.mjs:223:1
+✖ resend_account_connection_is_key_based (17.388875ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'siteDir')
+      at resolveAgentPluginLayout (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/layout.ts:66:60)
+      at saveAccountKey (file:///home/user/Tovu-fix/content/agent-plugins/resend/__tests__/resend-mcp.test.mjs:165:37)
+      at async TestContext.<anonymous> (file:///home/user/Tovu-fix/content/agent-plugins/resend/__tests__/resend-mcp.test.mjs:224:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

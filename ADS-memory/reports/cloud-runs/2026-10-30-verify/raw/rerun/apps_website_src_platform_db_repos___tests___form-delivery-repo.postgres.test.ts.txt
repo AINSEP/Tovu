@@ -1,0 +1,10 @@
+✔ postgres: two pulls racing for one receiver admit exactly one; the other is already-running (2012.95761ms)
+✔ postgres: a purge during an in-flight attempt is final; the attempt's outcome neither revives nor resends the job (30.358578ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4066.744118

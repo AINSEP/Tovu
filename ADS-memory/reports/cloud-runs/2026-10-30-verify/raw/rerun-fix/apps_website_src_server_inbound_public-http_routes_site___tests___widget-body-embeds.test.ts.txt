@@ -1,0 +1,31 @@
+[theme] static page 'widget-body-test/content-template' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ a page body with a legacy widget UUID marker renders the existing widget server-side (245.019349ms)
+✔ page: legacy widgets render through the public fallback render path (160.912734ms)
+✔ page: legacy widgets render through a static theme's content template (188.477887ms)
+✔ page: legacy widgets render through the declarative content path (196.101531ms)
+✔ page: legacy widgets render through the templated content path (713.315219ms)
+[theme] static page 'widget-body-test/content-template' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ page: legacy widgets render through the handlebars content path (557.51615ms)
+✔ post: legacy widgets render through the public fallback render path (226.257149ms)
+✔ post: legacy widgets render through a static theme's content template (165.087748ms)
+✔ post: legacy widgets render through the declarative content path (257.046901ms)
+✔ post: legacy widgets render through the templated content path (487.844677ms)
+[theme] static page 'widget-body-test/content-template' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'widget-body-test/content-template' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'widget-body-test/content-template' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'widget-body-test/content-template' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ post: legacy widgets render through the handlebars content path (368.328938ms)
+✔ bare HTML-mode pages expand widgets in a fragment (153.024815ms)
+✔ bare HTML-mode pages expand widgets in a complete document (161.861724ms)
+✔ a legacy menu widget and a current menu marker render together through the static document pipeline (172.485785ms)
+✔ HTML-mode static documents and partials use the same widget expansion (190.517582ms)
+✔ a missing widget renders nothing: <div data-embed-type="widget" data-embed-id="9004b382-ba7d-4191-82fb-84d0c533ad14"></div> (170.650151ms)
+✔ a missing widget renders nothing: <div data-embed-config='{"type":"widget","id":"9004b382-ba7d-4191-82fb-84d0c533ad14"}'></div> (246.928525ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10629.569851

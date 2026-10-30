@@ -1,0 +1,36 @@
+✔ Auto preflight suggests metadata only; the first guarded write still loads real guidance once (142.070201ms)
+✔ pending Ask use: real recovery replaces the attempt without another card (65.463509ms)
+✔ pending Ask use: process loss ends the turn and honours a late answer (51.440764ms)
+✔ pending Ask skip: real recovery replaces the attempt without another card (31.033731ms)
+✔ pending Ask skip: process loss ends the turn and honours a late answer (43.82504ms)
+✔ controller identity binds principal and conversation; disposal removes every attempt alias (69.065474ms)
+✔ Don't ask again writes Auto only for the answering principal through the real setting service (14.260549ms)
+✔ CLI onStarted places the relevance note, without guidance bodies, into the executor prompt (146.226668ms)
+✔ CLI preflight preserves the answer receipt channel in the durable run stream (47.871927ms)
+✔ load_agent_plugin carries maturity untested (28.382723ms)
+✔ load_agent_plugin carries maturity soon (93.55925ms)
+✔ load_agent_plugin carries maturity (absent) (58.966404ms)
+✔ automatic tool guidance warns before actions for an untested plugin (20.811672ms)
+✔ load_agent_plugin uses the real resolver and publishes the loaded chip through the real executor (38.712525ms)
+✔ inactive Higgsfield returns the exact activation and retry calls without activating it (69.437487ms)
+✔ the first theme write loads installed tovu-theme after a note-only preflight (23.183188ms)
+✔ the loader cannot use another principal’s run, an excluded plugin, or a revoked activation (14.764581ms)
+✔ 50 relevant ids are discoverable by paging the existing search tool and all load through the executor (11564.648311ms)
+✔ explicit loader and guarded write refuse ask through the real executor (25.075417ms)
+✔ explicit loader and guarded write refuse off through the real executor (55.855894ms)
+✔ explicit loader and guarded write refuse untrusted through the real executor (34.023883ms)
+✔ explicit loader and guarded write refuse unavailable through the real executor (43.078978ms)
+✔ a turn whose signal is already aborted registers no controller and returns no note (4.77519ms)
+✔ a tool without guidance capabilities loads no plugin guidance (10.568213ms)
+✔ a failing guidance preparation is logged without detail and yields no guidance (13.229433ms)
+✔ load_agent_plugin refuses unknown input keys (8.417479ms)
+✔ a disposed Ask turn publishes nothing after its pending question is aborted (12.618288ms)
+✔ load_agent_plugin reads a supporting file after load without any per-plugin registration (25.098015ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16220.842038

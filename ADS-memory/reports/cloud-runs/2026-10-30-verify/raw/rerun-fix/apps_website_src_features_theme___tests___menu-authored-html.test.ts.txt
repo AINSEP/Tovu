@@ -1,0 +1,18 @@
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+[theme] static page 'plain/index' is missing the exact token stylesheet sentinel; design tokens were not injected
+✔ an html-mode menu renders its stored markup inside the theme's marker element (266.948228ms)
+✔ stored html is kept but not rendered while the menu is in items mode (189.483471ms)
+✔ an html-mode menu with empty html keeps the theme's authored fallback (201.558628ms)
+✔ a bare Copy-HTML-embed marker is replaced by the menu's html alone (217.938189ms)
+✔ html is placed as stored: a closing tag smuggled past the save path still renders inside the wrapper (2.721984ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6513.619209
