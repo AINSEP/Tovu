@@ -33,7 +33,7 @@ export { DEFAULT_SITE_NAME, resolveSiteRoot, pinDefaultSiteRoot, SITE_SELECTION_
  * `.dependency-cruiser.mjs`'s `PROMOTED_NO_DEEP_IMPORTS`).
  */
 export { resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot } from "./product-root.js";
-export { resolveNewSiteAdminPassword } from "./new-site-owner.js";
+export { DEFAULT_OWNER_PASSWORD, resolveNewSiteAdminPassword } from "./new-site-owner.js";
 export {
   SiteCorruptError,
   SiteDirInvalidError,
@@ -42,7 +42,7 @@ export {
   ValidationError,
   InternalError,
 } from "./errors.js";
-export type { ConfigJson } from "./types.js";
+export type { ConfigJson, SiteStorage } from "./types.js";
 /**
  * `repair-site.ts` itself stays off this barrel for the same reason `init-site.ts`/`boot-site-dir.ts`
  * do — its one caller is `cli/commands/adopt.ts`'s own composition. Its ERROR class is the
@@ -54,6 +54,8 @@ export { SiteRepairRefusedError, type SiteRepairRefusalReason } from "./repair-s
 export {
   listSites,
   createSite,
+  assertPortableSiteName,
+  reconcileSiteCreation,
   describeSiteBinding,
   includeServingSite,
   listSitesForBinding,
@@ -64,12 +66,14 @@ export {
   type SiteListEntry,
   type ServingSiteListEntry,
   type SiteRegistration,
+  type SiteCreationAllocation,
   type IncludeServingSiteRequired,
   type ListSitesForBindingRequired,
   type ListSitesForBindingOptional,
   type ListSitesOptional,
   type CreateSiteRequired,
   type CreateSiteResult,
+  type CreateSitePort,
 } from "./site-registry.js";
 export {
   persistActiveSite,
@@ -99,3 +103,25 @@ export { runtimeSchemaVersion, type RuntimeSchemaVersion } from "./schema-guard.
 export { findSiteKeyDependentData } from "./site-key-dependent-data.js";
 /** Activation observes the same lease owner as server boot, through this domain's public door. */
 export { readSiteRunning, runningSiteUrl } from "./site-running.js";
+
+// Archive rebuilding reads the same trusted starter template as site creation.
+export { readTemplate } from "./read-template.js";
+
+export { createSitesWorkspace, assertTestHomeIsolation, type SitesWorkspace } from "./sites-home.js";
+export { buildSiteMetaForNewKey } from "./key-only-site-meta.js";
+export { STORAGE_SECRET_FILENAME } from "./layout.js";
+export {
+  LocalSiteError,
+  createLocalSiteSupervisor,
+  assertLocalSiteName,
+  type LocalSiteSupervisorPort,
+  type LocalSiteProcessPort,
+  type LocalSiteProcess,
+} from "./local-site-supervisor.js";
+export {
+  trashSite,
+  restoreSite,
+  permanentlyDeleteTrashedSite,
+  siteTrashName,
+  listSiteTrash,
+} from "./site-trash.js";

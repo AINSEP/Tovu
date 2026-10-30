@@ -3,7 +3,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
@@ -67,6 +67,6 @@ export function buildAnalyticsRegistrations(deps: AnalyticsToolDeps): ToolRegist
 }
 
 /** Contributes only the analytics read domain. */
-export function contributeAnalyticsTools(): ToolContributor {
+export function contributeAnalyticsTools(): ToolContributor<AnalyticsToolDeps, unknown> {
   return { domain: "analytics", build: buildAnalyticsRegistrations, risk: analyticsDerivedRisk };
 }

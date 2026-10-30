@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import express from 'express';
+import { DocumentTextExtractionError } from '@jini-ai/cms/media';
 import { buildZipFixture } from '#src/features/agent-plugins/__tests__/fixtures/build-zip';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { downloadDocuments } from '#src/features/media/__tests__/download-documents.fixture';
@@ -58,17 +59,50 @@ test('Library HTTP: allowed formats ignore MIME labels, list/download/rename/tex
     assert.match(download.headers.get('content-disposition')!, /attachment;.*filename\*=UTF-8''New%20name\./);
     const text = await fetch(`${base}${root}/${media.id}/text`);
     if (/\.(doc|xls|rtf|xlsx|pptx|pages|key)$/.test(filename)) assert.match((await text.clone().json()).error, /download only; text extraction is unavailable/);
-    assert.equal(text.status, /\.(pdf|docx|doc|xls|rtf|xlsx|pptx|pages|key)$/.test(filename) ? 400 : 200);
+    assert.equal(text.status, /\.(pdf|docx|doc|xls|rtf|xlsx|pptx|pages|key)$/.test(filename) ? 400 : 200, `${filename}: ${await text.clone().text()}`);
+    if (/\.(pdf|docx)$/.test(filename)) assert.deepEqual(await text.json(), {
+      code: 'DOCUMENT_TEXT_UNAVAILABLE', error: 'extraction unavailable — configure a document-text adapter for this format',
+    });
   }
   assert.equal((await (await fetch(base + root)).json()).media.length, 0, 'both media pickers use this default list');
   const listed = (await (await fetch(base + root + '?kind=document')).json()).media;
   assert.equal(listed.length, 13);
   const rows = await deps.mediaRepo.list({ workspaceId: deps.workspaceId });
   assert.ok([...(await resolveMediaPublicUrls(deps, rows)).values()].every(url => url === null));
-  for (const row of rows) for (const key of [row.id, row.slug]) for (const suffix of ['/original', '/public.v1/private.png']) {
+  for (const row of rows) for (const key of [row.id, row.slug]) for (const suffix of [
+    '/original', '/public.v1/private.png',
+    `/original?v=${row.source.sha256.slice(0, 12)}`, `/public.v1/private.png?v=${row.source.sha256.slice(0, 12)}`,
+  ]) {
     const result = await fetch(`${base}/m/${key}${suffix}`); assert.equal(result.status, 404);
     assert.match(result.headers.get('cache-control')!, /no-store/);
   }
+});
+
+test('Library HTTP: configured text extraction returns its page; typed failures are 400 and unexpected failures stay private', async t => {
+  const { app, deps } = appFixture(); const base = await startTestServer(app, t);
+  const bytes = Buffer.from('%PDF-1.7\n%%EOF');
+  const text = 'Extracted PDF text';
+  const extractor = { contentType: 'application/pdf', async extract(input: { bytes: Uint8Array; limits: { maxPages: number; maxCharacters: number } }, _optional = {}) {
+    assert.deepEqual(Buffer.from(input.bytes), bytes);
+    assert.deepEqual(input.limits, { maxPages: 100, maxCharacters: 1_000_000 });
+    return { text, truncated: false, pagesRead: 1, totalPages: 1 };
+  } };
+  deps.documentTextExtractors = [extractor];
+  const uploaded = await post(base, root, { kind: 'document', filename: 'guide.pdf', dataBase64: bytes.toString('base64') });
+  assert.equal(uploaded.status, 201);
+  const { media } = await uploaded.json();
+  const page = await fetch(`${base}${root}/${media.id}/text`);
+  assert.equal(page.status, 200);
+  assert.deepEqual(await page.json(), { id: media.id, text, offset: 0, nextOffset: null,
+    totalBytes: Buffer.byteLength(text), truncated: false, untrusted: true, extractionTruncated: false, pagesRead: 1, totalPages: 1 });
+  extractor.extract = async () => { throw new DocumentTextExtractionError({ code: 'DOCUMENT_TEXT_FAILED', message: 'PDF text extraction failed' }); };
+  const failed = await fetch(`${base}${root}/${media.id}/text`);
+  assert.equal(failed.status, 400);
+  assert.deepEqual(await failed.json(), { code: 'DOCUMENT_TEXT_FAILED', error: 'PDF text extraction failed' });
+  extractor.extract = async () => { throw new Error('private parser details'); };
+  const unexpected = await fetch(`${base}${root}/${media.id}/text`);
+  assert.equal(unexpected.status, 500);
+  assert.deepEqual(await unexpected.json(), { error: 'internal error' });
 });
 
 test('Library HTTP: 64 KiB pages, Trash exclusion, wrong workspace and denied principals fail before blob I/O', async t => {

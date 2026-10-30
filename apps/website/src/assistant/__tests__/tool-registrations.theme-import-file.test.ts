@@ -71,6 +71,7 @@ function fakeDeps(
     logged,
     workspaceId: "ws-theme-import-file",
     themesDir,
+    resolveActiveThemeId: async () => "match",
     siteBinding: { dir: themesDir },
     resolveRoots: () => ({ repo: themesDir, site: themesDir, custom: themesDir }),
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }),

@@ -1,3 +1,5 @@
+import type { TrashableEntryRecord } from "./contracts.js";
+export type { TrashableEntryRecord } from "./contracts.js";
 import { EntrySlugConflictError, InMemoryEntryRepo, VersionConflictError } from "./index.js";
 import type { EntryListPort, EntryRecord, EntryRepoPort, EntryRevisionInput, EntryStatus } from "./index.js";
 import type { CollectionListQuery, CollectionSortBy, EntryDisplayListPort, EntryListExcludingTypesPort } from "./public-list.js";
@@ -11,9 +13,6 @@ import type { CollectionListQuery, CollectionSortBy, EntryDisplayListPort, Entry
  *  - `findAnyById`/`saveAny` are the trash-blind seam the Trash's record-store adapter flips the
  *    marker through (the SQLite root flips `entries.deleted_at` with the generic table adapter).
  */
-
-/** An entry plus its Trash marker, as the Trash's record-store adapter sees it. */
-export type TrashableEntryRecord = EntryRecord & { deletedAt: string | null };
 
 /**
  * Reads one custom field's value out of an entry's namespaced `fields.ext.site.<name>` bag — the
@@ -90,7 +89,7 @@ export class TrashAwareInMemoryEntryRepo implements EntryRepoPort, EntryListPort
    * @throws VersionConflictError when the compare-and-set misses or a create finds the id taken.
    * @complexity O(n) over stored entries (one slug scan).
    */
-  async save(row: EntryRecord, options: { expectedVersion?: number | null | undefined } = {}): Promise<void> {
+  async save(row: EntryRecord, options: { expectedVersion?: number | null } = {}): Promise<void> {
     if (this.deletedAt.has(row.id) && options.expectedVersion !== null) {
       if (options.expectedVersion === undefined) return;
       throw new VersionConflictError({ message: `expected version ${options.expectedVersion} for entry '${row.id}', found none` });

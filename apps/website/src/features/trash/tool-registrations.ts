@@ -29,7 +29,7 @@ import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@
 // `Error` gets. Same reasoning as `features/database/tool-registrations.ts`'s identical import.
 import { ToolInputError } from "@jini-ai/core";
 import type { UserRepoPort } from "@jini-ai/user-management";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { buildTrashAgentToolCatalog, trashToolEntityTypes } from "./agent-tools.js";
 import {
   filterVisibleTrashItems,
@@ -243,6 +243,6 @@ function readEntityTypes(input: Record<string, unknown>): TrashEntityType[] | un
  * Contributes Trash's two tools to the assistant's catalog — called once by
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`.
  */
-export function contributeTrashTools(): ToolContributor {
+export function contributeTrashTools(): ToolContributor<TrashToolDeps, unknown> {
   return { domain: "trash", build: buildTrashRegistrations, risk: trashDerivedRisk };
 }

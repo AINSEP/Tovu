@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PostRecord } from "#src/features/post/index";
+import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { renderViaTemplate, type TemplateRenderDeps } from "../../inbound/public-http/routes/site/pages.js";
 
@@ -47,7 +47,7 @@ const V1_THEME: DiscoveredTheme = {
   manifest: { ...V2_THEME.manifest, apiVersion: undefined },
 } as unknown as DiscoveredTheme;
 
-const EMPTY_TEMPLATE_CHOICE_POST = { templateChoice: "" } as unknown as PostRecord;
+const EMPTY_TEMPLATE_CHOICE_POST = buildPostRecord({ templateChoice: "" });
 const FAKE_DEPS = {} as unknown as TemplateRenderDeps;
 
 test("v2 theme: the missing-template diagnostic page links css/theme.css, not the v1 filename", async () => {

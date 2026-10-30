@@ -43,7 +43,7 @@ export function themeTrashRoot(required: { themesDir: string }): string {
 }
 
 function assertThemeIdSegment(themeId: string): void {
-  if (themeId === "" || themeId === "." || themeId === ".." || basename(themeId) !== themeId || themeId.includes("\\")) {
+  if (["", ".", ".."].includes(themeId) || basename(themeId) !== themeId || themeId.includes("\\")) {
     throw new ThemeTrashLocationError(`'${themeId}' is not a theme folder name`);
   }
 }

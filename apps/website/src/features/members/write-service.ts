@@ -35,7 +35,9 @@ import {
 } from "./types.js";
 import type { MagicLinkTokenRepoPort, MemberSignInInput, MemberSignInResult, MembersWriteService, MembersWriteServiceDeps } from "./ports.js";
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const INVALID_SIGN_IN_CREDENTIAL = "sign-in credential is invalid" as const;
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/;
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
 /** Placeholder From for a non-delivering mailer; real providers get the site's configured sender. */
 const MEMBERS_FALLBACK_SENDER = { email: "no-reply@members.local", name: "Members" } as const;
@@ -90,7 +92,9 @@ function isoPlusMs(nowIso: string, ms: number): string {
 /** Normalize + validate an email address. Throws `MemberValidationError` on a bad format. */
 function assertValidEmail(email: string): string {
   const normalized = email.trim().toLowerCase();
-  if (!normalized || !EMAIL_PATTERN.test(normalized)) {
+  const domain = normalized.slice(normalized.indexOf("@") + 1);
+  // Preserve the original grammar: a dot needs at least one domain character on each side.
+  if (!normalized || !EMAIL_PATTERN.test(normalized) || domain.lastIndexOf(".", domain.length - 2) < 1) {
     throw new MemberValidationError(`'${email}' is not a valid email address`);
   }
   return normalized;
@@ -266,7 +270,8 @@ function challengeLinkPath(required: {
   const { purpose, token, redirectPath } = required;
   if (purpose === "password_reset") return `/reset-password#token=${token}`;
   const redirect = safeRedirectPath(redirectPath);
-  return `/signin#magic=${token}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`;
+  const redirectSuffix = redirect ? `&redirect=${encodeURIComponent(redirect)}` : "";
+  return `/signin#magic=${token}${redirectSuffix}`;
 }
 
 /** Persist only challenge hashes and the deferred member identity; O(1) adapter calls. */
@@ -368,13 +373,13 @@ export async function consumeMemberChallenge(required: {
   if (decideChallenge({ ...scope, record, nowIso }) !== "ok" || !record) {
     // Disabled/trashed addresses get unstored handles: spend the same verify so timing cannot tell.
     if (input.token === undefined) await verifyChallengeCode({ code: input.code, hash: await dummyPasswordHash({ hasher }), hasher });
-    throw new MemberAuthError("sign-in credential is invalid");
+    throw new MemberAuthError(INVALID_SIGN_IN_CREDENTIAL);
   }
   if (input.token === undefined) {
-    if (!await store.reserveCodeAttempt({ ...scope, id: record.id, nowIso })) throw new MemberAuthError("sign-in credential is invalid");
-    if (!await verifyChallengeCode({ code: input.code, hash: record.codeHash, hasher })) throw new MemberAuthError("sign-in credential is invalid");
+    if (!await store.reserveCodeAttempt({ ...scope, id: record.id, nowIso })) throw new MemberAuthError(INVALID_SIGN_IN_CREDENTIAL);
+    if (!await verifyChallengeCode({ code: input.code, hash: record.codeHash, hasher })) throw new MemberAuthError(INVALID_SIGN_IN_CREDENTIAL);
   }
-  if (!await store.consume({ ...scope, id: record.id, nowIso })) throw new MemberAuthError("sign-in credential is invalid");
+  if (!await store.consume({ ...scope, id: record.id, nowIso })) throw new MemberAuthError(INVALID_SIGN_IN_CREDENTIAL);
   // The host adapter preserves memberId/email/createdAt while normalizing challenge metadata.
   return record as AuthChallengeRecord & MagicLinkTokenRecord;
 }
@@ -393,11 +398,11 @@ async function resolveConsumedSignInMember(required: {
     const resolved = await resolveOrCreateSignInMember({
       deps, workspaceId: tokenRecord.workspaceId, email: tokenRecord.email, nowIso,
     }, { memberId: tokenRecord.memberId, creationSource: "verified_signup" });
-    if (!resolved.member) throw new MemberAuthError("sign-in credential is invalid");
+    if (!resolved.member) throw new MemberAuthError(INVALID_SIGN_IN_CREDENTIAL);
     return { member: resolved.member, isNewMember: resolved.isNewMember };
   }
   const member = await deps.members.findById({ workspaceId: tokenRecord.workspaceId, id: tokenRecord.memberId });
-  if (!member) throw new MemberAuthError("sign-in credential is invalid");
+  if (!member) throw new MemberAuthError(INVALID_SIGN_IN_CREDENTIAL);
   return { member, isNewMember: false };
 }
 
@@ -418,12 +423,12 @@ async function completeSignIn(required: {
 
   const { member: existingMember, isNewMember } = await resolveConsumedSignInMember({ deps, tokenRecord, nowIso });
   if (existingMember.status === "disabled" || existingMember.status === "trash") {
-    throw new MemberAuthError("sign-in credential is invalid");
+    throw new MemberAuthError(INVALID_SIGN_IN_CREDENTIAL);
   }
   // A link minted before Trash/restore (including a request racing credential revocation) must
   // not sign the restored account back in. Profile edits and other sign-ins keep links valid.
   if (existingMember.credentialsRevokedAt && existingMember.credentialsRevokedAt >= tokenRecord.createdAt) {
-    throw new MemberAuthError("sign-in credential is invalid");
+    throw new MemberAuthError(INVALID_SIGN_IN_CREDENTIAL);
   }
 
   const member: MemberRecord = {

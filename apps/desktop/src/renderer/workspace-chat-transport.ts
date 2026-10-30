@@ -96,6 +96,8 @@ function toChatRunStatus(state: WorkspaceChatRunState): ChatRunStatus {
     case 'failed':
       return 'failed';
   }
+  // Typed cases are exhaustive; preserve undefined fallthrough for untyped callers.
+  return undefined as never;
 }
 
 function isMediaBlock(value: unknown): value is ToolResultMediaBlock {

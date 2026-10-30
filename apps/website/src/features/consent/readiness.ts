@@ -36,13 +36,12 @@ export function consentGateInventory({ html }: { html: string }, _options = {}):
   let truncated = false;
   while (nodes.length) {
     const node = nodes.pop()!;
-    if (!('tagName' in node)) continue;
-    const item = inventoryItem({ node });
+    const item = 'tagName' in node && inventoryItem({ node });
     if (item) {
       if (items.length === 200) { truncated = true; break; }
       items.push(item);
     }
-    if (node.tagName !== 'template') nodes.push(...node.childNodes);
+    if ('tagName' in node && node.tagName !== 'template') nodes.push(...node.childNodes);
   }
   return { items, truncated };
 }

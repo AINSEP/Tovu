@@ -95,9 +95,9 @@ function selection({ params, source }: { params: Record<string, unknown>; source
   { ids: string[]; overwrite: boolean } | undefined {
   const { ids, overwrite } = params;
   const allowed = new Set(source.keys.map(key => key.id));
-  if (Object.keys(params).some(key => !['ids', 'overwrite', SURFACE_EXCHANGE_ID_PARAM].includes(key)) ||
-    !Array.isArray(ids) || ids.length < 1 || ids.length > 100 || new Set(ids).size !== ids.length ||
-    !ids.every((id: unknown) => typeof id === 'string' && allowed.has(id)) || typeof overwrite !== 'boolean') return undefined;
+  if (Object.keys(params).some(key => !['ids', 'overwrite', SURFACE_EXCHANGE_ID_PARAM].includes(key))) return undefined;
+  if (!Array.isArray(ids) || ids.length < 1 || ids.length > 100) return undefined;
+  if (new Set(ids).size !== ids.length || !ids.every((id: unknown) => typeof id === 'string' && allowed.has(id)) || typeof overwrite !== 'boolean') return undefined;
   return { ids, overwrite };
 }
 
@@ -109,11 +109,15 @@ function validateCopyInput({ input }: { input: unknown }, _options = {}): void {
 
 function keyFields({ source }: { source: SourceChoice }, _options = {}): FormSurfaceSpec['fields'] {
   return [
-    { kind: 'multi-enum', name: 'ids', label: 'Keys', required: true, options: source.keys.map(key => ({
-      value: key.id, label: `${key.label} · ${key.provider ?? key.kind}${key.last4 ? ` · …${key.last4}` : ''}` +
-        ` · Works for: ${(key.worksFor ?? []).join(', ') || 'none'}` +
-        (key.publishHosts === undefined ? '' : key.publishHosts.length
-          ? ` · Publish: ${key.publishHosts.join(', ')}` : ' · No static publish host') })) },
+    { kind: 'multi-enum', name: 'ids', label: 'Keys', required: true, options: source.keys.map(key => {
+      const tail = key.last4 ? ` · …${key.last4}` : '';
+      let publish = '';
+      if (key.publishHosts !== undefined) {
+        publish = key.publishHosts.length ? ` · Publish: ${key.publishHosts.join(', ')}` : ' · No static publish host';
+      }
+      return { value: key.id, label: `${key.label} · ${key.provider ?? key.kind}${tail}` +
+        ` · Works for: ${(key.worksFor ?? []).join(', ') || 'none'}` + publish };
+    }) },
     { kind: 'boolean', name: 'overwrite', label: 'Overwrite existing', value: false },
   ];
 }
@@ -126,14 +130,20 @@ function copyOutcome({ copied, source, uri }: {
     ...(last4 ? { last4: last4.slice(-4) } : {}), ...(reasonCode ? { reasonCode } : {}) }));
   const keysById = new Map(source.keys.map(key => [key.id, key]));
   const failed = results.some(row => row.status === 'failed');
+  const failureState = results.some(row => row.status === 'copied') ? 'partial' : 'failure';
   return { result: { results }, outcome: { channel: 'mcp-ui' as const, payload: { resource: buildOutcomeSurface({ uri, preferredFrameSize: ['100%', '1px'], title: 'Copy results',
-    state: failed ? (results.some(row => row.status === 'copied') ? 'partial' : 'failure') : 'success', message: '',
+    state: failed ? failureState : 'success', message: '',
     details: results.map(row => {
       const key = keysById.get(row.id);
-      return { label: key?.label ?? row.kind,
-        description: `${row.kind}${key?.provider ? ` · ${key.provider}` : ''}`, format: 'status',
-        value: row.status === 'copied' ? `copied ✓${row.last4 ? ` …${row.last4}` : ''}`
-          : row.reasonCode === 'target-exists' ? 'skipped — already there' : `not copied — ${row.reasonCode ?? 'copy-failed'}` };
+      const provider = key?.provider ? ` · ${key.provider}` : '';
+      let value: string;
+      if (row.status === 'copied') {
+        const tail = row.last4 ? ` …${row.last4}` : '';
+        value = `copied ✓${tail}`;
+      } else {
+        value = row.reasonCode === 'target-exists' ? 'skipped — already there' : `not copied — ${row.reasonCode ?? 'copy-failed'}`;
+      }
+      return { label: key?.label ?? row.kind, description: `${row.kind}${provider}`, format: 'status', value };
     }) }) } } };
 }
 
@@ -184,10 +194,11 @@ export function buildCredentialCopyRegistrations({ deps, surfaces }: {
         return copyOutcome({ copied, source, uri });
       }
       function copyFailure({ error, source }: { error: unknown; source: SourceChoice }, _options = {}) {
-        const code = error && typeof error === 'object' && 'reasonCode' in error ? error.reasonCode : undefined;
+        let code: unknown;
+        if (error && typeof error === 'object' && 'reasonCode' in error) code = error.reasonCode;
         if (code === 'source-needs-upgrade') return refused(code, `Start ${source.name} once in Tovu to upgrade it, then copy.`);
-        return refused(error instanceof ToolInputError || error instanceof ForbiddenError ? 'copy-refused'
-          : typeof code === 'string' && Object.hasOwn(failureMessages, code) ? code : 'copy-failed');
+        if (error instanceof ToolInputError || error instanceof ForbiddenError) return refused('copy-refused');
+        return refused(typeof code === 'string' && Object.hasOwn(failureMessages, code) ? code : 'copy-failed');
       }
       try {
         return await askThenReport<{ results: VaultCopyResult[]; reasonCode?: string }>({ exchange, confirmationEmission: emission(form({ uri, exchangeId: exchange.id,

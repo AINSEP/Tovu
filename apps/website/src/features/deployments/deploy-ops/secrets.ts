@@ -3,8 +3,8 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { homedir } from "node:os";
 import { ToolInputError } from "@jini-ai/core";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import { fingerprintSiteKeyHex, parseSiteKeyHex, revealSiteKeyMaterial } from "#src/features/webhooks/keyring.env";
-import { siteKeySourcesForSiteDir } from "#src/features/webhooks/site-key-sources";
+import { fingerprintSiteKeyHex, parseSiteKeyHex, revealSiteKeyMaterial } from "#src/features/webhooks/index";
+import { siteKeySourcesForSiteDir } from "#src/features/webhooks/index";
 import { requirePlatform } from "./registry.js";
 import { aborted, boundContext, type DeployOpsToolDeps } from "./run-ops.js";
 import type { DeployOpsContext, DeployOpsSecretAppliesOn, DeployOpsSecretInfo, DeployOpsSecretRead, DeployOpsSecretWrite, LoadedDeployOps } from "./types.js";
@@ -43,7 +43,7 @@ export interface SetSecretResult extends SecretWriteResultBase {
 }
 export interface UnsetSecretResult extends SecretWriteResultBase { removed: boolean }
 
-export const SECRET_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
+export const SECRET_NAME_PATTERN = /^[A-Za-z_]\w{0,127}$/;
 const clip = (value: unknown, max: number) => String(value).slice(0, max);
 const sha256 = (value: string) => createHash("sha256").update(value, "utf8").digest();
 
@@ -176,7 +176,8 @@ function requireTypedValue({ value }: { value: unknown }, _optional = {}): strin
 }
 
 function describeSource({ source }: { source: SecretValueSource }, _optional = {}): string {
-  return source.kind === "site-key" ? "this site's key" : source.kind === "typed" ? "the secure card" : `secret ${source.name}`;
+  if (source.kind === "site-key") return "this site's key";
+  return source.kind === "typed" ? "the secure card" : `secret ${source.name}`;
 }
 
 /**

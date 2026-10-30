@@ -2,7 +2,7 @@ import { contentKernel } from "#src/platform/db/content-kernel";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteDbOpsAdapter } from "#src/platform/db/sqlite/db-ops";
 import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
-import type { StoreBoundServices } from "./store-bound-services.js";
+import type { StoreBoundServices } from "./store-bound-contracts.js";
 
 /**
  * @file The SQLite half of the composition body's one seam between storage engines (R1 plan R1d

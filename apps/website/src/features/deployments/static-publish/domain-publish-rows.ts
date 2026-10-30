@@ -32,8 +32,8 @@ export function domainPublishRows(required: {
 /** One hostname's current state: the plugin's own summary when it gives one, else its status. */
 function hostnameRow({ host }: { host: Readonly<Record<string, unknown>> }, _options = {}): DetailRow {
   const hostname = typeof host.hostname === 'string' ? host.hostname : 'hostname';
-  const now = typeof host.summary === 'string' && host.summary.trim() ? host.summary
-    : typeof host.status === 'string' ? host.status.replaceAll('-', ' ') : 'unknown';
+  const status = typeof host.status === 'string' ? host.status.replaceAll('-', ' ') : 'unknown';
+  const now = typeof host.summary === 'string' && host.summary.trim() ? host.summary : status;
   return { label: `Now on ${hostname}`, value: now };
 }
 

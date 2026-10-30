@@ -8,7 +8,10 @@ import { getEffective } from '@jini-ai/core/settings';
 import { constrainPrincipalToReadOnlyTools } from '@jini-ai/daemon/read-only-tools';
 import { SqliteDbOpsAdapter } from '@jini-ai/db/sqlite';
 import { OriginRegistry } from '@jini-ai/http-kit/verified-origin';
+import { SharpImageTransformer } from '@jini-ai/cms/media/node';
 import type { AssistantToolRegistryDeps } from '#src/assistant/tool-registrations';
+import type { PeerSiteReads } from '#src/assistant/tool-registrations';
+export type { PeerSiteReads } from '#src/assistant/tool-registrations';
 import { createChatStoreFactory } from '#src/assistant/persistence/store-factory';
 import type { ContentDatabase } from '#src/platform/db/content-database.generated';
 import type { JournalDatabase } from '#src/platform/db/journal-kernel';
@@ -49,6 +52,8 @@ import { REDIRECT_ENTITY_TYPE } from '#src/features/trash/index';
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from '#src/contracts/core/gated-mutations/composition';
 import { createAppPermissionGrants } from './app-permission-grants.js';
 import { registeredSources, isLocalTovuHost, type RegisteredSiteSource } from './registered-sites.js';
+
+const CHAT_SURFACE_DESCRIPTION = "Chat UI surface, independent of site data.";
 
 /** Contributor domain names, not tool prefixes. Only explicitly read-only registrations qualify. */
 export const CROSS_SITE_READ_DOMAINS: ReadonlySet<string> = new Set([
@@ -102,11 +107,11 @@ export const CROSS_SITE_EXCLUDED: Readonly<Record<string, string>> = {
   sites: 'The installation registry is site-agnostic.',
   'sites-list': 'The installation registry is site-agnostic.',
   'settings-ui-locales': 'UI locale inventory is site-agnostic.',
-  'demo-choices': 'Chat UI surface, independent of site data.',
-  'demo-a2ui': 'Chat UI surface, independent of site data.',
-  'demo-image': 'Chat UI surface, independent of site data.',
-  'render-ui': 'Chat UI surface, independent of site data.',
-  'ask-choice': 'Chat UI surface, independent of site data.',
+  'demo-choices': CHAT_SURFACE_DESCRIPTION,
+  'demo-a2ui': CHAT_SURFACE_DESCRIPTION,
+  'demo-image': CHAT_SURFACE_DESCRIPTION,
+  'render-ui': CHAT_SURFACE_DESCRIPTION,
+  'ask-choice': CHAT_SURFACE_DESCRIPTION,
   'component-catalog': 'UI component inventory is site-agnostic.',
   'admin-screen-link': 'Links refer to the active admin UI.',
   'external-mcp-reauth': 'Reauthentication belongs to the active UI and credentials.',
@@ -146,23 +151,6 @@ function unavailable({ field }: { field: string }, _options = {}): never {
     get: (_target, key) => key === 'then' ? undefined : fail(),
     apply: fail, construct: fail,
   }) as never;
-}
-
-type BuildRegistrations = (deps: AssistantToolRegistryDeps) => ToolRegistration[];
-type PeerResolution = { handler: ToolRegistration['handler']; principal: Principal; site: RegisteredSiteSource };
-export interface PeerSiteReads {
-  /** Host-owned scope policy keeps the assistant free of runtime imports of server composition. */
-  readonly readDomains: ReadonlySet<string>;
-  /** Single reads refused inside an otherwise cross-site domain. */
-  readonly excludedReadTools?: ReadonlySet<string>;
-  /** Exact registry-name comparison; never opens a database. Throws a path-free local-host/registry refusal. */
-  isCurrentSite(required: { siteName: string }, optional?: Record<string, never>): boolean;
-  /** The caller adapter gates installation ownership. The builder must return only allowlisted
-   * read registrations; resolution supplies the target's attenuated owner and fixed refusals.
-   */
-  resolve(required: { siteName: string; toolId: string; callerPrincipalId: string; buildRegistrations: BuildRegistrations }, optional?: Record<string, never>): Promise<'current' | PeerResolution>;
-  /** Drain active handlers, cancel idle timers and close all cached handles. Idempotent. */
-  close(): Promise<void>;
 }
 
 type PeerBag = {
@@ -245,6 +233,7 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     postRepo, postSearch: postSearchIndexFor(kernel), entryRefsRepo,
     pagesHtmlStore: (scope: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[0], options: Parameters<AssistantToolRegistryDeps['pagesHtmlStore']>[1] = {}) => new PagesHtmlDocumentStore(scope, { ...options, db: kernel, clock, entryRefsRepo, revisions: postRepo }),
     mediaRepo, assetBlobRepo: new SqliteAssetBlobRepo(kernel), assetRenditionRepo: new SqliteAssetRenditionRepo(kernel), mediaContentTypeStore, transformDefinitionRepo,
+    imageCodec: new SharpImageTransformer(),
     // Only read capabilities are exposed; neither a stray blob write nor an escaping stored key can reach disk.
     blobStore: {
       get: async ({ storageKey }: { storageKey: string }) => {
@@ -300,15 +289,19 @@ async function composePeer({ source, contentDbPath, kernel, chat, journal, intro
     restorePointsRepo: new SqliteRestorePointsRepo({ db: journal, siteId: workspaceId }),
   };
   // Spreading active deps would let a read silently return the ACTIVE site's data under another site's label.
-  return new Proxy(bag, { get: (target, field, receiver) => Reflect.has(target, field)
-    ? Reflect.get(target, field, receiver) : field === 'then' ? undefined : unavailable({ field: String(field) }) }) as unknown as AssistantToolRegistryDeps;
+  return new Proxy(bag, { get: (target, field, receiver) => {
+    if (Reflect.has(target, field)) return Reflect.get(target, field, receiver);
+    return field === 'then' ? undefined : unavailable({ field: String(field) });
+  } }) as unknown as AssistantToolRegistryDeps;
 }
 
 /** A peer port that exposes only the named reads; every other member is a CrossSiteUnavailable poison.
  * @complexity O(1) per access. */
 function readsOnly({ field, reads }: { field: string; reads: Record<string, unknown> }, _options = {}): never {
-  return new Proxy(reads, { get: (target, key) => Reflect.has(target, key)
-    ? Reflect.get(target, key) : key === 'then' ? undefined : unavailable({ field: `${field}.${String(key)}` }) }) as never;
+  return new Proxy(reads, { get: (target, key) => {
+    if (Reflect.has(target, key)) return Reflect.get(target, key);
+    return key === 'then' ? undefined : unavailable({ field: `${field}.${String(key)}` });
+  } }) as never;
 }
 
 /** Reject invalid cache bounds before registry access or database opens. O(1). */
@@ -445,7 +438,7 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
           selected.busy++;
           clearTimeout(selected.timer);
           // Track the entire handler lifetime so close/idle/eviction cannot interrupt an active read.
-          const read = Promise.resolve().then(() => registration.handler(ctx, optional));
+          const read = Promise.resolve().then(registration.handler.bind(registration, ctx, optional));
           running.add(read);
           try { return await read; }
           finally { running.delete(read); selected.busy--; if (!closed) touch(key, selected); }

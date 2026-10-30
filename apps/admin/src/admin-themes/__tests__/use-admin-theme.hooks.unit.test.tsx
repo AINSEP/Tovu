@@ -97,11 +97,46 @@ describe("useAdminThemeDocument", () => {
     const { env, flipOs, listenerCount } = fakeEnv({ dark: false });
     const { unmount } = renderHook(() => useAdminThemeDocument({}, { port: fakePort({ theme: "system" }), env }));
     await waitFor(() => expect(env.root.getAttribute("data-color-scheme")).toBe("light"));
+    expect(listenerCount()).toBe(1);
     act(() => flipOs(true));
     expect(env.root.getAttribute("data-color-scheme")).toBe("dark");
     expect(env.root.getAttribute("data-theme")).toBe("dark");
     unmount();
     expect(listenerCount()).toBe(0);
+    act(() => flipOs(false));
+    expect(env.root.getAttribute("data-color-scheme")).toBe("dark");
+    expect(env.root.getAttribute("data-theme")).toBe("dark");
+  });
+
+  it("releases the previous document's listener when the environment changes", async () => {
+    const previous = fakeEnv();
+    const next = fakeEnv({ dark: true });
+    const port = fakePort({ theme: "system" });
+    const { rerender, unmount } = renderHook(({ env }) => useAdminThemeDocument({}, { port, env }), {
+      initialProps: { env: previous.env },
+    });
+    await waitFor(() => expect(previous.listenerCount()).toBe(1));
+    rerender({ env: next.env });
+    await waitFor(() => expect(next.listenerCount()).toBe(1));
+    expect(previous.listenerCount()).toBe(0);
+    act(() => previous.flipOs(true));
+    expect(previous.env.root.getAttribute("data-color-scheme")).toBe("light");
+    unmount();
+    expect(next.listenerCount()).toBe(0);
+  });
+
+  it("paints system once without registering a listener that cannot be removed", async () => {
+    const addEventListener = vi.fn();
+    const env: AdminThemeDocumentEnv = {
+      root: document.createElement("html"),
+      matchMedia: () => ({ matches: true, addEventListener }),
+    };
+    const port = fakePort({ theme: "system" });
+    const { unmount } = renderHook(() => useAdminThemeDocument({}, { port, env }));
+    await waitFor(() => expect(env.root.getAttribute("data-color-scheme")).toBe("dark"));
+    expect(addEventListener).not.toHaveBeenCalled();
+    unmount();
+    expect(addEventListener).not.toHaveBeenCalled();
   });
 });
 

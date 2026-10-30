@@ -52,11 +52,10 @@ export function registerAdminCredentialCopyRoutes({ app, deps }: { app: Express;
   }));
   app.post(BASE, handle(async (req, res) => {
     const body = req.body;
-    if (!body || typeof body !== "object" || Array.isArray(body) ||
-      Object.keys(body).some(key => !["sourceSiteId", "ids", "overwrite"].includes(key)) ||
-      typeof body.sourceSiteId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(body.sourceSiteId) ||
-      !validCopyIds({ ids: body.ids }) ||
-      typeof body.overwrite !== "boolean") {
+    const isObject = body && typeof body === "object" && !Array.isArray(body);
+    const validKeys = isObject && !Object.keys(body).some(key => !["sourceSiteId", "ids", "overwrite"].includes(key));
+    const validSource = validKeys && typeof body.sourceSiteId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(body.sourceSiteId);
+    if (!validSource || !validCopyIds({ ids: body.ids }) || typeof body.overwrite !== "boolean") {
       res.status(400).json({ reasonCode: "invalid-request" }); return;
     }
     res.json({ results: await deps.localCredentialCopy!.copy({ sourceSiteId: body.sourceSiteId,

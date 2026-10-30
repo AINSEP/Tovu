@@ -1,3 +1,5 @@
+import { openSqliteSnapshot } from "#src/platform/db/kernel/drivers/sqlite";
+import { createCoreTableCatalog } from "#src/server/runtime/composition/database-transfer-adapters";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -18,10 +20,10 @@ test("content.db and chat.db plans account for all three raw-SQL tables and name
       CREATE TABLE ai_chat_messages (id TEXT PRIMARY KEY, conversation_id TEXT REFERENCES ai_chats(id));
       CREATE TABLE assistant_agent_sessions (id TEXT PRIMARY KEY);
       CREATE TABLE tovu_chat_migrations (id TEXT PRIMARY KEY);`);
-    const contentSource = openSqliteSnapshotSource(content.serialize());
-    const chatSource = openSqliteSnapshotSource(chat.serialize());
+    const contentSource = openSqliteSnapshotSource({ bytes: content.serialize(), open: data => openSqliteSnapshot({ data }) });
+    const chatSource = openSqliteSnapshotSource({ bytes: chat.serialize(), open: data => openSqliteSnapshot({ data }) });
     try {
-      const sources = [{ name: "content.db", source: contentSource, ...planSnapshotTables(contentSource) }, { name: "chat.db", source: chatSource, ...planChatSnapshotTables(chatSource) }];
+      const sources = [{ name: "content.db", source: contentSource, ...planSnapshotTables({ source: contentSource, catalog: createCoreTableCatalog({}) }) }, { name: "chat.db", source: chatSource, ...planChatSnapshotTables(chatSource) }];
       const plan = planTransfer({ sources });
       const chatPlan = plan.sources[1]!;
       for (const name of ["ai_chats", "ai_chat_messages", "assistant_agent_sessions"]) assert.ok(chatPlan.tables.some(t => t.name === name));

@@ -178,7 +178,7 @@ for (const source of ["library", "external", "override"] as const) {
     assert.equal(status, 200, JSON.stringify(json));
     const meta = (json as { data: SeoMeta }).data;
     assert.equal(meta.openGraph.imageRef, source === "library" ? "body:public" : source === "override" ? override : external);
-    assert.equal(meta.openGraph.image, source === "library" ? "https://seo.example.com/m/body/og.v1/image.jpg" : source === "override" ? override : external);
+    assert.equal(meta.openGraph.image, source === "library" ? "https://seo.example.com/m/body/og.v1/image.jpg?v=body-sha" : source === "override" ? override : external);
     assert.equal(meta.openGraph.imageSource, source === "override" ? "override" : "content");
     assert.equal("imageOverridden" in meta.openGraph, source === "override");
     assert.deepEqual(await postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), before);

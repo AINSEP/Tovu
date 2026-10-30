@@ -23,8 +23,10 @@ const NETWORK_FAILURE = /failed to fetch|load failed|networkerror/i;
  */
 export function visitorFacingError({ error }: { error: unknown }, _options = {}): Error {
   const raw = error instanceof Error ? error.message : String(error ?? "");
+  let end = raw.trimEnd().length;
+  while (end > 0 && /[.!\s]/.test(raw[end - 1])) end -= 1;
   const reason = error instanceof TypeError && NETWORK_FAILURE.test(raw)
     ? "couldn't reach the site"
-    : raw.trim().replace(/[.!\s]+$/, "") || "something went wrong";
+    : raw.slice(0, end).trimStart() || "something went wrong";
   return new Error(`Couldn't get an answer: ${reason}. Try again.`);
 }

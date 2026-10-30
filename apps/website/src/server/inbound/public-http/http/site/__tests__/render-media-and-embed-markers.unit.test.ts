@@ -38,6 +38,23 @@ const coverIr: WidgetRenderIR = { componentId: "post-content", props: { title: "
 const author = { id: "p-1", slug: "first", author: "Ada", showAuthor: true };
 const MEDIA_IR = (props: JsonObject): string => renderWidgetIr({ componentId: "media-image", props });
 
+// Guards SHA propagation through renderImageTag, renderVideoTag and parseMediaAssetMeta.
+test("managed document media, markers and nested post content emit the current content version", () => {
+  const sha256 = "0123456789abcdef".repeat(4);
+  const metadata = new Map([["a1", meta({ slug: "cover", sha256 })]]);
+  const image = renderDocNode({ type: "image", attrs: { assetId: "a1", transformName: "public" } }, undefined, VERSIONS, metadata);
+  assert.match(image, /src="\/m\/cover\/public\.v3\/image\.jpg\?v=0123456789ab"/);
+  for (const contentType of ["video/mp4", "audio/mpeg"]) {
+    const player = MEDIA({ assetId: "a1" }, new Map([["a1", meta({ slug: "cover", sha256, contentType })]]));
+    assert.match(player, /src="\/m\/cover\/original\.(?:mp4|mp3)\?v=0123456789ab"/);
+    assert.match(MEDIA_IR({ assetId: "a1", slug: "cover", sha256, contentType }), /\?v=0123456789ab"/);
+  }
+  assert.match(MEDIA_IR({ assetId: "a1", slug: "cover", sha256, transformName: "public", version: 3 }), /\?v=0123456789ab"/);
+  const nested = renderWidgetIr({ componentId: "post-content", props: { title: "T", updatedAt: "", bodyJson: coverBody,
+    mediaTransformVersions: { public: 3 }, mediaAssetMetadata: { a1: { ...meta({ slug: "cover" }), sha256 } } } });
+  assert.match(nested, /src="\/m\/cover\/public\.v3\/image\.jpg\?v=0123456789ab"/);
+});
+
 test("image src: a non-string src renders the image placeholder", () => {
   assert.equal(IMG({ src: 7, alt: "Seven" }), "<figure class=\"media-ph\" style=\"aspect-ratio:16 / 9\"><span class=\"media-ph__label\">Seven</span></figure>");
 });

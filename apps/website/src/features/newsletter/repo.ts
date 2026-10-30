@@ -166,11 +166,6 @@ export class SqlNewsletterCampaignRepo implements NewsletterCampaignRepoPort {
   }
 }
 
-/** The newsletter campaign repo for `kernel`. */
-export function newsletterCampaignRepoFor(kernel: ContentKernel): SqlNewsletterCampaignRepo {
-  return new SqlNewsletterCampaignRepo(kernel);
-}
-
 export class SqlNewsletterListRepo implements NewsletterListRepoPort {
   protected readonly kernel: ContentKernel;
   constructor(kernel: ContentKernel) {
@@ -229,11 +224,6 @@ export class SqlNewsletterListRepo implements NewsletterListRepoPort {
         .execute()
     );
   }
-}
-
-/** The newsletter list repo for `kernel`. */
-export function newsletterListRepoFor(kernel: ContentKernel): SqlNewsletterListRepo {
-  return new SqlNewsletterListRepo(kernel);
 }
 
 export class SqlNewsletterSubscriptionRepo implements NewsletterSubscriptionRepoPort {
@@ -336,11 +326,6 @@ export class SqlNewsletterSubscriptionRepo implements NewsletterSubscriptionRepo
   }
 }
 
-/** The newsletter subscription repo for `kernel`. */
-export function newsletterSubscriptionRepoFor(kernel: ContentKernel): SqlNewsletterSubscriptionRepo {
-  return new SqlNewsletterSubscriptionRepo(kernel);
-}
-
 export class SqlNewsletterAudienceSnapshotRepo implements NewsletterAudienceSnapshotRepoPort {
   protected readonly kernel: ContentKernel;
   constructor(kernel: ContentKernel) {
@@ -381,11 +366,6 @@ export class SqlNewsletterAudienceSnapshotRepo implements NewsletterAudienceSnap
       db.withTables<NewsletterTables>().insertInto("p_newsletter__audience_snapshots").values(toAudienceSnapshotRow(row)).execute()
     );
   }
-}
-
-/** The newsletter audience-snapshot repo for `kernel`. */
-export function newsletterAudienceSnapshotRepoFor(kernel: ContentKernel): SqlNewsletterAudienceSnapshotRepo {
-  return new SqlNewsletterAudienceSnapshotRepo(kernel);
 }
 
 export class SqlNewsletterSendRepo implements NewsletterSendRepoPort {
@@ -559,11 +539,6 @@ export class SqlNewsletterSendRepo implements NewsletterSendRepoPort {
   }
 }
 
-/** The newsletter send repo for `kernel`. */
-export function newsletterSendRepoFor(kernel: ContentKernel): SqlNewsletterSendRepo {
-  return new SqlNewsletterSendRepo(kernel);
-}
-
 export class SqlNewsletterConfirmationTokenRepo implements NewsletterConfirmationTokenRepoPort {
   protected readonly kernel: ContentKernel;
   constructor(kernel: ContentKernel) {
@@ -628,9 +603,4 @@ export class SqlNewsletterConfirmationTokenRepo implements NewsletterConfirmatio
         .execute()
     );
   }
-}
-
-/** The newsletter confirmation-token repo for `kernel`. */
-export function newsletterConfirmationTokenRepoFor(kernel: ContentKernel): SqlNewsletterConfirmationTokenRepo {
-  return new SqlNewsletterConfirmationTokenRepo(kernel);
 }

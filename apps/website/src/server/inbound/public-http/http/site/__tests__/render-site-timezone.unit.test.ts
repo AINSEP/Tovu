@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PostRecord } from "#src/features/post/index";
+import type { PublicPostRecord } from "#src/features/post/index";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { runLiquidRender } from "../liquid-render.js";
 import { buildTemplateRenderData, renderSite, type SiteRenderContext } from "../render.js";
@@ -19,7 +19,7 @@ import { buildTemplateRenderData, renderSite, type SiteRenderContext } from "../
 const LA_EVENING = "2022-06-14T03:30:00.000Z";
 const TOKYO_MORNING = "2022-06-13T16:00:00.000Z";
 
-function post(iso: string): PostRecord {
+function post(iso: string): PublicPostRecord {
   return buildPostRecord({ id: "p1", workspaceId: "w1", title: "Late", slug: "late", status: "published", updatedAt: iso, publishAt: iso, version: 1 });
 }
 

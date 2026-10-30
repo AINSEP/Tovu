@@ -19,6 +19,15 @@ import type { RouteDeps } from "#src/server/routes/types";
  */
 export type AdminObservabilityStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "observability" | "observabilityEnabled" | "telemetryStatus" | "sendTelemetryTest" | "tracker">;
 
+function observabilityStatusBody(
+  { deps, enabled, testAccess }: { deps: AdminObservabilityStatusDeps; enabled: boolean; testAccess: { allowed: boolean } | undefined },
+  _optional = {},
+) {
+  return { enabled, serviceName: enabled ? "tovu" : null,
+    ...(deps.telemetryStatus ? { providers: deps.telemetryStatus({}) } : {}),
+    ...(testAccess ? { canSendTestError: testAccess.allowed } : {}) };
+}
+
 export function registerAdminObservabilityStatusRoute(app: Express, deps: AdminObservabilityStatusDeps): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/system/observability-status", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
@@ -49,9 +58,7 @@ export function registerAdminObservabilityStatusRoute(app: Express, deps: AdminO
       const enabled = deps.observabilityEnabled?.() ?? !isNoopObservabilityPort(deps.observability);
       const testAccess = deps.sendTelemetryTest ? await deps.authorize({ principalId: principal.id,
         permission: "system.write", workspaceId: deps.workspaceId, entityType: "observability" }) : undefined;
-      res.status(200).json({ enabled, serviceName: enabled ? "tovu" : null,
-        ...(deps.telemetryStatus ? { providers: deps.telemetryStatus({}) } : {}),
-        ...(testAccess ? { canSendTestError: testAccess.allowed } : {}) });
+      res.status(200).json(observabilityStatusBody({ deps, enabled, testAccess }));
     } catch (err) {
       console.error("[system/observability-status] unexpected error", err);
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

@@ -260,7 +260,7 @@ const LANGUAGE_KEY = "locale";
 export const DEFAULT_LOCALE = "en";
 
 /** The selector and assistant tool consume the same offered-language catalog. */
-export { ADMIN_LOCALES } from "../../../website/src/contracts/core/admin-locales";
+export { ADMIN_LOCALES } from "@tovu/contracts/admin-locales";
 
 export async function loadLanguage(): Promise<string> {
   const values = await loadNamespaceValues(LANGUAGE_NAMESPACE);

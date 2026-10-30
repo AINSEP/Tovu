@@ -1,3 +1,5 @@
+import { sqliteTableInfo } from "#src/platform/db/kernel/sqlite-only";
+import { sqliteForeignKeyCheckedTransaction } from "#src/platform/db/kernel/sqlite-only";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
@@ -10,7 +12,7 @@ import { CONTENT_HASH_VERSION, contentHash } from "#src/features/publish-content
 import { contributeRawRowPublish } from "#src/features/publish-content/raw-row-contributor";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { createRawRowSqlitePort } from "#src/platform/db/sqlite/publish-backstop-row.sqlite";
+import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
 import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 
@@ -73,7 +75,7 @@ async function rawRowPlanDeps(t: TestContext, bundleRepo: InMemoryPublishContent
   resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
   registerPublishContentContributor(contributeRawRowPublish());
   const kernel = contentKernel(db);
-  const live = await createRawRowSqlitePort({ kernel }).read({ table: "p_banner", pk: { id: "one" } });
+  const live = await createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel }).read({ table: "p_banner", pk: { id: "one" } });
   assert.ok(live);
   const state = { ...live, values: { ...live.values, title: "New footer" } };
   const entity = { entityType: "raw-row", id: 'p_banner:{"id":"one"}', schemaVersion: 1, hashVersion: CONTENT_HASH_VERSION,

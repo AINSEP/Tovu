@@ -5,6 +5,10 @@ import { CHAT_DISPLAY_NAMESPACE } from "../chat-display-preferences";
 import { DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, type AssistantRuntimePreferences } from "../assistant-runtime-preferences";
 
 /** The shape of `assistantRuntimePreferencesPort`; a test passes a fake. */
+function sameRuntimePreferences(a: AssistantRuntimePreferences, b: AssistantRuntimePreferences): boolean {
+  return a.preferSubagents === b.preferSubagents && a.useClaudeInChrome === b.useClaudeInChrome && a.replyLength === b.replyLength;
+}
+
 export interface AssistantRuntimePreferencesPort {
   load(input?: Record<string, never>, options?: Record<string, never>): Promise<AssistantRuntimePreferences>;
   save(input: { next: AssistantRuntimePreferences; previous: AssistantRuntimePreferences }, options?: Record<string, never>): Promise<void>;
@@ -42,9 +46,7 @@ export function useAssistantRuntimePreferences(
 
   useEffect(() => port.subscribe({ listener: () => invalidate({ key: QUERY_KEY }) }, {}), [port, invalidate]);
   useEffect(() => {
-    if (pendingSaves.current === 0 && optimistic && query.data
-      && optimistic.preferSubagents === query.data.preferSubagents && optimistic.useClaudeInChrome === query.data.useClaudeInChrome
-      && optimistic.replyLength === query.data.replyLength) {
+    if (pendingSaves.current === 0 && optimistic && query.data && sameRuntimePreferences(optimistic, query.data)) {
       lastRequested.current = null;
       setOptimistic(null);
     }

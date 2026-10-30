@@ -7,6 +7,7 @@ import test, { after } from "node:test";
 
 import { InMemoryExternalMcpServerRepo, saveExternalMcpServer } from "#src/assistant/index";
 import { openExternalMcpOAuthPayload } from "#src/assistant/external-mcp-store";
+import * as externalMcpStore from "#src/assistant/mcp-services";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
@@ -81,6 +82,8 @@ async function setup() {
     workspaceId: WORKSPACE,
     clock,
     externalMcpServerRepo: repo,
+    externalMcpStore,
+    notifyRosterChanged: externalMcpStore.notifyExternalMcpRosterChanged,
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,
     resolveInstalledPlugin: async (pluginId) => (pluginId === "supabase" ? { servers: SUPABASE_SERVERS } : null),

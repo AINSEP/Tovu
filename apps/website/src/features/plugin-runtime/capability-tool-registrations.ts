@@ -2,7 +2,7 @@ import { type ToolRegistry } from "@jini-ai/core";
 import { attachPluginContributionTools, type PluginToolContributionPorts, type PluginContributionRegistry } from "@jini-ai/plugins/host";
 import { readPluginIdentity } from "@jini-ai/core/plugin-directory";
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
-import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
+import { withExtensionApprovalPolicy } from '../../assistant/mcp-services.js';
 import { buildDomainRegistrations, indexCatalogById, isRecord, requireInputRecord, requireString, ToolInputError, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
@@ -239,15 +239,13 @@ export async function loadEnabledPluginCapabilityToolSources(deps: {
   const sources: PluginCapabilityToolSource[] = [];
 
   for (const record of discovery) {
-    if (record.status !== "valid" || !record.manifest) continue;
-    if (record.manifest.fields.length === 0) continue; // nothing this plugin's tool could ever return
-
-    if (!(await isPluginEnabledInWorkspace(deps.pluginActivationRepo, deps.workspaceId, record.id))) continue; // disabled (or never activated) — see this file's header
+    // No fields means nothing this plugin's tool could ever return. Disabled (or never activated)
+    // plugins stay out too — see this file's header. Preserve that short-circuit order.
+    if (record.status !== "valid" || !record.manifest || record.manifest.fields.length === 0 ||
+      !(await isPluginEnabledInWorkspace(deps.pluginActivationRepo, deps.workspaceId, record.id))) continue;
 
     const fields = buildFieldSources(record.manifest);
-    if (fields.length === 0) continue;
-
-    sources.push({
+    if (fields.length > 0) sources.push({
       id: capabilityToolIdFor({ pluginId: record.id }),
       pluginId: record.id,
       pluginName: record.manifest.name,

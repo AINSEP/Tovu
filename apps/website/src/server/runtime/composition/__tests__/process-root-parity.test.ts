@@ -1,6 +1,8 @@
 import { assertIsolatedCatalogPath } from "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { createContributionRegistry } from "@jini-ai/core";
-import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
+import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "@jini-ai/core";
+import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -27,8 +29,8 @@ import { createAssistantByokModule } from "../modules/assistant-byok.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 
 const contributions = {
-  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
-  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
 };
 
 /**
@@ -201,7 +203,7 @@ function currentDuplicateResources(): readonly string[] {
 
 /** (a) The shared base every real root calls before building its own registry — see
  *  `tool-catalog-manifest.ts`'s own header, "Real callers". */
-function buildBaseRole(routeDeps: NewsletterRouteDeps): RoleSnapshot {
+function buildBaseRole(routeDeps: ReturnType<typeof createRouteDeps>): RoleSnapshot {
   contributions.contributors.clear({});
   resetPublishContentContributorsForTests();
   resetDuplicateResourceHandlersForTests();
@@ -215,7 +217,7 @@ function buildBaseRole(routeDeps: NewsletterRouteDeps): RoleSnapshot {
  *  Awaits `toolSurface.ready` before reading the registry, so the installed-extension-tools pass
  *  (S1's fix) has already been applied — the same wait `modules/assistant-byok.ts`'s real turn route
  *  performs once per boot; see `ByokToolSurface.ready`'s own doc. */
-async function buildByokRole(routeDeps: NewsletterRouteDeps): Promise<RoleSnapshot> {
+async function buildByokRole(routeDeps: ReturnType<typeof createRouteDeps>): Promise<RoleSnapshot> {
   contributions.contributors.clear({});
   resetPublishContentContributorsForTests();
   resetDuplicateResourceHandlersForTests();
@@ -367,7 +369,7 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
   // The daemon's own function delegates to the shared resolver (hardwiring audit #5); evaluate its
   // real body against that real resolver with an empty env, i.e. local mode.
   const { resolveAgentPermissionMode } = await import("#src/contracts/core/agent-permission-mode");
-  const { assistantCliPermissions } = await import("#src/contracts/headless/assistant-subagents-policy");
+  const { assistantCliPermissions } = await import("#src/assistant/assistant-subagents-policy");
   const resolvePermissionMode = new Function("process", "resolveAgentPermissionMode", "resolveBundledHostSignals", permissionFunction.body.getText(daemonSource));
   const mode = resolvePermissionMode({ env }, resolveAgentPermissionMode, () => ({ hosted: false, nativeToolsRestricted: false, labels: [] }));
   assert.equal(mode, "bypass");
@@ -379,7 +381,7 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
     resolvePermissionMode: () => mode,
     resolveAssistantDisallowedTools: () => ["Bash"], subagentsEnabled: false, ASSISTANT_SETTING_SOURCES: [],
     // This expression runs outside onStarted; supply the locked launch snapshot it closes over.
-    nativeToolAccess: false, nativeCapabilities: assistantCliPermissions({ enabled: false }).capabilities, parityEnv: undefined,
+    nativeToolAccess: false, nativeCapabilities: assistantCliPermissions({ enabled: false }).capabilities, parityEnv: undefined, pickedFolder: undefined,
     resolveAssistantRunSettings: () => undefined, homedir: () => "/tmp/dev-home", existsSync: () => false,
     model: undefined, reasoning: undefined, attachmentRunFields: {},
     // Chrome/subagent preferences resolve before the run; OFF contributes no options here.

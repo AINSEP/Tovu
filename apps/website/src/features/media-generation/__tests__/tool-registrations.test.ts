@@ -3,7 +3,7 @@ import type { HttpClientPort } from "@jini-ai/core/primitives";
 import { createHttpClient, EgressRefusedError } from "@jini-ai/platform/http/guarded";
 import type { HttpResponse } from "#src/platform/http/index";
 import { createContributionRegistry } from "@jini-ai/core";
-import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
+import type { ToolContributions } from "@jini-ai/core";
 import assert from "node:assert/strict";
 import { createNoopTracker, type Tracker } from "@jini-ai/diagnostics/observability";
 import test from "node:test";
@@ -37,9 +37,9 @@ import { createMediaProviderRegistry, mediaProviderDefinition, mediaVendorRegist
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { publishedCatalogDescriptor } from "#src/assistant/__tests__/fixtures/published-catalog-descriptor";
 
-const contributions = {
-  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
-  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>> = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
 };
 
 /** A `KeyringPort` that always fails — simulates a missing/rotated `TOVU_SITE_KEY`
@@ -188,6 +188,7 @@ test("generated assets stamp the acting principal independently of the model and
   const stored = await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id });
   assert.ok(stored);
   assert.equal((stored as { createdBy?: string }).createdBy, PRINCIPAL_ID);
+  assert.deepEqual(stored.source.provenance, { kind: 'generated' });
   assert.equal(stored.credit, "Editorial credit");
   assert.deepEqual(fixture.captures.map(([event]) => event), [{ name: "media_uploaded", userId: PRINCIPAL_ID }]);
 });
@@ -300,7 +301,7 @@ test("with a saved credential: generates through the injected seam, uploads the 
   const storedBytes = await blobStore.get({ storageKey: blob.storageKey });
   assert.deepEqual(Buffer.from(storedBytes), FAKE_PNG_BYTES, "binary renderer bytes survive the upload unchanged");
   assert.equal(createHash("sha256").update(storedBytes).digest("hex"), out.media.sha256);
-  assert.equal(out.media.publicUrl, `/m/${out.media.slug}/public.v1/image.webp`);
+  assert.equal(out.media.publicUrl, `/m/${out.media.slug}/public.v1/image.webp?v=${out.media.sha256.slice(0, 12)}`);
   assert.equal(out.media.placeholder, false, "a real (non-stub) generation must report placeholder:false");
   assert.deepEqual(Object.keys(out.media).sort(), ["alt", "caption", "createdBy", "credit", "id", "placeholder", "publicUrl", "sha256", "slug", "status", "title", "version"]);
   assert.equal(out.media.createdBy, PRINCIPAL_ID, "the view carries the acting principal, like media_upload_asset's");

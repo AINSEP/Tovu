@@ -10,7 +10,7 @@ import { sql } from "kysely";
 import { OWNER_LOCK_FILE } from "../../../db/kernel/drivers/pglite-owner.js";
 import { duplicateSite } from "../../duplicate-site.js";
 import { ValidationError } from "../../errors.js";
-import { initSite } from "../../init-site.js";
+import { initSite } from "#src/server/runtime/composition/site-dir";
 import { PGLITE_DATA_DIR_NAME } from "../../layout.js";
 import { openSiteStore, PG_SOCKET_ENV, type SiteStore } from "#src/server/runtime/composition/open-site-store";
 

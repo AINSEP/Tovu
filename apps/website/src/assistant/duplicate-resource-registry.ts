@@ -1,5 +1,3 @@
-import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
-
 /**
  * @file Resource-owned duplication handlers for content_duplicate. A generic tool dispatches
  * to each resource's own copy implementation instead of requiring a bespoke duplicate tool per resource.
@@ -16,7 +14,7 @@ import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
  *
  * Why `assistant/` owns this file rather than a `features/` package, mirroring
  * `tool-contribution-registry.ts`'s own identical reasoning: {@link DuplicateResourceHandlerContributor}
- * is typed against {@link AssistantToolRegistryDeps}, assembled in `assistant/tool-registrations.ts`
+ * is generic in its consumed deps, bound to `AssistantToolRegistryDeps` in `assistant/tool-registrations.ts`
  * from every domain's own `*ToolDeps` via TYPE-ONLY imports (erased at compile time — no runtime
  * module edge). A resource feature (e.g. `features/post`) reaches INTO this registry with a
  * `import type` for {@link DuplicateResourceHandlerContributor} (zero runtime edge — see
@@ -34,47 +32,13 @@ import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
  * gives: every registration is an explicit call made by a composition root.
  */
 
-/**
- * One resource's contract for participating in `content_duplicate`.
- *
- * `permission` is the SINGLE permission `content_duplicate`'s own handler checks before invoking
- * `duplicate` — resolved from the resource's OWN existing declared permission (e.g. `content.write`
- * for `post`/`page`, the same permission `content_post_create`/`content_post_update` already
- * declare), never a single flat permission shared by the whole generic tool. This is what makes
- * "a caller permitted for posts but not media cannot copy media through it" true by construction: a
- * caller lacking THIS resource's permission is refused before `duplicate` is ever called, regardless
- * of what any other resource's permission is.
- *
- * `duplicate` still owns whatever FINER-grained authorization/guard logic the resource's real
- * write-service already applies (e.g. `post`'s own upfront `content.read` check before it will even
- * disclose the source row exists) — this registry's `permission` is the generic tool's own outer
- * gate, not a replacement for a resource's existing internal ones.
- */
-export interface DuplicateResourceHandler {
-  readonly permission: string;
-  readonly duplicate: (input: {
-    readonly principalId: string;
-    readonly id: string;
-    readonly overrides: { readonly title?: string; readonly slug?: string; readonly status?: string };
-  }) => Promise<Record<string, unknown>>;
-}
+import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
 
-/**
- * One resource's registry entry: which resource id it answers to, and how to build its real,
- * deps-bound {@link DuplicateResourceHandler} once the composition root's real deps bag exists.
- *
- * `build` is deferred (not a bound handler) for the identical reason `ToolContributor.build` is:
- * `installFirstPartyToolContributors()` (where registration happens) runs once at boot, before any
- * real `routeDeps`/`AssistantToolRegistryDeps` exists; `content_duplicate`'s own `build(routeDeps,
- * surfaces)` (run per real composition, later) is what actually resolves every registered
- * contributor into a real handler.
- */
-export interface DuplicateResourceHandlerContributor {
-  readonly resource: string;
-  readonly build: (routeDeps: AssistantToolRegistryDeps) => DuplicateResourceHandler;
-}
+import type { DuplicateResourceHandlerContributor } from "./tool-contributions.js";
+export type { DuplicateResourceHandler, DuplicateResourceHandlerContributor } from "./tool-contributions.js";
 
-let contributors: DuplicateResourceHandlerContributor[] = [];
+// The host binds registration, storage and listing to the same deps; no dependency erasure.
+let contributors: DuplicateResourceHandlerContributor<AssistantToolRegistryDeps>[] = [];
 
 /**
  * Registers one resource's duplicate contribution, called once by a composition root during the
@@ -84,7 +48,7 @@ let contributors: DuplicateResourceHandlerContributor[] = [];
  * reasoning to `registerToolContributor`: idempotent per catalog instance, safe for a test process
  * that legitimately re-registers. Registration order is otherwise preserved.
  */
-export function registerDuplicateResourceHandler(contributor: DuplicateResourceHandlerContributor): void {
+export function registerDuplicateResourceHandler(contributor: DuplicateResourceHandlerContributor<AssistantToolRegistryDeps>, _optional = {}): void {
   const existing = contributors.findIndex((candidate) => candidate.resource === contributor.resource);
   if (existing >= 0) {
     contributors[existing] = contributor;
@@ -94,7 +58,7 @@ export function registerDuplicateResourceHandler(contributor: DuplicateResourceH
 }
 
 /** Every resource contributor registered so far, in registration order. */
-export function listDuplicateResourceHandlers(): readonly DuplicateResourceHandlerContributor[] {
+export function listDuplicateResourceHandlers(_required = {}, _optional = {}): readonly DuplicateResourceHandlerContributor<AssistantToolRegistryDeps>[] {
   return contributors;
 }
 

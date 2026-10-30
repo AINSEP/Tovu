@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import * as askChoice from "../ask-choice-tool.js";
+import * as approvalPolicy from "../tool-approval-policy.js";
+import * as installedExtensions from "../installed-extension-tools.js";
+import * as connectionSource from "../external-mcp-connection-source.js";
+import * as rosterChange from "../external-mcp-roster-change.js";
+import * as sessions from "../agent-session-preset.js";
+import * as permanentDeletes from "../permanent-delete-settings.js";
+import * as deleteGate from "../permanent-delete-tool-gate.js";
+import * as subagentSettings from "../subagent-settings.js";
+import * as lostFrontend from "../lost-frontend-binding.js";
+import * as navigateErrors from "../rewrap-page-navigate-error.js";
+import * as activeContexts from "../run-active-context.js";
+
 import * as mcpFederation from "@jini-ai/mcp/federation";
 
 import * as a2uiActionsRoute from "../a2ui-actions-route.js";
@@ -75,6 +88,38 @@ const EXPECTED_SOURCES: Readonly<Record<string, Readonly<Record<string, unknown>
   UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID: toolAuditPreset,
   withToolCatalogAudit: toolAuditPreset,
   buildAssistantToolRegistrations: toolRegistrations,
+  askAgentPluginChoice: askChoice,
+  applyToolApprovalPolicy: approvalPolicy,
+  createAssistantAgentInventory: agents,
+  attachAssistantToolExtensions: installedExtensions,
+  createStoredExternalMcpConnectionSource: connectionSource,
+  buildExternalMcpFederationDeps: connectionSource,
+  onExternalMcpRosterChanged: rosterChange,
+  notifyExternalMcpRosterChanged: rosterChange,
+  agentCarriesOwnMemory: sessions,
+  extractSessionRefFromEndEvent: sessions,
+  resolveResumeSessionField: sessions,
+  shouldClearSessionOnFailedResume: sessions,
+  wouldForcedColdStartLoseConversationContext: sessions,
+  CONCURRENT_RUN_REFUSAL_MESSAGE: sessions,
+  createLiveRunTracker: sessions,
+  failRunBeforeStart: sessions,
+  STOPPING_RUN_WAIT_MS: sessions,
+  waitForStoppingRuns: sessions,
+  agentAcceptsHostMintedSessionId: sessions,
+  resolveHostMintedSessionId: sessions,
+  resolveNewSessionField: sessions,
+  createConversationStartLock: sessions,
+  readChatPermanentDeletesPolicy: permanentDeletes,
+  createChatDeleteScope: deleteGate,
+  ALL_CHAT_DELETE_TOOLS: deleteGate,
+  readAssistantCliPermissions: subagentSettings,
+  createLostFrontendBindings: lostFrontend,
+  withPageNavigateErrorRewrap: navigateErrors,
+  delegatedToolErrorDisclosure: toolRecoveryPreset,
+  createRunActiveContextStore: activeContexts,
+  registerRunActiveContextRoute: activeContexts,
+  createRunScopedCredentials: daemonAccess,
 };
 
 test("agent-daemon-port exports exactly the documented runtime surface, no more and no less", () => {

@@ -34,7 +34,7 @@ export const AGENT_PLUGIN_TOKEN_IMPORT_ACTOR = "system:token-import";
 
 export interface ImportAgentPluginAccessTokenDeps
   extends AgentPluginTokenTargetDeps,
-    Pick<SwitchOnSavedTokenDeps, "onConnected" | "isPluginOffByOperator" | "switchPluginOn"> {}
+    Pick<SwitchOnSavedTokenDeps, "onConnected" | "isPluginOffByOperator" | "switchPluginOn" | "notifyRosterChanged"> {}
 
 /** `saved-left-off`: the token is saved but an operator had turned the plugin or its connection off,
  *  so it stays off (`switch-on-saved-token.ts`). */
@@ -171,7 +171,8 @@ async function importDeclaredEnvToken(input: EnvDeclaration & { readonly deps: I
     const outcome = await importAgentPluginAccessToken(deps, { pluginId, token, onlyAtUrl: url });
     if (outcome === "saved") {
       log.info(`[agent-plugins] copied ${auth.importFromEnv} onto the '${pluginId}' plugin's connection and switched it on. The env var is no longer needed.`);
-    } else if (outcome === "saved-left-off") {
+    }
+    if (outcome === "saved-left-off") {
       log.info(`[agent-plugins] copied ${auth.importFromEnv} onto the '${pluginId}' plugin's connection; it stays off because an operator turned it off (${AGENT_PLUGINS_SCREEN}). The env var is no longer needed.`);
     }
   } catch {

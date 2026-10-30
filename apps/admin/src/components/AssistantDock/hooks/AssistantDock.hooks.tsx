@@ -23,6 +23,7 @@ import { resolveSelectedPreset, type ExecutionConfig } from "@jini-ai/ui";
 import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { navigate } from "@/lib/router";
+import { startVisibleInterval } from "@/lib/visible-interval";
 import { ApiError, authenticatedAdminRequest } from "@/lib/api";
 import { createChatAttachmentValidator } from "@/lib/chat-attachment-liveness";
 import { readAgentsSnapshot, writeAgentsSnapshot } from "@/lib/assistant-agents-snapshot";
@@ -250,7 +251,8 @@ export function useExecutionConfig(
 
   const refreshExecutionConfig = useCallback(() => {
     const controller = lifecycleRef.current!;
-    const generation = ++refreshGeneration.current;
+    refreshGeneration.current += 1;
+    const generation = refreshGeneration.current;
     const writesAtStart = localWriteRef.current;
     // A refresh notification invalidates the old read even if this request fails. Otherwise Send
     // could reuse a recent cache entry after Settings told us its saved value had changed.
@@ -457,7 +459,7 @@ export function useByokRuntime(
   useEffect(() => {
     if (executionConfig.mode !== "byok" || !byokApiKey.trim()) {
       setByokModels([]);
-      return;
+      return undefined;
     }
     let cancelled = false;
     executionPort.current
@@ -656,7 +658,8 @@ export function useLocalCliSelection(
     }
     normalizationRef.current = null;
     touchedRef.current = true;
-    const generation = ++pickGeneration.current;
+    pickGeneration.current += 1;
+    const generation = pickGeneration.current;
     localCliSelectionRef.current = selection;
     setLocalCliSelection(selection);
     const write = applyExecutionConfigChange(setExecutionConfig, (previous) => withLocalCliSelection({ previous, selection }));
@@ -705,17 +708,18 @@ export function useComposerCapabilities(_input: Record<string, never> = {}, _opt
   const [catalog, setCatalog] = useState(() => ({ scope: queryScope, projection: emptyComposerCapabilityProjection() }));
 
   useEffect(() => {
-    if (checking) return;
+    if (checking) return undefined;
     // One source per authenticated boot scope and document (same-origin site/API, fixed workspace).
     // No module singleton can retain another user's installed capabilities.
     const installed = createInstalledSkillsComposerCapabilitySource();
     let cancelled = false;
     let generation = 0;
     let shown = "";
-    let timer: ReturnType<typeof setInterval> | undefined;
+    let stopPolling = () => {};
     /** Reproject only current work; an unchanged catalog retains its React state identity. */
     const reload = (_required = {}, { force = false } = {}) => {
-      const current = ++generation;
+      generation += 1;
+      const current = generation;
       return projectComposerCapabilities([createBundledComposerCapabilitySource(), { id: installed.id, list: () => installed.reload({}, { force }) }])
       .then((projection) => {
         // An unchanged catalog keeps its state, so refreshes do not re-render the dock. JSON drops
@@ -735,10 +739,9 @@ export function useComposerCapabilities(_input: Record<string, never> = {}, _opt
     };
     // Polling belongs to the dock's visible lifetime, including an unfocused visible window.
     const syncPolling = (_required = {}, _options = {}) => {
-      clearInterval(timer);
-      timer = undefined;
+      stopPolling();
       if (getAssistantDockOpen() && document.visibilityState !== "hidden") {
-        timer = setInterval(() => { void reload(); }, 60_000);
+        stopPolling = startVisibleInterval(() => { void reload(); }, 60_000);
       }
     };
     const visibilityChanged = () => { syncPolling(); refreshVisible(); };
@@ -753,7 +756,7 @@ export function useComposerCapabilities(_input: Record<string, never> = {}, _opt
     document.addEventListener("visibilitychange", visibilityChanged);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      stopPolling();
       stopDockSubscription();
       window.removeEventListener(SKILLS_CHANGED_EVENT, skillsChanged);
       window.removeEventListener("focus", refreshVisible);

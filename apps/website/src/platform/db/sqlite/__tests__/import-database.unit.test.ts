@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { importWorkerLaunch, rebuildImportDatabase, type RebuildImportDatabaseOptions } from "../import-database.js";
+import { importWorkerLaunch, rebuildImportDatabase, type RebuildImportDatabaseOptions } from "#src/server/runtime/composition/site-portability";
 
 /**
  * @file The parent side of the hostile-SQLite import helper, with the space probe, limits and the
@@ -41,10 +41,10 @@ function writeOutputs(root: string, { bytes = Buffer.from("rebuilt") }: { bytes?
 }
 
 test("the helper launch runs the TypeScript source through tsx and a build's JavaScript directly, both with a heap ceiling", () => {
-  const source = importWorkerLaunch({ moduleUrl: "file:///app/src/platform/db/sqlite/import-database.ts" });
-  assert.deepEqual(source, { helper: fileURLToPath("file:///app/src/platform/db/sqlite/import-database-worker.ts"), execArgv: ["--import", "tsx", "--max-old-space-size=512"] });
-  const built = importWorkerLaunch({ moduleUrl: "file:///app/dist/platform/db/sqlite/import-database.js" });
-  assert.deepEqual(built, { helper: fileURLToPath("file:///app/dist/platform/db/sqlite/import-database-worker.js"), execArgv: ["--max-old-space-size=512"] });
+  const source = importWorkerLaunch({ moduleUrl: "file:///app/src/features/site-backup/import-database.ts" });
+  assert.deepEqual(source, { helper: fileURLToPath("file:///app/src/features/site-backup/import-database/repo.sqlite.ts"), execArgv: ["--import", "tsx", "--max-old-space-size=512"] });
+  const built = importWorkerLaunch({ moduleUrl: "file:///app/dist/features/site-backup/import-database.js" });
+  assert.deepEqual(built, { helper: fileURLToPath("file:///app/dist/features/site-backup/import-database/repo.sqlite.js"), execArgv: ["--max-old-space-size=512"] });
 });
 
 test("an oversized snapshot and a staging area without room are refused before any helper starts", async () => {

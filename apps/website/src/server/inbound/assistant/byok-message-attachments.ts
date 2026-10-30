@@ -1,6 +1,5 @@
 import { prepareMessageAttachments } from "@jini-ai/daemon";
-import { readChatAttachmentForOwner, type ChatAttachmentReadResult } from "#src/features/media/read-chat-attachment";
-import { sniffContentType } from "#src/features/media/index";
+import { readChatAttachmentForOwner, type ChatAttachmentReadResult, sniffContentType } from "#src/features/media/index";
 
 /** CMS authorization adapter for the same byte preparation used by daemon runs. A preview read
  * does not claim files: BYOK is request-scoped and has no daemon run to own their cleanup.

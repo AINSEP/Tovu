@@ -1,6 +1,6 @@
 import { ToolInputError, type RememberedApprovalPort } from '@jini-ai/core';
 import type { Clock } from '@jini-ai/core/primitives';
-import type { ConversationToolApprovalStore } from '../../assistant/external-mcp-tool-approval-ports.js';
+import type { ConversationToolApprovalStore } from '../../assistant/mcp-services.js';
 
 /** Adapt native escalation grants to the existing external-MCP remembered approval store.
  * Real conversations remain the persistence/revocation parents; the content store's server FK

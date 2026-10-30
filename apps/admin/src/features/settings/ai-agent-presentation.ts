@@ -44,7 +44,8 @@ export function createAgentPresentationPort(
 ): ExecutionPort {
   let latestScan = 0;
   const project = async (request: () => Promise<readonly DetectedAgent[]>) => {
-    const scan = ++latestScan;
+    latestScan += 1;
+    const scan = latestScan;
     const agents = (await request()).map((agent) => normalizeAgentDescription({ agent }));
     // A slow initial scan must not overwrite a newer rescan's authentication result.
     if (scan === latestScan) onAgents(agents);

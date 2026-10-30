@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
@@ -6,7 +7,7 @@ import type { TrashItem } from "@jini-ai/cms/trash";
 import express from "express";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createSqliteTrashDb } from "#src/features/trash/db-port.sqlite";
+
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import { createMediaTrashAdapter } from "#src/features/trash/adapters/media";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
@@ -104,7 +105,7 @@ test("purge returns 200 for referenced media and continues purging later selecte
     client.prepare(`INSERT INTO media (id, workspace_id, title, alt, caption, credit, source_sha256, status, created_at, updated_at, version)
       VALUES (?, 'ws-7', ?, '', '', '', ?, 'active', ?, ?, 1)`).run(id, id, "0".repeat(64), now, now);
   }
-  const adapter = createMediaTrashAdapter({ db: client, purgeAsset: async ({ entityId }) => {
+  const adapter = createMediaTrashAdapter({ db: contentKernel(client), purgeAsset: async ({ entityId }) => {
     if (entityId === "media-used") throw new MediaStillReferencedError({ message: "still used by a post", referencing: ["post-8:bodyHtml"] });
     client.prepare("DELETE FROM media WHERE workspace_id = ? AND id = ?").run("ws-7", entityId);
   } });
@@ -154,7 +155,7 @@ test("move-to-trash maps a marker race to 409 TRASH_VERSION_CHANGED, leaving the
     VALUES ('form-7', 'ws-7', 'Contact', 'contact', '{"fields":[]}', '{"enabled":false,"recipients":[]}', 'active', ?, ?, NULL, 8)`).run(now, now);
   let writes = 0;
   const invoke = harness({
-    registry: buildTrashRegistry(), db: createSqliteTrashDb({ db }), trash: { trash: async (input: unknown) => {
+    registry: buildTrashRegistry(), db: contentKernel(db), trash: { trash: async (input: unknown) => {
     writes++; assert.deepEqual(input, { workspaceId: "ws-7", entityType: "form", entityId: "form-7", actor: { principalId: "principal-7" },
       display: { title: "Contact", subtitle: "contact" }, at: now, expectedVersion: 8 });
     return { ok: false, reason: "version-changed" };

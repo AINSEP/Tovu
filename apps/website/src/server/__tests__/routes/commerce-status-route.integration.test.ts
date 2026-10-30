@@ -5,7 +5,7 @@ import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
 import { createContributionRegistry } from "@jini-ai/core";
-import type { ToolContributor, DerivedToolContributor } from "#src/assistant/tool-contribution-registry";
+import type { ToolContributor, DerivedToolContributor } from "#src/assistant/tool-registrations";
 import { installFirstPartyToolContributors } from "../../runtime/composition/tool-catalog-manifest.js";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 /** Phase 12: off means no registered HTTP or agent-tool entry, even for an authenticated owner. */

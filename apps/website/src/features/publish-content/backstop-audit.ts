@@ -1,13 +1,6 @@
-import type { PackedEntity } from "./type-registry.js";
-import type { RawFileInverse, RawRowSnapshot } from "./backstop-ports.js";
+export type { BackstopMetadata } from "./packed-entity.js";
+import type { PackedEntity } from "./packed-entity.js";
 
-export interface BackstopMetadata {
-  readonly mode: "backstop";
-  readonly reason: string;
-  readonly sourceActor: string;
-  readonly destinationHost: string;
-  readonly gapLabels: readonly string[];
-}
 export type BackstopInverse =
   | { readonly entity: PackedEntity; readonly kind: "raw-row"; readonly before: RawRowSnapshot | null; readonly afterHash: string }
   | { readonly entity: PackedEntity; readonly kind: "raw-file"; readonly before: RawFileInverse; readonly afterHash: string };
@@ -32,4 +25,24 @@ export interface BackstopAuditPort {
   save(input: { record: BackstopAuditRecord }): Promise<void>;
   get(input: { workspaceId: string; id: string }): Promise<BackstopAuditRecord | null>;
   gaps(input: { workspaceId: string }): Promise<readonly BackstopGap[]>;
+}
+
+/** The CMS backstop's ports. Schema discovery and writes stay in the site's storage adapter. */
+export type RawValue = string | number | null | { readonly blobBase64: string };
+
+export interface RawColumn { readonly name: string; readonly type: string; readonly pk: number; readonly notnull: number }
+
+export interface RawRowSnapshot {
+  readonly table: string;
+  readonly columns: readonly RawColumn[];
+  readonly pk: Readonly<Record<string, RawValue>>;
+  readonly values: Readonly<Record<string, RawValue>>;
+}
+
+export interface RawFileInverse {
+  readonly relPath: string;
+  readonly backupName: string | null;
+  readonly sha256: string | null;
+  readonly size: number | null;
+  readonly mode: number;
 }

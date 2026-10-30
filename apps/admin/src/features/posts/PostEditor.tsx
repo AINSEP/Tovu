@@ -40,6 +40,7 @@ import {
   LINE_HEIGHT_OPTIONS,
   CODE_LANGUAGE_OPTIONS,
   overridesThemePageFromSelectValue,
+  overridesThemePageSelectValue,
   resolvePostPreviewBranches,
   postAutosaveStaleBasisMessage,
   postVersionConflictMessage,
@@ -1235,7 +1236,7 @@ function PostEditorSlugCollisionWarning({
         {t("Which page wins at this URL")}
         {" "}
         <select
-          value={overridesThemePage === null ? "default" : overridesThemePage ? "post" : "theme"}
+          value={overridesThemePageSelectValue(overridesThemePage)}
           // Only "default" maps to `null`; both other options are an explicit, permanent choice
           // (`true`/`false`) that keeps winning even if the default policy changes later — see this
           // control's own file-header doc for the tri-state contract.

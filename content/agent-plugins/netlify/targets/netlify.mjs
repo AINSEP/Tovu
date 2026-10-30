@@ -225,6 +225,8 @@ async function ensureNetlifySite(target, name) {
 
 /** @param {DeployFile["data"]} data */
 function sha1Hex(data) {
+  // Netlify requires SHA-1 file identifiers in its deploy manifest and upload URLs.
+  // This is a wire-format requirement; substituting SHA-256 would break uploads.
   return createHash("sha1").update(Buffer.from(data)).digest("hex");
 }
 

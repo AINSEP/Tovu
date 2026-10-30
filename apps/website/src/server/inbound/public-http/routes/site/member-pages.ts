@@ -8,6 +8,8 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
 import { serveVirtualPage } from "./pages.js";
 
+const CODE_REQUEST_VIEW = "code-request";
+
 /**
  * @file Core's member sign-in pages: `/signin` (password, emailed code, emailed link), `/forgot-
  * password`, `/reset-password` (link from the reset email) and `/account` (set or change a
@@ -89,16 +91,16 @@ const SIGN_IN = page("signin", "Sign in", [
     EMAIL("member-signin-email") +
       field({ id: "member-signin-password", label: "Password", name: "password", type: "password", autocomplete: "current-password", extra: " required" }),
     "Sign in") +
-    links('<a href="/forgot-password">Forgot password?</a>', showButton("code-request", "Email me a code instead"))),
-  view("code-request", form("code-request", EMAIL("member-code-email"), "Email me a code",
+    links('<a href="/forgot-password">Forgot password?</a>', showButton(CODE_REQUEST_VIEW, "Email me a code instead"))),
+  view(CODE_REQUEST_VIEW, form(CODE_REQUEST_VIEW, EMAIL("member-code-email"), "Email me a code",
     tipButton("member-code-tip") + tipText("member-code-tip", "We email you a 6-digit code. New here? Signing in with a code creates your account.")) +
     links(showButton("password", "Use my password instead"))),
   view("code", note('We sent a code to <strong data-member-email></strong>.') +
     form("code", field({ id: "member-code", label: "Code", name: "code", type: "text", autocomplete: "one-time-code",
       extra: ' inputmode="numeric" maxlength="7" required' }), "Sign in") +
-    links(showButton("code-request", "Send a new code"))),
+    links(showButton(CODE_REQUEST_VIEW, "Send a new code"))),
   view("magic", form("magic", note("Finish signing in from your email link."), "Continue") +
-    links(showButton("code-request", "Send a new code"))),
+    links(showButton(CODE_REQUEST_VIEW, "Send a new code"))),
   view("signed-in", note('You\'re signed in as <strong data-member-email></strong>.') +
     links('<a href="/account">Your account</a>', '<button type="button" class="member-link" data-member-sign-out>Sign out</button>')),
   // A provider account whose address isn't the provider's own (not Gmail/Workspace): one emailed

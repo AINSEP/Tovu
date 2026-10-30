@@ -120,24 +120,25 @@ function sharedSiteFolders({ workspace, filePath, createdSiteDirs, quarantine }:
       databases: config.databases, warning: config.warning, configPath: config.configPath, overrides: config.overrides };
   };
   const registry = workspace.registry({});
-  try {
-    if (!registry.hasMigration({ migration: "desktop-roots-config-v1" })) {
-      const { stored, damaged } = readStoredFolders({ filePath });
-      if (damaged) {
-        withFileLock(filePath, () => {
-          if (readStoredFolders({ filePath }).damaged && !quarantine(filePath, {
-            label: "sites folders settings", consequence: "Using shared settings; the damaged legacy bytes are preserved.",
-          })) throw new Error("Could not preserve legacy settings.");
-        });
-      }
-      const config = workspace.config({});
-      if (!config.overrides.siteRoots) {
-        const inherited = [...stored.extraRoots, ...stored.creationRoots, ...createdSiteDirs().map((dir) => path.dirname(dir))];
-        if (inherited.length) workspace.updateRoots({ add: inherited });
-        registry.merge({ entries: [], migration: "desktop-roots-config-v1" });
-      }
+  const importLegacyRoots = () => {
+    if (registry.hasMigration({ migration: "desktop-roots-config-v1" })) return;
+    const { stored, damaged } = readStoredFolders({ filePath });
+    if (damaged) {
+      withFileLock(filePath, () => {
+        if (readStoredFolders({ filePath }).damaged && !quarantine(filePath, {
+          label: "sites folders settings", consequence: "Using shared settings; the damaged legacy bytes are preserved.",
+        })) throw new Error("Could not preserve legacy settings.");
+      });
     }
-  } catch { console.warn("tovu desktop: legacy sites folder import could not complete; using shared settings and retrying next boot."); }
+    const config = workspace.config({});
+    if (!config.overrides.siteRoots) {
+      const inherited = [...stored.extraRoots, ...stored.creationRoots, ...createdSiteDirs().map((dir) => path.dirname(dir))];
+      if (inherited.length) workspace.updateRoots({ add: inherited });
+      registry.merge({ entries: [], migration: "desktop-roots-config-v1" });
+    }
+  };
+  try { importLegacyRoots(); }
+  catch { console.warn("tovu desktop: legacy sites folder import could not complete; using shared settings and retrying next boot."); }
   return { read,
     add({ root }, _options = {}) {
       const policy = { homeDir: workspace.homeDir, sitesHome: workspace.home({}) };

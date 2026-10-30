@@ -71,8 +71,3 @@ export class SqlPublishContentBaselineRepo implements PublishContentBaselineRepo
     );
   }
 }
-
-/** The publish-content baseline repo on `kernel`'s database, whichever dialect. */
-export function publishContentBaselineRepoFor(kernel: ContentKernel): PublishContentBaselineRepoPort {
-  return new SqlPublishContentBaselineRepo(kernel);
-}

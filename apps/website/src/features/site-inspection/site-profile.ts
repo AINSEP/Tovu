@@ -251,7 +251,7 @@ export interface SiteProfilePluginRow {
   name: string;
   version: string;
   source: string;
-  tier?: string | undefined;
+  tier?: string;
   status: string;
 }
 
@@ -298,11 +298,11 @@ export interface SiteProfileDeps {
 
 export interface BuildSiteProfileOptions {
   /** Which sections to collect. Omitted/empty means all of {@link SITE_PROFILE_SECTION_NAMES}. */
-  sections?: readonly SiteProfileSectionName[] | undefined;
+  sections?: readonly SiteProfileSectionName[];
   /** Page rows to include, capped at {@link MAX_PAGE_ITEMS}. Defaults to {@link DEFAULT_PAGE_ITEMS}. */
-  pageLimit?: number | undefined;
+  pageLimit?: number;
   /** Per-section wall clock before the section is marked `unavailable`/`timed-out`. */
-  sectionTimeoutMs?: number | undefined;
+  sectionTimeoutMs?: number;
 }
 
 /** Default page rows returned. Small on purpose: the constraint is LLM context tokens, not

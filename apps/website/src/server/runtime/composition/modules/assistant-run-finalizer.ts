@@ -529,7 +529,8 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
 
   /** Follows the run to a terminal outcome or bounded resolution and reports it to the tracker. */
   async function follow(watch: Watch): Promise<AgentRunStatus> {
-    for (let attempt = 0; ; attempt += 1) {
+    let attempt = 0;
+    while (true) {
       const result = await readWithinBound(watch);
       const resolved = await resolveStreamOutcome(watch, result);
       if (resolved) return resolved;
@@ -543,13 +544,15 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       }
       const nextAttempt = await prepareReconnect({ watch, status, attempt });
       if (nextAttempt === undefined) return "interrupted";
-      attempt = nextAttempt;
+      attempt = nextAttempt + 1;
       await delay({ ms: Math.min(reconnectDelayMs, Math.max(0, watch.resolutionDeadline - now())) });
     }
   }
 
   function shouldRecover({ status, result, attempt, watch }: { status: number | null; result: StreamResult; attempt: number; watch: Watch }, _options = {}): boolean {
-    return status === 404 || (status !== 200 && (result.kind === "gone" || attempt === maxReconnects || now() >= watch.resolutionDeadline));
+    if (status === 404) return true;
+    if (status === 200) return false;
+    return result.kind === "gone" || attempt === maxReconnects || now() >= watch.resolutionDeadline;
   }
 
   async function resolveStreamOutcome(watch: Watch, result: StreamResult): Promise<AgentRunStatus | undefined> {

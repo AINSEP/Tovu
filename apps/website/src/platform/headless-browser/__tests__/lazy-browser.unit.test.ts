@@ -1,3 +1,4 @@
+import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -82,16 +83,16 @@ test("release without idleCloseMs, or with nothing launched, schedules nothing",
 
 test("encodeJpeg downscales to maxWidth, keeps the aspect ratio, never enlarges, and returns real JPEG bytes", async () => {
   const png = await sharp({ create: { width: 1280, height: 800, channels: 3, background: { r: 200, g: 10, b: 10 } } }).png().toBuffer();
-  const shrunk = await encodeJpeg({ image: png, maxWidth: 640 });
+  const shrunk = await encodeJpeg({ imageCodec: new SharpImageTransformer(), image: png, maxWidth: 640 });
   assert.deepEqual([shrunk.width, shrunk.height], [640, 400]);
   assert.equal((await sharp(shrunk.bytes).metadata()).format, "jpeg");
-  const kept = await encodeJpeg({ image: png, maxWidth: 4000 });
+  const kept = await encodeJpeg({ imageCodec: new SharpImageTransformer(), image: png, maxWidth: 4000 });
   assert.deepEqual([kept.width, kept.height], [1280, 800]);
 });
 
 test("encodeJpeg honors an explicit quality instead of its default", async () => {
   const png = await sharp({ create: { width: 32, height: 20, channels: 3, background: { r: 200, g: 10, b: 10 } } }).png().toBuffer();
-  const encoded = await encodeJpeg({ image: png, maxWidth: 32 }, { quality: 35 });
+  const encoded = await encodeJpeg({ imageCodec: new SharpImageTransformer(), image: png, maxWidth: 32 }, { quality: 35 });
   assert.deepEqual([encoded.width, encoded.height], [32, 20]);
   assert.deepEqual(encoded.bytes, await sharp(png).jpeg({ quality: 35 }).toBuffer());
   assert.notDeepEqual(encoded.bytes, await sharp(png).jpeg({ quality: 72 }).toBuffer());

@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, utimes, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, utimes, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { createNoopObservabilityPort, isNoopObservabilityPort, type ErrorReport, type MetricInput, type MetricOptions } from '@jini-ai/diagnostics/observability';
 import { isNoopProductAnalytics, type ProductEvent } from '@jini-ai/analytics/product';
-import { bootProductTelemetry, bootProductTelemetryFromEnv, createProductConsentReader, type ProductConsent, type ProductProviderInput, type ProductTelemetry } from '../product-telemetry.js';
+import { bootProductTelemetry, bootProductTelemetryFromEnv, createProductConsentReader, loadProductProviders, type ProductConsent, type ProductProviderInput, type ProductTelemetry } from '../product-telemetry.js';
 import { PRODUCT_EVENTS, projectProductEvent } from '../product-events.js';
 
 const INSTALL = '00000000-0000-4000-8000-000000000001';
@@ -305,4 +306,189 @@ test('maker errors discard site trace IDs and arbitrary attributes while preserv
     assert.deepEqual(report.context.trace, trace, 'site error context remains untouched for its own providers');
     await product.dispose();
   } finally { await f.close(); }
+});
+
+/** Separate installed packages exercise the real discovery, integrity and provider lifecycle owners.
+ * The resolver port isolates npm lookup; no vendor SDK, aggregate package or sibling checkout is used. */
+async function standaloneFixture() {
+  const f = await fixture();
+  const logPath = path.join(f.root, 'signals.jsonl');
+  const catalogPath = path.join(f.root, 'catalog.json');
+  await writeFile(logPath, '');
+  const catalog = [
+    { kind: 'provider', id: 'fake-errors', packageName: '@jini-ai/plugin-fixture-errors', contract: { id: 'observability' } },
+    { kind: 'provider', id: 'fake-usage', packageName: '@jini-ai/plugin-fixture-usage', contract: { id: 'product_analytics' } },
+    { kind: 'provider', id: 'unselected', packageName: '@jini-ai/plugin-not-installed', contract: { id: 'observability' } },
+  ];
+  await writeFile(catalogPath, JSON.stringify(catalog));
+  const packages = new Map<string, string>([['@jini-ai/plugin-catalog/catalog', catalogPath]]);
+  const entries = new Map<string, string>();
+  for (const entry of catalog.slice(0, 2)) {
+    const packageRoot = path.join(f.root, entry.id);
+    const artifactRoot = path.join(packageRoot, 'plugins', entry.id, '0.7.0');
+    await mkdir(path.join(artifactRoot, 'server'), { recursive: true });
+    const source = `import { appendFileSync } from 'node:fs';
+      const write = value => appendFileSync(${JSON.stringify(logPath)}, JSON.stringify(value) + '\\n');
+      export default { definition: { setup(sdk) {
+        write({ type: 'import', id: ${JSON.stringify(entry.id)} });
+        sdk.providers.register({ contract: ${JSON.stringify(entry.contract.id)}, id: 'fixture', contractVersion: 1,
+          factory(input, options = {}) {
+            if (input.fail) throw new Error('PRIVATE_INIT_FAILURE');
+            write({ type: 'init', id: ${JSON.stringify(entry.id)}, input });
+            return { port: ${entry.contract.id === 'observability' ? `{
+              trackRequest() {}, trackDbQuery() {}, trackOutboundCall() {}, trackAgentRun() {}, trackOperation() {},
+              reportError(report) { write({ type: 'error', message: report.error.message }); return true; }
+            }` : `{
+              capture(event) { write({ type: 'event', event }); }, identify() {}
+            }`}, dispose() { write({ type: 'dispose', id: ${JSON.stringify(entry.id)} }); } };
+          }
+        });
+      } } };
+    `;
+    const entryPath = path.join(artifactRoot, 'server/index.mjs');
+    await writeFile(entryPath, source);
+    await writeFile(path.join(artifactRoot, 'jini.plugin.json'), JSON.stringify({
+      id: entry.id, name: entry.id, version: '0.7.0', sdkRange: '^0.1.0 || ^1.0.0', engine: 1, tier: 'tier-3',
+      extensions: { tovu: { id: `fixture/${entry.id}` } }, capabilities: ['providers.register'], hooks: [], fields: [],
+      contributes: { providers: [{ contract: entry.contract.id, id: 'fixture', contractVersion: 1 }] },
+      integrity: { 'server/index.mjs': `sha256-${createHash('sha256').update(source).digest('hex')}` },
+    }));
+    const packagePath = path.join(packageRoot, 'package.json');
+    await writeFile(packagePath, JSON.stringify({ name: entry.packageName, version: '0.7.0' }));
+    packages.set(`${entry.packageName}/package.json`, packagePath);
+    entries.set(entry.id, entryPath);
+  }
+  const resolved: string[] = [];
+  const resolvePackage: NodeJS.RequireResolve = Object.assign((specifier: string, options?: Parameters<NodeJS.RequireResolve>[1]) => {
+    resolved.push(specifier);
+    assert.ok(options?.paths?.some(root => root.endsWith('app.asar')), 'desktop shell root remains available');
+    assert.ok(options?.paths?.some(root => root.endsWith('tovu')), 'desktop payload root remains available');
+    const target = packages.get(specifier);
+    if (!target) throw new Error('PRIVATE_MISSING_PACKAGE');
+    return target;
+  }, { paths: () => null });
+  const signals = async () => (await readFile(logPath, 'utf8')).trim().split('\n').filter(Boolean)
+    .map(line => JSON.parse(line) as { type: string; id?: string; input?: Record<string, unknown>; event?: ProductEvent });
+  return { ...f, catalog, catalogPath, packages, entries, resolved, signals,
+    loadProviders: (input: ProductProviderInput) => loadProductProviders(input, { resolvePackage }) };
+}
+
+test('standalone catalog resolves only configured packages; real provider ports retain live consent and attribution', async () => {
+  const f = await standaloneFixture();
+  let consent: ProductConsent = { crashes: false, usage: false, installationId: INSTALL };
+  try {
+    const product = await bootProductTelemetry(f.required, { loadProviders: f.loadProviders, readConsent: () => consent });
+    assert.equal(product.active, true);
+    assert.deepEqual(f.resolved, ['@jini-ai/plugin-catalog/catalog', '@jini-ai/plugin-fixture-errors/package.json', '@jini-ai/plugin-fixture-usage/package.json']);
+    const event = { name: 'app_started', userId: 'site-principal', properties: { launchMode: 'fresh' } };
+    const report = { error: new Error('safe fixture'), context: { operation: 'fixture' } };
+    await product.productAnalytics.capture(event);
+    assert.equal(product.observability.reportError(report), false);
+    consent = granted;
+    await product.productAnalytics.capture(event);
+    assert.equal(product.observability.reportError(report), true);
+    consent = { ...granted, crashes: false, usage: false };
+    await product.productAnalytics.capture(event);
+    assert.equal(product.observability.reportError(report), false);
+    const signals = await f.signals();
+    assert.equal(signals.filter(signal => signal.type === 'error').length, 1);
+    assert.deepEqual(signals.filter(signal => signal.type === 'event').map(signal => signal.event), [{ ...event, userId: INSTALL }]);
+    const inputs = signals.filter(signal => signal.type === 'init').map(signal => signal.input!);
+    assert.equal(inputs.length, 2);
+    for (const input of inputs) {
+      assert.equal(input.release, f.required.release);
+      assert.equal(input.environment, 'desktop');
+      assert.deepEqual(input.attribution, { attributes: { source: 'desktop', release: f.required.release, environment: 'desktop',
+        'service.version': f.required.release, 'deployment.environment': 'desktop', os: process.platform, arch: process.arch, process: 'server' }, groups: {} });
+    }
+    await product.dispose();
+    assert.deepEqual((await f.signals()).filter(signal => signal.type === 'dispose').map(signal => signal.id).sort(), ['fake-errors', 'fake-usage']);
+  } finally { await f.close(); }
+});
+
+test('one configured standalone provider leaves the other noop without resolving its package', async () => {
+  for (const [key, packageName] of [['observability', 'fixture-errors'], ['productAnalytics', 'fixture-usage']] as const) {
+    const f = await standaloneFixture();
+    try {
+      await writeFile(f.required.configPath, JSON.stringify({ [key]: CONFIG[key] }));
+      const product = await bootProductTelemetry(f.required, { loadProviders: f.loadProviders });
+      assert.equal(product.active, true);
+      assert.deepEqual(f.resolved, ['@jini-ai/plugin-catalog/catalog', `@jini-ai/plugin-${packageName}/package.json`]);
+      assert.equal(product.observability.reportError({ error: new Error('denied'), context: { operation: 'fixture' } }), false);
+      await product.productAnalytics.capture({ name: 'app_started', userId: 'site-principal' });
+      assert.equal((await f.signals()).some(signal => signal.type === 'event'), false);
+      await product.dispose();
+    } finally { await f.close(); }
+  }
+});
+
+test('standalone lookup, discovery, integrity and init failures release earlier providers and disable both outputs', async () => {
+  for (const failure of ['missing-package', 'catalog-contract', 'manifest-contract', 'invalid-manifest', 'integrity', 'init']) {
+    const f = await standaloneFixture();
+    try {
+      if (failure === 'missing-package') f.packages.delete('@jini-ai/plugin-fixture-usage/package.json');
+      if (failure === 'catalog-contract') {
+        f.catalog[1]!.contract.id = 'observability';
+        await writeFile(f.catalogPath, JSON.stringify(f.catalog));
+      }
+      if (failure === 'manifest-contract' || failure === 'invalid-manifest') {
+        const manifestPath = path.join(path.dirname(f.entries.get('fake-usage')!), '../jini.plugin.json');
+        const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+        if (failure === 'manifest-contract') manifest.contributes.providers[0].contract = 'observability';
+        else manifest.engine = 999;
+        await writeFile(manifestPath, JSON.stringify(manifest));
+      }
+      if (failure === 'integrity') await writeFile(f.entries.get('fake-usage')!, 'throw new Error("must not import tampered bytes");');
+      if (failure === 'init') await writeFile(f.required.configPath, JSON.stringify({ ...CONFIG, productAnalytics: { ...CONFIG.productAnalytics, input: { fail: true } } }));
+      const warnings: string[] = [];
+      const product = await bootProductTelemetry(f.required, { loadProviders: f.loadProviders, warn: message => warnings.push(message) });
+      assert.equal(product.active, undefined, failure);
+      assert.equal(isNoopObservabilityPort(product.observability), true, failure);
+      assert.equal(isNoopProductAnalytics(product.productAnalytics), true, failure);
+      assert.deepEqual(warnings, ['[product-telemetry] unavailable; product reporting is disabled'], failure);
+      const signals = await f.signals();
+      assert.deepEqual(signals.filter(signal => signal.type === 'dispose').map(signal => signal.id), ['fake-errors'], failure);
+      assert.equal(signals.filter(signal => signal.type === 'import' && signal.id === 'fake-usage').length, failure === 'init' ? 1 : 0, failure);
+      await product.dispose();
+      assert.equal((await f.signals()).filter(signal => signal.type === 'dispose').length, 1, failure);
+    } finally { await f.close(); }
+  }
+});
+
+test('missing or malformed catalog and unknown selections fail closed before importing any provider', async () => {
+  for (const failure of ['missing-catalog', 'malformed-catalog', 'unknown-plugin']) {
+    const f = await standaloneFixture();
+    try {
+      if (failure === 'missing-catalog') f.packages.delete('@jini-ai/plugin-catalog/catalog');
+      if (failure === 'malformed-catalog') await writeFile(f.catalogPath, '{broken');
+      if (failure === 'unknown-plugin') await writeFile(f.required.configPath, JSON.stringify({ observability: { plugin: 'unknown', input: {} } }));
+      const warnings: string[] = [];
+      const product = await bootProductTelemetry(f.required, { loadProviders: f.loadProviders, warn: message => warnings.push(message) });
+      assert.equal(isNoopObservabilityPort(product.observability), true, failure);
+      assert.equal(isNoopProductAnalytics(product.productAnalytics), true, failure);
+      assert.deepEqual(warnings, ['[product-telemetry] unavailable; product reporting is disabled'], failure);
+      assert.deepEqual(f.resolved, ['@jini-ai/plugin-catalog/catalog'], failure);
+      assert.deepEqual(await f.signals(), [], failure);
+    } finally { await f.close(); }
+  }
+});
+
+test('Tovu declares no production vendor plugins; OTLP is development-only and lock entries match the selected packages', async () => {
+  const manifest = JSON.parse(await readFile(new URL('../../../../../../../package.json', import.meta.url), 'utf8'));
+  const lock = JSON.parse(await readFile(new URL('../../../../../../../package-lock.json', import.meta.url), 'utf8'));
+  assert.deepEqual(Object.keys(manifest.dependencies).filter(name => name.startsWith('@jini-ai/plugin-')).sort(),
+    ['@jini-ai/plugin-catalog', '@jini-ai/plugin-ui-ux-design']);
+  assert.equal(manifest.dependencies['@jini-ai/provider-plugins'], undefined);
+  assert.equal(manifest.optionalDependencies?.['@jini-ai/plugin-observability-opentelemetry'], undefined);
+  for (const name of ['@jini-ai/plugin-catalog', '@jini-ai/plugin-ui-ux-design']) {
+    assert.equal(manifest.dependencies[name], '^0.7.0');
+    assert.equal(lock.packages[''].dependencies[name], manifest.dependencies[name]);
+    assert.equal(lock.packages[`node_modules/${name}`].version, '0.7.0');
+    assert.equal(lock.packages[`node_modules/${name}`].dev, undefined);
+  }
+  const otlp = '@jini-ai/plugin-observability-opentelemetry';
+  assert.equal(manifest.devDependencies[otlp], '^0.7.0');
+  assert.equal(lock.packages[''].devDependencies[otlp], manifest.devDependencies[otlp]);
+  assert.equal(lock.packages[`node_modules/${otlp}`].version, '0.7.0');
+  assert.equal(lock.packages[`node_modules/${otlp}`].dev, true);
 });

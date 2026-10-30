@@ -7,14 +7,11 @@ import { passwordResetNotice, t } from "../users-i18n";
 import { defaultUsersPort, toJiniUsersPort } from "./users-dependencies.hooks";
 import type { UsersPort } from "./users-port.hooks";
 
-export type UsersController = Omit<JiniController, "onAssignRole" | "onAttachPolicy" | "onSaveEmail" | "translate"> & {
+export type UsersController = Omit<JiniController, "translate"> & {
   // Retained host field; the comment below records the pre-extraction row-menu contract.
   /** Raw resolved locale — `rules.ts`'s `userRowMenuItems` takes `locale` directly rather than a
    *  bound translator. See this file's header. */
   locale: string;
-  onAssignRole: (principalId: string) => Promise<void>;
-  onAttachPolicy: (principalId: string) => Promise<void>;
-  onSaveEmail: (principalId: string) => Promise<void>;
 };
 export interface UsersDependencies {
   port: UsersPort;
@@ -38,11 +35,7 @@ export function useUsers({ port, openOwnPasswordReset, navigate }: UsersDependen
     onOwnPasswordResetClosed: () => navigate?.("/users"),
     passwordResetNotice: ({ username }) => passwordResetNotice(locale, username),
   });
-  return { ...controller, locale,
-    onAssignRole: principalId => controller.onAssignRole({ principalId }),
-    onAttachPolicy: principalId => controller.onAttachPolicy({ principalId }),
-    onSaveEmail: principalId => controller.onSaveEmail({ principalId }),
-  };
+  return { ...controller, locale };
 }
 
 /**

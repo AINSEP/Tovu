@@ -855,12 +855,12 @@ test("T2 BYOK forwards the live snapshot: search → describe → strict typed c
         assert.ok(options.getTools);
         assert.ok(options.executeTool);
         for (const name of ["search_tools", "describe_tool"]) {
-          const tools = options.getTools({ strict: true });
+          const tools: ReturnType<NonNullable<typeof options.getTools>> = options.getTools({ strict: true });
           snapshots.push(tools.map(tool => tool.function.name));
           assert.equal(tools.some(tool => tool.function.name.includes("inspect")), false);
           await options.executeTool({ id: name, name, input: name === "search_tools" ? { query: "inspect a record" } : { id: descriptor.id } });
         }
-        const tools = options.getTools({ strict: true });
+        const tools: ReturnType<NonNullable<typeof options.getTools>> = options.getTools({ strict: true });
         snapshots.push(tools.map(tool => tool.function.name));
         const concrete = tools.find(tool => tool.function.name.includes("inspect"));
         assert.ok(concrete);
@@ -905,7 +905,7 @@ test("T2 BYOK strict-prefer fallback keeps open maps and reports only value-free
       openai: async (_required: Parameters<typeof providerTurnAdapters.openai>[0], options: NonNullable<Parameters<typeof providerTurnAdapters.openai>[1]>) => {
         assert.ok(options.getTools);
         assert.ok(options.executeTool);
-        const tools = options.getTools({ strict: true });
+        const tools: ReturnType<NonNullable<typeof options.getTools>> = options.getTools({ strict: true });
         assert.equal(tools[0].function.strict, undefined);
         assert.deepEqual(tools[0].function.parameters, descriptor.inputSchema);
         const result = await options.executeTool({ id: "open-map", name: "t2_open_map", input: { secret: "value-not-for-telemetry", arbitrary: { retained: true } } });

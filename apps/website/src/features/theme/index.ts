@@ -24,6 +24,7 @@ export {
 } from "./theme.js";
 
 export { applicableThemeTemplates, type ThemeTemplateFor, type ThemeTemplateKind } from "./template-applicability.js";
+export { isPackageShippedTheme } from "./theme-files.js";
 
 // 2026-10-08 — the one "make a new theme" service: the admin Themes screen's Duplicate route and the
 // `theme_duplicate` agent tool both call `duplicateDiscoveredTheme`, so neither can drift.
@@ -99,7 +100,6 @@ export {
   resolveTemplateBranchChoice,
   type TemplateBranchChoice,
   scanMenuEmbedIds,
-  scanPostPreviewsLimit,
   postPreviewsBatchSize,
   isPagedPostPreviewsMarker,
   type StaticPostPreviewsPage,

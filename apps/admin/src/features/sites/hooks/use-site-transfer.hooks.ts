@@ -3,7 +3,7 @@ import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import { API_UNREACHABLE_CODE, ApiError, describeApiError } from "@/lib/api";
 import { requestAssistantPrompt } from "@/lib/assistant-prompt-bus";
-import { SHARE_LIMITS } from "../../../../../website/src/features/site-backup/share-policy";
+import { SHARE_LIMITS } from "@tovu/contracts/site-share-limits";
 import {
   defaultSiteTransferPort,
   type SiteImport,

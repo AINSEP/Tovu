@@ -70,8 +70,13 @@ export function isMcpUiToolCallPermitted(toolName: string, answersAnExchange: bo
   if (MCP_UI_REDEEMABLE_TOOL_IDS.has(toolName)) return answersAnExchange || !nativeToolMetadata.exchangeOnlyIds.has(toolName);
   // Plugin tools (`p_<plugin>__<tool>`) park on the same principal-bound exchange when they ask;
   // only the click answering that parked call is accepted, never a fresh execution.
-  return answersAnExchange && (toolName.startsWith(FEDERATED_TOOL_ID_PREFIX) || PLUGIN_TOOL_ID.test(toolName));
+  return answersAnExchange && (toolName.startsWith(FEDERATED_TOOL_ID_PREFIX) || isPluginToolId({ toolName }));
 }
 
 /** The plugin tool contract's namespaced id shape (`pluginToolIdFor` in `@jini-ai/plugins/host`). */
-const PLUGIN_TOOL_ID = /^p_[a-z0-9_]+__[a-z0-9_]+$/;
+function isPluginToolId({ toolName }: { toolName: string }, _optional = {}): boolean {
+  const match = /^p_([a-z0-9_]+)$/.exec(toolName);
+  if (!match) return false;
+  const separator = match[1]!.indexOf("__", 1);
+  return separator !== -1 && separator < match[1]!.length - 2;
+}

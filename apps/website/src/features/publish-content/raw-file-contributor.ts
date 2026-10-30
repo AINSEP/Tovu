@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { executeCommand } from "@jini-ai/cms/core";
-import { computeBlobStorageKey, isDocumentOnlyBlob } from "#src/features/media/index";
+import { computeBlobStorageKey, isDocumentOnlyBlob } from "@jini-ai/cms/media";
 import { checkRawFilePath, checkRawValues, BACKSTOP_LIMITS } from "./backstop-policy.js";
 import { normalizeMode } from "./file-tree-policy.js";
 import type { RawFileInverse, RawFileSnapshot } from "./backstop-ports.js";

@@ -11,20 +11,10 @@
  * surrogate pairs: Jini's `too_long` then fires exactly when the code points exceed the cap, and the
  * refusal keeps the same shape and per-field message as every other validation failure.
  */
-import type { FieldDescriptor, FormDefinitionRecord } from "@jini-ai/cms/forms";
+import type { FormDefinitionRecord } from "@jini-ai/cms/forms";
 
-export const FORM_TEXT_MAX_CHARS = 100;
-export const FORM_LONG_TEXT_MAX_CHARS = 2000;
-
-const SHORT_TEXT_TYPES = new Set(["text", "email", "phone", "url"]);
-const LONG_TEXT_TYPES = new Set(["textarea", "hidden"]);
-
-/** The most characters a visitor may submit for `field`; undefined for non-text fields. */
-export function fieldMaxChars({ field }: { field: Pick<FieldDescriptor, "type" | "maxLength"> }, _optional = {}): number | undefined {
-  if (SHORT_TEXT_TYPES.has(field.type)) return field.maxLength ?? FORM_TEXT_MAX_CHARS;
-  if (LONG_TEXT_TYPES.has(field.type)) return field.maxLength ?? FORM_LONG_TEXT_MAX_CHARS;
-  return undefined;
-}
+import { fieldMaxChars } from "./render-entry.js";
+export { FORM_TEXT_MAX_CHARS, FORM_LONG_TEXT_MAX_CHARS, fieldMaxChars } from "./render-entry.js";
 
 /** UTF-16 units beyond the code points: one per astral character (most emoji). @complexity O(n). */
 function surrogatePairs(value: string): number {

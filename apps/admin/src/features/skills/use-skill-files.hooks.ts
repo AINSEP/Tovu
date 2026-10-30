@@ -3,7 +3,7 @@ import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useState } from "react";
 import type { Translate } from "@jini-ai/ui/panel-kit";
 import type { PackageFilesModalProps } from "../plugins/PackageFilesModal";
-import { packageFilesViewState, type PackageFilesRead } from "../plugins/rules";
+import { packageFilesRead, packageFilesViewState, type PackageFilesRead } from "../plugins/rules";
 import { listSkillFiles, type InstalledSkill, type SkillFiles } from "./api";
 
 interface SkillFilesDependencies {
@@ -27,7 +27,7 @@ export function useSkillFiles({ toolId, read, t }: SkillFilesDependencies) {
     if (key === "No files to show for this plugin.") return "No files to show for this skill.";
     return t(key);
   };
-  const loaded: PackageFilesRead | null = query.data ? { listing: query.data, error: null } : query.error ? { listing: null, error: query.error.message } : null;
+  const loaded: PackageFilesRead | null = packageFilesRead(query);
   const selectedPath = selection?.toolId === toolId ? selection.path : "SKILL.md";
   const validPath = loaded?.listing?.files.some(file => file.relativePath === selectedPath) ? selectedPath : "SKILL.md";
   return {

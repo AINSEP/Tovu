@@ -16,7 +16,7 @@ export function useNewSiteDir({ name }: { name: string }, {
     const plan = getBridge()?.planNewDir;
     if (!plan) {
       setPreview({ name, hint: 'Website destination is unavailable in this desktop version.' });
-      return;
+      return undefined;
     }
     void plan({ name }).then(({ path, homeDir }) => {
       const separator = homeDir.includes('\\') ? '\\' : '/';

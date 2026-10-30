@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import tseslint from 'typescript-eslint';
 import sonarjs from 'eslint-plugin-sonarjs';
-import { sonarSourceConfig } from './development/sonarjs/policy.mjs';
+import { sonarSourceConfig, sonarVendorSha1Override } from './development/sonarjs/policy.mjs';
 
 import effectResourceCleanup from './development/eslint-rules/effect-resource-cleanup.mjs';
 import singleFetchQueryProvider from './development/eslint-rules/single-fetch-query-provider.mjs';
@@ -279,6 +279,7 @@ export default [
   // Sonar rules warn while admin/desktop thresholds and debt overrides keep precedence.
   // quality:sonar supplies type information separately for type-dependent rules.
   sonarSourceConfig,
+  sonarVendorSha1Override,
   {
     /**
      * F06 option B (2026-08-10): `apps/admin` enforces the documented ≤9 cyclomatic / ≤9

@@ -7,6 +7,8 @@ import { renderPostPreview, TemplatePreviewRenderError } from "./template-previe
 import { getAuthedPrincipal } from "../../dev-auth.js";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 
+const PLAIN_TEXT = "text/plain";
+
 /**
  * @file Template-preview fix (2026-08-11, extended 2026-08-12) — `ADS-memory/reports/implementation/
  * 2026-08-11-template-preview-render-bug.md` has the original root-cause writeup. Short version: both
@@ -176,7 +178,7 @@ const PREVIEW_CSP = "sandbox allow-scripts allow-forms allow-popups";
 export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app, deps) => {
   const handlePreviewRequest: RequestHandler = async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-      res.status(404).type("text/plain").send("workspace was not found");
+      res.status(404).type(PLAIN_TEXT).send("workspace was not found");
       return;
     }
 
@@ -188,7 +190,7 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
         workspaceId: deps.workspaceId,
       });
       if (!authResult.allowed) {
-        res.status(403).type("text/plain").send(`principal '${principal.id}' is not authorized for 'content.read'`);
+        res.status(403).type(PLAIN_TEXT).send(`principal '${principal.id}' is not authorized for 'content.read'`);
         return;
       }
 
@@ -217,14 +219,14 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
       res.set("Cache-Control", "no-store").set("Content-Security-Policy", PREVIEW_CSP).type("html").send(html);
     } catch (err) {
       if (err instanceof TemplatePreviewRenderError) {
-        res.status(err.status).type("text/plain").send(err.message);
+        res.status(err.status).type(PLAIN_TEXT).send(err.message);
         return;
       }
       if (err instanceof PostNotFoundError) {
-        res.status(404).type("text/plain").send(err.message);
+        res.status(404).type(PLAIN_TEXT).send(err.message);
         return;
       }
-      res.status(500).type("text/plain").send("preview render failed");
+      res.status(500).type(PLAIN_TEXT).send("preview render failed");
     }
   };
 

@@ -21,7 +21,10 @@ export function claimSiteRunning(
   { workspace = createSitesWorkspace({}), readSite = readSiteDir }: { workspace?: SitesWorkspace; readSite?: typeof readSiteDir } = {},
 ) {
   const claim = workspace.claim({ path: dir, app, scheme });
-  if (!claim.acquired) throw new Error(`Running in ${claim.record.app} (${claim.record.port > 0 ? `port ${claim.record.port}` : "starting"}). ${runningSiteUrl({ record: claim.record }) ?? "Wait for this site to finish starting."}`);
+  if (!claim.acquired) {
+    const status = claim.record.port > 0 ? `port ${claim.record.port}` : "starting";
+    throw new Error(`Running in ${claim.record.app} (${status}). ${runningSiteUrl({ record: claim.record }) ?? "Wait for this site to finish starting."}`);
+  }
   const lock = workspace.running({ path: dir });
   const release = () => lock.release({ token: claim.record.token });
   process.once("exit", release);

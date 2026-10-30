@@ -33,6 +33,7 @@ const WS = "workspace-local";
 async function startServerWithDeps(t: { after: (fn: () => Promise<void>) => void }): Promise<{
   baseUrl: string;
   cookie: string;
+  actorId: string;
   deps: RouteDeps;
 }> {
   const deps = createRouteDeps();
@@ -50,9 +51,10 @@ async function startServerWithDeps(t: { after: (fn: () => Promise<void>) => void
     body: JSON.stringify({ username: "admin", password: "tovu-dev" }),
   });
   assert.equal(login.status, 200);
+  const { user } = await login.json() as { user: { id: string } };
   const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
 
-  return { baseUrl, cookie, deps };
+  return { baseUrl, cookie, actorId: user.id, deps };
 }
 
 async function createRow(
@@ -92,7 +94,7 @@ async function rollBackAnUpdate(
   t: { after: (fn: () => Promise<void>) => void },
   surface: "posts" | "pages"
 ) {
-  const { baseUrl, cookie, deps } = await startServerWithDeps(t);
+  const { baseUrl, cookie, actorId, deps } = await startServerWithDeps(t);
   const { id, version } = await createRow(baseUrl, cookie, surface, {
     title: "Ledger Fixture",
     slug: "ledger-original",
@@ -132,7 +134,7 @@ async function rollBackAnUpdate(
   assert.ok(current, "the rolled-back row must still exist");
   const revisions = await deps.postRepo.listRevisions({ workspaceId: WS, postId: id });
   const persisted = await deps.outbox.claimPending({ batchSize: 100, nowIso: deps.clock.nowIso() });
-  return { current, prior, priorRevision, revisions, statusEvents: outbox.names(), persistedEvents: persisted.map((row) => row.event).filter((event) => event.name.startsWith("entry.")) };
+  return { current, prior, priorRevision, revisions, actorId, statusEvents: outbox.names(), persistedEvents: persisted.map((row) => row.event).filter((event) => event.name.startsWith("entry.")) };
 }
 
 for (const surface of ["posts", "pages"] as const) {
@@ -171,7 +173,7 @@ for (const surface of ["posts", "pages"] as const) {
   });
 
   test(`PUT ${surface}: a rolled-back publish does not leave an uncompensated entry.published event`, async (t) => {
-    const { current, statusEvents, persistedEvents } = await rollBackAnUpdate(t, surface);
+    const { current, actorId, statusEvents, persistedEvents } = await rollBackAnUpdate(t, surface);
 
     assert.equal(current.status, "draft", "the rollback must restore the pre-edit status");
     assert.deepEqual(
@@ -180,7 +182,7 @@ for (const surface of ["posts", "pages"] as const) {
       "the undone draft->published write announced entry.published; the rollback must announce the matching entry.unpublished rather than leave subscribers believing the row is live"
     );
     assert.deepEqual(persistedEvents.map(({ name, aggregateId, workspaceId, payload }) => ({ name, aggregateId, workspaceId, payload })), [
-      { name: "entry.published", aggregateId: current.id, workspaceId: WS, payload: { entryId: current.id, contentType: surface === "pages" ? "page" : "post" } },
+      { name: "entry.published", aggregateId: current.id, workspaceId: WS, payload: { entryId: current.id, contentType: surface === "pages" ? "page" : "post", actorId, source: "admin" } },
       { name: "entry.unpublished", aggregateId: current.id, workspaceId: WS, payload: { entryId: current.id, contentType: surface === "pages" ? "page" : "post" } },
     ]);
   });

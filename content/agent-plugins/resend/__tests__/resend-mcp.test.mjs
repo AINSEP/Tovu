@@ -1,3 +1,4 @@
+import * as externalMcpStore from "../../../../apps/website/src/assistant/mcp-services.ts";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
@@ -163,7 +164,7 @@ async function saveAccountKey({ toolId }, _optional = {}) {
   const deps = {
     workspaceId, agentPluginLayout: resolveAgentPluginLayout(), clock,
     authorize: async () => ({ allowed: true, reason: "fixture" }),
-    externalMcpServerRepo: repo, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring,
+    externalMcpServerRepo: repo, externalMcpStore, siteAssistantSecretSealer: sealer, siteAssistantSecretKeyring: keyring,
     resolveInstalledPlugin: async id => id === "resend" ? { servers: { resend: server } } : null,
     loadPluginCredentialCards: async () => [card],
     externalMcpOAuth: { beginConnect: async () => { throw new Error("token-only account must not start OAuth"); } },

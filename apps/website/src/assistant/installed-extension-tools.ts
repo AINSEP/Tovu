@@ -20,7 +20,7 @@
  */
 import type { ToolRegistration, ToolRegistry } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { toolApprovalPolicyFor } from "../contracts/headless/assistant-tool-approval-policy.js";
+import { toolApprovalPolicyFor } from "./assistant-tool-approval-policy.js";
 
 import type { PluginCapabilityToolDeps } from "../features/plugin-runtime/capability-tool-registrations.js";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";

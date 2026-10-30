@@ -1,6 +1,14 @@
 /** Tovu's directive adapter for the proposal strip already mounted by Jini's vanilla widget. */
 import { confirmSiteAssistantTool, type ToolConfirmation } from './tool-confirmation';
 
+function toolConfirmationStrip({ element }: { element: HTMLElement }, _options = {}) {
+  const strip = element.querySelector<HTMLElement>('.jini-chat-vanilla__proposal');
+  const label = strip?.querySelector('span');
+  const allow = strip?.querySelector('button');
+  if (!strip || !label || !allow) return null;
+  return { strip, label, allow };
+}
+
 /** Extend the existing strip, retaining its navigation listener and markup. This adapter owns
  * only the visitor-tool projection: Jini still owns the widget, run, cancellation and navigation.
  * Listeners/timer exist only while a live prompt does; teardown restores the original affordance.
@@ -11,10 +19,9 @@ export function createVanillaToolConfirmation({ element, document }: { element: 
   return ({ directive }: { directive: ToolConfirmation | null }, _options = {}): void => {
     clear();
     if (!directive) return;
-    const strip = element.querySelector<HTMLElement>('.jini-chat-vanilla__proposal');
-    const label = strip?.querySelector('span');
-    const allow = strip?.querySelector('button');
-    if (!strip || !label || !allow) return;
+    const controls = toolConfirmationStrip({ element });
+    if (!controls) return;
+    const { strip, label, allow } = controls;
     const original = { text: label.textContent, go: allow.textContent, hidden: strip.hidden };
     const previous = document.activeElement as HTMLElement | null;
     const cancel = document.createElement('button');

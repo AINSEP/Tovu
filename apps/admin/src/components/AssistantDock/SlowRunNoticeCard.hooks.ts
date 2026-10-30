@@ -58,7 +58,7 @@ export function resolveSlowRunDetail(events: readonly unknown[]): string | undef
 export function isSlowRunNoticeVisible(
   runStreaming: boolean,
   runSucceeded: boolean,
-  { awaitingAnswer = false }: { awaitingAnswer?: boolean | undefined } = {},
+  { awaitingAnswer = false }: { awaitingAnswer?: boolean } = {},
 ): boolean {
   return runStreaming && !runSucceeded && !awaitingAnswer;
 }

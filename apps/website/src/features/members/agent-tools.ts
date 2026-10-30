@@ -50,7 +50,11 @@
  * `members` domain declaration. Performs no I/O and no enforcement itself.
  */
 
-export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
+const MEMBER_MANAGE_PERMISSION = "member.manage" as const;
+
+const DURABLE_MUTATION = "mutates-durable-state" as const;
+
+export type AgentToolSideEffect = "none" | typeof DURABLE_MUTATION | "mints-token";
 
 export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
 
@@ -88,7 +92,7 @@ export const membersAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "members_create",
     description: "Creates a pending site visitor member by email, with an optional name. Returns {member}. Use to add a member to the roster without sending mail. Does not verify their email, grant consent or a subscription, or issue a sign-in token/session. Existing email addresses and malformed input are refused. Requires member.manage; use members_request_magic_link separately to send a sign-in link.",
-    sideEffects: "mutates-durable-state", authorization: { permission: "member.manage" },
+    sideEffects: DURABLE_MUTATION, authorization: { permission: MEMBER_MANAGE_PERMISSION },
     inputSchema: { type: "object", additionalProperties: false, required: ["email"], properties: {
       email: { type: "string", minLength: 1 }, name: { type: "string", minLength: 1 },
     } },
@@ -96,7 +100,7 @@ export const membersAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "members_update_profile",
     description: "Updates a site visitor member's public display name by memberId. Returns {member} with its new version. Leaves email, verification, status, subscriptions and operator-only notes unchanged. Call to edit a member profile; missing members, blank names and denied member.manage permission are refused.",
-    sideEffects: "mutates-durable-state", authorization: { permission: "member.manage" },
+    sideEffects: DURABLE_MUTATION, authorization: { permission: MEMBER_MANAGE_PERMISSION },
     inputSchema: { type: "object", additionalProperties: false, required: ["memberId", "name"], properties: {
       memberId: MEMBER_ID_SCHEMA, name: { type: "string", minLength: 1 },
     } },
@@ -106,7 +110,7 @@ export const membersAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Lists the workspace's members (any status: pending/active/disabled), keyset-paginated. Read-only. Call this to find a member's id before getting details or disabling them.",
     sideEffects: "none",
-    authorization: { permission: "member.manage" },
+    authorization: { permission: MEMBER_MANAGE_PERMISSION },
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -121,30 +125,30 @@ export const membersAgentToolCatalog: AgentToolDefinition[] = [
     name: "members_get_by_id",
     description: "Fetches a single member's details by id. Read-only.",
     sideEffects: "none",
-    authorization: { permission: "member.manage" },
+    authorization: { permission: MEMBER_MANAGE_PERMISSION },
     inputSchema: MEMBER_ID_ONLY_INPUT_SCHEMA,
   },
   {
     name: "members_delete",
     description: "Moves a member to Trash and revokes their sessions and sign-in links. Restore with trash_restore_item; permanent deletion uses the existing Trash confirmation flow.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: "member.manage" },
+    sideEffects: DURABLE_MUTATION,
+    authorization: { permission: MEMBER_MANAGE_PERMISSION },
     inputSchema: MEMBER_ID_ONLY_INPUT_SCHEMA,
   },
   {
     name: "members_disable",
     description:
       "Disables a member, revoking their access and every one of their live sessions. Use members_delete to move a member to Trash instead. Idempotent — disabling an already-disabled member is a no-op. There is no agent-callable re-enable tool for members (unlike identity users) because the admin UI does not expose one either.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: "member.manage" },
+    sideEffects: DURABLE_MUTATION,
+    authorization: { permission: MEMBER_MANAGE_PERMISSION },
     inputSchema: MEMBER_ID_ONLY_INPUT_SCHEMA,
   },
   {
     name: "members_request_magic_link",
     description:
       "Requests (or resends) a passwordless sign-in link for a member's email — the same 'resend sign-in link' action available in the admin UI. Returns {delivered, mailDeliveryAvailable:true}: delivered:true means the mail provider accepted the link, not that it reached the inbox; delivered:false means no provider accepted it (disabled member, test-mode capture or a provider failure). Refuses with MEMBERS_SIGN_IN_UNAVAILABLE when email or the site address is not set up; check system_get_mail_status. Rate-limited per email; malformed addresses and denied permission are refused.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: "member.manage" },
+    sideEffects: DURABLE_MUTATION,
+    authorization: { permission: MEMBER_MANAGE_PERMISSION },
     inputSchema: {
       type: "object",
       additionalProperties: false,

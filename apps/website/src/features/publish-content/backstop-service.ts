@@ -76,8 +76,8 @@ function isBackstopReason({ reason }: { reason: unknown }, _optional: Record<str
 function isBackstopRow({ row }: { row: unknown }, _optional: Record<string, never> = {}): boolean {
   if (!row || typeof row !== "object") return false;
   const candidate = row as Record<string, unknown>;
-  return typeof candidate.table === "string" && !!candidate.pk && typeof candidate.pk === "object" &&
-    !Array.isArray(candidate.pk) && Object.keys(candidate.pk).length > 0;
+  if (typeof candidate.table !== "string" || !candidate.pk || typeof candidate.pk !== "object") return false;
+  return !Array.isArray(candidate.pk) && Object.keys(candidate.pk).length > 0;
 }
 
 function checkBackstopSelection({ rows, files }: { rows: unknown; files: unknown }, _optional: Record<string, never> = {}): string | null {
@@ -88,9 +88,9 @@ function checkBackstopSelection({ rows, files }: { rows: unknown; files: unknown
 }
 
 function hasBackstopDetails({ metadata }: { metadata: BackstopMetadata | undefined }, _optional: Record<string, never> = {}): boolean {
-  return !!metadata && metadata.mode === "backstop" && isBackstopReason({ reason: metadata.reason }) &&
-    typeof metadata.sourceActor === "string" && metadata.sourceActor.length > 0 && metadata.sourceActor.length <= 512 &&
-    typeof metadata.destinationHost === "string" && metadata.destinationHost.length <= 512;
+  if (!metadata || metadata.mode !== "backstop" || !isBackstopReason({ reason: metadata.reason })) return false;
+  if (typeof metadata.sourceActor !== "string" || metadata.sourceActor.length === 0 || metadata.sourceActor.length > 512) return false;
+  return typeof metadata.destinationHost === "string" && metadata.destinationHost.length <= 512;
 }
 
 function checkBackstopBundleLimits({ raw }: { raw: readonly PackedEntity[] }, _optional: Record<string, never> = {}): void {

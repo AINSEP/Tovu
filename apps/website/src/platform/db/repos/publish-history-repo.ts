@@ -149,8 +149,3 @@ export class SqlPublishHistoryStore implements PublishHistoryStore {
     await this.kernel.run((db) => db.insertInto("publish_history").values(toValues(input.workspaceId, input.entry)).execute());
   }
 }
-
-/** The publish history store on `kernel`'s database, whichever dialect. */
-export function publishHistoryStoreFor(kernel: ContentKernel): PublishHistoryStore {
-  return new SqlPublishHistoryStore(kernel);
-}

@@ -9,7 +9,8 @@ export function createSiteThemePreviewBridge(
 ) {
   let sequence = 0;
   return ({ siteDir, listener }: { siteDir: string; listener: (frame: SiteThemePreviewRefresh) => void }, _optional = {}) => {
-    const subscriptionId = `theme-preview-${++sequence}`;
+    sequence++;
+    const subscriptionId = `theme-preview-${sequence}`;
     let closed = false;
     const detach = subscribe(channels.event, (frame) => { if (!closed) listener(frame); });
     void invoke(channels.watch, { siteDir, subscriptionId }).catch(() => undefined);

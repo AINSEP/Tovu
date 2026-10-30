@@ -1,5 +1,6 @@
 import { api, type AdminMedia } from "@/lib/api";
 import type { MediaPort } from "./media-port.hooks";
+import { asciiSlug } from "../../../lib/ascii-slug";
 
 /**
  * @file The only place under `features/media` that reaches `lib/api` for the five `MediaPort`
@@ -52,7 +53,7 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
       // enough for a fake store's own uniqueness-free happy path; a test needing a REAL collision or
       // conflict must seed `options.media` directly with an explicit `slug`, same as `contentType`'s
       // own disclosed limit above.
-      slug: input.filename.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "untitled",
+      slug: asciiSlug(input.filename) || "untitled",
       alt: opts.alt ?? "",
       caption: opts.caption ?? "",
       credit: opts.credit ?? "",

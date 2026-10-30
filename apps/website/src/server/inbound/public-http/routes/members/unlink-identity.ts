@@ -2,7 +2,7 @@ import type { Express, Request } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 import { MemberLoginError } from "#src/features/member-login/index";
 import { prepareMemberChallenge, type MemberRecord } from "#src/features/members/index";
-import { issueMemberSession } from "#src/features/members/write-service";
+import { issueMemberSession } from "#src/features/members/index";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { checkMemberPost, checkMemberRequestLimits } from "./deps.js";
 import { setMemberSessionCookie } from "./complete-sign-in.js";

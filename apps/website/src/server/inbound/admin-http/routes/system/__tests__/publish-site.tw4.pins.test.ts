@@ -1,3 +1,5 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -22,7 +24,10 @@ test("publish trigger preserves shape errors, validation order, and domain confi
   } satisfies Pick<RouteDeps, "workspaceId" | "authorize" | "loadDeployTargets" | "publishExecutionMode" | "tracker">;
   const app = express(); app.use(express.json({ strict: false }));
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminPublishSiteRoutes(app, ports as RouteDeps);
+  const deps = { ...createRouteDeps(), ...ports };
+  // This pin exercises the missing-consent-service refusal, not the bootstrap owner's authorization.
+  delete deps.siteConsent;
+  registerAdminPublishSiteRoutes(app, deps);
   const base = await startTestServer(app, t), root = `${base}/api/admin/v1/workspaces/ws/system/publish`;
   const post = ({ body }: { body: unknown }, _options = {}) => fetch(root, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   const cases: readonly [unknown, string][] = [

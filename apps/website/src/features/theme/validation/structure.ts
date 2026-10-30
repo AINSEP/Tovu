@@ -236,7 +236,10 @@ function normalizeSourceDirOrIssue(sourceDir: string): { normalized: string } | 
       issue: { ruleId: "structure-sourcedir-escapes", message: `build.sourceDir '${sourceDir}' must be a relative, contained path (no leading '/', no '..')` },
     };
   }
-  const normalized = sourceDir.replace(/^\.\/+/, "").replace(/\/+$/, "");
+  const withoutPrefix = sourceDir.replace(/^\.\/+/, "");
+  let end = withoutPrefix.length;
+  while (end > 0 && withoutPrefix[end - 1] === "/") end--;
+  const normalized = withoutPrefix.slice(0, end);
   if (normalized === "" || normalized === ".") {
     return { issue: { ruleId: "structure-sourcedir-root", message: "build.sourceDir must not be the theme root itself" } };
   }

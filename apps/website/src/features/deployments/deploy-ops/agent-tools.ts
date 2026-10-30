@@ -1,13 +1,10 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import path from "node:path";
 import { resolveProductRoot } from "#src/platform/site-dir/index";
-import type { AgentToolSideEffect } from "@jini-ai/core";
 import { readBundledDeployOpsDescriptors } from "./registry.js";
 import { MAX_WAIT_SECONDS } from "./run-ops.js";
 import type { DeployOpsDescriptor, DeployOpsRegistry } from "./types.js";
-interface AgentToolDefinition {
-  name: string; description: string; sideEffects: AgentToolSideEffect;
-  authorization: { permission: string }; inputSchema: Readonly<Record<string, unknown>>;
-}
+type AgentToolDefinition = SharedAgentToolDefinition & { inputSchema: Readonly<Record<string, unknown>> };
 /** Data-only source snapshot for hermetic catalog construction; never used to authorize or import modules. */
 function bundledDescriptors(read: BundledDescriptorReader): readonly DeployOpsDescriptor[] {
   try {
@@ -16,7 +13,10 @@ function bundledDescriptors(read: BundledDescriptorReader): readonly DeployOpsDe
 }
 /** Reads the bundled deploy-ops descriptors from a plugin source root (injectable for tests). */
 export type BundledDescriptorReader = (input: { sourceRoot: string }) => readonly DeployOpsDescriptor[];
-const platformList = (platforms: readonly DeployOpsDescriptor[]) => ` Platforms: ${platforms.map(p => `${p.id} (${p.label})`).join(", ") || "none available; enable a hosting plugin under Agent Plugins"}.`;
+const platformList = (platforms: readonly DeployOpsDescriptor[]) => {
+  const labels = platforms.map(p => `${p.id} (${p.label})`).join(", ");
+  return ` Platforms: ${labels || "none available; enable a hosting plugin under Agent Plugins"}.`;
+};
 /** Build schemas from the loaded registry. O(platforms + eight tools); a missing registry uses bundled data only. */
 export function getDeployOpsAgentToolCatalog(registry?: DeployOpsRegistry, optional: { readBundledDescriptors?: BundledDescriptorReader } = {}): AgentToolDefinition[] {
   const platforms = registry ? registry.list().map(p => p.descriptor) : bundledDescriptors(optional.readBundledDescriptors ?? readBundledDeployOpsDescriptors);

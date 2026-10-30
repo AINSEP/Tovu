@@ -51,6 +51,10 @@ function formatSummary(id: string, result: MigrateThemeResult): string {
       return `theme '${id}': migrated to schema v2 in place — v1 backup kept at ${result.backupDir}\n`;
     case "failed":
       return formatFailedSummary(id, result);
+    default: {
+      const unexpected: never = result.status;
+      throw new Error(`Unexpected theme migration status: ${unexpected}`);
+    }
   }
 }
 

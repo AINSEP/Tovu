@@ -1,3 +1,5 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express, { type Request } from "express";
@@ -37,7 +39,7 @@ test("the existing assistant-settings module mounts both visitor routes over the
   const f = await visitorSettingsFixture();
   const service = composeVisitorToolsManagement({ workspaceId: ws, settings: f.deps, ready: Promise.resolve() });
   const app = express();
-  const module = createAssistantSettingsModule({ workspaceId: ws, visitorToolsManagement: service } as AssistantSettingsRouteDeps);
+  const module = createAssistantSettingsModule({ ...createRouteDeps(), workspaceId: ws, visitorToolsManagement: service });
   assert.ok(module.registerRoutes);
   module.registerRoutes(app);
   const { res, capture } = createCapturingResponse();
@@ -62,7 +64,7 @@ test("overlapping memory-composed HTTP writers return one success and one 409 re
   const prepared = await service.prepare({ callerPrincipalId: "owner", input: { toolId: "site", expectedRevisionSeq: 0, mode: "off" } });
   const before = await f.repo.maxRevisionSeq();
   const app = express();
-  const module = createAssistantSettingsModule({ workspaceId: ws, visitorToolsManagement: { ...service, prepare: async () => prepared } } as AssistantSettingsRouteDeps);
+  const module = createAssistantSettingsModule({ ...createRouteDeps(), workspaceId: ws, visitorToolsManagement: { ...service, prepare: async () => prepared } });
   module.registerRoutes!(app);
   const request = async () => {
     const { res, capture } = createCapturingResponse();

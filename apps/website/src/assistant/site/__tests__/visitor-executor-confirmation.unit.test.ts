@@ -130,18 +130,26 @@ test("a policy switch before the delegate and an Auto-to-Ask switch cannot bypas
   assert.equal(f.calls(), 0);
 });
 
-test("without a value-row snapshot Ask fails closed; signal remains an optional adapter port", async () => {
+test("without a value-row snapshot Ask fails closed", { timeout: 1_000 }, async () => {
   const f = fixture();
   const unavailable = createVisitorExecutor({ capabilities: f.capabilities }, { ports: { ...f.ports, readSnapshot: undefined } });
   assert.equal(unavailable.isAdvertised({ toolId: "list_categories" }), false);
   assert.deepEqual(await unavailable.invoke(call), refused);
   assert.equal(f.directives.length, 0);
+  assert.equal(f.calls(), 0);
+});
+
+test("parameterless Ask settles after confirmation without an optional signal port", { timeout: 1_000 }, async () => {
+  const f = fixture();
   const ports = { ...f.ports, signal: undefined };
   const executor = createVisitorExecutor({ capabilities: f.capabilities }, { ports });
   const emitted = f.prompt();
   const pending = executor.invoke({ ...call, input: undefined });
   const { challengeId } = await emitted;
-  await f.confirmations.confirm({ challengeId, allow: true });
+  assert.equal(f.calls(), 0);
+  assert.equal(await f.confirmations.confirm({ challengeId, allow: true }), true);
   assert.equal((await pending).kind, "ok");
   assert.equal(f.calls(), 1);
+  assert.deepEqual(await pending, { kind: "ok", result: undefined, directive: undefined });
+  assert.deepEqual(f.errors, []);
 });

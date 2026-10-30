@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type { ToolExecutionOptions } from '@jini-ai/core';
 import { buildAssistantToolRegistrations } from '../../tool-registrations.js';
-import { toolApprovalPolicyFor } from '../../../contracts/headless/assistant-tool-approval-policy.js';
+import { toolApprovalPolicyFor } from '../../assistant-tool-approval-policy.js';
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";

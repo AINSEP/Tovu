@@ -51,6 +51,10 @@ const choicesOf = ({ default: fallback, options, allowCustom }: PluginProviderSe
   ...(fallback === undefined ? {} : { default: fallback }), ...(options ? { options } : {}), ...(allowCustom ? { allowCustom: true as const } : {}),
 });
 
+function fieldPresentation({ field }: { field: PluginProviderSettingField }, _optional = {}) {
+  return { ...(field.hint ? { hint: field.hint } : {}), ...(field.secret === true ? {} : choicesOf(field)) };
+}
+
 async function cardOf({ deps, config, pluginId, fields }: { deps: ProviderSettingsRouteDeps; config: ProviderConfigSource; pluginId: string; fields: readonly PluginProviderSettingField[] }) {
   const saved = await config.readSettings({ pluginId });
   return {
@@ -60,7 +64,7 @@ async function cardOf({ deps, config, pluginId, fields }: { deps: ProviderSettin
     fields: fields.map((field) => {
       const secret = field.secret === true;
       const value = secret ? undefined : saved?.settings[field.name];
-      return { name: field.name, label: field.label, ...(field.hint ? { hint: field.hint } : {}), ...(secret ? {} : choicesOf(field)), secret, required: field.required === true,
+      return { name: field.name, label: field.label, ...fieldPresentation({ field }), secret, required: field.required === true,
         ...(field.requiredUnless ? { requiredUnless: field.requiredUnless } : {}),
         ...(field.requiredWhen ? { requiredWhen: field.requiredWhen } : {}),
         saved: secret ? (saved?.secretNames.includes(field.name) ?? false) : value !== undefined && value !== "", ...(value === undefined ? {} : { value }) };
@@ -78,9 +82,17 @@ async function resolveCard({ req, res, deps, permission }: { req: Request; res: 
   const fields = declaredProviderSettingFields({ records, pluginId });
   if (!fields) { res.status(404).json({ error: "this plugin declares no provider settings", code: "PLUGIN_NOT_FOUND" }); return undefined; }
   if (!deps.providerConfig) { res.status(503).json({ error: "provider settings are not available here", code: "PROVIDER_SETTINGS_UNAVAILABLE" }); return undefined; }
-  const contracts = (records.find(record => record.id === pluginId)?.manifest?.contributes?.providers ?? []).map(provider => provider.contract);
+  const contracts = providerContracts({ records, pluginId });
   return { deps, pluginId, fields, config: deps.providerConfig,
     ...(deps.tracker ? { telemetry: { tracker: deps.tracker, contracts, userId: principal.id } } : {}) };
+}
+
+function providerContracts({ records, pluginId }: { records: Awaited<ReturnType<ProviderSettingsRouteDeps["discoverPlugins"]>>; pluginId: string }, _optional = {}) {
+  return (records.find(record => record.id === pluginId)?.manifest?.contributes?.providers ?? []).map(provider => provider.contract);
+}
+
+function isProjectKeyUseInput(input: Record<string, unknown> | null, _optional = {}): input is { use: boolean } {
+  return !!input && typeof input.use === "boolean" && !Object.keys(input).some(key => key !== "use");
 }
 
 const internalError = (res: Response) => res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
@@ -113,7 +125,7 @@ function registerProjectKeyUseRoute(app: Express, deps: ProviderSettingsRouteDep
       const principal = getAuthedPrincipal(res);
       if (!deps.projectKeys) { res.status(503).json({ error: "This site has no project key store." }); return; }
       const input = req.body as Record<string, unknown> | null;
-      if (!input || typeof input.use !== "boolean" || Object.keys(input).some(key => key !== "use")) { res.status(400).json({ error: "use must be true or false" }); return; }
+      if (!isProjectKeyUseInput(input)) { res.status(400).json({ error: "use must be true or false" }); return; }
       const keyId = String(req.params.keyId);
       if (!await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "custom-credentials.read", workspaceId: deps.workspaceId })) return;
       const permission = await deps.projectKeys.permissionFor({ keyId });

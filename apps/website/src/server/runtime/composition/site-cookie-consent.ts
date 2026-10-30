@@ -1,5 +1,5 @@
 /** @file Composition for `@jini-ai/cookie-consent`: the one engine switch and the server analytics gate.
- * TODO(P4): the old engine goes, `selectCookieConsent` always returns the deps and the env switch is deleted. */
+ * P4 cleanup: the old engine goes, `selectCookieConsent` always returns the deps and the env switch is deleted. */
 import type { Request } from 'express';
 import type { RegionResolver } from '@jini-ai/cookie-consent';
 import type { LoadPluginContributions } from '#src/features/agent-plugins/lifecycle';

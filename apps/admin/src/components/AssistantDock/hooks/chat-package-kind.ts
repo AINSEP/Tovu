@@ -103,7 +103,9 @@ export async function partitionChatPackages(
   const skills: File[] = [], attachments: File[] = [];
   files.forEach((file, index) => {
     const root = roots[index]!;
-    const isSkill = root && pluginRoots.has(root) ? false : (root && skillRoots.has(root)) || kinds[index] === "skill";
+    const insidePlugin = Boolean(root) && pluginRoots.has(root);
+    const insideSkill = Boolean(root) && skillRoots.has(root);
+    const isSkill = !insidePlugin && (insideSkill || kinds[index] === "skill");
     (isSkill ? skills : attachments).push(file);
   });
   return { skills, attachments };

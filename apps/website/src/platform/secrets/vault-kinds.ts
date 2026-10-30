@@ -70,14 +70,18 @@ export function createTovuStoreVault(required: {
   return new SecretsVaultService({ repo: required.repo.vault, metaParsers: storeMetaParsers,
     authorize: async ({ context }) => {
       if (required.context && context.workspaceId !== required.context.workspaceId) throw new VaultError({ code: "context" });
-      if (context.kind !== required.kind || context.ownerKey !== "tovu" || context.principalId !== (required.context?.principalId ?? null) ||
-        ("binding" in context && context.binding !== null)) throw new VaultError({ code: "context" });
+      const invalidOwner = context.kind !== required.kind || context.ownerKey !== "tovu";
+      const invalidScope = context.principalId !== (required.context?.principalId ?? null) || ("binding" in context && context.binding !== null);
+      if (invalidOwner || invalidScope) throw new VaultError({ code: "context" });
     },
     keyring: createStoreKeyring({ source: required }),
     sealer: { seal: input => protect(() => required.sealer.seal({ plaintext: input.plaintext, key: input.key, aad: input.aad })),
       open: (input, options) => protect(() => required.sealer.open(input, options)) },
     now: () => new Date(required.clock?.nowMs() ?? 0).toISOString(),
-    newId: () => { if (required.newId) return required.newId({}); throw new VaultError({ code: "invalid-record" }); },
+    newId: () => {
+      if (required.newId) return required.newId({});
+      throw new VaultError({ code: "invalid-record" });
+    },
   });
 }
 
@@ -85,7 +89,7 @@ export function createTovuStoreVault(required: {
 const storeMetaParsers = createHostMetaParsers({ policy: { validateMeta: ({ meta }) => meta } });
 
 /** Parse complete feature metadata through the same registration used by the vault service. */
-export function parseTovuStoreMeta(input: { kind: "media-provider" | "vendor" | "custom" | "site-assistant" | "personal-execution" | "api-connection"; meta: unknown; provider?: string | null | undefined }, _options = {}): VaultMeta {
+export function parseTovuStoreMeta(input: { kind: "media-provider" | "vendor" | "custom" | "site-assistant" | "personal-execution" | "api-connection"; meta: unknown; provider?: string | null }, _options = {}): VaultMeta {
   return storeMetaParsers[input.kind](input);
 }
 
@@ -93,5 +97,6 @@ export function parseTovuStoreMeta(input: { kind: "media-provider" | "vendor" | 
  * index returned on every dialect. Labels are unique per workspace and kind, so ties never occur.
  * @complexity O(1) per comparison. */
 export function byVaultLabel(a: { label: string }, b: { label: string }): number {
-  return a.label < b.label ? -1 : a.label > b.label ? 1 : 0;
+  if (a.label < b.label) return -1;
+  return a.label > b.label ? 1 : 0;
 }

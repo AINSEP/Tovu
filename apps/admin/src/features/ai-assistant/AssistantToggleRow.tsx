@@ -15,19 +15,19 @@ export interface AssistantToggleRowProps {
   label: string;
   info: string;
   checked: boolean;
-  disabled?: boolean | undefined;
+  disabled?: boolean;
   onChange: (checked: boolean) => void;
   t: (key: string) => string;
   /** Extra ids for `aria-describedby` (an owner-only note rendered by the caller). */
-  describedBy?: string | undefined;
+  describedBy?: string;
   /** `role="switch"` styling for the one control a tab is about (the visitor enable switch). */
-  variant?: "checkbox" | "switch" | undefined;
+  variant?: "checkbox" | "switch";
   /** Agent handle spread, attributes only. */
-  inputProps?: (InputHTMLAttributes<HTMLInputElement> & Partial<AgentHandleProps>) | undefined;
-  infoHandle?: string | undefined;
+  inputProps?: InputHTMLAttributes<HTMLInputElement> & Partial<AgentHandleProps>;
+  infoHandle?: string;
   /** Status, errors or a nested checklist, rendered under the row. */
   children?: ReactNode;
-  className?: string | undefined;
+  className?: string;
 }
 
 export function AssistantToggleRow(props: AssistantToggleRowProps) {

@@ -14,21 +14,20 @@ import {
   revealSiteKeyMaterial,
   SiteKeyFileAlreadyExistsError,
   type SiteKeyStatus,
-} from "#src/features/webhooks/keyring.env";
+} from "#src/features/webhooks/index";
 import {
   readSiteMetaJson,
   resolveSiteKeyFingerprint,
   siteKeyFilePathFrom,
   siteKeySourcesForSiteDir,
   type SiteKeySource,
-} from "#src/features/webhooks/site-key-sources";
+} from "#src/features/webhooks/index";
 import { hasKeyDependentData } from "#src/platform/db/key-dependent-data";
-import { findSiteKeyDependentData } from "#src/platform/site-dir/index";
+import { findSiteKeyDependentData, STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/index";
 import { SITE_KEY_MANAGE_PERMISSION } from "#src/features/identity/site-key-permission";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { SiteKeyState } from "#src/contracts/core/site-key-state";
-import { STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/layout";
-import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
+import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -226,7 +225,7 @@ async function siteHasKeyDependentData(deps: AdminSiteKeyDeps): Promise<boolean>
 function stampSiteKeyFingerprint(siteDir: string, fingerprint: string): void {
   const meta = readSiteMetaJson(siteDir);
   if (meta === undefined || meta.siteKeyFingerprint === fingerprint) return;
-  writeJsonFileAtomic({ filePath: join(siteDir, ".site-meta.json"), data: { ...meta, siteKeyFingerprint: fingerprint } }, {});
+  writeJsonFileAtomic({ filePath: join(siteDir, ".site-meta.json"), data: { ...meta, siteKeyFingerprint: fingerprint }, fs: createNodeAtomicFilesystem({}, {}) }, {});
 }
 
 /** Shared workspace-path-param + permission check every verb below performs first — same
@@ -456,6 +455,8 @@ function ensuredSiteKeyResult({ ensured }: { ensured: SiteKeyEnsureOutcome & { a
       return refusal("KEY_MISMATCH");
     case "invalid":
       return refusal("KEY_INVALID");
+    // Preserve the undefined fallback for runtime inputs outside this exhaustive union.
+    default: return undefined as never;
   }
 }
 
@@ -576,10 +577,10 @@ function isRouteResult(value: StartFreshPlan | RouteResult): value is RouteResul
 
 /** The confirm step's plain sentence. @complexity O(W) in the affected webhooks. */
 export function startFreshDetail(removes: number, affectedWebhooks: readonly AffectedWebhook[]): string {
-  const removal =
-    removes === 0
-      ? "Every saved credential can be unlocked; nothing will be removed."
-      : `${removes} saved ${removes === 1 ? "credential" : "credentials"} can't be unlocked and will be removed.`;
+  const noun = removes === 1 ? "credential" : "credentials";
+  const removal = removes === 0
+    ? "Every saved credential can be unlocked; nothing will be removed."
+    : `${removes} saved ${noun} can't be unlocked and will be removed.`;
   if (affectedWebhooks.length === 0) return removal;
   const names = affectedWebhooks.map((webhook) => `${webhook.label} (${webhook.targetUrl})`).join(", ");
   return `${removal} These webhooks get a new signing secret, so update their receivers: ${names}.`;

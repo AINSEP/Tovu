@@ -31,7 +31,7 @@ function body(text: string): JsonObject {
 }
 
 async function run(kernel: ContentKernel, query: string, limit = 10): Promise<string[]> {
-  const { hits } = await searchAdminPosts({ deps: { search: new PostSearchIndex(kernel) }, input: { workspaceId: WS, query, limit } });
+  const { hits } = await searchAdminPosts({ deps: { search: new PostSearchIndex({ kernel }) }, input: { workspaceId: WS, query, limit } });
   return hits.map((hit) => hit.id);
 }
 
@@ -65,13 +65,13 @@ describeEachDialect<ContentKernel>("post search eval", { tables: ["posts", "post
   }
 
   test("a saved post is findable at once; the backfill indexes nothing on a warm database", async () => {
-    assert.equal(await backfillPostSearchIndex(kernel), 0);
+    assert.equal(await backfillPostSearchIndex({ kernel }), 0);
     assert.deepEqual((await run(kernel, "pricing")).slice(0, 1), ["p01"]);
   });
 
   test("search filters workspace, trash, kind and status independently on every dialect", async () => {
     const repo = postRepoFor(kernel);
-    const search = new PostSearchIndex(kernel);
+    const search = new PostSearchIndex({ kernel });
     for (const [id, workspaceId, kind, status] of [
       ["visibility-live", WS, "page", "published"], ["visibility-foreign", "foreign-ws", "page", "published"],
       ["visibility-trash", WS, "page", "published"], ["visibility-draft", WS, "page", "draft"], ["visibility-post", WS, "post", "published"],

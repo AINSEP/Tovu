@@ -1,4 +1,5 @@
-import { SITES_MCP_SERVER_ID } from "./sites-mcp-registration.ts";
+import { resolveOnPath } from '@jini-ai/agent-runtime';
+import { SITES_MCP_SERVER_ID } from "./sites-mcp-identity.ts";
 /**
  * @file Own-server mode: spawn Tovu's own `tovu serve <dir>` CLI, learn the port it bound, and
  * supervise it for the life of the window.
@@ -26,7 +27,7 @@ import { createRequire } from "node:module";
 import { omitEnvironmentKeys } from "@jini-ai/platform/child-environment";
 import type { SpawnOptions } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
-import { redactSecretShapes } from "../../website/src/contracts/core/secret-redaction.ts";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 // {@link buildCliSpawnPlan} needs `require.resolve("tsx")`'s CommonJS resolution, which walks up
 // from THIS file to `apps/desktop/node_modules/tsx`. `import.meta.resolve` would pick the package's
@@ -643,7 +644,9 @@ interface SpawnedChild {
  * @complexity O(1); delegates to the OS via a synchronous child process.
  */
 function taskkillTree(pid: number): void {
-  execFileSync("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore" });
+  const command = resolveOnPath({ bin: 'taskkill' });
+  if (command === null) throw new Error('taskkill executable is unavailable.');
+  execFileSync(command, ["/pid", String(pid), "/T", "/F"], { stdio: "ignore" });
 }
 
 /**
@@ -935,16 +938,18 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
     let settled = false;
 
     const timer = setTimeout(() => {
-      finish(() => reject(new Error(describeBootFailure(redactBootToken(output), `tovu serve did not report a port within ${readyTimeoutMs}ms.`))));
+      if (finish()) reject(new Error(describeBootFailure(redactBootToken(output), `tovu serve did not report a port within ${readyTimeoutMs}ms.`)));
     }, readyTimeoutMs);
 
     /** Single-settle guard: whichever of ready / timeout / exit happens first owns the outcome. */
-    function finish(settleWith: () => void): void {
-      if (settled) return;
+    function finish(): boolean {
+      if (settled) return false;
       settled = true;
       clearTimeout(timer);
-      settleWith();
+      return true;
     }
+
+    const stop = () => stopChild({ child, graceMs: stopGraceMs }, { platform: input.platform, killTree: input.killTree });
 
     function readStream(stream: Readable, mirror: Writable): void {
       stream.setEncoding("utf8");
@@ -954,7 +959,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
         safeMirror.write(chunk);
         if (settled) return;
         if (output.length + chunk.length > 1_000_000) {
-          finish(() => reject(new Error("tovu serve startup output exceeded the diagnostic limit.")));
+          if (finish()) reject(new Error("tovu serve startup output exceeded the diagnostic limit."));
           return;
         }
         output += chunk;
@@ -962,23 +967,22 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
         const boot = parseBootLine(output);
         if (boot === null) return;
         const origin = `http://127.0.0.1:${boot.port}`;
-        finish(() =>
-          resolve({
-            port: boot.port,
-            pid: child.pid!, // `!`: resolved from a boot line this child printed, so it spawned and has a pid.
-            origin,
-            adminUrl: `${origin}/admin/`,
-            workspaceId: boot.workspaceId,
-            schemaVersion: boot.schemaVersion,
-            // Printed BEFORE the boot line, so by the time this resolves it is already in `output`
-            // — no second wait and no timing window. `null` whenever `--emit-boot-token` was not
-            // passed, which is every caller but the desktop shell.
-            bootToken: parseBootToken(output),
-            ownerSignInCapability: serveEnv.TOVU_DESKTOP_OWNER_SIGNIN,
-            stop: () => stopChild({ child, graceMs: stopGraceMs }, { platform: input.platform, killTree: input.killTree }),
-            onExit: exitSignal.onExit,
-          }),
-        );
+        if (!finish()) return;
+        resolve({
+          port: boot.port,
+          pid: child.pid!, // `!`: resolved from a boot line this child printed, so it spawned and has a pid.
+          origin,
+          adminUrl: `${origin}/admin/`,
+          workspaceId: boot.workspaceId,
+          schemaVersion: boot.schemaVersion,
+          // Printed BEFORE the boot line, so by the time this resolves it is already in `output`
+          // — no second wait and no timing window. `null` whenever `--emit-boot-token` was not
+          // passed, which is every caller but the desktop shell.
+          bootToken: parseBootToken(output),
+          ownerSignInCapability: serveEnv.TOVU_DESKTOP_OWNER_SIGNIN,
+          stop,
+          onExit: exitSignal.onExit,
+        });
       });
     }
 
@@ -986,9 +990,12 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
     readStream(child.stdout!, mirror.stdout);
     readStream(child.stderr!, mirror.stderr);
 
-    child.once("error", (error) => finish(() => reject(error)));
+    child.once("error", (error) => { if (finish()) reject(error); });
     child.once("exit", (code, signal) => {
-      finish(() => reject(new Error(describeBootFailure(redactBootToken(output), `tovu serve exited (code ${code ?? signal ?? "none"}) before reporting a port.${signal ? ` Signal: ${signal}.` : ""}`))));
+      if (!finish()) return;
+      const signalDetail = signal ? ` Signal: ${signal}.` : "";
+      const detail = `tovu serve exited (code ${code ?? signal ?? "none"}) before reporting a port.${signalDetail}`;
+      reject(new Error(describeBootFailure(redactBootToken(output), detail)));
     });
   }).catch(async (error) => {
     await stopChild({ child, graceMs: stopGraceMs }, { platform: input.platform, killTree: input.killTree });

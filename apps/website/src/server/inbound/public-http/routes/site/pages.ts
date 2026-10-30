@@ -1,5 +1,5 @@
 import { captureVisitorEvent } from "../../visitor-analytics.js";
-import { renderCommentsMarkers } from '#src/features/comments/public-markers';
+import { renderCommentsMarkers } from '#src/features/comments/index';
 import { renderPluginWidgetPartials } from "#src/features/plugin-runtime/widget-partials";
 import type { SiteChatSelection } from "../../http/site/site-chat-markup.js";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
@@ -9,7 +9,7 @@ import type { NextFunction, Request, Response } from "express";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
 import type { PublicPostRecord as PostRecord } from "#src/features/post/index";
-import { collectCoverMediaRefs } from "#src/features/post/cover-image";
+import { collectCoverMediaRefs } from "#src/features/post/rendering";
 import {
   createPublicPostReader,
   getPublishedPostBySlug,
@@ -78,25 +78,25 @@ import {
   type ListingJsonPage,
   type ListingSource,
 } from "@jini-ai/cms/listing";
-import { postAuthorForDisplay } from "#src/features/post/author";
-import { extractPlainTextFromHtml } from "#src/features/post/html-plain-text";
+import { postAuthorForDisplay } from "#src/contracts/core/post-author";
+import { extractPlainTextFromHtml } from "#src/features/post/rendering";
 import { comparePostsByDisplayDate, postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import type { ContentTypeFieldDef } from "#src/features/content-types/index";
 import type { EntryRecord } from "#src/features/entries/index";
-import { parseCollectionListConfig, humanizeFieldName, entryPublicHref, type ParseCollectionListConfigResult } from "#src/features/entries/public-list";
+import { parseCollectionListConfig, humanizeFieldName, entryPublicHref, type ParseCollectionListConfigResult } from "#src/features/entries/public-read";
 import { resolveHtmlPageEmbeds, type ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import { resolvePageWidgets, type ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import { formatDateLabel, resolveSiteTimeZoneSafely } from "@jini-ai/cms/widgets/date-label";
-import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/adapter";
-import { checkSiteRelativeTarget } from "#src/platform/routing/reserved-paths";
+import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/index";
+import { checkSiteRelativeTarget } from "#src/platform/routing/index";
 import { type RouteTarget } from '@jini-ai/cms/routing';
 import { deriveExcerpt, resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
 import { findBoundMenu, resolveMenuDoc } from "#src/features/navigation/index";
 import type { NavMenuEntry, NavTarget, ResolveTargetHrefFn } from "#src/features/navigation/index";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "#src/features/media/index";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/index";
-import type { AssignedTermView, EntryTermReadPort } from "#src/features/taxonomy/repo.sqlite";
-import { resolveSiteTitle } from "#src/features/settings/site-title";
+import type { AssignedTermView, EntryTermReadPort } from "#src/features/taxonomy/contracts";
+import { resolveSiteTitle } from "#src/features/settings/index";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head.js";
 import {
   renderSite,
@@ -476,6 +476,8 @@ function navTargetToRouteTarget(target: NavTarget): RouteTarget {
       return { kind: "url", href: target.href };
     case "route":
       return { kind: "route", route: target.route, params: target.params };
+    // Preserve the undefined fallback for runtime inputs outside this exhaustive union.
+    default: return undefined as never;
   }
 }
 
@@ -1704,10 +1706,7 @@ function collectMediaRefAssetIds(root: unknown, out: Set<string>): void {
   const stack: unknown[] = [root];
   while (stack.length > 0) {
     const node = stack.pop();
-    if (Array.isArray(node)) {
-      pushReversed(stack, node);
-      continue;
-    }
+    if (Array.isArray(node)) pushReversed(stack, node);
     if (!isPlainObject(node)) continue;
     const assetId = mediaRefAssetId(node);
     if (assetId !== undefined) out.add(assetId);
@@ -1818,6 +1817,7 @@ export async function resolveMediaAssetMetadataForRender(
         cssClass: meta.cssClass,
         htmlAttributes: meta.htmlAttributes,
         slug: meta.slug,
+        sha256: meta.sha256,
         contentType: contentTypes.get(meta.sha256) ?? null,
       },
     ])
@@ -2273,10 +2273,8 @@ async function handlePostNotFoundInSlugCatch(input: {
 }
 
 
-
 /** No cookie-parser middleware is mounted. All request cookies use the shared reader,
  * matching dev-auth without an unguarded decodeURIComponent copy. */
-
 
 /**
  * Turns this request's member-session cookie into a validated {@link MemberContext}. Reads the
@@ -2752,11 +2750,12 @@ async function listingBatchNotFound({ req, res, next, workspaceId }: {
   const numberedPage = listingPageRequests.has(req);
   req.url = req.originalUrl;
   try {
-    if (numberedPage && (await tryRedirectPhase("post_content", req.path, workspaceId, res))) return;
+    if (numberedPage && (await tryRedirectPhase("post_content", req.path, workspaceId, res))) return undefined;
   } catch (err) {
     return next(err);
   }
   next();
+  return undefined;
 }
 
 /** `deps` for one public page request: the route's deps plus its see-more batch request, if any. */
@@ -2887,10 +2886,11 @@ async function handleSlugRouteError({ err, req, res, next, deps, theme, staticMe
   // fault — reporting it would bury every real fault under one line per 404 a crawler produces.
   if (err instanceof PostNotFoundError) {
     await handlePostNotFoundInSlugCatch({ req, res, deps, theme, staticMenus, slug });
-    return;
+    return undefined;
   }
   reportSiteRenderFault(`GET /:slug failed (slug=${slug})`, err);
   res.status(500).type("html").send("<h1>Site error</h1>");
+  return undefined;
 }
 
 /** A static-tier theme that ships its own `index.html`. */
@@ -2937,11 +2937,13 @@ export async function serveVirtualPage({ req, res, deps, post }: {
   const theme = resolved === NO_THEME_ID ? null : resolved;
   const branch = theme ? resolveTemplateBranchChoice({ theme, post }) : { kind: "ineligible" as const };
   const perVisitor = resolvePerVisitorResponse(req, res);
+  const previewPost = branch.kind === "page-shell" ? { ...post, templateChoice: branch.templateChoice } : post;
   const html = theme && branch.kind !== "ineligible"
-    ? await renderViaTemplate(deps, theme, branch.kind === "page-shell" ? { ...post, templateChoice: branch.templateChoice } : post,
+    ? await renderViaTemplate(deps, theme, previewPost,
       await resolveStaticMenusForRender(deps, theme, req.path), undefined, post.bodyHtml ?? "", undefined, siteAssistantEnabled)
     : await renderGenericPostPage(deps, theme, post, [], siteAssistantEnabled);
   await sendPublicPage({ req, res, deps, html, perVisitor });
+  return undefined;
 }
 
 /**
@@ -2959,6 +2961,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
     listingBatchRequests.set(req, listingBatch);
     rewriteToListingPage({ req, pagePath: listingBatch.pagePath });
     next();
+    return undefined;
   });
 
   // Numbered listing pages (`<page>/page/<n>`, Bug C): the same rewrite to the page itself; a
@@ -2969,6 +2972,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
     listingPageRequests.set(req, { ...listingPage, requestPath: req.path });
     rewriteToListingPage({ req, pagePath: listingPage.pagePath });
     next();
+    return undefined;
   });
 
   app.get("/", async (req, res, next) => {
@@ -2980,6 +2984,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
       reportSiteRenderFault("GET / failed", err);
       res.status(500).type("html").send("<h1>Site error</h1>");
     }
+    return undefined;
   });
 
   // Earlier content routes keep precedence, even over override rules. Restrict this fallback to
@@ -2987,12 +2992,13 @@ export const registerSiteRoutes: RouteRegistrar = (app, appDeps) => {
   app.get(/^\/[^/]+\/.+/, async (req, res, next) => {
     if (checkSiteRelativeTarget(req.path).kind !== "ok") return next();
     try {
-      if (await tryRedirectPhase("pre_content", req.path, appDeps.workspaceId, res)) return;
-      if (await tryRedirectPhase("post_content", req.path, appDeps.workspaceId, res)) return;
+      if (await tryRedirectPhase("pre_content", req.path, appDeps.workspaceId, res)) return undefined;
+      if (await tryRedirectPhase("post_content", req.path, appDeps.workspaceId, res)) return undefined;
       next();
     } catch (err) {
       next(err);
     }
+    return undefined;
   });
 
   app.get("/:slug", async (req, res, next) => {

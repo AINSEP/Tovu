@@ -1,7 +1,7 @@
 /** Tovu's admin transport projection of Jini-admitted providers and the site's chart preference. */
 import { getEffective, type SettingsRepoPort } from "@jini-ai/core/settings";
 import type { AdmittedBrowserProvider, BrowserProviderAsset } from "@jini-ai/plugins/host";
-import type { AdminChartProviderSnapshot } from "#src/contracts/headless/chart-providers";
+import type { AdminChartProviderSnapshot } from "#src/contracts/headless/index";
 
 /** Build an immutable asset address without exposing a filesystem path.
  * @returns A workspace-scoped address matched only against admitted in-memory assets.

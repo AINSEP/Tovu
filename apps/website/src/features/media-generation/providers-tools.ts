@@ -1,8 +1,9 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/media-generation.js';
-import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/secret-form-cards.js";
+import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
 import { assertCredentialFreeField, CREDENTIAL_MESSAGES, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
 import { credentialText, formatCredentialHint } from '../../contracts/core/credential-copy.js';
-import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
+import { resolveOperatorLocale } from '../settings/index.js';
+import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireNoInput, requireString, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
@@ -12,7 +13,7 @@ import type { MediaModel, MediaProvider } from '@jini-ai/integrations/media-prov
 import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
 import type { AuthorizeFn } from '../../contracts/core/commands/index.js';
 import { askThenReport, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { ToolContributor } from '#src/assistant/index';
+import type { ToolContributor } from '@jini-ai/core';
 import { getMediaProviderCredentials, type MediaProviderCredentialRepoPort } from '../media/provider-credential-store.js';
 import type { KeyringPort, SecretSealerPort } from '../webhooks/index.js';
 import type { AgentToolDefinition } from "@jini-ai/core";
@@ -88,7 +89,8 @@ function savedProviderMessage({ provider, tokenHint, locale }: {
 }, _optional = {}): string {
   const hint = formatCredentialHint({ hint: tokenHint, locale });
   const unavailable = provider.integrated === false ? ` ${credentialText({ id: 'generationUnavailable', locale })}` : '';
-  return `${hint ? `${hint}. ` : ''}${credentialText({ id: 'saved', locale })}${unavailable}`;
+  const hintPrefix = hint ? `${hint}. ` : '';
+  return `${hintPrefix}${credentialText({ id: 'saved', locale })}${unavailable}`;
 }
 
 /** Strict non-secret model input; bound provider identity is never taken from the form submission.
@@ -152,8 +154,11 @@ export async function saveMediaCredential(required: { ctx: ToolExecutionContext;
     outcome: ({ prep, run }) => {
       if (run.status === 'cancelled' || run.status === 'expired' || run.status === 'abandoned') return undefined;
       const saved = run.status === 'saved';
-      const message = run.status === 'saved' ? savedProviderMessage({ provider: prep.provider, tokenHint: run.saved.tokenHint, locale: prep.locale })
-        : run.status === 'blank' ? credentialText({ id: 'blank', locale: prep.locale }) : run.status === 'failed' ? run.safeMessage : saveFailure;
+      let message: string;
+      if (run.status === 'saved') message = savedProviderMessage({ provider: prep.provider, tokenHint: run.saved.tokenHint, locale: prep.locale });
+      else if (run.status === 'blank') message = credentialText({ id: 'blank', locale: prep.locale });
+      else if (run.status === 'failed') message = run.safeMessage;
+      else message = saveFailure;
       return { title: saved ? 'Provider key saved' : 'Provider key not saved', state: saved ? 'success' : 'failure', message };
     },
   }, {
@@ -187,6 +192,6 @@ export function buildMediaProviderRegistrations(deps: MediaProviderToolDeps, sur
  * @example registerToolContributor(contributeMediaProviderTools());
  * @complexity Time/space O(1).
  */
-export function contributeMediaProviderTools(): ToolContributor {
+export function contributeMediaProviderTools(): ToolContributor<MediaProviderToolDeps, AssistantSurfaceDeps> {
   return { domain: 'media-providers', build: buildMediaProviderRegistrations, risk: mediaProvidersDerivedRisk };
 }

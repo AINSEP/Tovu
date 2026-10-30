@@ -17,8 +17,8 @@ import {
   PgliteOwnerLockedError,
   runningPgliteOwner,
 } from "#src/platform/db/kernel/drivers/pglite-owner";
-import { bootSiteDir, closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
-import { initSite } from "#src/platform/site-dir/init-site";
+import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
+import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
 import { bootSite, drainBootReadiness } from "../helpers/unrun-site-boot.js";
 
 /**

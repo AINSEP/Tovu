@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createTrashScheduler } from "#src/features/trash/scheduler.node";
 import { startThemeWatcher } from "#src/features/theme/theme-watcher";
 import { startPostGoLiveSweep } from "#src/features/post/go-live";
@@ -84,7 +85,7 @@ export function createServingApp(
   const trashSweeper = startTrashSweeper(
     {
       sweep: routeDeps.sweepTrash, clock: { nowMs: () => Date.parse(routeDeps.clock.nowIso()) },
-      scheduler: createTrashScheduler({}), leaseOwner: `trash-sweeper-${Math.random().toString(36).slice(2, 10)}`
+      scheduler: createTrashScheduler({}), leaseOwner: `trash-sweeper-${randomUUID()}`
     },
     {
       intervalMs: optional.trashSweepIntervalMs,

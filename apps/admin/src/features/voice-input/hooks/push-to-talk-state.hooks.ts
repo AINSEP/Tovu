@@ -102,22 +102,21 @@ export interface PushToTalkIndicator {
  *
  * @complexity Time/space: O(1).
  */
+const PUSH_TO_TALK_INDICATORS: Record<Exclude<PushToTalkStatus, "error">, PushToTalkIndicator> = {
+  idle: { label: "Hold to talk", ariaLive: "polite", isRecording: false },
+  "requesting-mic": { label: "Requesting microphone…", ariaLive: "polite", isRecording: false },
+  recording: { label: "Recording — release to send", ariaLive: "assertive", isRecording: true },
+  transcribing: { label: "Transcribing…", ariaLive: "polite", isRecording: false },
+  // The hold is already over from the user's own point of view (they released the button) —
+  // same resting copy as `"idle"`, not a distinct "cancelling…" message nobody would be
+  // holding still long enough to read.
+  cancelling: { label: "Hold to talk", ariaLive: "polite", isRecording: false },
+};
+
 export function describePushToTalkIndicator(state: PushToTalkState): PushToTalkIndicator {
-  switch (state.status) {
-    case "idle":
-      return { label: "Hold to talk", ariaLive: "polite", isRecording: false };
-    case "requesting-mic":
-      return { label: "Requesting microphone…", ariaLive: "polite", isRecording: false };
-    case "recording":
-      return { label: "Recording — release to send", ariaLive: "assertive", isRecording: true };
-    case "transcribing":
-      return { label: "Transcribing…", ariaLive: "polite", isRecording: false };
-    case "error":
-      return { label: state.errorReason ?? "Voice input failed", ariaLive: "assertive", isRecording: false };
-    case "cancelling":
-      // The hold is already over from the user's own point of view (they released the button) —
-      // same resting copy as `"idle"`, not a distinct "cancelling…" message nobody would be
-      // holding still long enough to read.
-      return { label: "Hold to talk", ariaLive: "polite", isRecording: false };
+  if (state.status === "error") {
+    return { label: state.errorReason ?? "Voice input failed", ariaLive: "assertive", isRecording: false };
   }
+  // A fresh object per call, as the switch this replaced returned.
+  return { ...PUSH_TO_TALK_INDICATORS[state.status] };
 }

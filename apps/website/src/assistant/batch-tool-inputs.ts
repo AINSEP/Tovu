@@ -1,5 +1,5 @@
 import { applyBatchInputs as applyCoreBatchInputs, batchEligibilityFor, defaultBatchableTools, ToolInputError, type ToolRegistration, type BatchableTool, type BatchOptOut } from '@jini-ai/core';
-import { PERMANENT_DELETE_TOOLS } from '../contracts/headless/assistant-permanent-deletes-policy.js';
+import { PERMANENT_DELETE_TOOLS } from '../contracts/headless/index.js';
 export { batchDescriptorFor, batchEligibilityFor, withBatchInput, DEFAULT_MAX_BATCH_ITEMS, type BatchableTool, type BatchOptOut, type BatchResult, type BatchItemResult } from '@jini-ai/core';
 
 /** Cheap row-level writes the assistant repeats by the dozen (owner evidence, 2026-10-22: 145
@@ -36,6 +36,7 @@ const SINGLETON = "one site-wide setting or action; there is nothing per item to
  * Native items fields retain their existing owner. The production-catalog test checks coverage. */
 export const BATCH_OPT_OUT: readonly BatchOptOut[] = [
   // Leaves this site or acts on a live host.
+  { toolId: "fs_write_files", reason: `already writes an array of files to the picked folder after one approval; ${ASKS}` },
   { toolId: "deployment_ops_deploy", reason: `deploys to a live host; ${ASKS}` },
   { toolId: "deployment_execute_static_publish", reason: `publishes the whole site to a live host; ${ASKS}` },
   { toolId: "deployment_ops_set_secret", reason: `replaces a live secret; ${ASKS}` },

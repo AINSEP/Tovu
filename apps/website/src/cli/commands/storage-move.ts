@@ -1,4 +1,4 @@
-import { ValidationError } from "../../platform/site-dir/errors.js";
+import { ValidationError } from "../../platform/site-dir/index.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { moveSiteStorage, type MoveSiteStorageResult } from "#src/server/runtime/composition/move-site-storage";
 import { readConnectionStringFromUser } from "./init.js";

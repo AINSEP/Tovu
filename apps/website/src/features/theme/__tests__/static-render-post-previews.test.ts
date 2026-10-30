@@ -1,17 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { LISTING_BATCH_MAX as MAX_POST_PREVIEWS_LIMIT } from "@jini-ai/cms/listing";
-import { renderStaticPage, scanPostPreviewsLimit } from "../static-render.js";
+import { renderStaticPage } from "../static-render.js";
 import type { StaticPostPreview } from "../static-render.js";
 import type { DiscoveredTheme } from "../theme.js";
 
-/** A marker with no `limit` keeps the legacy 6 (`static-render.ts`'s `LEGACY_POST_PREVIEWS_LIMIT`). */
-const DEFAULT_POST_PREVIEWS_LIMIT = 6;
-
 /**
- * @file Certifies the post-previews marker (2026-09-03) — `scanPostPreviewsLimit` (the route layer's
- * "should I even query" gate) and `renderStaticPage`'s own `{"type":"post-previews"}` substitution
+ * @file Certifies `renderStaticPage`'s own `{"type":"post-previews"}` substitution (2026-09-03)
  * (`injectPostPreviewsEmbeds`, private to `static-render.ts`, exercised here only through
  * `renderStaticPage`'s public surface — the same convention `menu-tree-render.test.ts` follows for
  * `injectMenuEmbeds`).
@@ -49,39 +44,6 @@ function preview(overrides: Partial<StaticPostPreview> = {}): StaticPostPreview 
     ...overrides,
   };
 }
-
-test("scanPostPreviewsLimit: undefined when the page carries no post-previews marker at all", () => {
-  const html = "<html><body><main>no marker here</main></body></html>";
-  assert.equal(scanPostPreviewsLimit(html), undefined);
-});
-
-test("scanPostPreviewsLimit: the marker's own configured limit", () => {
-  const html = "<div data-embed-config='{\"type\":\"post-previews\",\"limit\":3}'></div>";
-  assert.equal(scanPostPreviewsLimit(html), 3);
-});
-
-test("scanPostPreviewsLimit: defaults when limit is absent", () => {
-  const html = "<div data-embed-config='{\"type\":\"post-previews\"}'></div>";
-  assert.equal(scanPostPreviewsLimit(html), DEFAULT_POST_PREVIEWS_LIMIT);
-});
-
-test("scanPostPreviewsLimit: clamps an adversarially large limit to the ceiling", () => {
-  const html = "<div data-embed-config='{\"type\":\"post-previews\",\"limit\":999999}'></div>";
-  assert.equal(scanPostPreviewsLimit(html), MAX_POST_PREVIEWS_LIMIT);
-});
-
-test("scanPostPreviewsLimit: a non-positive/invalid limit degrades to the default rather than 0 or negative", () => {
-  assert.equal(scanPostPreviewsLimit("<div data-embed-config='{\"type\":\"post-previews\",\"limit\":0}'></div>"), DEFAULT_POST_PREVIEWS_LIMIT);
-  assert.equal(scanPostPreviewsLimit("<div data-embed-config='{\"type\":\"post-previews\",\"limit\":-5}'></div>"), DEFAULT_POST_PREVIEWS_LIMIT);
-  assert.equal(scanPostPreviewsLimit("<div data-embed-config='{\"type\":\"post-previews\",\"limit\":\"six\"}'></div>"), DEFAULT_POST_PREVIEWS_LIMIT);
-});
-
-test("scanPostPreviewsLimit: multiple markers on one page report the WIDEST clamped limit", () => {
-  const html =
-    "<div data-embed-config='{\"type\":\"post-previews\",\"limit\":3}'></div>" +
-    "<div data-embed-config='{\"type\":\"post-previews\",\"limit\":10}'></div>";
-  assert.equal(scanPostPreviewsLimit(html), 10);
-});
 
 test("renderStaticPage: a page WITHOUT the marker renders byte-identically whether or not postPreviews is supplied", () => {
   const theme = minimalTheme({ index: "<html><body><main>home, no marker</main></body></html>" });
@@ -157,10 +119,9 @@ test("renderStaticPage: title/date values are HTML-escaped", () => {
 
 });
 
-test("post-previews: positive fractional limits scan and render at least one bounded preview", () => {
+test("post-previews: positive fractional limits render at least one bounded preview", () => {
   for (const [limit, expected] of [[0.5, 1], [1.5, 1], [2.9, 2]]) {
     const html = `<div data-embed-config='{"type":"post-previews","limit":${limit}}'>fallback</div>`;
-    assert.equal(scanPostPreviewsLimit(html), expected);
     const rendered = renderStaticPage({ theme: minimalTheme({ blog: html }), pageId: "blog",
       postPreviews: [preview({ title: "First" }), preview({ title: "Second" }), preview({ title: "Third" })] });
     assert.ok(rendered);

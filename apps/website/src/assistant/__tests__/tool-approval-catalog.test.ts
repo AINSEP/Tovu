@@ -3,8 +3,8 @@ import test from 'node:test';
 import { createContributionRegistry } from '@jini-ai/core';
 import { installFirstPartyToolContributors } from '../../server/runtime/composition/tool-catalog-manifest.js';
 import { buildAssistantToolRegistrations } from '../tool-registrations.js';
-import { TOOL_APPROVAL_POLICY } from '../../contracts/headless/assistant-tool-approval-policy.js';
-import type { ToolContributor, DerivedToolContributor } from '../tool-contribution-registry.js';
+import { TOOL_APPROVAL_POLICY } from '../../contracts/headless/index.js';
+import type { ToolContributor, DerivedToolContributor } from '../tool-registrations.js';
 
 function fixture() {
   const contributions={contributors:createContributionRegistry({keyOf:({contribution}:{contribution:ToolContributor})=>contribution.domain}),derivedContributors:createContributionRegistry({keyOf:({contribution}:{contribution:DerivedToolContributor})=>contribution.domain})};

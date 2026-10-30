@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import ts from "typescript";
 
-import { SECRET_FORM_CARD_DEFINITIONS, SECRET_FORM_TOOL_IDS } from "../../contracts/headless/secret-form-cards.js";
+import { SECRET_FORM_CARD_DEFINITIONS, SECRET_FORM_TOOL_IDS } from "../../contracts/headless/index.js";
 import { isMcpUiToolCallAllowed, isMcpUiToolCallPermitted } from "../mcp-ui-tool-calls.js";
 
 test("every secret card requires an exchange, including cards added to the field definitions", () => {

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { format } from "node:util";
 
-import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 import { installConsoleTee } from "./console-tee.js";
 import { createLogBuffer, DEFAULT_MAX_ENTRIES, type ServerLogBuffer, type ServerLogEntry, type ServerLogSource } from "./log-buffer.js";
@@ -116,7 +116,10 @@ export function readProcessServerLogs(optional: { fs?: LogFileFsPort } = {}): { 
   if (readFilePaths.length > 0) {
     const perFile = readFilePaths.map(filePath => readLogFileTail({ filePath }, { maxEntries: DEFAULT_MAX_ENTRIES, fs: optional.fs }));
     // ISO-8601 UTC strings sort lexically; the stable sort keeps each file's own order for ties.
-    const merged = perFile.flatMap(entries => entries ?? []).sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+    const merged = perFile.flatMap(entries => entries ?? []).sort((a, b) => {
+      if (a.at < b.at) return -1;
+      return a.at > b.at ? 1 : 0;
+    });
     return { entries: merged.slice(-DEFAULT_MAX_ENTRIES), capturing: perFile.some(entries => entries !== null) };
   }
   return { entries: getServerLogBuffer().entries(), capturing: isServerLogCaptureInstalled() };

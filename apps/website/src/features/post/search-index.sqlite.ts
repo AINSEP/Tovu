@@ -2,7 +2,7 @@ import { sql } from "kysely";
 
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { PostSearchQuery } from "./search.js";
-import { type PostSearchDialect, type PostSearchRow, type SearchProjectionTables, toPostSearchHit } from "./search-index.js";
+import { type PostSearchDialect, type PostSearchRow, type SearchProjectionTables, toPostSearchHit } from "./search-index.contract.js";
 
 /**
  * @file The durable FTS5 + BM25 adapter behind `PostSearchPort` — Tovu's posts equivalent of
@@ -136,5 +136,3 @@ export const sqlitePostSearch: PostSearchDialect = {
   },
 };
 
-// Defined in `search-index.ts` (a subclass here would be evaluated inside the module cycle).
-export { SqlitePostSearchIndex } from "./search-index.js";

@@ -3,7 +3,8 @@ import type { StorageKernel } from "@jini-ai/db/kernel";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { SqlWidgetRegionBindingRepo, type WidgetsDatabase } from "@jini-ai/cms/widgets/sql";
 
-export const WIDGET_REGION_BINDINGS_TABLE = "widget_region_bindings";
+import { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables.js";
+export { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables.js";
 
 /**
  * @file The widget region-binding repo on a site's SQLite `content.db`:

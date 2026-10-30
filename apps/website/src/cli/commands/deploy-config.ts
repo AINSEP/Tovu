@@ -9,7 +9,7 @@ import {
   type DeployConfigGeneratorRegistry,
   type RenderDeployConfigOptions,
 } from "../../features/deployments/index.js";
-import { isSiteIdToken, readSiteMetaId } from "../../features/webhooks/site-key-sources.js";
+import { isSiteIdToken, readSiteMetaId } from "../../features/webhooks/index.js";
 import { resolveProductRoot, resolveSiteRoot, ValidationError } from "../../platform/site-dir/index.js";
 
 /**

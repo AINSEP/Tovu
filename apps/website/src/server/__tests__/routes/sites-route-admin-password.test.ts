@@ -1,3 +1,4 @@
+import { createSite } from "#src/server/runtime/composition/site-dir";
 import { isolatedCatalogHome } from "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -13,6 +14,7 @@ const ROUTE = "/api/admin/v1/workspaces/:workspaceId/system/sites";
 
 function routeDeps(base: string, overrides: Partial<AdminSitesDeps> = {}): AdminSitesDeps {
   return {
+    createSite,
     workspaceId: "workspace-local",
     authorize: async () => ({ allowed: true, reason: "test" }),
     siteBinding: { dir: path.join(base, "sites", "serving"), name: "serving", dirOverridden: false, switcherCompatible: true },

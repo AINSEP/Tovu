@@ -100,7 +100,7 @@ function InstalledPluginRows({
   expandedIds: ReadonlySet<string>;
   onToggleExpanded: (id: string) => void;
   rowHandleById: Map<string, string>;
-  focusPluginId?: string | null | undefined;
+  focusPluginId?: string | null;
 }) {
   const { t, locale, rowSavingId, onToggleEnabled } = controller;
   return (
@@ -208,7 +208,7 @@ interface PluginsTabPanelProps {
   plugins: AdminPlugin[];
   controller: PluginsController;
   rowHandleById: Map<string, string>;
-  focusPluginId?: string | null | undefined;
+  focusPluginId?: string | null;
 }
 
 /** The Downloaded tab's two Remove notes, by {@link pluginRemoveBlocker} reason — a disabled Remove
@@ -336,7 +336,7 @@ export function Plugins({ tabId, focusPluginId, usePluginsHook = useWiredPlugins
 
 /** The screen once `PLUGINS_LIST` has settled: header, row error, tab bar, the active tab's panel,
  *  and the package-files viewer and Remove confirm dialog (both opened through the controller). */
-function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { plugins: AdminPlugin[]; controller: PluginsController; activeTabId: PluginsTabId; focusPluginId?: string | null | undefined }) {
+function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { plugins: AdminPlugin[]; controller: PluginsController; activeTabId: PluginsTabId; focusPluginId?: string | null }) {
   const { error, rowError, t, locale, inspectedPlugin, pendingRemovePlugin, settingsPlugin } = controller;
 
   // Plugin ids are stable and unique, same per-row-handle derivation every other list on this

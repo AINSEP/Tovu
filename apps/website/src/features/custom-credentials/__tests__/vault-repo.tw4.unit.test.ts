@@ -18,7 +18,7 @@ function fixture({ existing = null, failure, siblings = [] }: { existing?: Vault
   const vault: VaultRepoPort = {
     find: async () => existing,
     list: async input => siblings.filter(item => item.kind === input.kind),
-    put: async input => { puts.push(input); if (failure) throw failure; return input.record; },
+    put: async input => { puts.push(input); if (failure) throw failure; return { ...input.record, isDefault: input.record.isDefault ?? false }; },
     patchMeta: async () => { throw new Error("unexpected patch"); },
     delete: async () => false,
   };

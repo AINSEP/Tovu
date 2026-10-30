@@ -27,7 +27,7 @@ import {
   type RegisterContentTypeRequired,
   type ContentTypesToolDeps,
 } from "@jini-ai/cms/content-types";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
+import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
 
 export { updateContentTypeFields } from "@jini-ai/cms/content-types";
 

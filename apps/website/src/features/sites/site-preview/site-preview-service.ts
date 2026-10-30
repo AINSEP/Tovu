@@ -76,7 +76,8 @@ export function createSitePreviewService(
   function usableVersion(name: string, createdAt: string): number | null {
     const version = store.version({ name });
     const created = Date.parse(createdAt);
-    return version !== null && !(created > version) ? version : null;
+    if (version === null || created > version) return null;
+    return version;
   }
 
   function isDue(target: SitePreviewTarget, version: number | null): boolean {
@@ -111,7 +112,7 @@ export function createSitePreviewService(
     queue.push(target);
     if (!wasIdle) return;
     drain = new Promise<void>((resolve) => {
-      defer(() => { void runQueue().catch(() => {}).finally(resolve); });
+      defer(() => { void runQueue().then(resolve, resolve); });
     });
   }
 

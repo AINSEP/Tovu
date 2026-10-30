@@ -1,6 +1,6 @@
 import { toolMetadata as consent } from './consent.js';
 import { projectToolMetadata } from '@jini-ai/core';
-import type { ToolApprovalPolicy } from '../../headless/assistant-tool-approval-policy.js';
+import type { ToolApprovalPolicy } from './approval-policy.js';
 import { toolMetadata as agent_plugins } from './agent-plugins.js';
 import { toolMetadata as analytics } from './analytics.js';
 import { toolMetadata as assistant } from './assistant.js';

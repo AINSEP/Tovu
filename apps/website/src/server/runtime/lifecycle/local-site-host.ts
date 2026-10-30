@@ -1,5 +1,5 @@
 /** Serving-host ownership: one supervisor per binding, not one per HTTP request or route import. */
-import { createLocalSiteSupervisor, type LocalSiteSupervisorPort } from "#src/platform/site-dir/local-site-supervisor";
+import { createLocalSiteSupervisor, type LocalSiteSupervisorPort } from "#src/platform/site-dir/index";
 import { switcherBaseForBinding, type SiteBinding, isSiteSwitcherEnabled } from "#src/platform/site-dir/index";
 import { resolveCheckoutRoot } from "#src/platform/site-dir/product-root";
 import { resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";

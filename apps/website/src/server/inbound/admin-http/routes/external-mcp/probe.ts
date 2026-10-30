@@ -80,7 +80,7 @@ export function registerAdminExternalMcpProbeRoute(app: Express, deps: ExternalM
 
       const outcome = await probeExternalMcpServer(deps, serverId);
       res.status(outcome.ok ? 200 : outcome.status).json(outcome.body);
-    } catch (error) {
+    } catch {
       // eslint-disable-next-line no-console
       console.error("external-mcp probe route failed");
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

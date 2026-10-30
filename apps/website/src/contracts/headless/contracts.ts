@@ -10,7 +10,7 @@
  * of themes a client can PICK, not a list of values the API will accept. No type change: the
  * sentinel is a legal `HeadlessThemeId` because this alias is an open string.
  */
-export type HeadlessThemeId = string;
+export type HeadlessThemeId = HeadlessThemeSummary["id"];
 
 /**
  * SPEC-002 (content-entry-authoring) discriminates a blog-style `"post"` from a
@@ -113,7 +113,7 @@ export type HeadlessThemeTier = "declarative" | "templated" | "handlebars" | "st
 export interface HeadlessThemeSummary {
   /** Existing screenshot URL, or null when the theme has no preview image. */
   previewImageUrl?: string | null;
-  id: HeadlessThemeId;
+  id: string;
   /** The theme's display name — `theme.json`'s `name`, or the id when the manifest has none
    *  (`ThemeManifest.name`'s own fallback, `theme.ts`). What the admin shows the owner; the id
    *  stays the key. */

@@ -1,7 +1,7 @@
 /** @file Regression contract for the owner's 2026-10-23 consent origin and theme-script bugs. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { Request } from 'express';
+import express, { type Request } from 'express';
 import { gateConsentHtml } from '@jini-ai/cms/consent/html';
 import { JSDOM } from 'jsdom';
 import { decoratePreviewPage } from '#src/features/theme/preview-switcher-html';
@@ -28,8 +28,9 @@ test('consent origin uses only same-scheme, same-port loopback Host aliases', t 
     ['localhost.attacker.example:3000', 'https', 'https://localhost:3000'],
     ['[invalid', 'https', 'https://localhost:3000'],
   ]) {
-    const request = { protocol, headers: { 'x-forwarded-host': 'localhost:3000' },
-      get: (name: string) => name === 'host' ? host : 'localhost:3000' } as Request;
+    const request: Request = Object.create(express.request, {
+      protocol: { value: protocol }, headers: { value: { host, 'x-forwarded-host': 'localhost:3000' } },
+    });
     assert.equal(resolveSiteConsentOrigin({ request }), expected, `${protocol}://${host}`);
   }
   process.env.TOVU_PUBLIC_URL = 'https://127.0.0.1:3000';
@@ -72,8 +73,11 @@ test('the real preview-switcher banner script mounts its shadow UI after reject'
     record, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' }), { runScripts: 'dangerously', url: 'https://site.example/' });
   try {
     const host = dom.window.document.querySelector('.tovu-theme-preview-host');
-    assert.ok(host?.shadowRoot?.querySelector('nav[aria-label="Theme preview"]'));
-    assert.equal(host.shadowRoot.querySelectorAll('a').length, 2);
+    assert.ok(host);
+    const shadowRoot = host.shadowRoot;
+    assert.ok(shadowRoot);
+    assert.ok(shadowRoot.querySelector('nav[aria-label="Theme preview"]'));
+    assert.equal(shadowRoot.querySelectorAll('a').length, 2);
     assert.equal(host.querySelector('template'), null, 'BANNER_SCRIPT consumes the fallback shadow template');
     assert.equal(dom.window.document.documentElement.style.getPropertyValue('--tovu-theme-preview-height'), '0px');
   } finally { dom.window.close(); }

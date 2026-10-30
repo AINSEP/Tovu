@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { applyToolApprovalPolicy } from "../tool-approval-policy.js";
@@ -23,7 +24,7 @@ import { installFirstPartyToolContributors } from "#src/server/runtime/compositi
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import type { TrashEntityType } from "@jini-ai/cms/trash";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createSqliteTrashDb } from "#src/features/trash/db-port.sqlite";
+
 import { createTableTrashAdapter } from "#src/features/trash/table-adapter";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
 import { createTrashService, type TrashAdapter } from "@jini-ai/cms/trash";
@@ -134,7 +135,7 @@ function sqliteFormHarness(options: { deny?: boolean } = {}): SqliteFormHarness 
     .run(workspaceId, NOW, NOW);
 
   const registry = buildTrashRegistry();
-  const trashDb = createSqliteTrashDb({ db });
+  const trashDb = contentKernel(db);
   const adapters = new Map<string, TrashAdapter>(
     [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
   );

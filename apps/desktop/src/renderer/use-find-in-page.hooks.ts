@@ -119,6 +119,8 @@ export function findBarReducer(state: FindBarState, action: FindBarAction): Find
     case 'close':
       return initialFindBarState;
   }
+  // Typed cases are exhaustive; preserve undefined fallthrough for untyped callers.
+  return undefined as never;
 }
 
 /** Which surface a search should run against right now. */
@@ -555,12 +557,12 @@ export function useFindInPage(
   // for nothing.
   useEffect(() => {
     queryScheduler.cancel();
-    if (!state.open) return;
+    if (!state.open) return undefined;
     if (state.query === '') {
       awaitingReport.current = false;
       cancelReclaimFrame();
       stopFind(target, bridge);
-      return;
+      return undefined;
     }
     const run = () => {
       // Blurring during an IME composition would discard the text still being composed.

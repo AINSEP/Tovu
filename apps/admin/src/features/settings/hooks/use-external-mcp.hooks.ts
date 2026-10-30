@@ -127,10 +127,14 @@ function toItem(server: AdminExternalMcpServer, locale: string = "en"): SourceCo
 /** The card's "what is stored" line: env variable NAMES and whether an access token is held — never
  *  a value. `undefined` when neither is stored, so the card shows no status line at all.
  *  @complexity O(n) in the env variable count. */
+function accessTokenHintSuffix(server: AdminExternalMcpServer, locale: string): string {
+  return server.accessTokenHint ? ` (${formatCredentialHint({ hint: server.accessTokenHint, locale })})` : "";
+}
+
 export function describeStoredCredentials({ server }: { server: AdminExternalMcpServer }, { locale = "en" }: { locale?: string } = {}): string | undefined {
   const parts = [
     ...(server.envNames.length > 0 ? [formatCredentialHints({ hints: server.envTokenHints, locale }) || `Credentials set: ${server.envNames.join(", ")}`] : []),
-    ...(server.hasAccessToken ? [`${credentialText({ id: 'set', locale })}${server.accessTokenHint ? ` (${formatCredentialHint({ hint: server.accessTokenHint, locale })})` : ""}`] : []),
+    ...(server.hasAccessToken ? [credentialText({ id: 'set', locale }) + accessTokenHintSuffix(server, locale)] : []),
   ];
   return parts.length > 0 ? parts.join(" · ") : undefined;
 }

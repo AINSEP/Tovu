@@ -1,9 +1,8 @@
 /** One human-only reply route. No model tool or admin exchange can reach this visitor store. */
 import type { Express, Request, Response } from "express";
-import type { VisitorConfirmations } from "#src/assistant/site/visitor-confirmations";
+import { type VisitorConfirmations, VISITOR_TOOL_REFUSAL } from "#src/assistant/visitor-services";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
-import { VISITOR_TOOL_REFUSAL } from "#src/assistant/site/visitor-executor";
 
 export const SITE_ASSISTANT_CONFIRM_PATH = "/api/site-assistant/confirm";
 interface ConfirmRoutePorts {

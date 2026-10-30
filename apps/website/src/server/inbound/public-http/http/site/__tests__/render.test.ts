@@ -3,7 +3,7 @@ import path from "node:path";
 import test from "node:test";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
-import type { PostRecord } from "#src/features/post/index";
+import type { PublicPostRecord } from "#src/features/post/index";
 import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
@@ -414,7 +414,7 @@ test("hardBreak composes with surrounding marked text and can appear more than o
 // the component registry, and `{{ content | raw }}`.
 // ---------------------------------------------------------------------------
 
-function fakePost(overrides: Partial<PostRecord> = {}): PostRecord {
+function fakePost(overrides: Partial<PublicPostRecord> = {}): PublicPostRecord {
   return buildPostRecord({
     id: "11111111-1111-1111-1111-111111111111",
     workspaceId: "workspace-1",
@@ -2306,7 +2306,7 @@ test("injectFormSubmissionResultIntoHtml: a single-quoted value='say \"hi\"' con
 // SPEC-047 Slice 1/2 — "html"-format Page rendering, and `data-embed-type` embeds
 // ---------------------------------------------------------------------------
 
-function htmlPage(overrides: Partial<PostRecord> = {}): PostRecord {
+function htmlPage(overrides: Partial<PublicPostRecord> = {}): PublicPostRecord {
   return fakePost({
     kind: "page",
     bodyFormat: "html",

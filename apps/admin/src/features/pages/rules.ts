@@ -14,7 +14,7 @@ import { formatRelativeMinutesAgo } from "@jini-ai/ui/panel-kit";
 import { isVersionConflict, VERSION_CONFLICT_CODE } from "../../lib/version-conflict";
 import { t as translate } from "./pages-i18n";
 import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
-import type { PageEditorView } from "./hooks/use-page-editor.hooks";
+export type PageEditorView = "preview" | "html" | "interactive";
 import { STATIC_TIER_PAGE_SHELL_TEMPLATES, type ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
 
 /**

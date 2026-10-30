@@ -1,6 +1,6 @@
-import type { PostRecord } from "../../features/post/index.js";
-import type { PresentationSettingsRecord } from "../../features/presentation/index.js";
-import type { WorkspaceRecord } from "../../features/workspace/index.js";
+import type { PostRecord } from "../../features/post/contracts.js";
+import type { PresentationSettingsRecord } from "@jini-ai/cms/presentation";
+import type { WorkspaceRecord } from "@jini-ai/cms/workspace";
 
 /**
  * @file SPEC-003 — install-dir compatibility-surface schemas (state.spec.md §2).

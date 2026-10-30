@@ -1,6 +1,7 @@
 import type { WidgetPickerPort } from "../WidgetPickerDialog/widget-picker-port.hooks";
 import { useState } from "react";
 import { useWidgetAddControl } from "../WidgetPickerDialog/WidgetPickerDialog";
+import { uniqueId } from "../../lib/unique-id";
 
 /**
  * @file `EmbedInsertControl`'s own state — the menu open/closed flag, the Media-picker-open flag,
@@ -25,11 +26,10 @@ export interface EmbedEditor {
   };
 }
 
-/** Same placement-id minting `widget-embed-extension.tsx`'s own (private) helper uses — duplicated
- *  here rather than exported from that file, to avoid touching a file with its own existing test
- *  coverage for an unrelated reason. */
+/** Same placement-id minting `widget-embed-extension.tsx` uses: a bare UUID, or a `placement-`
+ *  prefixed fallback id where the browser has no `crypto.randomUUID`. */
 function newPlacementId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `placement-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return globalThis.crypto?.randomUUID?.() ?? `placement-${uniqueId()}`;
 }
 
 /**

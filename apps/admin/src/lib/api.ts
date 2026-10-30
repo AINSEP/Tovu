@@ -14,6 +14,7 @@ import { isPageUnloading } from "./page-lifecycle";
 import { siteUrl } from "./site-url";
 import { shareSettingsEffectiveRead } from "./settings-effective-reads";
 import { serverReconnect, shouldRetryAfterReconnect, UPSTREAM_REFUSED_HEADER, UPSTREAM_REFUSED_VALUE, type ServerReconnect } from "./server-reconnect";
+import { querySuffix } from "./query-suffix";
 
 export const WORKSPACE_ID = "workspace-local";
 
@@ -30,6 +31,9 @@ function publishContentPeerPath(peerId: string): string {
 function publishContentDestinationPath(): string {
   return `/workspaces/${WORKSPACE_ID}/publish-content/destination`;
 }
+
+/** Which part of a theme a file is (`GET .../themes/:id/files`). */
+export type ThemeFileGroup = "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
 
 export interface AdminUser {
   id: string;
@@ -51,12 +55,12 @@ export interface AdminUser {
  */
 export type { SettingScope };
 
-export interface SettingResolvedValue {
-  key: string;
-  value: unknown;
-  sourceLayer: "user" | "workspace" | "global" | "default";
-  defVersion: number;
-}
+export type { SettingResolvedValue } from "./settings-effective-reads";
+import type { SettingResolvedValue } from "./settings-effective-reads";
+
+export type ProviderDomainVerification =
+  | { state: "verified" | "pending" | "failed" | "not_found"; domain: string; providerId: string }
+  | { state: "no_sender" | "no_provider" | "unsupported" | "unknown"; domain?: string; providerId: string | null; reason?: string };
 
 export interface SettingValueResponse {
   key: string;
@@ -524,7 +528,7 @@ export interface AdminServerLogsQuery {
  *  — `false` while the site only logs outbound mail (the console fallback, no mail credential). */
 export interface AdminMailStatus {
   /** Provider-side sender-domain verdict, independent of whether the sending key is saved. */
-  senderDomainVerification?: import("../features/email/email-api").ProviderDomainVerification;
+  senderDomainVerification?: ProviderDomainVerification;
   mailDeliveryAvailable: boolean;
   /** Present when the server reports lanes (email provider contract v1); `unconfigured` shows the
    *  admin's blocking banner. */
@@ -1368,6 +1372,7 @@ export interface SeoEntryAnalysis {
 /** Safe readiness for markers already on a page, without templates, paths or credentials. */
 export interface AdminPagePluginEmbed {
   plugin: string;
+  displayName?: string;
   component: string;
   availability: string;
 }
@@ -1885,6 +1890,9 @@ export interface ContentTypeFieldDef {
 }
 
 export type ContentTypeStatus = "active" | "deprecated" | "tombstone";
+
+/** A content type's lifecycle transition (`POST /content-types/:key/lifecycle`). */
+export type ContentTypeLifecycleOp = "deprecate" | "reactivate" | "tombstone";
 
 export interface AdminContentType {
   workspaceId: string;
@@ -2420,9 +2428,8 @@ const UNPARSEABLE_BODY = Symbol("unparseable-json-body");
  *  (true against Node's own global, observed false against a test environment's jsdom-provided
  *  global). Duck-typing `name` is the only check that holds in both. */
 function errorName(value: unknown): string | undefined {
-  return value && typeof value === "object" && "name" in value && typeof value.name === "string"
-    ? value.name
-    : undefined;
+  if (!value || typeof value !== "object" || !("name" in value)) return undefined;
+  return typeof value.name === "string" ? value.name : undefined;
 }
 
 /**
@@ -2708,15 +2715,20 @@ export interface AuthenticatedAdminRequestOptions {
   errorFactory?: (input: { response: Response; error: ApiError }) => ApiError;
 }
 
+/** The fetch init fragment for a body: none, a raw Blob with its own type, or JSON. */
+function requestPayload(body: unknown): { body?: BodyInit; headers?: Record<string, string> } {
+  if (body === undefined) return {};
+  if (body instanceof Blob) return { body, headers: { "Content-Type": body.type || "application/octet-stream" } };
+  return { body: JSON.stringify(body) };
+}
+
 /** Authenticated package adapters share cookies, bounded requests and session invalidation
  * with every native screen; paths are relative to the explicitly selected local API prefix. */
 export function authenticatedAdminRequest<T>(
   { path, method, body }: { path: string; method: string; body?: unknown },
   options: AuthenticatedAdminRequestOptions = {},
 ): Promise<T> {
-  const payload = body === undefined ? {} : body instanceof Blob
-    ? { body, headers: { "Content-Type": body.type || "application/octet-stream" } }
-    : { body: JSON.stringify(body) };
+  const payload = requestPayload(body);
   return request<T>(path, {
     method,
     ...payload,
@@ -2996,7 +3008,7 @@ export const api = {
        *  list using the theme's optional `templateFor`; other callers retain the full catalog. */
       activeThemeTemplates: string[];
       activeThemeStaticPageIds: string[];
-    }>(`/workspaces/${WORKSPACE_ID}/presentation${required.kind ? `?kind=${required.kind}` : ""}`),
+    }>(`/workspaces/${WORKSPACE_ID}/presentation${querySuffix(required.kind ? "kind=" + required.kind : "")}`),
   /**
    * One theme's editable surface: which pages it ships, which root partials, and where it was
    * copied from. Drives the Explore screen's file list and its "you are editing a copy" banner.
@@ -3021,7 +3033,7 @@ export const api = {
        */
       files: Array<{
         path: string;
-        group: "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
+        group: ThemeFileGroup;
         /** Whether the raw source can be fetched/displayed as text at all — false only for binary
          *  assets (images, fonts). Independent of `editable`: a script is readable but not editable. */
         readable: boolean;
@@ -3089,7 +3101,7 @@ export const api = {
   copyThemeFile: (themeId: string, path: string) =>
     request<{
       path: string;
-      group: "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
+      group: ThemeFileGroup;
       readable: boolean;
       editable: boolean;
       resettable: boolean;
@@ -3108,7 +3120,7 @@ export const api = {
   renameThemeFile: (themeId: string, path: string, name: string) =>
     request<{
       path: string;
-      group: "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
+      group: ThemeFileGroup;
       readable: boolean;
       editable: boolean;
       resettable: boolean;
@@ -3191,7 +3203,7 @@ export const api = {
     }),
   listRecentAnalyticsHits: (options: { limit?: number } = {}) =>
     request<{ hits: AdminAnalyticsHit[] }>(
-      `/workspaces/${WORKSPACE_ID}/analytics/recent-hits${options.limit ? `?limit=${options.limit}` : ""}`
+      `/workspaces/${WORKSPACE_ID}/analytics/recent-hits${querySuffix(options.limit ? "limit=" + options.limit : "")}`
     ),
   listMenus: () =>
     request<{ menus: AdminMenu[] }>(`/workspaces/${WORKSPACE_ID}/menus`),
@@ -3409,7 +3421,7 @@ export const api = {
   /** A Markdown/text/CSV/JSON document's UTF-8 source, 64 KiB per page (`nextOffset` continues it). */
   readDocumentText: ({ id }: { id: string }, options: { offset?: number } = {}) =>
     request<{ id: string; text: string; offset: number; nextOffset: number | null; totalBytes: number; truncated: boolean }>(
-      `/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/text${options.offset ? `?offset=${options.offset}` : ""}`,
+      `/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/text${querySuffix(options.offset ? "offset=" + options.offset : "")}`,
     ),
   listUsers: () => request<{ users: AdminIdentityUser[] }>(`/workspaces/${WORKSPACE_ID}/users`),
   createUser: (
@@ -3503,7 +3515,6 @@ export const api = {
   getWorkspace: () => authenticatedAdminRequest<{ workspace: AdminWorkspace }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}` }),
   updateWorkspace: (options: { name?: string; slug?: string } = {}) =>
     authenticatedAdminRequest<{ workspace: AdminWorkspace }>({ method: "PATCH", path: `/workspaces/${WORKSPACE_ID}`, body: options }),
-  deleteWorkspace: () => authenticatedAdminRequest<void>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}` }),
 
   // SPEC-007 Settings (core-only layered ledger) — Phase 6 UI.
   getSettingsEffective: ({ namespace }: { namespace: string }, options: { principalId?: string } = {}) => {
@@ -3519,13 +3530,6 @@ export const api = {
     options: { principalId?: string } = {}
   ) =>
     authenticatedAdminRequest<SettingValueResponse>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/settings/value`, body: { ...input, ...options } }),
-  clearSetting: (
-    input: { namespace: string; key: string; scope: SettingScope },
-    options: { principalId?: string } = {}
-  ) =>
-    authenticatedAdminRequest<SettingValueResponse>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/settings/value`, body: { ...input, ...options } }),
-  resetSettingsNamespace: (input: { namespace: string; scope: SettingScope }) =>
-    authenticatedAdminRequest<SettingResetResponse>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/settings/reset`, body: input }),
 
   // "Execution mode" tab (`@jini-ai/ui`'s `ExecutionTab`) — Local CLI detection + BYOK connection
   // test/model discovery. Deliberately separate from the settings.* methods above: these are
@@ -3566,31 +3570,9 @@ export const api = {
 
   // SPEC-010 Forms (Tier-1 sample plugin) — admin UI.
   listForms: () => authenticatedAdminRequest<{ data: AdminFormDefinition[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/forms` }),
-  getForm: (id: string) => authenticatedAdminRequest<{ data: AdminFormDefinition }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(id)}` }),
-  createForm: (
-    input: { name: string; slug: string; fields: AdminFormField[]; mode?: "builder" | "html"; html?: string },
-    options: { notify?: AdminFormNotify } = {}
-  ) =>
-    authenticatedAdminRequest<{ data: AdminFormDefinition }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/forms`, body: { ...input, ...options } }),
-  updateForm: (
-    { id }: { id: string },
-    options: { name?: string; fields?: AdminFormField[]; notify?: AdminFormNotify; status?: "active" | "disabled"; mode?: "builder" | "html"; html?: string } = {}
-  ) =>
-    authenticatedAdminRequest<{ data: AdminFormDefinition }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(id)}${options.mode !== undefined || options.html !== undefined ? "/authoring" : ""}`, body: options }),
-  listFormSubmissions: ({ formId }: { formId: string }, options: { cursor?: string; limit?: number } = {}) => {
-    const params = new URLSearchParams();
-    if (options.cursor) params.set("cursor", options.cursor);
-    if (options.limit) params.set("limit", String(options.limit));
-    const qs = params.toString();
-    return authenticatedAdminRequest<{ data: AdminFormSubmission[]; nextCursor: string | null }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(formId)}/submissions${qs ? `?${qs}` : ""}` });
-  },
-  getFormSubmission: (
-    { formId, submissionId }: { formId: string; submissionId: string },
-    _options: Record<string, never> = {}
-  ) =>
-    authenticatedAdminRequest<{ data: AdminFormSubmission }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/forms/${encodeURIComponent(formId)}/submissions/${encodeURIComponent(submissionId)}` }),
+
   // AI Assistant — the visitor-facing assistant's master switch. Same `{ data }` envelope and same
-  // partial-PUT shape as the SEO settings pair below, because the two routes are deliberately
+  // partial-PUT shape as Jini's SEO settings adapter, because the two routes are deliberately
   // identical in contract (see `server/routes/admin/assistant/put-settings.ts`).
   //
   // GET's response also carries a sibling `adminAssistantEnabled` — the UNRELATED admin assistant's
@@ -3683,65 +3665,6 @@ export const api = {
     authenticatedAdminRequest<{ data: AdminExecutionCredential }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/assistant/execution-credential`, body: patch }),
   deleteAdminExecutionCredential: () =>
     authenticatedAdminRequest<{ data: AdminExecutionCredential }>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/assistant/execution-credential` }),
-  getSeoSettings: () => authenticatedAdminRequest<{ data: SeoSettings }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/seo/settings` }),
-  setSeoSettings: (options: SeoSettingsPatch = {}) =>
-    authenticatedAdminRequest<{ data: SeoSettings }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/seo/settings`, body: options }),
-  regenerateSitemap: () =>
-    authenticatedAdminRequest<{ data: { accepted: true } }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/seo/sitemap/regenerate` }),
-  /** GET an entry's effective/resolved SEO meta (SPEC-037 REQ-06). */
-  getSeoEntry: (entryId: string) =>
-    request<{ data: SeoEntryMeta }>(`/workspaces/${WORKSPACE_ID}/seo/entries/${encodeURIComponent(entryId)}`),
-  /** PUT partial SEO overrides for an entry; a `409`-shaped body never occurs here (this route has
-   * no optimistic-concurrency field) — failures are `400` field/canonical-URL validation errors,
-   * surfaced via `ApiError.message` (SPEC-037 REQ-08). Returns the same resolved shape as
-   * `getSeoEntry`, reflecting the merged overrides. */
-  putSeoEntry: ({ entryId }: { entryId: string }, options: SeoEntryOverridesPatch = {}) =>
-    request<{ data: SeoEntryMeta }>(`/workspaces/${WORKSPACE_ID}/seo/entries/${encodeURIComponent(entryId)}`, {
-      method: "PUT",
-      body: JSON.stringify(options),
-    }),
-  /** GET an entry's SEO score + issues (SPEC-037 REQ-07, read-only). */
-  getSeoEntryAnalyze: (entryId: string) =>
-    request<{ data: SeoEntryAnalysis }>(`/workspaces/${WORKSPACE_ID}/seo/entries/${encodeURIComponent(entryId)}/analyze`),
-  listRedirects: () => request<{ data: AdminRedirect[] }>(`/workspaces/${WORKSPACE_ID}/redirects`),
-  createRedirect: (
-    input: { matchType: string; fromPattern: string; toTarget: string; statusCode: number },
-    options: { override?: boolean; priority?: number } = {}
-  ) =>
-    request<{ data: AdminRedirect }>(`/workspaces/${WORKSPACE_ID}/redirects`, {
-      method: "POST",
-      body: JSON.stringify({ ...input, ...options }),
-    }),
-  updateRedirect: (
-    { id }: { id: string },
-    options: Partial<{
-      matchType: string;
-      fromPattern: string;
-      toTarget: string;
-      statusCode: number;
-      status: string;
-      override: boolean;
-      priority: number;
-    }> = {}
-  ) =>
-    request<{ data: AdminRedirect }>(`/workspaces/${WORKSPACE_ID}/redirects/${encodeURIComponent(id)}`, {
-      method: "PATCH",
-      body: JSON.stringify(options),
-    }),
-  tombstoneRedirect: (id: string) =>
-    request<{ data: AdminRedirect }>(`/workspaces/${WORKSPACE_ID}/redirects/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-    }),
-  getRedirectHits: (id: string) =>
-    request<{ data: AdminRedirectHitStats }>(`/workspaces/${WORKSPACE_ID}/redirects/${encodeURIComponent(id)}/hits`),
-  /** POST a bulk-import batch (1-500 rules, `MAX_IMPORT_BATCH_SIZE`). Always answers `207` on the
-   * wire; `fetch`/`request()` treat 2xx (incl. 207) as success, so the per-item `created`/`failed`
-   * breakdown always comes back as the resolved value, never a thrown `ApiError`. */
-  importRedirects: (rules: RedirectImportRule[]) =>
-    request<AdminRedirectImportResponse>(`/workspaces/${WORKSPACE_ID}/redirects/import`, {
-      method: "POST",
-      body: JSON.stringify({ rules }),
-    }),
 
   // Collections (ADR-022/ADR-043) — content-types registry + entries. `/api/admin/v1/*`, not the
   // `/workspaces/{id}/*` shape the rest of this file uses — these routes take workspace from the
@@ -3765,7 +3688,7 @@ export const api = {
       key,
       op,
       expectedVersion,
-    }: { key: string; op: "deprecate" | "reactivate" | "tombstone"; expectedVersion: number },
+    }: { key: string; op: ContentTypeLifecycleOp; expectedVersion: number },
     _options: Record<string, never> = {}
   ) =>
     request<{ contentType: AdminContentType }>(`/content-types/${encodeURIComponent(key)}/lifecycle`, {
@@ -3773,7 +3696,7 @@ export const api = {
       body: JSON.stringify({ op, expectedVersion }),
     }),
   listEntries: (options: { type?: string } = {}) =>
-    request<{ items: AdminEntry[] }>(`/entries${options.type ? `?type=${encodeURIComponent(options.type)}` : ""}`),
+    request<{ items: AdminEntry[] }>(`/entries${querySuffix(options.type ? "type=" + encodeURIComponent(options.type) : "")}`),
   createEntry: (
     input: { type: string; slug: string; title: string },
     options: { fieldsJson?: unknown; bodyJson?: unknown } = {}
@@ -3879,18 +3802,12 @@ export const api = {
     if (options.limit) params.set("limit", String(options.limit));
     const qs = params.toString();
     return request<{ items: AdminLedgerRow[]; nextCursor: string | null }>(
-      `/database/timeline${qs ? `?${qs}` : ""}`
+      `/database/timeline${querySuffix(qs)}`
     );
   },
   /** ADR-041 §3 — this site's drift classification. Read-only: there is deliberately no matching
    *  write/repair call, and the server exposes none. */
   getDatabaseSchemaState: () => request<AdminSchemaState>("/database/schema-state"),
-  listDatabaseRestorePoints: () => request<{ items: AdminRestorePoint[] }>("/database/restore-points"),
-  createDatabaseRestorePoint: (options: { trigger?: string; costAck?: boolean } = {}) =>
-    request<{ restorePoint: AdminRestorePointSummary }>("/database/restore-points", {
-      method: "POST",
-      body: JSON.stringify(options),
-    }),
 
   // Database — migrate-forward ceremony (ADR-041 §3, SPEC-017 C-103/C-105). Plan takes no body —
   // the plan is computed entirely from the site's current migration/capability state server-side.
@@ -3960,27 +3877,16 @@ export const api = {
       body: JSON.stringify({ confirmationToken, restorePointId }),
     }),
 
-  // Comments — moderation queue + settings (ADR-031, SPEC-033/035, SPEC-036 frontend). Mirrors
-  // `getDatabaseTimeline`'s query-param-building shape for the paginated queue read, and
-  // `getSeoSettings`/`setSeoSettings`'s `{data: ...}` shape for the settings GET/PUT.
+  // Comments — the dashboard reads the queue here; moderation and settings use Jini.
+  // Mirrors `getDatabaseTimeline`'s query-param-building shape for the paginated queue read.
   listCommentsQueue: (options: { status?: CommentStatus; cursor?: string; limit?: number } = {}) => {
     const params = new URLSearchParams();
     if (options.status) params.set("status", options.status);
     if (options.cursor) params.set("cursor", options.cursor);
     if (options.limit) params.set("limit", String(options.limit));
     const qs = params.toString();
-    return authenticatedAdminRequest<AdminCommentsQueuePage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/comments/queue${qs ? `?${qs}` : ""}` });
+    return authenticatedAdminRequest<AdminCommentsQueuePage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/comments/queue${querySuffix(qs)}` });
   },
-  moderateComment: (
-    { commentId, action, expectedVersion }: { commentId: string; action: CommentModerationAction; expectedVersion: number },
-    options: { note?: string } = {}
-  ) =>
-    authenticatedAdminRequest<void>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/comments/${encodeURIComponent(commentId)}/${action}`, body: { expectedVersion, note: options.note } }),
-  purgeComment: ({ commentId }: { commentId: string }, options: { note?: string } = {}) =>
-    authenticatedAdminRequest<void>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/comments/${encodeURIComponent(commentId)}/purge`, body: { note: options.note } }),
-  getCommentsSettings: () => authenticatedAdminRequest<{ data: CommentsSettings }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/comments/settings` }),
-  putCommentsSettings: (options: Partial<CommentsSettings> = {}) =>
-    authenticatedAdminRequest<{ data: CommentsSettings }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/comments/settings`, body: options }),
 
   // -------------------------------------------------------------------------
   // Trash — the cross-domain recycle bin (design:
@@ -3996,7 +3902,7 @@ export const api = {
     if (options.limit) params.set("limit", String(options.limit));
     if (options.entityTypes?.length) params.set("entityTypes", options.entityTypes.join(","));
     const qs = params.toString();
-    return authenticatedAdminRequest<AdminTrashPage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/trash${qs ? `?${qs}` : ""}` });
+    return authenticatedAdminRequest<AdminTrashPage>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/trash${querySuffix(qs)}` });
   },
   restoreTrashItems: ({ items }: { items: { entityType: string; entityId: string }[] }) =>
     authenticatedAdminRequest<AdminTrashRestoreReport>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/trash/restore`, body: { items } }),
@@ -4018,7 +3924,7 @@ export const api = {
     const qs = params.toString();
     // `skippedCount`/`skippedIds` (dossier C5 follow-up, 2026-08-03) are additive and optional —
     // present only when the server dropped one or more malformed records. Absent in the common case.
-    return authenticatedAdminRequest<{ widgets: AdminWidget[]; skippedCount?: number; skippedIds?: string[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets${qs ? `?${qs}` : ""}` });
+    return authenticatedAdminRequest<{ widgets: AdminWidget[]; skippedCount?: number; skippedIds?: string[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets${querySuffix(qs)}` });
   },
   getWidget: (id: string) =>
     authenticatedAdminRequest<{ widget: AdminWidget; whereUsed: AdminWidgetWhereUsed }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}` }),
@@ -4027,45 +3933,6 @@ export const api = {
     options: { slug?: string } = {}
   ) =>
     authenticatedAdminRequest<{ widget: AdminWidget }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/widgets`, body: { ...input, ...options } }),
-  updateWidget: (
-    { id, baseVersion, config, title }: { id: string; baseVersion: number; config: Record<string, unknown>; title?: string },
-    _options: Record<string, never> = {}
-  ) =>
-    authenticatedAdminRequest<{ widget: AdminWidget }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}`, body: { baseVersion, config, ...(title === undefined ? {} : { title }) } }),
-  listWidgetRegions: () => authenticatedAdminRequest<{ regions: AdminWidgetRegionBinding[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets/regions` }),
-  bindWidgetRegion: (regionKey: string) =>
-    authenticatedAdminRequest<{ area: AdminWidgetArea }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/widgets/regions`, body: { regionKey } }),
-  getWidgetRegion: (regionKey: string) =>
-    authenticatedAdminRequest<{ area: AdminWidgetArea; placements: AdminWidgetPlacement[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets/regions/${encodeURIComponent(regionKey)}` }),
-  mutateWidgetRegionPlacements: (
-    {
-      regionKey,
-      baseVersion,
-      placements,
-    }: {
-      regionKey: string;
-      baseVersion: number;
-      placements: Array<{ placementId: string; widgetEntryId: string; enabled: boolean }>;
-    },
-    _options: Record<string, never> = {}
-  ) =>
-    authenticatedAdminRequest<{ area: AdminWidgetArea }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/widgets/regions/${encodeURIComponent(regionKey)}`, body: { baseVersion, placements } }),
-
-  insertWidgetEmbed: (
-    { hostEntryId, baseVersion, widgetEntryId }: { hostEntryId: string; baseVersion: number; widgetEntryId: string },
-    _options: Record<string, never> = {}
-  ) =>
-    authenticatedAdminRequest<{ entry: { id: string; version: number; bodyJson: unknown }; placementId: string }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/entries/${encodeURIComponent(hostEntryId)}/widget-embeds`, body: { baseVersion, widgetEntryId } }),
-  removeWidgetEmbed: (
-    { hostEntryId, placementId, baseVersion }: { hostEntryId: string; placementId: string; baseVersion: number },
-    _options: Record<string, never> = {}
-  ) =>
-    authenticatedAdminRequest<{ entry: { id: string; version: number; bodyJson: unknown } }>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/entries/${encodeURIComponent(hostEntryId)}/widget-embeds/${encodeURIComponent(placementId)}`, body: { baseVersion } }),
-
-  widgetsToolPlace: (input: { widgetInstanceId: string; target: Record<string, unknown> }) =>
-    authenticatedAdminRequest<{ tool: "widgets.place"; result: unknown }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/widgets/tools/place`, body: input }),
-  widgetsToolCreate: (input: { widgetType: AdminWidgetType; title: string; config: Record<string, unknown>; target: Record<string, unknown> }) =>
-    authenticatedAdminRequest<{ tool: "widgets.create"; widget: AdminWidget; result: unknown }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/widgets/tools/create`, body: input }),
 
   // SPEC-005 REQ-12..17 (1.1.0 UI amendment) — consumes REQ-10's PLUGINS_LIST/PLUGIN_SET_ENABLED
   // HTTP contract as a black box (ui.spec.md §3.1/§4.2).
@@ -4144,7 +4011,7 @@ export const api = {
   getServerLogs: (query: AdminServerLogsQuery = {}) => {
     const params = new URLSearchParams(Object.entries(query).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)]));
     const qs = params.toString();
-    return request<AdminServerLogs>(`/workspaces/${WORKSPACE_ID}/system/server-logs${qs ? `?${qs}` : ""}`);
+    return request<AdminServerLogs>(`/workspaces/${WORKSPACE_ID}/system/server-logs${querySuffix(qs)}`);
   },
   /** Whether outbound email really sends — the form editor greys out its notify settings when not. */
   getMailStatus: () => request<AdminMailStatus>(`/workspaces/${WORKSPACE_ID}/system/mail-status`),

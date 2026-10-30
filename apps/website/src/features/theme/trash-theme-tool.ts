@@ -3,7 +3,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { RemoveEntity, TrashActor, TrashMarkerResult } from "@jini-ai/cms/trash";
 import { nowIso } from "@jini-ai/core/primitives";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { resolveActiveThemeId } from "#src/features/presentation/index";
 import type { TrashKindMover } from "#src/features/trash/index";
 
@@ -181,7 +181,7 @@ export function buildTrashThemeRegistrations(routeDeps: TrashThemeToolDeps): Too
  * Contributes `theme_trash` — called once by
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`.
  */
-export function contributeTrashThemeTools(): ToolContributor {
+export function contributeTrashThemeTools(): ToolContributor<TrashThemeToolDeps, unknown> {
   return {
     domain: "theme-trash",
     build: buildTrashThemeRegistrations,

@@ -20,6 +20,8 @@ import { runThemeSyncOriginalsCommand } from "./commands/theme/sync-originals.js
 import { runThemeValidateCommand } from "./commands/theme/validate.js";
 import { introspectProgram } from "./introspect.js";
 
+const JSON_SUMMARY_DESCRIPTION = "print the full machine-readable result instead of a human-readable summary";
+
 /**
  * @file SPEC-003 — the single `commander` `Command` program: the one source of truth for the
  * `tovu` CLI's subcommands and options (ADR-PIPE-003 v1.1.0 Enforcement — no command may
@@ -65,8 +67,8 @@ export function createProgram(): Command {
     .command("move-home").argument("<dir>", "stopped site inside the former default sites/ folder")
     .option("--projects-path <file>", "also update this desktop profile's catalog")
     .action(async (dir: string, options: { projectsPath?: string }) => {
-      const { moveLegacySite } = await import("../platform/site-dir/move-sites-home.js");
-      const { createSitesWorkspace } = await import("../platform/site-dir/sites-home.js");
+      const { moveLegacySite } = await import("../platform/site-dir/moves.js");
+      const { createSitesWorkspace } = await import("../platform/site-dir/index.js");
       const workspace = createSitesWorkspace({});
       const to = await moveLegacySite({ dir }, { workspace,
         projectsPaths: [...workspace.projectsPaths, ...(options.projectsPath ? [options.projectsPath] : [])],
@@ -185,7 +187,7 @@ export function createProgram(): Command {
     .description("validate a theme package directory against the theme.json schema, package shape, and markup rules")
     .argument("<dir>", "theme package directory to validate")
     .option("--profile <profile>", "validation strictness: author (default), publish, or install", "author")
-    .option("--json", "print the full machine-readable result instead of a human-readable summary")
+    .option("--json", JSON_SUMMARY_DESCRIPTION)
     .action(async (dir: string, options: { profile?: string; json?: boolean }) => {
       await runThemeValidateCommand({ dir, profile: options.profile, json: options.json });
     });
@@ -194,7 +196,7 @@ export function createProgram(): Command {
     .description("migrate a v1 theme package directory to schema v2 in place (idempotent; keeps a v1 backup alongside on success)")
     .argument("<dir>", "theme package directory to migrate")
     .option("--dry-run", "stage the v2 output and verify it, but never touch the real theme directory")
-    .option("--json", "print the full machine-readable result instead of a human-readable summary")
+    .option("--json", JSON_SUMMARY_DESCRIPTION)
     .action(async (dir: string, options: { dryRun?: boolean; json?: boolean }) => {
       await runThemeMigrateCommand({ dir, dryRun: options.dryRun, json: options.json });
     });
@@ -202,7 +204,7 @@ export function createProgram(): Command {
     .command("generate-index")
     .description("(re)generate a static-tier theme's portability-backup root index.html — real nav/footer partials spliced in, dynamic menu/post/content markers placeholdered")
     .argument("<dir>", "theme package directory to generate into")
-    .option("--json", "print the full machine-readable result instead of a human-readable summary")
+    .option("--json", JSON_SUMMARY_DESCRIPTION)
     .action(async (dir: string, options: { json?: boolean }) => {
       await runThemeGenerateIndexCommand({ dir, json: options.json });
     });
@@ -212,7 +214,7 @@ export function createProgram(): Command {
       "(re)generate every shipped theme's '__original-themes__' entry from its live folder, filtered the same way the Explore file list is (no generated preview output) — removes the need to hand-maintain the 'reset to original' catalog"
     )
     .argument("<themesRoot>", "themes root directory (e.g. content/themes) — NOT a single theme's own folder")
-    .option("--json", "print the full machine-readable result instead of a human-readable summary")
+    .option("--json", JSON_SUMMARY_DESCRIPTION)
     .action(async (themesRoot: string, options: { json?: boolean }) => {
       await runThemeSyncOriginalsCommand({ themesRoot, json: options.json });
     });
@@ -222,7 +224,7 @@ export function createProgram(): Command {
     .argument("<dir>", "the build's flat output directory (e.g. Angular's dist/<project>/browser/) — mutated in place")
     .option("--primary-stylesheet <file>", "the build's global CSS entry point's output filename (e.g. \"styles.css\"), matching angular.json's styles entry point")
     .option("--pages <files>", "comma-separated top-level HTML page files to rewrite", "index.html")
-    .option("--json", "print the full machine-readable result instead of a human-readable summary")
+    .option("--json", JSON_SUMMARY_DESCRIPTION)
     .action(async (dir: string, options: { primaryStylesheet?: string; pages?: string; json?: boolean }) => {
       await runThemeNormalizeBuildCommand({ dir, primaryStylesheet: options.primaryStylesheet, pages: options.pages, json: options.json });
     });

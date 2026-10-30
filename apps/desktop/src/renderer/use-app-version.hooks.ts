@@ -26,7 +26,7 @@ export function useAppVersion(
   useEffect(() => {
     setState({ version: null, error: null });
     const getVersion = bridge?.getAppVersion;
-    if (!getVersion) return;
+    if (!getVersion) return undefined;
     let live = true;
     const load = async (): Promise<void> => {
       try {

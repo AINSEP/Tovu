@@ -148,7 +148,7 @@ test("owner-directed quick-and-dirty sizing fix: a real uploaded asset with widt
     body: JSON.stringify({ filename: "sized.png", contentType: "image/png", dataBase64: onePixelPngBase64 }),
   });
   assert.equal(uploadRes.status, 201);
-  const { media } = (await uploadRes.json()) as { media: { id: string; slug: string } };
+  const { media } = (await uploadRes.json()) as { media: { id: string; slug: string; sha256: string } };
 
   // Same PATCH route/shape the admin edit panel's new Width/Height/CSS-class fields use.
   const patchRes = await fetch(`${baseUrl}${BASE}/media/${media.id}`, {
@@ -192,10 +192,9 @@ test("owner-directed quick-and-dirty sizing fix: a real uploaded asset with widt
   // `mediaUrlKey` prefers a valid slug (S2a/S2b's `media_slug_history` is what makes emitting it
   // safe: a later rename keeps this exact URL resolving via history, not by pointing at the id).
   assert.ok(media.slug, "precondition: an uploaded asset gets a slug");
-  const expectedSrc = `/m/${media.slug}/${CORE_PUBLIC_TRANSFORM_NAME}.v${definition.version}/image.jpg`;
-  assert.match(
-    html,
-    new RegExp(`<img src="${expectedSrc.replace(/\//g, "\\/")}" alt="sized" width="640" height="480" class="post-image" loading="lazy">`)
+  const expectedSrc = `/m/${media.slug}/${CORE_PUBLIC_TRANSFORM_NAME}.v${definition.version}/image.jpg?v=${media.sha256.slice(0, 12)}`;
+  assert.ok(
+    html.includes(`<img src="${expectedSrc}" alt="sized" width="640" height="480" class="post-image" loading="lazy">`)
   );
 
   // Closes the loop: the slug-keyed URL render.ts emitted must itself resolve on the real route.

@@ -64,7 +64,8 @@ export async function requestPasswordReset(required: {
 
 /** Disabled/trashed members and links issued before a credential cutoff get the generic 401. O(1). */
 function resettableMember({ member, createdAt }: { member: MemberRecord | null; createdAt: string }, _options = {}): MemberRecord {
-  if (!member || member.status === "disabled" || member.status === "trash"
+  if (!member) throw new MemberAuthError("sign-in credential is invalid");
+  if (member.status === "disabled" || member.status === "trash"
     || (member.credentialsRevokedAt && member.credentialsRevokedAt >= createdAt)) {
     throw new MemberAuthError("sign-in credential is invalid");
   }

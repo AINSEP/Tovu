@@ -13,7 +13,7 @@ It is part of `analytics-posthog` and turns on and off with it: there is no sepa
 ## Set it up
 
 1. Check status: `provider_status {pluginId:"analytics-posthog"}`.
-   - Not listed: the provider plugin is not installed. Say so in one line; `plugins_list` shows what is.
+   - Not listed: the provider plugin is not installed. Say so in one line; `content_read.plugin` shows what is.
    - `enabled: false`: offer to turn it on with
      `plugins_set_enabled {family:"site-runtime", pluginId:"analytics-posthog", enabled:true}` (the person confirms).
    - `usedByThisSite: false` with a `keyId`: ask "Use the saved PostHog key for <site>?".

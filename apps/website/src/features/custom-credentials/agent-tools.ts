@@ -1,5 +1,5 @@
 export const WRITE_FILES_TOOL_ID = "custom_credential_write_files";
-import type { AgentToolSideEffect } from "@jini-ai/core";
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 
 import { WRITE_FILES_LIMITS } from "./write-files-validation.js";
 
@@ -26,13 +26,7 @@ import { WRITE_FILES_LIMITS } from "./write-files-validation.js";
 /** Local declaration, not shared — same "duplicate the tiny type, never share across
  *  features/files" convention `features/deployments/publish-agent-tools.ts`'s own
  *  `AgentToolDefinition` doc establishes. */
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition;
 
 const LABEL_FIELD_DESCRIPTION =
   "The exact display name of a saved custom credential, from the admin's Access Tokens page 'Add custom provider' section (e.g. 'registrar', 'hosting-prod'). Case-sensitive — must match exactly. If unsure of the exact label, call content_read.custom_credential rather than guessing.";

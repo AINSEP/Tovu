@@ -93,9 +93,8 @@ export function registerAdminThemePreviewRoute(
     previewServiceForHost = themePreviewServiceForHost,
   }: ThemePreviewRouteOptions = {},
 ): void {
-  const previews = deps.themePreviews !== undefined
-    ? deps.themePreviews ?? undefined
-    : deps.siteBinding ? previewServiceForHost({ binding: deps.siteBinding }) : undefined;
+  let previews = deps.themePreviews ?? undefined;
+  if (deps.themePreviews === undefined && deps.siteBinding) previews = previewServiceForHost({ binding: deps.siteBinding });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/preview", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }

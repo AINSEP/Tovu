@@ -40,7 +40,7 @@ export function useSiteFolders(_required = {}, { getBridge = runnerInventoryBrid
     if (!bridge?.listSiteFolders) {
       setLoadError('Sites folders settings are unavailable in this desktop version.');
       setLoading(false);
-      return;
+      return undefined;
     }
     void bridge.listSiteFolders().then((next) => {
       if (active) setFolders(next);

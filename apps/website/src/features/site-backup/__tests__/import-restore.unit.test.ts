@@ -11,7 +11,8 @@ import test, { type TestContext } from "node:test";
 import { createHash } from "node:crypto";
 import Database from "better-sqlite3";
 import { readTemplate } from "../../../platform/site-dir/read-template.js";
-import { restoreStagedImport, stageVerifiedImport, stagedImportWarnings } from "../import-restore.js";
+import { stageVerifiedImport, stagedImportWarnings } from "../import-restore.js";
+import { restoreStagedImport } from "#src/server/runtime/composition/site-portability";
 import { writeExclusive } from "../import-restore-placement.js";
 
 const FALLBACK = readTemplate({ templateId: "starter" }).seed.presentation.activeThemeId;

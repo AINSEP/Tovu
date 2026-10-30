@@ -1,3 +1,4 @@
+import type { DeployTargetDescriptor } from "../deploy-targets/types.js";
 import type { ToolFailureDiagnostic } from "#src/contracts/core/tool-failure-diagnostics";
 import type { UUID } from "@jini-ai/core/primitives";
 
@@ -25,7 +26,7 @@ import type { UUID } from "@jini-ai/core/primitives";
  */
 
 /** A deploy target id the registry knows (lowercase hyphenated). */
-export type StaticPublishTargetId = string;
+export type StaticPublishTargetId = DeployTargetDescriptor["id"];
 
 /**
  * One publish's target and its descriptor-declared config fields, all strings. `basePath` is

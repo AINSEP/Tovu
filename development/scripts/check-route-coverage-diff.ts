@@ -176,6 +176,18 @@ export function evaluateFileTiers(
   return { file, unit, integration, ok: unit.ok && integration.ok };
 }
 
+function reportFileCoverage(
+  { file, unitRec, integrationRec }: { file: string; unitRec: FileCoverage | undefined; integrationRec: FileCoverage | undefined },
+  _options = {},
+): string[] {
+  const failures: string[] = [];
+  const { unit, integration, ok } = evaluateFileTiers(file, unitRec, integrationRec);
+  console.log(`  ${ok ? "ok  " : "FAIL"}  ${file}: unit ${unit.detail}, integration ${integration.detail}`);
+  if (!unit.ok) failures.push(`${file}: unit ${unit.detail} < ${UNIT_BRANCH_THRESHOLD}%`);
+  if (!integration.ok) failures.push(`${file}: integration ${integration.detail} < ${INTEGRATION_BRANCH_THRESHOLD}%`);
+  return failures;
+}
+
 function main(): void {
   const baseRef = resolveBaseRef(process.argv);
   const changed = changedRouteFiles(baseRef);
@@ -191,13 +203,10 @@ function main(): void {
 
   console.log(
     `check:route-coverage-diff — ${changed.length} changed file(s) vs ${baseRef}, ` +
-      `thresholds: unit >= ${UNIT_BRANCH_THRESHOLD}% branch, integration >= ${INTEGRATION_BRANCH_THRESHOLD}% branch:`
+    `thresholds: unit >= ${UNIT_BRANCH_THRESHOLD}% branch, integration >= ${INTEGRATION_BRANCH_THRESHOLD}% branch:`
   );
   for (const file of changed) {
-    const { unit, integration, ok } = evaluateFileTiers(file, unitByFile.get(file), integrationByFile.get(file));
-    console.log(`  ${ok ? "ok  " : "FAIL"}  ${file}: unit ${unit.detail}, integration ${integration.detail}`);
-    if (!unit.ok) failures.push(`${file}: unit ${unit.detail} < ${UNIT_BRANCH_THRESHOLD}%`);
-    if (!integration.ok) failures.push(`${file}: integration ${integration.detail} < ${INTEGRATION_BRANCH_THRESHOLD}%`);
+    failures.push(...reportFileCoverage({ file, unitRec: unitByFile.get(file), integrationRec: integrationByFile.get(file) }));
   }
 
   if (failures.length > 0) {

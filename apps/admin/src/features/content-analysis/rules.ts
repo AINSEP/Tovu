@@ -76,15 +76,13 @@ function isReadability(value: unknown): value is ContentAnalysisReport["readabil
   );
 }
 
+function isHeadingLevel(level: unknown): boolean {
+  return Number.isInteger(level) && (level as number) >= 1 && (level as number) <= 6;
+}
+
 function isTocEntry(value: unknown): value is TocEntry {
-  return (
-    isRecord(value) &&
-    Number.isInteger(value.level) &&
-    (value.level as number) >= 1 &&
-    (value.level as number) <= 6 &&
-    typeof value.text === "string" &&
-    typeof value.anchor === "string"
-  );
+  if (!isRecord(value) || !isHeadingLevel(value.level)) return false;
+  return typeof value.text === "string" && typeof value.anchor === "string";
 }
 
 function isCheckParams(value: unknown): value is ContentCheck["params"] {
@@ -112,17 +110,14 @@ function hasReportMetrics(
   );
 }
 
+function isArrayOf(value: unknown, isItem: (item: unknown) => boolean): boolean {
+  return Array.isArray(value) && value.every(isItem);
+}
+
 function isReport(value: unknown): value is ContentAnalysisReport {
-  return (
-    isRecord(value) &&
-    value.v === 1 &&
-    hasReportMetrics({ value }) &&
-    isReadability(value.readability) &&
-    Array.isArray(value.toc) &&
-    value.toc.every(isTocEntry) &&
-    Array.isArray(value.checks) &&
-    value.checks.every(isCheck)
-  );
+  if (!isRecord(value) || value.v !== 1) return false;
+  if (!hasReportMetrics({ value }) || !isReadability(value.readability)) return false;
+  return isArrayOf(value.toc, isTocEntry) && isArrayOf(value.checks, isCheck);
 }
 
 /** The `report` field's JSON string as a v1 report, or `null` for anything else. */

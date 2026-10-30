@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AssistantConversation } from "../../lib/assistant-chats";
 import { createFakeAssistantChatsPort } from "../assistant-chats-dependencies.hooks";
 import type { AssistantChatsPort } from "../assistant-chats-port.hooks";
-import { resolveRememberedConversation, useAssistantChats, useWiredAssistantChats } from "../use-assistant-chats.hooks";
+import { useAssistantChats, useWiredAssistantChats } from "../use-assistant-chats.hooks";
 
 /**
  * @file Owner ask (2026-10-06): reloading the admin, or leaving and coming back, reopens the chat the
@@ -24,17 +24,6 @@ const conversation = (id: string, updatedAt: number): AssistantConversation => (
 });
 
 const message = (id: string, content: string) => ({ id, role: "user" as const, content, createdAt: 1 });
-
-describe("resolveRememberedConversation host contract", () => {
-  it.each([
-    { remembered: "c2", conversations: [conversation("c1", 2), conversation("c2", 1)], listFailed: false, expected: "restore" },
-    { remembered: "gone", conversations: [conversation("c1", 2)], listFailed: false, expected: "forget" },
-    { remembered: "c2", conversations: [], listFailed: true, expected: "keep" },
-    { remembered: null, conversations: [conversation("c1", 2)], listFailed: false, expected: "keep" },
-  ])("returns $expected for remembered=$remembered and listFailed=$listFailed", ({ expected, ...input }) => {
-    expect(resolveRememberedConversation(input)).toBe(expected);
-  });
-});
 
 /** An in-memory {@link LastConversationStore} that records every write and clear, in order. */
 function fakeLastConversation(initial: string | null): LastConversationStore & { readonly current: () => string | null; readonly log: string[] } {

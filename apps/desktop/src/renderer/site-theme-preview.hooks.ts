@@ -1,13 +1,12 @@
 /** Reload only this tab's public guest; Electron can throw from calls on detached webviews. */
 import type { SiteThemePreviewRefresh } from '../contracts/project.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
-import type { SiteWorkspaceAction } from './use-site-workspace.hooks.js';
 
 function publicPath(path: string): boolean {
   if (!path.startsWith('/') || path.startsWith('//') || /[\\\u0000-\u0020]/.test(path)) return false;
   try {
     const decoded = decodeURIComponent(path.split(/[?#]/, 1)[0]!);
-    const normalized = new URL(path, 'http://preview.invalid').pathname;
+    const normalized = new URL(path, 'https://preview.invalid').pathname;
     return !/[\\\u0000-\u0020]|^\/\/|(?:^|\/)\.\.(?:\/|$)|^\/(?:admin|api)(?:\/|$)/i.test(decoded)
       && !/^\/(?:admin|api)(?:\/|$)/i.test(normalized);
   } catch { return false; }
@@ -18,7 +17,7 @@ export function subscribeWorkspaceThemePreview(
     bridge: Pick<RunnerInventoryBridge, 'watchSitePreview'> | undefined;
     siteDir: string; port: number; running: boolean; url: string;
     guest: (Pick<HTMLWebViewElement, 'reloadIgnoringCache' | 'loadURL'> & Partial<Pick<HTMLWebViewElement, 'getURL'>>) | null;
-    dispatch: (action: SiteWorkspaceAction) => void;
+    dispatch: (action: { type: 'soft-load' }) => void;
   }, _optional = {},
 ): (() => void) | undefined {
   if (!running || !guest || !bridge?.watchSitePreview) return undefined;

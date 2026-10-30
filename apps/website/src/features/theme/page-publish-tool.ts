@@ -3,7 +3,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type DerivedRiskByToolId, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import type { DiscoveredTheme } from "./theme.js";
 import { setThemePagePublished, ThemePagePublicationError } from "./page-publication.js";
 import { ThemePathError } from "./theme-files.js";
@@ -50,6 +50,6 @@ export function buildRegistrations(deps: Deps): ToolRegistration[] {
 }
 
 /** Contributes its own domain, preserving the theme file-operation tools. */
-export function contributeThemeSetPagePublishedTools(): ToolContributor {
+export function contributeThemeSetPagePublishedTools(): ToolContributor<Deps, unknown> {
   return { domain: "theme-set-page-published", build: buildRegistrations, risk: derivedRisk };
 }

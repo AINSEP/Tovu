@@ -14,7 +14,7 @@ const privateIpv4 = fc.oneof(
 );
 
 before(t => {
-  t.diagnostic(`fast-check seed=${parameters.seed}, numRuns=${parameters.numRuns}`);
+  if ("diagnostic" in t) t.diagnostic(`fast-check seed=${parameters.seed}, numRuns=${parameters.numRuns}`);
 });
 
 test('HTTPS private IPv4 endpoints and device links are refused, including numeric spellings', () => {

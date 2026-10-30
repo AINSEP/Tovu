@@ -30,14 +30,6 @@ export type SiteLocateResult = { record?: SiteRecord; error?: string };
  *
  * @complexity O(1) beyond the IPC round trip.
  */
-export async function performLocate(
-  id: string,
-  bridge: { locateSite: (id: string) => Promise<SiteRecord> } | undefined,
-): Promise<SiteLocateResult> {
-  return performSiteFolderAction({ id, bridge });
-}
-
-/** Result/error boundary for Locate. */
 export async function performSiteFolderAction(
   { id, bridge }: { id: string; bridge: { locateSite: (id: string) => Promise<SiteRecord> } | undefined },
   { describeError = describeAddFailure }: { describeError?: (error: unknown) => string | null } = {},

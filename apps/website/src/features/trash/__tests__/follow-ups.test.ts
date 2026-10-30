@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type Database from "better-sqlite3";
@@ -5,7 +6,7 @@ import type Database from "better-sqlite3";
 import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 
-import { createSqliteTrashDb } from "../db-port.sqlite.js";
+
 import { withFollowUps, type TrashFollowUpHooks } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
@@ -24,7 +25,7 @@ import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
  * `createTrashService` (not called bare), because the rollback claim is only true through that
  * composition: `@jini-ai/cms/trash`'s `trash`/`restore`/`purgeSelected` open `deps.transaction` BEFORE
  * calling the adapter, so the underlying `table-adapter.ts`'s own `db.transaction` call re-enters
- * (see `db-port.sqlite.ts`'s header) rather than committing on its own — a hook that throws after the
+ * (see `db-port.ts`'s header) rather than committing on its own — a hook that throws after the
  * marker flip is still inside that one open transaction. Calling the wrapped adapter bare (skipping
  * `@jini-ai/cms/trash`) would let the adapter's own transaction commit before the hook ever ran, and a
  * throw at that point would prove nothing about rollback.
@@ -68,7 +69,7 @@ function harness(hooks: TrashFollowUpHooks, entry: TrashEntry = buildEntry()): H
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
-  const trashDb = createSqliteTrashDb({ db });
+  const trashDb = contentKernel(db);
   const baseAdapter = createTableTrashAdapter({ entry, db: trashDb });
   const wrapped = withFollowUps({ adapter: baseAdapter }, hooks);
   const adapters = new Map<string, TrashAdapter>([[ENTITY_TYPE, wrapped]]);

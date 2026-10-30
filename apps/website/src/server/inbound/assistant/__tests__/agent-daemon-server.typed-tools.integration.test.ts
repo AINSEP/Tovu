@@ -16,8 +16,8 @@ import { createRunScopedCredentials } from "../../../../assistant/daemon-access.
 import { resolveMcpJsonInjection } from "../../../../assistant/mcp-injection.js";
 import { createChatDeleteScope } from "../../../../assistant/permanent-delete-tool-gate.js";
 import { createAssistantToolExecutor } from "../../../../assistant/tool-recovery-preset.js";
-import { isChatToolAllowed, PERMANENT_DELETE_TOOLS,
-  type AssistantPermanentDeletesPolicy } from "../../../../contracts/headless/assistant-permanent-deletes-policy.js";
+import { isChatToolAllowed } from "../../../../assistant/assistant-permanent-deletes-policy.js";
+import { PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../../../../contracts/headless/index.js";
 import { daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 
 /** Evaluate the host's real composition expressions without its database/listener/process boot.

@@ -117,7 +117,7 @@ export function redirectLegacyHashUrl(): boolean {
   const stripped = path.replace(/^section\//, "");
   const canStrip = stripped.split("/").filter(Boolean).length === 1;
   const query = rawQuery ? `?${rawQuery}` : "";
-  window.history.replaceState(null, "", `${adminHref(`/${canStrip ? stripped : path}`)}${query}`);
+  window.history.replaceState(null, "", adminHref("/" + (canStrip ? stripped : path)) + query);
   return true;
 }
 

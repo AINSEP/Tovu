@@ -1,17 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { persistableMessages, messageWriteKey, activeRunStub } from "@jini-ai/chat/transports/http";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import { ApiError, onUnauthenticated } from "../api";
 
 import {
-  activeRunStub,
   createConversation,
   deleteConversation,
   HttpError,
   listConversations,
   loadMessages,
-  messageWriteKey,
-  persistableMessages,
   renameConversation,
   saveMessage,
 } from "../assistant-chats";
@@ -218,7 +216,7 @@ describe("persistableMessages", () => {
       { id: "1", role: "user", content: "hi" },
       { id: "2", role: "user", content: "still typing", runStatus: "running" },
     ];
-    expect(persistableMessages(messages)).toEqual(messages);
+    expect(persistableMessages({ messages: messages }, {})).toEqual(messages);
   });
 
   it("keeps assistant messages only once their run has reached a terminal status", () => {
@@ -229,43 +227,43 @@ describe("persistableMessages", () => {
     const failed: ChatMessage = { id: "5", role: "assistant", content: "sorry", runStatus: "failed" };
     const canceled: ChatMessage = { id: "6", role: "assistant", content: "", runStatus: "canceled" };
 
-    expect(persistableMessages([running, queued, noStatus, succeeded, failed, canceled])).toEqual([succeeded, failed, canceled]);
+    expect(persistableMessages({ messages: [running, queued, noStatus, succeeded, failed, canceled] }, {})).toEqual([succeeded, failed, canceled]);
   });
 });
 
 describe("messageWriteKey", () => {
   it("keys a message with a run by id and run, so a retry under the same id is written again", () => {
-    expect(messageWriteKey({ id: "answer", runId: "run-1" })).toBe("answer:run-1");
-    expect(messageWriteKey({ id: "answer", runId: "run-2" })).not.toBe(messageWriteKey({ id: "answer", runId: "run-1" }));
+    expect(messageWriteKey({ message: { id: "answer", runId: "run-1" } }, {})).toBe("answer:run-1");
+    expect(messageWriteKey({ message: { id: "answer", runId: "run-2" } }, {})).not.toBe(messageWriteKey({ message: { id: "answer", runId: "run-1" } }, {}));
   });
 
   it("keys a message with no run (a user turn, an old row) by id alone", () => {
-    expect(messageWriteKey({ id: "question" })).toBe("question");
+    expect(messageWriteKey({ message: { id: "question" } }, {})).toBe("question");
   });
 });
 
 describe("activeRunStub", () => {
   it("returns null for an empty transcript", () => {
-    expect(activeRunStub([])).toBeNull();
+    expect(activeRunStub({ messages: [] }, {})).toBeNull();
   });
 
   it("returns null when the last message is a user turn", () => {
     const messages: ChatMessage[] = [{ id: "1", role: "user", content: "hi" }];
-    expect(activeRunStub(messages)).toBeNull();
+    expect(activeRunStub({ messages: messages }, {})).toBeNull();
   });
 
   it("returns null when the last message has no runId yet — nothing to reattach to", () => {
     // The window between `sendMessage` appending the placeholder and `run.start()` resolving with
     // an id: `runStatus` is already 'queued' but there is no runId to durably record yet.
     const messages: ChatMessage[] = [{ id: "a1", role: "assistant", content: "", runStatus: "queued" }];
-    expect(activeRunStub(messages)).toBeNull();
+    expect(activeRunStub({ messages: messages }, {})).toBeNull();
   });
 
   it.each(["succeeded", "failed", "canceled"] as const)(
     "returns null once the run has reached a terminal status (%s) — persistableMessages already covers it",
     (runStatus) => {
       const messages: ChatMessage[] = [{ id: "a1", role: "assistant", content: "done", runId: "run-1", runStatus }];
-      expect(activeRunStub(messages)).toBeNull();
+      expect(activeRunStub({ messages: messages }, {})).toBeNull();
     },
   );
 
@@ -273,7 +271,7 @@ describe("activeRunStub", () => {
     "returns the last message when it is a non-terminal assistant turn carrying a runId (%s)",
     (runStatus) => {
       const stub: ChatMessage = { id: "a1", role: "assistant", content: "", runId: "run-1", runStatus };
-      expect(activeRunStub([{ id: "u1", role: "user", content: "hi" }, stub])).toBe(stub);
+      expect(activeRunStub({ messages: [{ id: "u1", role: "user", content: "hi" }, stub] }, {})).toBe(stub);
     },
   );
 
@@ -283,6 +281,6 @@ describe("activeRunStub", () => {
     // be recording the wrong run's id.
     const stale: ChatMessage = { id: "a0", role: "assistant", content: "...", runId: "run-0", runStatus: "running" };
     const messages: ChatMessage[] = [stale, { id: "u1", role: "user", content: "another one" }];
-    expect(activeRunStub(messages)).toBeNull();
+    expect(activeRunStub({ messages: messages }, {})).toBeNull();
   });
 });

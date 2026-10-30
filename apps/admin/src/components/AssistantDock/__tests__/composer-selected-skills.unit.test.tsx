@@ -9,7 +9,8 @@ import { useComposerDiscoverySelect } from "../hooks/AssistantDock.hooks";
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "../hooks/composer-skills.hooks";
 import { SelectedAgentPluginTray } from "../SelectedAgentPluginTray";
 import { FakeEventSource } from "@/lib/__tests__/assistant-transport.test-helpers";
-import { buildLocalCliContextRef, createTovuAssistantTransport } from "@/lib/assistant-transport";
+import { createTovuAssistantTransport } from "@/lib/assistant-transport";
+import { promptWithSelectedSkills } from "@/features/plugins/selected-skills";
 
 const guidance = 'Use and follow the "ui-ux-design" skill for this task.\n\nKeep focus visible.\n\nRead bundled files with fs_read_file as needed:\n[{"kind":"references","root":"site","path":"skills/ws/workspace-local/ui-ux-design/references/check.md"}]\n\nTask: ';
 const makeProjection = () => projectComposerCapabilities([{ id: "fixture", list: async () => [{ groupId: "skills", groupLabel: "Skills", item: { id: "installed-skill:skill_ui_ux_design", label: "ui-ux-design", kind: "skill", insertText: "" }, resolve: () => ({ kind: "installed-skill" as const, toolId: "skill_ui_ux_design" }) }] }]);
@@ -26,7 +27,7 @@ it("pick adds a removable chip, preserves the user's draft, and only the run pay
     const onDiscoverySelect = useComposerDiscoverySelect({ composerCapabilities: capabilities, callAllowlistedTool: vi.fn(), addSkill: skills.addSkill, readDraft: () => composer.draft });
     return <div onChangeCapture={discovery.captureDraft}>
       <SelectedAgentPluginTray chips={skills.chips} onRemove={skills.removeSkill} />
-      <output data-testid="payload">{JSON.stringify(buildLocalCliContextRef({ signal: new AbortController().signal, history: [{ id: "u", role: "user", content: composer.draft, createdAt: 1 }], context: { selectedSkills: skills.selectedSkills } }, composer.draft))}</output>
+      <output data-testid="payload">{JSON.stringify({ prompt: promptWithSelectedSkills(composer.draft, { selectedSkills: skills.selectedSkills }) })}</output>
       <Composer composer={composer} onSend={vi.fn()} slots={{ discoveryGroups: discovery.groups, onDiscoverySelect }} />
     </div>;
   }

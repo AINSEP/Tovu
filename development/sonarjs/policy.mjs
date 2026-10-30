@@ -77,3 +77,17 @@ export const sonarSourceConfig = {
   },
   rules: sonarRules,
 };
+
+// Exact-file exception, not a rule-wide one: Netlify's and Vercel's deploy APIs REQUIRE SHA-1
+// file digests (Netlify's deploy manifest + upload URLs, Vercel's file refs + x-vercel-digest
+// header). The digest is a content address dictated by the vendor wire format, not a security
+// control, and substituting SHA-256 would break uploads. Every other file keeps sonarjs/hashing.
+export const sonarVendorSha1Override = {
+  name: 'tovu/sonarjs-vendor-sha1',
+  files: [
+    'content/agent-plugins/netlify/targets/netlify.mjs',
+    'content/agent-plugins/vercel/targets/vercel.mjs',
+  ],
+  plugins: { sonarjs },
+  rules: { 'sonarjs/hashing': 'off' },
+};

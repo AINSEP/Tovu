@@ -13,6 +13,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 
 import type { AgentPluginAccessTokenToolDeps } from "../../access-token-tool.js";
+import * as externalMcpStore from "#src/assistant/mcp-services";
 import type { McpServerConfig } from "../../mcp-metadata.js";
 import { buildAgentPluginConnectRegistrations } from "../../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
@@ -97,6 +98,8 @@ async function setup(
     authorize: (async () => ({ allowed: !options.permissionDenied, reason: options.permissionDenied ? "no_grant" : "matched" })) as unknown as AgentPluginAccessTokenToolDeps["authorize"],
     clock,
     externalMcpServerRepo: repo,
+    externalMcpStore,
+    notifyRosterChanged: externalMcpStore.notifyExternalMcpRosterChanged,
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,
     customCredentialsHttpClient: http,

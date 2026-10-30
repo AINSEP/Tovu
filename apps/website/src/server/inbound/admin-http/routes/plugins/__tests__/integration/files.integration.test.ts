@@ -122,25 +122,32 @@ test("PLUGIN_FILES traversal: an encoded path in the URL that names no discovere
   }
 });
 
-test("PLUGIN_FILES traversal: a manifest that declares a traversal id is refused with PLUGIN_ID_INVALID, not followed", async (t) => {
+test("PLUGIN_FILES traversal: discovery binds ids to folders; an injected traversal record still reaches the path guard", async (t) => {
   const { root, installDir } = await tempRoot(t);
-  // Discovery takes a site record's id from its manifest, so this record's id is `../escape` — and
-  // `<installDir>/../escape/1.0.0/` is a real directory holding the secret, so only the path guard
-  // stands between the request and that file.
+  // `<installDir>/../escape/1.0.0/` holds the secret, so the package path guard must stand on its
+  // own even if a discovery adapter supplies an unsafe id. Jini 6cb5190b8 now binds disk discovery
+  // to the folder name; assert that protection before injecting at the discovery port.
   await writeSitePlugin(installDir, "innocent-folder", "../escape");
   const escapeDir = path.join(root, "escape", "1.0.0");
   await mkdir(escapeDir, { recursive: true });
   await writeFile(path.join(escapeDir, "secret.txt"), SECRET, "utf8");
 
   const deps = createRouteDeps({ installDir });
-  const listed = (await deps.discoverPlugins()).map((record) => record.id);
-  assert.ok(listed.includes("../escape"), `fixture precondition: discovery must surface the traversal id, got ${listed.join(", ")}`);
+  const records = await deps.discoverPlugins();
+  const candidate = records.find(record => record.id === "innocent-folder");
+  assert.ok(candidate, "the real malicious-manifest fixture must be discovered under its folder id");
+  assert.equal(candidate.status, "invalid");
+  assert.ok(candidate.errors.some(error => error.code === "ID_FOLDER_MISMATCH"));
+  assert.equal(records.some(record => record.id === "../escape"), false);
+  t.mock.method(deps, "discoverPlugins", async () => [{ ...candidate, id: "../escape" }]);
+  const read = t.mock.method(deps, "readPluginPackageFiles");
 
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const { status, text } = await getFiles(baseUrl, deps.workspaceId, "..%2Fescape", cookie);
 
   assert.equal(status, 400, text);
   assert.deepEqual(JSON.parse(text), { error: "plugin id or version is not a safe path", code: "PLUGIN_ID_INVALID" });
+  assert.equal(read.mock.callCount(), 1, "the request must reach the real package path guard");
   assert.equal(text.includes(SECRET), false);
   assert.equal(text.includes(root), false, "the refusal must not echo a server path");
 });

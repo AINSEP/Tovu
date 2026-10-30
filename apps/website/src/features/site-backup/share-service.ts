@@ -39,7 +39,7 @@ export async function createSiteShare(required: { registry: SiteShareRegistry; s
 
 /** A lowercase, dash-separated file stem of at most 80 characters; `site` when nothing is left. */
 function shareFileStem(required: { name: string }): string {
-  return required.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "site";
+  return required.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "site";
 }
 
 function deliveryStorage(required: { delivery: ShareDelivery; key: string }): NonNullable<SiteShareRecord["storage"]> {
@@ -52,7 +52,7 @@ function deliveryStorage(required: { delivery: ShareDelivery; key: string }): No
  * sits in the catalog that made it, and that catalog moves with the site folder, so the path it saved may be
  * stale after a move or rename: only its shape is compared, never its value (design 2026-10-27).
  */
-export function isOwnShareFolder(required: { storage: { provider: string; binding?: string | undefined } }): boolean {
+export function isOwnShareFolder(required: { storage: { provider: string; binding?: string } }): boolean {
   return required.storage.provider === "tovu-server" && required.storage.binding !== undefined && path.isAbsolute(required.storage.binding);
 }
 
@@ -62,7 +62,7 @@ async function cancelReceivedShare(required: { registry: SiteShareRegistry; row:
   throw new SiteShareRefusal({ code: "CANCELLED", message: "Share export was cancelled." });
 }
 
-async function deliverShare(required: { registry: SiteShareRegistry; row: SiteShareRecord; delivery: ShareDelivery; key: string; file: string; archive: Buffer }, optional: { signal?: AbortSignal | undefined }): Promise<SiteShareRecord> {
+async function deliverShare(required: { registry: SiteShareRegistry; row: SiteShareRecord; delivery: ShareDelivery; key: string; file: string; archive: Buffer }, optional: { signal?: AbortSignal }): Promise<SiteShareRecord> {
   const { registry, row, delivery, key } = required;
   let uploadedUrl: string | null = null;
   try {
@@ -106,7 +106,7 @@ export async function revokeSiteShare(required: { registry: SiteShareRegistry; s
   return row;
 }
 
-async function deleteRemoteArtifact(required: { row: SiteShareRecord; storage: NonNullable<SiteShareRecord["storage"]> }, optional: { delivery?: ShareDelivery | undefined }): Promise<void> {
+async function deleteRemoteArtifact(required: { row: SiteShareRecord; storage: NonNullable<SiteShareRecord["storage"]> }, optional: { delivery?: ShareDelivery }): Promise<void> {
   const { storage } = required, { delivery } = optional;
   if (!delivery || delivery.provider !== storage.provider || storage.binding !== delivery.binding) throw new SiteShareRefusal({ code: "DELETE_FAILED", message: "Share is disabled locally; configure its original storage to delete the remote artifact." });
   try {

@@ -3,6 +3,7 @@ import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 
+import { githubFromSource } from "#src/features/source-control/__tests__/fixtures/github-from-source";
 import { resolveDefaultForSourceControl } from "#src/features/source-control/index";
 import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targets/__tests__/bundled-deploy-targets.fixture";
 import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../helpers/unrun-site-boot.js";
@@ -55,6 +56,8 @@ function captureProviderCalls(t: TestContext, site: BootedSite): Array<{ url: st
   return calls;
 }
 
+// b6c11b876 moved default saves to the project; f05250f80 attaches them after a non-default create.
+// These dialect tests select the site vault, isolated even when an assertion interrupts cleanup.
 for (const dialect of SITE_DIALECTS) {
   test(`[unrun] publish credentials [${dialect}]: the token is sealed into the store and unsealed for verification, never returned, and DELETE removes it`, async (t) => {
     useSiteKey(t);
@@ -65,7 +68,7 @@ for (const dialect of SITE_DIALECTS) {
     const base = `${site.ws}/system/publish/credentials`;
 
     const created = await expectJson<{ credential: Record<string, unknown> & { id: string }; verification: { status: string } }>(
-      await send(site, "POST", base, { label: "Unrun Netlify", connection: { providerId: "netlify", token: "netlify-secret-token" } }),
+      await send(site, "POST", base, { scope: "site", label: "Unrun Netlify", connection: { providerId: "netlify", token: "netlify-secret-token" } }),
       201
     );
     assert.deepEqual(
@@ -94,9 +97,9 @@ for (const dialect of SITE_DIALECTS) {
     captureProviderCalls(t, site);
     const base = `${site.ws}/system/publish/credentials`;
 
-    await expectJson(await send(site, "POST", base, { label: "Shared", connection: { providerId: "netlify", token: "token-a" } }), 201);
+    await expectJson(await send(site, "POST", base, { scope: "site", label: "Shared", connection: { providerId: "netlify", token: "token-a" } }), 201);
     const duplicate = await expectJson<{ error: string; detail: string }>(
-      await send(site, "POST", base, { label: "Shared", connection: { providerId: "netlify", token: "token-b" } }),
+      await send(site, "POST", base, { scope: "site", label: "Shared", connection: { providerId: "netlify", token: "token-b" } }),
       409
     );
     assert.deepEqual(duplicate, { error: "DUPLICATE_LABEL", detail: "a 'netlify' credential labeled 'Shared' already exists in this workspace" });
@@ -105,7 +108,8 @@ for (const dialect of SITE_DIALECTS) {
 
   test(`[unrun] source-control credentials [${dialect}]: create → rename keeps the sealed token → a duplicate label is 409 → delete`, async (t) => {
     useSiteKey(t);
-    const site = await bootSite(t, dialect);
+    // 4d8a35a03 moved providers to plugins; load the real bundled module at its existing port.
+    const site = await bootSite(t, dialect, { configureDeps: (deps) => { deps.loadSourceControlProviders = githubFromSource; } });
     captureProviderCalls(t, site);
     const base = `${site.ws}/system/source-control/credentials`;
     const resolveGithub = () =>
@@ -115,7 +119,7 @@ for (const dialect of SITE_DIALECTS) {
       );
 
     const created = await expectJson<{ credential: Record<string, unknown> & { id: string } }>(
-      await send(site, "POST", base, { label: "default", connection: { providerId: "github", token: "ghp_unrun_secret" } }),
+      await send(site, "POST", base, { scope: "site", label: "default", connection: { providerId: "github", token: "ghp_unrun_secret" } }),
       201
     );
     assert.deepEqual(
@@ -129,8 +133,8 @@ for (const dialect of SITE_DIALECTS) {
     assert.deepEqual(renamed.credential.label, "renamed");
     assert.deepEqual((await resolveGithub())?.connection, { providerId: "github", token: "ghp_unrun_secret" }, "a label-only PUT never touches the sealed token");
 
-    await expectJson(await send(site, "POST", base, { label: "second", connection: { providerId: "github", token: "ghp_other" } }), 201);
-    const duplicate = await send(site, "POST", base, { label: "renamed", connection: { providerId: "github", token: "ghp_third" } });
+    await expectJson(await send(site, "POST", base, { scope: "site", label: "second", connection: { providerId: "github", token: "ghp_other" } }), 201);
+    const duplicate = await send(site, "POST", base, { scope: "site", label: "renamed", connection: { providerId: "github", token: "ghp_third" } });
     assert.equal(duplicate.status, 409, await duplicate.clone().text());
     assert.equal(((await duplicate.json()) as { error: string }).error, "DUPLICATE_LABEL");
 

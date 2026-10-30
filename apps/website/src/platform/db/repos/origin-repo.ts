@@ -163,11 +163,13 @@ function originColumns(origin: VerifiedOrigin) {
  * @complexity O(1).
  */
 function sameOrigin(row: Row, origin: VerifiedOrigin): boolean {
+  const sameAddress = row.scheme === origin.scheme &&
+    row.host === origin.host;
+  const port = origin.port ?? null;
+  const basePath = origin.basePath ?? null;
   return (
-    row.scheme === origin.scheme &&
-    row.host === origin.host &&
-    row.port === (origin.port ?? null) &&
-    row.base_path === (origin.basePath ?? null) &&
+    sameAddress && row.port === port &&
+    row.base_path === basePath &&
     row.source === origin.source
   );
 }

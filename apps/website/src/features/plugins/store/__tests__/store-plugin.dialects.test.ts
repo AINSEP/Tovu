@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
+import { syncBuiltinESMExports } from "node:module";
 import { test } from "node:test";
 
 import { sql } from "kysely";
@@ -88,10 +90,13 @@ describeEachDialect<ContentKernel>("store plugin data", { tables: [], make: fres
     const kernel = makeKernel();
     const store = await activateStore({ db: kernel, dbPath: ":memory:" });
     t.mock.method(Date, "now", () => 1234);
-    t.mock.method(Math, "random", () => 0.5);
+    const uuid = "00000000-0000-4000-8000-000000000000";
+    const patched = t.mock.method(crypto, "randomUUID", () => uuid);
+    syncBuiltinESMExports();
+    t.after(() => { patched.mock.restore(); syncBuiltinESMExports(); });
     // Force the generated order id to collide in the real database, after the stock UPDATE.
     await kernel.execute(sql`INSERT INTO p_store__orders (id, product_id, qty, total, at)
-      VALUES ('ord-1234-i', 'prod-notebook', 1, 900, 1000)`);
+      VALUES (${`ord-1234-${uuid}`}, 'prod-notebook', 1, 900, 1000)`);
     const before = await store.listProducts();
     await assert.rejects(store.checkout({ productId: "prod-candle", qty: 1 }), /unique|duplicate/i);
     assert.deepEqual(await store.listProducts(), before);

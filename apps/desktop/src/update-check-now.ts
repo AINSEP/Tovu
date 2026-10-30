@@ -78,6 +78,8 @@ function versionUpdateNotice(
       detail: `You have ${currentVersion}. ${AUTO_OFF} Turn on Settings › Automatically update Tovu to download and install it.`,
     };
   }
+  // Typed cases are exhaustive; preserve undefined fallthrough for untyped callers.
+  return undefined as never;
 }
 
 /** What the operator reads for each outcome; `ready` reuses the existing prompt instead. */

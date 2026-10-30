@@ -2,7 +2,7 @@ import { isDeepStrictEqual } from "node:util";
 import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
 import { toolMetadata } from '../../contracts/core/tool-metadata/identity.js';
 import { withToolMetadata } from '@jini-ai/core';
-import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/secret-form-cards.js";
+import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/index.js";
 import { assertUserAccountAction, SelfDeleteError } from "./delete-user-service.js";
 import { IdentityConflictError, OwnerRequiredError } from "@jini-ai/user-management";
 /**
@@ -15,7 +15,7 @@ import { IdentityConflictError, OwnerRequiredError } from "@jini-ai/user-managem
  * parked handler, so it never enters model context or chat. The composition root installs tools;
  * importing this feature must not register them or create an assistant runtime cycle.
  */
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler, notConfirmedResult } from "#src/contracts/core/human-confirm";
 import {
   askThenReport,
@@ -76,6 +76,17 @@ export function withoutPassword(schema: unknown): unknown {
   return { ...rest, required: (required ?? []).filter((key) => key !== "password"), properties: kept };
 }
 
+/** Human-readable dependency snapshots for the identity deletion confirmation. */
+function identityReferenceDetails(
+  { references }: { references: Record<string, readonly { id: string; permission?: string }[]> },
+  _options: Record<string, never> = {},
+): { label: string; value: string }[] {
+  return Object.entries(references).map(([label, rows]) => {
+    const names = rows.map(row => row.permission ? `${row.permission} (${row.id})` : row.id).join(", ") || "none";
+    return { label, value: `${rows.length}: ${names}` };
+  });
+}
+
 /**
  * Jini's identity registrations with `identity_role_delete`/`identity_policy_delete`/
  * `identity_user_create` gated behind the human; every other tool passes through unchanged.
@@ -95,7 +106,11 @@ export function buildGatedIdentityRegistrations(
     const references: Record<string, readonly { id: string; permission?: string }[]> = kind === "role"
       ? { principals: await routeDeps.principalRoleRepo.listByRoleId({ workspaceId: routeDeps.workspaceId, roleId: id }), policies: await routeDeps.rolePolicyRepo.listByRoleId({ workspaceId: routeDeps.workspaceId, roleId: id }) }
       : { principals: await routeDeps.principalPolicyRepo.listByPolicyId({ workspaceId: routeDeps.workspaceId, policyId: id }), roles: await routeDeps.rolePolicyRepo.listByPolicyId({ workspaceId: routeDeps.workspaceId, policyId: id }), permissions: await routeDeps.policyPermissionRepo.listByPolicyId({ workspaceId: routeDeps.workspaceId, policyId: id }) };
-    return Object.fromEntries(Object.entries(references).map(([label, rows]) => [label, [...rows].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)]));
+    return Object.fromEntries(Object.entries(references).map(([label, rows]) => [label, [...rows].sort((a, b) => {
+      if (a.id < b.id) return -1;
+      if (a.id > b.id) return 1;
+      return 0;
+    })]));
   };
   const confirmedDelete = (registration: ToolRegistration, kind: "role" | "policy"): ToolRegistration => ({
     ...registration,
@@ -114,7 +129,7 @@ export function buildGatedIdentityRegistrations(
       },
       describe: ({ prepared: { id, label, references } }) => ({
         toolId: registration.descriptor.id, errorCode: "IDENTITY", title: `Delete the ${kind} ${label}?`,
-        details: [{ label: "Count", value: "1" }, { label: kind === "role" ? "Role" : "Policy", value: `${label} (${id})` }, ...Object.entries(references).map(([label, rows]) => ({ label, value: `${rows.length}: ${rows.map(row => row.permission ? `${row.permission} (${row.id})` : row.id).join(", ") || "none"}` }))],
+        details: [{ label: "Count", value: "1" }, { label: kind === "role" ? "Role" : "Policy", value: `${label} (${id})` }, ...identityReferenceDetails({ references })],
         warning: `The ${kind} is deleted for good. This can't be undone. Existing assignments prevent deletion; remove them in the Roles admin screen first.`, danger: true, confirmLabel: `Delete ${kind}`,
       }),
       run: async ({ ctx, prepared: { id, snapshot, references } }, options) => {
@@ -136,6 +151,7 @@ export function buildGatedIdentityRegistrations(
     }
     const input = validated(USER_CREATE_TOOL_ID, publishedSchema, ctx.input);
     const username = input["username"]!;
+    const emailSuffix = input["email"] ? ` (${input["email"]})` : "";
     let failureMessage: string | undefined;
     const card = defineSecretCardTool<Readonly<Record<string, string>>, Record<string, unknown>, Record<string, unknown> | undefined>({
       toolId: USER_CREATE_TOOL_ID,
@@ -147,7 +163,7 @@ export function buildGatedIdentityRegistrations(
       },
       form: () => ({
         title: `Create the user ${username}?`,
-        description: `A new login named ${username}${input["email"] ? ` (${input["email"]})` : ""} will be created with no roles. Type their first password below.`,
+        description: `A new login named ${username}${emailSuffix} will be created with no roles. Type their first password below.`,
         submitLabel: "Create user",
         fields: [{ kind: "string", name: "password", label: "Password", hint: "Typed here only, never shown to the assistant.", required: true,
           ...SECRET_FORM_CARD_DEFINITIONS.identity_user_create?.secretField }],
@@ -163,11 +179,14 @@ export function buildGatedIdentityRegistrations(
       },
       outcome: ({ run }) => {
         if (run.status !== "saved" && run.status !== "blank" && run.status !== "failed") return undefined;
+        let message: string;
+        if (run.status === "saved") message = `${username} can now sign in with the password you typed.`;
+        else if (run.status === "blank") message = "No password was entered. Nothing was created.";
+        else message = run.safeMessage;
         return {
           title: run.status === "saved" ? "User created" : "User not created",
           details: [{ label: "Username", value: username }], state: run.status === "saved" ? "success" : "failure",
-          message: run.status === "saved" ? `${username} can now sign in with the password you typed.`
-            : run.status === "blank" ? "No password was entered. Nothing was created." : run.safeMessage,
+          message,
           app: { appName: "tovu-identity-user-create-outcome", appVersion: "1" }, preferredFrameSize: ["100%", "240px"],
         };
       },
@@ -243,6 +262,6 @@ export function buildGatedIdentityRegistrations(
  * module. `assistant/tool-registrations.ts` no longer imports `buildIdentityRegistrations`/
  * `identityDerivedRisk` by name; this is the seam that replaced it.
  */
-export function contributeIdentityTools(): ToolContributor {
+export function contributeIdentityTools(): ToolContributor<TovuIdentityToolDeps, ChatDeleteSurfaceDeps> {
   return { domain: "identity", build: buildGatedIdentityRegistrations, risk: identityDerivedRisk };
 }

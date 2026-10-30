@@ -7,7 +7,7 @@ import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/
 import { registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
 import { createChatDeleteScope } from "#src/assistant/permanent-delete-tool-gate";
-import { DEFAULT_PERMANENT_DELETES_POLICY } from "#src/contracts/headless/assistant-permanent-deletes-policy";
+import { DEFAULT_PERMANENT_DELETES_POLICY } from "#src/contracts/headless/index";
 import { createLiveToolCatalogQuery, type LiveToolCatalogQuery } from "#src/assistant/tool-catalog-live-query";
 import { withToolCatalogAudit, UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID, UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID } from "#src/assistant/tool-audit-preset";
 import type { ToolAttemptAuditSink } from "#src/features/tool-audit/types";

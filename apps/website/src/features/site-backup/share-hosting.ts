@@ -19,7 +19,8 @@ function parseArtifactKey(key: string): { token: string; file: string } {
 /** A 200 anonymous attachment of exactly `bytes`, served uncached, unsniffed and unindexed. */
 function isPublicAttachment(required: { response: HttpResponse; bytes?: number }): boolean {
   const headers = new Headers(required.response.headers);
-  return required.response.status === 200 && Number(headers.get("content-length")) === required.bytes && headers.get("cache-control") === "no-store" && headers.get("x-content-type-options") === "nosniff" && headers.get("x-robots-tag") === "noindex, nofollow" && /^attachment(?:;|$)/i.test(headers.get("content-disposition") ?? "");
+  if (required.response.status !== 200 || Number(headers.get("content-length")) !== required.bytes || headers.get("cache-control") !== "no-store") return false;
+  return headers.get("x-content-type-options") === "nosniff" && headers.get("x-robots-tag") === "noindex, nofollow" && /^attachment(?:;|$)/i.test(headers.get("content-disposition") ?? "");
 }
 
 /** Both Tovu delivery variants verify through the same anonymous attachment contract. */
@@ -35,7 +36,8 @@ async function verifyServerShare(required: { http: HttpClientPort; key: string; 
 /** Public origin is an explicit operator capability, never inferred from a local request Host. */
 export function createRuntimeShareDelivery(required: { registry: SiteShareRegistry; site: string; publicOrigin: string; http: HttpClientPort }, _optional: Record<string, never> = {}): ShareDelivery {
   const origin = URL.parse(required.publicOrigin);
-  if (!origin || origin.protocol !== "https:" || origin.username || origin.password || origin.pathname !== "/" || origin.search || origin.hash) throw new SiteShareRefusal({ code: "STORAGE_SETUP", message: "TOVU_SHARE_PUBLIC_ORIGIN must be a public HTTPS origin without a path or credentials." });
+  const invalidOrigin = !origin || origin.protocol !== "https:" || origin.username || origin.password;
+  if (invalidOrigin || origin.pathname !== "/" || origin.search || origin.hash) throw new SiteShareRefusal({ code: "STORAGE_SETUP", message: "TOVU_SHARE_PUBLIC_ORIGIN must be a public HTTPS origin without a path or credentials." });
   const store: ArtifactStorePort = {
     async upload({ key, bytes }, _optional = {}) {
       const { token, file } = parseArtifactKey(key);

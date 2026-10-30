@@ -1,3 +1,5 @@
+import { PUBLISHABLE_SETTINGS } from "./contracts.js";
+export { PUBLISHABLE_SETTINGS } from "./contracts.js";
 import type { JsonValue } from "@jini-ai/core/primitives";
 
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
@@ -43,15 +45,6 @@ import {
  * row's state, so every hash packed before it existed stays the same.
  */
 
-/** `namespace:key` -> the label the publish dialog shows. */
-export const PUBLISHABLE_SETTINGS: Readonly<Record<string, string>> = {
-  "core.site:title": "Site title",
-  "site.seo:title_template": "SEO title template",
-  "site.seo:default_description": "Default description",
-  "site.seo:default_og_image": "Default share image",
-  "site.seo:twitter_site": "X (Twitter) handle",
-};
-
 const OG_IMAGE = "site.seo:default_og_image";
 
 export interface SiteSettingRow {
@@ -66,14 +59,19 @@ export interface SiteSettingRow {
 type Ports = PublishContentPorts["site-setting"];
 
 /** Loopback, private-range and `.local` hosts: a URL naming one only works on this computer. */
-const LOCAL_HOST = /^(?:localhost|.*\.localhost|.*\.local|127(?:\.\d+){3}|0\.0\.0\.0|\[::1?\]|10(?:\.\d+){3}|192\.168(?:\.\d+){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d+){2})$/i;
+const LOCAL_HOSTS = [
+  /^(?:localhost|.*\.localhost|.*\.local|0\.0\.0\.0|\[::1?\])$/i,
+  /^(?:127|10)(?:\.\d+){3}$/,
+  /^(?:192\.168(?:\.\d+){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d+){2})$/,
+];
 
 /** An absolute URL whose host is this computer or its private network. A media ref (`<id>:<transform>`)
  *  or a public URL is fine. @complexity O(n) in the value's length. */
 export function pointsAtThisComputer(value: unknown): boolean {
   if (typeof value !== "string" || !/^[a-z][a-z\d+.-]*:\/\//i.test(value.trim())) return false;
   try {
-    return LOCAL_HOST.test(new URL(value.trim()).hostname);
+    const hostname = new URL(value.trim()).hostname;
+    return LOCAL_HOSTS.some(pattern => pattern.test(hostname));
   } catch {
     return true;
   }

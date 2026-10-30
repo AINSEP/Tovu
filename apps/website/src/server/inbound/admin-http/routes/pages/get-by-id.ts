@@ -19,7 +19,8 @@ async function pagePluginEmbeds(required: { html: string; workspaceId: string; r
   return markers.map(({ config }) => {
     const plugin = typeof config.plugin === "string" ? config.plugin : "";
     const component = typeof config.component === "string" ? config.component : "";
-    return { plugin, component, availability: rows.get(JSON.stringify([plugin, component]))?.availability ?? "PLUGIN_UNAVAILABLE" };
+    const row = rows.get(JSON.stringify([plugin, component]));
+    return { plugin, component, ...(row?.displayName ? { displayName: row.displayName } : {}), availability: row?.availability ?? "PLUGIN_UNAVAILABLE" };
   });
 }
 

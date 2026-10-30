@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
-import { assertTestHomeIsolation } from "#src/platform/site-dir/sites-home";
+import { assertTestHomeIsolation } from "#src/platform/test-home-isolation";
 
 /**
  * @file Site-key plan (`ADS-memory/.local-artifacts/plan-site-key-2026-09-24.md` §A.1/A.2) —

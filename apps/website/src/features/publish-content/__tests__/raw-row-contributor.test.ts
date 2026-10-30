@@ -1,9 +1,11 @@
+import { sqliteTableInfo } from "#src/platform/db/kernel/sqlite-only";
+import { sqliteForeignKeyCheckedTransaction } from "#src/platform/db/kernel/sqlite-only";
 import assert from "node:assert/strict";
 import test from "node:test";
 import Database from "better-sqlite3";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createRawRowSqlitePort } from "#src/platform/db/sqlite/publish-backstop-row.sqlite";
+import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
 import { contributeRawRowPublish, rawRowId, undoRawRow } from "../raw-row-contributor.js";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
@@ -12,7 +14,7 @@ function fixture(t: test.TestContext) {
   const db = new Database(":memory:");
   t.after(() => db.close());
   db.exec("PRAGMA foreign_keys=ON; CREATE TABLE p_widgets(id TEXT PRIMARY KEY, title TEXT); CREATE TABLE p_links(id TEXT PRIMARY KEY, widget_id TEXT REFERENCES p_widgets(id));");
-  const rows = createRawRowSqlitePort({ kernel: contentKernel(db) });
+  const rows = createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel(db) });
   const outbox = new InMemoryOutbox();
   let serial = 0;
   const deps: PublishContentDeps = {

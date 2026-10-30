@@ -6,7 +6,8 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { ToolInputError } from "@jini-ai/core";
 import { buildRegistrations } from "../../install-tool.js";
-import type { PluginHostPort } from "../../../../contracts/headless/plugin-host.js";
+import { readPluginInstallRequest, readPluginInstallArchive } from "../../../plugin-runtime/install-source.js";
+import type { PluginHostPort } from "../../../../contracts/headless/index.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { listInstalledPlugins, readBundledAgentPluginDigests } from "../../lifecycle.js";
 import { agentPluginActivations } from "../../activation-effects.js";
@@ -21,7 +22,9 @@ async function fixture(t: TestContext) {
   const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(root, "installed") } });
   const sourceRoot = path.join(root, "bundled");
   await mkdir(sourceRoot);
-  const deps = { workspaceId: "workspace-local", authorize: async () => ({ allowed: true as const, reason: "matched" as const }), agentPluginLayout: layout, bundledAgentPluginsSourceRoot: sourceRoot };
+  const deps = { workspaceId: "workspace-local", authorize: async () => ({ allowed: true as const, reason: "matched" as const }), agentPluginLayout: layout, bundledAgentPluginsSourceRoot: sourceRoot,
+    pluginInstallSource: { readRequest: readPluginInstallRequest, readArchive: readPluginInstallArchive },
+  };
   const tools = buildRegistrations(deps);
   const install = tools.find(tool => tool.descriptor.id === "agent_plugins_install")!;
   return { root, layout, sourceRoot, deps, install, workspaceRoot: layout.forWorkspace(deps.workspaceId).root };

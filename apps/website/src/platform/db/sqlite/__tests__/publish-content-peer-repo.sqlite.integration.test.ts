@@ -21,7 +21,7 @@ import {
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { SqlitePublishContentPeerRepo } from "#src/platform/db/sqlite/publish-content-peer-repo.sqlite";
+import { SqlitePublishContentPeerRepo } from "#src/features/publish-content/publish-content-peer-repo.sqlite";
 import { workspaces } from "#src/platform/db/schema.sqlite";
 
 /**
@@ -62,7 +62,7 @@ function makeDeps(dbPath: string, idPrefix: string) {
   let n = 0;
   const keyring = new InMemoryKeyring();
   return {
-    repo: new SqlitePublishContentPeerRepo(openContentDb(dbPath)),
+    repo: new SqlitePublishContentPeerRepo(contentKernel(openContentDb(dbPath))),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
     clock: { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") },
@@ -182,7 +182,7 @@ test("credential rotation and moving or removing a connected destination preserv
   let nextId = 0;
   const keyring = new InMemoryKeyring();
   const deps = {
-    repo: new SqlitePublishContentPeerRepo(db),
+    repo: new SqlitePublishContentPeerRepo(contentKernel(db)),
     sealer: new AesGcmSecretSealer(keyring),
     keyring,
     clock: { nowMs: () => Date.parse("2026-09-18T00:00:00.000Z") },

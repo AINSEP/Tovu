@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type Database from "better-sqlite3";
@@ -6,7 +7,7 @@ import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 
-import { createSqliteTrashDb } from "../db-port.sqlite.js";
+
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { buildTrashRegistry, type TrashEntry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
@@ -68,7 +69,7 @@ function harness(): Harness {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
-  const trashDb = createSqliteTrashDb({ db });
+  const trashDb = contentKernel(db);
   const registry = buildTrashRegistry();
   const formEntry = registry.get("form")!;
   const menuEntry = buildMenuEntry();
@@ -293,7 +294,7 @@ test("hide, unhide, purge and snapshot reads cannot reach a foreign workspace's 
   seedForm(h.client, "foreign-form");
   seedSubmission(h.client, "foreign-submission", "foreign-form");
   const registry = buildTrashRegistry();
-  const db = createSqliteTrashDb({ db: h.db });
+  const db = contentKernel(h.db);
   assert.equal(await readLiveSnapshot({ entry: registry.get("form")!, workspaceId: otherWorkspace, entityId: "foreign-form" }, { kernel: db, registry }), null);
   const before = readFormRow(h.client, "foreign-form");
   assert.ok(before);
@@ -315,7 +316,7 @@ test("a purge raced after its initial read preserves the parent and every child 
   const children = h.client.prepare("SELECT * FROM form_submissions ORDER BY id").all();
   const racing = createTableTrashAdapter({
     entry: buildTrashRegistry().get("form")!,
-    db: kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare("UPDATE form_definitions SET version = version + 1 WHERE id = 'form-1'").run()),
+    db: contentKernel(kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare("UPDATE form_definitions SET version = version + 1 WHERE id = 'form-1'").run())),
   });
   assert.equal(await racing.purge({ workspaceId: WS, entityId: "form-1", expectedVersion: 3 }), "version-changed");
   assert.ok(readFormRow(h.client, "form-1"));
@@ -565,7 +566,7 @@ test("real menu entry: a purge that fails after removing bindings rolls back the
     entityType: "test-menu-rollback",
     purgeFirst: [...(realMenu.purgeFirst ?? []), { table: "no_such_table_for_rollback_test", parentIdColumn: "menu_id" }],
   };
-  const trashDb = createSqliteTrashDb({ db: h.db });
+  const trashDb = contentKernel(h.db);
   const failingAdapter = createTableTrashAdapter({ entry: failingEntry, db: trashDb });
 
   await assert.rejects(() => failingAdapter.purge({ workspaceId: WS, entityId: "menu-bound", expectedVersion: 1 }));
@@ -683,7 +684,7 @@ test("taxonomy: purge of a missing row reports already-gone", async () => {
  * menu update route) never takes the Trash's row lock, so on Postgres this interleaving is real.
  */
 function kernelWithWriterAfterFirstRead(db: ContentDb, sneak: () => void) {
-  const kernel = createSqliteTrashDb({ db });
+  const kernel = contentKernel(db);
   let reads = 0;
   return new Proxy(kernel, {
     get(target, prop, receiver) {
@@ -702,7 +703,7 @@ test("hide: a writer that bumps the version between the read and the write makes
   seedMenu(h.client, "menu-1", { status: "published", version: 3 });
   const racing = createTableTrashAdapter({
     entry: h.menuEntry,
-    db: kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare(`UPDATE menus SET version = version + 1 WHERE id = 'menu-1'`).run()),
+    db: contentKernel(kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare(`UPDATE menus SET version = version + 1 WHERE id = 'menu-1'`).run())),
   });
 
   const hidden = await racing.hide({ workspaceId: WS, entityId: "menu-1", at: AT, expectedVersion: 3 });
@@ -715,7 +716,7 @@ test("unhide: a writer that bumps the version between the read and the write mak
   seedMenu(h.client, "menu-1", { status: "trashed", version: 3 });
   const racing = createTableTrashAdapter({
     entry: h.menuEntry,
-    db: kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare(`UPDATE menus SET version = version + 1 WHERE id = 'menu-1'`).run()),
+    db: contentKernel(kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare(`UPDATE menus SET version = version + 1 WHERE id = 'menu-1'`).run())),
   });
 
   const unhidden = await racing.unhide({ workspaceId: WS, entityId: "menu-1", at: AT, expectedVersion: 3}, { priorMarker: "published"});
@@ -728,9 +729,9 @@ test("hide with no expected version: a writer that changes the status between th
   seedMenu(h.client, "menu-1", { status: "published", version: 3 });
   const racing = createTableTrashAdapter({
     entry: h.menuEntry,
-    db: kernelWithWriterAfterFirstRead(h.db, () =>
+    db: contentKernel(kernelWithWriterAfterFirstRead(h.db, () =>
       h.client.prepare(`UPDATE menus SET status = 'draft', version = version + 1 WHERE id = 'menu-1'`).run()
-    ),
+    )),
   });
 
   const hidden = await racing.hide({ workspaceId: WS, entityId: "menu-1", at: AT, expectedVersion: null });
@@ -777,7 +778,7 @@ test("a snapshot read for an entry with no version column returns the display li
   const h = harness();
   seedForm(h.client, "unversioned-form", { version: 7 });
   const registry = buildTrashRegistry();
-  const db = createSqliteTrashDb({ db: h.db });
+  const db = contentKernel(h.db);
   // Hand-built, test-only: the form entry minus its optional `versionColumn` (every registered entry has one).
   const { versionColumn: _versionColumn, ...unversioned } = registry.get("form")!;
   const entry: TrashEntry = unversioned;

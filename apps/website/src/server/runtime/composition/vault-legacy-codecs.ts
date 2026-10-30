@@ -113,7 +113,6 @@ export interface ExternalMcpAadIdentity {
   readonly serverId: string;
 }
 
-
 /**
  * The current AAD version for newly sealed blobs. Rows still at `0` were sealed before AAD existed
  * and are opened through the legacy no-AAD path — see the store's `open*` helpers.
@@ -200,7 +199,6 @@ export function buildCustomCredentialAad(input: { workspaceId: UUID; id: UUID },
 }
 
 // Original source: features/source-control/aad.ts
-
 
 /**
  * @file The ONE place `source_control_credential_sets`' AES-GCM additional authenticated data
@@ -324,7 +322,6 @@ export function buildDatabaseDestinationAad(input: { workspaceId: string }, _opt
 
 // Original source: features/deployments/publish-credentials/aad.ts
 
-
 /**
  * @file The ONE place `publish_credential_sets`' AES-GCM additional authenticated data (AAD) string
  * is formatted — every `seal()`/`open()` call for this table MUST go through this function so sealing
@@ -398,9 +395,9 @@ function isFormerCustomVaultIdentity({ record }: Pick<LegacyAadInput, "record">,
 }
 
 function decodeSecretsVaultCustomV1({ record, legacy }: LegacyAadInput, _options: VaultOptions = {}): string | undefined {
-  if (isFormerCustomVaultIdentity({ record }) &&
-    record.principalId === null && record.binding === null && legacy.provider === null &&
-    legacy.principalId === null && legacy.serverId === null && legacy.id === record.id && legacy.aadVersion === 1) {
+  if (!isFormerCustomVaultIdentity({ record }) || record.principalId !== null || record.binding !== null) throw new VaultError({ code: "context" });
+  if (legacy.provider !== null || legacy.principalId !== null || legacy.serverId !== null) throw new VaultError({ code: "context" });
+  if (legacy.id === record.id && legacy.aadVersion === 1) {
     // Pin the former vault encoding, not the active builder's future version.
     return formatAad({ kind: "secrets-vault", version: "v1", parts: [JSON.stringify([
       record.workspaceId, record.id, "custom", "tovu", null, null,

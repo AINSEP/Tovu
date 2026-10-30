@@ -139,7 +139,9 @@ test("SDK consumer types resolve for sync/async filters and route/tool/widget/pr
 test('SDK external type contracts are declared package dependencies for standalone consumers', () => {
   const root = path.resolve(import.meta.dirname, '../../..');
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  assert.equal(manifest.dependencies['@jini-ai/plugins'], '^0.4.0 || ^0.5.0');
+  assert.equal(manifest.dependencies['@jini-ai/plugins'], '^0.6.13');
+  const hostManifest = JSON.parse(fs.readFileSync(path.join(root, '../../package.json'), 'utf8'));
+  assert.equal(hostManifest.dependencies['@jini-ai/plugins'], manifest.dependencies['@jini-ai/plugins']);
   const tree = ts.createSourceFile('index.ts', fs.readFileSync(path.join(root, 'src/index.ts'), 'utf8'), ts.ScriptTarget.Latest, true);
   const external = new Set<string>();
   const visit = (node: ts.Node) => {

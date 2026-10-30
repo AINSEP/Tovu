@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { resolveOnPath } from "@jini-ai/agent-runtime";
 import { pathToFileURL } from "node:url";
 
 import { PEM_PATTERN_NAME, SECRET_PATTERNS, type SecretPattern } from "@jini-ai/diagnostics/redaction/secrets-only";
@@ -154,8 +155,14 @@ export function isAllowlisted(file: string, patternName: string, value: string):
   return ALLOWLIST.some((e) => e.file === file && e.patternName === patternName && e.value === value);
 }
 
+function gitCommand(_required: Record<string, never>, _options: Record<string, never> = {}): string {
+  const command = resolveOnPath({ bin: "git" });
+  if (!command) throw new Error("git executable is unavailable");
+  return command;
+}
+
 function listTrackedFiles(): string[] {
-  const out = execFileSync("git", ["ls-files", "-z"], { cwd: REPO_ROOT, encoding: "utf8" });
+  const out = execFileSync(gitCommand({}), ["ls-files", "-z"], { cwd: REPO_ROOT, encoding: "utf8" });
   return out.split("\0").filter(Boolean);
 }
 
@@ -270,7 +277,6 @@ interface HistoricalBlob {
 function parseObjectPaths(objectsOut: string): Map<string, string> {
   const pathBySha = new Map<string, string>();
   for (const line of objectsOut.split("\n")) {
-    if (!line) continue;
     const spaceIdx = line.indexOf(" ");
     if (spaceIdx === -1) continue; // commit objects are listed with no path suffix
     const sha = line.slice(0, spaceIdx);
@@ -293,7 +299,7 @@ function filterBlobShas(typeCheckOut: string, pathBySha: ReadonlyMap<string, str
 }
 
 function listHistoricalBlobs(repoRoot: string): HistoricalBlob[] {
-  const objectsOut = execFileSync("git", ["rev-list", "--objects", "--all"], {
+  const objectsOut = execFileSync(gitCommand({}), ["rev-list", "--objects", "--all"], {
     cwd: repoRoot,
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,
@@ -303,7 +309,7 @@ function listHistoricalBlobs(repoRoot: string): HistoricalBlob[] {
   if (pathBySha.size === 0) return [];
 
   const shas = [...pathBySha.keys()];
-  const typeCheckOut = execFileSync("git", ["cat-file", "--batch-check=%(objectname) %(objecttype)"], {
+  const typeCheckOut = execFileSync(gitCommand({}), ["cat-file", "--batch-check=%(objectname) %(objecttype)"], {
     cwd: repoRoot,
     input: shas.join("\n") + "\n",
     encoding: "utf8",
@@ -319,7 +325,7 @@ function readBlobContents(repoRoot: string, shas: readonly string[]): Map<string
   const contents = new Map<string, string>();
   if (shas.length === 0) return contents;
 
-  const out = execFileSync("git", ["cat-file", "--batch"], {
+  const out = execFileSync(gitCommand({}), ["cat-file", "--batch"], {
     cwd: repoRoot,
     input: shas.join("\n") + "\n",
     encoding: "latin1",
@@ -331,7 +337,8 @@ function readBlobContents(repoRoot: string, shas: readonly string[]): Map<string
     const headerEnd = out.indexOf("\n", offset);
     if (headerEnd === -1) break;
     const [sha, , sizeStr] = out.slice(offset, headerEnd).split(" ");
-    if (sha === undefined || sizeStr === undefined) break; // malformed/unexpected batch record; stop rather than misparse
+    // Malformed/unexpected batch records stop the scan rather than misparse.
+    if (sha === undefined || sizeStr === undefined) return contents;
     const size = Number(sizeStr);
     const contentStart = headerEnd + 1;
     contents.set(sha, out.slice(contentStart, contentStart + size));

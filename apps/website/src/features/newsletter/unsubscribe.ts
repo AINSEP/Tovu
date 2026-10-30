@@ -45,8 +45,8 @@ const derivationInfo = (claims: UnsubscribeTokenClaims): string =>
 
 /** Compose an absolute origin URL from a `VerifiedOrigin` — mirrors `redirects/phase-handler.ts`'s local `composeOriginUrl`. */
 function composeOriginUrl(origin: VerifiedOrigin): string {
-  const isDefaultPort =
-    origin.port === undefined || (origin.scheme === "https" && origin.port === 443) || (origin.scheme === "http" && origin.port === 80);
+  const matchesSchemePort = (origin.scheme === "https" && origin.port === 443) || (origin.scheme === "http" && origin.port === 80);
+  const isDefaultPort = origin.port === undefined || matchesSchemePort;
   const authority = isDefaultPort ? origin.host : `${origin.host}:${origin.port}`;
   return `${origin.scheme}://${authority}${origin.basePath ?? ""}`;
 }

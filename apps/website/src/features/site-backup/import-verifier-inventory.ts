@@ -57,7 +57,8 @@ export async function scanArchiveMetadata(required: { archive: Buffer; reader: A
   let count = 0;
   for await (const entry of required.reader.entries({ archive: required.archive })) {
     optional.signal?.throwIfAborted();
-    if (++count > SHARE_LIMITS.maxFiles) refuseArchive("Import exceeds the 2,000-entry cap.");
+    count++;
+    if (count > SHARE_LIMITS.maxFiles) refuseArchive("Import exceeds the 2,000-entry cap.");
     const name = entry.entryPath.replace(/\/$/, "");
     validateRawEntry({ entry, name });
     if (!ignoredArchivePath({ path: name })) entries.push(entry);
@@ -189,15 +190,16 @@ export async function readListedFiles(required: { archive: Buffer; reader: Agent
   for await (const entry of required.reader.entries({ archive: required.archive })) {
     if (entry.kind !== "file" || ignoredArchivePath({ path: entry.entryPath })) continue;
     const entryPath = stripArchiveWrapper({ path: entry.entryPath, wrapper: required.wrapper ?? "" });
-    if (entryPath === SITE_BACKUP_MANIFEST_PATH) continue;
-    const content = await readListedFile({ entry: { ...entry, entryPath }, inventory: required.inventory, remainingBytes: SHARE_LIMITS.maxExpandedBytes - expanded, manifest: required.manifest, modified: required.modified }, optional);
-    expanded += content.length;
-    files.set(entryPath, content);
+    if (entryPath !== SITE_BACKUP_MANIFEST_PATH) {
+      const content = await readListedFile({ entry: { ...entry, entryPath }, inventory: required.inventory, remainingBytes: SHARE_LIMITS.maxExpandedBytes - expanded, manifest: required.manifest, modified: required.modified }, optional);
+      expanded += content.length;
+      files.set(entryPath, content);
+    }
   }
   return files;
 }
 
-async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyMap<string, InventoryRecord>; remainingBytes: number; manifest?: ArchiveManifest | undefined; modified?: Set<string> | undefined }, optional: { signal?: AbortSignal | undefined; packageFiles?: PackageFileInventory | undefined }): Promise<Buffer> {
+async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyMap<string, InventoryRecord>; remainingBytes: number; manifest?: ArchiveManifest; modified?: Set<string> }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory }): Promise<Buffer> {
   const { entry } = required;
   const expected = required.inventory.get(entry.entryPath);
   if (!expected) refuseArchive("Unlisted ZIP file.");
@@ -210,7 +212,7 @@ async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyM
 }
 
 /** Count decompressed bytes before retaining each chunk; metadata is never a memory budget. */
-async function readBounded(required: { entry: FileEntry; maxBytes: number; signal?: AbortSignal | undefined }): Promise<Buffer> {
+async function readBounded(required: { entry: FileEntry; maxBytes: number; signal?: AbortSignal }): Promise<Buffer> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of required.entry.openReadStream({})) {

@@ -104,8 +104,7 @@ function collectUnsafeDefaultFailures(envSnapshot: EnvSnapshot): BootRefusalFail
 function collectDurabilityFailures(inventory: readonly CapabilityInventoryEntry[]): BootRefusalFailure[] {
   const failures: BootRefusalFailure[] = [];
   for (const capability of inventory) {
-    if (capability.classification !== "production") continue;
-    if (resolveDurability(capability)) continue;
+    if (capability.classification !== "production" || resolveDurability(capability)) continue;
     failures.push({
       code: "PRODUCTION_CAPABILITY_NOT_DURABLE",
       message: `Refusing to boot in production mode: capability "${capability.name}" is classified production but has no durable adapter configured.`,

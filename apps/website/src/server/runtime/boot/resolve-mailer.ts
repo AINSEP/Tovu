@@ -2,7 +2,6 @@ import type { UUID } from "@jini-ai/core/primitives";
 import type { DomainRequirement } from "@jini-ai/core/provider-registry";
 import {
   createResolvedMailer as createJiniResolvedMailer,
-  parseSmtpEndpoint as parseJiniSmtpEndpoint,
   type MailCredentialFact,
   type MailDeliveryLane,
   type MailProviderCallContext,
@@ -13,9 +12,9 @@ import {
 
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { MailerPort } from "#src/platform/mail/index";
-import type { MailProviderConfigurationReport, MailStatusReport } from "#src/platform/mail/mail-status";
-import type { SenderDomainVerificationPort } from "#src/platform/mail/sender-domain-verification";
-import { toJiniMailer, toTovuMailer } from "#src/platform/mail/purpose-scoped-mailer";
+import type { MailProviderConfigurationReport, MailStatusReport } from "#src/platform/mail/index";
+import type { SenderDomainVerificationPort } from "#src/platform/mail/index";
+import { toJiniMailer, toTovuMailer } from "#src/platform/mail/index";
 import { describeMailProviders } from "./mail-provider-configuration.js";
 import {
   createProviderMailer,
@@ -29,7 +28,7 @@ import {
 } from "./mail-provider-catalog.js";
 
 export { MAIL_SMTP_CREDENTIAL_LABEL } from "./mail-provider-catalog.js";
-export type { MailStatusReport } from "#src/platform/mail/mail-status";
+export type { MailStatusReport } from "#src/platform/mail/index";
 
 /**
  * @file Tovu binding to Jini's boot-time `MailerPort` selection. Hosted-API providers live in
@@ -65,7 +64,7 @@ export type { MailStatusReport } from "#src/platform/mail/mail-status";
  *   `baseUrl` = `https://<smtp-host>:<port>` (an `https://` SCHEME PREFIX ON A NON-HTTP ENDPOINT —
  *   a disclosed, deliberate encoding, not a mistake: `custom_credential_sets.baseUrl` is validated
  *   as an absolute `http(s)://` URL, `443`/`465` implies implicit TLS, anything else implies
- *   STARTTLS on that port — see {@link parseSmtpEndpoint}), connection
+ *   STARTTLS on that port — Jini platform/mail's `parseSmtpEndpoint` decodes it), connection
  *   `{token: "<SMTP password>", username: "<SMTP username>"}`. Unauthenticated relay is not
  *   representable through this store (`token` is a required field) — a real but narrow gap,
  *   disclosed rather than worked around with a second credential shape.
@@ -89,15 +88,6 @@ export type { MailStatusReport } from "#src/platform/mail/mail-status";
  * injected clock), its independent reads run in parallel, and `{refresh: true}` rebuilds it. Each
  * report carries `checkedAt` and the latest observed provider failure (`lastError`, read live).
  */
-
-/**
- * Decodes an SMTP endpoint packed into `custom_credential_sets.baseUrl` — see this file's header.
- * Ports `443`/`465` are implicit TLS; a portless URL uses its scheme's default port.
- * @complexity O(1).
- */
-export function parseSmtpEndpoint(baseUrl: string): { host: string; port: number; secure: boolean } {
-  return parseJiniSmtpEndpoint({ baseUrl });
-}
 
 /** Where `core.mail.provider` lives; `read()` returns null while it was never stored. */
 export interface MailProviderSettingPort {

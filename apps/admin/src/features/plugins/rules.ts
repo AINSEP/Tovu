@@ -249,7 +249,7 @@ export function pluginToggleControl(plugin: AdminPlugin, rowSavingId: string | n
     // The busy-state "…" is locale-neutral (no established translated bare-ellipsis precedent
     // elsewhere in this app — every other busy label pairs it with a word, e.g. posts-i18n.ts's
     // "Creating…") and stays untranslated here on purpose.
-    label: savingThisRow ? "…" : plugin.enabled ? t({ locale: locale, key: "Disable" }) : t({ locale: locale, key: "Enable" }),
+    label: savingThisRow ? "…" : t({ locale: locale, key: plugin.enabled ? "Disable" : "Enable" }),
   };
 }
 
@@ -686,6 +686,13 @@ export type PackageFilesListing = Pick<AdminPluginFiles, "files" | "truncated">;
 export interface PackageFilesRead {
   readonly listing: PackageFilesListing | null;
   readonly error: string | null;
+}
+
+/** One query's settled read: its listing, else its error text, else `null` while it loads. */
+export function packageFilesRead(query: { data?: PackageFilesListing; error?: Error | null }): PackageFilesRead | null {
+  if (query.data) return { listing: query.data, error: null };
+  if (query.error) return { listing: null, error: query.error.message };
+  return null;
 }
 
 /** What the package-files viewer renders from one read — see {@link packageFilesViewState}. */

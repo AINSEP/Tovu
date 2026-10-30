@@ -9,7 +9,7 @@ import { postRepoFor } from "#src/features/post/repo";
 import { SqlPagesHtmlDocumentStore } from "#src/features/pages/html-document-store";
 import { createEmailTemplate, getEmailTemplate, listEmailTemplates, EmailTemplateNotFoundError, type EmailTemplateDeps } from "#src/features/email-templates/operations";
 import { buildTrashRegistry } from "../registry.js";
-import { createSqliteTrashDb } from "../db-port.sqlite.js";
+
 import { createTableTrashAdapter } from "../table-adapter.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { moveToTrash } from "../move-to-trash.js";
@@ -33,7 +33,7 @@ function harness(_required = {}, _options = {}) {
     pagesHtmlStore: (scope, options = {}) => new SqlPagesHtmlDocumentStore(scope, { ...options, kernel, clock, revisions: postRepo }),
   };
   const registry = buildTrashRegistry();
-  const trashDb = createSqliteTrashDb({ db });
+  const trashDb = contentKernel(db);
   const adapters = new Map<string, TrashAdapter>([...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })]));
   const transaction = createContentDbTransactionRunner(kernel);
   const trash = createTrashService({
@@ -42,7 +42,7 @@ function harness(_required = {}, _options = {}) {
   });
   const granted = new Set(["pages.edit_html"]);
   const authorize = async ({ permission }: { permission: string }) => ({ allowed: granted.has(permission), reason: "test grant" });
-  const routeDeps = { registry, trash, db: trashDb, authorize, clock };
+  const routeDeps = { workspaceId: WS, registry, trash, db: trashDb, authorize, clock };
   const move = ({ id, workspaceId = WS }: { id: string; workspaceId?: string }, _optional = {}) => moveToTrash({ workspaceId, entityType: "email-template", entityId: id, actor: ACTOR }, routeDeps);
   return { db, deps, routeDeps, trash, granted, move };
 }

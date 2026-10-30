@@ -14,8 +14,8 @@ import {
   type SiteKeySourceMaterial,
 } from "./site-key-sources.js";
 import { resolveRuntimeMode, type RuntimeMode } from "#src/contracts/core/runtime-mode";
-import { writeJsonFileAtomic } from "#src/platform/site-dir/atomic-write";
-import { buildSiteMetaForNewKey } from "#src/platform/site-dir/key-only-site-meta";
+import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platform/fs";
+import { buildSiteMetaForNewKey } from "#src/platform/site-dir/index";
 
 /**
  * @file Site-key plan (`ADS-memory/.local-artifacts/plan-site-key-2026-09-24.md`) §A.2 — the ONE
@@ -309,6 +309,10 @@ async function settleSiteKey(required: {
       // false "mismatch".
       return withFingerprintReconciliation(siteDir, "mint", perSiteFilePath, fingerprintSiteKeyHex(written), async () => !(await siteHasKeyData()));
     }
+    default: {
+      const unhandled: never = decision;
+      throw new TypeError(`Unknown site key decision: ${String(unhandled)}`);
+    }
   }
 }
 
@@ -587,7 +591,7 @@ function stampFingerprint(siteDir: string, fingerprint: string): void {
 
 /** Writes `meta` back with `siteKeyFingerprint` set — atomically, every other field kept. */
 function writeFingerprintStamp(siteDir: string, meta: Record<string, unknown>, fingerprint: string): void {
-  writeJsonFileAtomic({ filePath: join(siteDir, ".site-meta.json"), data: { ...meta, siteKeyFingerprint: fingerprint } }, {});
+  writeJsonFileAtomic({ filePath: join(siteDir, ".site-meta.json"), data: { ...meta, siteKeyFingerprint: fingerprint }, fs: createNodeAtomicFilesystem({}, {}) }, {});
 }
 
 /**

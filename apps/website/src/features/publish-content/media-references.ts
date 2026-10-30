@@ -162,27 +162,48 @@ export function collectReferencedMediaKeys(state: Readonly<Record<string, unknow
 }
 
 function addNodeKeys({ node, out }: { node: Record<string, unknown>; out: Set<string> }, _optional: Record<string, never> = {}): void {
-  if ((node.type === "image" || node.type === "media") && isPlainObject(node.attrs)) {
-    if (typeof node.attrs.assetId === "string") out.add(node.attrs.assetId);
-    else if (typeof node.attrs.src === "string") addUrlKeys(node.attrs.src, out);
+  if (!isPlainObject(node.attrs)) return;
+  if (node.type === 'widgetEmbed') {
+    for (const key of collectMediaConfigKeys({ config: node.attrs.content })) out.add(key);
+    return;
   }
-  if (node.type === 'widgetEmbed' && isPlainObject(node.attrs)) for (const key of collectMediaConfigKeys({ config: node.attrs.content })) out.add(key);
+  if (node.type !== "image" && node.type !== "media") return;
+  if (typeof node.attrs.assetId === "string") {
+    out.add(node.attrs.assetId);
+    return;
+  }
+  if (typeof node.attrs.src === "string") addUrlKeys(node.attrs.src, out);
+}
+
+function visitDocNode(
+  { node, visit, stack }: { node: Record<string, unknown>; visit: (node: Record<string, unknown>) => void; stack: unknown[] },
+  _optional: Record<string, never> = {},
+): void {
+  visit(node);
+  if (Array.isArray(node.content)) stack.push(node.content);
 }
 
 function walkDoc({ root, visit }: { root: unknown; visit: (node: Record<string, unknown>) => void }, _optional: Record<string, never> = {}): void {
   const stack: unknown[] = [root];
   while (stack.length) {
     const node = stack.pop();
-    if (Array.isArray(node)) { for (const child of node) stack.push(child); continue; }
-    if (!isPlainObject(node)) continue;
-    visit(node);
-    if (Array.isArray(node.content)) stack.push(node.content);
+    if (Array.isArray(node)) {
+      for (const child of node) stack.push(child);
+      continue;
+    }
+    if (isPlainObject(node)) visitDocNode({ node, visit, stack });
   }
 }
 
 function activeWidgetConfig({ merged }: { merged: Record<string, unknown> }, _optional: Record<string, never> = {}): Record<string, unknown> {
-  const mode = merged.mode ?? (merged.items !== undefined ? 'media' : merged.html !== undefined ? 'html' : 'legacy');
-  return mode === 'html' ? { html: merged.html } : mode === 'media' ? { items: merged.items } : merged;
+  let mode = merged.mode;
+  if (mode === null || mode === undefined) {
+    mode = 'legacy';
+    if (merged.html !== undefined) mode = 'html';
+    if (merged.items !== undefined) mode = 'media';
+  }
+  if (mode === 'html') return { html: merged.html };
+  return mode === 'media' ? { items: merged.items } : merged;
 }
 
 function addGalleryKeys({ marker, out }: { marker: ReturnType<typeof scanEmbedMarkers>["markers"][number]; out: Set<string> }, _optional: Record<string, never> = {}): void {

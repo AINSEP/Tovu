@@ -52,6 +52,24 @@ function refreshEmbedPlacement(
     : node;
 }
 
+type EmbedCopyFrame = { node: unknown; place: (value: unknown) => void };
+
+function queueEmbedObject(
+  { node, place, stack, newPlacementId }: { node: Record<string, unknown>; place: EmbedCopyFrame["place"]; stack: EmbedCopyFrame[]; newPlacementId: () => string },
+  _optional: Record<string, never> = {},
+): void {
+  const source = refreshEmbedPlacement({ node, newPlacementId });
+  const copy: Record<string, unknown> = {};
+  place(copy);
+  // Clone every field, including leaf text nodes, marks and nested attrs; walking only content
+  // would leave the copy sharing mutable objects with its source.
+  const entries = Object.entries(source);
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const [key, value] = entries[i]!;
+    stack.push({ node: value, place: (cloned) => { copy[key] = cloned; } });
+  }
+}
+
 function walk(root: unknown, newPlacementId: () => string): unknown {
   // An explicit stack, not recursion: a duplicated page's nesting depth is caller/import-controlled
   // and a 5000-deep body overflowed the call stack here (same class as f646ba397's GET-path
@@ -59,29 +77,18 @@ function walk(root: unknown, newPlacementId: () => string): unknown {
   // the walk stays pre-order and `newPlacementId` is called in document order, exactly as the
   // recursive version did.
   let result: unknown;
-  const stack: Array<{ node: unknown; place: (value: unknown) => void }> = [{ node: root, place: (value) => { result = value; } }];
+  const stack: EmbedCopyFrame[] = [{ node: root, place: (value) => { result = value; } }];
   while (stack.length > 0) {
     const { node, place } = stack.pop()!;
     if (Array.isArray(node)) {
-      const copy: unknown[] = new Array(node.length);
+      const copy: unknown[] = [];
+      copy.length = node.length;
       place(copy);
       for (let i = node.length - 1; i >= 0; i--) stack.push({ node: node[i], place: (value) => { copy[i] = value; } });
-      continue;
-    }
-    if (!isPlainObject(node)) {
+    } else if (!isPlainObject(node)) {
       place(node);
-      continue;
-    }
-
-    const source = refreshEmbedPlacement({ node, newPlacementId });
-    const copy: Record<string, unknown> = {};
-    place(copy);
-    // Clone every field, including leaf text nodes, marks and nested attrs; walking only content
-    // would leave the copy sharing mutable objects with its source.
-    const entries = Object.entries(source);
-    for (let i = entries.length - 1; i >= 0; i--) {
-      const [key, value] = entries[i]!;
-      stack.push({ node: value, place: (cloned) => { copy[key] = cloned; } });
+    } else {
+      queueEmbedObject({ node, place, stack, newPlacementId });
     }
   }
   return result;

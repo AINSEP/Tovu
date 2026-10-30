@@ -1,6 +1,6 @@
 /** @file Read adapter for the shared cover policy; no persisted SEO or post writes. */
 import type { GetEntryMetaDeps, SeoMeta, SeoPostRecord } from "@jini-ai/cms/seo";
-import { collectCoverMediaRefs, resolveCoverImage, type CoverImage, type CoverMedia } from "../post/cover-image.js";
+import { collectCoverMediaRefs, resolveCoverImage, type CoverImage, type CoverMedia } from "../post/rendering.js";
 
 /** Use the existing media/image owners to populate the selector's synchronous metadata port.
  * Unknown MIME follows the featured-image owner's existing acceptance rule; videos/trashed refs

@@ -3,7 +3,10 @@ import test from "node:test";
 
 import { createContributionRegistry } from "@jini-ai/core";
 
-import { createByokToolSurface, type DerivedToolContributor, type ToolContributor } from "#src/assistant/index";
+import { createByokToolSurface } from "#src/assistant/index";
+import type { DerivedToolContributor, ToolContributor } from "@jini-ai/core";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
+import type { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 import { registerInstalledExtensionTools } from "#src/server/runtime/composition/installed-extension-tools";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 
@@ -48,8 +51,8 @@ interface SearchHit {
 }
 
 const contributions = {
-  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
-  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor<ReturnType<typeof toAssistantRegistryDeps>, AssistantSurfaceDeps> }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<ReturnType<typeof toAssistantRegistryDeps>, AssistantSurfaceDeps> }) => contribution.domain }),
 };
 
 function surface() {

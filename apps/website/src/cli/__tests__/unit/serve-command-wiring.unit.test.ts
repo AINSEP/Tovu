@@ -176,11 +176,13 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   function module(relative: string, namedExports: Record<string, unknown>): void {
     moduleStubs.set(new URL(relative, import.meta.url).href, namedExports);
   }
-  module("../../../platform/site-dir/boot-site-dir.ts", {
+  module("../../../server/runtime/composition/site-dir.ts", {
     bootSiteDir: async ({ dir }: { dir: string }) => {
       assert.equal(process.env.TOVU_SITE_DIR, dir, "site must be pinned before boot reads it");
       return bootResult;
     },
+  });
+  module("../../../platform/site-dir/boot-site-dir.ts", {
     closeSiteDirBoot: async (boot: unknown, store: unknown) => {
       assert.equal(boot, bootResult);
       assert.equal(store, composedStore);
@@ -224,7 +226,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   // The running lease (1cffdf3cf) releases on a real process exit, which this test mocks away; each
   // scenario would otherwise find the previous one still "Running in Web".
   module("../../../platform/site-dir/site-running.ts", { claimSiteRunning: (claim: unknown) => (leaseClaims.push(claim), { ready: () => { if (leaseReadyError) throw leaseReadyError; }, release: () => {} }) });
-  module("../../../server/runtime/boot/plugin-sdk-resolver.ts", { registerPluginSdkResolver: () => {} });
+  module("../../../features/plugin-runtime/sdk-resolver.ts", { registerPluginSdkResolver: () => {} });
   module("../../../server/runtime/boot/process-error-guards.ts", { installUnhandledRejectionGuard: () => {} });
   module("../../../server/runtime/boot/boot-readiness-gate.ts", { runProductionReadinessGateOrExit: async () => {}, assertSafeOwnerCredentialBeforeListen: async () => {} });
   module("../../../server/runtime/boot/site-key-boot-notice.ts", { warnIfNoSiteKeyAtBoot: () => {} });

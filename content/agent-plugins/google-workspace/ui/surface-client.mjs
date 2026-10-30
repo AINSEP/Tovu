@@ -53,8 +53,10 @@ function acceptedTheme(value) {
     const { scheme, tokens } = value;
     if ((scheme !== 'light' && scheme !== 'dark') || typeof tokens !== 'object' || tokens === null)
         return undefined;
-    const safe = Object.entries(tokens).slice(0, MAX_THEME_TOKENS).filter(([name, token]) => THEME_TOKEN.test(name)
-        && typeof token === 'string' && token.length > 0 && token.length <= 200 && !UNSAFE_THEME_VALUE.test(token));
+    const safe = Object.entries(tokens).slice(0, MAX_THEME_TOKENS).filter(([name, token]) => {
+        if (!THEME_TOKEN.test(name) || typeof token !== 'string') return false;
+        return token.length > 0 && token.length <= 200 && !UNSAFE_THEME_VALUE.test(token);
+    });
     return { scheme, tokens: Object.fromEntries(safe) };
 }
 /** The browser root when there is a document (none in a server-side test). */
@@ -169,6 +171,9 @@ export function createAdminSurfaceClient(required, optional = {}) {
         }
         else if (isMessage(event.data, 'action-response'))
             onResponse(event, event.data);
+        else {
+            // Ignore message kinds outside the admin-surface protocol.
+        }
     });
     /** Posts one request of `kind` to the host origin and waits for its `action-response`. */
     async function send(kind, fields) {

@@ -7,7 +7,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 
 import type { HttpClientPort } from "#src/platform/http/index";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { OriginNotVerifiedError, type OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
@@ -169,6 +169,8 @@ export function readOptionalEvidenceArguments(input: Readonly<Record<string, unk
 }
 
 export function buildSiteEvidenceRegistrations(routeDeps: SiteEvidenceToolDeps, { httpClient }: { httpClient?: HttpClientPort } = {}): ToolRegistration[] {
+  const evidenceClient: Parameters<typeof createRequestRouter>[0]["httpClient"] | undefined = httpClient
+    ? { send: ({ request }) => httpClient.send(request) } : undefined;
   const handlers: Record<string, ToolHandler> = {
     [SITE_EVIDENCE_TOOL_ID]: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -185,8 +187,8 @@ export function buildSiteEvidenceRegistrations(routeDeps: SiteEvidenceToolDeps, 
             openBrowser: routeDeps.siteEvidenceBrowser ?? (required => openPlaywrightSiteEvidenceBrowser(required, {
               moduleLoader: playwrightModuleLoader,
               launchOptions: httpClient ? TOVU_BROWSER_LAUNCH_OPTIONS : { headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] },
-              ...(httpClient ? { routerFactory: ({ originBaseUrl, signal }) => createRequestRouter({
-                httpClient: { send: ({ request }) => httpClient.send(request) }, ownSiteFetch: fetchOwnSiteResource,
+              ...(evidenceClient ? { routerFactory: ({ originBaseUrl, signal }) => createRequestRouter({
+                httpClient: evidenceClient, ownSiteFetch: fetchOwnSiteResource,
                 allowedOrigins: [new URL(originBaseUrl).origin], signal,
               }, { preserveOwnSiteCookies: true }) } : {}),
             })),
@@ -229,6 +231,6 @@ export { siteEvidenceDerivedRisk };
  * Contributes the site-evidence tool to the assistant's catalog — called once by
  * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`.
  */
-export function contributeSiteEvidenceTools({ httpClient }: { httpClient?: HttpClientPort } = {}, _optional = {}): ToolContributor {
+export function contributeSiteEvidenceTools({ httpClient }: { httpClient?: HttpClientPort } = {}, _optional = {}): ToolContributor<SiteEvidenceToolDeps, unknown> {
   return { domain: "site-evidence", build: deps => buildSiteEvidenceRegistrations(deps, httpClient ? { httpClient } : {}), risk: siteEvidenceDerivedRisk };
 }

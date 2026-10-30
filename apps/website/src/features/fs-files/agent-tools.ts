@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "./custom-root-permission.js";
 import { MAX_FS_FILE_BYTES } from "./fs-files.js";
 import { FS_ROOT_DESCRIPTORS, FS_ROOT_IDS } from "./layout.js";
@@ -82,13 +83,7 @@ import { FS_WRITE_LIMITS } from "./write-files.js";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "deletes-durable-state" | "mints-token";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition;
 
 /**
  * Reused, not invented: `content.read` already gates every other read-only, cross-domain tool with

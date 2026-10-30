@@ -5,7 +5,7 @@ import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 // `EgressRefusedError` is a runtime import, and the ONLY one this file takes from `platform/http` —
 // the barrel is otherwise types-only by design. Imported for `instanceof`, not to construct
 // anything; see {@link isImportShapeRejection}.
@@ -199,6 +199,7 @@ export interface ImportedMediaView {
 /** Resolve a site-only source through the same execution boundary as fs-files.
  * Returns the site as the final I/O root, so a custom symlink cannot become a trusted base.
  * @throws MediaImportValidationError for unavailable roots; FsFilePathError for unsafe source paths.
+ * Both include the owner-picked transfer recovery without widening the site-read boundary.
  * @complexity O(path depth), bounded guarded-reader filesystem checks.
  */
 export function resolveLocalImportRequest(
@@ -207,8 +208,9 @@ export function resolveLocalImportRequest(
 ): { rootPath: string; relativePath: string } {
   try { return resolveSiteFileRequest(required, {}); }
   catch (error) {
-    if (error instanceof FsFilePathError) throw error;
-    throw new MediaImportValidationError({ message: error instanceof Error ? error.message : `Source must be inside this site folder. ${LOCAL_FILE_IMPORT_RECOVERY}` });
+    const message = `${error instanceof Error ? error.message : "Source must be inside this site folder"}. ${LOCAL_FILE_IMPORT_RECOVERY}`;
+    if (error instanceof FsFilePathError) throw new FsFilePathError({ message });
+    throw new MediaImportValidationError({ message });
   }
 }
 
@@ -251,7 +253,7 @@ async function readLocalReplacement({ routeDeps, input }: { routeDeps: MediaImpo
   const maxBytes = Math.min(routeDeps.mediaImportLocalMaxBytes ?? TOVU_MAX_UPLOAD_BYTES, TOVU_MAX_UPLOAD_BYTES);
   const bytes = await openFsFileForRead({ ...request, maxBytes });
   const contentType = validateImageBytes({ source: relativePath, bytes, bytesTruncated: false });
-  return { bytes, contentType };
+  return { bytes, contentType, provenance: { kind: 'upload' as const, path: request.relativePath } };
 }
 
 /** Requires exactly one replacement source before media lookup or source I/O. */
@@ -291,7 +293,10 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
           }
           const source = remote
             ? await withCallerSafeEgressRefusal(routeDeps.mediaImportEgressRefusalLog ?? console.warn,
-              () => fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient, plainHttpTestOrigins: routeDeps.outboundTestOrigins }, url: requireString({ input, key: "url" }) }),
+              async () => {
+                const fetched = await fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient, plainHttpTestOrigins: routeDeps.outboundTestOrigins }, url: requireString({ input, key: "url" }) });
+                return { ...fetched, provenance: { kind: 'url' as const, url: fetched.url.href } };
+              },
               { toolId: "media_replace_file" })
             : await readLocalReplacement({ routeDeps, input });
           const saved = await replaceMediaFile({ deps: routeDeps, media, ...source, principalId: ctx.principal.id }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
@@ -328,6 +333,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
             routeDeps, actorId: ctx.principal.id,
             input: {
               workspaceId: routeDeps.workspaceId, bytes, filename, contentType,
+              provenance: { kind: 'upload', path: request.relativePath },
               alt: optionalString({ input, key: "alt" }), caption: optionalString({ input, key: "caption" }),
               createdByPrincipal: ctx.principal.id,
             },
@@ -360,6 +366,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
               routeDeps, actorId: ctx.principal.id,
               input: {
                 workspaceId: routeDeps.workspaceId,
+                provenance: { kind: 'url', url: fetched.url.href },
                 bytes: fetched.bytes,
                 filename: buildImportFilename({ url: fetched.url, contentType: fetched.contentType }, { override: optionalString({ input, key: "filename" }) }),
                 contentType: fetched.contentType,
@@ -389,6 +396,6 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`,
  * not by importing this module.
  */
-export function contributeMediaImportTools(): ToolContributor {
+export function contributeMediaImportTools(): ToolContributor<MediaImportToolDeps, unknown> {
   return { domain: DOMAIN, build: buildMediaImportRegistrations, risk: mediaImportDerivedRisk };
 }

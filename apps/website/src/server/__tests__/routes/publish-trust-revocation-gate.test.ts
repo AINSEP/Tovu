@@ -16,7 +16,7 @@ import type { KeyringPort } from "#src/features/webhooks/index";
 import { publishTrustRevocations } from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { publishTrustRevocationStoreFor, SqlPublishTrustRevocationStore } from "#src/platform/db/repos/publish-trust-revocations";
+import { publishTrustRevocationStoreFor, SqlPublishTrustRevocationStore } from "#src/features/publish-trust/publish-trust-revocations";
 import { createApp } from "#src/server/runtime/composition/app";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 

@@ -6,7 +6,7 @@ import { withToolMetadata } from '@jini-ai/core';
  * Contributors are installed explicitly at the composition root; importing a feature must not
  * register tools or create an assistant-to-feature runtime cycle.
  */
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { MENU_RAW_HTML_PERMISSION } from "./menu-html-permission.js";
 import {
   buildMenusRegistrations,
@@ -52,7 +52,7 @@ const MENUS_MODEL_FACING_RULES: readonly ModelFacingErrorRule[] = [
  * menus domain error still extends plain `Error`, so without this wrap each one reached the model as
  * a redacted `INTERNAL_ERROR` 500.
  */
-export function contributeMenusTools(): ToolContributor {
+export function contributeMenusTools(): ToolContributor<MenusToolDeps, unknown> {
   return {
     domain: "menus",
     // HTML-mode menus need the same raw-HTML permission HTML-mode forms do (`menu-html-permission.ts`).

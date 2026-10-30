@@ -1,15 +1,16 @@
 import type { useConfirmRequest } from "@jini-ai/admin/react";
 import { assistantSubagentsPort, SUBAGENTS_NAMESPACE, SUBAGENT_DANGERS, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
 import { useAssistantOwnerGrant, useAssistantOwnerGrantSettings } from "./use-assistant-owner-grant.hooks";
-import { ASSISTANT_CLI_CAPABILITIES, assistantCliPermissions, type AssistantCliCapability } from "@tovu/headless";
+import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability } from "@tovu/headless";
+import { assistantCliPermissions } from "../../../../../website/src/assistant/assistant-subagents-policy.js";
 const settingsKey = ["admin-assistant", "subagents"] as const;
 /** The panel and dock share the site-owner grant query. */
 export function useAssistantSubagentsSettings(required: { port: AssistantSubagentsPort; mode: string; agentId: string | null }, _optional = {}) {
   const state = useAssistantOwnerGrantSettings({ ...required, namespace: SUBAGENTS_NAMESPACE, key: settingsKey });
   // A stale cached ON value cannot establish the current grant after a failed refresh.
-  const tooltipKey = !state.loadError && required.mode === "local-cli" && required.agentId !== null &&
-    (state.settings?.capabilities?.subagents ?? state.settings?.enabled)
-    ? "This chat can use subagents" : null;
+  const localAgent = required.mode === "local-cli" && required.agentId !== null;
+  const granted = state.settings?.capabilities?.subagents ?? state.settings?.enabled;
+  const tooltipKey = !state.loadError && localAgent && granted ? "This chat can use subagents" : null;
   return { ...state, tooltipKey };
 }
 /** Subagent-specific copy and boolean payload; the shared hook owns locking and errors. */
@@ -65,8 +66,11 @@ export function useDockAgentPermissions(required: { t: (key: string) => string; 
     unavailableReason: state.settings?.unavailableReason,
     capabilities: view.capabilities,
     onChange: ({ key, enabled }: { key?: string; enabled: boolean }) => {
-      if (key === undefined) void state.setEnabled({ enabled });
-      else if (isCliCapability(key)) void state.setCapability({ key, enabled });
+      if (key === undefined) {
+        void state.setEnabled({ enabled });
+        return;
+      }
+      if (isCliCapability(key)) void state.setCapability({ key, enabled });
     },
   };
 }

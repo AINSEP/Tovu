@@ -5,7 +5,7 @@
  *
  * The two ports are returned as two objects because both name a `get` with different inputs.
  */
-import { sql } from "kysely";
+import { sql, type ExpressionBuilder } from "kysely";
 
 import type { StorageKernel } from "#src/platform/db/kernel/port";
 import { encodeSearchKey } from "@jini-ai/search";
@@ -115,11 +115,13 @@ function createIndexState(kernel: StorageKernel<SearchIndexDatabase>): SearchInd
     async listByStatus({ target, statuses, limit }, { failedBelowAttempts } = {}) {
       // `IN ()` is not valid SQL; asking for no status matches no row.
       if (statuses.length === 0) return [];
+      const retryable = (eb: ExpressionBuilder<SearchIndexDatabase, "search_index_state">) =>
+        eb.or([eb("status", "!=", "failed"), eb("attempts", "<", failedBelowAttempts!)]);
       const rows = await kernel.run(db => db.selectFrom("search_index_state").selectAll()
         .where("site_id", "=", target.siteId).where("provider_id", "=", target.providerId)
         .where("generation", "=", target.generation).where("status", "in", [...statuses])
         // Exhausted failures leave the candidate set BEFORE the limit, so they cannot starve the rest.
-        .$if(failedBelowAttempts !== undefined, qb => qb.where(eb => eb.or([eb("status", "!=", "failed"), eb("attempts", "<", failedBelowAttempts!)])))
+        .$if(failedBelowAttempts !== undefined, qb => qb.where(retryable))
         // Oldest first so a retry sweep reaches every row, with the key breaking ties stably.
         .orderBy("updated_at_ms", "asc").orderBy("doc_key", "asc")
         .limit(limit).execute());
@@ -186,6 +188,11 @@ async function swapPointers(
 
 /** The pointer half. `promote` is the atomic generation switch. @complexity O(1) per call. */
 function createTargets(kernel: StorageKernel<SearchIndexDatabase>, now: () => number): SearchTargetPort {
+  const retainRetired = async ({ siteId, active }: { siteId: string; active: SearchTarget }, _options = {}) => {
+    await kernel.run(db => db.insertInto("search_index_retired")
+      .values({ site_id: siteId, provider_id: active.providerId, generation: active.generation, retired_at_ms: now() })
+      .onConflict(oc => oc.columns(["site_id", "provider_id", "generation"]).doNothing()).execute());
+  };
   const read = async (siteId: string): Promise<SearchSiteTargets> => {
     const row = await kernel.run(db => db.selectFrom("search_index_targets").selectAll().where("site_id", "=", siteId).executeTakeFirst());
     if (!row) return { active: null, building: null };
@@ -208,9 +215,7 @@ function createTargets(kernel: StorageKernel<SearchIndexDatabase>, now: () => nu
       if (!swapped) return false;
       // Same transaction as the switch: the replaced index is dropped later even if this process dies now.
       if (active !== null) {
-        await kernel.run(db => db.insertInto("search_index_retired")
-          .values({ site_id: siteId, provider_id: active.providerId, generation: active.generation, retired_at_ms: now() })
-          .onConflict(oc => oc.columns(["site_id", "provider_id", "generation"]).doNothing()).execute());
+        await retainRetired({ siteId, active });
       }
       return { replaced: active };
     }),

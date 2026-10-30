@@ -716,36 +716,35 @@ describe('VercelDeployTarget.publish', () => {
     // pollVercelDeployment's attempt budget/backoff are fixed constants (~1s
     // for the first 5 attempts, 2s thereafter — ~55s total) with no
     // caller-facing override, so driving it to exhaustion for real would
-    // cost ~55s of wall-clock time per run. Fake timers step through the
-    // same real setTimeout/fetch/json await chain deterministically instead.
-    vi.useFakeTimers();
-    try {
-      const createBody = { id: 'dpl_never_ready', readyState: 'QUEUED', url: 'demo.vercel.app' };
-      const pollingBody = { id: 'dpl_never_ready', readyState: 'BUILDING', url: 'demo.vercel.app' };
-      let pollCount = 0;
-      const fetchSpy = vi.fn(async (input, init) => {
-        if (init?.method === 'POST') return jsonResponse(200, createBody);
-        if (String(input).includes('/v13/deployments/dpl_never_ready')) {
-          pollCount += 1;
-          return jsonResponse(200, pollingBody);
-        }
-        // Reachability probe against the deployment URL — reachable immediately.
-        return new Response('', { status: 200 });
-      });
-      vi.stubGlobal('fetch', fetchSpy);
+    // cost ~55s of wall-clock time per run. The injected sleep port records the
+    // same backoff without waiting for wall-clock time.
+    const delays = [];
+    const { VercelDeployTarget: PollingTarget } = loaded.bindVercel({
+      ...createDeployHostKit(), sleep: async ms => { delays.push(ms); },
+    });
+    const createBody = { id: 'dpl_never_ready', readyState: 'QUEUED', url: 'demo.vercel.app' };
+    const pollingBody = { id: 'dpl_never_ready', readyState: 'BUILDING', url: 'demo.vercel.app' };
+    let pollCount = 0;
+    const fetchSpy = vi.fn(async (input, init) => {
+      if (init?.method === 'POST') return jsonResponse(200, createBody);
+      if (String(input).includes('/v13/deployments/dpl_never_ready')) {
+        pollCount += 1;
+        return jsonResponse(200, pollingBody);
+      }
+      // Reachability probe against the deployment URL — reachable immediately.
+      return new Response('', { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
 
-      const target = new VercelDeployTarget({ token: 'tok' });
-      const publishPromise = target.publish({ files: [{ file: 'index.html', data: 'x' }], projectName: 'demo' });
-      // 5 attempts * 1000ms + 25 attempts * 2000ms = 55_000ms; give it headroom.
-      await vi.advanceTimersByTimeAsync(60_000);
-      const result = await publishPromise;
+    const target = new PollingTarget({ token: 'tok' });
+    const publishPromise = target.publish({ files: [{ file: 'index.html', data: 'x' }], projectName: 'demo' });
+    // The recorded backoff must retain the full 55_000ms polling budget.
+    const result = await publishPromise;
 
-      expect(pollCount).toBe(30);
-      expect(result.deploymentId).toBe('dpl_never_ready');
-      expect(result.url).toBe('https://demo.vercel.app');
-    } finally {
-      vi.useRealTimers();
-    }
+    expect(pollCount).toBe(30);
+    expect(delays).toEqual([...Array(5).fill(1000), ...Array(25).fill(2000)]);
+    expect(result.deploymentId).toBe('dpl_never_ready');
+    expect(result.url).toBe('https://demo.vercel.app');
   });
 
   it('checkReachability probes the URL with the Vercel-protected-response detector wired in', async () => {

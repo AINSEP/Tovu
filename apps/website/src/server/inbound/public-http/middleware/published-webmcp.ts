@@ -17,8 +17,9 @@ export function applyPublishedWebMcp(
     const send = res.send;
     res.send = function (body: unknown): Response {
       const type = String(res.getHeader('content-type') ?? '');
-      if (typeof body === 'string' && res.statusCode < 400 && (type.includes('text/html') || (!type && /^\s*(?:<!doctype html|<html\b)/i.test(body)))) {
-        body = injectPublishedWebMcp({ html: body, enabled });
+      if (typeof body === 'string' && res.statusCode < 400) {
+        const htmlType = type.includes('text/html') || (!type && /^\s*(?:<!doctype html|<html\b)/i.test(body));
+        if (htmlType) body = injectPublishedWebMcp({ html: body, enabled });
       }
       return send.call(this, body);
     };

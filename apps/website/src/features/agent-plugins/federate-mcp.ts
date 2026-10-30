@@ -2,7 +2,7 @@ import {
   saveExternalMcpServer,
   type ExternalMcpServerRecord,
   type ExternalMcpStoreDeps,
-} from "#src/assistant/index";
+} from "#src/assistant/mcp-services";
 import { externalMcpRecordHasStaticAccessToken } from "../external-mcp/auth-mode.js";
 
 import { classifyAgentPluginMcpServerTrust, readInstalledMcpServers } from "./capability-projection.js";
@@ -166,9 +166,9 @@ export function deriveAgentPluginConnectionId(serverKey: string): string | null 
   const sanitized = serverKey
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    .replace(/^-|-$/g, "")
     .slice(0, MAX_CONNECTION_ID_LENGTH)
-    .replace(/-+$/g, "");
+    .replace(/-$/, "");
   return sanitized.length > 0 ? sanitized : null;
 }
 

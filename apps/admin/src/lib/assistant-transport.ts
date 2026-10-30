@@ -8,6 +8,7 @@ import { browserDurableSubscriptionPorts, durableRunBindings, followDurableRun }
 import { agUiRunClient } from "./assistant-transport-ag-ui";
 import { RUN_NOTICES } from "@tovu/assistant-run-events";
 import { adminStreamActivity, trackTransportActivity, type StreamActivity } from "./stream-activity";
+import { uniqueId } from "./unique-id";
 export { parseUsageEvent, terminalFailureError, terminalOutcomeNotice, terminalReasonNotice, translateRunAgentPayload } from "@tovu/assistant-run-events";
 export { parseFrame } from "./sse-frames";
 
@@ -16,7 +17,7 @@ const RUNS_URL = "/api/runs";
 const client = createAssistantTransportClient({ ports: {
  runsUrl: RUNS_URL, byokTurnUrl: "/api/admin/v1/assistant/byok-turn", byokRunIdPrefix: "byok:", notices: RUN_NOTICES,
  fetch: (url, init) => fetch(url, init),
- mintId: () => typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : String(Date.now()) + "-" + Math.random().toString(36).slice(2),
+ mintId: () => uniqueId(),
  projectPrompt: ({ prompt, context }) => promptWithSelectedSkills(prompt, context),
  projectInput: ({ input }) => withSelectedSkillGuidance(input),
  bindRun: ({ runId, binding }) => { durableRunBindings.set(runId, binding); },
@@ -134,11 +135,6 @@ function jiniHostOptions(options: CreateTovuAssistantTransportOptions): JiniHost
   persistUserTurn: options.persistUserTurn && (({ conversationId, message }) => options.persistUserTurn!(conversationId, message)),
  };
 }
-export function historyForTranscript(history: readonly ChatMessage[]) { return client.historyForTranscript({ history }, {}); }
-export function undeliveredUserPrompt(history: readonly ChatMessage[]) { return client.undeliveredUserPrompt({ history }, {}); }
-export function buildLocalCliContextRef(input: StartRunInput, prompt: string, resolvedConversationId?: string) { return client.buildLocalCliContextRef({ input, prompt, resolvedConversationId }, {}); }
-export function handleByokFrame(frame: Parameters<typeof client.handleByokFrame>[0]["frame"], ctx: Parameters<typeof client.handleByokFrame>[0]["ctx"]) { return client.handleByokFrame({ frame, ctx }, {}); }
-export function consumeByokStream(body: ReadableStream<Uint8Array>, ctx: Parameters<typeof client.consumeByokStream>[0]["ctx"]) { return client.consumeByokStream({ body, ctx }, {}); }
 
 /** Provider dispatch receives an augmented copy; persistence/title derivation sees the original. */
 function withSelectedSkillGuidance(input: StartRunInput): StartRunInput {

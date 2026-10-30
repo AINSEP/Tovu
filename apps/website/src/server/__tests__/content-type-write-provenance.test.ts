@@ -18,7 +18,9 @@ import { createContributionRegistry } from "@jini-ai/core";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import type { DerivedToolContributor, ToolContributor } from "../../assistant/index.js";
+import type { DerivedToolContributor, ToolContributor } from "@jini-ai/core";
+import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 
 // content-types moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2), then self-registration on import was removed
@@ -27,8 +29,8 @@ import type { DerivedToolContributor, ToolContributor } from "../../assistant/in
 // real composition roots do via `installFirstPartyToolContributors()`. The registry is no longer a
 // module global, so this suite owns one and hands it to both the installer and the registrations.
 const contributions = {
-  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
-  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
 };
 installFirstPartyToolContributors({ contributions });
 

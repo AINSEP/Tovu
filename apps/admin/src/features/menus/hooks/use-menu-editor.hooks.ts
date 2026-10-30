@@ -234,7 +234,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
   // it.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the loader captures the port; an already hydrated route retains its draft.
   useEffect(() => {
-    if (hydratedRoute.current === menuId) return;
+    if (hydratedRoute.current === menuId) return undefined;
     let cancelled = false;
     setCopyFeedback(null);
     slugEdited.current = false;
@@ -248,7 +248,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t, clipbo
       setOriginal({ title: "", slug: "", items: [], mode: "items", html: "" });
       setLoading(false);
       hydratedRoute.current = menuId;
-      return;
+      return undefined;
     }
     setLoading(true);
     setError(null);

@@ -18,7 +18,7 @@ import { findFederatedToolRefusal, FEDERATED_TOOL_ID_PREFIX, parseFederatedConne
 import type { FederationAdmissionSnapshotEntry } from "@jini-ai/mcp/federation";
 import { tovuFederationMessages } from "./mcp-federation/presets.js";
 import { assertCredentialFreeField } from "../contracts/core/credential-token.js";
-import { redactSecretShapes } from "../contracts/core/secret-redaction.js";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { readOnlyRemedyRefusalMessage, tovuReadOnlyToolMessages } from "./read-only-tool-constraint.js";
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 /**

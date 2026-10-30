@@ -93,10 +93,11 @@ export async function listMailSuppressions(required: { principalId: string; quer
   const rows = await repo.list({ workspaceId: deps.workspaceId, limit: query.limit + 1 }, { ...query.filter, ...(query.before ? { before: query.before } : {}) });
   const items = rows.slice(0, query.limit);
   const filtered = Object.keys(query.filter).length > 0;
+  const emptyReason = filtered ? "no_matches" : "none_recorded";
   return {
     items,
     nextCursor: rows.length > query.limit ? nextMailCursor({ page: items }) : null,
-    empty: items.length > 0 || query.before ? null : filtered ? "no_matches" : "none_recorded",
+    empty: items.length > 0 || query.before ? null : emptyReason,
   };
 }
 

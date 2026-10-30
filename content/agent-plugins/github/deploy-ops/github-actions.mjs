@@ -1,4 +1,5 @@
 /** Actions observer and deploy dispatcher: requests stay on api.github.com; job-log archive redirects are never requested. */
+const PLATFORM = "github-actions";
 const text = value => String(value ?? "").slice(0, 2000);
 /** Reject path injection and build a fixed-host repository URL. */
 function base(ctx, target) {
@@ -15,7 +16,8 @@ async function selectWorkflowRun({ ctx, input, runs }, _options = {}) {
     if (!/^\d+$/.test(input.runId)) ctx.fail("runId must contain only digits.");
     run = (await ctx.get(`${runs}/${input.runId}`)).json;
   } else {
-    const response = (await ctx.get(`${runs}?per_page=5${input.branch ? `&branch=${encodeURIComponent(input.branch)}` : ""}`)).json;
+    const branch = input.branch ? `&branch=${encodeURIComponent(input.branch)}` : "";
+    const response = (await ctx.get(`${runs}?per_page=5${branch}`)).json;
     if (!Array.isArray(response?.workflow_runs)) ctx.fail("Workflow response must contain workflow_runs.");
     run = response.workflow_runs[0];
   }
@@ -45,8 +47,8 @@ const failedSteps = job => (Array.isArray(job.steps) ? job.steps : []).filter(s 
 /** Normalize a run and its jobs; never return the raw workflow/job bodies. */
 async function status(ctx, input) {
   const { run, jobs, moreJobs } = await readRun(ctx, input);
-  if (!run) return { platform: "github-actions", target: input.target, state: "unknown", summary: "No workflow runs found.", items: [], checkedAt: ctx.nowIso() };
-  return { platform: "github-actions", target: input.target, state: state(run), summary: text(`${text(run.name)}: ${text(run.status)}/${text(run.conclusion)}; head_sha=${text(run.head_sha)}${moreJobs ? "; jobs truncated" : ""}`), items: jobs.map(j => ({ id: text(j.id), name: text(j.name), state: text(j.conclusion ?? j.status), detail: text(`status=${text(j.status)}; conclusion=${text(j.conclusion)}; failed steps: ${failedSteps(j).map(s => text(s.name)).join(", ")}`) })), ...(typeof run.html_url === "string" && run.html_url.startsWith("https://github.com/") ? { url: text(run.html_url) } : {}), checkedAt: ctx.nowIso() };
+  if (!run) return { platform: PLATFORM, target: input.target, state: "unknown", summary: "No workflow runs found.", items: [], checkedAt: ctx.nowIso() };
+  return { platform: PLATFORM, target: input.target, state: state(run), summary: text(`${text(run.name)}: ${text(run.status)}/${text(run.conclusion)}; head_sha=${text(run.head_sha)}${moreJobs ? "; jobs truncated" : ""}`), items: jobs.map(j => ({ id: text(j.id), name: text(j.name), state: text(j.conclusion ?? j.status), detail: text(`status=${text(j.status)}; conclusion=${text(j.conclusion)}; failed steps: ${failedSteps(j).map(s => text(s.name)).join(", ")}`) })), ...(typeof run.html_url === "string" && run.html_url.startsWith("https://github.com/") ? { url: text(run.html_url) } : {}), checkedAt: ctx.nowIso() };
 }
 function addFailedStepLines({ job, add }, _options = {}) {
   let truncated = false;
@@ -58,7 +60,8 @@ function addFailedStepLines({ job, add }, _options = {}) {
   return truncated;
 }
 function annotationMessage({ annotation }, _options = {}) {
-  return `${annotation.path ? `${String(annotation.path)}:${String(annotation.start_line ?? "")}: ` : ""}${String(annotation.message ?? "")}`;
+  const location = annotation.path ? `${String(annotation.path)}:${String(annotation.start_line ?? "")}: ` : "";
+  return `${location}${String(annotation.message ?? "")}`;
 }
 function addAnnotationLine({ ctx, job, annotation, add }, _options = {}) {
   if (!annotation || typeof annotation !== "object") ctx.fail("Check annotations response contains an invalid entry.");
@@ -83,7 +86,11 @@ async function logs(ctx, input) {
   const { repo, jobs, moreJobs } = await readRun(ctx, input);
   const lines = []; let truncated = moreJobs;
   const failed = jobs.filter(j => ["failure", "timed_out", "action_required", "cancelled"].includes(j.conclusion) || failedSteps(j).length);
-  const add = line => { if (lines.length < input.limit) lines.push(line); else truncated = true; if (String(line.message).length > 2000) truncated = true; };
+  const add = line => {
+    if (lines.length < input.limit) lines.push(line);
+    else truncated = true;
+    if (String(line.message).length > 2000) truncated = true;
+  };
   // Bound per-job I/O: at most 10 annotation requests plus the run/jobs requests.
   if (failed.length > 10) truncated = true;
   for (const [index, job] of failed.slice(0, 10).entries()) {
@@ -91,7 +98,7 @@ async function logs(ctx, input) {
     if (await addAnnotationLines({ ctx, repo, job, add })) truncated = true;
     if (lines.length >= input.limit && index < failed.length - 1) { truncated = true; break; }
   }
-  return { platform: "github-actions", target: input.target, lines, truncated };
+  return { platform: PLATFORM, target: input.target, lines, truncated };
 }
 const FULL_SHA = /^[0-9a-f]{40}$/;
 const RUN_LOOKUPS = 5;
@@ -123,7 +130,7 @@ async function findRun(ctx, workflow, sha, since) {
 async function deploy(ctx, input) {
   const repo = base(ctx, input.target);
   const selection = selectWorkflow({ input });
-  if (selection.reason) return { platform: "github-actions", target: input.target, started: false, summary: selection.reason };
+  if (selection.reason) return { platform: PLATFORM, target: input.target, started: false, summary: selection.reason };
   const workflowFile = selection.file;
   const ref = refName(ctx, input.ref);
   const commit = (await ctx.get(`${repo}/commits/${ref.split("/").map(encodeURIComponent).join("/")}`)).json;
@@ -135,8 +142,8 @@ async function deploy(ctx, input) {
   // Newer API versions may answer with the run directly; otherwise (204) look it up by SHA.
   const run = await dispatchedRun({ ctx, dispatched, workflow, sha, since });
   const pinned = `The workflow refuses to deploy if '${ref}' no longer resolves to ${sha} when it starts.`;
-  if (!run) return { platform: "github-actions", target: input.target, started: true, sha, summary: text(`Dispatched ${workflowFile} on '${ref}' at ${sha}, but its run was not visible yet. ${pinned} Check deployment_ops_status with branch '${ref}' in a minute.`) };
-  return { platform: "github-actions", target: input.target, started: true, sha, runId: String(run.id), ...(typeof run.html_url === "string" && run.html_url.startsWith("https://github.com/") ? { url: text(run.html_url) } : {}), summary: text(`Dispatched ${workflowFile} on '${ref}' at ${sha}; run ${run.id}. ${pinned}`) };
+  if (!run) return { platform: PLATFORM, target: input.target, started: true, sha, summary: text(`Dispatched ${workflowFile} on '${ref}' at ${sha}, but its run was not visible yet. ${pinned} Check deployment_ops_status with branch '${ref}' in a minute.`) };
+  return { platform: PLATFORM, target: input.target, started: true, sha, runId: String(run.id), ...(typeof run.html_url === "string" && run.html_url.startsWith("https://github.com/") ? { url: text(run.html_url) } : {}), summary: text(`Dispatched ${workflowFile} on '${ref}' at ${sha}; run ${run.id}. ${pinned}`) };
 }
 export default { status, logs, deploy };
 

@@ -13,6 +13,8 @@ import { buildMigrateForwardHooks } from "#src/features/database/gated-hooks";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
+const MIGRATE_PERMISSION = "database.migrate";
+
 /**
  * @file SPEC-017 C-103/C-105 — `POST /api/admin/v1/database/migrate-forward/{plan,confirm,execute}`
  * (ADR-041 §3's forward-migrate ceremony). Gated by `database.read` (`plan`) / `database.migrate`
@@ -69,9 +71,9 @@ export function registerAdminDatabaseMigrateForwardRoutes(app: Express, deps: Ro
       }
 
       const hooks = buildConfirmOnlyHooks({
-        domain: "database.migrate",
+        domain: MIGRATE_PERMISSION,
         readPermission: "database.read",
-        mutatePermission: "database.migrate",
+        mutatePermission: MIGRATE_PERMISSION,
         scopeId: deps.workspaceId,
         scopeKind: "instance",
       });
@@ -115,19 +117,19 @@ export function registerAdminDatabaseMigrateForwardRoutes(app: Express, deps: Ro
       const authResult = await authorizeForHooks(
         deps.gatedMutations.gatewayDeps,
         buildConfirmOnlyHooks({
-          domain: "database.migrate",
+          domain: MIGRATE_PERMISSION,
           readPermission: "database.read",
-          mutatePermission: "database.migrate",
+          mutatePermission: MIGRATE_PERMISSION,
           scopeId: deps.workspaceId,
           scopeKind: "instance",
         }),
-        { principalId: principal.id, permission: "database.migrate" }
+        { principalId: principal.id, permission: MIGRATE_PERMISSION }
       );
       if (!authResult.allowed) {
         res.status(403).json({
           error: `principal '${principal.id}' is not authorized for 'database.migrate' (${authResult.reason})`,
           code: "FORBIDDEN",
-          details: { permission: "database.migrate", reason: authResult.reason },
+          details: { permission: MIGRATE_PERMISSION, reason: authResult.reason },
         });
         return;
       }

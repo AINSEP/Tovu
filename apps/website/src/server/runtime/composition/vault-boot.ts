@@ -18,7 +18,10 @@ import type { StorageKernel } from "#src/platform/db/kernel/port";
 import { legacyTargetProvider, legacyVaultAad, normalizeLegacyVaultPayload, type VaultLegacyContext } from "./vault-legacy-codecs.js";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 
-type BlockReason = "missing-key" | "unopenable" | "invalid-meta" | "catalog-unavailable" | "conflict";
+const INVALID_META = "invalid-meta";
+
+
+type BlockReason = "missing-key" | "unopenable" | typeof INVALID_META | "catalog-unavailable" | "conflict";
 export interface VaultKindCoverage {
   rows: number; envelopes: number; attempted: number; succeeded: number; dropped: number; blocked: number;
   legacyRemaining: number; unopenable: number;
@@ -45,13 +48,13 @@ export function legacyContext({ record }: { record: VaultRecord }): VaultLegacyC
   if (migration.mappedId !== record.id || !hasLegacyIdentityFields({ value }) ||
     ![value.principalId, value.provider, value.serverId].every(field => field === null || typeof field === "string") ||
     ["table", "workspaceId", "id", "principalId", "provider", "serverId", "aadVersion"].some(key => migration[key] !== value[key])) {
-    throw new RowBlocked("invalid-meta");
+    throw new RowBlocked(INVALID_META);
   }
   return value as unknown as VaultLegacyContext;
 }
 
 function legacyMetadataObject({ value }: { value: unknown }, _options = {}): VaultMeta {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) throw new RowBlocked("invalid-meta");
+  if (value === null || typeof value !== "object" || Array.isArray(value)) throw new RowBlocked(INVALID_META);
   return value as VaultMeta;
 }
 
@@ -68,11 +71,13 @@ async function targetGroup({ input, record, provider }: { input: VaultBootInput;
   _options = {},
 ): Promise<{ label: string; isDefault: boolean } | null> {
   if (provider === record.provider) return { label: record.label, isDefault: record.isDefault };
+  const principalCondition = record.principalId === null ? sql`principal_id IS NULL` : sql`principal_id=${record.principalId}`;
+  const providerCondition = provider === null ? sql`provider IS NULL` : sql`provider=${provider}`;
   const rows = await input.kernel.query<{ id: string; label: string; is_default: boolean | number }>(sql`
     SELECT id,label,is_default FROM secrets_vault WHERE workspace_id=${record.workspaceId} AND kind=${record.kind}
       AND owner_key=${record.ownerKey}
-      AND ${record.principalId === null ? sql`principal_id IS NULL` : sql`principal_id=${record.principalId}`}
-      AND ${provider === null ? sql`provider IS NULL` : sql`provider=${provider}`} AND id<>${record.id}`);
+      AND ${principalCondition}
+      AND ${providerCondition} AND id<>${record.id}`);
   if (rows.some(row => row.label === record.label)) return null;
   return { label: record.label, isDefault: record.isDefault && !rows.some(row => row.is_default === true || row.is_default === 1) };
 }
@@ -108,7 +113,7 @@ function normalizationProvider({ input, record, legacy }: LegacyRecordInput, _op
       legacyVaultAad({ record, legacy });
       provider = legacyTargetProvider({ record, legacy, policy: input.registry.policy }).provider;
     } catch (error) {
-      throw new RowBlocked(error instanceof Error && error.message === "VAULT_CATALOG_UNAVAILABLE" ? "catalog-unavailable" : "invalid-meta");
+      throw new RowBlocked(error instanceof Error && error.message === "VAULT_CATALOG_UNAVAILABLE" ? "catalog-unavailable" : INVALID_META);
     }
   }
   return provider;
@@ -123,7 +128,7 @@ async function openLegacyRecord({ input, record, legacy, previous = input.sealer
     catch { throw new RowBlocked("unopenable"); }
   } else {
     // Even an empty envelope must not erase an unsupported or mismatched lineage marker.
-    try { legacyVaultAad({ record, legacy }); } catch { throw new RowBlocked("invalid-meta"); }
+    try { legacyVaultAad({ record, legacy }); } catch { throw new RowBlocked(INVALID_META); }
   }
   return { plaintext, key };
 }
@@ -136,7 +141,7 @@ function parseLegacyRecord({ input, record, legacy, plaintext }: LegacyRecordInp
     meta = input.registry.metaParsers[record.kind]({ meta: normalized.meta, provider: normalized.provider });
     assertCredentialFreeField({ value: record.label, field: "label" });
   } catch (error) {
-    throw new RowBlocked(error instanceof Error && error.message === "VAULT_CATALOG_UNAVAILABLE" ? "catalog-unavailable" : "invalid-meta");
+    throw new RowBlocked(error instanceof Error && error.message === "VAULT_CATALOG_UNAVAILABLE" ? "catalog-unavailable" : INVALID_META);
   }
   return { normalized, meta };
 }
@@ -235,7 +240,7 @@ export async function normalizeVaultAtBoot(input: VaultBootInput,
 
 async function validateCurrentRecord({ input, record }: { input: VaultBootInput; record: VaultRecord }, _options = {}): Promise<void> {
   // Ordinary feature reads have no legacy fallback; readiness proves that exact path.
-  try { input.registry.metaParsers[record.kind]({ meta: record.meta, provider: record.provider }); } catch { throw new RowBlocked("invalid-meta"); }
+  try { input.registry.metaParsers[record.kind]({ meta: record.meta, provider: record.provider }); } catch { throw new RowBlocked(INVALID_META); }
   const { normalization: _flag, ...meta } = record.meta;
   if (record.sealed) {
     try { await input.keyring.activeKey({}); } catch { throw new RowBlocked("missing-key"); }
@@ -276,8 +281,8 @@ async function normalizeBootRow({ input, repo, report, id }: {
 }
 
 function blockedRowReason({ error }: { error: unknown }, _options = {}): BlockReason {
-  return error instanceof RowBlocked ? error.reason
-    : error instanceof VaultError && error.code === "conflict" ? "conflict" : "invalid-meta";
+  if (error instanceof RowBlocked) return error.reason;
+  return error instanceof VaultError && error.code === "conflict" ? "conflict" : INVALID_META;
 }
 
 async function reportBlockedRow({ input, record, error, coverage, hasLegacy, report, id }: {
@@ -334,14 +339,14 @@ export async function loadSiteVaultKinds(input: { workspaceId: string; siteDir?:
     // before the hosting plugin that now owns its target has been seeded and switched on.
     loadBundledDeployTargetRegistry({ sourceRoot: join(resolveProductRoot(), "content", "agent-plugins") }),
   ]);
-  const registry = createTovuVaultKinds({ policy: {
+  return createTovuVaultKinds({ policy: {
     validateMeta: ({ meta }) => meta,
     legacyPublishCredential: ({ providerId }) => registries.map(registry => registry.get(providerId)?.descriptor.credential).find(spec => spec !== undefined),
-    tokenField: ({ kind, provider }) => kind === "vendor"
-      ? registries.flatMap(registry => registry.list()).find(target => target.descriptor.credential?.vendorId === provider)?.descriptor.credential?.tokenField
-      : kind === "custom" || kind === "source-control" ? "token" : undefined,
+    tokenField: ({ kind, provider }) => {
+      if (kind === "vendor") return registries.flatMap(registry => registry.list()).find(target => target.descriptor.credential?.vendorId === provider)?.descriptor.credential?.tokenField;
+      return kind === "custom" || kind === "source-control" ? "token" : undefined;
+    },
   } });
-  return registry;
 }
 
 /** Recover through boot's shared normalization: delete moved duplicates, otherwise validate and
@@ -353,7 +358,7 @@ export async function recoverLegacyVaultRecord(required: {
   input: VaultBootInput; record: VaultRecord; previous: Pick<SecretSealerPort, "open">;
 }, _options = {}): Promise<void> {
   const legacy = legacyContext({ record: required.record });
-  if (!legacy) throw new RowBlocked("invalid-meta");
+  if (!legacy) throw new RowBlocked(INVALID_META);
   const after = await normalizedRecord({ ...required, legacy });
   await saveNormalized({ input: required.input, before: required.record, after });
 }

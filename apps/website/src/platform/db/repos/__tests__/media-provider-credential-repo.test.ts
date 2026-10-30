@@ -8,7 +8,7 @@ import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlMediaProviderCredentialRepo } from "../media-provider-credential-repo.js";
+import { SqlMediaProviderCredentialRepo } from "../../../../features/media/media-provider-credential-repo.js";
 
 /** Existing characterization suite now exercises Jini's vault-backed facade on both dialects.
  * The step is activated on disposable fixtures only; production migration registration is untouched.

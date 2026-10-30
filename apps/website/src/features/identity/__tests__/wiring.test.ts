@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -131,7 +132,7 @@ test("read-only identity wiring uses the verified owner without seeding or crede
   const db = openContentDb(":memory:");
   t.after(() => db.$client.close());
   const apiKeyRepo = new InMemoryApiKeyRepo();
-  const required = { db, ownerCredentials: DEFAULT_OWNER_CREDENTIALS,
+  const required = { db: contentKernel(db), ownerCredentials: DEFAULT_OWNER_CREDENTIALS,
     permissionGrants: createAppPermissionGrants({}), workspaceId: WORKSPACE,
     clock: fixedClock, idGen: counterIdGen(), readOnlyOwnerPrincipalId: "verified-owner",
   };
@@ -261,7 +262,7 @@ test("createSqliteIdentityRouteDeps: a session survives a simulated restart (fre
 
     // "First boot."
     const db1 = openContentDb(dbPath);
-    const first = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: db1, workspaceId: ws, clock: fixedClock, idGen: counterIdGen() });
+    const first = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel(db1), workspaceId: ws, clock: fixedClock, idGen: counterIdGen() });
     await first.identityReady;
 
     const ownerBefore = await first.userRepo.findByUsername({ workspaceId: ws, username: "admin" });
@@ -279,7 +280,7 @@ test("createSqliteIdentityRouteDeps: a session survives a simulated restart (fre
     // "Restart": a brand-new content.db handle + a brand-new createSqliteIdentityRouteDeps call
     // against the SAME on-disk file — this is exactly what `tsx watch` does to the real process.
     const db2 = openContentDb(dbPath);
-    const second = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: db2, workspaceId: ws, clock: fixedClock, idGen: counterIdGen() });
+    const second = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel(db2), workspaceId: ws, clock: fixedClock, idGen: counterIdGen() });
     await second.identityReady;
 
     const ownerAfter = await second.userRepo.findByUsername({ workspaceId: ws, username: "admin" });
@@ -426,12 +427,13 @@ test("createInMemoryIdentityRouteDeps: identityReady grants pages.edit_html to t
     );
   }
 
-  // The owner policy holds only `*`; `authorize()` short-circuits on it, so a row here would mean
-  // the backfill had started writing onto the wildcard policy.
+  // `authorize()` short-circuits on the owner's `*`, so pages.edit_html needs no owner backfill.
+  // ffb1cd102 deliberately reconciles visitor-tools.manage to owner/admin; retain that exact
+  // post-boot policy while proving the pages backfill adds nothing to the wildcard policy.
   assert.deepEqual(
     await permissionsOfPolicyNamed("owner-builtin-policy"),
-    ["*"],
-    "the owner policy stays exactly its seeded wildcard"
+    ["*", "visitor-tools.manage"],
+    "the owner policy retains its wildcard and visitor-tools grant without pages.edit_html"
   );
 });
 
@@ -466,7 +468,7 @@ test("createSqliteIdentityRouteDeps: identityReady grants pages.edit_html to adm
   const setupDb = openContentDb(dbPath);
   let bootDb: ReturnType<typeof openContentDb> | undefined;
   try {
-    const setup = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: setupDb, workspaceId, clock: fixedClock, idGen, reconcileGrantsOnBoot: false });
+    const setup = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel(setupDb), workspaceId, clock: fixedClock, idGen, reconcileGrantsOnBoot: false });
     await setup.identityReady;
     await dropAdminThemeEdit({ policies: setup.policyRepo, policyPermissions: setup.policyPermissionRepo }, workspaceId);
     const admin = await setup.policyRepo.findByName({ workspaceId, name: "admin-builtin-policy" });
@@ -476,7 +478,7 @@ test("createSqliteIdentityRouteDeps: identityReady grants pages.edit_html to adm
     setupDb.$client.close();
 
     bootDb = openContentDb(dbPath);
-    const boot = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: bootDb, workspaceId, clock: fixedClock, idGen });
+    const boot = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel(bootDb), workspaceId, clock: fixedClock, idGen });
     await boot.identityReady;
     const permissionsOfPolicyNamed = async (name: string) => {
       const policy = await boot.policyRepo.findByName({ workspaceId, name });
@@ -489,7 +491,7 @@ test("createSqliteIdentityRouteDeps: identityReady grants pages.edit_html to adm
     for (const name of ["editor-builtin-policy", "viewer-builtin-policy"] as const) {
       assert.ok(!(await permissionsOfPolicyNamed(name)).includes(PAGES_EDIT_HTML_PERMISSION), `${name} must NOT gain raw-page-HTML authoring`);
     }
-    assert.deepEqual(await permissionsOfPolicyNamed("owner-builtin-policy"), ["*"], "the owner policy stays exactly its seeded wildcard");
+    assert.deepEqual(await permissionsOfPolicyNamed("owner-builtin-policy"), ["*", "visitor-tools.manage"], "the owner policy retains its wildcard and visitor-tools grant without pages.edit_html");
   } finally {
     if (setupDb.$client.open) setupDb.$client.close();
     bootDb?.$client.close();
@@ -506,7 +508,7 @@ test("createSqliteIdentityRouteDeps: a second identityReady adds no duplicate pa
   const firstDb = openContentDb(dbPath);
   let secondDb: ReturnType<typeof openContentDb> | undefined;
   try {
-    const first = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: firstDb, workspaceId, clock: fixedClock, idGen });
+    const first = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel(firstDb), workspaceId, clock: fixedClock, idGen });
     await first.identityReady;
     const policy = await first.policyRepo.findByName({ workspaceId, name: "admin-builtin-policy" });
     assert.ok(policy);
@@ -515,7 +517,7 @@ test("createSqliteIdentityRouteDeps: a second identityReady adds no duplicate pa
     firstDb.$client.close();
 
     secondDb = openContentDb(dbPath);
-    const second = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: secondDb, workspaceId, clock: fixedClock, idGen });
+    const second = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel(secondDb), workspaceId, clock: fixedClock, idGen });
     await second.identityReady;
     const after = await second.policyPermissionRepo.listByPolicyId({ workspaceId, policyId: policy.id });
     assert.equal(after.filter((row) => row.permission === PAGES_EDIT_HTML_PERMISSION).length, 1, "re-running identityReady must not append a second grant row");
@@ -593,14 +595,14 @@ test("createSqliteIdentityRouteDeps: reconcileGrantsOnBoot: false avoids the rea
   const workspaceId = "workspace-reconcile-flag-sqlite-readonly";
   try {
     const setupDb = openContentDb(dbPath);
-    const setup = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: setupDb, workspaceId, clock: fixedClock, idGen: counterIdGen() });
+    const setup = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel(setupDb), workspaceId, clock: fixedClock, idGen: counterIdGen() });
     await setup.identityReady;
     await dropAdminPagesEditHtml(setup, workspaceId);
     setupDb.$client.close();
 
     const roForFlagOff = openContentDbReadOnly(dbPath);
     const flagOff = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),
-      db: roForFlagOff,
+      db: contentKernel(roForFlagOff),
       workspaceId,
       clock: fixedClock,
       idGen: counterIdGen(),
@@ -614,7 +616,7 @@ test("createSqliteIdentityRouteDeps: reconcileGrantsOnBoot: false avoids the rea
 
     const roForFlagDefault = openContentDbReadOnly(dbPath);
     const flagDefault = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}),
-      db: roForFlagDefault,
+      db: contentKernel(roForFlagDefault),
       workspaceId,
       clock: fixedClock,
       idGen: counterIdGen(),

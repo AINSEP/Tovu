@@ -7,7 +7,7 @@ import { createPluginLookup, readPluginIdentity, assertPluginIdentityAvailable, 
 import type { InstalledAgentPlugin } from '@jini-ai/agent-plugins/lifecycle';
 import type { PluginActivationRepoPort } from '@jini-ai/plugins/host';
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
-import type { AgentPluginHostCapability, PluginHostPort } from '#src/contracts/headless/plugin-host';
+import type { AgentPluginHostCapability, PluginHostPort } from '#src/contracts/headless/index';
 import { listInstalledPlugins, preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from '#src/features/agent-plugins/lifecycle';
 import { readInstalledAgentPluginIdentity } from '#src/features/agent-plugins/identity';
 import { agentPluginActivations } from '#src/features/agent-plugins/activation-effects';
@@ -60,13 +60,15 @@ export function createTovuPluginHost(
         warn(`Plugin '${record.id}': invalid installed manifest omitted from metadata lookup.`);
         continue;
       }
-      let parsed: ReturnType<typeof readPluginIdentity>;
+      let parsed: ReturnType<typeof readPluginIdentity> | undefined;
       try { parsed = readPluginIdentity({ manifest: record.manifest as unknown as Readonly<Record<string, unknown>>, name: record.id, namespace: 'tovu' }); }
-      catch { warn(`Plugin '${record.id}': installed identity manifest is unreadable or invalid; omitted from metadata lookup.`); continue; }
-      const { warnings, ...identity } = parsed;
-      warnings.forEach(warn);
-      const activation = forAdmission ? null : await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId: record.id });
-      providers.push({ ...identity, version: record.version, enabled: activation?.enabled === true, family: 'site-runtime', localId: record.id });
+      catch { warn(`Plugin '${record.id}': installed identity manifest is unreadable or invalid; omitted from metadata lookup.`); }
+      if (parsed) {
+        const { warnings, ...identity } = parsed;
+        warnings.forEach(warn);
+        const activation = forAdmission ? null : await deps.pluginActivationRepo.getActivation({ workspaceId: deps.workspaceId, pluginId: record.id });
+        providers.push({ ...identity, version: record.version, enabled: activation?.enabled === true, family: 'site-runtime', localId: record.id });
+      }
     }
     return providers;
   };
@@ -113,11 +115,14 @@ export function createTovuPluginHost(
       const { warnings, ...identity } = parsed;
       warnings.forEach(warn);
       const provider: PluginProvider = { ...identity, version: plugin.version ?? null, enabled: false, family: 'agent-plugin', localId: plugin.pluginId };
-      if (forAdmission) { providers.push(provider); continue; }
-      if (!preferredKeys.has(`${plugin.pluginId}:${plugin.archiveDigest}`)) continue;
-      const revisions = agentProviders.get(plugin.pluginId) ?? [];
-      revisions.push(provider);
-      agentProviders.set(plugin.pluginId, revisions);
+      if (forAdmission) providers.push(provider);
+      else {
+        if (preferredKeys.has(`${plugin.pluginId}:${plugin.archiveDigest}`)) {
+          const revisions = agentProviders.get(plugin.pluginId) ?? [];
+          revisions.push(provider);
+          agentProviders.set(plugin.pluginId, revisions);
+        }
+      }
     }
     return providers.concat(await resolveAgentProviders({ agentProviders, workspaceRoot }));
   };

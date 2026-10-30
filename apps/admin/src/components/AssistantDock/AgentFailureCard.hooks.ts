@@ -20,7 +20,8 @@ export function useAgentFailureSurface({ transport, runtimeAccess, initialMessag
   const inventoryGeneration = useRef(0);
   const access = useMemo<ChatPaneRuntimeAccess>(() => {
     async function capture(load: () => Promise<readonly FailureAgent[]>) {
-      const generation = ++inventoryGeneration.current;
+      inventoryGeneration.current += 1;
+      const generation = inventoryGeneration.current;
       const inventory = await load();
       if (generation === inventoryGeneration.current) setAgents(inventory);
       return inventory;

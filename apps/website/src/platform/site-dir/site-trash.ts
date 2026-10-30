@@ -83,7 +83,7 @@ export function assertManagedSiteDirectory(
 /** Validate the opaque Trash identifier before deriving a mutation lock's name. */
 export function siteTrashName({ id }: { id: string }): string {
   const match = TRASH_ID.exec(id);
-  if (!match) throw new LocalSiteError("VALIDATION_ERROR");
+  if (!match?.[1]) throw new LocalSiteError("VALIDATION_ERROR");
   return match[1];
 }
 

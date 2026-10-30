@@ -74,7 +74,7 @@ export function fileExtension(relativePath: string): string {
 export function fileGroup(relativePath: string, apiVersion: 2 | undefined): ThemeFileGroup {
   if (isPageFilePath(relativePath, apiVersion)) return "page";
   if (relativePath.endsWith(".css")) return "style";
-  if (/\.(m|c)?js$/.test(relativePath)) return "script";
+  if (/\.[mc]?js$/.test(relativePath)) return "script";
   if (/^(theme|tokens|tokens\.light)\.json$/.test(relativePath)) return "config";
   if (isPartialFilePath(relativePath, apiVersion)) return "partial";
   if (isAssetExtension(relativePath)) return "asset";
@@ -160,9 +160,9 @@ function normalizedPathSegments(relativePath: string): string[] {
     if (segment === "" || segment === ".") continue;
     if (segment === "..") {
       segments.pop();
-      continue;
+    } else {
+      segments.push(segment);
     }
-    segments.push(segment);
   }
   return segments;
 }

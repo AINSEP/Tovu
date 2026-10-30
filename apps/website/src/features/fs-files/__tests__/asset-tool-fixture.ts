@@ -11,7 +11,7 @@ import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo, InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo } from "../../media/index.js";
 import type { HttpRequest } from "#src/platform/http/index";
-import type { AssetToolDeps } from "../asset-destinations.js";
+import type { AssetToolDeps } from "../../asset-transfer/asset-destinations.js";
 
 /** Bounded async wait for the real approval surface in tool tests. */
 export const until = async (check: () => boolean) => { for (let i = 0; i < 200 && !check(); i++) await new Promise((r) => setTimeout(r, 5)); };
@@ -39,12 +39,13 @@ export async function assetToolHarness(t: TestContext, { build, toolId, custom =
   const controller = new AbortController(); t.after(() => controller.abort());
   const permissions: string[] = []; const requests: HttpRequest[] = [];
   const deps: AssetToolDeps = {
-    workspaceId: "ws", siteBinding: { dir: site }, themesDir,
+    workspaceId: "ws", siteBinding: { dir: site }, themesDir, resolveActiveThemeId: async () => "match",
     themes: discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }), clock, idGen: { newId: () => `asset-${++ids}` },
     mediaRepo: new InMemoryMediaRepo({}), assetBlobRepo: new InMemoryAssetBlobRepo({}), assetRenditionRepo: new InMemoryAssetRenditionRepo({}),
     blobStore: new InMemoryBlobStore(), mediaContentTypeStore: new InMemoryMediaContentTypeStore(), transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}),
     mediaImportHttpClient: { send: async (request) => { requests.push(request); return { status: 200, headers: { "content-type": "image/png" }, bodyText: "", bodyBytes: png, bodyTruncated: false }; } },
-    resolveRoots: () => ({ repo: base, site, custom: custom === "picked" ? picked : custom }),
+    // custom "" = nothing picked (an undefined option would take the "picked" default).
+    resolveRoots: () => ({ repo: base, site, custom: custom === "picked" ? picked : custom || undefined }),
     authorize: async ({ permission }) => { permissions.push(permission); return { allowed: allowed(permission), reason: "matched" }; },
   };
   const handler = build(deps, { surfaceExchanges: store }).find((r) => r.descriptor.id === toolId)!.handler;

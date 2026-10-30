@@ -94,8 +94,9 @@ async function openBackstopPeer(deps: PublishContentRouteDeps, peerId: string): 
 /** The checked plan `send` redeems: this actor's own `planned` source log for the same
  *  destination, reason and peer. Anything else must be checked again. */
 function isSendablePlan(log: BackstopAuditRecord | null, run: BackstopRun): log is BackstopAuditRecord {
-  return log !== null && log.direction === "source" && log.actorId === run.actorId && log.destination === run.target.destination.baseUrl &&
-    log.result === "planned" && log.reason === run.target.request.reason && log.details.peerId === run.target.peerId;
+  if (log === null || log.direction !== "source" || log.actorId !== run.actorId) return false;
+  return log.destination === run.target.destination.baseUrl && log.result === "planned" &&
+    log.reason === run.target.request.reason && log.details.peerId === run.target.peerId;
 }
 
 /** `send`: confirms and executes the plan a previous `plan` call recorded. */
@@ -214,7 +215,10 @@ async function handleUndoRequest(req: Request, res: Response, deps: PublishConte
       }
       await audit.save({ record: { ...log, result: "undone", details: { ...log.details, undoSkipped: skipped } } });
     } });
-  } catch (error) { for (const rollback of fileRollbacks.reverse()) await rollback(); throw error; }
+  } catch (error) {
+    for (const rollback of fileRollbacks.reverse()) { await rollback(); }
+    throw error;
+  }
   res.json({ runId: log.runId, undone: log.inverses.length - skipped.length, skipped });
 }
 

@@ -121,7 +121,7 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
   /** Attaches one subscription; resolves with its outcome. Every event is pushed tagged. */
   async function subscribe(sender: EventSink, subscriptionId: string, runId: string, afterCursor: string | null): Promise<void> {
     const push = (message: WorkspaceChatEventMessage) => {
-      if (sender.isDestroyed()) return detach(subscriptionId);
+      if (sender.isDestroyed()) { detach(subscriptionId); return; }
       sender.send(WORKSPACE_CHAT_IPC.event, message);
     };
     let ended = false;

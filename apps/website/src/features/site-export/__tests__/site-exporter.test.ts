@@ -8,6 +8,7 @@ import path from "node:path";
 import test from "node:test";
 
 import express from "express";
+import { JSDOM } from "jsdom";
 import type { UUID } from "@jini-ai/core/primitives";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import type { PostRepoPort, PostRecord } from "#src/features/post/index";
@@ -17,6 +18,7 @@ import type { RedirectRecord } from "@jini-ai/cms/redirects";
 import { registerTransform, uploadMedia } from "#src/features/media/index";
 import { setPublicAssistantSettings, setSiteAssistantCredential } from "#src/assistant/index";
 import { startTestServer } from "../../../server/__tests__/helpers/http-test-server.js";
+import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
 import { createCommerceSiteTestApp } from "#src/server/inbound/public-http/routes/site/__tests__/commerce-site-app";
 import { useSiteChatBuild } from "#src/server/inbound/public-http/http/site/__tests__/site-chat.fixture";
 import { exportSite, firstExportFailure, redirectOutcomeFor } from "../site-exporter.js";
@@ -206,35 +208,48 @@ test("exportSite: the site-assistant widget is OFF in a static export even when 
  * be stored by a shared cache under the plain URL — ordinary pages without live comments are
  * `public, max-age=60` with no `Vary`, so one crafted request would strip the widget from every
  * visitor behind that cache for minutes. Live comment surfaces already require private/no-store
- * so moderation takes effect on the next request. Covers all four handlers that resolve the switch.
+ * so moderation takes effect on the next request. c5e98fea6 also makes the default consent HTML
+ * visitor-specific (receipt/region/GPC). Keep the owner-OFF arm to prove the marker itself prevents
+ * caching even when consent does not. Covers all four handlers that resolve the switch.
  */
 test("live site: a request carrying the static-export marker gets no widget AND a never-store Cache-Control", async (t) => {
   useSiteChatBuild({ test: t, ready: true });
-  const deps = createRouteDeps();
-  await enablePublicAssistant(deps);
-  withOneSampleProduct(deps);
-  const baseUrl = await startTestServer(deps.createSiteApp(), t);
+  for (const consentEnabled of [true, false]) {
+    const deps = createRouteDeps();
+    await enablePublicAssistant(deps);
+    await deps.siteConsentReady;
+    if (!consentEnabled) await deps.set({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen,
+      principals: deps.principalRepo, authorize: deps.authorize }, input: { namespace: "core.consent", key: "enabled",
+      value: false, scope: "workspace", workspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
+    withOneSampleProduct(deps);
+    const baseUrl = await startTestServer(deps.createSiteApp(), t);
 
-  const slugRoute = (await listPublishedSlugPaths(deps))[0];
-  assert.ok(slugRoute, "the seeded fixture must publish at least one /:slug page");
+    const slugRoute = (await listPublishedSlugPaths(deps))[0];
+    assert.ok(slugRoute, "the seeded fixture must publish at least one /:slug page");
 
-  for (const { route, comments, liveCacheControl } of [
-    { route: "/", comments: false, liveCacheControl: "public, max-age=60, stale-while-revalidate=300" },
-    { route: slugRoute, comments: true, liveCacheControl: "private, no-store" },
-    { route: "/products", comments: false, liveCacheControl: "public, max-age=60, stale-while-revalidate=300" },
-    { route: "/products/widget-mug", comments: false, liveCacheControl: "public, max-age=60, stale-while-revalidate=300" },
-  ]) {
-    const live = await fetch(`${baseUrl}${route}`);
-    const liveHtml = await live.text();
-    assert.match(liveHtml, /data-jini-chat-loader data-widget="react"/, `${route}: live must ship the selected widget's launcher`);
-    assert.match(liveHtml, /src="\/site-chat\/site-assistant-loader\.js"/, `${route}: live must ship the lazy loader`);
-    assert.doesNotMatch(liveHtml, /(?:src|href)="\/site-chat\/site-assistant(?:-vanilla)?\.(?:js|css)"/, `${route}: widget assets load on demand`);
-    assert.equal(liveHtml.includes("data-comments-surface"), comments, `${route}: the fixture must exercise its declared comment surface`);
-    assert.equal(live.headers.get("cache-control"), liveCacheControl, `${route}: live comments stay private; other live pages stay publicly cacheable`);
+    for (const { route, comments, liveCacheControl } of [
+      { route: "/", comments: false, liveCacheControl: "public, max-age=60, stale-while-revalidate=300" },
+      { route: slugRoute, comments: true, liveCacheControl: "private, no-store" },
+      { route: "/products", comments: false, liveCacheControl: "public, max-age=60, stale-while-revalidate=300" },
+      { route: "/products/widget-mug", comments: false, liveCacheControl: "public, max-age=60, stale-while-revalidate=300" },
+    ]) {
+      const live = await fetch(`${baseUrl}${route}`);
+      const liveHtml = await live.text();
+      assert.match(liveHtml, /data-jini-chat-loader data-widget="react"/, `${route}: live must ship the selected widget's launcher`);
+      assert.match(liveHtml, /src="\/site-chat\/site-assistant-loader\.js"/, `${route}: live must ship the lazy loader`);
+      assert.doesNotMatch(liveHtml, /(?:src|href)="\/site-chat\/site-assistant(?:-vanilla)?\.(?:js|css)"/, `${route}: widget assets load on demand`);
+      assert.equal(liveHtml.includes("data-comments-surface"), comments, `${route}: the fixture must exercise its declared comment surface`);
+      assert.equal(live.headers.get("cache-control"), consentEnabled ? "private, no-store" : liveCacheControl,
+        `${route}: visitor-specific consent and live comments stay private; owner-OFF public pages stay cacheable`);
+      if (consentEnabled) {
+        assert.equal(live.headers.get("vary"), "Cookie, Sec-GPC");
+        assertDefaultConsentPage({ html: liveHtml });
+      } else assert.doesNotMatch(liveHtml, /id="jini-consent"/);
 
-    const marked = await fetch(`${baseUrl}${route}`, { headers: { "x-tovu-static-export": "1" } });
-    assert.doesNotMatch(await marked.text(), /site-assistant/, `${route}: the marked request must carry no widget`);
-    assert.equal(marked.headers.get("cache-control"), "private, no-store", `${route}: a widget-less body must never be stored by a shared cache`);
+      const marked = await fetch(`${baseUrl}${route}`, { headers: { "x-tovu-static-export": "1" } });
+      assert.doesNotMatch(await marked.text(), /site-assistant/, `${route}: the marked request must carry no widget`);
+      assert.equal(marked.headers.get("cache-control"), "private, no-store", `${route}: a widget-less body must never be stored by a shared cache`);
+    }
   }
 });
 
@@ -299,7 +314,13 @@ test("exportSite: --base-path rewrites HTML hrefs, leaves the already-absolute s
   const home = readFileSync(path.join(outputDir, "index.html"), "utf8");
   assert.match(home, /href="\/my-repo\/welcome"/, "an internal link must carry the base path");
   assert.match(home, /href="\/my-repo\/theme-assets\/tovu-starter\//, "a theme asset reference must carry the base path");
-  assert.equal(/href="\/(?!my-repo\/)/.test(home), false, "no root-relative href may survive un-prefixed once a base path is set");
+  // 340f2893f in Jini scopes rewrites to HTML URL positions; script/prose lookalikes stay intact.
+  const dom = new JSDOM(home);
+  try {
+    const hrefs = [...dom.window.document.querySelectorAll("[href]")].map(element => element.getAttribute("href")!);
+    assert.deepEqual(hrefs.filter(url => url.startsWith("/") && !url.startsWith("//") && !url.startsWith("/my-repo/")), [],
+      "every actual root-relative href must carry the base path");
+  } finally { dom.window.close(); }
 
   // `<loc>`/`Sitemap:` are absolute (the seeded workspace has a verified origin, see the previous
   // test's own comment) — `prefixRootRelativePath`'s own documented contract leaves an already-

@@ -155,12 +155,15 @@ async function resolveProbeTarget(deps: ExternalMcpProbeServiceDeps, serverId: s
 /** Recognizes the probe's supported opaque HTTP and typed MCP authentication failures. */
 function isProbeAuthFailure({ error }: { error: unknown }, _options = {}): boolean {
   const status = error && typeof error === 'object' ? (error as { status?: unknown; statusCode?: unknown }).status ?? (error as { statusCode?: unknown }).statusCode : undefined;
-  return status === 401 || status === 403 || error instanceof McpAuthFailedError || (error instanceof McpProtocolError && /with HTTP (401|403)$/.test(error.message));
+  if (status === 401 || status === 403 || error instanceof McpAuthFailedError) return true;
+  return error instanceof McpProtocolError && /with HTTP (401|403)$/.test(error.message);
 }
 
 /** Only real Error instances and recognized protocol messages count as timeouts. */
 function isProbeTimeoutFailure({ error }: { error: unknown }, _options = {}): boolean {
-  return error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError' || (error instanceof McpProtocolError && /request (?:timed out|was aborted)/.test(error.message)));
+  if (!(error instanceof Error)) return false;
+  if (error.name === 'AbortError' || error.name === 'TimeoutError') return true;
+  return error instanceof McpProtocolError && /request (?:timed out|was aborted)/.test(error.message);
 }
 
 /** Connects once, lists, describes, and closes — the `finally` is the whole safety story for the
@@ -178,7 +181,8 @@ async function runProbe(connect: ExternalMcpProbeSessionFactory, target: ProbeTa
     // Upstream bodies/errors may contain credentials; only the closed category crosses this boundary.
     const auth = isProbeAuthFailure({ error: err });
     const timeout = isProbeTimeoutFailure({ error: err });
-    return { ok: false, kind: auth ? 'auth' : timeout ? 'timeout' : 'unreachable' };
+    const fallbackKind = timeout ? 'timeout' : 'unreachable';
+    return { ok: false, kind: auth ? 'auth' : fallbackKind };
   } finally {
     await session?.close({}).catch(() => undefined);
   }

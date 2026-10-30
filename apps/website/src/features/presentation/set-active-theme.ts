@@ -14,9 +14,10 @@ export async function setActiveTheme(
 ) {
   const previous = await required.deps.repo.findByWorkspaceId({ workspaceId: required.input.workspaceId });
   const result = await setPackageActiveTheme(required, optional);
-  if (previous?.activeThemeId === result.settings.activeThemeId || optional.capture === false) return result;
-  try { required.deps.tracker?.capture({ name: "theme_changed", userId: optional.actorId ?? `system:${required.input.workspaceId}` }, { properties: {
-    themeId: result.settings.activeThemeId, source: optional.source ?? "service",
-  } }); } catch { /* Analytics cannot undo the committed theme choice. */ }
+  if (previous?.activeThemeId !== result.settings.activeThemeId && optional.capture !== false) {
+    try { required.deps.tracker?.capture({ name: "theme_changed", userId: optional.actorId ?? `system:${required.input.workspaceId}` }, { properties: {
+      themeId: result.settings.activeThemeId, source: optional.source ?? "service",
+    } }); } catch { /* Analytics cannot undo the committed theme choice. */ }
+  }
   return result;
 }

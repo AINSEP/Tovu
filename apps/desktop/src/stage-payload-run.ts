@@ -3,7 +3,7 @@
  * post-condition and summary line of assembling `apps/desktop/staging/tovu-payload/` — see that
  * script's header for WHY the payload ships, what ships, and its provenance.
  *
- * The filesystem, the `npm ls` child, the effectful staging steps from `./stage-payload-lib.ts`
+ * The filesystem, the effectful staging steps from `./stage-payload-lib.ts`
  * (each already tested on its own there), the environment, the host and the output stream are all
  * injected ports; the script binds the real ones. Every refusal is a thrown
  * {@link StagePayloadError} carrying the exact message the CLI prints after `stage-payload: `, so the
@@ -15,7 +15,7 @@ import path from "node:path";
 import type { assertDistImportsDeclared } from "./dist-import-check.ts";
 import { shellStalenessFailure } from "./shell-staleness.ts";
 import type { StalenessShell } from "./shell-staleness.ts";
-import { isExcluded, parseNpmLsPaths, resolveNpmLsCommand, resolveTargets } from "./stage-payload-lib.ts";
+import { isExcluded, resolveTargets } from "./stage-payload-lib.ts";
 import type * as lib from "./stage-payload-lib.ts";
 
 /** A refusal to stage; `message` is printed verbatim after `stage-payload: `. */
@@ -38,6 +38,7 @@ type StageFs = Pick<typeof nodeFs, "cpSync" | "existsSync" | "lstatSync" | "mkdi
 
 /** The effectful staging steps, each defined and tested in `./stage-payload-lib.ts` / `./dist-import-check.ts`. */
 interface StageSteps {
+  declaredDependencies: typeof lib.declaredDependencies;
   stagePayloadFiles: typeof lib.stagePayloadFiles;
   stageDir: typeof lib.stageDir;
   stageTransitiveDependencies: typeof lib.stageTransitiveDependencies;
@@ -55,7 +56,6 @@ interface StagePorts {
   fs: StageFs;
   steps: StageSteps;
   shells: readonly ShellEntry[];
-  execFileSync(command: string, args: string[], options: { cwd: string; encoding: "utf8"; maxBuffer: number; shell: boolean }): string;
   env: NodeJS.ProcessEnv;
   host: { execPath: string; platform: string; arch: string };
   stdout: { write(text: string): unknown };
@@ -66,7 +66,6 @@ interface StageLayout {
   repoRoot: string;
   desktopDir: string;
   outDir: string;
-  repoModulesDir: string;
 }
 
 function fail(message: string): never {
@@ -76,84 +75,59 @@ function fail(message: string): never {
 const megabytes = (bytes: number) => (bytes / 1048576).toFixed(1);
 const readJson = (fs: StageFs, file: string) => JSON.parse(fs.readFileSync(file, "utf8"));
 
-/** Tovu's production dependency closure, as package paths relative to its `node_modules`. */
-function productionDependencyPaths(layout: StageLayout, ports: StagePorts): string[] {
-  let stdout: string;
-  // `resolveNpmLsCommand` picks the portable invocation — see its doc comment for why a bare
-  // `execFileSync("npm", …)` fails on Windows.
-  const { command, args, shell } = resolveNpmLsCommand({ ...ports.host, env: ports.env });
-  try {
-    stdout = ports.execFileSync(command, args, { cwd: layout.repoRoot, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, shell });
-  } catch (err) {
-    // `npm ls` exits non-zero on any tree quibble (the linked `@jini-ai/*` produce several) while
-    // still printing a complete, usable tree on stdout.
-    // `as`: `execFileSync`'s thrown error carries the same `stdout` it would have returned.
-    stdout = (err as { stdout?: string }).stdout ?? "";
-  }
-  const names = parseNpmLsPaths(stdout, layout.repoModulesDir, path.sep);
-  if (names.length === 0) {
-    fail(`npm ls listed no packages under ${layout.repoModulesDir}. Has \`npm install\` run at the repo root?`);
-  }
-  return names;
-}
-
-/**
- * The package names the built server may import bare: root `dependencies` plus every npm workspace
- * package (`@tovu/sdk`), both of which {@link productionDependencyPaths} stages. Anything else it
- * imports is a devDependency and absent from the payload -- see `./dist-import-check.ts`.
- */
-function declaredRuntimePackages({ repoRoot }: StageLayout, { fs }: StagePorts): Set<string> {
-  const rootPackage = readJson(fs, path.join(repoRoot, "package.json"));
+/** Runtime workspaces retain their checkout ownership; unrelated Jini siblings are never roots. */
+function runtimeWorkspaces({ repoRoot }: StageLayout, { fs }: StagePorts): string[] {
   const packagesDir = path.join(repoRoot, "packages");
-  const workspaces = fs.readdirSync(packagesDir)
-    .map((entry) => path.join(packagesDir, entry, "package.json"))
-    .filter((manifestPath) => fs.existsSync(manifestPath))
-    .map((manifestPath) => readJson(fs, manifestPath).name as string);
-  return new Set([...Object.keys(rootPackage.dependencies ?? {}), ...workspaces]);
+  return fs.readdirSync(packagesDir)
+    .map((entry) => path.join(packagesDir, entry))
+    .filter((directory) => fs.existsSync(path.join(directory, "package.json")));
 }
 
-function stagePackage(name: string, layout: StageLayout, { fs, steps }: StagePorts): boolean {
-  if (isExcluded(name)) return false;
-  const src = path.join(layout.repoModulesDir, name);
-  const dest = path.join(layout.outDir, "node_modules", name);
-  if (!fs.existsSync(src)) return false;
-  // A nested entry (`liquidjs/node_modules/commander`) already came along with its parent.
-  if (fs.existsSync(dest)) return false;
-
-  // `@jini-ai/*` and `@tovu/sdk` are `file:`/workspace links whose real directories carry a pnpm
-  // symlink farm under `node_modules/`. Dereferencing that would drag in the entire pnpm store;
-  // dropping it makes their imports resolve from the staged root instead, which is where npm
-  // hoisted those same dependencies.
-  steps.stageDir(src, dest, fs.lstatSync(src).isSymbolicLink());
-  return true;
+/** The server may import declared runtime dependencies and the host's runtime workspaces. */
+function declaredRuntimePackages(layout: StageLayout, ports: StagePorts): Set<string> {
+  const workspaces = runtimeWorkspaces(layout, ports)
+    .map((directory) => readJson(ports.fs, path.join(directory, "package.json")).name as string);
+  return new Set([...ports.steps.declaredDependencies(layout.repoRoot), ...workspaces]);
 }
 
 /**
- * npm's hoisted view only covers the `@jini-ai/*` packages this repo names directly. Their imports
- * of each other — `@jini-ai/agent-runtime` needing `@jini-ai/platform`, which Tovu never mentions —
- * resolve in dev through Jini's own pnpm workspace links, which cannot ship. Staging every Jini
- * package flat puts all of them somewhere one upward walk can find.
- *
- * @returns the real source directory of each staged package, to seed the dependency closure.
+ * Stage only Tovu's runtime workspaces themselves, without their local dependency links.
+ * Jini packages are reached through declared edges by the existing transitive dependency walker:
+ * their pnpm symlink farms cannot ship or be copied wholesale into the payload.
+ * @returns Real workspace roots, which seed the declared closure alongside the root manifest.
+ * @complexity O(workspace files copied); sibling platform packages are never enumerated.
  */
-function stageJiniPackages(layout: StageLayout, { fs, steps }: StagePorts): string[] {
-  const anchor = path.join(layout.repoModulesDir, "@jini-ai", "core");
-  if (!fs.existsSync(anchor)) {
-    fail(`no @jini-ai/core under ${layout.repoModulesDir}; cannot locate the Jini packages.`);
+function stageWorkspacePackages(layout: StageLayout, ports: StagePorts): string[] {
+  const { fs, steps } = ports;
+  return runtimeWorkspaces(layout, ports).map((source) => {
+    const name = readJson(fs, path.join(source, "package.json")).name as string;
+    steps.stageDir(source, path.join(layout.outDir, "node_modules", name), true);
+    return fs.realpathSync(source);
+  });
+}
+
+/**
+ * Copy declared roots, preserving installed nested versions for ordinary npm packages.
+ * Linked workspaces omit their pnpm symlink farms: their declared edges are staged separately.
+ * @returns Source roots for the existing closure walker and the count actually copied.
+ * @throws {StagePayloadError} when a required root is missing.
+ * @complexity O(files in declared packages); never scans the Jini sibling directory.
+ */
+function stageRuntimePackages(layout: StageLayout, ports: StagePorts): { roots: string[]; count: number } {
+  const { fs, steps } = ports;
+  const roots = stageWorkspacePackages(layout, ports);
+  let count = roots.length;
+  for (const name of steps.declaredDependencies(layout.repoRoot)) {
+    if (isExcluded(name)) continue;
+    const source = path.join(layout.repoRoot, "node_modules", name);
+    if (!fs.existsSync(source)) fail(`Unresolved runtime dependency: ${layout.repoRoot} -> ${name}`);
+    roots.push(fs.realpathSync(source));
+    const destination = path.join(layout.outDir, "node_modules", name);
+    if (fs.existsSync(destination)) continue;
+    steps.stageDir(source, destination, fs.lstatSync(source).isSymbolicLink());
+    count += 1;
   }
-  // Derived from the link itself so it cannot drift from wherever Jini really is.
-  const packagesDir = path.dirname(fs.realpathSync(anchor));
-  const roots: string[] = [];
-  for (const entry of fs.readdirSync(packagesDir)) {
-    const src = path.join(packagesDir, entry);
-    const manifest = path.join(src, "package.json");
-    if (!fs.existsSync(manifest)) continue;
-    roots.push(src);
-    const dest = path.join(layout.outDir, "node_modules", readJson(fs, manifest).name);
-    if (fs.existsSync(dest)) continue;
-    steps.stageDir(src, dest, true);
-  }
-  return roots;
+  return { roots, count };
 }
 
 /** Replace one symlink with a dereferenced copy of what it points at; a dangling link is dropped.
@@ -310,11 +284,10 @@ function stageTree(layout: StageLayout, ports: StagePorts): number {
   // `package.json` is staged verbatim because `resolveCliEntry` reads `bin.tovu` from it in BOTH
   // modes — copying it is what keeps that function free of any packaged-mode branch at all.
   steps.stagePayloadFiles({ repoRoot: layout.repoRoot, outDir: layout.outDir });
-  const jiniRoots = stageJiniPackages(layout, ports);
-  const staged =
-    productionDependencyPaths(layout, ports).filter((name) => stagePackage(name, layout, ports)).length +
-    jiniRoots.length +
-    steps.stageTransitiveDependencies({ roots: jiniRoots, outDir: layout.outDir });
+  const runtime = stageRuntimePackages(layout, ports);
+  const staged = runtime.count + asRefusal(() => steps.stageTransitiveDependencies({
+    roots: runtime.roots, outDir: layout.outDir,
+  }));
   if (!fs.existsSync(path.join(layout.outDir, "node_modules", "better-sqlite3"))) {
     fail("staged tree has no better-sqlite3 — Tovu's CLI cannot open a site database without it.");
   }
@@ -375,7 +348,7 @@ function assertStagedTree(layout: StageLayout, ports: StagePorts, manifest: Runt
  * The bundled npm package (plan-desktop-bundled-npx-2026-09-24.md §5, §6 S5) — staged into its own
  * `staging/npm` tree, a SIBLING of `outDir` (`staging/tovu-payload`), not inside it: `npm` is a
  * devDependency of apps/desktop itself (package.json), never a runtime dependency of the Tovu
- * payload above, so it has nothing to do with `productionDependencyPaths()`. `electron-builder.yml`
+ * payload above, so it is staged separately from the declared runtime closure. `electron-builder.yml`
  * ships it via its own pair of `extraResources` entries at `Contents/Resources/npm/`.
  */
 function stageNpm(layout: StageLayout, ports: StagePorts): void {
@@ -397,7 +370,6 @@ export function runStagePayload({ repoRoot, desktopDir }: { repoRoot: string; de
   const layout: StageLayout = {
     repoRoot, desktopDir,
     outDir: path.join(desktopDir, "staging", "tovu-payload"),
-    repoModulesDir: path.join(repoRoot, "node_modules"),
   };
   const manifest = assertSourcePreconditions(layout, ports);
   const staged = stageTree(layout, ports);
@@ -413,8 +385,9 @@ export function runStagePayload({ repoRoot, desktopDir }: { repoRoot: string; de
     `stage-payload: stripped ${stripped.declaration} declarations, ${stripped.sourceMap} third-party source maps, ` +
       `${stripped.coverage} coverage reports (${megabytes(stripped.bytes)} MB on disk)\n`
   );
+  const targetLabels = targets.map((target) => `${target.platform}-${target.arch}`).join(" + ");
   ports.stdout.write(
-    `stage-payload: native prebuilds kept for ${targets.map((target) => `${target.platform}-${target.arch}`).join(" + ")} only; ` +
+    `stage-payload: native prebuilds kept for ${targetLabels} only; ` +
       `removed ${pruned.prebuilds} other-architecture prebuilds and ${pruned.buildInputs} from-source build inputs ` +
       `(${megabytes(pruned.bytes)} MB on disk)\n`
   );

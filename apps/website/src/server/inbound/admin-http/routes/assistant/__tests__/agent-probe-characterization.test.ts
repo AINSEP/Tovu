@@ -15,7 +15,7 @@ import { registerAdminAssistantTestAgentRoute } from "../test-agent.js";
 
 const agent: DetectedAgent = {
   id: "fixture-cli", name: "Fixture CLI", bin: "fixture-cli", versionArgs: ["--version"],
-  streamFormat: "text", available: true, authStatus: "ok", models: [{ id: "model-a", label: "Model A" }],
+  streamFormat: "text", available: true, authStatus: "ok", modelsSource: "live", models: [{ id: "model-a", label: "Model A" }],
 };
 
 function dependencies({ overrides = {} }: { overrides?: Partial<AssistantExecutionRouteDeps> }, _options = {}): AssistantExecutionRouteDeps {
@@ -85,7 +85,7 @@ for (const force of [undefined, false, "true", true]) {
       assert.deepEqual(events, [{ force: force === true }, "pending"]);
       assert.equal(capture.statusCode, 200);
       assert.deepEqual(capture.jsonBody, { data: [{
-        id: agent.id, label: agent.name, installed: true, models: agent.models, authStatus: "ok", discoveryPending: true,
+        id: agent.id, label: agent.name, installed: true, models: agent.models, modelsSource: "live", authStatus: "ok", discoveryPending: true,
       }] });
     } finally { await inventory.dispose({}); }
   });

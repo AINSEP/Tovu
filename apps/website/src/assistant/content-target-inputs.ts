@@ -2,7 +2,7 @@ import { DEFAULT_MAX_BATCH_ITEMS, requireInputRecord, requireString, ToolInputEr
 import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { findMediaByIdOrSlug, type MediaRepoPort } from "@jini-ai/cms/media";
-import { PERMANENT_DELETE_TOOLS } from "../contracts/headless/assistant-permanent-deletes-policy.js";
+import { PERMANENT_DELETE_TOOLS } from "../contracts/headless/index.js";
 
 interface ContentTarget { key: string; entityType: "post" | "media"; authorizationEntityType: string; slugAlias: boolean }
 export interface ContentTargetDeps {

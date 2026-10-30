@@ -11,7 +11,7 @@ function record(value: unknown): value is Record<string, unknown> {
 
 /** Diagnostic copy is a single bounded line, never an environment value. */
 function diagnosticText(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0 && value.length <= 2048 && !/[\r\n\x00-\x1f\x7f]/.test(value);
+  return typeof value === "string" && value.trim().length > 0 && value.length <= 2048 && !/[\x00-\x1f\x7f]/.test(value);
 }
 
 /** Accept only known boolean facts and a finite positive safe hop count. No truthy coercion. */

@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -113,7 +114,7 @@ function runScriptDbEquals(dbPath: string, extraArgs: string[] = [], envOverride
 async function seedWorkspaceAndIdentity(dbPath: string): Promise<void> {
   const seedDb = openContentDb(dbPath);
   seedDb.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
-  const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db: seedDb, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+  const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db: contentKernel(seedDb), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
   await identity.identityReady;
   seedDb.$client.close();
 }
@@ -129,7 +130,7 @@ test("backfill-reset-admin-password: dry run reports the target user and writes 
   assert.doesNotMatch(dryRunOutput, /RESTORE POINT CAPTURED/);
   const db = openContentDb(dbPath);
   try {
-    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db: contentKernel(db), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
     const repos: IdentityRepos = {
       transactions: identity.transactions, principals: identity.principalRepo, users: identity.userRepo,
@@ -183,7 +184,7 @@ test("backfill-reset-admin-password: --apply with a whitespace-only password ref
   // THE MANDATORY PROOF: assert on real state, not just the log line — the seed-default password
   // must still authenticate, confirming nothing was actually written.
   const db = openContentDb(dbPath);
-  const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+  const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db: contentKernel(db), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
   await identity.identityReady;
   const repos: IdentityRepos = {
       transactions: identity.transactions,
@@ -224,7 +225,7 @@ test("backfill-reset-admin-password: --apply resets the seeded owner's password 
 
   // Independent confirmation through the real login() path, not just the script's own claim.
   const db = openContentDb(dbPath);
-  const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+  const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db: contentKernel(db), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
   await identity.identityReady;
   const repos: IdentityRepos = {
       transactions: identity.transactions,
@@ -263,7 +264,7 @@ test("backfill-reset-admin-password: failed fresh verification exits nonzero and
   const prepared = openContentDb(dbPath);
   let wrongHash: string;
   try {
-    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db: prepared, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db: contentKernel(prepared), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
     wrongHash = await identity.passwordHasher.hash({ password: "fixture-substituted-password" });
   } finally {
@@ -315,7 +316,7 @@ test("backfill-reset-admin-password: failed fresh verification exits nonzero and
   }
   const db = openContentDb(dbPath);
   try {
-    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db: contentKernel(db), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
     const repos: IdentityRepos = {
       transactions: identity.transactions, principals: identity.principalRepo, users: identity.userRepo,

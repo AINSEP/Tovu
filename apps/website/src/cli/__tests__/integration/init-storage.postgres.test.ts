@@ -77,7 +77,7 @@ test("--storage-env: the site names the variable, keeps no secret, and its datab
   for (const name of ["content.db", "chat.db"]) assert.equal(fs.existsSync(path.join(dir, name)), false, `no ${name}`);
   const rows = await templateRows(dir, { kind: "postgres", secretRef: { env: URL_ENV } });
   assert.deepEqual(rows.workspaces, ["local-tovu"]);
-  assert.deepEqual(rows.posts, [], "a new Postgres site starts blank");
+  assert.deepEqual(rows.posts, ["blog"], "a new Postgres site keeps only the Blog listing page (0a91f011)");
   assert.deepEqual(rows.chats, []);
   await assertSiteOwnerLogin({ dir, password: "tovu-dev", rejectedPassword: "postgres-inherited-password-fixture" });
 });
@@ -102,7 +102,7 @@ test("sealed: the connection string is sealed in the site folder (0600, no plain
 
   const rows = await templateRows(dir, { kind: "postgres", secretRef: "site" });
   assert.deepEqual(rows.workspaces, ["local-tovu"]);
-  assert.deepEqual(rows.posts, [], "the sealed Postgres site stays blank after boot");
+  assert.deepEqual(rows.posts, ["blog"], "the sealed Postgres site keeps only the Blog listing page after boot (0a91f011)");
   await assertSiteOwnerLogin({ dir, password: adminPassword, rejectedPassword: "postgres-inherited-password-fixture" });
 });
 

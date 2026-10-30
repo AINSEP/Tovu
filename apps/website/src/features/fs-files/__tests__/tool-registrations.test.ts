@@ -233,11 +233,12 @@ test('a custom-root symlink replaced between validation and reading cannot estab
   fs.symlinkSync(safe, alias);
   const originalRealpath = fs.realpathSync;
   let aliasResolutions = 0;
-  t.mock.method(fs, 'realpathSync', (input, options) => {
+  t.mock.method(fs, 'realpathSync', (...args: Parameters<typeof originalRealpath>) => {
+    const [input] = args;
     if (String(input) === alias && ++aliasResolutions === 3) {
       fs.rmSync(alias); fs.symlinkSync(outside, alias);
     }
-    return originalRealpath(input, options);
+    return originalRealpath(...args);
   });
   const deps = toolDeps({ siteBinding: { dir: site }, resolveRoots: () => ({ ...roots, site, custom: alias }) });
   const handler = handlerFor(buildFsFilesRegistrations(deps), FS_READ_FILE_TOOL_ID);

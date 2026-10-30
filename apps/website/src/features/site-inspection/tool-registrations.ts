@@ -7,7 +7,7 @@ import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps } from "./liv
 import { buildDomainRegistrations, indexCatalogById, optionalNumber, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 
 import { SITE_INSPECTION_READ_PERMISSION, siteInspectionAgentToolCatalog } from "./agent-tools.js";
 import { toSiteCapabilitiesDeps, toSiteProfileDeps, type SiteInspectionToolDeps } from "./deps.js";
@@ -188,7 +188,7 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
  * `assistant/tool-registrations.ts` reaches it only through a type-only import of
  * `SiteInspectionToolDeps`.
  */
-export function contributeSiteInspectionTools(httpClient?: HttpClientPort): ToolContributor {
+export function contributeSiteInspectionTools(httpClient?: HttpClientPort): ToolContributor<SiteInspectionToolDeps, unknown> {
   return {
     domain: "site-inspection",
     build: deps => buildSiteInspectionRegistrations(deps, httpClient ? {

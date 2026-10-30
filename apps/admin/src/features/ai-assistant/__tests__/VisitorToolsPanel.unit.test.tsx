@@ -256,7 +256,7 @@ describe("VisitorToolsPanel", () => {
   });
 
   it("no Visitor tools handle is a direct (approval-free) page click", () => {
-    const policy = readFileSync(resolve(process.cwd(), "../website/src/contracts/headless/assistant-tool-approval-policy.ts"), "utf8");
+    const policy = readFileSync(resolve(process.cwd(), "../website/src/assistant/assistant-tool-approval-policy.ts"), "utf8");
     const direct = policy.slice(policy.indexOf("DIRECT_PAGE_HANDLES"), policy.indexOf("]);", policy.indexOf("DIRECT_PAGE_HANDLES")));
     expect(direct).not.toMatch(/visitor/);
   });

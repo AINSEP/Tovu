@@ -1,3 +1,4 @@
+import type { ImageCodecPort } from "@jini-ai/cms/media";
 /**
  * @file The shared core of every headless-Chromium capture in this server: one lazily launched
  * browser per owner, reused across captures and closed when idle, plus the JPEG encoding both
@@ -32,10 +33,9 @@ export async function importPlaywrightChromium(): Promise<{ launch(options: Reco
  * @complexity O(pixels) — one decode and one encode.
  */
 export async function encodeJpeg(
-  { image, maxWidth }: { image: Buffer; maxWidth: number },
+  { image, maxWidth, imageCodec }: { image: Buffer; maxWidth: number; imageCodec: ImageCodecPort },
   { quality = 72 }: { quality?: number } = {},
 ): Promise<{ bytes: Buffer; width: number; height: number }> {
-  const { default: sharp } = await import("sharp");
-  const { data, info } = await sharp(image).resize({ width: maxWidth, withoutEnlargement: true }).jpeg({ quality }).toBuffer({ resolveWithObject: true });
-  return { bytes: data, width: info.width, height: info.height };
+  const encoded = await imageCodec.encode({ source: image, format: "jpeg", quality, resize: { width: maxWidth, withoutEnlargement: true } });
+  return { ...encoded, bytes: Buffer.from(encoded.bytes) };
 }

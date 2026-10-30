@@ -30,7 +30,7 @@ test('vertical slice: a confirmed sheets_tab_modify rename registers, discloses,
 
   const input = { connectionRef: CONNECTION, spreadsheetId: SPREADSHEET, action: 'rename', sheetId: 7, title: 'Leads 2026' };
   const call = await startConfirmingCall(booted, 'p_google_workspace__sheets_tab_modify', input);
-  assert.deepEqual(call.rows.slice(2), [['Account', 'alice@example.test'], ['Affects', `spreadsheet ${SPREADSHEET}`], ['Affects', 'rename tab 7']]);
+  assert.deepEqual(call.rows, [['Connection ref', CONNECTION], ['Spreadsheet ID', SPREADSHEET], ['Action', 'rename'], ['Sheet ID', '7'], ['Title', 'Leads 2026'], ['Account', 'alice@example.test'], ['Affects', `spreadsheet ${SPREADSHEET}`], ['Affects', 'rename tab 7']]);
   assert.equal(batches.length, 0, 'nothing reaches Google before the person answers');
 
   call.answer('confirm');

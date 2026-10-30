@@ -49,6 +49,11 @@ export function saveFailureText(error: unknown): string {
   return errorMessage(error);
 }
 
+/** Keeps the last good preview on screen beside the failure. */
+function previewFailed(error: string): (current: EmailTemplateEditorController["preview"]) => EmailTemplateEditorController["preview"] {
+  return (current) => ({ data: current.data, error, pending: false });
+}
+
 /**
  * @param required.api - the Email API port; a fake in tests.
  * @param required.id - the template id from the route.
@@ -83,17 +88,17 @@ export function useEmailTemplateEditor(
   }, [loadedId]);
 
   useEffect(() => {
-    if (!loadedId) return;
+    if (!loadedId) return undefined;
     if (!html.trim()) {
       setPreview({ data: null, error: null, pending: false });
-      return;
+      return undefined;
     }
     let live = true;
     setPreview((current) => ({ ...current, pending: true }));
     const timer = setTimeout(() => {
       api.previewTemplate({ html, values, mode }).then(
         (data) => { if (live) setPreview({ data, error: null, pending: false }); },
-        (error: unknown) => { if (live) setPreview((current) => ({ data: current.data, error: errorMessage(error), pending: false })); },
+        (error: unknown) => { if (live) setPreview(previewFailed(errorMessage(error))); },
       );
     }, debounceMs);
     return () => { live = false; clearTimeout(timer); };

@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type Database from "better-sqlite3";
@@ -56,8 +57,8 @@ function harness(): Harness {
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
   const adapters = new Map<string, TrashAdapter>([
-    [POST_ENTITY_TYPE, createPostTrashAdapter(client)],
-    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(client)],
+    [POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel(client))],
+    [REDIRECT_ENTITY_TYPE, createRedirectTrashAdapter(contentKernel(client))],
   ]);
   const repo = new SqliteTrashRepo(client);
   let seq = 0;
@@ -281,7 +282,7 @@ test("adapters resolve at CALL time, not at registration time", async () => {
   );
 
   // Registered AFTER the service was built — a registration-time snapshot would miss this.
-  h.adapters.set(POST_ENTITY_TYPE, createPostTrashAdapter(h.client));
+  h.adapters.set(POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel(h.client)));
   const result = await h.trash.trash({
     workspaceId: WS,
     entityType: POST_ENTITY_TYPE,

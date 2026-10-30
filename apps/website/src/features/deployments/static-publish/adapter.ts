@@ -545,7 +545,7 @@ async function prepareFormDestination({ deps, input }: { deps: StaticPublishDeps
 }
 
 /** An external receiver: exported pages post to its address instead of the site's own path. @complexity O(HTML bytes). */
-function filesForReceiver({ files, submitUrl }: { files: DeployFile[]; submitUrl?: string | undefined }, _options = {}): DeployFile[] {
+function filesForReceiver({ files, submitUrl }: { files: DeployFile[]; submitUrl?: string }, _options = {}): DeployFile[] {
   return submitUrl ? rewriteFormActions({ files, submitUrl }) : files;
 }
 

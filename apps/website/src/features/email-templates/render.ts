@@ -74,7 +74,7 @@ export function escapeHtml({ value }: { value: string }, _optional: Record<strin
  * @complexity O(n) in the text length.
  */
 export function fillPlaceholders(
-  { text, values, escape }: { text: string; values: EmailFieldValues; escape: (value: string) => string },
+  { text, values, escape: escapeValue }: { text: string; values: EmailFieldValues; escape: (value: string) => string },
   _optional: Record<string, never> = {},
 ): FilledText {
   const missing = new Set<string>();
@@ -84,7 +84,7 @@ export function fillPlaceholders(
       return "";
     }
     // Own keys contain strings by contract; the default also makes the indexed read explicit.
-    return escape(values[name] ?? "");
+    return escapeValue(values[name] ?? "");
   });
   return { text: filled, missingFields: [...missing] };
 }
@@ -129,10 +129,15 @@ function* elementsIn(root: ParentNode, _options: Record<string, never> = {}): Ge
     // Array length checks do not narrow pop() or indexed reads under the desktop config.
     if (node === undefined) continue;
     if (isElement(node)) yield node;
-    for (let i = node.childNodes.length - 1; i >= 0; i--) {
-      const child = node.childNodes[i];
-      if (child !== undefined && "childNodes" in child) pending.push(child);
-    }
+    queueChildParents({ node, pending });
+  }
+}
+
+/** Reverse insertion preserves document order on the traversal's stack. */
+function queueChildParents({ node, pending }: { node: ParentNode; pending: ParentNode[] }, _options = {}): void {
+  for (let i = node.childNodes.length - 1; i >= 0; i--) {
+    const child = node.childNodes[i];
+    if (child !== undefined && "childNodes" in child) pending.push(child);
   }
 }
 

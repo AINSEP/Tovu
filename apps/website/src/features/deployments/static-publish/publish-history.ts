@@ -182,10 +182,11 @@ export function publicPublishConfigFields(input: {
 }, _options: Record<string, never> = {}): Record<string, string> {
   const credential = input.descriptor.credential;
   return Object.fromEntries(input.descriptor.configFields
-    .filter(field => !field.secret && field.name !== "target" && field.name !== "credentialId"
-      && field.name !== "projectName" && field.name !== credential?.tokenField
-      && !credential?.fields.some(candidate => candidate.name === field.name)
-      && typeof input.config[field.name] === "string")
+    .filter(field => {
+      if (field.secret || ["target", "credentialId", "projectName"].includes(field.name)) return false;
+      if (field.name === credential?.tokenField || credential?.fields.some(candidate => candidate.name === field.name)) return false;
+      return typeof input.config[field.name] === "string";
+    })
     .map(field => [field.name, input.config[field.name] as string]));
 }
 
@@ -207,7 +208,8 @@ export async function listStaticPublishDestinations(input: {
 function staticDestinations(input: { rows: readonly PublishHistoryEntry[]; registry: DeployTargetRegistry }): StaticPublishDestination[] {
   return input.rows.flatMap(row => {
     const target = input.registry.get(row.target);
-    if ((row.kind ?? "static") !== "static" || !row.reachable || row.configFields === undefined || target === undefined) return [];
+    if ((row.kind ?? "static") !== "static" || !row.reachable) return [];
+    if (row.configFields === undefined || target === undefined) return [];
     return [{
       id: `static:${encodeURIComponent(row.target)}:${encodeURIComponent(row.projectName)}`,
       kind: "static" as const,
@@ -289,7 +291,7 @@ function deployDestination({ row, peers }: {
 }, _options: Record<string, never> = {}): Extract<PublishDestination, { kind: "deploy" }> {
   const pendingDeploy = row.status === "started";
   // Normalized addresses match root URLs with or without a trailing slash, never by hostname alone.
-  const peer = peers.find(candidate => candidate.baseUrl.replace(/\/+$/, "") === row.url.replace(/\/+$/, ""));
+  const peer = peers.find(candidate => candidate.baseUrl.replace(/(?<!\/)\/+$/, "") === row.url.replace(/(?<!\/)\/+$/, ""));
   return { id: `deploy:${encodeURIComponent(row.target)}:${encodeURIComponent(row.projectName)}`,
     kind: "deploy", target: row.target, label: row.projectName, url: row.url,
     // Acceptance alone never claims a live site, including rows written before this guard.

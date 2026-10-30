@@ -7,7 +7,7 @@ import path from "node:path";
 import { createNativeAgentRuntime, getAgentDef, AGENT_DEFS, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createRunLifecycle, createInMemoryEventLog, type createAgentExecutor } from "@jini-ai/daemon";
 import { createDesktopAgentRuntime, resolveDesktopTurnAccess } from "./desktop-agent.ts";
-import { assistantCliPermissions } from "../../website/src/contracts/headless/assistant-subagents-policy.ts";
+import { assistantCliPermissions } from "../../website/src/assistant/assistant-subagents-policy.ts";
 import { startDesktopChat } from "./desktop-chat-main.ts";
 import { AGENT_INVENTORY_IPC, type ChatIpcMain } from "./workspace-chat-ipc.ts";
 

@@ -112,7 +112,7 @@ test("Grafana Cloud requires an instance ID on save, boot and status; a kept tok
   ];
   const cloudDeclaration = { ...declaration, settings: cloudFields };
   for (const auth of [undefined, "grafana-cloud"]) {
-    const settings = auth ? { auth } : {};
+    const settings: Readonly<Record<string, string>> = auth ? { auth } : {};
     const f = fixture({ settings, secrets: { token: "fixture-token" } });
     assert.deepEqual(await saveProviderSettings({ config: f.config, pluginId, fields: cloudFields, values: { token: "" } }), { refusal: { code: "PROVIDER_SETTINGS_REQUIRED", error: "Instance ID is required." } });
     assert.equal(f.writes(), 0);

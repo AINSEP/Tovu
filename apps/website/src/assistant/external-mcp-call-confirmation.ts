@@ -68,9 +68,10 @@ export function buildFederatedCallConfirmSpec(request: FederatedPolicyConfirmati
 /** Per-call consent and irreversible-deletion wording are separate decisions. Jini still refuses
  * remembered grants; these CMS cards describe the real action instead of relabeling it a delete. */
 function actionConfirmSpec(spec: HumanConfirmSpec, request: FederatedPolicyConfirmationRequest): HumanConfirmSpec {
-  const action = request.approvalClass === 'publish' ? 'publishes, unpublishes or deploys content'
-    : request.approvalClass === 'trash' ? 'moves data to Trash'
-    : request.approvalClass === 'restore-over-existing' ? 'restores over existing data' : undefined;
+  let action: string | undefined;
+  if (request.approvalClass === 'publish') action = 'publishes, unpublishes or deploys content';
+  if (request.approvalClass === 'trash') action = 'moves data to Trash';
+  if (request.approvalClass === 'restore-over-existing') action = 'restores over existing data';
   return action ? { ...spec, danger: request.approvalClass !== 'publish',
     warning: `This action ${action} in ${request.connectionLabel}. Approval applies to this call only.`,
   } : spec;

@@ -382,6 +382,7 @@ export const media = pgTable("media", {
   caption: text("caption").notNull(),
   credit: text("credit").notNull(),
   sourceSha256: text("source_sha256").notNull(),
+  sourceMetadataJson: jsonText("source_metadata_json"),
   status: text("status").notNull(),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),

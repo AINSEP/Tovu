@@ -15,7 +15,7 @@ import { isMainThread, parentPort, workerData } from "node:worker_threads";
 import { pluginHostBinding } from "../../../features/plugin-runtime/host-binding.js";
 import { runTier2Call } from "@jini-ai/plugins/host/worker";
 import type { Tier2Request } from "@jini-ai/plugins/host/worker";
-import { registerPluginSdkResolver } from "../boot/plugin-sdk-resolver.js";
+import { registerPluginSdkResolver } from "../../../features/plugin-runtime/sdk-resolver.js";
 
 export interface Tier2WorkerMainRequired {
   /** The `Tier2Request` the host posted as `workerData` (built by the server from a validated manifest). */

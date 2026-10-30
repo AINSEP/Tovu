@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -81,7 +82,7 @@ test("dataModule refuses insufficient headroom before snapshot or plugin DDL", a
     const prepare = db.prepare.bind(db);
     t.mock.method(db, "prepare", (sql: string) => { statements.push(sql); return prepare(sql); });
     const result = await declareDataModule({
-      db, dbPath,
+      db: contentKernel(db), dbPath,
       decl: {
         pluginId: "headroom", pluginTier: "tier-2",
         provenance: { sourceUrl: "test://headroom", publisher: "test" },

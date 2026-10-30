@@ -157,9 +157,11 @@ export function assertPackagedChatEvidence(
       record(server) && server.name === "jini" && server.status === "connected"));
   if (!connected) throw new PackagedChatSmokeError("The init frame did not report jini connected.");
   const tools = events.filter(event => event.kind === "tool_use");
-  const delegated = tools.find(event => ["mcp__jini__execute_readonly_delegated_tool", "mcp__jini__execute_delegated_tool"].includes(String(event.name))
-    && record(event.input) && event.input.toolId === "site_guide"
-    && record(event.input.input) && event.input.input.operation === "overview");
+  const delegated = tools.find(event => {
+    if (!["mcp__jini__execute_readonly_delegated_tool", "mcp__jini__execute_delegated_tool"].includes(String(event.name))) return false;
+    if (!record(event.input) || event.input.toolId !== "site_guide") return false;
+    return record(event.input.input) && event.input.input.operation === "overview";
+  });
   assertPackagedSiteGuideResult({ events, delegated });
   if (row.content.trim() !== "DONE") throw new PackagedChatSmokeError("The packaged chat reply was not exactly DONE.");
   if (!daemonLogMessages(daemonLog).some(message => /^.*\[agent-daemon\] jini bridge preflight ok \(\d+ms\)\s*$/.test(message))) {

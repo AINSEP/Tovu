@@ -3,13 +3,17 @@ import {
   type FormDeliveryJob, type FormDeliveryPlan, type FormDeliveryPlanPort,
   type FormPullClaim, type FormPullLeasePort, type FormPullRefusal, formDeliveryStatusFromOutbox,
 } from "@jini-ai/cms/forms";
-import { DELIVERY_STATUS_MAX_LIMIT, type FormDeliveryStatusRow } from "#src/features/forms/index";
+import { DELIVERY_STATUS_MAX_LIMIT, type FormDeliveryStatusRow } from "#src/contracts/headless/index";
 
 import type { Kysely } from "kysely";
 
 import type { ContentDatabase } from "../content-database.generated.js";
 import type { ContentKernel } from "../content-kernel.js";
 import { outboxEventValues } from "./outbox-repo.js";
+
+const JOB_WORKSPACE_ID = "j.workspace_id";
+const JOB_SUBMISSION_ID = "j.submission_id";
+
 
 /**
  * @file SQL adapters (one Kysely body for SQLite and Postgres) for durable form delivery
@@ -39,9 +43,9 @@ interface StatusSqlRow {
 function statusQuery(db: Kysely<ContentDatabase>, workspaceId: string) {
   return db.selectFrom("form_delivery_jobs as j")
     .innerJoin("outbox_events as o", "o.id", "j.job_id")
-    .innerJoin("form_delivery_plans as p", join => join.onRef("p.workspace_id", "=", "j.workspace_id").onRef("p.submission_id", "=", "j.submission_id"))
-    .select(["j.binding_id", "j.adapter_id", "p.form_id", "j.submission_id", "o.status", "o.attempts", "o.next_attempt_at", "o.last_error"])
-    .where("j.workspace_id", "=", workspaceId);
+    .innerJoin("form_delivery_plans as p", join => join.onRef("p.workspace_id", "=", JOB_WORKSPACE_ID).onRef("p.submission_id", "=", JOB_SUBMISSION_ID))
+    .select(["j.binding_id", "j.adapter_id", "p.form_id", JOB_SUBMISSION_ID, "o.status", "o.attempts", "o.next_attempt_at", "o.last_error"])
+    .where(JOB_WORKSPACE_ID, "=", workspaceId);
 }
 
 /** The job's outbox columns once its submission is purged: answers blanked, and an unfinished job
@@ -110,7 +114,7 @@ export class SqlFormDeliveryRepo implements FormDeliveryPlanPort {
     if (!row) return null;
     const jobs = await this.required.kernel.run(db => db.selectFrom("form_delivery_jobs as j")
       .innerJoin("outbox_events as o", "o.id", "j.job_id").select("o.event_json")
-      .where("j.workspace_id", "=", workspaceId).where("j.submission_id", "=", submissionId).orderBy("j.job_id").execute());
+      .where(JOB_WORKSPACE_ID, "=", workspaceId).where(JOB_SUBMISSION_ID, "=", submissionId).orderBy("j.job_id").execute());
     return { workspaceId, submissionId, formId: row.form_id, jobs: jobs.map(job => JSON.parse(job.event_json) as DomainEvent<FormDeliveryJob>) };
   }
 
@@ -144,10 +148,10 @@ export class SqlFormDeliveryRepo implements FormDeliveryPlanPort {
     const { workspaceId, purged } = required;
     const [column, id] = "submissionId" in purged ? ["p.submission_id", purged.submissionId] as const : ["p.form_id", purged.formId] as const;
     const jobs = await kernel.run(db => db.selectFrom("form_delivery_jobs as j")
-      .innerJoin("form_delivery_plans as p", join => join.onRef("p.workspace_id", "=", "j.workspace_id").onRef("p.submission_id", "=", "j.submission_id"))
+      .innerJoin("form_delivery_plans as p", join => join.onRef("p.workspace_id", "=", JOB_WORKSPACE_ID).onRef("p.submission_id", "=", JOB_SUBMISSION_ID))
       .innerJoin("outbox_events as o", "o.id", "j.job_id")
       .select(["o.id", "o.event_json", "o.status"])
-      .where("j.workspace_id", "=", workspaceId).where(column, "=", id).execute());
+      .where(JOB_WORKSPACE_ID, "=", workspaceId).where(column, "=", id).execute());
     for (const job of jobs) {
       await kernel.run(db => db.updateTable("outbox_events").set(purgedJobColumns(job)).where("id", "=", job.id).execute());
     }
@@ -159,7 +163,7 @@ export class SqlFormDeliveryRepo implements FormDeliveryPlanPort {
    */
   async forSubmission(required: { workspaceId: string; submissionId: string }, _optional: Record<string, never> = {}): Promise<FormDeliveryStatusRow[]> {
     const { kernel } = this.required;
-    const rows = await kernel.run(db => statusQuery(db, required.workspaceId).where("j.submission_id", "=", required.submissionId)
+    const rows = await kernel.run(db => statusQuery(db, required.workspaceId).where(JOB_SUBMISSION_ID, "=", required.submissionId)
       .orderBy("j.binding_id").execute());
     return rows.map(toStatusRow);
   }

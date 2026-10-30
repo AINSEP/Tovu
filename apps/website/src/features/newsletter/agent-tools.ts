@@ -5,6 +5,8 @@
  * Bulk subscription import remains unavailable to the assistant.
  */
 import { PREHEADER_MAX, SUBJECT_MAX, SUBJECT_MIN } from "./campaign-write-service.js";
+
+const MUTATES_DURABLE_STATE = "mutates-durable-state" as const;
 /** Bulk import stays absent: 1-500 imported contacts can each trigger a real confirmation email,
  * so one call creates third-party mail at scale. Single-contact adds send double-opt-in links,
  * never campaign content or an assertion of consent. Pause/unsubscribe only narrow delivery.
@@ -12,7 +14,7 @@ import { PREHEADER_MAX, SUBJECT_MAX, SUBJECT_MIN } from "./campaign-write-servic
  * The catalog declares permissions but performs no authorization; registration handlers must
  * check them explicitly because Newsletter domain services do not authorize themselves. */
 
-export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
+export type AgentToolSideEffect = "none" | typeof MUTATES_DURABLE_STATE | "mints-token";
 
 export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
 
@@ -135,7 +137,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
     name: "newsletter_create_campaign",
     description:
       "Creates a new newsletter campaign in 'draft' status. Returns {campaign}. Use newsletter_update_campaign to edit it, newsletter_send_test for an owner-only test, or newsletter_send_campaign/newsletter_schedule_campaign for a human-confirmed subscriber send. Refuses an unknown list or invalid editorial fields.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "admin.newsletter.campaign.compose" },
     inputSchema: {
       type: "object",
@@ -148,7 +150,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
     name: "newsletter_update_campaign",
     description:
       "Edits an existing campaign's editorial fields (subject/preheader/fromName/fromEmail/replyTo/listId). Only works while the campaign is 'draft' — refused once it is scheduled or beyond. A partial patch: omitted fields keep their current value. Never changes status.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "admin.newsletter.campaign.compose" },
     inputSchema: {
       type: "object",
@@ -161,7 +163,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
     name: "newsletter_cancel_campaign",
     description:
       "Cancels a 'draft' or 'scheduled' campaign, terminally taking it out of the send pipeline before it ever sends. This is a safety/rollback action — it never causes mail to go out, only prevents it. Cannot cancel a campaign that is already 'sending' or 'sent'.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "admin.newsletter.campaign.compose" },
     inputSchema: {
       type: "object",
@@ -174,7 +176,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
     name: "newsletter_pause_campaign",
     description:
       "Pauses a campaign that is actively 'sending', halting remaining recipients without a confirmation card. An in-flight recipient may finish. Returns {campaign}. Use newsletter_resume_campaign to resume with human confirmation. Refuses campaigns that are not sending.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "admin.newsletter.campaign.send" },
     inputSchema: {
       type: "object",
@@ -188,7 +190,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "newsletter_create_list",
     description: "Creates a new subscriber list with a unique name and slug. Always created active, never the default list.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "admin.newsletter.list.manage" },
     inputSchema: {
       type: "object",
@@ -203,7 +205,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "newsletter_archive_list",
     description: "Archives a subscriber list. The workspace's default 'all subscribers' list can never be archived and is refused.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "admin.newsletter.list.manage" },
     inputSchema: {
       type: "object",
@@ -218,7 +220,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
     name: "newsletter_create_subscription",
     description:
       "Adds a single existing Members subscriber to a list, creating a 'pending' subscription and emailing them ONE double-opt-in confirmation link (they must still click it to become 'subscribed'). subscriberId must resolve to an existing Members principal. Never sends marketing content — only the confirmation link.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "admin.newsletter.subscriber.manage" },
     inputSchema: {
       type: "object",
@@ -235,7 +237,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
     name: "newsletter_remove_subscription",
     description:
       "Unsubscribes one existing subscription (admin-triggered removal, by id — not a caller-supplied email). Idempotent: removing an already-unsubscribed subscription is a no-op success. This only ever narrows a subscriber's access to future sends, never grants or re-adds it.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "admin.newsletter.subscriber.manage" },
     inputSchema: {
       type: "object",
@@ -251,7 +253,7 @@ export const newsletterAgentToolCatalog: AgentToolDefinition[] = [
     name: "newsletter_resend_confirmation",
     description:
       "Resends a double-opt-in link directly. Invalidates prior links for a pending subscription. Returns {delivered:true,mailDeliveryAvailable:true} as a privacy-preserving acknowledgement, without revealing whether the subscription/contact exists or guaranteeing delivery, or {delivered:false,mailDeliveryAvailable:false,note} when mail is off and nothing was sent. Requires subscriber-management permission.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "admin.newsletter.subscriber.manage" },
     inputSchema: {
       type: "object",

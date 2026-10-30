@@ -628,9 +628,11 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
         const type = (error as { type?: unknown } | null)?.type;
         const oversized = type === "entity.too.large";
         const invalid = type === "entity.parse.failed";
+        const fallbackStatus = invalid ? 400 : 500;
+        const fallbackCode = invalid ? "VALIDATION" : "unavailable";
         respondPublicError({
-          res, status: oversized ? 413 : invalid ? 400 : 500, reportError: reporter,
-          code: oversized ? "PAYLOAD_TOO_LARGE" : invalid ? "VALIDATION" : "unavailable", diagnostic: error,
+          res, status: oversized ? 413 : fallbackStatus, reportError: reporter,
+          code: oversized ? "PAYLOAD_TOO_LARGE" : fallbackCode, diagnostic: error,
         });
       };
       app.use(CHAT_PATH, handleBodyError);
@@ -686,8 +688,9 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
         // that already succeeded, which is harmless but produces alarming logs.
         const abort = new AbortController();
         res.on("close", () => { if (!res.writableEnded) abort.abort(); });
+        const reportPolicyError = (error: unknown) => { reportError({ code: "visitor_tools_policy", diagnostic: error }); };
         const readPolicy = () => readVisitorToolPolicy({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId,
-          reportError: error => { reportError({ code: "visitor_tools_policy", diagnostic: error }); } });
+          reportError: reportPolicyError });
         // MOVE: Rollback returns to the reviewed literal registry without deleting any saved choices.
         const visitorExecution = env.TOVU_VISITOR_TOOLS_POLICY === "off" ? undefined : {
           initialPolicy: await readPolicy(), readPolicy, budgets: visitorToolBudgets,
@@ -746,6 +749,8 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
               // visitor, rather than thrown, which would kill the whole stream over one bad lookup.
               const publicError = reportError({ code: "unavailable", diagnostic: outcome.error });
               return { content: publicError.message, isError: true };
+            // Preserve the undefined fallback for runtime inputs outside this exhaustive union.
+            default: return undefined as never;
           }
         };
 
@@ -792,7 +797,9 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
             // fourth kind of tool echo.
             if (event.type === "text_delta") sse(res, "text", { delta: event.delta });
             else if (event.type === "error") { runOutcome = "failed"; sse(res, "error", reportError({ code: "provider_error", diagnostic: event.message })); }
-            else if (event.type === "end") sse(res, "end", { reason: event.reason });
+            else {
+              if (event.type === "end") sse(res, "end", { reason: event.reason });
+            }
           },
         });
         } catch (error) { runOutcome = abort.signal.aborted ? "cancelled" : "failed"; throw error; }

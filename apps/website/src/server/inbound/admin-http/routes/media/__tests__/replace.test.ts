@@ -54,7 +54,8 @@ test('replace preserves identity/editorial metadata and atomically switches the 
   const result = await invoke({ deps, id: media.id });
   assert.equal(result.status, 200);
   const saved = await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: media.id });
-  assert.deepEqual(saved, { ...media, source: { sha256: hash }, updatedAt: '2026-10-03T12:00:00.000Z', version: media.version + 1 });
+  assert.deepEqual(saved, { ...media, source: { sha256: hash, contentType: 'image/png', provenance: { kind: 'upload', path: 'replacement.png' } },
+    updatedAt: '2026-10-03T12:00:00.000Z', version: media.version + 1 });
   assert.equal((await deps.mediaRepo.list({ workspaceId: deps.workspaceId })).length, 1);
   assert.equal(result.json.media.id, media.id); assert.equal(result.json.media.slug, media.slug);
   assert.equal(result.json.media.contentType, 'image/png');
@@ -111,7 +112,7 @@ test('replace sanitizes SVG before switching its source and preserves the media 
   assert.equal(result.status, 200);
   assert.equal(result.json.media.id, media.id);
   assert.equal(result.json.media.version, media.version + 1);
-  assert.equal(result.json.media.publicUrl, `/m/${media.slug}/original.svg`);
+  assert.equal(result.json.media.publicUrl, `/m/${media.slug}/original.svg?v=${result.json.media.sha256.slice(0, 12)}`);
   const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: result.json.media.sha256 });
   assert.ok(blob);
   const bytes = await deps.blobStore.get({ storageKey: blob.storageKey });

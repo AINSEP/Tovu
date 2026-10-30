@@ -2,3 +2,4 @@
 export { SqliteRedirectRepo } from "./repo.sqlite.js";
 export { registerRedirectsPhaseHandlers } from "./phase-handler.js";
 export type { RegisterRedirectsPhaseHandlersDeps } from "./phase-handler.js";
+export { REDIRECT_TABLES } from "./repo.sqlite.js";

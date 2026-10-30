@@ -29,6 +29,15 @@ test("an empty database is built at head with both ledgers in step order", () =>
   for (const added of ["publish_backstop_log", "form_submissions", "media", "secrets_vault", "oauth_device_authorizations"]) assert.equal(names.includes(added), true, added);
 }));
 
+test("0036 records the Postgres-only conversion while SQLite keeps nullable config text", () => withDb(db => {
+  bootstrapFreshContentDb({ db });
+  const column = db.$client.prepare("SELECT type, [notnull] FROM pragma_table_info('publish_history') WHERE name = 'config_fields_json'").get();
+  assert.deepEqual(column, { type: "TEXT", notnull: 0 });
+  const step = CONTENT_MIGRATIONS.find(step => step.id === "0036_publish_history_config_jsonb")!;
+  const entry = db.$client.prepare("SELECT id, checksum FROM tovu_migrations WHERE id = ?").get(step.id);
+  assert.deepEqual(entry, { id: step.id, checksum: step.checksum });
+}));
+
 test("0006 relaxes form_submissions.source_ip and keeps the table's indexes", () => withDb(db => {
   bootstrapFreshContentDb({ db });
   const sourceIp = (db.$client.prepare("PRAGMA table_info(form_submissions)").all() as Array<{ name: string; notnull: number }>).find(column => column.name === "source_ip");

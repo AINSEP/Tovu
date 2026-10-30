@@ -150,7 +150,13 @@ export {
 export { getSettingsAgentToolCatalog } from "@jini-ai/core/settings";
 export type { AgentToolDefinition } from "@jini-ai/core";
 
-export { ensureFeatureFlag, readFeatureFlag, FEATURE_FLAGS_NAMESPACE, type FeatureFlagDefinition } from './feature-flags.js';
 export { ensureFormDeliverySettings, parseFormDeliveryBindings, readFormDeliveryBindings, readFormsAutoPull } from "./form-delivery.js";
 export { ensureMailSenderSettings, readMailSenderSetting, MAIL_SENDER_NAMESPACE, MAIL_SENDER_EMAIL_KEY, MAIL_SENDER_NAME_KEY } from "./mail-sender.js";
 export { writeFormDeliveryBindings, FormDeliveryBindingsConflictError } from "./form-delivery-write.js";
+
+export type { MailTestModeSetting } from "./mail-provider.js";
+export { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "./site-title.js";
+export { VisitorToolsRevisionConflictError } from "./visitor-tools-write.js";
+export { ADMIN_INTERFACE_NAMESPACE, PREFER_SUBAGENTS_KEY, REPLY_LENGTH_KEY, USE_CLAUDE_IN_CHROME_KEY } from "./admin-interface.js";
+
+export { resolveOperatorLocale } from "./operator-locale.js";

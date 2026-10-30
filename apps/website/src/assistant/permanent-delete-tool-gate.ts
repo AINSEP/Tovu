@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
-import { DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS, isChatToolAllowed, type AssistantPermanentDeletesPolicy } from "../contracts/headless/assistant-permanent-deletes-policy.js";
+import { DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_TOOLS, type AssistantPermanentDeletesPolicy } from "../contracts/headless/index.js";
+import { isChatToolAllowed } from "./assistant-permanent-deletes-policy.js";
 /** The complete boot catalog contains eligible handlers, never the two forbidden ones. */
 export const ALL_CHAT_DELETE_TOOLS = { enabled: true, allowedToolIds: PERMANENT_DELETE_TOOLS.map(tool => tool.id) };
 /** Filter discovery before results/schemas reach the model. Overfetch the bounded withheld set

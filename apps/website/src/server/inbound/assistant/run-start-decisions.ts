@@ -1,4 +1,4 @@
-import type { DurableRun } from "#src/assistant/durable-runs/ports";
+import type { DurableRun } from "#src/assistant/session-services";
 
 /**
  * @file Pure decisions `agent-daemon-server.ts` makes while starting a run: which stored session

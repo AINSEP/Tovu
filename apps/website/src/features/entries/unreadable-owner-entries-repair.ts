@@ -1,7 +1,6 @@
-import { WIDGET_REGION_BINDINGS_TABLE } from "../widgets/repo.sqlite.js";
+import { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import { kernelStampWatermark } from "../../platform/db/watermark-kernel.js";
-import { DECLARED_CONTENT_TYPE_OWNERS } from "../content-types/declared-owners.js";
+import { DECLARED_CONTENT_TYPE_OWNERS } from "../content-types/index.js";
 import { buildTrashRegistry, createTableTrashAdapter, type TrashAdapter, type TrashEntry } from "../trash/index.js";
 
 /**
@@ -124,7 +123,7 @@ function parseFields(raw: string): unknown {
  * @complexity O(n) in the declared-owner types' live rows, once per site; each removal O(1) statements.
  */
 export async function removeUnreadableOwnerEntries(
-  required: { kernel: ContentKernel },
+  required: { kernel: ContentKernel; stampWatermark: () => Promise<void> },
   optional: { removalFor?: (type: string) => OwnerEntryRemoval; log?: (line: string) => void; now?: () => string } = {}
 ): Promise<{ ran: boolean; removed: RemovedOwnerEntry[] }> {
   const { kernel } = required;
@@ -162,7 +161,7 @@ export async function removeUnreadableOwnerEntries(
       removed.push({ workspaceId: row.workspace_id, id: row.id, type: row.type, via });
     }
 
-    if (removed.length > 0) await kernelStampWatermark(kernel)();
+    if (removed.length > 0) await required.stampWatermark();
     const value = { completedAt: at, removed, hardDeleteReason: UNREADABLE_OWNER_ENTRIES_HARD_DELETE_REASON };
     await kernel.run((db) =>
       db

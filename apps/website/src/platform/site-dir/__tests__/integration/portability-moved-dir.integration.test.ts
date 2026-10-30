@@ -8,8 +8,8 @@ import test from "node:test";
 import { eq } from "drizzle-orm";
 
 import { posts, presentationSettings } from "#src/platform/db/schema.sqlite";
-import { initSite } from "../../init-site.js";
-import { bootSiteDir, closeSiteDirBoot } from "../../boot-site-dir.js";
+import { initSite, bootSiteDir } from "#src/server/runtime/composition/site-dir";
+import { closeSiteDirBoot } from "../../boot-site-dir.js";
 
 /**
  * @file SPEC-003 REQ-08/AC-10 (portability — moved/renamed install dirs) — TDD certification,

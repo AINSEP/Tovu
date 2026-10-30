@@ -29,7 +29,8 @@ export interface ServerLogMetadata {
 }
 
 export interface ServerLogEntry extends ServerLogMetadata {
-  /** Monotonic within one process; lets a reader page forward without duplicates. */
+  /** Monotonic within one process; lets a reader page forward without duplicates.
+   * Total lines ever appended, including ones already dropped by the caps. */
   readonly seq: number;
   /** ISO-8601 time the line was captured. */
   readonly at: string;
@@ -49,8 +50,6 @@ export interface ServerLogBuffer {
   append(input: ServerLogAppendInput): ServerLogEntry;
   /** Oldest first. A copy: callers may not mutate the buffer through it. */
   entries(): readonly ServerLogEntry[];
-  /** Total lines ever appended, including ones already dropped by the caps. */
-  appendedCount(): number;
   /** Called with each stored (redacted) entry; returns unsubscribe. A throwing listener is ignored. */
   subscribe(listener: (entry: ServerLogEntry) => void): () => void;
 }
@@ -130,7 +129,6 @@ export function createLogBuffer(required: CreateLogBufferRequired, optional: Cre
       return entry;
     },
     entries: () => items.slice(head),
-    appendedCount: () => seq,
     subscribe(listener) {
       listeners.add(listener);
       return () => { listeners.delete(listener); };

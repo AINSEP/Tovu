@@ -17,6 +17,7 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
 import { resolveMarketingPageOrOverride } from "../pages.js";
 import { registerResolvePhase } from "#src/platform/routing/adapter";
 import { registerPageHeadContributor } from "../../../http/site/page-head.js";
+import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
 
 /**
  * @file Regression coverage for the "brand-new workspace, no seeded content" 500 on the public
@@ -475,7 +476,8 @@ test("GET / 500s with a generic 'Site error' when an unexpected exception is thr
 
   const res = await fetch(baseUrl);
   assert.equal(res.status, 500);
-  assert.equal(await res.text(), "<h1>Site error</h1>", "the exact bare fallback body, not merely a 500 status");
+  const { contentHtml } = assertDefaultConsentPage({ html: await res.text() });
+  assert.equal(contentHtml, "<h1>Site error</h1>", "the exact fallback body plus the default consent block, not merely a 500 status");
 });
 
 /**

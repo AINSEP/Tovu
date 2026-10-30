@@ -83,7 +83,8 @@ const rejectionIssue = ({ relativePath, rejection }: { relativePath: string; rej
 function isGalleryMarker({ marker }: { marker: Marker }): boolean {
   const type = marker.type.toLowerCase();
   const { content, items, html } = marker.config;
-  return type === "gallery" || (type === "media" && (content !== undefined || items !== undefined || html !== undefined));
+  if (type === "gallery") return true;
+  return type === "media" && [content, items, html].some(value => value !== undefined);
 }
 
 function galleryIssues({ relativePath, marker }: { relativePath: string; marker: Marker }): Issue[] {

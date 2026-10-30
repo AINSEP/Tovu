@@ -1,8 +1,9 @@
+import { sqliteForeignKeyCheckedTransaction, sqliteTableInfo } from "#src/platform/db/kernel/sqlite-only";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { createRawRowSqlitePort } from "#src/platform/db/sqlite/publish-backstop-row.sqlite";
+import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
 import type { BackstopPorts } from "#src/features/publish-content/backstop-ports";
 import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
-import { createRawFileSitePort } from "#src/platform/site-dir/publish-backstop-file";
+import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
 import type { BlobStorePort } from "#src/features/media/index";
 import type { FileBlobIndexPort } from "#src/features/publish-content/file-blob-index";
 import { createBackstopAuditSqlitePort } from "#src/platform/db/sqlite/publish-backstop-audit.sqlite";
@@ -15,7 +16,7 @@ export function buildPublishBackstopPorts(
 ): BackstopPorts {
   const contributors = listPublishContentContributors();
   return {
-    ...(contentKernel?.dialect === "sqlite" ? { rows: createRawRowSqlitePort({ kernel: contentKernel }) } : {}),
+    ...(contentKernel?.dialect === "sqlite" ? { rows: createRawRowSqlitePort({ kernel: contentKernel, tableInfo: sqliteTableInfo, checkedTransaction: sqliteForeignKeyCheckedTransaction }) } : {}),
     ...(contentKernel?.dialect === "sqlite" ? { audit: createBackstopAuditSqlitePort({ kernel: contentKernel }) } : {}),
     ...(siteBinding ? { files: createRawFileSitePort({ siteDir: siteBinding.dir }) } : {}),
     blobs: blobStore, fileBlobIndex, fileRollbacks: [], inverses: [],

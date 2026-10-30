@@ -21,7 +21,7 @@ export interface FetchLiveUrlDeps {
   /** Optional host instrumentation; receives no body, headers, credentials or query parameters. */
   observeFetch?: (event: { origin: string; status?: number; durationMs: number; outcome: "response" | "refused" | "failed" }) => void;
 }
-export interface FetchLiveUrlInput extends PageBodyOptions { path: string; origin?: string | undefined }
+export interface FetchLiveUrlInput extends PageBodyOptions { path: string; origin?: string }
 export type LivePageResult = PublishedPageResult & { url: string; origin: string; redirects: string[]; untrusted: true; location?: string };
 const REDIRECTS = new Set([301, 302, 303, 307, 308]);
 const NO_LIVE_ADDRESS = "fetch_live_url: this site has no known live address yet. Publish it first, or use fetch_published_page to check the local render.";

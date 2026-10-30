@@ -429,7 +429,8 @@ export function useRoles(deps: RolesDependencies): RolesController {
   /** Refresh the open form's permission list. Failures land in `rowError` like every other row
    *  action rather than throwing — a list that cannot load must not take the form down with it. */
   async function loadPermissions(policyId: string) {
-    const generation = ++permissionsGenerationRef.current;
+    permissionsGenerationRef.current += 1;
+    const generation = permissionsGenerationRef.current;
     setPermissionsLoading(true);
     try {
       const { policyPermissions } = await port.listPolicyPermissions(policyId);

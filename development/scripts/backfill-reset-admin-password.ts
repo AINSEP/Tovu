@@ -149,7 +149,7 @@ async function main(): Promise<void> {
   // real server boot does.
   // This script is its own composition root, so it reads the owner env exactly as a server boot does
   // (the seeder only creates an owner when none exists; an existing install is untouched).
-  const identity = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), reconcileGrantsOnBoot: args.apply, ownerCredentials: resolveOwnerCredentials({ env: process.env }) });
+  const identity = createSqliteIdentityRouteDeps({ db: contentKernel(db), workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), reconcileGrantsOnBoot: args.apply, ownerCredentials: resolveOwnerCredentials({ env: process.env }) });
   await identity.identityReady;
 
   const target = await identity.userRepo.findByUsername({ workspaceId, username: args.username });

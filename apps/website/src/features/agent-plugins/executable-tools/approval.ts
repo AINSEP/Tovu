@@ -1,6 +1,6 @@
 /**
  * @file How an executable Agent Plugin tool call is confirmed in Tovu, on the EXISTING approval
- * owner (`contracts/headless/assistant-tool-approval-policy.ts` families + `applyToolApprovalPolicy`).
+ * owner (`assistant/assistant-tool-approval-policy.ts` families + `applyToolApprovalPolicy`).
  * No second confirmation engine: this file only maps the plugin's declared effect to a reviewed
  * family and computes the card's extra rows.
  *

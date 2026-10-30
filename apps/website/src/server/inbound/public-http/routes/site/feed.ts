@@ -1,5 +1,5 @@
 import { buildFeed, FEED_PATH, renderRssXml } from "@jini-ai/cms/seo";
-import { resolveSiteTitle } from "#src/features/settings/site-title";
+import { resolveSiteTitle } from "#src/features/settings/index";
 import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
 
 /** Same header and reasoning as `sitemap.ts`: the body reads no per-request state. */

@@ -1,5 +1,5 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/skills.js';
-import { withExtensionApprovalPolicy } from '../../contracts/headless/assistant-tool-approval-policy.js';
+import { withExtensionApprovalPolicy } from '../../assistant/mcp-services.js';
 import * as filesystem from "node:fs/promises";
 import { readFile, readdir } from "node:fs/promises";
 import { createSkillFileReader, type SkillFileReader } from "@jini-ai/agent-plugins/lifecycle";
@@ -132,7 +132,7 @@ function toSkillToolId(name: string): string | undefined {
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
+    .replace(/^_|_$/g, "");
   return sanitized.length > 0 ? `skill_${sanitized}` : undefined;
 }
 
@@ -181,6 +181,9 @@ async function walkFiles(dir: string, onFile: (absolutePath: string) => void): P
     const entryPath = path.join(dir, entry.name);
     if (entry.isDirectory()) await walkFiles(entryPath, onFile);
     else if (entry.isFile()) onFile(entryPath);
+    else {
+      // Links and special entries are outside the skill file walk.
+    }
   }
 }
 
@@ -368,7 +371,8 @@ export function buildSkillToolRegistrations(sources: readonly SkillToolSource[])
       const input = ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input });
       if (Array.isArray(input) || Object.keys(input).some(key => key !== "file")) throw new Error("this tool accepts only an optional 'file' argument");
       const file = optionalString({ input, key: "file" });
-      const content = source.readFile ? await source.readFile({}, file !== undefined ? { file } : {}) : undefined;
+      const readOptions = file !== undefined ? { file } : {};
+      const content = source.readFile ? await source.readFile({}, readOptions) : undefined;
       return buildSkillToolResult({ source, content, file });
     };
   }

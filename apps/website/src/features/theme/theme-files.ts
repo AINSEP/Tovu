@@ -21,8 +21,8 @@ import {
 import { randomUUID } from "node:crypto";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR, type ThemeManifest } from "./theme.js";
-import { resolveThemeLayout } from "./theme-layout.js";
+import type { ThemeManifest } from "./render-contract.js";
+import { resolveThemeLayout, ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
 
 /**
  * @file Path containment and file I/O for the `themes` agent-tool domain
@@ -219,9 +219,9 @@ function normalizeThemeRelativePath(relativePath: string): string {
     if (segment === "" || segment === ".") continue;
     if (segment === "..") {
       segments.pop();
-      continue;
+    } else {
+      segments.push(segment);
     }
-    segments.push(segment);
   }
   return segments.join("/");
 }
@@ -358,6 +358,9 @@ function visitThemeDirEntry(dir: string, name: string, depth: number, base: stri
   if (stat.isSymbolicLink()) return;
   if (stat.isDirectory()) walkThemeDir(full, depth + 1, base, found);
   else if (stat.isFile()) found.push(relative(base, full).split(sep).join("/"));
+  else {
+    // Special entries are outside the theme file walk.
+  }
 }
 
 /**
@@ -481,26 +484,30 @@ function filesHaveSameBytes(pathA: string, pathB: string): boolean {
   try {
     const fdB = openSync(pathB, "r");
     try {
-      const chunkA = Buffer.allocUnsafe(COMPARE_CHUNK_BYTES);
-      const chunkB = Buffer.allocUnsafe(COMPARE_CHUNK_BYTES);
-      // A short chunk (readA < COMPARE_CHUNK_BYTES) means end of file: once it compared equal, so are
-      // the files. A do/while rather than `for (;;)` with a return inside, so no unreachable
-      // fall-through follows the loop.
-      let position = 0;
-      let readA: number;
-      do {
-        readA = readFullChunk(fdA, chunkA, position);
-        const readB = readFullChunk(fdB, chunkB, position);
-        if (readA !== readB || !chunkA.subarray(0, readA).equals(chunkB.subarray(0, readB))) return false;
-        position += COMPARE_CHUNK_BYTES;
-      } while (readA === COMPARE_CHUNK_BYTES);
-      return true;
+      return compareOpenThemeFiles({ fdA, fdB });
     } finally {
       closeSync(fdB);
     }
   } finally {
     closeSync(fdA);
   }
+}
+
+function compareOpenThemeFiles({ fdA, fdB }: { fdA: number; fdB: number }, _options = {}): boolean {
+  const chunkA = Buffer.allocUnsafe(COMPARE_CHUNK_BYTES);
+  const chunkB = Buffer.allocUnsafe(COMPARE_CHUNK_BYTES);
+  // A short chunk (readA < COMPARE_CHUNK_BYTES) means end of file: once it compared equal, so are
+  // the files. A do/while rather than `for (;;)` with a return inside, so no unreachable
+  // fall-through follows the loop.
+  let position = 0;
+  let readA: number;
+  do {
+    readA = readFullChunk(fdA, chunkA, position);
+    const readB = readFullChunk(fdB, chunkB, position);
+    if (readA !== readB || !chunkA.subarray(0, readA).equals(chunkB.subarray(0, readB))) return false;
+    position += COMPARE_CHUNK_BYTES;
+  } while (readA === COMPARE_CHUNK_BYTES);
+  return true;
 }
 
 /**

@@ -80,3 +80,16 @@ export type { DeliveryEnvelopeStore } from "./repo.memory.js";
 // reintroduce the same edge the move was for. The composition root imports it directly from
 // `db/sqlite`, same as every other outer-layer SQLite adapter (`vendor-credential-repo.sqlite.ts`
 // et al.).
+
+export {
+  isSiteIdToken, readSiteMetaId, readSiteMetaJson, resolveSiteKeyFingerprint,
+  resolveSiteKeyId, siteKeyFilePathFrom, siteKeySources, siteKeySourcesForSiteDir,
+  type SiteKeySource,
+} from "./site-key-sources.js";
+export {
+  fingerprintSiteKeyHex, generateFileSiteKey, inspectSiteKeyMaterial, parseSiteKeyHex,
+  revealSiteKeyMaterial, SiteKeyFileAlreadyExistsError, type SiteKeyStatus,
+} from "./keyring.env.js";
+export { scanTextForSecrets } from "./secret-scan-guard.js";
+export { InMemoryKeyring } from "./keyring.memory.js";
+export { AesGcmSecretSealer } from "./secret-sealer.aesgcm.js";

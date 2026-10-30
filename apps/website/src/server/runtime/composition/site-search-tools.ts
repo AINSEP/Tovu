@@ -2,7 +2,7 @@ import { withToolMetadata, type ApprovalAnswer, type ToolExecutionContext, type 
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildSearchToolRegistrations, derivedRisk, SEARCH_TOOL_DOMAIN, type SearchApprovalDescription } from "@jini-ai/search/tools";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import type { ChatDeleteSurfaceDeps } from "#src/contracts/core/chat-delete-grant";
 import type { AuthorizeFn } from "#src/contracts/core/commands/index";
 import { requireHumanConfirm, type HumanConfirmSpec } from "#src/contracts/core/human-confirm";
@@ -98,6 +98,6 @@ export function buildSiteSearchToolRegistrations(routeDeps: SiteSearchToolHostDe
 }
 
 /** The `search` domain contributor for `installFirstPartyToolContributors`. */
-export function contributeSiteSearchTools(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): ToolContributor {
+export function contributeSiteSearchTools(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): ToolContributor<SiteSearchToolHostDeps, ChatDeleteSurfaceDeps> {
   return { domain: SEARCH_TOOL_DOMAIN, build: buildSiteSearchToolRegistrations, risk: derivedRisk };
 }

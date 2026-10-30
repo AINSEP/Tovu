@@ -32,7 +32,11 @@ export function openTabEventSource(
     onmessage: EventSource["onmessage"] = null;
     onopen: EventSource["onopen"] = null;
     get readyState(): number { return disposed ? 2 : source?.readyState ?? 0; }
-    close(): void { if (disposed) return; disposed = true; stop(); }
+    close(): void {
+      if (disposed) return;
+      disposed = true;
+      stop();
+    }
   }
   const managed = new ManagedSource();
   // Assigned before `managed` is returned, so no caller can reach `close()` while it is unset.

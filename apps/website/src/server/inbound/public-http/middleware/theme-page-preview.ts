@@ -15,6 +15,8 @@ import {
   resolveSiteTimeZoneForRender,
 } from "../routes/site/pages.js";
 
+const PLAIN_TEXT = "text/plain";
+
 /**
  * @file Serves any static theme's page, fully rendered, at `/theme-explore/{themeId}/{pageId}` — the
  * admin Explore screen's preview iframe. Also serves a theme's PARTIALS (`nav`, `footer`, `sidebar`,
@@ -69,13 +71,13 @@ function resolveStaticTheme(
   const { themes, themeId } = required;
   const theme = findTheme({ themes, id: themeId });
   if (!theme) {
-    res.status(404).type("text/plain").send(`theme '${themeId}' was not found`);
+    res.status(404).type(PLAIN_TEXT).send(`theme '${themeId}' was not found`);
     return null;
   }
   if (theme.manifest.tier !== "static") {
     res
       .status(422)
-      .type("text/plain")
+      .type(PLAIN_TEXT)
       .send(`theme '${themeId}' is a '${theme.manifest.tier}' theme; only static themes preview this way`);
     return null;
   }
@@ -118,25 +120,25 @@ function resolveTemplatedPreviewTarget(
   const { themes, themeId, templateId } = required;
   const theme = findTheme({ themes, id: themeId });
   if (!theme) {
-    res.status(404).type("text/plain").send(`theme '${themeId}' was not found`);
+    res.status(404).type(PLAIN_TEXT).send(`theme '${themeId}' was not found`);
     return null;
   }
   if (theme.manifest.tier !== "templated") {
     res
       .status(422)
-      .type("text/plain")
+      .type(PLAIN_TEXT)
       .send(`theme '${themeId}' is a '${theme.manifest.tier}' theme; only templated themes preview this way`);
     return null;
   }
   if (theme.liquidTemplates[templateId] === undefined) {
-    res.status(404).type("text/plain").send(`template '${templateId}' was not found in theme '${themeId}'`);
+    res.status(404).type(PLAIN_TEXT).send(`template '${templateId}' was not found in theme '${themeId}'`);
     return null;
   }
   const route = liquidTemplateContextRoute(templateId);
   if (!route) {
     res
       .status(422)
-      .type("text/plain")
+      .type(PLAIN_TEXT)
       .send(`template '${templateId}' has no recognized route shape and cannot be previewed here`);
     return null;
   }
@@ -153,7 +155,7 @@ export function registerThemePagePreview(app: Express, deps: RouteDeps): void {
 
     const html = renderStaticPage({ theme, pageId });
     if (html === null) {
-      res.status(404).type("text/plain").send(`page '${pageId}' was not found in theme '${themeId}'`);
+      res.status(404).type(PLAIN_TEXT).send(`page '${pageId}' was not found in theme '${themeId}'`);
       return;
     }
 
@@ -173,7 +175,7 @@ export function registerThemePagePreview(app: Express, deps: RouteDeps): void {
 
     const html = renderStaticPartial({ theme, partialId });
     if (html === null) {
-      res.status(404).type("text/plain").send(`partial '${partialId}' was not found in theme '${themeId}'`);
+      res.status(404).type(PLAIN_TEXT).send(`partial '${partialId}' was not found in theme '${themeId}'`);
       return;
     }
 
@@ -247,7 +249,7 @@ export function registerThemePagePreview(app: Express, deps: RouteDeps): void {
         // Never cached, same reasoning as the two static-tier routes above.
         res.set("Cache-Control", "no-store").type("html").send(html);
       } catch {
-        res.status(500).type("text/plain").send("preview render failed");
+        res.status(500).type(PLAIN_TEXT).send("preview render failed");
       }
     }
   );

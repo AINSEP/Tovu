@@ -74,12 +74,12 @@ test("rebuilding the site app on the same RouteDeps (export, published-page fetc
     "entry.published": 1,
     "entry.unpublished": 1,
     "entry.updated": 1,
-    "form.submission.received": 2,
+    "form.submission.received": 3,
     "newsletter.send.batch.claimed": 1,
     "seo.sitemap_invalidated": 1,
     "workspace.created": 1,
   }, "required subscribers are independent of the current registry");
-  assert.equal(servedOnce["form.submission.received"], 2, "sanity: forms notify and webhook fan-out each run once");
+  assert.equal(servedOnce["form.submission.received"], 3, "sanity: consent-gated analytics, forms notify and webhook fan-out each run once");
 
   const servedThenExportedTwice = await handlerRunsPerEvent((deps) => {
     createApp(deps);

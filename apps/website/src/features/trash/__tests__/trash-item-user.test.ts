@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -10,7 +11,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/prim
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { buildTrashRegistry } from "../registry.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { createSqliteTrashDb } from "../db-port.sqlite.js";
+
 import { createTableTrashAdapter } from "../table-adapter.js";
 import { createTrashService, InMemoryTrashRepo } from "@jini-ai/cms/trash";
 
@@ -154,7 +155,7 @@ for (const state of ["live", "missing", "denied"] as const) {
       (id, workspace_id, name, slug, fields_json, notify_json, status, created_at, updated_at, version)
       VALUES ('f1', ?, 'Contact', 'contact', '{}', '{}', 'active', ?, ?, 1)`).run(workspaceId, at, at);
     const registry = new Map([["form", buildTrashRegistry().get("form")!]]);
-    const kernel = createSqliteTrashDb({ db });
+    const kernel = contentKernel(db);
     const adapter = createTableTrashAdapter({ db: kernel, entry: registry.get("form")! });
     const trash = createTrashService({ repo: new InMemoryTrashRepo({}), adapters: new Map([["form", adapter]]),
       idGen: { newId: () => "l128-trash" }, entityPolicy: ({ entityType }) => registry.has(entityType),

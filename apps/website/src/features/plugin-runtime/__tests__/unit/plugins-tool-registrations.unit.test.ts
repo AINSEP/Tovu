@@ -6,7 +6,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { AgentPluginActivationsUnreadableError, AgentPluginNotInstalledError } from "@jini-ai/agent-plugins/lifecycle";
 import type { PluginConflict } from "@jini-ai/plugins/host";
 
-import type { AgentPluginLayout } from "../../../../contracts/headless/plugin-host.js";
+import type { AgentPluginLayout } from "../../../../contracts/headless/index.js";
 import type { AssistantToolRegistryDeps } from "../../../../assistant/tool-registrations.js";
 import { toAssistantRegistryDeps } from "../../../../assistant/__tests__/fixtures/registry-deps.js";
 import { createRouteDeps } from "../../../../server/runtime/composition/app.js";

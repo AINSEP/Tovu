@@ -65,8 +65,13 @@ function renditionRef(src: string): string | undefined {
 /** Preserve body alt and prefer an explicit library reference to a legacy src. */
 function candidate(attrs: Record<string, unknown>): Candidate {
   const src = typeof attrs.src === "string" ? attrs.src.trim() : undefined;
-  const mediaRef = typeof attrs.assetId === "string" ? attrs.assetId : src ? renditionRef(src) : undefined;
+  let mediaRef = typeof attrs.assetId === "string" ? attrs.assetId : undefined;
+  if (mediaRef === undefined && src) mediaRef = renditionRef(src);
   return { mediaRef, src, alt: typeof attrs.alt === "string" ? attrs.alt : undefined };
+}
+
+function queueDocContent({ node, stack }: { node: Record<string, unknown>; stack: unknown[] }, _optional: Record<string, never> = {}): void {
+  if (Array.isArray(node.content)) stack.push(node.content);
 }
 
 /** Pre-order document traversal stays iterative because imported nesting is not bounded. */
@@ -79,9 +84,13 @@ function* docCandidates(root: unknown): Generator<Candidate> {
       pushReversed(stack, node, item => item);
       continue;
     }
-    if (!object(node)) continue;
-    if (isMediaNode(node)) yield { ...candidate(node.attrs), bodyOccurrence: occurrence++ };
-    if (Array.isArray(node.content)) stack.push(node.content);
+    if (object(node)) {
+      if (isMediaNode(node)) {
+        yield { ...candidate(node.attrs), bodyOccurrence: occurrence };
+        occurrence += 1;
+      }
+      queueDocContent({ node, stack });
+    }
   }
 }
 
@@ -89,6 +98,21 @@ function* docCandidates(root: unknown): Generator<Candidate> {
 function markerCandidate(marker: EmbedMarker, attrs: Record<string, string>): Candidate | undefined {
   const ref = marker.id ?? marker.config.slug;
   return typeof ref === "string" ? candidate({ assetId: ref, alt: marker.config.alt ?? attrs.alt }) : undefined;
+}
+
+function* htmlElementCandidates(
+  { node, markers, stack }: { node: DefaultTreeAdapterMap["element"]; markers: ReadonlyMap<number, EmbedMarker>; stack: HtmlNode[] },
+  _optional: Record<string, never> = {},
+): Generator<Candidate> {
+  const attrs = Object.fromEntries(node.attrs.map(({ name, value }) => [name, value]));
+  const marker = markers.get(node.sourceCodeLocation?.startOffset ?? -1);
+  if (marker?.type === "media") {
+    const image = markerCandidate(marker, attrs);
+    if (image) yield image;
+  } else {
+    if (node.tagName === "img") yield candidate(attrs);
+    pushReversed(stack, node.childNodes, child => child);
+  }
 }
 
 /** parse5 owns HTML semantics; the existing marker parser owns embed configuration.
@@ -101,15 +125,7 @@ function* htmlCandidates(html: string): Generator<Candidate> {
   while (stack.length) {
     const node = stack.pop()!;
     if (!("tagName" in node) || INERT_ELEMENTS.has(node.tagName)) continue;
-    const attrs = Object.fromEntries(node.attrs.map(({ name, value }) => [name, value]));
-    const marker = markers.get(node.sourceCodeLocation?.startOffset ?? -1);
-    if (marker?.type === "media") {
-      const image = markerCandidate(marker, attrs);
-      if (image) yield image;
-      continue;
-    }
-    if (node.tagName === "img") yield candidate(attrs);
-    pushReversed(stack, node.childNodes, child => child);
+    yield* htmlElementCandidates({ node, markers, stack });
   }
 }
 
@@ -185,8 +201,37 @@ export function resolveCoverImage(
  */
 function keepsStoredBody(post: CoverImagePost, hasPublicTransform: boolean): boolean {
   const presentation = post.ext?.["post-presentation"];
-  return post.kind === "page" || post.bodyFormat !== "doc" || !hasPublicTransform ||
-    (object(presentation) && presentation.hideCoverImageInBody === false);
+  if (post.kind === "page" || post.bodyFormat !== "doc" || !hasPublicTransform) return true;
+  return object(presentation) && presentation.hideCoverImageInBody === false;
+}
+
+type BodyCopyFrame = { source: unknown; target: unknown[] };
+
+/** Copy one body frame; the returned count preserves media occurrence ordering. */
+function copyBodyFrame(
+  { source, target, stack, selected, occurrence }: BodyCopyFrame & { stack: BodyCopyFrame[]; selected: number; occurrence: number },
+  _optional: Record<string, never> = {},
+): number {
+  if (Array.isArray(source)) {
+    const copy: unknown[] = [];
+    target.push(copy);
+    pushReversed(stack, source, item => ({ source: item, target: copy }));
+    return occurrence;
+  }
+  if (!object(source)) { target.push(source); return occurrence; }
+  if (isMediaNode(source)) {
+    const current = occurrence;
+    occurrence += 1;
+    if (current === selected) return occurrence;
+  }
+  const copy = { ...source };
+  target.push(copy);
+  if (Array.isArray(source.content)) {
+    const content: unknown[] = [];
+    copy.content = content;
+    pushReversed(stack, source.content, item => ({ source: item, target: content }));
+  }
+  return occurrence;
 }
 
 /** Copies the document without the selected image/media occurrence; the input is never mutated.
@@ -194,25 +239,9 @@ function keepsStoredBody(post: CoverImagePost, hasPublicTransform: boolean): boo
  */
 function withoutOccurrence({ body, selected }: { body: Record<string, unknown>; selected: number }): unknown {
   const output: unknown[] = [];
-  const stack = [{ source: body as unknown, target: output }];
+  const stack: BodyCopyFrame[] = [{ source: body, target: output }];
   let occurrence = 0;
-  while (stack.length) {
-    const { source, target } = stack.pop()!;
-    if (Array.isArray(source)) {
-      const copy: unknown[] = [];
-      target.push(copy);
-      pushReversed(stack, source, item => ({ source: item, target: copy }));
-      continue;
-    }
-    if (!object(source)) { target.push(source); continue; }
-    if (isMediaNode(source) && occurrence++ === selected) continue;
-    const copy = { ...source };
-    target.push(copy);
-    if (!Array.isArray(source.content)) continue;
-    const content: unknown[] = [];
-    copy.content = content;
-    pushReversed(stack, source.content, item => ({ source: item, target: content }));
-  }
+  while (stack.length) occurrence = copyBodyFrame({ ...stack.pop()!, stack, selected, occurrence });
   return output[0];
 }
 

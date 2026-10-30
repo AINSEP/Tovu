@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import { openExternalMcpOAuthPayload, type ExternalMcpServerRepoPort } from "#src/assistant/external-mcp-store";
+import { openExternalMcpOAuthPayload, type ExternalMcpServerRepoPort } from "#src/assistant/mcp-services";
 import type { SecretSealerPort } from "#src/features/webhooks/index";
 
 /**

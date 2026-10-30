@@ -1,3 +1,4 @@
+import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -37,7 +38,7 @@ test("footer repair counts no conversion or watermark when the database refuses 
   // The repair must account for persisted conversions, never the number it merely planned.
   await kernel.run(db => sql`CREATE TRIGGER refuse_footer_repair BEFORE UPDATE ON menus
     WHEN OLD.id = 'menu-footer-nav' BEGIN SELECT RAISE(IGNORE); END`.execute(db));
-  assert.deepEqual(await migrateFooterPageLinks({ kernel }, { now: () => "2026-10-17T12:00:00.000Z" }), { converted: 0 });
+  assert.deepEqual(await migrateFooterPageLinks({ stampWatermark: kernelStampWatermark(kernel), kernel }, { now: () => "2026-10-17T12:00:00.000Z" }), { converted: 0 });
   const row = await new SqlMenuRepo(kernel).findById({ workspaceId: "ws", id: "menu-footer-nav" });
   assert.deepEqual(row?.doc, doc);
   assert.equal(row?.version, 1);
@@ -77,7 +78,7 @@ for (const dialect of eachDialect({ tables: ["menus", "posts", "workspaces", "da
       { id: "d080e7cc-4f22-45bf-9a5a-8de81f2f9249", slug: "footer-resources", doc_json: JSON.stringify(unchanged) },
     ].map(row => ({ ...row, workspace_id: "ws", title: row.slug, status: "published", locations_json: "[]", updated_at: "2026-10-04", version: 1 }))).execute());
     const now = "2026-10-17T12:00:00.000Z";
-    assert.deepEqual(await migrateFooterPageLinks({ kernel }, { now: () => now }), { converted: 2 });
+    assert.deepEqual(await migrateFooterPageLinks({ stampWatermark: kernelStampWatermark(kernel), kernel }, { now: () => now }), { converted: 2 });
     const repo = new SqlMenuRepo(kernel);
     assert.deepEqual((await repo.findById({ workspaceId: "ws", id: "menu-footer-nav" }))?.doc, {
       ...doc, items: doc.items.map(item => item.id === "menu-item-2"
@@ -117,7 +118,7 @@ for (const dialect of eachDialect({ tables: ["menus", "posts", "workspaces", "da
       doc_json: JSON.stringify({ ...doc, items: [{ id: "mine", label: "Contact", target: { kind: "url", href: "/contact" } }] }),
       locations_json: "[]", updated_at: "2026-10-04", version: 1,
     }).execute());
-    assert.equal((await migrateFooterPageLinks({ kernel })).converted, 2);
+    assert.equal((await migrateFooterPageLinks({ stampWatermark: kernelStampWatermark(kernel), kernel })).converted, 2);
     const authored = await kernel.run(db => db.selectFrom("menus").selectAll().where("id", "=", "operator-footer").executeTakeFirstOrThrow());
     assert.equal(authored.version, 1);
     assert.deepEqual(JSON.parse(authored.doc_json).items[0].target, { kind: "url", href: "/contact" });
@@ -138,7 +139,7 @@ for (const dialect of eachDialect({ tables: ["menus", "posts", "workspaces", "da
     // An operator restores a raw link after the first repair; future boots must preserve it.
     await kernel.run(db => db.updateTable("menus").set({ doc_json: JSON.stringify(doc), version: 3 })
       .where("id", "=", "menu-footer-nav").execute());
-    assert.equal((await migrateFooterPageLinks({ kernel })).converted, 0);
+    assert.equal((await migrateFooterPageLinks({ stampWatermark: kernelStampWatermark(kernel), kernel })).converted, 0);
     assert.deepEqual(JSON.parse((await kernel.run(db => db.selectFrom("menus").select("doc_json").where("id", "=", "menu-footer-nav").executeTakeFirstOrThrow())).doc_json), doc);
     // Keep the converted fixture for the public-availability assertions below.
     await kernel.run(db => db.updateTable("menus").set({ doc_json: JSON.stringify(converted), version: 2 })
@@ -152,7 +153,7 @@ for (const dialect of eachDialect({ tables: ["menus", "posts", "workspaces", "da
     assert.equal((await resolve())[0].href, "/about");
     await kernel.run((db) => db.updateTable("posts").set({ slug: "our-story" }).where("id", "=", "about-page").execute());
     assert.equal((await resolve())[0].href, "/our-story");
-    assert.equal((await migrateFooterPageLinks({ kernel })).converted, 0, "a rename does not replace the stored URL snapshot on boot");
+    assert.equal((await migrateFooterPageLinks({ stampWatermark: kernelStampWatermark(kernel), kernel })).converted, 0, "a rename does not replace the stored URL snapshot on boot");
     assert.deepEqual((await menuRepo.findById({ workspaceId: "ws", id: "menu-footer-nav" }))?.doc.items[0].target, pageTarget);
     assert.match(renderHtmlMenu({ id: "footer", items: await resolve(), sanitizeHref: (href) => href }), /<a[^>]*href="\/our-story"/);
     await kernel.run((db) => db.updateTable("posts").set({ status: "draft" }).where("id", "=", "about-page").execute());
@@ -182,13 +183,13 @@ for (const dialect of eachDialect({ tables: ["menus", "posts", "workspaces", "da
         id: "menu-footer-nav", workspace_id: "ws", slug: "footer-nav", title: "Footer", status: "published",
         doc_json: JSON.stringify(doc), locations_json: "[]", updated_at: "2026-10-04", version: 5,
       }).execute());
-      assert.deepEqual(await migrateFooterPageLinks({ kernel }), { converted: 0 });
+      assert.deepEqual(await migrateFooterPageLinks({ stampWatermark: kernelStampWatermark(kernel), kernel }), { converted: 0 });
       const edited = await kernel.run(db => db.selectFrom("menus").selectAll().where("id", "=", "menu-footer-nav").executeTakeFirstOrThrow());
       assert.equal(edited.version, 5);
       assert.deepEqual(JSON.parse(edited.doc_json), doc);
       // A later restore/import must not turn this completed boot repair into a recurring writer.
       await kernel.run(db => db.updateTable("menus").set({ version: 1 }).where("id", "=", "menu-footer-nav").execute());
-      assert.deepEqual(await migrateFooterPageLinks({ kernel }), { converted: 0 });
+      assert.deepEqual(await migrateFooterPageLinks({ stampWatermark: kernelStampWatermark(kernel), kernel }), { converted: 0 });
       const restored = await kernel.run(db => db.selectFrom("menus").selectAll().where("id", "=", "menu-footer-nav").executeTakeFirstOrThrow());
       assert.equal(restored.version, 1);
       assert.deepEqual(JSON.parse(restored.doc_json), doc);
@@ -212,7 +213,7 @@ async function repairOneSeedFooter(items: readonly unknown[]): Promise<{ convert
       id: "menu-footer-nav", workspace_id: "ws", slug: "footer-nav", title: "Footer", status: "published",
       doc_json: JSON.stringify({ type: "menu", version: 1, items }), locations_json: "[]", updated_at: "2026-10-04", version: 1,
     }).execute());
-    const { converted } = await migrateFooterPageLinks({ kernel }, { now: () => "2026-10-17T12:00:00.000Z" });
+    const { converted } = await migrateFooterPageLinks({ stampWatermark: kernelStampWatermark(kernel), kernel }, { now: () => "2026-10-17T12:00:00.000Z" });
     const row = await kernel.run(db => db.selectFrom("menus").select(["doc_json", "version"]).where("id", "=", "menu-footer-nav").executeTakeFirstOrThrow());
     return { converted, docJson: row.doc_json, version: row.version };
   } finally { await kernel.close(); }

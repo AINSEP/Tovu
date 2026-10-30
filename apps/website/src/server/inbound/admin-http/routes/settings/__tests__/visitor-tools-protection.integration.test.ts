@@ -86,8 +86,8 @@ for (const toolId of ["settings_set_value", "settings_clear_value"]) {
   test(`${toolId} denies canonical and alias writes without opening a card`, async () => {
     const f = await fixture();
     const clock = { nowMs: () => 0 };
-    const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: f.deps.ids, defaultChannel: "mcp-ui" });
-    const deps = { ...f.deps, settingsRepo: f.repo, workspaceId: ws, clock, idGen: f.deps.ids,
+    const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: f.deps.idGen, defaultChannel: "mcp-ui" });
+    const deps = { ...f.deps, settingsRepo: f.repo, workspaceId: ws, clock, idGen: f.deps.idGen,
       principalRepo: f.principalRepo, principals: createSettingsPrincipalLookup({ repo: f.principalRepo as never }),
       settingsReady: Promise.resolve(), settingsUiTabsReady: Promise.resolve() } as unknown as SettingsToolDeps;
     const registration = buildSettingsRegistrations(deps, { surfaceExchanges: surfaces }).find(r => r.descriptor.id === toolId)!;

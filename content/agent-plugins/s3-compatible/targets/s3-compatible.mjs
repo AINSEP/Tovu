@@ -14,6 +14,8 @@ export const S3_COMPATIBLE_TARGET_ID = "s3-compatible";
 
 /** The credential fields the target needs beyond `token` (the secret access key). */
 const REQUIRED_S3_CREDENTIAL_FIELDS = ["accessKeyId", "bucket", "region", "publicUrl"];
+// Anchoring the retained prefix avoids retrying a suffix match from every slash.
+const TRAILING_URL_SLASHES = /^(.*[^/])?\/+$/s;
 
 /**
  * Binds the moved S3-compatible code to one host kit.
@@ -210,7 +212,7 @@ export function bindS3Compatible(kit) {
    * @complexity O(n) in the number of path segments.
    */
   function objectUrl(config, file) {
-      const host = (config.endpoint && config.endpoint.trim() !== "" ? config.endpoint : deriveEndpoint(config.region)).replace(/\/+$/, "");
+      const host = (config.endpoint && config.endpoint.trim() !== "" ? config.endpoint : deriveEndpoint(config.region)).replace(TRAILING_URL_SLASHES, "$1");
       const key = file
           .split("/")
           .map((segment) => encodeURIComponent(segment))
@@ -262,7 +264,8 @@ export function bindS3Compatible(kit) {
       }
       if (!resp.ok) {
           const body = await safeErrorBody(resp);
-          throw new DeployError(`Failed to upload '${file.file}' to S3-compatible storage: HTTP ${resp.status}${body ? ` — ${body}` : ""}`, resp.status >= 500 ? 502 : 400);
+          const detail = body ? ` — ${body}` : "";
+          throw new DeployError(`Failed to upload '${file.file}' to S3-compatible storage: HTTP ${resp.status}${detail}`, resp.status >= 500 ? 502 : 400);
       }
       return resp.headers.get("etag") ?? undefined;
   }
@@ -317,7 +320,8 @@ export function bindS3Compatible(kit) {
       }
       if (!resp.ok && resp.status !== 404) {
           const body = await safeErrorBody(resp);
-          throw new DeployError(`Failed to delete stale object '${key}' from S3-compatible storage: HTTP ${resp.status}${body ? ` — ${body}` : ""}`, resp.status >= 500 ? 502 : 400);
+          const detail = body ? ` — ${body}` : "";
+          throw new DeployError(`Failed to delete stale object '${key}' from S3-compatible storage: HTTP ${resp.status}${detail}`, resp.status >= 500 ? 502 : 400);
       }
   }
   /** Recognizes both manifest shapes this target has ever written: the CURRENT one (`{version: 2, keys:
@@ -419,7 +423,8 @@ export function bindS3Compatible(kit) {
           return { status: "not-found" };
       if (!resp.ok) {
           const body = await safeErrorBody(resp);
-          throw new DeployError(`Failed to read the Tovu-managed object manifest — cannot confirm which keys this target previously owned: HTTP ${resp.status}${body ? ` — ${body}` : ""}`, resp.status >= 500 ? 502 : 400);
+          const detail = body ? ` — ${body}` : "";
+          throw new DeployError(`Failed to read the Tovu-managed object manifest — cannot confirm which keys this target previously owned: HTTP ${resp.status}${detail}`, resp.status >= 500 ? 502 : 400);
       }
       const { files, etag } = await parseManagedManifestBody(resp);
       return { status: "found", files, etag };
@@ -441,7 +446,10 @@ export function bindS3Compatible(kit) {
   function buildManifestBody(files) {
       return JSON.stringify({
           version: 2,
-          keys: files.map((f) => ({ key: f.key, etag: f.etag })).sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
+          keys: files.map((f) => ({ key: f.key, etag: f.etag })).sort((a, b) => {
+              if (a.key < b.key) return -1;
+              return a.key > b.key ? 1 : 0;
+          }),
       });
   }
   function buildManifestHeaders(precondition) {
@@ -471,7 +479,8 @@ export function bindS3Compatible(kit) {
       const body = await safeErrorBody(resp);
       if (/notimplemented|not implemented|unsupportedoperation/i.test(body))
           return "unsupported";
-      throw new DeployError(`Failed to update the Tovu-managed object manifest: HTTP 400${body ? ` — ${body}` : ""}`, 400);
+      const detail = body ? ` — ${body}` : "";
+      throw new DeployError(`Failed to update the Tovu-managed object manifest: HTTP 400${detail}`, 400);
   }
   async function classifyManifestWriteResponse(resp) {
       if (resp.ok)
@@ -483,7 +492,8 @@ export function bindS3Compatible(kit) {
       if (resp.status === 400)
           return classifyManifestWrite400(resp);
       const errorBody = await safeErrorBody(resp);
-      throw new DeployError(`Failed to update the Tovu-managed object manifest: HTTP ${resp.status}${errorBody ? ` — ${errorBody}` : ""}`, resp.status >= 500 ? 502 : 400);
+      const detail = errorBody ? ` — ${errorBody}` : "";
+      throw new DeployError(`Failed to update the Tovu-managed object manifest: HTTP ${resp.status}${detail}`, resp.status >= 500 ? 502 : 400);
   }
   async function writeManagedManifestConditional(client, config, files, precondition) {
       const body = buildManifestBody(files);
@@ -603,7 +613,7 @@ export function bindS3Compatible(kit) {
           const classification = await classifyManagedKey(client, config, previous, currentKeys);
           if (classification === "stale")
               staleKeys.push(previous.key);
-          else if (classification === "diverged")
+          if (classification === "diverged")
               divergedKeys.push(previous.key);
       }
       return { staleKeys, divergedKeys };
@@ -693,7 +703,7 @@ export function bindS3Compatible(kit) {
           const requireKey = (key) => {
               if (!/^_share\/[A-Za-z]{16}\/[a-z0-9][a-z0-9-]{0,79}\.tovu\.zip$/.test(key)) throw new DeployError("Invalid share artifact key.", 400);
           };
-          const publicUrl = (key) => `${this.config.publicUrl.replace(/\/+$/, "")}/${key}`;
+          const publicUrl = (key) => `${this.config.publicUrl.replace(TRAILING_URL_SLASHES, "$1")}/${key}`;
           return {
               upload: async ({ key, bytes, headers }, options = {}) => {
                   requireKey(key);
@@ -775,7 +785,6 @@ export function bindS3Compatible(kit) {
                   // retry immediately with an unconditional write. Not a real conflict, so it does not need a
                   // fresh manifest re-read; nothing about the bucket's OWN state changed because of this outcome.
                   concurrencyGuardActive = false;
-                  continue;
               }
               // outcome === "conflict": a real racing publisher changed the manifest since this attempt's own
               // read. Retry from a fresh read (top of loop) — bounded, so sustained contention surfaces loudly
@@ -1015,7 +1024,7 @@ export default {
   async verifyCredential({ credential, kit }) {
     const client = kit.createSigV4Client({ accessKeyId: credential.accessKeyId ?? "", secretAccessKey: credential.token, service: "s3", region: credential.region ?? "" });
     const endpoint = credential.endpoint?.trim();
-    const host = (endpoint ? endpoint : `https://s3.${credential.region}.amazonaws.com`).replace(/\/+$/, "");
+    const host = (endpoint ? endpoint : `https://s3.${credential.region}.amazonaws.com`).replace(TRAILING_URL_SLASHES, "$1");
     const signed = await client.sign(`${host}/${encodeURIComponent(credential.bucket ?? "")}`, { method: "HEAD" });
     return classifyCredentialResponse(await kit.fetch(signed.url, { method: "HEAD", headers: signed.headers }, { timeoutMs: kit.timeouts.QUICK }));
   },

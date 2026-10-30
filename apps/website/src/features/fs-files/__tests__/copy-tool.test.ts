@@ -4,7 +4,7 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { nativeToolMetadata } from "#src/contracts/core/tool-metadata/index";
 import { EgressRefusedError } from "#src/platform/http/index";
-import { buildFilesCopyRegistrations, contributeFilesCopyTools, filesCopyDerivedRisk, FILES_COPY_LIMITS } from "../copy-tool.js";
+import { buildFilesCopyRegistrations, contributeFilesCopyTools, filesCopyDerivedRisk, FILES_COPY_LIMITS } from "../../asset-transfer/copy-tool.js";
 import { assetToolHarness, until } from "./asset-tool-fixture.js";
 
 /** Owner 2026-10-27: copy tool through actual source guards, existing destination writers and cards. */

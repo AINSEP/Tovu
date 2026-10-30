@@ -6,10 +6,16 @@ export interface SelectedComposerSkill {
   readonly guidance: string;
 }
 
+function isSelectedComposerSkill(skill: unknown): skill is SelectedComposerSkill {
+  if (skill === null || typeof skill !== "object") return false;
+  const fields = skill as { toolId?: unknown; name?: unknown; guidance?: unknown };
+  return typeof fields.toolId === "string" && typeof fields.name === "string" && typeof fields.guidance === "string";
+}
+
 export function selectedSkillsFromContext(context: Record<string, unknown> | undefined): readonly SelectedComposerSkill[] {
   const skills = context?.selectedSkills;
   if (!Array.isArray(skills)) return [];
-  return skills.filter((skill): skill is SelectedComposerSkill => skill !== null && typeof skill === "object" && typeof skill.toolId === "string" && typeof skill.name === "string" && typeof skill.guidance === "string");
+  return skills.filter(isSelectedComposerSkill);
 }
 
 export function promptWithSelectedSkills(prompt: string, context: Record<string, unknown> | undefined): string {

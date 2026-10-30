@@ -158,29 +158,35 @@ export function parseCssRules(css: string): CssRule[] {
   const n = stripped.length;
   let i = 0;
 
+  const skipQuotedValue = ({ quote }: { quote: string }, _options = {}): void => {
+    i++;
+    while (i < n && stripped[i] !== quote) {
+      if (stripped[i] === "\\") i++; // skip escaped char so an escaped quote can't end the string early
+      i++;
+    }
+    i++; // consume closing quote
+  };
+  const openFrame = (_required: Record<string, never>, _options = {}): void => {
+    const prelude = stripped.slice(bufStart, i).trim();
+    if (prelude.startsWith("@")) {
+      stack.push(/^@media\b/i.test(prelude) ? { kind: "media" } : { kind: "other-at" });
+    } else {
+      const index = rules.length;
+      rules.push({ selectors: splitSelectors(prelude), body: "", insideMedia: stack.some((f) => f.kind === "media") });
+      stack.push({ kind: "rule", index, bodyStart: i + 1 });
+    }
+  };
+
   while (i < n) {
     const ch = stripped[i];
 
     if (ch === '"' || ch === "'") {
-      const quote = ch;
-      i++;
-      while (i < n && stripped[i] !== quote) {
-        if (stripped[i] === "\\") i++; // skip escaped char so an escaped quote can't end the string early
-        i++;
-      }
-      i++; // consume closing quote
+      skipQuotedValue({ quote: ch });
       continue;
     }
 
     if (ch === "{") {
-      const prelude = stripped.slice(bufStart, i).trim();
-      if (prelude.startsWith("@")) {
-        stack.push(/^@media\b/i.test(prelude) ? { kind: "media" } : { kind: "other-at" });
-      } else {
-        const index = rules.length;
-        rules.push({ selectors: splitSelectors(prelude), body: "", insideMedia: stack.some((f) => f.kind === "media") });
-        stack.push({ kind: "rule", index, bodyStart: i + 1 });
-      }
+      openFrame({});
       bufStart = i + 1;
       i++;
       continue;

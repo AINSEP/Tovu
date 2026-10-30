@@ -78,7 +78,8 @@ export function usePackageFileTree({ paths, selectedPath, onOpenFile }: PackageF
   const isExpanded = (folderPath: string) => toggled.get(folderPath) ?? selectedAncestors.has(folderPath);
   const rows = visiblePackageFileRows(tree, isExpanded);
   const visible = (path: string | null) => path !== null && rows.some((row) => row.node.path === path);
-  const activePath = visible(focusedPath) ? focusedPath : visible(selectedPath) ? selectedPath : (rows[0]?.node.path ?? null);
+  const fallbackPath = visible(selectedPath) ? selectedPath : (rows[0]?.node.path ?? null);
+  const activePath = visible(focusedPath) ? focusedPath : fallbackPath;
 
   // Only after a key press: DOM focus follows the roving tabindex. Never on mount or on a
   // selection that came from outside, so opening the dialog doesn't pull focus into the tree.

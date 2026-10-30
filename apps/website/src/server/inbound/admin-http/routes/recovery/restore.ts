@@ -8,6 +8,8 @@ import { buildRestoreHooks, toRecoveryResult, type RecoveryErrorPayload } from "
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
+const RESTORE_PERMISSION = "backup.restore";
+
 /**
  * @file SPEC-019 C-301/C-302/C-303 — `POST /api/admin/v1/recovery/restore/{plan,confirm,execute}`
  * (ADR-045 §3's restore ceremony). Gated by `backup.read` (`plan`/`confirm`) / `backup.restore`
@@ -122,9 +124,9 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
             confirm: (input) =>
               toRecoveryResult({ run: async () => {
                 const hooks = buildConfirmOnlyHooks({
-                  domain: "backup.restore",
+                  domain: RESTORE_PERMISSION,
                   readPermission: "backup.read",
-                  mutatePermission: "backup.restore",
+                  mutatePermission: RESTORE_PERMISSION,
                   scopeId: deps.workspaceId,
                   scopeKind: "instance",
                 });
@@ -176,19 +178,19 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
       const authResult = await authorizeForHooks(
         deps.gatedMutations.gatewayDeps,
         buildConfirmOnlyHooks({
-          domain: "backup.restore",
+          domain: RESTORE_PERMISSION,
           readPermission: "backup.read",
-          mutatePermission: "backup.restore",
+          mutatePermission: RESTORE_PERMISSION,
           scopeId: deps.workspaceId,
           scopeKind: "instance",
         }),
-        { principalId: principal.id, permission: "backup.restore" }
+        { principalId: principal.id, permission: RESTORE_PERMISSION }
       );
       if (!authResult.allowed) {
         res.status(403).json({
           error: `principal '${principal.id}' is not authorized for 'backup.restore' (${authResult.reason})`,
           code: "NOT_AUTHORIZED",
-          details: { permission: "backup.restore", reason: authResult.reason },
+          details: { permission: RESTORE_PERMISSION, reason: authResult.reason },
         });
         return;
       }

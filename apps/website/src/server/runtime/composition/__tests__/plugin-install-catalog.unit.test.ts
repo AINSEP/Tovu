@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createContributionRegistry } from "@jini-ai/core";
-import type { ToolContributor, DerivedToolContributor } from "#src/assistant/index";
+import type { ToolContributor, DerivedToolContributor } from "@jini-ai/core";
+import type { AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
+import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { toolSearchKeywords } from "#src/assistant/tool-search-keywords";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 
 test("first-party catalog registers both install families and forwards the scoped attachment reader", async () => {
   const contributions = {
-    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor }) => contribution.domain }),
-    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor }) => contribution.domain }),
+    contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: ToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
+    derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: DerivedToolContributor<AssistantToolRegistryDeps, AssistantSurfaceDeps> }) => contribution.domain }),
   };
   let reads = 0;
   installFirstPartyToolContributors({ contributions }, { readInstallAttachment: async () => { reads++; return { ok: false, refusal: "not-owner" }; } });

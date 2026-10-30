@@ -15,7 +15,7 @@ export function useThemeExploreTheme(
   useEffect(() => {
     if (themeId) {
       setFallback(null);
-      return;
+      return undefined;
     }
     let cancelled = false;
     setFallback(null);

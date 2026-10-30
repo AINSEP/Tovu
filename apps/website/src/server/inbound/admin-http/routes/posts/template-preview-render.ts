@@ -3,7 +3,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { type PublicPostRecord as PostRecord } from "#src/features/post/index";
 import { getPresentationSettings } from "#src/features/presentation/index";
-import { postPublicPath } from "#src/platform/routing/adapter";
+import { postPublicPath } from "#src/platform/routing/index";
 import { isBarePageChoice, NO_THEME_ID, resolveTemplateBranchChoice } from "#src/features/theme/index";
 import {
   renderViaTemplate,
@@ -85,9 +85,9 @@ export class TemplatePreviewRenderError extends Error {
 }
 export interface PostPreviewRenderInput {
   post: PostRecord;
-  templateChoice?: string | null | undefined;
-  bodyJson?: JsonObject | undefined;
-  bodyHtml?: string | undefined;
+  templateChoice?: string | null;
+  bodyJson?: JsonObject;
+  bodyHtml?: string;
 }
 export interface PostPreviewRenderResult { html: string; templateChoice: string | null }
 /** Selects pending content first, then the already-authorized unpublished row's own body. */
@@ -116,7 +116,8 @@ function resolvePreviewBodyOverrides(
   // sees for the overwhelmingly common case. A genuine pending override always wins over it.
   const unpublished = post.status !== "published";
   const bodyJson = pendingBodyJson ?? (unpublished && post.bodyFormat === "doc" ? post.bodyJson : undefined);
-  const bodyHtml = pendingBodyHtmlOverride ?? (unpublished && post.bodyFormat === "html" ? (post.bodyHtml ?? undefined) : undefined);
+  const savedBodyHtml = unpublished && post.bodyFormat === "html" ? post.bodyHtml : undefined;
+  const bodyHtml = pendingBodyHtmlOverride ?? savedBodyHtml ?? undefined;
 
   return { bodyJson, bodyHtml };
 }

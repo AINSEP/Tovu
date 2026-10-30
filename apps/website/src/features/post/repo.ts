@@ -13,7 +13,7 @@ import type {
 } from "./post.js";
 import type { GoLiveCandidatesPort } from "./go-live.js";
 import { toRecord, toRevisionRecord, toRevisionRow, toRow, updatableColumns } from "./repo.rows.js";
-import { toPostSearchDocument, type PostSearchDocument } from "./search.js";
+import { toPostSearchDocument } from "./search.js";
 import { currentIso } from "../../contracts/core/scheduled-publish.js";
 import { postSearchFor } from "./search-index.js";
 
@@ -34,11 +34,8 @@ import { postSearchFor } from "./search-index.js";
  * what makes a later restore searchable again with no extra step. See `search-index.ts`.
  */
 
-/** Where a dialect keeps post search text. Written in the same transaction as the post. */
-export interface PostSearchProjection {
-  upsert(kernel: ContentKernel, document: PostSearchDocument): Promise<void>;
-  remove(kernel: ContentKernel, postId: string): Promise<void>;
-}
+import type { PostSearchProjection } from "./search-index.contract.js";
+export type { PostSearchProjection } from "./search-index.contract.js";
 
 export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   protected readonly kernel: ContentKernel;

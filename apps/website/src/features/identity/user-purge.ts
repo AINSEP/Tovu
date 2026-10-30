@@ -1,5 +1,5 @@
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import { outboxEventValues } from "../../platform/db/repos/outbox-repo.js";
+import type { outboxEventValues } from "../../platform/db/repos/outbox-repo.js";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { DomainEvent } from "@jini-ai/cms/core";
 import type { PurgeCounts, UserPurgePort, UserPurgeReason } from "./user-purge-types.js";
@@ -36,7 +36,12 @@ type CountedTable = "principal_roles" | "principal_policies" | "sessions" | "api
  * survive the principal it names being deleted; this method purges IDENTITY, never CONTENT.
  */
 export class SqlUserPurge implements UserPurgePort {
-  constructor(protected readonly kernel: ContentKernel) {}
+  protected readonly kernel: ContentKernel;
+  private readonly eventValues: typeof outboxEventValues;
+  constructor(required: { kernel: ContentKernel; eventValues: typeof outboxEventValues }, _optional = {}) {
+    this.kernel = required.kernel;
+    this.eventValues = required.eventValues;
+  }
 
   /** @complexity O(1): eight fixed DELETE statements plus one INSERT, no loop over caller data. */
   async purgeUser(required: {
@@ -79,7 +84,7 @@ export class SqlUserPurge implements UserPurgePort {
 
       const removed: PurgeCounts = { roles, policies, sessions: sessionCount, apiKeys: apiKeyCount, userSettings };
       const event = buildEvent(removed, reason);
-      await this.kernel.run((db) => db.insertInto("outbox_events").values(outboxEventValues(event)).execute());
+      await this.kernel.run((db) => db.insertInto("outbox_events").values(this.eventValues(event)).execute());
 
       return removed;
     });

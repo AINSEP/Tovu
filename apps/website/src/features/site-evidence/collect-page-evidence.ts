@@ -10,7 +10,7 @@ import {
 import type { UUID } from "@jini-ai/core/primitives";
 
 import type { OriginRegistryPort } from "@jini-ai/http-kit/verified-origin";
-import { redactSecretShapes } from "../../contracts/core/secret-redaction.js";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 /** Required Tovu origin and browser ports, plus the requested site-relative paths. */
 export interface CollectPageEvidenceDeps {

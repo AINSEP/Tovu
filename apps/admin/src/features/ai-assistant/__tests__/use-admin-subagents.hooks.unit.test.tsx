@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ASSISTANT_CLI_CAPABILITIES, assistantCliPermissions } from "@tovu/headless";
+import { ASSISTANT_CLI_CAPABILITIES } from "@tovu/headless";
+import { assistantCliPermissions } from "../../../../../website/src/assistant/assistant-subagents-policy.js";
 import {
   useAdminSubagents, useAssistantSubagentsSettings, useDockAgentPermissions, useWiredAdminSubagents, useWiredAssistantSubagentsSettings,
 } from "../hooks/use-admin-subagents.hooks";

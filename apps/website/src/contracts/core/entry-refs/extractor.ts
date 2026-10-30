@@ -147,9 +147,7 @@ function collectNamespaceConfigRefs(
   for (const [key, value] of Object.entries(config)) {
     if (typeof value !== "string" || value.length === 0) continue;
     const targetKind = classifyRefFieldKey(key);
-    if (!targetKind) continue;
-
-    refs.push({
+    if (targetKind) refs.push({
       workspaceId: input.workspaceId,
       sourceEntryId: input.sourceEntryId,
       sourceKind: "config-field",
@@ -182,12 +180,13 @@ function collectConfigFieldRefs(input: ExtractEntryRefsInput, refs: EntryRefRow[
   // content-references) passes an object, `{}` when the entry has no ext fields.
   for (const [namespace, namespaceValue] of Object.entries(input.fieldsExt)) {
     const namespaceRecord = { value: namespaceValue };
-    if (!isNonArrayRecord(namespaceRecord)) continue;
-    const config = { value: namespaceRecord.value.config };
-    if (!isNonArrayRecord(config)) continue;
+    if (isNonArrayRecord(namespaceRecord)) {
+      const config = { value: namespaceRecord.value.config };
+      if (!isNonArrayRecord(config)) continue;
 
-    collectNamespaceConfigRefs(namespace, config.value, input, refs);
-    collectWidgetConfigMedia({ namespace, widgetType: namespaceRecord.value.widgetType, config: config.value, input, refs });
+      collectNamespaceConfigRefs(namespace, config.value, input, refs);
+      collectWidgetConfigMedia({ namespace, widgetType: namespaceRecord.value.widgetType, config: config.value, input, refs });
+    }
   }
 }
 
@@ -361,17 +360,12 @@ export function extractHtmlEntryRefs(input: {
   for (const marker of markers) {
     if (marker.type.toLowerCase() === "gallery") {
       galleryMarkers += 1;
-      if (galleryMarkers > MAX_HTML_PAGE_EMBED_REFS) continue;
-      collectHtmlGalleryRefs({ marker, input, refs });
-      continue;
+      if (galleryMarkers <= MAX_HTML_PAGE_EMBED_REFS) collectHtmlGalleryRefs({ marker, input, refs });
+    } else {
+      // Gallery images do not consume unrelated markers' existing single-target reference budget.
+      singleTargetRefs += collectHtmlSingleTargetRef({ marker, input, refs });
+      if (singleTargetRefs >= MAX_HTML_PAGE_EMBED_REFS) break;
     }
-    addMediaConfigRefs({ config: marker.config, path: `bodyHtml[embed:${marker.type.toLowerCase()}#${marker.occurrence}]`, input, refs });
-    const ref = htmlSingleTargetRef({ marker, input });
-    if (!ref) continue;
-    refs.push(ref);
-    // Gallery images do not consume unrelated markers' existing single-target reference budget.
-    singleTargetRefs += 1;
-    if (singleTargetRefs >= MAX_HTML_PAGE_EMBED_REFS) break;
   }
 
   return refs;
@@ -398,21 +392,23 @@ function collectHtmlGalleryRefs(
   }
 }
 
-function htmlSingleTargetRef(
-  { marker, input }: { marker: HtmlMarker; input: HtmlRefInput },
+function collectHtmlSingleTargetRef(
+  { marker, input, refs }: { marker: HtmlMarker; input: HtmlRefInput; refs: EntryRefRow[] },
   _optional: Record<string, never> = {},
-): EntryRefRow | undefined {
+): number {
+  addMediaConfigRefs({ config: marker.config, path: `bodyHtml[embed:${marker.type.toLowerCase()}#${marker.occurrence}]`, input, refs });
   const targetKind = HTML_EMBED_TARGET_KINDS.get(marker.type.toLowerCase());
-  if (!targetKind) return;
+  if (!targetKind) return 0;
   const id = marker.id;
-  if (!id || id.length > MAX_HTML_EMBED_REF_ID_LENGTH) return;
+  if (!id || id.length > MAX_HTML_EMBED_REF_ID_LENGTH) return 0;
 
-  return {
+  refs.push({
     workspaceId: input.workspaceId,
     sourceEntryId: input.sourceEntryId,
     sourceKind: "page-html-embed",
     fieldPath: `bodyHtml[embed:${marker.type.toLowerCase()}#${marker.occurrence}]`,
     targetKind,
     targetId: id,
-  };
+  });
+  return 1;
 }

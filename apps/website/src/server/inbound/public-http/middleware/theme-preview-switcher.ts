@@ -62,10 +62,11 @@ export function applyThemePreviewSwitcher({ app, deps }: { app: Express; deps: R
     if (!isPageRequest({ request: req })) return next();
     try {
       const page = await preparePreviewPage({ request: req, response: res, deps });
-      if (res.headersSent) return;
+      if (res.headersSent) return undefined;
       if (page) decorateResponse({ response: res, page });
       next();
     } catch (error) { next(error); }
+    return undefined;
   });
 }
 
@@ -87,5 +88,7 @@ function persistChoice({ request, response, choice, delivery }: {
   if (delivery === "static") return;
   const options = { path: "/", httpOnly: true, sameSite: "lax" as const, secure: request.secure };
   if (choice.reset) response.clearCookie(COOKIE, options);
-  else if (choice.cookie !== undefined) response.cookie(COOKIE, choice.cookie, options);
+  else {
+    if (choice.cookie !== undefined) response.cookie(COOKIE, choice.cookie, options);
+  }
 }

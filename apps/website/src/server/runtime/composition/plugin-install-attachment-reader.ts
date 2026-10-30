@@ -1,5 +1,5 @@
 import { readChatAttachmentForOwner } from "#src/features/media/read-chat-attachment";
-import type { InstallAttachmentReader } from "#src/features/plugin-runtime/install-source";
+import type { InstallAttachmentReader } from '#src/contracts/headless/index';
 
 /** BYOK uses the same principal-owned sidecar reader as video. The daemon additionally binds
  * refs to its accepted message: another pending upload owned by this principal is not this run's input.

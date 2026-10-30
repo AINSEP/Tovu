@@ -1,3 +1,4 @@
+import { createDatabaseTransferAdapters } from "#src/server/runtime/composition/database-transfer-adapters";
 import Database from "better-sqlite3";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -81,7 +82,7 @@ function harness(t: test.TestContext) {
     databaseTransferDestinationStore: new InMemoryDatabaseDestinationStore(),
     databaseTransferFailureLog: (line) => logs.push(line),
   };
-  const registrations = buildDatabaseTransferRegistrations(deps, { surfaceExchanges });
+  const registrations = buildDatabaseTransferRegistrations({ ...deps, databaseTransferAdapters: createDatabaseTransferAdapters({}) }, { surfaceExchanges });
   const tools = new Map(registrations.map((r) => [r.descriptor.id, r]));
   return {
     dbOps,

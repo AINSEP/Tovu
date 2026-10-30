@@ -8,7 +8,7 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import { NO_THEME_ID, type DiscoveredTheme } from "#src/features/theme/index";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import type { RedirectRecord } from "@jini-ai/cms/redirects";
-import { buildRouteManifest, createRouteManifestReader, type RouteManifestDeps } from "../route-manifest.js";
+import { buildRouteManifest, type RouteManifestDeps } from "../route-manifest.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /** Minimal hand-built {@link DiscoveredTheme} fixture — every field `buildThemePageRoutes` /
@@ -481,41 +481,6 @@ test("buildRouteManifest: the 404 probe retries past a collision when a real rou
   assert.ok(probe, "expected a not-found probe route even with the base slug taken");
   assert.notEqual(probe?.path, "/tovu-export-404-check", "the retry loop must have appended a suffix rather than colliding");
   assert.equal(realPaths.has(probe?.path ?? ""), false, "the retried probe path must still not collide with anything real");
-});
-
-test("createRouteManifestReader: build() delegates to buildRouteManifest against the SAME bound deps, not a snapshot", async () => {
-  const deps = baseDeps();
-  const reader = createRouteManifestReader(deps);
-
-  const viaReader = await reader.build();
-  const viaFreeFunction = await buildRouteManifest(deps);
-
-  assert.deepEqual(viaReader, viaFreeFunction, "the port must produce the identical manifest the free function does for the same deps");
-
-  // "Bound", not a one-time snapshot: mutating the same deps object between calls (the established
-  // in-place-mutation pattern this file's own baseDeps/store tests rely on, since createSiteApp-style
-  // closures elsewhere in this composition root are bound to ONE object identity) must be visible on
-  // the next build() call, proving the reader re-reads deps rather than freezing them at construction.
-  const overridingPost = {
-    id: "post-reader-rebind-test",
-    workspaceId: deps.workspaceId,
-    title: "Reader Rebind Check",
-    slug: "reader-rebind-check",
-    bodyJson: { type: "doc", content: [] },
-    status: "published" as const,
-    kind: "post" as const,
-    bodyFormat: "doc" as const,
-    bodyHtml: null,
-    updatedAt: new Date().toISOString(),
-    version: 1,
-  };
-  deps.postRepo = new InMemoryPostRepo([overridingPost]);
-
-  const rebuilt = await reader.build();
-  assert.ok(
-    rebuilt.routes.some((r) => r.path === "/reader-rebind-check"),
-    "the same reader instance must reflect a later mutation of the deps it was constructed with"
-  );
 });
 
 test("buildRouteManifest: the theme turned OFF is a distinct skip from no theme being discovered — same reason, different detail", async (t) => {

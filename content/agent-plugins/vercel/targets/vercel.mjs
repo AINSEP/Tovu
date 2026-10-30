@@ -18,7 +18,7 @@
  * Plain JS by owner decision (2026-09-29).
  */
 
-import { createHash } from "node:crypto";
+import { createHash, randomInt } from "node:crypto";
 
 export const VERCEL_TARGET_ID = "vercel";
 
@@ -67,6 +67,8 @@ function vercelFileManifest(files) {
   const blobs = new Map();
   const refs = files.map((f) => {
     const data = Buffer.from(f.data);
+    // Vercel requires SHA-1 in file references and x-vercel-digest upload headers.
+    // This is a wire-format requirement; substituting SHA-256 would break uploads.
     const sha = createHash("sha1").update(data).digest("hex");
     blobs.set(sha, data);
     return { file: f.file, sha, size: data.length };
@@ -101,11 +103,8 @@ export function bindVercel(kit) {
   function isVercelProtectedResponse(resp, body = '') {
       const { server, setCookie } = protectionHeaders({ resp });
       const text = String(body || '');
-      return (/vercel/i.test(server) ||
-          /_vercel_sso_nonce/i.test(setCookie) ||
-          /Authentication Required/i.test(text) ||
-          /Vercel Authentication/i.test(text) ||
-          /vercel\.com\/sso-api/i.test(text));
+      if (/vercel/i.test(server) || /_vercel_sso_nonce/i.test(setCookie)) return true;
+      return /Authentication Required|Vercel Authentication|vercel\.com\/sso-api/i.test(text);
   }
   function protectionHeaders({ resp }, _options = {}) {
       return { server: resp.headers?.get?.('server') || '', setCookie: resp.headers?.get?.('set-cookie') || '' };
@@ -150,7 +149,8 @@ export function bindVercel(kit) {
           await uploadVercelFiles(this.config, blobs, [...blobs.keys()]);
           const name = safeVercelProjectName(input.projectName);
           const created = await createUploadedVercelDeployment({ config: this.config, name, refs, blobs });
-          const deploymentId = typeof created.id === 'string' ? created.id : typeof created.uid === 'string' ? created.uid : undefined;
+          const fallbackId = typeof created.uid === 'string' ? created.uid : undefined;
+          const deploymentId = typeof created.id === 'string' ? created.id : fallbackId;
           const initialUrl = deploymentUrl(created);
           const ready = await readyVercelDeployment({ config: this.config, deploymentId, created });
           const link = await publicVercelLink({ name, ready, created, initialUrl });
@@ -277,32 +277,36 @@ export function bindVercel(kit) {
       // Node's fetch reports every transport failure as a bare "fetch failed"; the cause (a
       // reset socket, a TLS or DNS error) is the only part that says what happened.
       const cause = err?.cause?.message || err?.cause?.code;
-      return new DeployError(`Vercel file upload failed: ${err?.message ?? err}${cause ? ` (${cause})` : ''}`, 502);
+      const detail = cause ? ` (${cause})` : '';
+      return new DeployError(`Vercel file upload failed: ${err?.message ?? err}${detail}`, 502);
+  }
+  async function tryVercelFileUpload({ config, sha, data, attempt }, _options = {}) {
+      try {
+          return await fetchWithTimeout(`${VERCEL_API}/v2/files${vercelTeamQuery(config)}`, redirectGuardInit({
+              method: 'POST',
+              headers: {
+                  Authorization: `Bearer ${config.token}`,
+                  'Content-Type': 'application/octet-stream',
+                  'Content-Length': String(data.length),
+                  'x-vercel-digest': sha,
+              },
+              body: data,
+          }), { timeoutMs: FETCH_TIMEOUT_MS.UPLOAD });
+      }
+      catch (err) {
+          // A dropped connection is retried like a 5xx (the first real plannie publish lost one of
+          // ~200 uploads that way); a timeout is not, since each try already waited the full bound.
+          if (attempt < VERCEL_UPLOAD_ATTEMPTS && !/timed out/i.test(String(err?.message))) {
+              await sleep(1000 * attempt);
+              return undefined;
+          }
+          throw vercelUploadTransportError({ err });
+      }
   }
   async function uploadVercelFile(config, sha, data) {
       for (let attempt = 1; ; attempt += 1) {
-          let resp;
-          try {
-              resp = await fetchWithTimeout(`${VERCEL_API}/v2/files${vercelTeamQuery(config)}`, redirectGuardInit({
-                  method: 'POST',
-                  headers: {
-                      Authorization: `Bearer ${config.token}`,
-                      'Content-Type': 'application/octet-stream',
-                      'Content-Length': String(data.length),
-                      'x-vercel-digest': sha,
-                  },
-                  body: data,
-              }), { timeoutMs: FETCH_TIMEOUT_MS.UPLOAD });
-          }
-          catch (err) {
-              // A dropped connection is retried like a 5xx (the first real plannie publish lost one of
-              // ~200 uploads that way); a timeout is not, since each try already waited the full bound.
-              if (attempt < VERCEL_UPLOAD_ATTEMPTS && !/timed out/i.test(String(err?.message))) {
-                  await sleep(1000 * attempt);
-                  continue;
-              }
-              throw vercelUploadTransportError({ err });
-          }
+          const resp = await tryVercelFileUpload({ config, sha, data, attempt });
+          if (resp === undefined) continue;
           assertNotRedirected(resp, 'Vercel file upload');
           if (resp.ok) {
               // Drain the small JSON ack so the connection goes back to the pool.
@@ -312,9 +316,9 @@ export function bindVercel(kit) {
           if (attempt < VERCEL_UPLOAD_ATTEMPTS && (resp.status === 429 || resp.status >= 500)) {
               await resp.arrayBuffer().catch(() => undefined);
               await sleep(1000 * attempt);
-              continue;
+          } else {
+              throw vercelError(await readVercelJson(resp), resp.status);
           }
-          throw vercelError(await readVercelJson(resp), resp.status);
       }
   }
   /**
@@ -367,6 +371,9 @@ export function bindVercel(kit) {
           params.set('teamId', config.teamId);
       else if (config.teamSlug)
           params.set('slug', config.teamSlug);
+      else {
+          // Personal deployments need no team query parameter.
+      }
       const s = params.toString();
       return s ? `?${s}` : '';
   }
@@ -376,7 +383,7 @@ export function bindVercel(kit) {
    * origin's hardcoded `od-${projectId}` convention.
    */
   function safeVercelProjectName(projectName) {
-      return safeProjectLabel(projectName, 80) || `deploy-${Math.random().toString(36).slice(2, 10)}`;
+      return safeProjectLabel(projectName, 80) || `deploy-${randomInt(36 ** 8).toString(36).padStart(8, '0')}`;
   }
   async function readVercelJson(resp) {
       try {
@@ -406,14 +413,19 @@ export function bindVercel(kit) {
       return /^https?:\/\//i.test(url) ? url : `https://${url}`;
   }
   function appendDeploymentAlias({ alias, urls }, _options = {}) {
-      if (typeof alias === 'string')
+      if (typeof alias === 'string') {
           urls.push(alias);
-      else if (alias && typeof alias === 'object') {
+          return;
+      }
+      if (alias && typeof alias === 'object') {
           const a = alias;
           if (typeof a.domain === 'string')
               urls.push(a.domain);
           else if (typeof a.url === 'string')
               urls.push(a.url);
+          else {
+              // Objects without a domain or URL are not deployment aliases.
+          }
       }
   }
   function appendDeploymentAliases({ json, urls }, _options = {}) {

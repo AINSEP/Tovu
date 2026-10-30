@@ -1,3 +1,4 @@
+import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -43,7 +44,7 @@ function fakeLauncher({ failAt, png = Buffer.from("png") }: { failAt?: "launch" 
 test("captures the public root at 1280x800 after a settle, resizes to 640, and reuses one browser until close", async () => {
   const { launcher, calls } = fakeLauncher();
   const resized: string[] = [];
-  const port = createPlaywrightSitePreviewCapture({}, {
+  const port = createPlaywrightSitePreviewCapture({ imageCodec: new SharpImageTransformer() }, {
     loadLauncher: async () => launcher,
     resize: async ({ png, width }) => { resized.push(`${png.toString()}@${width}`); return Buffer.from("jpeg"); },
     log: () => assert.fail("no failure expected"),
@@ -65,7 +66,7 @@ test("default Sharp resizing stores a 640px JPEG and releases the injected brows
   const png = await sharp({ create: { width: 1280, height: 800, channels: 3, background: "red" } }).png().toBuffer();
   const { launcher, calls } = fakeLauncher({ png });
   // Only the launcher is replaced; the JPEG encoder stays real. Host loading is checked separately below.
-  const port = createPlaywrightSitePreviewCapture({}, { loadLauncher: async () => launcher });
+  const port = createPlaywrightSitePreviewCapture({ imageCodec: new SharpImageTransformer() }, { loadLauncher: async () => launcher });
   t.after(() => port.close());
   const jpeg = await port.capture({ url: "https://localhost:3101/" });
   assert.ok(jpeg);
@@ -92,7 +93,7 @@ test("the default logger warns when a capture fails and returns a placeholder", 
   const { launcher } = fakeLauncher({ failAt: "launch" });
   const warnings: string[] = [];
   t.mock.method(console, "warn", (message: string) => warnings.push(message));
-  const port = createPlaywrightSitePreviewCapture({}, { loadLauncher: async () => launcher });
+  const port = createPlaywrightSitePreviewCapture({ imageCodec: new SharpImageTransformer() }, { loadLauncher: async () => launcher });
   t.after(() => port.close());
   assert.equal(await port.capture({ url: "http://localhost:3101/" }), null);
   assert.deepEqual(warnings, ["[site-preview] could not capture http://localhost:3101/: Executable doesn't exist"]);
@@ -101,7 +102,7 @@ test("the default logger warns when a capture fails and returns a placeholder", 
 test("a page that fails to load is a logged null, and its context is still closed", async () => {
   const { launcher, calls } = fakeLauncher({ failAt: "goto" });
   const logs: string[] = [];
-  const port = createPlaywrightSitePreviewCapture({}, { loadLauncher: async () => launcher, resize: async () => Buffer.from("x"), log: (m) => logs.push(m) });
+  const port = createPlaywrightSitePreviewCapture({ imageCodec: new SharpImageTransformer() }, { loadLauncher: async () => launcher, resize: async () => Buffer.from("x"), log: (m) => logs.push(m) });
   assert.equal(await port.capture({ url: "http://localhost:3101/" }), null);
   assert.deepEqual(logs, ["[site-preview] could not capture http://localhost:3101/: net::ERR_CONNECTION_REFUSED"]);
   assert.equal(calls.at(-1), "context-close");
@@ -110,7 +111,7 @@ test("a page that fails to load is a logged null, and its context is still close
 test("a missing browser is a null capture and close does not throw; the next drain launches again", async () => {
   const { launcher, calls } = fakeLauncher({ failAt: "launch" });
   const logs: string[] = [];
-  const port = createPlaywrightSitePreviewCapture({}, { loadLauncher: async () => launcher, log: (m) => logs.push(m) });
+  const port = createPlaywrightSitePreviewCapture({ imageCodec: new SharpImageTransformer() }, { loadLauncher: async () => launcher, log: (m) => logs.push(m) });
   assert.equal(await port.capture({ url: "http://localhost:3101/" }), null);
   await port.close();
   assert.equal(await port.capture({ url: "http://localhost:3101/" }), null);
@@ -124,7 +125,7 @@ test("a missing browser is a null capture and close does not throw; the next dra
 test("with no injected launcher the adapter launches Chromium from the host module loader with the loopback-only flags", async t => {
   const { launcher, calls } = fakeLauncher();
   const load = t.mock.method(playwrightModuleLoader, "load", async () => ({ chromium: launcher }));
-  const port = createPlaywrightSitePreviewCapture({}, { resize: async ({ width }) => Buffer.from(`jpeg:${width}`), log: () => assert.fail("no failure expected") });
+  const port = createPlaywrightSitePreviewCapture({ imageCodec: new SharpImageTransformer() }, { resize: async ({ width }) => Buffer.from(`jpeg:${width}`), log: () => assert.fail("no failure expected") });
 
   assert.equal((await port.capture({ url: "https://localhost:3101/" }))?.toString(), "jpeg:640");
   await port.close();
@@ -144,7 +145,7 @@ test("default preview capture falls back to system Chrome with the same loopback
       return launcher.launch({ headless: options.headless ?? true, args: [...(options.args ?? [])] });
     },
   } }));
-  const port = createPlaywrightSitePreviewCapture({}, {
+  const port = createPlaywrightSitePreviewCapture({ imageCodec: new SharpImageTransformer() }, {
     resize: async () => Buffer.from("jpeg"), log: () => assert.fail("fallback must produce a thumbnail"),
   });
   t.after(() => port.close());
@@ -169,7 +170,7 @@ test("default preview capture returns a placeholder when neither browser can lau
     },
   } }));
   const logs: string[] = [];
-  const port = createPlaywrightSitePreviewCapture({}, { log: message => logs.push(message) });
+  const port = createPlaywrightSitePreviewCapture({ imageCodec: new SharpImageTransformer() }, { log: message => logs.push(message) });
   t.after(() => port.close());
 
   assert.equal(await port.capture({ url: "https://localhost:3101/" }), null);
@@ -180,7 +181,7 @@ test("default preview capture returns a placeholder when neither browser can lau
 
 test("a host with no desktop render bridge configured captures through headless Chromium", async () => {
   const { launcher, calls } = fakeLauncher();
-  const port = createSitePreviewCaptureForHost({}, { env: {}, loadLauncher: async () => launcher, resize: async () => Buffer.from("jpeg") });
+  const port = createSitePreviewCaptureForHost({ imageCodec: new SharpImageTransformer() }, { env: {}, loadLauncher: async () => launcher, resize: async () => Buffer.from("jpeg") });
 
   assert.equal((await port.capture({ url: "https://localhost:3102/" }))?.toString(), "jpeg");
   assert.ok(calls.includes("goto:https://localhost:3102/:load:15000"), "the Chromium page loaded the site");
@@ -190,14 +191,14 @@ test("a host with no desktop render bridge configured captures through headless 
 
 test("a native capture failure with no injected logger warns on the console", async t => {
   const warn = t.mock.method(console, "warn", () => {});
-  const port = createSitePreviewCaptureForHost({}, { capture: { async captureUrl() { throw new Error("bridge down"); } } });
+  const port = createSitePreviewCaptureForHost({ imageCodec: new SharpImageTransformer() }, { capture: { async captureUrl() { throw new Error("bridge down"); } } });
   assert.equal(await port.capture({ url: "http://127.0.0.1:4200/" }), null);
   assert.deepEqual(warn.mock.calls.map((call) => call.arguments), [["[site-preview] native capture failed"]]);
 });
 
 test("a native capture with no injected resize stores a 640px JPEG via Sharp", async () => {
   const png = await sharp({ create: { width: 1280, height: 800, channels: 3, background: "#336699" } }).png().toBuffer();
-  const port = createSitePreviewCaptureForHost({}, { capture: { async captureUrl(input) {
+  const port = createSitePreviewCaptureForHost({ imageCodec: new SharpImageTransformer() }, { capture: { async captureUrl(input) {
     return { png, finalUrl: input.url, title: "", status: null, pageHeight: 800, capturedHeight: 800, blockedRequests: 0 };
   } } });
   const jpeg = await port.capture({ url: "http://127.0.0.1:4200/" });

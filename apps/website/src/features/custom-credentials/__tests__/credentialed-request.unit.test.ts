@@ -1320,7 +1320,7 @@ test("a disabled installed bundled plugin retains its trusted ExampleV1 rule and
   const { forceRemove } = await import("../../agent-plugins/__tests__/fixtures/force-remove.js");
   const { resolveAgentPluginLayout } = await import("../../agent-plugins/layout.js");
   const { createTovuAgentPluginLifecycle } = await import("../../agent-plugins/lifecycle.js");
-  const { loadCredentialSchemeRegistry } = await import("../auth-schemes.js");
+  const { loadCredentialSchemeRegistry } = await import("../../agent-plugins/auth-schemes.js");
   const root = await mkdtemp(path.join(tmpdir(), "tovu-disabled-example-host-header-"));
   try {
     const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: root } });

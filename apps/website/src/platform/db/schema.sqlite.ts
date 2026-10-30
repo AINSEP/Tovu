@@ -1502,6 +1502,8 @@ export const media = sqliteTable(
     caption: text("caption").notNull(),
     credit: text("credit").notNull(),
     sourceSha256: text("source_sha256").notNull(),
+    /** Per-item origin and sniffed MIME; NULL for legacy rows, never blob ownership metadata. */
+    sourceMetadataJson: text('source_metadata_json'),
     status: text("status").notNull(),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),

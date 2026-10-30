@@ -2,7 +2,7 @@ import fs from "node:fs";
 
 import { readAppliedSchemaIdentityOfFile } from "../../../platform/site-dir/read-applied-schema-identity.js";
 import { compareSchemaVersion } from "../../../platform/site-dir/schema-guard.js";
-import { SiteNewerThanRuntimeError } from "../../../platform/site-dir/errors.js";
+import { SiteNewerThanRuntimeError } from "../../../platform/site-dir/index.js";
 
 /**
  * @file Closes the boot-path gap between `tovu serve` and the non-CLI boot path (`index.ts`, run

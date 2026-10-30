@@ -1,6 +1,11 @@
 import type { EventBusPort } from "@jini-ai/cms/core";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 
+function contentEventName({ topic, kind }: { topic: string; kind: string }, _optional = {}): string {
+  if (topic === "content.created") return `${kind}_created`;
+  return topic === "content.saved" ? "content_saved" : `${kind}_published`;
+}
+
 /** Subscribe once per site's bus at boot. Domain IDs let the provider dedupe outbox redelivery.
  * Creates/saves originate inside revision transactions; publishes reuse entry.published, including go-live.
  * @complexity O(1) setup and per event; no content reads or unbounded local dedupe state. */
@@ -18,7 +23,7 @@ export async function registerContentAnalytics(
         const resourceId = payload.entryId ?? event.aggregateId;
         if (!resourceId) return;
         const kind = payload.contentType;
-        const name = topic === "content.created" ? `${kind}_created` : topic === "content.saved" ? "content_saved" : `${kind}_published`;
+        const name = contentEventName({ topic, kind });
         deps.tracker.capture({ name, userId: payload.actorId ?? `system:${deps.workspaceId}` }, { properties: {
           eventId: event.id, resourceKind: kind, resourceId,
           source: payload.source === "admin" || payload.source === "assistant" ? payload.source : "service",

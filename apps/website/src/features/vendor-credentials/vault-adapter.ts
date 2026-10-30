@@ -127,7 +127,7 @@ export function credentialVault(required: { repo: { vault?: VaultRepoPort }; sea
     }) } as KeyringPort,
     sealer: { seal: input => protect(() => required.sealer.seal({ plaintext: input.plaintext, key: input.key, aad: input.aad })), open: (input, options) => protect(() => required.sealer.open(input, options)) },
     now: () => new Date(required.clock?.nowMs() ?? 0).toISOString(),
-    newId: () => { if (!required.idGen) throw new VaultError({ code: "invalid-record" }); return required.idGen.newId(); },
+    newId: () => { if (!required.idGen) { throw new VaultError({ code: "invalid-record" }); } return required.idGen.newId(); },
   });
 }
 

@@ -21,10 +21,7 @@
  * `pages_write_html`: the model authors the whole document and tags its own regions.
  */
 
-/** The `data-agent-element` handle for each region a starter Page ships with. */
-export const PAGE_SKELETON_REGIONS = ["page-hero", "page-body", "page-cta"] as const;
-
-export type PageSkeletonRegion = (typeof PAGE_SKELETON_REGIONS)[number];
+export { PAGE_SKELETON_REGIONS, type PageSkeletonRegion } from "../../contracts/core/page-html.js";
 
 /**
  * The seed document written when a Page is first converted to `body_format: "html"`.

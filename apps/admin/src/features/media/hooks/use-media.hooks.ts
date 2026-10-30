@@ -1,8 +1,8 @@
 import { useCallback, useRef, useState } from "react";
 
-import type { AdminMedia } from "@/lib/api";
+import { describeApiError, type AdminMedia } from "@/lib/api";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
-import { KEYS, MEDIA_RESOURCE, describeApiError, findEditingItem, readFileAsBase64, visibleMediaError, type MediaOrderBy } from "../rules";
+import { KEYS, MEDIA_RESOURCE, findEditingItem, readFileAsBase64, visibleMediaError, type MediaOrderBy } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as translate } from "../media-i18n";

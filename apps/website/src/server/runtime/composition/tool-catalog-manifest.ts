@@ -1,3 +1,7 @@
+import { createDatabaseTransferAdapters } from "./database-transfer-adapters.js";
+import { toolSearchKeywords } from "#src/assistant/tool-registrations";
+import { bundledContributionSources } from "#src/features/agent-plugins/bundled-contribution-sources";
+import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import { buildProjectKeyRegistrations, projectKeysRisk } from "#src/features/project-keys/tools";
 import { devRestartPortFromEnv } from "#src/platform/dev-supervisor/dev-restart";
 import { readBundledDeployConfigCandidatePaths } from "#src/features/deployments/index";
@@ -21,9 +25,10 @@ import { buildProviderStatusRegistrations, providerStatusDerivedRisk } from "#sr
 import { buildCredentialCopyRegistrations, credentialCopyDerivedRisk } from "#src/features/custom-credentials/credential-copy-tool";
 import { saveAgentPluginToken } from "#src/features/agent-plugins/access-token-tool";
 import { contributeAgentPluginsInstallTools } from "#src/features/agent-plugins/install-tool";
+import { readPluginInstallRequest, readPluginInstallArchive } from "#src/features/plugin-runtime/install-source";
 import { createPluginInstallAttachmentReader } from "./plugin-install-attachment-reader.js";
-import type { InstallAttachmentReader } from "#src/features/plugin-runtime/install-source";
-import type { AssistantToolContributions } from "#src/assistant/index";
+import type { InstallAttachmentReader } from '#src/contracts/headless/index';
+import type { AssistantToolContributions, AssistantToolRegistryDeps } from "#src/assistant/tool-registrations";
 import { ToolInputError } from "@jini-ai/core";
 import { contributeAnalyticsTools } from "#src/features/analytics/tool-registrations";
 import { contributeMailStatusTools } from "#src/features/mail-status/tool-registrations";
@@ -51,16 +56,16 @@ import { buildApiCredentialSaveHandlers, contributeCustomCredentialsTools } from
 import { contributeDatabaseTools } from "#src/features/database/tool-registrations";
 import { contributeDatabaseTransferTools } from "#src/features/database-transfer/tool-registrations";
 import { contributeDomainDnsAndChangeTools } from "#src/features/domain-dns/index";
-import { createDefaultHttpClient } from "#src/platform/http/client";
+import { createDefaultHttpClient } from "#src/platform/http/index";
 import type { ObservabilityPort } from "#src/platform/observability/index";
-import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
+import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/index";
 import { renderPublicPage, createRenderBrowserPool, openPlaywrightRenderBrowser, PUBLIC_RENDER_LAUNCH_OPTIONS } from "@jini-ai/diagnostics/web-evidence/playwright";
 import { contributeWebTools } from "#src/features/web/tool-registrations";
 import { htmlToMarkdown } from "@jini-ai/platform/web";
 import { contributeWebScreenshotTools } from "#src/features/web-screenshot/tool-registrations";
 import { playwrightModuleLoader } from "#src/platform/headless-browser/playwright-loader";
 import { createPageCaptureForHost } from "#src/features/web-screenshot/desktop-page-capture";
-import { encodeScreenshotTiles } from "#src/features/web-screenshot/screenshot-image";
+import { createScreenshotTileEncoder } from "#src/features/web-screenshot/screenshot-image";
 import { createOwnSiteOpener } from "#src/features/web-screenshot/own-site-opener";
 import { captureRootFor, createCaptureFileWriter } from "#src/features/web-screenshot/capture-files";
 import { DOMAIN_DNS_EGRESS_POLICY, createBundledPublicDnsResolver, createTlsProbe, listSavedHostingHosts } from "./domain-dns-adapters.js";
@@ -73,7 +78,7 @@ import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-regi
 import { contributeExternalMcpOperationsTools } from "#src/features/external-mcp/operations-tools";
 import { probeExternalMcpServer } from "#src/server/runtime/services/external-mcp-probe";
 import { fetchDaemonAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
-import { contributeFilesCopyTools } from "#src/features/fs-files/copy-tool";
+import { contributeFilesCopyTools } from "#src/features/asset-transfer/copy-tool";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
 import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
@@ -87,21 +92,14 @@ import { installFirstPartyPublishContentTypes } from "./publish-content-manifest
 import { contributePostTools, contributePostDuplicateHandlers, contributeContentStatsTools, contributePostPreviewTools } from "#src/features/post/tool-registrations";
 import { contributeRecoveryTools } from "#src/features/recovery/tool-registrations";
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
-import { contributeThemesTools } from "#src/features/theme/tool-registrations";
-import { contributeSetActiveThemeTools } from "#src/features/theme/set-active-theme-tool";
-import { contributePreviewSwitcherTools } from "#src/features/theme/preview-switcher-tools";
-import { contributeDuplicateThemeTools } from "#src/features/theme/duplicate-theme-tool";
-import { contributeImportThemeFileTools } from "#src/features/theme/import-theme-file-tool";
+import { contributeThemesTools, contributeSetActiveThemeTools, contributePreviewSwitcherTools, contributeDuplicateThemeTools, contributeImportThemeFileTools, contributeTrashThemeTools } from "#src/features/theme/tool-registrations";
 import { contributeChangeSetsTools } from "#src/features/change-sets/tool-registrations";
 import { contributeWorkspaceTools } from "#src/features/workspace/tool-registrations";
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";
-import { contributeMediaTools } from "#src/features/media/tool-registrations";
-import { contributeMediaDuplicateHandlers } from "#src/features/media/duplicate-asset";
-import { contributeMediaViewImageTools } from "#src/features/media/view-image-tool";
+import { contributeMediaTools, contributeMediaDuplicateHandlers, contributeMediaViewImageTools, contributeMediaViewVideoTools, type MediaVideoToolPorts } from "#src/features/media/tool-registrations";
 import { contributeImageTransformTools } from "#src/features/image-transform/tool";
-import { contributeMediaViewVideoTools, type MediaVideoToolPorts } from "#src/features/media/view-video-tool";
 import { createMediaVideoToolPorts } from "./media-video-ports.js";
 import { contributeMediaGenerationTools } from "#src/features/media-generation/tool-registrations";
 import { saveMediaCredential, contributeMediaProviderTools } from "#src/features/media-generation/providers-tools";
@@ -112,16 +110,13 @@ import { contributeNewsletterTools } from "#src/features/newsletter/tool-registr
 import { contributeNewsletterDeliveryTools } from "#src/features/newsletter/delivery/tool-registrations";
 import { contributeRedirectsTools } from "#src/features/redirects/tool-registrations";
 import { contributeSeoTools } from "#src/features/seo/tool-registrations";
-import { contributeSettingsTools } from "#src/features/settings/tool-registrations";
-import { contributeVisitorTools } from "#src/features/settings/visitor-tools-registrations";
-import { contributeUiLocalesTools } from "#src/features/settings/ui-locales-tool";
+import { contributeSettingsTools, contributeVisitorTools, contributeUiLocalesTools } from "#src/features/settings/tool-registrations";
 import { contributeSiteBackupTools } from "#src/features/site-backup/tool-registrations";
 import { contributeSiteEvidenceTools } from "#src/features/site-evidence/tool-registrations";
 import { contributeSiteInspectionTools, openLoopbackSiteServer } from "#src/features/site-inspection/index";
 import { contributeSitesTools } from "#src/features/sites/index";
 import { buildSourceControlCredentialHandler, contributeSourceControlTools } from "#src/features/source-control/tool-registrations";
 import { contributeTrashTools } from "#src/features/trash/tool-registrations";
-import { contributeTrashThemeTools } from "#src/features/theme/trash-theme-tool";
 import { deriveTrashItemRegistrations, trashItemDerivedRisk } from "#src/features/trash/index";
 import { buildPublishHostCredentialHandler, contributeStaticPublishTools } from "#src/features/deployments/publish-agent-tools";
 import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations";
@@ -362,6 +357,7 @@ export function installFirstPartyToolContributors(
     readInstallAttachment?: InstallAttachmentReader;
   } = {},
 ): void {
+  toolSearchKeywords({}, { sources: bundledContributionSources });
   contributions.contentTargetInputs = bindContentTargetInputs;
   contributions.contributors.register({ contribution: contributeContentStatsTools() });
   contributions.contributors.register({ contribution: contributeAnalyticsTools() });
@@ -403,14 +399,14 @@ export function installFirstPartyToolContributors(
   // Database transfer P0 (2026-09-27): `database_transfer_plan` (read-only) and `database_transfer_run`,
   // which holds its call open for the human's Copy before copying the site's data into a Postgres
   // database's private `tovu` area. The site keeps running on SQLite.
-  contributions.contributors.register({ contribution: contributeDatabaseTransferTools() });
+  contributions.contributors.register({ contribution: contributeDatabaseTransferTools({ adapters: createDatabaseTransferAdapters({}) }) });
   contributions.contributors.register({ contribution: contributeDeploymentsTools() });
   contributions.contributors.register({ contribution: contributeDeployOpsTools({ registry: deployOpsRegistry }) });
   const domainDnsHttpClient = createHttpClient(DOMAIN_DNS_EGRESS_POLICY, { observability });
   const bundledPluginsRoot = path.join(resolveProductRoot(), "content", "agent-plugins");
   const domainDnsDiagnostics = { observe: ({ operation, outcome }: { operation: "dns" | "tls"; outcome: string }) => console.info(`[domain-dns] ${operation}: ${outcome}`) };
   const publicDnsResolver = createBundledPublicDnsResolver({ client: domainDnsHttpClient, sourceRoot: bundledPluginsRoot }, domainDnsDiagnostics);
-  contributions.contributors.register({ contribution: contributeDomainDnsAndChangeTools({ createDnsDeps: createDnsChangeDepsFactory({ httpClient: domainDnsHttpClient }), createDeps: routeDeps => ({
+  contributions.contributors.register({ contribution: contributeDomainDnsAndChangeTools<AssistantToolRegistryDeps>({ createDnsDeps: createDnsChangeDepsFactory({ httpClient: domainDnsHttpClient }), createDeps: routeDeps => ({
     workspaceId: routeDeps.workspaceId,
     authorize: routeDeps.authorize,
     resolver: publicDnsResolver,
@@ -441,7 +437,9 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributePluginsTools({ createPluginHost: createTovuPluginHost }) });
   contributions.contributors.register({ contribution: contributePluginsInstallTools({ readInstallAttachment }) });
   contributions.contributors.register({ contribution: contributePluginSourceTools() });
-  contributions.contributors.register({ contribution: contributeAgentPluginsInstallTools({ readInstallAttachment }) });
+  contributions.contributors.register({ contribution: contributeAgentPluginsInstallTools({ readInstallAttachment,
+    pluginInstallSource: { readRequest: readPluginInstallRequest, readArchive: readPluginInstallArchive },
+  }) });
   contributions.contributors.register({ contribution: contributeSkillsInstallTools() });
   contributions.contributors.register({ contribution: contributePostTools() });
   contributions.contributors.register({ contribution: contributePostPreviewTools({ renderPostPreview: async (deps, input) => {
@@ -509,7 +507,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeWebScreenshotTools(
     { ports: {
       capture: createPageCaptureForHost({ httpClient: createHttpClient(WEB_SCREENSHOT_EGRESS_POLICY, { observability }) }, { browserPool: publicBrowserPool, allowUnsandboxed: true }),
-      encodeTiles: encodeScreenshotTiles,
+      encodeTiles: createScreenshotTileEncoder({ imageCodec: new SharpImageTransformer() }),
       nowMs: () => Date.now(),
       observe: (event) => console.info(JSON.stringify({ timestamp: new Date().toISOString(), level: "info", service: "web-screenshot", message: "web_screenshot_page", context: event })),
     } },

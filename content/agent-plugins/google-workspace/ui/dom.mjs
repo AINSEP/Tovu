@@ -35,6 +35,9 @@ export function h(tag, props = {}, children = []) {
     if (typeof value === 'function') element.addEventListener(name.slice(2).toLowerCase(), value);
     else if (value === true) element.setAttribute(name, '');
     else if (typeof value === 'string') element.setAttribute(name, value);
+    else {
+      // False and absent props do not create attributes.
+    }
   }
   element.append(...children.filter((child) => child !== null && child !== undefined));
   return element;
@@ -99,8 +102,8 @@ function focusKey(element, root) {
 }
 
 function matchesFocusKey({ control, key }, _options = {}) {
-  return (key.id && control.id === key.id)
-    || (control.tagName === key.tag && (control.getAttribute('aria-label') ?? control.textContent.trim()) === key.name);
+  if (key.id && control.id === key.id) return true;
+  return control.tagName === key.tag && (control.getAttribute('aria-label') ?? control.textContent.trim()) === key.name;
 }
 
 /**

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ToolInputError, type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
 import { buildCredentialSaveRegistrations, credentialSaveCatalog, type CredentialSaveAdapters } from '../credential-save-tool.js';
-import { SECRET_FORM_TOOL_IDS } from '../../../contracts/headless/secret-form-cards.js';
+import { SECRET_FORM_TOOL_IDS } from '../../../contracts/headless/index.js';
 import { isMcpUiToolCallPermitted } from '../../../assistant/mcp-ui-tool-calls.js';
 import { approvalClassFor, applyToolApprovalPolicy } from '../../../assistant/tool-approval-policy.js';
 

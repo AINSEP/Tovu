@@ -1,5 +1,5 @@
 import "../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
-import type { AssistantPermanentDeletesPolicy } from '../../contracts/headless/assistant-permanent-deletes-policy.js';
+import type { AssistantPermanentDeletesPolicy } from '../../contracts/headless/index.js';
 import { createContributionRegistry, createToolRegistry } from '@jini-ai/core';
 import { createInMemorySearchState, createStaticAccessPort } from '@jini-ai/search/testkit';
 import type { ToolContributor, DerivedToolContributor } from '../index.js';

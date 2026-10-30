@@ -4,14 +4,14 @@ import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import { CHAT_HISTORY_DDL } from "@jini-ai/chat/store/sqlite";
 
-import { createChatStoreFactory, createInMemoryChatStoreFactory } from "../store-factory.js";
+import { createChatStoreFactory, createInMemoryChatHistory } from "../store-factory.js";
 import type { AdminChatPrincipal } from "../tenant-scope.js";
 
 /**
  * @file `createChatStoreFactory` (the host-db-backed factory) had no direct test anywhere in the
  * repo before this file — only exercised indirectly through
  * `server/agent-daemon/__tests__/integration/daemon-boots.integration.test.ts`, which never called
- * it with more than one principal or asserted on scoping. `createInMemoryChatStoreFactory` IS
+ * it with more than one principal or asserted on scoping. `createInMemoryChatHistory` IS
  * exercised elsewhere, but its lazy-open and cascade-delete behavior (both documented as
  * load-bearing in this file's own comments) were not directly asserted; covered here too.
  */
@@ -55,9 +55,9 @@ describe("createChatStoreFactory", () => {
   });
 });
 
-describe("createInMemoryChatStoreFactory", () => {
+describe("createInMemoryChatHistory", () => {
   it("opens its db lazily and reuses it across calls, so writes persist between calls", async () => {
-    const factory = createInMemoryChatStoreFactory();
+    const factory = createInMemoryChatHistory().chatHistory;
     const principal: AdminChatPrincipal = { kind: "user", workspaceId: "ws-1", userId: "u1" };
 
     await factory(principal).create({ id: "c1", title: "hi" });
@@ -69,8 +69,8 @@ describe("createInMemoryChatStoreFactory", () => {
   });
 
   it("gives two independent factory instances two independent in-memory dbs", async () => {
-    const factoryA = createInMemoryChatStoreFactory();
-    const factoryB = createInMemoryChatStoreFactory();
+    const factoryA = createInMemoryChatHistory().chatHistory;
+    const factoryB = createInMemoryChatHistory().chatHistory;
     const principal: AdminChatPrincipal = { kind: "user", workspaceId: "ws-1", userId: "u1" };
 
     await factoryA(principal).create({ id: "c1" });
@@ -80,7 +80,7 @@ describe("createInMemoryChatStoreFactory", () => {
   });
 
   it("enables foreign_keys, so deleting a conversation cascades to its messages", async () => {
-    const factory = createInMemoryChatStoreFactory();
+    const factory = createInMemoryChatHistory().chatHistory;
     const principal: AdminChatPrincipal = { kind: "user", workspaceId: "ws-1", userId: "u1" };
     const store = factory(principal);
 

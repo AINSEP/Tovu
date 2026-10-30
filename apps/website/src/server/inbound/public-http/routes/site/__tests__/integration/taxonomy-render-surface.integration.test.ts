@@ -8,6 +8,7 @@ import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { AssignedTermView, EntryTermReadPort } from "#src/features/taxonomy/repo.sqlite";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -151,8 +152,9 @@ test("integration: GET /:slug places the terms block right after the entry's con
   assert.equal(res.status, 200);
   const html = await res.text();
 
+  const { contentHtml } = assertDefaultConsentPage({ html });
   assert.ok(
-    html.includes(`<article><div><p>Hello from a taxonomy-tagged page.</p></div><div class="entry-terms"><span class="entry-terms__group"><span class="entry-terms__taxonomy">Category:</span> <span class="entry-terms__term">QA</span></span> <span class="entry-terms__group"><span class="entry-terms__taxonomy">Tag:</span> <span class="entry-terms__term">e2e</span></span></div></article></main><footer>Site footer</footer>`),
+    contentHtml.includes(`<article><div><p>Hello from a taxonomy-tagged page.</p></div><div class="entry-terms"><span class="entry-terms__group"><span class="entry-terms__taxonomy">Category:</span> <span class="entry-terms__term">QA</span></span> <span class="entry-terms__group"><span class="entry-terms__taxonomy">Tag:</span> <span class="entry-terms__term">e2e</span></span></div></article></main><footer>Site footer</footer>`),
     html
   );
   assert.equal(html.split('class="entry-terms"').length - 1, 1, "exactly one terms block");

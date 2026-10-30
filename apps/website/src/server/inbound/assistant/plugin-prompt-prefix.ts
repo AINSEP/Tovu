@@ -18,7 +18,7 @@ import type { AgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveAgentPluginRefs } from "../../../features/agent-plugins/lifecycle.js";
 import { translateRetiredPluginRefs } from "../../../features/agent-plugins/bundled-catalog.js";
 
-import { failRunBeforeStart } from "../../../assistant/agent-session-preset.js";
+import { failRunBeforeStart } from "../../../assistant/session-services.js";
 
 type OnStartedContext = Parameters<RunStartHandler>[0];
 

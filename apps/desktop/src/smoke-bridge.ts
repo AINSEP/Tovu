@@ -92,8 +92,9 @@ export function parseJiniEntries({ stdout }: { stdout: string }, _options = {}):
   catch { throw new Error(`invalid packaged Jini entries: ${sanitizeUntrustedText({ text: redactLocalText({ text: stdout }) })}`); }
   if (!Array.isArray(entries) || entries.length !== 2) throw new Error("expected two packaged Jini entries");
   return entries.map((entry: unknown, index) => {
-    if (!isRecord(entry) || typeof entry.command !== "string" || entry.command.length === 0
-      || !Array.isArray(entry.args) || !entry.args.every((arg: unknown) => typeof arg === "string")) {
+    if (!isRecord(entry)) throw new Error("malformed packaged Jini entry");
+    if (typeof entry.command !== "string" || entry.command.length === 0) throw new Error("malformed packaged Jini entry");
+    if (!Array.isArray(entry.args) || !entry.args.every((arg: unknown) => typeof arg === "string")) {
       throw new Error("malformed packaged Jini entry");
     }
     const env = parseJiniEntryEnv({ env: entry.env });
@@ -199,46 +200,52 @@ export async function smokeBridge(
     stderrOverflow = stderr.length + chunk.length > 65_536;
     stderr = stderrOverflow ? "[oversized stderr omitted]" : stderr + chunk;
   });
-  try {
-    await new Promise<void>((resolve, reject) => {
-      let buffer = "";
-      let id = 1;
-      let initialize: Record<string, unknown> | undefined;
-      const send = (message: object) => child.stdin.write(`${JSON.stringify(message)}\n`);
-      timer = setTimeout(() => reject(new Error(`MCP watchdog exceeded ${watchdogMs} ms`)), watchdogMs);
-      child.once("error", reject);
-      child.stdin.on("error", reject);
-      child.once("close", (code, signal) => reject(new Error(`bridge closed before completing MCP handshake (code ${code ?? "none"}, signal ${signal ?? "none"})`)));
-      child.stdout.setEncoding("utf8");
-      child.stdout.on("data", (chunk: string) => {
-        buffer += chunk;
-        if (buffer.length > 1_000_000) return reject(new Error("MCP stdout exceeded smoke buffer limit"));
-        let newline: number;
-        while ((newline = buffer.indexOf("\n")) !== -1) {
-          const line = buffer.slice(0, newline);
-          buffer = buffer.slice(newline + 1);
-          try {
-            const reply = parseBridgeReply({ line, id });
-            if (!reply) continue;
-            if (id === 1) {
-              initialize = reply;
-              id = 2;
-              send({ jsonrpc: "2.0", method: "notifications/initialized" });
-              send({ jsonrpc: "2.0", id, method: "tools/list", params: {} });
-            } else {
-              assertBridgeReplies({ initialize: initialize!, tools: reply, serverName: entry.serverName, toolName: entry.toolName });
-              resolve();
-              return;
-            }
-          } catch (error) { reject(error); return; }
-        }
-      });
-      send({ jsonrpc: "2.0", id, method: "initialize", params: {
-        protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "release-smoke", version: "0" },
-      } });
+  const handshake = new Promise<void>((resolve, reject) => {
+    let buffer = "";
+    let id = 1;
+    let initialize: Record<string, unknown> | undefined;
+    const send = (message: object) => child.stdin.write(`${JSON.stringify(message)}\n`);
+    timer = setTimeout(() => reject(new Error(`MCP watchdog exceeded ${watchdogMs} ms`)), watchdogMs);
+    child.once("error", reject);
+    child.stdin.on("error", reject);
+    child.once("close", (code, signal) => reject(new Error(`bridge closed before completing MCP handshake (code ${code ?? "none"}, signal ${signal ?? "none"})`)));
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      buffer += chunk;
+      if (buffer.length > 1_000_000) {
+        reject(new Error("MCP stdout exceeded smoke buffer limit"));
+        return;
+      }
+      let newline: number;
+      while ((newline = buffer.indexOf("\n")) !== -1) {
+        const line = buffer.slice(0, newline);
+        buffer = buffer.slice(newline + 1);
+        try {
+          const reply = parseBridgeReply({ line, id });
+          if (!reply) continue;
+          if (id === 1) {
+            initialize = reply;
+            id = 2;
+            send({ jsonrpc: "2.0", method: "notifications/initialized" });
+            send({ jsonrpc: "2.0", id, method: "tools/list", params: {} });
+          } else {
+            assertBridgeReplies({ initialize: initialize!, tools: reply, serverName: entry.serverName, toolName: entry.toolName });
+            resolve();
+            return;
+          }
+        } catch (error) { reject(error); return; }
+      }
     });
+    send({ jsonrpc: "2.0", id, method: "initialize", params: {
+      protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "release-smoke", version: "0" },
+    } });
+  });
+  try {
+    await handshake;
   } catch (error) {
-    const detail = `${entry.label}: ${error instanceof Error ? error.message : String(error)}${stderr ? `\n${stderr}` : ""}`;
+    const errorText = error instanceof Error ? error.message : String(error);
+    const diagnostics = stderr ? `\n${stderr}` : "";
+    const detail = `${entry.label}: ${errorText}${diagnostics}`;
     // The expected tool name is trusted entry metadata; without the exemption a missing-tool failure reads "[redacted]".
     throw new Error(sanitizeUntrustedText({ text: redactLocalText({ text: detail }) },
       { maxLength: 2_000, diagnosticToolIds: [entry.toolName] }));

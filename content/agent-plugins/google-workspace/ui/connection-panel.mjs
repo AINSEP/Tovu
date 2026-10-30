@@ -115,7 +115,10 @@ function connectionCard(view) {
   const switching = Boolean(view.connection.pendingSwitchAccountLabel);
   // At most one primary action, and none while all is well (connected); the irreversible one reads
   // as dangerous and sits apart at the end.
-  const buttonClass = (entry, index) => (entry.action === 'disconnect' ? 'danger-quiet' : index === 0 && summary.tone !== 'ok' ? 'primary' : undefined);
+  const buttonClass = (entry, index) => {
+    if (entry.action === 'disconnect') return 'danger-quiet';
+    return index === 0 && summary.tone !== 'ok' ? 'primary' : undefined;
+  };
   return h('section', { class: 'card', 'aria-labelledby': 'account-heading' }, [
     h('div', { class: 'head' }, [
       h('span', { class: `dot ${summary.tone}`, 'aria-hidden': 'true' }),

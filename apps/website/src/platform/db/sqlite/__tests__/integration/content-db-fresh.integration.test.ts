@@ -60,9 +60,10 @@ test("fresh synchronous content databases match every declared table's columns a
       assert.deepEqual(columns.map(column => column.name), declared.columns.map(column => column.name).sort(),
         `fresh content DB column drift: ${declared.name}`);
     }
-    await migrateContentDatabase(sqliteKernel<unknown>(asyncDb));
+    const report = await migrateContentDatabase(sqliteKernel<unknown>(asyncDb));
+    assert.ok(report.applied.includes("0036_publish_history_config_jsonb"));
     assert.deepEqual(actual, await readSchemaShape(sqliteKernel<unknown>(asyncDb), { exclude: BOOKKEEPING }));
-    // Check nullable replay columns and the legacy kind default explicitly in both paths.
+    // 0036 only converts Postgres: both SQLite paths retain nullable config text and the kind default.
     for (const db of [sync, asyncDb]) {
       const columns = db.$client.prepare("PRAGMA table_info(publish_history)").all() as Array<{ name: string; type: string; notnull: number; dflt_value: string | null }>;
       assert.deepEqual(columns.filter(column => ["credential_id", "config_fields_json", "kind"].includes(column.name))

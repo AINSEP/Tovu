@@ -35,6 +35,11 @@ export interface PostFeaturedImageController {
 
 const FEATURED_IMAGE_ACCEPT: readonly string[] = ["image/*"];
 
+/** The preview for a chosen image: its rendition when one is offered, else the original. */
+function featuredPreviewUrl(value: string, rendition: ((id: string) => string) | undefined, port: Pick<MediaPickerPort, "mediaOriginalUrl">): string {
+  return rendition ? rendition(value) : port.mediaOriginalUrl(value);
+}
+
 export function usePostFeaturedImage(
   value: string | null,
   onChange: (id: string | null) => void,
@@ -61,7 +66,7 @@ export function usePostFeaturedImage(
       setPickerOpen(false);
     },
     clear: () => onChange(null),
-    previewUrl: !value ? null : rendition ? rendition(value) : deps.port.mediaOriginalUrl(value),
+    previewUrl: value ? featuredPreviewUrl(value, rendition, deps.port) : null,
     accept: FEATURED_IMAGE_ACCEPT,
     previewFailed: value !== null && failedId === value,
     onPreviewError: () => (rendition ? setRenditionFailedId(value) : setFailedId(value)),

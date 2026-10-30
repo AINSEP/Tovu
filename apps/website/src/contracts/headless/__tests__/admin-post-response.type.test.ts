@@ -3,7 +3,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
-import type { AdminPost } from "../contracts.js";
+import type { AdminPost } from "../index.js";
 
 /**
  * @file SPEC-047/ADR-056 REQ-3 — compile-time proof that `AdminPost`'s discriminated union makes

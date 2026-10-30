@@ -73,7 +73,10 @@ import type { AssistantExecutionRouteDeps } from "./execution-deps.js";
  *  mismatch. Deliberately does NOT lowercase: a URL's host is case-insensitive but its path is not,
  *  and folding case here would let `/V1` and `/v1` compare equal. */
 function normalizeEndpoint(baseUrl: string): string {
-  return String(baseUrl).trim().replace(/\/+$/, "");
+  const value = String(baseUrl).trim();
+  let end = value.length;
+  while (end > 0 && value[end - 1] === "/") end -= 1;
+  return value.slice(0, end);
 }
 
 export interface ProbeCredentialRejection {

@@ -1,8 +1,7 @@
-import { createContext, createElement, useContext, useEffect, useState, Suspense, type ReactNode, type ComponentType, type LazyExoticComponent } from 'react';
-import { createAdmin, defineAdminModule, type AdminInstance } from '@jini-ai/admin/core/module';
-import type { ModulePageProps, TabViewProps } from '@jini-ai/admin/react/bind-react';
+import { createElement, useContext, useEffect, useState, Suspense, type ReactNode } from 'react';
+import { createAdmin, defineAdminModule } from '@jini-ai/admin/core/module';
 import { media } from '@jini-ai/admin/media/react';
-import { mediaPickerToken, type MediaPickerPort } from '@jini-ai/admin/contracts/media-picker';
+import { mediaPickerToken } from '@jini-ai/admin/contracts/media-picker';
 import { createOverlayController, OverlayHost } from '@jini-ai/admin/react/overlays';
 import { PublishSectionButton } from '../../features/publish-content/PublishSectionButton';
 import { mediaApi, mediaEvents, createMediaProvidersPort, mediaSessionGrants } from './media-ports';
@@ -17,13 +16,11 @@ import { createHostWidgetsModule } from './widgets-module.hooks';
 import { formsHostPorts, formsSessionGrants, type FormsHostPorts } from './forms-ports';
 import { createHostFormsModule } from './forms-module.hooks';
 import { navigate } from '../../lib/router';
-import type { PanelRouteContext } from '../../panels';
+import type { PanelRouteContext } from '../../panel-contracts';
+import { AdminModulesContext, type Runtime } from './module-context';
+export { AdminModulesContext, useHostMediaPicker } from './module-context';
 
 const pickerConsumer = defineAdminModule({ id: 'host-editors', requires: { mediaPicker: mediaPickerToken }, pages: {} });
-type HostModulePageProps = ModulePageProps & { params?: Readonly<Record<string, unknown>> };
-interface ModuleBinding { Provider: ComponentType<{ admin: AdminInstance; children: ReactNode }>; pages: Readonly<Record<string, { Page: LazyExoticComponent<ComponentType<HostModulePageProps>>; tabs: Readonly<Record<string, LazyExoticComponent<ComponentType<TabViewProps>>>> }>> }
-type Runtime = { permissionKey: string; admin: AdminInstance; bindings: Record<string, ModuleBinding>; picker: MediaPickerPort; overlays: ReturnType<typeof createOverlayController> };
-export const AdminModulesContext = createContext<Runtime | null>(null);
 /** Compose the host modules and their ports; optional domain ports/locale hooks are DI seams.
  * @returns A grant-keyed scope and bindings; callers dispose its admin and overlays on retirement.
  * @throws AdminConfigError if module/port composition is invalid.
@@ -51,9 +48,6 @@ export function useAdminModules({ permissions }: { permissions: readonly string[
   }, [key]);
   // During grant changes the old scope must not render with stale affordances.
   return runtime?.permissionKey === key ? runtime : null;
-}
-export function useHostMediaPicker(_required: Record<string, never> = {}, _optional: Record<string, never> = {}) {
-  return useContext(AdminModulesContext)?.picker ?? null;
 }
 export interface ModulePanelProps { moduleId: string; pageId: string; route: PanelRouteContext; contributions?: ReactNode; params?: Readonly<Record<string, unknown>> }
 // Tovu mounts Jini Media beside the legacy page until parity sign-off. The package still

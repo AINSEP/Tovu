@@ -35,7 +35,7 @@ const SECRET_KEY = /token|secret|password|passphrase|apikey|privatekey|accesskey
 /** Values that are credentials whatever their key is called: a Bearer Authorization header value, a
  *  JWT, a PEM private key, a URL carrying `user:pass@`. HTTP Basic is {@link isBasicCredential}. */
 const SECRET_VALUES: readonly RegExp[] = [/^\s*bearer\s+\S/i, /\beyJ[\w-]+\.eyJ[\w-]+\./, /-----BEGIN [A-Z ]*PRIVATE KEY-----/, /\b[a-z][\w+.-]*:\/\/[^\s/@:]+:[^\s/@]+@/i];
-const BASIC_VALUE = /^\s*basic\s+([A-Za-z0-9+/]+={0,2})\s*$/i;
+const BASIC_VALUE = /^\s*basic\s+([A-Z0-9+/]+={0,2})\s*$/i;
 const FIX_HINT = "Save the secret as a connection and point to it with connectionRef; config holds non-secret settings only.";
 
 /**
@@ -159,8 +159,13 @@ function parseConfig(required: { value: unknown; where: string }): Record<string
   if (!isPlainObject(value)) throw invalid(`${where}: config must be an object (use {} when the destination needs none).`);
   const pending: { path: string; value: unknown }[] = [{ path: "config", value }];
   for (let next = pending.pop(); next; next = pending.pop()) {
-    if (typeof next.value === "string") assertNotSecretValue({ path: next.path, value: next.value, where });
-    else if (next.value !== null && typeof next.value === "object") pending.push(...childrenOf({ path: next.path, value: next.value, where }));
+    if (typeof next.value === "string") {
+      assertNotSecretValue({ path: next.path, value: next.value, where });
+    } else if (next.value !== null && typeof next.value === "object") {
+      pending.push(...childrenOf({ path: next.path, value: next.value, where }));
+    } else {
+      // Nulls and scalar values contain no child fields to inspect.
+    }
   }
   return structuredClone(value);
 }

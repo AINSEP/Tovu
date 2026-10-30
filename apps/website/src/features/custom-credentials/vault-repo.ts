@@ -17,7 +17,8 @@ function isCustomCredentialRow({ row }: { row: VaultPutRecord }, _options = {}):
  * an explicit clear. The private envelope/revision never becomes a public summary field.
  */
 export function customVaultRecord({ row, expectedRevision }: { row: VaultPutRecord; expectedRevision?: number | null }, _options = {}): CustomCredentialSetRecord {
-  if (!isCustomCredentialRow({ row }) || row.ownerKey !== "tovu" || row.principalId !== null || row.binding !== null || row.provider !== null) {
+  const wrongOwner = !isCustomCredentialRow({ row }) || row.ownerKey !== "tovu";
+  if (wrongOwner || row.principalId !== null || row.binding !== null || row.provider !== null) {
     throw new VaultError({ code: "context" });
   }
   const meta = parseTovuStoreMeta({ kind: row.kind as "vendor" | "custom", meta: row.meta, provider: row.provider });
@@ -102,8 +103,12 @@ function compatibilityVaultMeta({ record, existing, kind }: Pick<CompatibilityWr
 }
 
 function compatibilityTokenHints({ record, existing }: Pick<CompatibilityWrite, "record" | "existing">, _options = {}): Pick<VaultPutRecord, "last4" | "tokenLength"> {
-  const unchanged = existing?.sealed != null && existing.sealed.keyId === record.sealed.keyId &&
-    existing.sealed.ciphertext === record.sealed.ciphertext && existing.sealed.nonce === record.sealed.nonce && existing.sealed.alg === record.sealed.alg;
+  const sealed = existing?.sealed;
+  let unchanged = false;
+  if (sealed != null) {
+    const sameContent = sealed.keyId === record.sealed.keyId && sealed.ciphertext === record.sealed.ciphertext;
+    unchanged = sameContent && sealed.nonce === record.sealed.nonce && sealed.alg === record.sealed.alg;
+  }
   return { last4: unchanged ? existing!.last4 : null, tokenLength: unchanged ? existing!.tokenLength : null };
 }
 
