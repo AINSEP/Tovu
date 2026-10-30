@@ -5,6 +5,9 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
+    "predev": "npm --prefix ../../packages/contracts run build",
+    "prebuild": "npm --prefix ../../packages/contracts run build",
+    "prebuild:local": "npm --prefix ../../packages/contracts run build",
     "dev": "vite",
     "build": "node ../../development/scripts/check-no-linked-jini.mjs && vite build",
     "build:local": "vite build",
@@ -15,6 +18,7 @@
     "test:cov": "vitest run --coverage"
   },
   "dependencies": {
+    "@tovu/contracts": "file:../../packages/contracts",
     "@ag-ui/client": "^0.0.58",
     "@ag-ui/core": "^0.0.58",
     "@jini-ai/admin": "^0.6.12",

@@ -1,6 +1,6 @@
 /** The exact storage prefix is retained so refused work parked before extraction stays recoverable. */
 import { createStandingDraftLocalBackup } from "@jini-ai/ui/panel-kit";
-import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "../hooks/use-standing-draft-autosave.hooks";
+import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@jini-ai/ui/panel-kit";
 export { LOCAL_BACKUP_PRINCIPAL_ID } from "@jini-ai/ui/panel-kit";
 export const standingDraftLocalBackup = createStandingDraftLocalBackup({
   keyPrefix: "tovu.admin.standing-draft-backup.", getStorage: () => localStorage,

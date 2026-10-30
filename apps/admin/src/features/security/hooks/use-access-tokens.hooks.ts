@@ -60,6 +60,8 @@ import {
 import { defaultAccessTokensPort } from "./access-tokens-dependencies.hooks";
 import type { AccessTokensPort } from "./access-tokens-port.hooks";
 
+const UNKNOWN_ERROR = "unknown error";
+
 /**
  * @file The Access Tokens tab's controller — the ONE place that reads and writes BOTH
  * `publish_credential_sets` and `source_control_credential_sets`, merges them into one
@@ -314,7 +316,7 @@ function accessTokenSubmitErrorMessage(err: unknown, t: Translate, locale: strin
   const classified = classifyAccessTokenSubmitError(err);
   if (classified.kind === "duplicate-label") return accessTokenDuplicateNameMessage(locale, attemptedName, providerLabel);
   if (classified.kind === "validation") return accessTokenSaveErrorMessage(locale, translateCredentialMessage({ message: classified.detail, locale }));
-  return accessTokenSaveErrorMessage(locale, describeApiError(err, t("unknown error")));
+  return accessTokenSaveErrorMessage(locale, describeApiError(err, t(UNKNOWN_ERROR)));
 }
 
 /** Translates a rejected remove/make-default into a row-ready string via `template` — the
@@ -325,7 +327,7 @@ function accessTokenSubmitErrorMessage(err: unknown, t: Translate, locale: strin
  *  (Terra audit MEDIUM finding, 2026-08-19: neither action surfaced a rejected call at all before
  *  this fix). @complexity O(1). */
 function accessTokenActionErrorMessage(err: unknown, t: Translate, locale: string, template: (locale: string, error: string) => string): string {
-  return template(locale, describeApiError(err, t("unknown error")));
+  return template(locale, describeApiError(err, t(UNKNOWN_ERROR)));
 }
 
 /** Combines the three independent list-fetch failures (publish, source-control, custom) into one
@@ -338,9 +340,9 @@ function accessTokensLoadError(
   t: Translate,
   locale: string
 ): string | null {
-  if (publishError) return accessTokensLoadErrorMessage(locale, describeApiError(publishError, t("unknown error")));
-  if (sourceControlError) return accessTokensLoadErrorMessage(locale, describeApiError(sourceControlError, t("unknown error")));
-  if (customError) return accessTokensLoadErrorMessage(locale, describeApiError(customError, t("unknown error")));
+  if (publishError) return accessTokensLoadErrorMessage(locale, describeApiError(publishError, t(UNKNOWN_ERROR)));
+  if (sourceControlError) return accessTokensLoadErrorMessage(locale, describeApiError(sourceControlError, t(UNKNOWN_ERROR)));
+  if (customError) return accessTokensLoadErrorMessage(locale, describeApiError(customError, t(UNKNOWN_ERROR)));
   return null;
 }
 
@@ -495,7 +497,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     if (sourceControlResult.status === "fulfilled") setSourceControlCredentials(sourceControlResult.value.credentials);
     if (customResult.status === "fulfilled") setCustomCredentials(customResult.value.credentials);
     const failureReason = firstRejectionReason(results);
-    setReloadError(failureReason === undefined ? null : accessTokensLoadErrorMessage(locale, describeApiError(failureReason, t("unknown error"))));
+    setReloadError(failureReason === undefined ? null : accessTokensLoadErrorMessage(locale, describeApiError(failureReason, t(UNKNOWN_ERROR))));
     setHasReloadedOnce(true);
   }, [port, locale, t]);
 
@@ -546,7 +548,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
       await reloadAllStores();
       setCustomKeyBusy(prev => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
-      setCustomKeyBusy(prev => ({ ...prev, [row.id]: { saving: false, error: describeApiError(err, t("unknown error")) } }));
+      setCustomKeyBusy(prev => ({ ...prev, [row.id]: { saving: false, error: describeApiError(err, t(UNKNOWN_ERROR)) } }));
     } finally {
       customKeyPending.current.delete(row.id);
     }
@@ -626,7 +628,10 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   }
 
   async function replaceToken(row: AccessTokenRow): Promise<void> {
-    if (row.kind === "custom") return replaceCustomCredential(row);
+    if (row.kind === "custom") {
+      await replaceCustomCredential(row);
+      return;
+    }
     const ref: AccessTokenProviderRef = { kind: row.kind, providerId: row.providerId };
     // `row.username` is always undefined here (it is only ever set for `kind: "custom"` rows — see
     // AccessTokenRow.username's own doc), so this is a no-op today. Kept for symmetry with

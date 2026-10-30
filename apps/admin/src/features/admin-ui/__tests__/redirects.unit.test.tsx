@@ -3,6 +3,7 @@ import { render } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { ADMIN_PANELS } from "../../../panels";
 import { parseRoute } from "../../../App";
+import { Placeholder } from "../../../components/Placeholder";
 
 // AdminUi reads the admin locale; these tests render panels without the fetch-query provider.
 vi.mock("../../../hooks/use-admin-locale.hooks", () => ({ useAdminLocale: () => "en" }));
@@ -21,7 +22,7 @@ it.each([
   const route = parseRoute(`/${path}`);
   expect(route.panelId).toBe(path.split("?")[0]);
   const panel = ADMIN_PANELS.find((candidate) => candidate.id === route.panelId)!;
-  render(<StrictMode>{panel.render(route)}</StrictMode>);
+  render(<StrictMode>{panel.render({ ...route, Placeholder })}</StrictMode>);
   expect(window.location.pathname).toBe("/admin/admin-ui");
   expect(window.location.search).toBe(`?tab=${tab}`);
   expect(window.location.hash).toBe("");

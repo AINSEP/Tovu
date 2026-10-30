@@ -98,7 +98,7 @@ let fullCliBody: Record<string, unknown>;
 
 beforeEach(() => {
   chatPaneSpy.mockReset();
-  fullCliBody = { enabled: true, canEdit: true };
+  fullCliBody = { enabled: true, canEdit: true, permissionMode: "bypass" };
   updates.length = 0;
   pluginModes.length = 0;
   consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -113,6 +113,23 @@ afterEach(() => {
 });
 
 describe("AssistantDock Chat settings", () => {
+  it("keeps the server's restricted mode in picker preflight even when native permissions are ON", async () => {
+    fullCliBody = { enabled: true, canEdit: true, permissionMode: "restricted" };
+    render(<AssistantDock useChats={fakeChats} />);
+    await waitFor(() => expect(chatPaneSpy.mock.lastCall?.[0].nativeToolPolicy).toMatchObject({
+      nativeToolAccess: true, cliParity: true, permissionMode: "restricted",
+    }));
+  });
+  it("passes the effective current CLI limits to the picker before a message is sent", async () => {
+    render(<AssistantDock useChats={fakeChats} />);
+    await waitFor(() => expect(chatPaneSpy.mock.lastCall?.[0].nativeToolPolicy).toEqual({
+      nativeToolAccess: true, cliParity: true, permissionMode: "bypass", nativeCapabilities: {
+        shell: true, fileWrite: true, userMcp: false, subagents: true,
+        userSettings: true, web: true, workflows: true, loginEnvironment: true,
+      },
+    }));
+  });
+
   it("A8: dropdown and modal save through the same display owner and reload those values on remount", async () => {
     let stored: ChatDisplayPreferences = { toolCalls: "show", showUsageLine: true, showThinking: false };
     const port = {

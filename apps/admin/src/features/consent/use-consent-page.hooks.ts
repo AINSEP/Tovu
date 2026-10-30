@@ -39,6 +39,14 @@ export interface ConsentPageController {
 
 interface Heads { draftId: string | null; publishedId: string | null }
 
+function withDraftId(draftId: string): (current: Heads) => Heads {
+  return (current) => ({ ...current, draftId });
+}
+
+function withPreviewError(error: string): (current: ConsentPreviewState) => ConsentPreviewState {
+  return (current) => ({ ...current, error });
+}
+
 /** Loads the revisions, autosaves edits as a draft and publishes it on request.
  * @complexity O(1) per edit; one request in flight at a time. */
 export function useConsentPage({ port, t }: { port: ConsentRevisionsPort; t: Translate }, { delayMs, timers }: { delayMs?: number; timers?: ConsentTimers } = {}): ConsentPageController {
@@ -73,7 +81,7 @@ export function useConsentPage({ port, t }: { port: ConsentRevisionsPort; t: Tra
       autosave.current = createConsentAutosave({ port, draftId, events: {
         onSaving: () => setSaveState('saving'),
         onSaved: ({ result, settled: done }) => {
-          setHeads(current => ({ ...current, draftId: result.revision.id }));
+          setHeads(withDraftId(result.revision.id));
           setProblems(result.blockingProblems);
           if (done) { setSaveState('saved'); setSettled(true); }
         },
@@ -138,11 +146,12 @@ export function useConsentPreview({ port, config, t }: { port: ConsentRevisionsP
   const sequence = useRef(0);
   useEffect(() => {
     if (!config) return undefined;
-    const ticket = ++sequence.current;
+    sequence.current += 1;
+    const ticket = sequence.current;
     const timer = setTimeout(() => {
       port.preview({ config }).then(
         result => { if (ticket === sequence.current) setState({ html: result.html, problems: result.blockingProblems, warnings: result.warnings ?? [], error: null }); },
-        error => { if (ticket === sequence.current) setState(current => ({ ...current, error: describeApiError(error, t("Couldn't render the preview.")) })); },
+        error => { if (ticket === sequence.current) setState(withPreviewError(describeApiError(error, t("Couldn't render the preview.")))); },
       );
     }, delayMs);
     return () => clearTimeout(timer);

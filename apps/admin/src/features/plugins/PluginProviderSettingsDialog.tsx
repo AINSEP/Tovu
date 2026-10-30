@@ -65,19 +65,40 @@ function SettingsFooter({ shown, saving, pluginName, agentHandleBase, onClose, t
   );
 }
 
+/** What an empty input stands for: a saved secret counts as present, else the declared default. */
+function unenteredFieldValue(field: { secret?: boolean; saved?: boolean; default?: string }): string {
+  if (field.secret && field.saved) return "saved";
+  return field.default ?? "";
+}
+
+function SettingsSubtitle({ card, t }: { card: AdminPluginProviderSettings | null; t: (key: string) => string }) {
+  if (!card) return null;
+  return <p className="provider-settings-subtitle">{settingsSubtitleText(card, t)}</p>;
+}
+
+function settingsSubtitleText(card: AdminPluginProviderSettings, t: (key: string) => string): string {
+  if (card.store !== "project") return t(card.projectAvailable ? "Saved for this site only" : "Saved for this site");
+  if (card.usedBy.length) return interpolate({ template: t("Used by {sites}"), vars: { sites: card.usedBy.join(", ") } });
+  return t("Saved to your project — not used by any site yet");
+}
+
+function useProviderSettingsFocus({ card, fieldId }: { card: AdminPluginProviderSettings | null; fieldId: string }, _options = {}) {
+  // The native dialog focuses on open, before the card has loaded; once it has, start in its first field.
+  const firstField = card?.fields[0]?.name;
+  useEffect(() => { if (firstField) document.getElementById(`${fieldId}-${firstField}`)?.focus(); }, [fieldId, firstField]);
+}
+
 export function PluginProviderSettingsDialog({ plugin, agentHandleBase, onClose, onSaved, useSettings = useWiredPluginProviderSettings }: PluginProviderSettingsDialogProps) {
   const { card, values, setValue, save, useSavedKey, saving, error, t } = useSettings(plugin.id);
   const fieldId = useId();
   const fields = card?.fields ?? [];
   // Presence only: a saved alternate secret satisfies the same manifest rule as an entered value.
   const effectiveValues = Object.fromEntries(fields.map(field => [field.name,
-    values[field.name]?.trim() || (field.secret && field.saved ? "saved" : field.default ?? "")]));
-  // The native dialog focuses on open, before the card has loaded; once it has, start in its first field.
-  const firstField = card?.fields[0]?.name;
-  useEffect(() => { if (firstField) document.getElementById(`${fieldId}-${firstField}`)?.focus(); }, [fieldId, firstField]);
+    values[field.name]?.trim() || unenteredFieldValue(field)]));
+  useProviderSettingsFocus({ card, fieldId });
   return (
     <Dialog open title={interpolate({ template: t("{name} settings"), vars: { name: plugin.name } })} pending={saving} onClose={() => onClose()} className="settings-dialog jini-domain-dialog provider-settings-dialog">
-      {card ? <p className="provider-settings-subtitle">{card.store === "project" ? card.usedBy.length ? interpolate({ template: t("Used by {sites}"), vars: { sites: card.usedBy.join(", ") } }) : t("Saved to your project — not used by any site yet") : t(card.projectAvailable ? "Saved for this site only" : "Saved for this site")}</p> : null}
+      <SettingsSubtitle card={card} t={t} />
       <form onSubmit={(event) => { event.preventDefault(); void save().then((accepted) => { if (accepted) onSaved(); }); }} noValidate>
         <div className="jini-dialog-body">
           <ReentryNotices card={card} t={t} />

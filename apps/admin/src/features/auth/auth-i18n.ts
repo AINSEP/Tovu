@@ -1,10 +1,11 @@
+import { translationEntry } from "../../lib/translation-entry";
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 /** Login-screen copy.  Keep this separate from the app-shell dictionary: Login is rendered
  * before the shell and must not fall back to English for a signed-out operator. */
 const AUTH_DICT: Record<string, Record<string, string>> = {
-  es: { "Sign in to your workspace": "Inicia sesión en tu espacio de trabajo", Username: "Nombre de usuario", Password: "Contraseña", "Sign in": "Iniciar sesión", "Signing in…": "Iniciando sesión…" },
+  es: { "Sign in to your workspace": "Inicia sesión en tu espacio de trabajo", Username: "Nombre de usuario", ...translationEntry("Password", "Contraseña"), "Sign in": "Iniciar sesión", "Signing in…": "Iniciando sesión…" },
   id: { "Sign in to your workspace": "Masuk ke ruang kerja Anda", Username: "Nama pengguna", Password: "Kata sandi", "Sign in": "Masuk", "Signing in…": "Sedang masuk…" },
   de: { "Sign in to your workspace": "Melden Sie sich bei Ihrem Arbeitsbereich an", Username: "Benutzername", Password: "Passwort", "Sign in": "Anmelden", "Signing in…": "Anmeldung läuft…" },
   "zh-CN": { "Sign in to your workspace": "登录您的工作区", Username: "用户名", Password: "密码", "Sign in": "登录", "Signing in…": "正在登录…" },
@@ -24,7 +25,7 @@ const AUTH_DICT: Record<string, Record<string, string>> = {
   it: { "Sign in to your workspace": "Accedi al tuo spazio di lavoro", Username: "Nome utente", Password: "Password", "Sign in": "Accedi", "Signing in…": "Accesso in corso…" },
   hi: { "Sign in to your workspace": "अपने कार्यक्षेत्र में साइन इन करें", Username: "उपयोगकर्ता नाम", Password: "पासवर्ड", "Sign in": "साइन इन करें", "Signing in…": "साइन इन हो रहा है…" },
   ur: { "Sign in to your workspace": "اپنی ورک اسپیس میں سائن ان کریں", Username: "صارف نام", Password: "پاس ورڈ", "Sign in": "سائن ان", "Signing in…": "سائن ان ہو رہا ہے…" },
-  bn: { "Sign in to your workspace": "আপনার কর্মক্ষেত্রে সাইন ইন করুন", Username: "ব্যবহারকারীর নাম", Password: "পাসওয়ার্ড", "Sign in": "সাইন ইন করুন", "Signing in…": "সাইন ইন হচ্ছে…" },
+  bn: { "Sign in to your workspace": "আপনার কর্মক্ষেত্রে সাইন ইন করুন", Username: "ব্যবহারকারীর নাম", ...translationEntry("Password", "পাসওয়ার্ড"), "Sign in": "সাইন ইন করুন", "Signing in…": "সাইন ইন হচ্ছে…" },
 };
 
 export const t = createDictionaryTranslator({ featureDictionary: AUTH_DICT }, { commonDictionary: COMMON_I18N });

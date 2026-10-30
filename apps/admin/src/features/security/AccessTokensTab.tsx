@@ -42,6 +42,9 @@ import { useRemoveConfirmDialog, useAddCustomCredentialDialog, useMergedSecretsO
 import { CopyKeysDialog } from "./CopyKeysDialog";
 import { useWiredCopyKeys } from "./hooks/use-copy-keys.hooks";
 
+/** "Remove from Tovu," never "Revoke": removal forgets the stored copy, the provider keeps the key. */
+const REMOVE_FROM_TOVU = "Remove from Tovu";
+
 /**
  * @file The Access Tokens tab — `Security.tsx`'s one tab and this feature's actual content. One
  * flat, searchable, category-filtered list of every credential this install holds across all eight
@@ -93,6 +96,11 @@ export interface AccessTokensTabProps {
   /** Whether the "Copy keys from another project…" entry renders; defaults to
    *  {@link SHOW_COPY_KEYS_ENTRY} (hidden per owner 2026-10-11). */
   showCopyKeysEntry?: boolean;
+}
+
+/** A provider group can take another saved token unless it is custom or unlisted. */
+function acceptsAnotherToken(info: { kind: string; unlisted?: boolean }): boolean {
+  return info.kind !== "custom" && !info.unlisted;
 }
 
 function resolveAccessTokensHook(override: typeof useWiredAccessTokens | undefined): typeof useWiredAccessTokens {
@@ -313,7 +321,7 @@ function ProviderGroup({ group, controller }: { group: AccessTokenProviderGroupS
           saved row could join; a second custom credential is a wholly new one, created through the
           standalone "Add custom provider" dialog, not this per-provider affordance. */}
       {/* Nor for an unlisted provider (plugin off or missing): it takes no new token. */}
-      {hasRows && !group.addForm.visible && group.info.kind !== "custom" && !group.info.unlisted ? <AddAnotherButton ref={ref} label={group.info.label} controller={controller} t={controller.t} /> : null}
+      {hasRows && !group.addForm.visible && acceptsAnotherToken(group.info) ? <AddAnotherButton ref={ref} label={group.info.label} controller={controller} t={controller.t} /> : null}
     </section>
   );
 }
@@ -407,8 +415,8 @@ function TokenRow({
       {state.row.scope === "project" && !state.row.usedByThisSite ? (
         <div className="access-tokens-row-actions">
           <p className="field-hint">{translate("Use on this site to replace this key.")}</p>
-          <button type="button" className="btn-danger" onClick={() => dialogRef.current?.showModal()} aria-label={`${translate("Remove from Tovu")} — ${state.name}`}>
-            {translate("Remove from Tovu")}
+          <button type="button" className="btn-danger" onClick={() => dialogRef.current?.showModal()} aria-label={`${translate(REMOVE_FROM_TOVU)} — ${state.name}`}>
+            {translate(REMOVE_FROM_TOVU)}
           </button>
         </div>
       ) : <ExistingTokenFields state={state} controller={controller} info={info} onRemoveClick={() => dialogRef.current?.showModal()} t={translate} />}
@@ -737,10 +745,10 @@ function ExistingTokenFields({
           // Same multi-row-open ambiguity as Save above, on this page's one destructive action —
           // see `rules.ts`'s `restoreButtonAccessibleName` (`recovery/rules.ts`) for the identical
           // reasoning applied to a different screen's own always-visible destructive control.
-          aria-label={`${translate("Remove from Tovu")} — ${state.name}`}
+          aria-label={`${translate(REMOVE_FROM_TOVU)} — ${state.name}`}
           {...agentHandle({ handle: `security-access-tokens-remove-${agentHandleSegment({ value: state.row.id })}` }, { role: "button", label: `Open the confirm dialog to remove this ${info.label} token from Tovu` })}
         >
-          {translate("Remove from Tovu")}
+          {translate(REMOVE_FROM_TOVU)}
         </button>
         {state.error ? (
           <p className="save-error" role="alert">
@@ -864,7 +872,7 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
             {translate("Cancel")}
           </button>
           <button type="button" className="btn-danger" onClick={confirm}>
-            {translate("Remove from Tovu")}
+            {translate(REMOVE_FROM_TOVU)}
           </button>
         </div>
       </dialog>

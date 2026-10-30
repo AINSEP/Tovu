@@ -20,7 +20,12 @@ export function createStreamActivity(_required = {}, _optional = {}): StreamActi
       count++;
       notify();
       let released = false;
-      return () => { if (released) return; released = true; count--; notify(); };
+      return () => {
+        if (released) return;
+        released = true;
+        count -= 1;
+        notify();
+      };
     },
     subscribe: ({ listener }) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
   };

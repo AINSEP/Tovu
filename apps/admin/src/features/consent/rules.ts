@@ -57,7 +57,9 @@ export function canPublishConsent(
   { saveState, settled, hasUnpublished, problems, publishing }: { saveState: ConsentSaveState; settled: boolean; hasUnpublished: boolean; problems: readonly ConsentFieldProblem[]; publishing: boolean },
   _optional = {},
 ): boolean {
-  return settled && hasUnpublished && !publishing && problems.length === 0 && (saveState === 'saved' || saveState === 'idle');
+  const draftSaved = saveState === 'saved' || saveState === 'idle';
+  const readyDraft = settled && problems.length === 0 && draftSaved;
+  return readyDraft && hasUnpublished && !publishing;
 }
 
 /** "Reset to default" is offered only while the field differs from the site's default banner style

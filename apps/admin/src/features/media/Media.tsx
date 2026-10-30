@@ -929,20 +929,6 @@ export interface MediaProps {
   tabId?: string | null;
 }
 
-/**
- * Resolves `Media`'s two injectable-seam props to their real implementations when a caller passes
- * neither — same "separately-scoped resolver" idiom `App.tsx`'s `resolveSessionHook`/
- * `resolveDrawerHook` group uses and documents in full: ESLint's cyclomatic-complexity rule counts
- * a default-parameter assignment inside a function's OWN body as one of that function's own
- * branches, but not a call out to a resolver declared in its own scope.
- */
-function resolveMediaHook(useMediaHook: typeof useWiredMedia | undefined): typeof useWiredMedia {
-  return useMediaHook ?? useWiredMedia;
-}
-function resolveMediaTabsHook(useMediaTabsHook: typeof useMediaTabs | undefined): typeof useMediaTabs {
-  return useMediaTabsHook ?? useMediaTabs;
-}
-
 function MediaCardMetadata(props: { item: AdminMedia; locale: string }) {
   const metadata = useMediaCardMetadata({ item: props.item }, { locale: props.locale });
   return metadata.hasMetadata ? (
@@ -1359,8 +1345,10 @@ export function Media(props: MediaProps) {
   // with zero arguments the way a plain function call could be. `MediaProps`' three fields are all
   // optional, so `{}` satisfies the type and this compiles the same as before for every existing
   // call site.
-  const useMediaHook = resolveMediaHook(props.useMediaHook);
-  const useMediaTabsHook = resolveMediaTabsHook(props.useMediaTabsHook);
+  // Keep both injection seams. Forwarding resolvers previously isolated the default branches
+  // for the complexity gate; Media is small enough to resolve them directly.
+  const useMediaHook = props.useMediaHook ?? useWiredMedia;
+  const useMediaTabsHook = props.useMediaTabsHook ?? useMediaTabs;
   const controller = useMediaHook();
   const { media, error, t } = controller;
   const { activeTab, setActiveTab } = useMediaTabsHook(props.tabId);

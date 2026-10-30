@@ -325,12 +325,12 @@ export function SettingsUi(props: SettingsUiProps) {
    * disjoint key sets, so ordering only matters for the final raw-key fallback.
    */
   const settingsLocale = s.language.value as string;
-  const t = (key: string): string =>
-    tSettings({ locale: settingsLocale, key: key }) !== key ? tSettings({ locale: settingsLocale, key: key }) :
-    SETTINGS_DIALOG_DICTIONARIES[settingsLocale]?.[key] ??
-    SETTINGS_DIALOG_DICTIONARIES.en?.[key] ??
-    CMS_SETTINGS_DIALOG_DICTIONARIES[settingsLocale]?.[key] ??
-    tApp({ locale: settingsLocale, key: key });
+  const t = (key: string): string => {
+    const own = tSettings({ locale: settingsLocale, key: key });
+    if (own !== key) return own;
+    const shared = SETTINGS_DIALOG_DICTIONARIES[settingsLocale]?.[key] ?? SETTINGS_DIALOG_DICTIONARIES.en?.[key];
+    return shared ?? CMS_SETTINGS_DIALOG_DICTIONARIES[settingsLocale]?.[key] ?? tApp({ locale: settingsLocale, key: key });
+  };
   /** The 4 "no backend yet" capability-status notes below — see `settings-capabilities-i18n.ts`'s
    *  header for why these live in Tovu's own dictionary rather than `SETTINGS_DIALOG_DICTIONARIES`. */
   const tCap = (key: string): string => tCapability({ locale: settingsLocale, key: key });

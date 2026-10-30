@@ -7,7 +7,7 @@ import { navigate } from "@/lib/router";
  * @complexity O(n) in the bounded tab list, O(1) retained state.
  */
 export function useObservabilityTab({ tabs, tabId }: {
-  tabs: readonly SettingsDialogTab[]; tabId?: string | null | undefined;
+  tabs: readonly SettingsDialogTab[]; tabId?: string | null;
 }, _options = {}) {
   const requestedTabId = resolveInitialActiveTabId(tabs, tabId);
   const controller = useTabbedDialog({ tabs, initialActiveTabId: requestedTabId ?? undefined });

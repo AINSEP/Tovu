@@ -1,4 +1,4 @@
-import { assistantCliPermissions } from "@tovu/headless";
+import { assistantCliPermissions } from "../../../../../website/src/assistant/assistant-subagents-policy.js";
 import { act, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";

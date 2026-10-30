@@ -187,10 +187,9 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
           {
             key: "actions",
             header: t("More"),
-            cell: (role, index) =>
-              role.isBuiltin ? (
-                <span className="muted-cell">—</span>
-              ) : row.editingId === role.id ? (
+            cell: (role, index) => {
+              if (role.isBuiltin) return <span className="muted-cell">—</span>;
+              if (row.editingId === role.id) return (
                 <span className="editor-actions">
                   <button
                     type="button"
@@ -208,13 +207,15 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
                     {t("Cancel")}
                   </button>
                 </span>
-              ) : (
+              );
+              return (
                 <RowMenu
                   triggerLabel={`${t("Actions for role")} "${role.name}"`}
                   agentHandle={`${roleMenuHandles[index]}-menu`}
                   items={roleMenuItems(role, { onRename: row.startRename, onDelete: row.requestDelete }, locale)}
                 />
-              ),
+              );
+            },
           },
         ]}
       />

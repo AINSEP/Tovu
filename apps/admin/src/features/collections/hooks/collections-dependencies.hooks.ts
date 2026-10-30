@@ -13,6 +13,9 @@ export const defaultCollectionsPort: CollectionsPort = {
 };
 
 /** Seed state for {@link createFakeCollectionsPort}. */
+/** The status each lifecycle op leaves a content type in. */
+const LIFECYCLE_NEXT_STATUS = { reactivate: "active", deprecate: "deprecated", tombstone: "tombstone" } as const;
+
 export interface FakeCollectionsPortOptions {
   types?: AdminContentType[];
   /** When set, `contentTypeLifecycle()` rejects with this instead of resolving — for
@@ -42,7 +45,7 @@ export function createFakeCollectionsPort(options: FakeCollectionsPortOptions = 
       if (options.lifecycleError) throw options.lifecycleError;
       const index = types.findIndex((t) => t.key === key);
       if (index < 0) throw new Error(`fake content type not found: ${key}`);
-      const nextStatus = op === "reactivate" ? "active" : op === "deprecate" ? "deprecated" : "tombstone";
+      const nextStatus = LIFECYCLE_NEXT_STATUS[op];
       const updated: AdminContentType = { ...types[index]!, status: nextStatus, version: expectedVersion + 1 };
       types[index] = updated;
       return { contentType: updated };

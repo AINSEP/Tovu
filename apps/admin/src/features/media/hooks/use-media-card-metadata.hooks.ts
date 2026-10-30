@@ -11,6 +11,10 @@ export interface MediaMetadataFormatters {
 // importable until the coordinator rebuilds Jini; never duplicate its formatter here.
 const defaultFormatters: MediaMetadataFormatters = mediaFormatters;
 
+/** The card's size text (owner, 2026-09-21) uses Jini's 1024-based KB/MB/GB, matching
+ * TOVU_MAX_UPLOAD_BYTES and chat's formatByteLimit rather than IEC KiB/MiB names. Whole B/KB
+ * avoid unhelpful fractions; one decimal for MB/GB distinguishes similar clips near the 50 MB
+ * upload cap. Intl.NumberFormat supplies locale separators, defaulting to en-US. */
 export function useMediaCardMetadata(
   { item }: { item: Pick<AdminMedia, "byteSize" | "createdAt"> },
   { locale = "en-US", formatters = defaultFormatters }: {

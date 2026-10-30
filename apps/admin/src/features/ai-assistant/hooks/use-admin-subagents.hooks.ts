@@ -1,15 +1,17 @@
 import type { useConfirmRequest } from "@jini-ai/admin/react";
+import type { NativeToolPolicyInput } from "@jini-ai/agent-runtime/native-tool-policy";
 import { assistantSubagentsPort, SUBAGENTS_NAMESPACE, SUBAGENT_DANGERS, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
 import { useAssistantOwnerGrant, useAssistantOwnerGrantSettings } from "./use-assistant-owner-grant.hooks";
-import { ASSISTANT_CLI_CAPABILITIES, assistantCliPermissions, type AssistantCliCapability } from "@tovu/headless";
+import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability } from "@tovu/headless";
+import { assistantCliPermissions } from "../../../../../website/src/assistant/assistant-subagents-policy.js";
 const settingsKey = ["admin-assistant", "subagents"] as const;
 /** The panel and dock share the site-owner grant query. */
 export function useAssistantSubagentsSettings(required: { port: AssistantSubagentsPort; mode: string; agentId: string | null }, _optional = {}) {
   const state = useAssistantOwnerGrantSettings({ ...required, namespace: SUBAGENTS_NAMESPACE, key: settingsKey });
   // A stale cached ON value cannot establish the current grant after a failed refresh.
-  const tooltipKey = !state.loadError && required.mode === "local-cli" && required.agentId !== null &&
-    (state.settings?.capabilities?.subagents ?? state.settings?.enabled)
-    ? "This chat can use subagents" : null;
+  const localAgent = required.mode === "local-cli" && required.agentId !== null;
+  const granted = state.settings?.capabilities?.subagents ?? state.settings?.enabled;
+  const tooltipKey = !state.loadError && localAgent && granted ? "This chat can use subagents" : null;
   return { ...state, tooltipKey };
 }
 /** Subagent-specific copy and boolean payload; the shared hook owns locking and errors. */
@@ -56,7 +58,15 @@ export function useDockAgentPermissions(required: { t: (key: string) => string; 
   const state = useAdminSubagents({ ...required, port: required.port ?? assistantSubagentsPort });
   const access = dockGrantAccess(state);
   const view = dockCapabilities({ settings: state.settings, t: required.t });
-  return { enabled: view.enabled,
+  // Reuse the effective server snapshot that drives the switches; changing a limit updates
+  // preflight immediately, while the executor remains the authority at launch.
+  const nativeToolPolicy: NativeToolPolicyInput | undefined = state.settings && !state.loadError ? {
+    nativeToolAccess: view.capabilities.some(item => item.enabled),
+    cliParity: view.capabilities.some(item => item.enabled),
+    permissionMode: state.settings.permissionMode ?? "restricted",
+    nativeCapabilities: Object.fromEntries(view.capabilities.map(item => [item.key, item.enabled])),
+  } : undefined;
+  return { enabled: view.enabled, nativeToolPolicy,
     // Hide the advanced entry until the server confirms the local-owner capability. Hosted and
     // non-owner chats retain the quick display menu without advertising unavailable permissions.
     onMoreSettings: access.owner ? required.openSettings : undefined,
@@ -65,8 +75,11 @@ export function useDockAgentPermissions(required: { t: (key: string) => string; 
     unavailableReason: state.settings?.unavailableReason,
     capabilities: view.capabilities,
     onChange: ({ key, enabled }: { key?: string; enabled: boolean }) => {
-      if (key === undefined) void state.setEnabled({ enabled });
-      else if (isCliCapability(key)) void state.setCapability({ key, enabled });
+      if (key === undefined) {
+        void state.setEnabled({ enabled });
+        return;
+      }
+      if (isCliCapability(key)) void state.setCapability({ key, enabled });
     },
   };
 }

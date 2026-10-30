@@ -85,8 +85,9 @@ type Token =
 
 /** Matches one complete HTML tag, attributes included, with attribute values allowed to contain
  *  `>` when quoted (`data-x="a > b"`) so such a value is never mistaken for the tag's own end. */
-const TAG_PATTERN =
-  /<\/?([a-zA-Z][a-zA-Z0-9:-]*)(?:\s+[^\s"'=<>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>]+))?)*\s*\/?>/y;
+const ATTRIBUTE_VALUE = String.raw`(?:"[^"]*"|'[^']*'|[^\s"'=<>]+)`;
+const ATTRIBUTE = String.raw`\s+[^\s"'=<>]+(?:\s*=\s*${ATTRIBUTE_VALUE})?`;
+const TAG_PATTERN = new RegExp(String.raw`<\/?([a-zA-Z][a-zA-Z0-9:-]*)(?:${ATTRIBUTE})*\s*\/?>`, "y");
 
 /**
  * Consumes an HTML comment (`<!-- ... -->`) starting at `i`, if there is one — one of four token
@@ -126,7 +127,8 @@ function parseTagMeta(raw: string, tagName: string): {
   const isClose = raw.startsWith("</");
   const isSelfClose = !isClose && raw.endsWith("/>");
   const name = tagName.toLowerCase();
-  const tagKind: "open" | "close" | "self-close" = isClose ? "close" : isSelfClose ? "self-close" : "open";
+  const openKind: "open" | "self-close" = isSelfClose ? "self-close" : "open";
+  const tagKind: "open" | "close" | "self-close" = isClose ? "close" : openKind;
   return { name, tagKind };
 }
 
@@ -228,14 +230,12 @@ function isOpeningBlockTag(token: Token): token is Extract<Token, { kind: "tag" 
  *  between them in the source — see the file header for why this specific boundary is safe to fill.
  *  `prev === undefined` (the very first token) replaces the original `idx > 0` guard: `tokens[-1]` is
  *  already `undefined` in JS, so the caller can pass `tokens[idx - 1]` directly without computing `idx > 0`. */
+function isBlockTag(token: Token): boolean {
+  return token.kind === "tag" && BLOCK_ELEMENTS.has(token.name);
+}
+
 function isZeroGapBlockBoundary(prev: Token | undefined, token: Token): boolean {
-  return (
-    prev !== undefined &&
-    prev.kind === "tag" &&
-    BLOCK_ELEMENTS.has(prev.name) &&
-    token.kind === "tag" &&
-    BLOCK_ELEMENTS.has(token.name)
-  );
+  return prev !== undefined && isBlockTag(prev) && isBlockTag(token);
 }
 
 /**

@@ -159,13 +159,19 @@ export interface DraftField extends ContentTypeFieldDef {
 let nextRowId = 1;
 
 export function emptyField(): DraftField {
-  return { _rowId: nextRowId++, name: "", kind: "text", required: false, queryable: false };
+  const _rowId = nextRowId;
+  nextRowId += 1;
+  return { _rowId, name: "", kind: "text", required: false, queryable: false };
 }
 
 /** Seeds `EditFieldsDialog`'s draft list from a saved content type's fields, assigning each a
  *  fresh local row id off the same shared counter {@link emptyField} uses. */
 export function draftFieldsFromContentType(fields: ContentTypeFieldDef[]): DraftField[] {
-  return fields.map((f) => ({ ...f, _rowId: nextRowId++ }));
+  return fields.map((f) => {
+    const _rowId = nextRowId;
+    nextRowId += 1;
+    return { ...f, _rowId };
+  });
 }
 
 /** @complexity Time/space: O(n) in `fields.length`. */

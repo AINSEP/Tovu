@@ -158,17 +158,17 @@ async function readExternalMcpServers(port: OtherCredentialsPort, t: Translate, 
 /** Dispatches one store's read by id — the one place `OtherCredentialStoreId` is switched over for
  *  reads, mirroring `rules.ts`'s `buildAccessTokenConnectionInput` dispatch-by-kind pattern.
  *  @complexity O(1) plus whichever reader's own complexity. */
+type StoreReader = (port: OtherCredentialsPort, store: OtherCredentialStoreInfo, t: Translate, locale: string) => Promise<RawStoreItem[]>;
+
+const STORE_READERS: Record<OtherCredentialStoreInfo["id"], StoreReader> = {
+  "site-assistant": (port, store, _t, locale) => readSiteAssistant(port, store, locale),
+  "admin-byok": (port, store, _t, locale) => readAdminByok(port, store, locale),
+  "media-provider": (port, _store, _t, locale) => readMediaProviders(port, locale),
+  "external-mcp": (port, _store, t, locale) => readExternalMcpServers(port, t, locale),
+};
+
 function readStore(port: OtherCredentialsPort, store: OtherCredentialStoreInfo, t: Translate, locale = 'en'): Promise<RawStoreItem[]> {
-  switch (store.id) {
-    case "site-assistant":
-      return readSiteAssistant(port, store, locale);
-    case "admin-byok":
-      return readAdminByok(port, store, locale);
-    case "media-provider":
-      return readMediaProviders(port, locale);
-    case "external-mcp":
-      return readExternalMcpServers(port, t, locale);
-  }
+  return STORE_READERS[store.id](port, store, t, locale);
 }
 
 /** Builds the full `{apiKey?, baseUrl?, model?}` map to PUT back for a media-provider Replace/Remove
@@ -221,13 +221,7 @@ export function useOtherCredentials(
   const writes = useSerialWrites();
   const reloadStores = useCallback(() => {
     void writes.run({ task: () => Promise.all(OTHER_CREDENTIAL_STORES.map(store =>
-      refetchOne(port, store, setStoreStates, t, locale)
-        .catch((err: unknown) =>
-          setStoreStates((prev) => ({
-            ...prev,
-            [store.id]: { items: [], loadError: accessTokensLoadErrorMessage(locale, translateCredentialMessage({ message: describeApiError(err, t("unknown error")), locale })) },
-          }))
-        )
+      refetchOneOrRecordFailure(port, store, setStoreStates, t, locale)
     )) });
   }, [writes, port, t, locale]);
   const fetchedRef = useRef(false);
@@ -345,6 +339,22 @@ async function refetchOne(
 ): Promise<void> {
   const items = await readStore(port, store, t, locale);
   setStoreStates((prev) => ({ ...prev, [store.id]: { items, loadError: null } }));
+}
+
+/** {@link refetchOne}, recording a failed read as that store's load error instead of rejecting. */
+async function refetchOneOrRecordFailure(
+  port: OtherCredentialsPort,
+  store: OtherCredentialStoreInfo,
+  setStoreStates: (updater: (prev: Record<string, StoreState>) => Record<string, StoreState>) => void,
+  t: Translate,
+  locale: string
+): Promise<void> {
+  try {
+    await refetchOne(port, store, setStoreStates, t, locale);
+  } catch (err: unknown) {
+    const loadError = accessTokensLoadErrorMessage(locale, translateCredentialMessage({ message: describeApiError(err, t("unknown error")), locale }));
+    setStoreStates((prev) => ({ ...prev, [store.id]: { items: [], loadError } }));
+  }
 }
 
 /** Dispatches one store's Replace write — the one place `OtherCredentialStoreId` is switched over

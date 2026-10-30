@@ -24,15 +24,14 @@ export interface FolderDropErrorProps {
 
 /** One of `errors.spec.md`'s three fixed User Message Guidance strings, by `reason`.
  *  @complexity O(1). */
+const FOLDER_DROP_MESSAGES: Record<FolderDropErrorProps["reason"], string> = {
+  "not-a-directory": "That's not a folder — drop a folder to set it as the working directory.",
+  "does-not-exist": "That folder couldn't be found. Make sure it still exists and try again.",
+  "endpoint-unreachable": "Couldn't set the working folder right now. Try again in a moment.",
+};
+
 function messageForReason(reason: FolderDropErrorProps["reason"]): string {
-  switch (reason) {
-    case "not-a-directory":
-      return "That's not a folder — drop a folder to set it as the working directory.";
-    case "does-not-exist":
-      return "That folder couldn't be found. Make sure it still exists and try again.";
-    case "endpoint-unreachable":
-      return "Couldn't set the working folder right now. Try again in a moment.";
-  }
+  return FOLDER_DROP_MESSAGES[reason];
 }
 
 export function FolderDropError({ path, reason, onRetry, onDismiss }: FolderDropErrorProps) {

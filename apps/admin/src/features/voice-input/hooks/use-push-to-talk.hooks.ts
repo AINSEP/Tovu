@@ -91,6 +91,9 @@ function resolveCreateCapture(overrideCreateCapture: ((port: VoiceInputPort) => 
   return overrideCreateCapture ?? createMicPushToTalkCapture;
 }
 
+/** A discarded hold's transcript (or its failure) is not wanted by anyone. */
+function ignoreDiscardedTranscript(): void {}
+
 /**
  * Drives the push-to-talk gesture end to end for one composer mic button.
  *
@@ -173,7 +176,7 @@ export function usePushToTalk(options: UsePushToTalkOptions, overrides: UsePushT
           // transcribe.
           if (next.status !== "recording") {
             liveCaptureRef.current = null;
-            void capture.stopAndTranscribe().catch(() => {});
+            void capture.stopAndTranscribe().catch(ignoreDiscardedTranscript);
           }
           return next;
         });

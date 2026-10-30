@@ -1,12 +1,12 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, ApiError, type AdminMedia } from "@/lib/api";
+import { api, ApiError, describeApiError, type AdminMedia } from "@/lib/api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useMedia } from "../hooks/use-media.hooks";
-import { MEDIA_RESOURCE, describeApiError, visibleMediaError } from "../rules";
+import { MEDIA_RESOURCE, visibleMediaError } from "../rules";
 
 /**
  * @file `useMedia` — the Media grid screen's list/upload/trash/purge cycle, driven against the

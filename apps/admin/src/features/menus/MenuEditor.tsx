@@ -50,8 +50,8 @@ function orEmpty(value: string | undefined): string {
 }
 
 /** Boolean counterpart to {@link orEmpty}, same rationale — see {@link attrsOrDefaults}. */
-function orFalse(value: boolean | undefined): boolean {
-  return value ?? false;
+function orFalse(value = false): boolean {
+  return value;
 }
 
 /**
@@ -147,6 +147,9 @@ export function MenuItemTargetFields({
           </label>
         </>
       );
+    default:
+      // Every target kind is handled above; an unknown one renders no fields.
+      return null;
   }
 }
 

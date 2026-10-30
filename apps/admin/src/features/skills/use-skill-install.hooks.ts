@@ -11,7 +11,8 @@ export function useSkillInstall(onInstalled?: () => void | Promise<void>) {
   const confirmLock = useRef(false);
   const propose = useCallback((payload: SkillInstallPayload) => { ++generation.current; setError(null); setPending(payload); }, []);
   const proposeFiles = useCallback(async (files: readonly File[], paths?: readonly string[]) => {
-    const current = ++generation.current;
+    generation.current += 1;
+    const current = generation.current;
     setError(null);
     try { const payload = await prepareSkillUpload({ files }, { paths }); if (current === generation.current) setPending(payload); }
     catch (e) { if (current === generation.current) setError(e instanceof Error ? e.message : "Could not read skill."); }
@@ -22,7 +23,11 @@ export function useSkillInstall(onInstalled?: () => void | Promise<void>) {
     confirmLock.current = true;
     const current = generation.current;
     setBusy(true); setError(null);
-    try { await installSkill(pending); if (current === generation.current) setPending(null); await onInstalled?.(); }
+    try {
+      await installSkill(pending);
+      if (current === generation.current) setPending(null);
+      await onInstalled?.();
+    }
     catch (e) { setError(e instanceof Error ? e.message : "Could not install skill."); }
     finally { confirmLock.current = false; setBusy(false); }
   }, [pending, onInstalled]);

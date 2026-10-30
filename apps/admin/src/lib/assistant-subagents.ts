@@ -8,7 +8,11 @@ export const SUBAGENT_DANGERS = [
   "Cost and machine load multiply with each subagent.",
 ] as const;
 import type { AssistantCliPermissions } from "@tovu/headless";
-export interface AssistantSubagentsSettings { enabled: boolean; canEdit: boolean; capabilities?: AssistantCliPermissions["capabilities"]; unavailableReason?: string }
+export interface AssistantSubagentsSettings {
+  enabled: boolean; canEdit: boolean; capabilities?: AssistantCliPermissions["capabilities"]; unavailableReason?: string;
+  /** Effective launch mode; older responses remain unknown and preflight fails closed. */
+  permissionMode?: "bypass" | "restricted";
+}
 export interface AssistantSubagentsPort {
   read(required: Record<string, never>, optional?: Record<string, never>): Promise<AssistantSubagentsSettings>;
   write(required: { enabled: boolean; capabilities?: AssistantCliPermissions["capabilities"]; riskAcknowledged: boolean }, optional?: Record<string, never>): Promise<AssistantSubagentsSettings>;

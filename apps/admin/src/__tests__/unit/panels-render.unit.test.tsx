@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { describe, expect, it } from "vitest";
 import { buildAgentPageMap, buildNav } from "@jini-ai/admin/core";
 
-import { ADMIN_PANELS, type PanelRouteContext } from "../../panels";
+import { ADMIN_PANELS, type PanelRenderContext as PanelRouteContext } from "../../panels";
 import { agentPageId, parseRoute } from "../../App";
 import { Themes, ThemeExplore } from "../../features/themes";
 import { AdminUi } from "../../features/admin-ui";
@@ -72,7 +72,7 @@ function panel(id: string) {
 }
 
 function ctx(overrides: Partial<PanelRouteContext> = {}): PanelRouteContext {
-  return { view: null, params: {}, query: new URLSearchParams(), ...overrides };
+  return { view: null, params: {}, query: new URLSearchParams(), Placeholder, ...overrides };
 }
 
 describe("ADMIN_PANELS — manifest shape", () => {
@@ -360,7 +360,7 @@ describe("Add-ons canonical routes", () => {
     const route = parseRoute(path);
     expect(route.panelId).toBe(id);
     expect(route.redirectPath).toBeUndefined();
-    const element = panel(route.panelId!).render(route) as ReactElement;
+    const element = panel(route.panelId!).render(ctx(route)) as ReactElement;
     expect(element.type).toBe(component);
     if (component === IntegrationDeliveries) expect(element.props).toMatchObject({ subscriptionId: "sub1" });
     if (component === Providers) expect(element.props).toMatchObject({ tabId: "webhooks" });
@@ -398,7 +398,7 @@ describe("declared detail routes through the real parser", () => {
     const path = `/${id}${pattern.replace(/:([A-Za-z]+)/g, "$1-sample")}${query ? `?${query}` : ""}`;
     const route = parseRoute(path);
     expect(route.panelId).toBe(id);
-    const element = panel(route.panelId!).render(route) as ReactElement;
+    const element = panel(route.panelId!).render(ctx(route)) as ReactElement;
     expect(element.type).toBe(component);
     expect(element.props).toMatchObject(props);
     if (key !== undefined) expect(element.key).toBe(key);
@@ -419,7 +419,7 @@ describe("panel media — legacy and Jini routes", () => {
     const route = parseRoute(`/media${query}`);
     expect(route.panelId).toBe("media");
     expect(route.view).toBeNull();
-    const rendered = panel("media").render(route) as ReactElement;
+    const rendered = panel("media").render(ctx(route)) as ReactElement;
     expect(rendered.type).toBe(Media);
     expect(rendered.props).toMatchObject({ tabId: query ? "videos" : null });
     expect(agentPageId(route)).toBe("media");
@@ -430,7 +430,7 @@ describe("panel media — legacy and Jini routes", () => {
     const route = parseRoute(`/media/new${query}`);
     expect(route.panelId).toBe("media");
     expect(route.view).toBe("jini-media");
-    const rendered = panel("media").render(route) as ReactElement;
+    const rendered = panel("media").render(ctx(route)) as ReactElement;
     expect(rendered.type).toBe(ModulePanel);
     expect(rendered.props).toMatchObject({ moduleId: "media", pageId: "library", route });
     expect(agentPageId(route)).toBe("jini-media");

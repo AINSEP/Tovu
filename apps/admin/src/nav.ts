@@ -32,7 +32,7 @@ import { ADDONS_PANEL_PATHS } from "./lib/addons-routes";
  *
  * ## Why `getNav()` and not a plain `NAV` constant
  *
- * This file sits in a genuine import cycle: `panels.tsx` imports `components/Placeholder.tsx`, which
+ * Historically this file sat in an import cycle: `panels.tsx` imported `components/Placeholder.tsx`, which
  * imports this file for its own nav lookup, and this file imports `ADMIN_PANELS` back from
  * `panels.tsx`. Computing `buildNav({ panels: ADMIN_PANELS })` eagerly at this module's own top level (the
  * first version of this file did exactly that) raced that cycle: depending on which module the
@@ -46,6 +46,7 @@ import { ADDONS_PANEL_PATHS } from "./lib/addons-routes";
  * which only ever runs after the whole module graph has finished linking — so `ADMIN_PANELS` is
  * always fully assigned by the time `buildNav` actually needs it. Still computed once and cached
  * (not per-call), same "single source of truth" property the eager constant had.
+ * The host now injects Placeholder into panel rendering, cutting that cycle while keeping this cache.
 
  */
 export type { AdminNavGroup, AdminNavItem };

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { ADMIN_PANELS } from "@/panels";
+import { Placeholder } from "@/components/Placeholder";
 import { Authentication } from "../index";
 
 /**
@@ -21,6 +22,7 @@ describe("Authentication", () => {
           view: null,
           params: {},
           query: new URLSearchParams(),
+          Placeholder,
         })}
       </>,
     );

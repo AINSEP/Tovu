@@ -24,7 +24,7 @@ describe("plugin export cards", () => {
     ["props-required", "configured: check Preview"],
     ["PLUGIN_UNAVAILABLE", "plugin unavailable: visitors see your fallback"],
   ])("shows host availability %s without trusting authored stamps", (availability, status) => {
-    const describe_ = createEmbedPlaceholderDescriber({ t }, { pluginEmbeds: () => [{ plugin: config.plugin, component: config.component, availability }] });
+    const describe_ = createEmbedPlaceholderDescriber({ t }, { pluginEmbeds: () => [{ plugin: config.plugin, component: config.component, displayName: "Google Login", availability }] });
     const el = markerElement(config);
     el.setAttribute("data-plugin", "forged");
     expect(describe_(el)).toEqual({ kindLabel: "Google Login", identityLabel: `sign-in-button — ${status}`,
@@ -37,10 +37,13 @@ describe("plugin export cards", () => {
   });
 
   it("reads current injected readiness even when the canvas captures its callback once", () => {
-    const row = { plugin: config.plugin, component: config.component, availability: "ready" };
+    const row = { plugin: config.plugin, component: config.component, displayName: "Site sign-in", availability: "ready" };
     const describe_ = createEmbedPlaceholderDescriber({ t }, { pluginEmbeds: () => [row] });
+    expect(describe_(markerElement(config))?.kindLabel).toBe("Site sign-in");
     expect(describe_(markerElement(config))?.identityLabel).toBe("sign-in-button — configured: check Preview");
+    row.displayName = "Member sign-in";
     row.availability = "PLUGIN_DISABLED";
+    expect(describe_(markerElement(config))?.kindLabel).toBe("Member sign-in");
     expect(describe_(markerElement(config))?.identityLabel).toBe("sign-in-button — plugin off: visitors see your fallback");
   });
 });

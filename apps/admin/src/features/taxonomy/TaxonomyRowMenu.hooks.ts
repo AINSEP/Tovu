@@ -32,7 +32,7 @@ export function useTaxonomyRowMenu({ itemCount }: { itemCount: number }): MenuSt
   }
 
   useLayoutEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
     /** Measure the portal after layout and follow anchor movement on scroll/resize. */
     function reposition() {
       const trigger = triggerRef.current;
@@ -58,7 +58,7 @@ export function useTaxonomyRowMenu({ itemCount }: { itemCount: number }): MenuSt
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
     /** Treat both the portal and its trigger as inside, regardless of their DOM ancestry. */
     function onMouseDown(event: MouseEvent) {
       const target = event.target as Node;

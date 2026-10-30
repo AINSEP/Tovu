@@ -69,7 +69,7 @@ export function mediaPreviewKind(contentType: string): "image" | "video" {
 function usePreviewKind(assetId: string, contentTypeOf: (assetId: string) => Promise<string>): MediaPreviewKind {
   const [resolved, setResolved] = useState<{ assetId: string; kind: "image" | "video" } | null>(null);
   useEffect(() => {
-    if (!assetId) return;
+    if (!assetId) return undefined;
     let live = true;
     contentTypeOf(assetId).then(
       (contentType) => live && setResolved({ assetId, kind: mediaPreviewKind(contentType) }),

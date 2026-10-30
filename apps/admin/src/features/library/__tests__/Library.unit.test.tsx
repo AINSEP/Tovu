@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { api } from "@/lib/api";
 import { ADMIN_PANELS } from "@/panels";
+import { Placeholder } from "@/components/Placeholder";
 import { translateAdminNavLabel } from "@/lib/admin-nav-i18n";
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { Library, documentMenuItems, markdownFrameDocument } from "../Library";
@@ -64,7 +65,7 @@ describe("Library panel registration", () => {
 
   it("passes ?tab= through to the page", () => {
     const library = ADMIN_PANELS.find((panel) => panel.id === "library")!;
-    const element = library.render({ view: null, params: {}, query: new URLSearchParams("tab=documents") }) as ReactElement;
+    const element = library.render({ view: null, params: {}, query: new URLSearchParams("tab=documents"), Placeholder }) as ReactElement;
     expect(element.type).toBe(Library);
     expect(element.props).toMatchObject({ tabId: "documents" });
   });

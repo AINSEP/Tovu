@@ -46,6 +46,6 @@ export function useSitesConfig(_required = {}, { port = api }: { port?: Pick<typ
     removeRoot: (index: number) => { setAddedIndex(null); setRootList((list) => list.filter((_, at) => at !== index)); },
     databases, setDatabases, save, saving, error: error ?? loadError,
     useAppData: () => change({ databases: "appData" }),
-    useLocalHome: () => { if (!config?.warning) return Promise.resolve(); return change({ sitesHome: config.warning.localHome }); },
+    useLocalHome: () => (config?.warning ? change({ sitesHome: config.warning.localHome }) : Promise.resolve()),
   };
 }

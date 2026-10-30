@@ -7,6 +7,7 @@ import type { Translate } from "@jini-ai/ui/panel-kit";
 import { t as translate } from "../plugins-i18n";
 import {
   describeApiError,
+  packageFilesRead,
   packageFilesViewState,
   type PackageFilesListing,
   type PackageFilesRead,
@@ -72,8 +73,7 @@ export function usePluginPackageFiles({ pluginId, port, t, queryRoot = "plugins"
     catch (error) { throw new Error(describeApiError(error, t("failed to load package files"))); }
   }, [port, pluginId]);
   const query = useFetchQuery({ key: [queryRoot, "files", pluginId], fetch: queryFetch }, { staleTime: 0 });
-  const read: PackageFilesRead | null = query.data ? { listing: query.data, error: null }
-    : query.error ? { listing: null, error: query.error.message } : null;
+  const read: PackageFilesRead | null = packageFilesRead(query);
   return { ...packageFilesViewState(read, selectedPath, t), selectFile: setSelectedPath, t };
 }
 

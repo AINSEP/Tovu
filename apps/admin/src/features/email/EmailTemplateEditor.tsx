@@ -208,7 +208,8 @@ function leavesEditor({ anchor, location }: { anchor: HTMLAnchorElement | null; 
 
 /** Only a plain click replaces this tab; modified clicks leave its working copy alive. */
 function isPlainNavigationClick({ event }: { event: MouseEvent }, _options = {}): boolean {
-  return event.button === 0 && !event.defaultPrevented && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+  const modified = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+  return event.button === 0 && !event.defaultPrevented && !modified;
 }
 
 /** Reuse Pages' guard for unload and in-app links; also save on Cmd/Ctrl+S. Removes all listeners. */

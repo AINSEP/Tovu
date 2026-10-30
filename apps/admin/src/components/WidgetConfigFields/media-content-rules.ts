@@ -275,9 +275,10 @@ export function appendMediaSlugs(required: { items: MediaItem[]; slugs: readonly
   const next = required.items.slice();
   for (const slug of required.slugs) {
     if (next.length >= MAX_MEDIA_ITEMS) break;
-    if (seen.has(slug)) continue;
-    seen.add(slug);
-    next.push({ slug });
+    if (!seen.has(slug)) {
+      seen.add(slug);
+      next.push({ slug });
+    }
   }
   return next;
 }

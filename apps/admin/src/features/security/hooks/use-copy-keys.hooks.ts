@@ -22,7 +22,9 @@ function desktopStarter(): StartSite | undefined {
 function copyBlocked({ loading, pending, source, count }: {
   loading: boolean; pending: boolean; source: AdminCredentialCopySource | undefined; count: number;
 }): boolean {
-  return loading || pending || !source || !!source.reasonCode || count === 0 || count > MAX_COPY_IDS;
+  const sourceBlocked = !source || !!source.reasonCode;
+  const countOutOfRange = count === 0 || count > MAX_COPY_IDS;
+  return loading || pending || sourceBlocked || countOutOfRange;
 }
 
 /** The desktop start for the selected upgrade source — only its own route-supplied hint, only with a desktop owner. */
@@ -36,7 +38,8 @@ function startRequest({ source, sourceSiteId, startSite }: {
 
 /** Label, provider (or kind) and the server's hint, shown only when it is exactly four characters. */
 function keyText(key: CopyKey): string {
-  return `${key.label} · ${key.provider ?? key.kind}${key.last4?.length === 4 ? ` · …${key.last4}` : ""}`;
+  const hint = key.last4?.length === 4 ? " · …" + key.last4 : "";
+  return `${key.label} · ${key.provider ?? key.kind}${hint}`;
 }
 
 /** Works-for ids win; publish hosts are the fallback only for an empty list. */
@@ -57,7 +60,8 @@ function resultRows({ source, results, t }: {
   const labels = new Map(source?.keys.map(key => [key.id, key.label] as const));
   return results.map((result, index) => {
     const label = labels.get(result.id);
-    return { key: `${result.id}:${index}`, text: `${label ? `${label} · ` : ""}${copyKeysResultText({ result, t })}` };
+    const prefix = label ? label + " · " : "";
+    return { key: `${result.id}:${index}`, text: prefix + copyKeysResultText({ result, t }) };
   });
 }
 
@@ -72,6 +76,12 @@ function isEmptySource(source: AdminCredentialCopySource | undefined): boolean {
 /** The copy route refused because the source must be upgraded first; any other failure stays generic. */
 function isUpgradeRefusal(failure: unknown): boolean {
   return failure instanceof ApiError && failure.body?.reasonCode === NEEDS_UPGRADE;
+}
+
+/** The source site's keys are dropped and it is marked as needing an upgrade before copying. */
+function markSourceNeedsUpgrade(sourceSiteId: string): (previous: AdminCredentialCopySource[]) => AdminCredentialCopySource[] {
+  return (previous) => previous.map(item => item.siteId === sourceSiteId
+    ? { ...item, keys: [], reasonCode: NEEDS_UPGRADE } : item);
 }
 
 /** Owns this CMS copy flow; Jini owns the dialog and C2 owns eligibility/secret handling.
@@ -94,7 +104,7 @@ export function useCopyKeys({ t }: { t: Translate }, {
   const [refresh, setRefresh] = useState(0);
   const busy = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
     let live = true;
     setLoading(true);
     client.listCredentialCopySources({}).then(({ sources: next }) => {
@@ -135,8 +145,7 @@ export function useCopyKeys({ t }: { t: Translate }, {
         publishContentRefresh([ACCESS_TOKENS_RESOURCE]);
       } catch (failure) {
         if (!isUpgradeRefusal(failure)) { setError("Copying keys failed. Try again."); return; }
-        setSources(previous => previous.map(item => item.siteId === sourceSiteId
-          ? { ...item, keys: [], reasonCode: NEEDS_UPGRADE } : item));
+        setSources(markSourceNeedsUpgrade(sourceSiteId));
         setIds([]);
       }
     });

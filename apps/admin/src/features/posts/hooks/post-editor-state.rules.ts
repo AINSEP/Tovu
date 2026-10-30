@@ -1,7 +1,22 @@
 import type { AdminPost, ThemeTier } from "@/lib/api";
 import { isoToLocalDateTimeInput, isScheduledPost, localDateTimeInputToIso, postSlugFollowsTitle, postSlugForTitle } from "../rules";
 import type { PostEditorPort } from "./post-editor-port.hooks";
-import type { PostFormState } from "./use-post-editor.hooks";
+export interface PostFormState {
+  title: string;
+  slug: string;
+  status: "draft" | "published";
+  bodyJson: unknown;
+  templateChoice: string | null;
+  /** Tri-state (2026-08-15) — see {@link PostEditorController.overridesThemePage}'s own doc. */
+  overridesThemePage: boolean | null;
+  /** Scheduled publishing (2026-10-05) — ISO UTC, or `null` for "live as soon as published". */
+  publishAt: string | null;
+  /** Featured image (2026-10-05) — media asset id, or `null`. */
+  featuredMediaId: string | null;
+  author: string;
+  showAuthor: boolean;
+  hideCoverImageInBody: boolean;
+}
 
 /**
  * @file Pure state derivations `usePostEditor` (`use-post-editor.hooks.ts`) reads on load and on

@@ -30,7 +30,8 @@ export function createBrowserTelemetry(deps: BrowserTelemetryDeps, options: { ma
  * @complexity O(s·p) for s segments and p params.
  */
 export function toAdminRouteTemplate({ routePath, params }: { routePath: string; params: Readonly<Record<string, string>> }): string {
-  const path = routePath.replace(/[?#][\s\S]*$/, "");
+  const queryOrFragment = routePath.search(/[?#]/);
+  const path = queryOrFragment === -1 ? routePath : routePath.slice(0, queryOrFragment);
   const names = new Map(Object.entries(params).map(([name, value]) => [value, name]));
   const segments = path.split("/").filter(Boolean).map((segment) => {
     let decoded = segment;

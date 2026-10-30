@@ -1,6 +1,6 @@
 /** Host bus/signature adapter; the settings lifecycle is owned by @jini-ai/ui/panel-kit. */
 import {
-  useSettingsSlice as useSlice, mergeSaveStates as mergeStates, commitQueuedSave as commitSave,
+  useSettingsSlice as useSlice, mergeSaveStates as mergeStates,
   type SettingsSliceOptions as JiniOptions, type SettingsSliceRefreshPort, type SettingsSlice, type SaveState,
 } from "@jini-ai/ui/panel-kit";
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
@@ -30,8 +30,4 @@ export function useSettingsSlice<T>(input: SettingsSliceOptions<T>, _options = {
 /** Existing page chrome supplies an array; the package owns precedence. */
 export function mergeSaveStates(states: readonly SaveState[], _options = {}): SaveState {
   return mergeStates({ states }, {});
-}
-/** Compatibility seam for the existing direct save-ticket tests. */
-export function commitQueuedSave(ticket: number, deps: Parameters<typeof commitSave>[0]["deps"]): Promise<void> {
-  return commitSave({ ticket, deps }, {});
 }

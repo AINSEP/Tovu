@@ -69,6 +69,10 @@ function frameOutcome(answer: AgentPluginSurfaceActionAnswer): AdminSurfaceActio
   return answer.ok ? { ok: true, result: answer.result } : { ok: false, error: answer.error };
 }
 
+function appendLinks(links: readonly HostSignInLink[]): (current: readonly HostSignInLink[]) => readonly HostSignInLink[] {
+  return (current) => [...current, ...links];
+}
+
 /**
  * @param required.surface - The listing entry: its `actions` are the client-side early refusal.
  * @complexity O(p) per message in the payload size (Jini's validator), plus one request.
@@ -91,7 +95,10 @@ export function useAdminSurfaceFrame(
   const onLoad = useCallback(() => {
     loads.current += 1;
     // A second load means the frame navigated away from the surface: unmount, never re-init.
-    if (loads.current > 1) return setStatus("navigated");
+    if (loads.current > 1) {
+      setStatus("navigated");
+      return;
+    }
     void port.bootstrap({ pluginId, surfaceId: surface.id }).then(
       (bootstrap) => {
         liveFrame()?.postMessage(adminSurfaceInitMessage({ mountId: mount.mountId }, { bootstrap, theme: readAdminTheme() }), "*");
@@ -115,7 +122,10 @@ export function useAdminSurfaceFrame(
       if (frame === null) return;
       // The frame fits its content (no inner scrollbar); a height is cosmetic, so it is never answered.
       const reported = readAdminSurfaceResize({ event, mount: { mountId: mount.mountId, frame } });
-      if (reported !== null) return setHeight(reported);
+      if (reported !== null) {
+        setHeight(reported);
+        return;
+      }
       const record = { mountId: mount.mountId, frame, descriptor: { actions: surface.actions, linkOrigins: surface.linkOrigins ?? [] } };
       // Each gate ignores the other's messages; a link verdict with a response is this mount's open-link.
       void openAdminSurfaceLink({ event, mount: record, openLink: openInNewTab }).then((link) => { if ("response" in link) liveFrame()?.postMessage(link.response, "*"); });
@@ -129,7 +139,7 @@ export function useAdminSurfaceFrame(
         .catch((): AgentPluginSurfaceActionAnswer => HOST_UNAVAILABLE)
         .then((answer) => {
           const links = hostLinks(answer);
-          if (links.length > 0) setIssued((current) => [...current, ...links]);
+          if (links.length > 0) setIssued(appendLinks(links));
           liveFrame()?.postMessage(adminSurfaceActionResponse({ request, outcome: frameOutcome(answer) }), "*");
         });
     };

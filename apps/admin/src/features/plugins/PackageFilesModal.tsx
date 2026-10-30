@@ -31,7 +31,7 @@ import { CODE_PREVIEW_MODAL_ICONS } from "@/components/CodeView/preview-modal-ic
 export interface PackageFilesModalProps {
   readonly title: string;
   readonly headerExtras?: ReactNode;
-  readonly subtitle?: string | undefined;
+  readonly subtitle?: string;
   readonly files: readonly PackageFileView[];
   readonly selectedFile: PackageFileView | null;
   readonly onSelectFile: (relativePath: string) => void;
@@ -47,7 +47,7 @@ export interface PackageFilesModalProps {
   /** Forward the shared shell's selected-view notification so the host can update its header. */
   readonly onView?: (viewId: string) => void;
   /** The view to open on (an additional view's id); the package files otherwise. */
-  readonly initialViewId?: string | undefined;
+  readonly initialViewId?: string;
 }
 
 /** A package-relative path with a `<wbr>` after every `/` (visual QA, 2026-08-31). Used by the
@@ -278,9 +278,8 @@ export function PackageFilesModal({
                   agentHandleBase={fileHandleByPath.get(selectedFile.relativePath)!}
                   t={t}
                 />
-              ) : status ? (
-                <p role={status.role}>{status.text}</p>
               ) : null}
+              {!selectedFile && status ? <p role={status.role}>{status.text}</p> : null}
             </div>
           ),
         },

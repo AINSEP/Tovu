@@ -61,6 +61,9 @@ import {
 } from "./post-editor-state.rules";
 import { buildPostUpdatePatch, keepNewerEdit, savedPostFields, withEverPublished } from "./post-editor-save.rules";
 
+/** A save that also moves the post to this status; `undefined` keeps its current one. */
+type SaveStatusOverride = "draft" | "published" | undefined;
+
 /**
  * @file Everything the post/page EDITOR does, so `PostEditor.tsx` is only markup.
  *
@@ -99,22 +102,8 @@ import { buildPostUpdatePatch, keepNewerEdit, savedPostFields, withEverPublished
 /** What `useDirtyGuard` compares — every field this editor lets an operator change. `bodyJson` is
  *  typed loosely (not TipTap's `JSONContent`) since the guard only ever serializes it for
  *  comparison, never reads its shape. */
-export interface PostFormState {
-  title: string;
-  slug: string;
-  status: "draft" | "published";
-  bodyJson: unknown;
-  templateChoice: string | null;
-  /** Tri-state (2026-08-15) — see {@link PostEditorController.overridesThemePage}'s own doc. */
-  overridesThemePage: boolean | null;
-  /** Scheduled publishing (2026-10-05) — ISO UTC, or `null` for "live as soon as published". */
-  publishAt: string | null;
-  /** Featured image (2026-10-05) — media asset id, or `null`. */
-  featuredMediaId: string | null;
-  author: string;
-  showAuthor: boolean;
-  hideCoverImageInBody: boolean;
-}
+export type { PostFormState } from './post-editor-state.rules';
+import type { PostFormState } from './post-editor-state.rules';
 
 /** The two things the editor's main pane can show — the rich-text editor, or a rendered preview
  *  of the post. Named for what an author sees, not the library underneath ("Tiptap" never appears
@@ -373,15 +362,9 @@ function computeContentDirty(
   original: PostFormState | null,
 ): boolean {
   if (original === null) return false;
-  return (
-    current.title !== original.title ||
-    current.slug !== original.slug ||
-    current.status !== original.status ||
-    JSON.stringify(current.bodyJson) !== JSON.stringify(original.bodyJson) ||
-    current.overridesThemePage !== original.overridesThemePage ||
-    current.author !== original.author ||
-    current.showAuthor !== original.showAuthor
-  );
+  const fieldsChanged = (["title", "slug", "status", "overridesThemePage", "author", "showAuthor"] as const)
+    .some((field) => current[field] !== original[field]);
+  return fieldsChanged || JSON.stringify(current.bodyJson) !== JSON.stringify(original.bodyJson);
 }
 
 /**
@@ -470,7 +453,7 @@ export async function uploadDroppedFile(port: PostEditorPort, file: File): Promi
  * so `save`'s own cognitive-complexity score doesn't carry this string's branching on top of the
  * stale-settlement guard added the same day.
  */
-function formatSaveSuccessMessage(statusOverride: "draft" | "published" | undefined, saved: AdminPost, t: Translate, expectedVersion?: number): string {
+function formatSaveSuccessMessage(statusOverride: SaveStatusOverride, saved: AdminPost, t: Translate, expectedVersion?: number): string {
   // The server skips a save whose content matches what's stored and answers with the SAME version
   // (2026-10-10, no-op save guard), so an unchanged version means nothing new was written.
   if (statusOverride === undefined && expectedVersion !== undefined && saved.version === expectedVersion) {
@@ -495,7 +478,7 @@ function formatSaveSuccessMessage(statusOverride: "draft" | "published" | undefi
  */
 function formatSaveErrorMessage(
   error: unknown,
-  statusOverride: "draft" | "published" | undefined,
+  statusOverride: SaveStatusOverride,
   t: Translate,
 ): string {
   if (error instanceof Error) return error.message;
@@ -909,7 +892,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // always works; this is a convenience on top of it, gated on `previewExpanded` so no listener is
   // registered at all while collapsed.
   useEffect(() => {
-    if (!previewExpanded) return;
+    if (!previewExpanded) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setPreviewExpanded(false);
     };
@@ -1000,7 +983,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
    * Re-baselines `original` either way, so a publish also clears the dirty guard, same as an
    * ordinary save.
    */
-  async function runSave(statusOverride: "draft" | "published" | undefined, expectedVersion: number | undefined) {
+  async function runSave(statusOverride: SaveStatusOverride, expectedVersion: number | undefined) {
     // Claim this call's generation BEFORE the first `await` — see `useSettlementGeneration`'s own
     // doc for why a synchronous ref bump, not `useState`, is what makes two same-tick calls (a
     // double-click, or Save then Publish before either disables) each see the other's claim.
@@ -1047,7 +1030,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
    */
   function applySavedPost(outcome: {
     saved: AdminPost;
-    statusOverride: "draft" | "published" | undefined;
+    statusOverride: SaveStatusOverride;
     expectedVersion: number | undefined;
     nextStatus: "draft" | "published";
     bodyJson: Record<string, unknown>;
@@ -1077,7 +1060,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   }
 
   /** {@link runSave}'s failure half, for the call that is still current. */
-  function applySaveFailure(e: unknown, statusOverride: "draft" | "published" | undefined): void {
+  function applySaveFailure(e: unknown, statusOverride: SaveStatusOverride): void {
     if (post) autosave.preserveFailedSave({ error: e, draft: buildPostAutosaveDraft(post, { title, slug, bodyJson: editor.getJSON() as Record<string, unknown>, author, showAuthor }) });
     // The version conflict is NOT folded into the generic error line. The two need opposite
     // reactions from the operator (a slug collision or a network blip: fix it and press Save

@@ -18,7 +18,7 @@ export function useMediaCardDetails(
     const query = matchMedia(PHONE_QUERY);
     const update = () => setIsPhone(query?.matches ?? false);
     update();
-    if (!query) return;
+    if (!query) return undefined;
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, [matchMedia]);

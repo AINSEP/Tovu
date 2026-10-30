@@ -158,7 +158,7 @@ export function usePreviewPaneWidth(): {
   const [frameNode, setFrameNode] = useState<HTMLDivElement | null>(null);
   const [paneWidth, setPaneWidth] = useState<number>(DEVICE_PREVIEW_DEFAULT_PANE_WIDTH);
   useEffect(() => {
-    if (!frameNode || typeof ResizeObserver !== "function") return;
+    if (!frameNode || typeof ResizeObserver !== "function") return undefined;
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) setPaneWidth(entry.contentRect.width);

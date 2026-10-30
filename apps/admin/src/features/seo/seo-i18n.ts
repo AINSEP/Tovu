@@ -14,6 +14,9 @@ import { COMMON_I18N } from "../../lib/i18n-common";
 
 import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
+/** The sitemap link text is a file name, so every locale shows it unchanged. */
+const SITEMAP_LINK = "sitemap.xml ↗";
+
 const SEO_DICT: Record<string, Record<string, string>> = {
   es: {
     "Preview title": "Título de la vista previa",
@@ -52,7 +55,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   Title: "Título",
   URL: "URL",
   "View sitemap": "Ver mapa del sitio",
-  "sitemap.xml ↗": "sitemap.xml ↗",
+  [SITEMAP_LINK]: SITEMAP_LINK,
   "—": "—",
   "Cached sitemap": "Mapa del sitio en caché",
   Crawling: "Rastreo",
@@ -138,7 +141,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   Title: "Judul",
   URL: "URL",
   "View sitemap": "Lihat peta situs",
-  "sitemap.xml ↗": "sitemap.xml ↗",
+  [SITEMAP_LINK]: SITEMAP_LINK,
   "—": "—",
   "Cached sitemap": "Peta situs di cache",
   Crawling: "Perayapan",
@@ -224,7 +227,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   Title: "Titel",
   URL: "URL",
   "View sitemap": "Sitemap anzeigen",
-  "sitemap.xml ↗": "sitemap.xml ↗",
+  [SITEMAP_LINK]: SITEMAP_LINK,
   "—": "—",
   "Cached sitemap": "Zwischengespeicherte Sitemap",
   Crawling: "Crawling",
@@ -310,7 +313,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   Title: "标题",
   URL: "URL",
   "View sitemap": "查看站点地图",
-  "sitemap.xml ↗": "sitemap.xml ↗",
+  [SITEMAP_LINK]: SITEMAP_LINK,
   "—": "—",
   "Cached sitemap": "缓存的站点地图",
   Crawling: "抓取",
@@ -396,7 +399,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   Title: "標題",
   URL: "URL",
   "View sitemap": "查看網站地圖",
-  "sitemap.xml ↗": "sitemap.xml ↗",
+  [SITEMAP_LINK]: SITEMAP_LINK,
   "—": "—",
   "Cached sitemap": "快取的網站地圖",
   Crawling: "檢索",
@@ -482,7 +485,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   Title: "Título",
   URL: "URL",
   "View sitemap": "Ver mapa do site",
-  "sitemap.xml ↗": "sitemap.xml ↗",
+  [SITEMAP_LINK]: SITEMAP_LINK,
   "—": "—",
   "Cached sitemap": "Sitemap em cache",
   Crawling: "Rastreamento",
@@ -568,7 +571,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
   Title: "Заголовок",
   URL: "URL",
   "View sitemap": "Просмотреть карту сайта",
-  "sitemap.xml ↗": "sitemap.xml ↗",
+  [SITEMAP_LINK]: SITEMAP_LINK,
   "—": "—",
   "Cached sitemap": "Кэшированная карта сайта",
   Crawling: "Сканирование",
@@ -638,7 +641,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
     "Using image from page content: {name}": "استفاده از تصویر محتوای صفحه: {name}",
     "Selected image": "تصویر انتخاب‌شده",
 
-  "Choose image": "انتخاب تصویر", Close: "بستن", "Filter by URL…": "فیلتر بر اساس URL…", "Last modified": "آخرین تغییر", "Loading sitemap…": "در حال بارگذاری نقشه سایت…", "No URLs match this filter.": "هیچ URL با این فیلتر مطابقت ندارد.", "Raw XML": "XML خام", Remove: "حذف", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "نقشه سایت خاموش است. برای انتشار آن، «نقشه سایت فعال است» را در بالا روشن کنید.", "Sitemap · {count} URLs": "نقشه سایت · {count} URL", Table: "جدول", "The sitemap has no URLs yet.": "نقشه سایت هنوز URL ندارد.", Title: "عنوان", URL: "URL", "View sitemap": "نمایش نقشه سایت", "sitemap.xml ↗": "sitemap.xml ↗", "—": "—",
+  "Choose image": "انتخاب تصویر", Close: "بستن", "Filter by URL…": "فیلتر بر اساس URL…", "Last modified": "آخرین تغییر", "Loading sitemap…": "در حال بارگذاری نقشه سایت…", "No URLs match this filter.": "هیچ URL با این فیلتر مطابقت ندارد.", "Raw XML": "XML خام", Remove: "حذف", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "نقشه سایت خاموش است. برای انتشار آن، «نقشه سایت فعال است» را در بالا روشن کنید.", "Sitemap · {count} URLs": "نقشه سایت · {count} URL", Table: "جدول", "The sitemap has no URLs yet.": "نقشه سایت هنوز URL ندارد.", Title: "عنوان", URL: "URL", "View sitemap": "نمایش نقشه سایت", [SITEMAP_LINK]: SITEMAP_LINK, "—": "—",
   "Filter sitemap URLs": "فیلتر کردن نشانی‌های نقشه سایت",
   "Cached sitemap": "نقشه سایت ذخیره‌شده",
   Crawling: "خزش",
@@ -708,7 +711,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
     "Using image from page content: {name}": "تُستخدم صورة من محتوى الصفحة: {name}",
     "Selected image": "الصورة المحددة",
 
-  "Choose image": "اختر صورة", Close: "إغلاق", "Filter by URL…": "تصفية حسب URL…", "Last modified": "آخر تعديل", "Loading sitemap…": "جارٍ تحميل خريطة الموقع…", "No URLs match this filter.": "لا توجد عناوين URL تطابق هذا المرشح.", "Raw XML": "XML خام", Remove: "إزالة", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "خريطة الموقع معطلة. فعّل «خريطة الموقع مفعلة» أعلاه لنشرها.", "Sitemap · {count} URLs": "خريطة الموقع · {count} URL", Table: "جدول", "The sitemap has no URLs yet.": "لا تحتوي خريطة الموقع على عناوين URL بعد.", Title: "العنوان", URL: "URL", "View sitemap": "عرض خريطة الموقع", "sitemap.xml ↗": "sitemap.xml ↗", "—": "—",
+  "Choose image": "اختر صورة", Close: "إغلاق", "Filter by URL…": "تصفية حسب URL…", "Last modified": "آخر تعديل", "Loading sitemap…": "جارٍ تحميل خريطة الموقع…", "No URLs match this filter.": "لا توجد عناوين URL تطابق هذا المرشح.", "Raw XML": "XML خام", Remove: "إزالة", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "خريطة الموقع معطلة. فعّل «خريطة الموقع مفعلة» أعلاه لنشرها.", "Sitemap · {count} URLs": "خريطة الموقع · {count} URL", Table: "جدول", "The sitemap has no URLs yet.": "لا تحتوي خريطة الموقع على عناوين URL بعد.", Title: "العنوان", URL: "URL", "View sitemap": "عرض خريطة الموقع", [SITEMAP_LINK]: SITEMAP_LINK, "—": "—",
   "Filter sitemap URLs": "تصفية عناوين URL لخريطة الموقع",
   "Cached sitemap": "خريطة الموقع المخزّنة مؤقتًا",
   Crawling: "الزحف",
@@ -778,7 +781,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
     "Using image from page content: {name}": "ページのコンテンツ内の画像を使用中: {name}",
     "Selected image": "選択した画像",
 
-  "Choose image": "画像を選択", Close: "閉じる", "Filter by URL…": "URLで絞り込む…", "Last modified": "最終更新", "Loading sitemap…": "サイトマップを読み込み中…", "No URLs match this filter.": "このフィルターに一致するURLはありません。", "Raw XML": "生のXML", Remove: "削除", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "サイトマップはオフです。公開するには上の「サイトマップを有効化」をオンにしてください。", "Sitemap · {count} URLs": "サイトマップ · {count} URL", Table: "テーブル", "The sitemap has no URLs yet.": "サイトマップにはまだURLがありません。", Title: "タイトル", URL: "URL", "View sitemap": "サイトマップを表示", "sitemap.xml ↗": "sitemap.xml ↗", "—": "—",
+  "Choose image": "画像を選択", Close: "閉じる", "Filter by URL…": "URLで絞り込む…", "Last modified": "最終更新", "Loading sitemap…": "サイトマップを読み込み中…", "No URLs match this filter.": "このフィルターに一致するURLはありません。", "Raw XML": "生のXML", Remove: "削除", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "サイトマップはオフです。公開するには上の「サイトマップを有効化」をオンにしてください。", "Sitemap · {count} URLs": "サイトマップ · {count} URL", Table: "テーブル", "The sitemap has no URLs yet.": "サイトマップにはまだURLがありません。", Title: "タイトル", URL: "URL", "View sitemap": "サイトマップを表示", [SITEMAP_LINK]: SITEMAP_LINK, "—": "—",
   "Filter sitemap URLs": "サイトマップのURLを絞り込む",
   "Cached sitemap": "キャッシュされたサイトマップ",
   Crawling: "クロール",
@@ -848,7 +851,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
     "Using image from page content: {name}": "페이지 콘텐츠의 이미지 사용 중: {name}",
     "Selected image": "선택한 이미지",
 
-  "Choose image": "이미지 선택", Close: "닫기", "Filter by URL…": "URL로 필터링…", "Last modified": "최종 수정", "Loading sitemap…": "사이트맵을 불러오는 중…", "No URLs match this filter.": "이 필터와 일치하는 URL이 없습니다.", "Raw XML": "원시 XML", Remove: "제거", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "사이트맵이 꺼져 있습니다. 게시하려면 위에서 \"사이트맵 활성화\"를 켜세요.", "Sitemap · {count} URLs": "사이트맵 · {count}개 URL", Table: "표", "The sitemap has no URLs yet.": "사이트맵에 아직 URL이 없습니다.", Title: "제목", URL: "URL", "View sitemap": "사이트맵 보기", "sitemap.xml ↗": "sitemap.xml ↗", "—": "—",
+  "Choose image": "이미지 선택", Close: "닫기", "Filter by URL…": "URL로 필터링…", "Last modified": "최종 수정", "Loading sitemap…": "사이트맵을 불러오는 중…", "No URLs match this filter.": "이 필터와 일치하는 URL이 없습니다.", "Raw XML": "원시 XML", Remove: "제거", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "사이트맵이 꺼져 있습니다. 게시하려면 위에서 \"사이트맵 활성화\"를 켜세요.", "Sitemap · {count} URLs": "사이트맵 · {count}개 URL", Table: "표", "The sitemap has no URLs yet.": "사이트맵에 아직 URL이 없습니다.", Title: "제목", URL: "URL", "View sitemap": "사이트맵 보기", [SITEMAP_LINK]: SITEMAP_LINK, "—": "—",
   "Filter sitemap URLs": "사이트맵 URL 필터링",
   "Cached sitemap": "캐시된 사이트맵",
   Crawling: "크롤링",
@@ -918,7 +921,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
     "Using image from page content: {name}": "Używany jest obraz z treści strony: {name}",
     "Selected image": "Wybrany obraz",
 
-  "Choose image": "Wybierz obraz", Close: "Zamknij", "Filter by URL…": "Filtruj według URL…", "Last modified": "Ostatnia modyfikacja", "Loading sitemap…": "Ładowanie mapy witryny…", "No URLs match this filter.": "Żadne URL nie pasują do tego filtra.", "Raw XML": "Surowy XML", Remove: "Usuń", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "Mapa witryny jest wyłączona. Włącz wyżej \"Mapa witryny włączona\", aby ją opublikować.", "Sitemap · {count} URLs": "Mapa witryny · {count} URL", Table: "Tabela", "The sitemap has no URLs yet.": "Mapa witryny nie ma jeszcze adresów URL.", Title: "Tytuł", URL: "URL", "View sitemap": "Wyświetl mapę witryny", "sitemap.xml ↗": "sitemap.xml ↗", "—": "—",
+  "Choose image": "Wybierz obraz", Close: "Zamknij", "Filter by URL…": "Filtruj według URL…", "Last modified": "Ostatnia modyfikacja", "Loading sitemap…": "Ładowanie mapy witryny…", "No URLs match this filter.": "Żadne URL nie pasują do tego filtra.", "Raw XML": "Surowy XML", Remove: "Usuń", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "Mapa witryny jest wyłączona. Włącz wyżej \"Mapa witryny włączona\", aby ją opublikować.", "Sitemap · {count} URLs": "Mapa witryny · {count} URL", Table: "Tabela", "The sitemap has no URLs yet.": "Mapa witryny nie ma jeszcze adresów URL.", Title: "Tytuł", URL: "URL", "View sitemap": "Wyświetl mapę witryny", [SITEMAP_LINK]: SITEMAP_LINK, "—": "—",
   "Filter sitemap URLs": "Filtruj adresy URL mapy witryny",
   "Cached sitemap": "Mapa witryny w pamięci podręcznej",
   Crawling: "Indeksowanie",
@@ -988,7 +991,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
     "Using image from page content: {name}": "Az oldal tartalmából származó kép van használatban: {name}",
     "Selected image": "Kiválasztott kép",
 
-  "Choose image": "Kép kiválasztása", Close: "Bezárás", "Filter by URL…": "Szűrés URL szerint…", "Last modified": "Utolsó módosítás", "Loading sitemap…": "Webhelytérkép betöltése…", "No URLs match this filter.": "Egyetlen URL sem felel meg ennek a szűrőnek.", "Raw XML": "Nyers XML", Remove: "Eltávolítás", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "A webhelytérkép ki van kapcsolva. Közzétételéhez kapcsolja be fent a \"Webhelytérkép engedélyezve\" lehetőséget.", "Sitemap · {count} URLs": "Webhelytérkép · {count} URL", Table: "Táblázat", "The sitemap has no URLs yet.": "A webhelytérképnek még nincsenek URL-jei.", Title: "Cím", URL: "URL", "View sitemap": "Webhelytérkép megtekintése", "sitemap.xml ↗": "sitemap.xml ↗", "—": "—",
+  "Choose image": "Kép kiválasztása", Close: "Bezárás", "Filter by URL…": "Szűrés URL szerint…", "Last modified": "Utolsó módosítás", "Loading sitemap…": "Webhelytérkép betöltése…", "No URLs match this filter.": "Egyetlen URL sem felel meg ennek a szűrőnek.", "Raw XML": "Nyers XML", Remove: "Eltávolítás", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "A webhelytérkép ki van kapcsolva. Közzétételéhez kapcsolja be fent a \"Webhelytérkép engedélyezve\" lehetőséget.", "Sitemap · {count} URLs": "Webhelytérkép · {count} URL", Table: "Táblázat", "The sitemap has no URLs yet.": "A webhelytérképnek még nincsenek URL-jei.", Title: "Cím", URL: "URL", "View sitemap": "Webhelytérkép megtekintése", [SITEMAP_LINK]: SITEMAP_LINK, "—": "—",
   "Filter sitemap URLs": "Webhelytérkép-URL-ek szűrése",
   "Cached sitemap": "Gyorsítótárazott webhelytérkép",
   Crawling: "Feltérképezés",
@@ -1058,7 +1061,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
     "Using image from page content: {name}": "Image du contenu de la page : {name}",
     "Selected image": "Image sélectionnée",
 
-  "Choose image": "Choisir une image", Close: "Fermer", "Filter by URL…": "Filtrer par URL…", "Last modified": "Dernière modification", "Loading sitemap…": "Chargement du plan du site…", "No URLs match this filter.": "Aucune URL ne correspond à ce filtre.", "Raw XML": "XML brut", Remove: "Supprimer", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "Le plan du site est désactivé. Activez « Plan du site activé » ci-dessus pour en publier un.", "Sitemap · {count} URLs": "Plan du site · {count} URL", Table: "Tableau", "The sitemap has no URLs yet.": "Le plan du site ne contient encore aucune URL.", Title: "Titre", URL: "URL", "View sitemap": "Voir le plan du site", "sitemap.xml ↗": "sitemap.xml ↗", "—": "—",
+  "Choose image": "Choisir une image", Close: "Fermer", "Filter by URL…": "Filtrer par URL…", "Last modified": "Dernière modification", "Loading sitemap…": "Chargement du plan du site…", "No URLs match this filter.": "Aucune URL ne correspond à ce filtre.", "Raw XML": "XML brut", Remove: "Supprimer", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "Le plan du site est désactivé. Activez « Plan du site activé » ci-dessus pour en publier un.", "Sitemap · {count} URLs": "Plan du site · {count} URL", Table: "Tableau", "The sitemap has no URLs yet.": "Le plan du site ne contient encore aucune URL.", Title: "Titre", URL: "URL", "View sitemap": "Voir le plan du site", [SITEMAP_LINK]: SITEMAP_LINK, "—": "—",
   "Filter sitemap URLs": "Filtrer les URL du plan du site",
   "Cached sitemap": "Sitemap en cache",
   Crawling: "Exploration",
@@ -1128,7 +1131,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
     "Using image from page content: {name}": "Використовується зображення з вмісту сторінки: {name}",
     "Selected image": "Вибране зображення",
 
-  "Choose image": "Вибрати зображення", Close: "Закрити", "Filter by URL…": "Фільтрувати за URL…", "Last modified": "Остання зміна", "Loading sitemap…": "Завантаження карти сайту…", "No URLs match this filter.": "Немає URL, що відповідають цьому фільтру.", "Raw XML": "Необроблений XML", Remove: "Видалити", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "Карту сайту вимкнено. Увімкніть вище «Карту сайту ввімкнено», щоб опублікувати її.", "Sitemap · {count} URLs": "Карта сайту · {count} URL", Table: "Таблиця", "The sitemap has no URLs yet.": "Карта сайту ще не містить URL.", Title: "Заголовок", URL: "URL", "View sitemap": "Переглянути карту сайту", "sitemap.xml ↗": "sitemap.xml ↗", "—": "—",
+  "Choose image": "Вибрати зображення", Close: "Закрити", "Filter by URL…": "Фільтрувати за URL…", "Last modified": "Остання зміна", "Loading sitemap…": "Завантаження карти сайту…", "No URLs match this filter.": "Немає URL, що відповідають цьому фільтру.", "Raw XML": "Необроблений XML", Remove: "Видалити", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "Карту сайту вимкнено. Увімкніть вище «Карту сайту ввімкнено», щоб опублікувати її.", "Sitemap · {count} URLs": "Карта сайту · {count} URL", Table: "Таблиця", "The sitemap has no URLs yet.": "Карта сайту ще не містить URL.", Title: "Заголовок", URL: "URL", "View sitemap": "Переглянути карту сайту", [SITEMAP_LINK]: SITEMAP_LINK, "—": "—",
   "Filter sitemap URLs": "Фільтрувати URL-адреси карти сайту",
   "Cached sitemap": "Кешована карта сайту",
   Crawling: "Сканування",
@@ -1198,7 +1201,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
     "Using image from page content: {name}": "Sayfa içeriğindeki görsel kullanılıyor: {name}",
     "Selected image": "Seçilen görsel",
 
-  "Choose image": "Görsel seç", Close: "Kapat", "Filter by URL…": "URL'ye göre filtrele…", "Last modified": "Son değiştirilme", "Loading sitemap…": "Site haritası yükleniyor…", "No URLs match this filter.": "Bu filtreyle eşleşen URL yok.", "Raw XML": "Ham XML", Remove: "Kaldır", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "Site haritası kapalı. Yayınlamak için yukarıdan \"Site haritası etkin\" seçeneğini açın.", "Sitemap · {count} URLs": "Site haritası · {count} URL", Table: "Tablo", "The sitemap has no URLs yet.": "Site haritasında henüz URL yok.", Title: "Başlık", URL: "URL", "View sitemap": "Site haritasını görüntüle", "sitemap.xml ↗": "sitemap.xml ↗", "—": "—",
+  "Choose image": "Görsel seç", Close: "Kapat", "Filter by URL…": "URL'ye göre filtrele…", "Last modified": "Son değiştirilme", "Loading sitemap…": "Site haritası yükleniyor…", "No URLs match this filter.": "Bu filtreyle eşleşen URL yok.", "Raw XML": "Ham XML", Remove: "Kaldır", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "Site haritası kapalı. Yayınlamak için yukarıdan \"Site haritası etkin\" seçeneğini açın.", "Sitemap · {count} URLs": "Site haritası · {count} URL", Table: "Tablo", "The sitemap has no URLs yet.": "Site haritasında henüz URL yok.", Title: "Başlık", URL: "URL", "View sitemap": "Site haritasını görüntüle", [SITEMAP_LINK]: SITEMAP_LINK, "—": "—",
   "Filter sitemap URLs": "Site haritası URL'lerini filtrele",
   "Cached sitemap": "Önbelleğe alınmış site haritası",
   Crawling: "Tarama",
@@ -1268,7 +1271,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
     "Using image from page content: {name}": "ใช้รูปภาพจากเนื้อหาของหน้า: {name}",
     "Selected image": "รูปภาพที่เลือก",
 
-  "Choose image": "เลือกรูปภาพ", Close: "ปิด", "Filter by URL…": "กรองตาม URL…", "Last modified": "แก้ไขล่าสุด", "Loading sitemap…": "กำลังโหลดแผนผังเว็บไซต์…", "No URLs match this filter.": "ไม่มี URL ที่ตรงกับตัวกรองนี้", "Raw XML": "XML ดิบ", Remove: "ลบ", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "แผนผังเว็บไซต์ปิดอยู่ เปิด \"เปิดใช้แผนผังเว็บไซต์\" ด้านบนเพื่อเผยแพร่", "Sitemap · {count} URLs": "แผนผังเว็บไซต์ · {count} URL", Table: "ตาราง", "The sitemap has no URLs yet.": "แผนผังเว็บไซต์ยังไม่มี URL", Title: "ชื่อเรื่อง", URL: "URL", "View sitemap": "ดูแผนผังเว็บไซต์", "sitemap.xml ↗": "sitemap.xml ↗", "—": "—",
+  "Choose image": "เลือกรูปภาพ", Close: "ปิด", "Filter by URL…": "กรองตาม URL…", "Last modified": "แก้ไขล่าสุด", "Loading sitemap…": "กำลังโหลดแผนผังเว็บไซต์…", "No URLs match this filter.": "ไม่มี URL ที่ตรงกับตัวกรองนี้", "Raw XML": "XML ดิบ", Remove: "ลบ", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "แผนผังเว็บไซต์ปิดอยู่ เปิด \"เปิดใช้แผนผังเว็บไซต์\" ด้านบนเพื่อเผยแพร่", "Sitemap · {count} URLs": "แผนผังเว็บไซต์ · {count} URL", Table: "ตาราง", "The sitemap has no URLs yet.": "แผนผังเว็บไซต์ยังไม่มี URL", Title: "ชื่อเรื่อง", URL: "URL", "View sitemap": "ดูแผนผังเว็บไซต์", [SITEMAP_LINK]: SITEMAP_LINK, "—": "—",
   "Filter sitemap URLs": "กรอง URL แผนผังเว็บไซต์",
   "Cached sitemap": "แผนผังเว็บไซต์ที่แคชไว้",
   Crawling: "การรวบรวมข้อมูล",
@@ -1338,7 +1341,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
     "Using image from page content: {name}": "Immagine dal contenuto della pagina: {name}",
     "Selected image": "Immagine selezionata",
 
-  "Choose image": "Scegli immagine", Close: "Chiudi", "Filter by URL…": "Filtra per URL…", "Last modified": "Ultima modifica", "Loading sitemap…": "Caricamento della sitemap…", "No URLs match this filter.": "Nessun URL corrisponde a questo filtro.", "Raw XML": "XML non elaborato", Remove: "Rimuovi", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "La sitemap è disattivata. Attiva \"Sitemap abilitata\" sopra per pubblicarne una.", "Sitemap · {count} URLs": "Sitemap · {count} URL", Table: "Tabella", "The sitemap has no URLs yet.": "La sitemap non contiene ancora URL.", Title: "Titolo", URL: "URL", "View sitemap": "Visualizza sitemap", "sitemap.xml ↗": "sitemap.xml ↗", "—": "—",
+  "Choose image": "Scegli immagine", Close: "Chiudi", "Filter by URL…": "Filtra per URL…", "Last modified": "Ultima modifica", "Loading sitemap…": "Caricamento della sitemap…", "No URLs match this filter.": "Nessun URL corrisponde a questo filtro.", "Raw XML": "XML non elaborato", Remove: "Rimuovi", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "La sitemap è disattivata. Attiva \"Sitemap abilitata\" sopra per pubblicarne una.", "Sitemap · {count} URLs": "Sitemap · {count} URL", Table: "Tabella", "The sitemap has no URLs yet.": "La sitemap non contiene ancora URL.", Title: "Titolo", URL: "URL", "View sitemap": "Visualizza sitemap", [SITEMAP_LINK]: SITEMAP_LINK, "—": "—",
   "Filter sitemap URLs": "Filtra gli URL della mappa del sito",
   "Cached sitemap": "Sitemap nella cache",
   Crawling: "Scansione",
@@ -1408,7 +1411,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
     "Using image from page content: {name}": "पेज की सामग्री की छवि का उपयोग हो रहा है: {name}",
     "Selected image": "चुनी गई छवि",
 
-  "Choose image": "छवि चुनें", Close: "बंद करें", "Filter by URL…": "URL से फ़िल्टर करें…", "Last modified": "अंतिम संशोधन", "Loading sitemap…": "साइटमैप लोड हो रहा है…", "No URLs match this filter.": "कोई URL इस फ़िल्टर से मेल नहीं खाता।", "Raw XML": "कच्चा XML", Remove: "हटाएँ", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "साइटमैप बंद है। प्रकाशित करने के लिए ऊपर \"साइटमैप सक्षम\" चालू करें।", "Sitemap · {count} URLs": "साइटमैप · {count} URL", Table: "तालिका", "The sitemap has no URLs yet.": "साइटमैप में अभी कोई URL नहीं है।", Title: "शीर्षक", URL: "URL", "View sitemap": "साइटमैप देखें", "sitemap.xml ↗": "sitemap.xml ↗", "—": "—",
+  "Choose image": "छवि चुनें", Close: "बंद करें", "Filter by URL…": "URL से फ़िल्टर करें…", "Last modified": "अंतिम संशोधन", "Loading sitemap…": "साइटमैप लोड हो रहा है…", "No URLs match this filter.": "कोई URL इस फ़िल्टर से मेल नहीं खाता।", "Raw XML": "कच्चा XML", Remove: "हटाएँ", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "साइटमैप बंद है। प्रकाशित करने के लिए ऊपर \"साइटमैप सक्षम\" चालू करें।", "Sitemap · {count} URLs": "साइटमैप · {count} URL", Table: "तालिका", "The sitemap has no URLs yet.": "साइटमैप में अभी कोई URL नहीं है।", Title: "शीर्षक", URL: "URL", "View sitemap": "साइटमैप देखें", [SITEMAP_LINK]: SITEMAP_LINK, "—": "—",
   "Filter sitemap URLs": "साइटमैप URL फ़िल्टर करें",
   "Cached sitemap": "कैश किया गया साइटमैप",
   Crawling: "क्रॉलिंग",
@@ -1478,7 +1481,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
     "Using image from page content: {name}": "صفحے کے مواد کی تصویر استعمال ہو رہی ہے: {name}",
     "Selected image": "منتخب تصویر",
 
-  "Choose image": "تصویر منتخب کریں", Close: "بند کریں", "Filter by URL…": "URL کے مطابق فلٹر کریں…", "Last modified": "آخری ترمیم", "Loading sitemap…": "سائٹ میپ لوڈ ہو رہا ہے…", "No URLs match this filter.": "کوئی URL اس فلٹر سے مطابقت نہیں رکھتا۔", "Raw XML": "خام XML", Remove: "ہٹائیں", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "سائٹ میپ بند ہے۔ شائع کرنے کے لیے اوپر \"سائٹ میپ فعال\" کو آن کریں۔", "Sitemap · {count} URLs": "سائٹ میپ · {count} URL", Table: "جدول", "The sitemap has no URLs yet.": "سائٹ میپ میں ابھی کوئی URL نہیں ہے۔", Title: "عنوان", URL: "URL", "View sitemap": "سائٹ میپ دیکھیں", "sitemap.xml ↗": "sitemap.xml ↗", "—": "—",
+  "Choose image": "تصویر منتخب کریں", Close: "بند کریں", "Filter by URL…": "URL کے مطابق فلٹر کریں…", "Last modified": "آخری ترمیم", "Loading sitemap…": "سائٹ میپ لوڈ ہو رہا ہے…", "No URLs match this filter.": "کوئی URL اس فلٹر سے مطابقت نہیں رکھتا۔", "Raw XML": "خام XML", Remove: "ہٹائیں", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "سائٹ میپ بند ہے۔ شائع کرنے کے لیے اوپر \"سائٹ میپ فعال\" کو آن کریں۔", "Sitemap · {count} URLs": "سائٹ میپ · {count} URL", Table: "جدول", "The sitemap has no URLs yet.": "سائٹ میپ میں ابھی کوئی URL نہیں ہے۔", Title: "عنوان", URL: "URL", "View sitemap": "سائٹ میپ دیکھیں", [SITEMAP_LINK]: SITEMAP_LINK, "—": "—",
   "Filter sitemap URLs": "سائٹ میپ کے URL فلٹر کریں",
   "Cached sitemap": "کیش شدہ سائٹ میپ",
   Crawling: "کرالنگ",
@@ -1548,7 +1551,7 @@ const SEO_DICT: Record<string, Record<string, string>> = {
     "Using image from page content: {name}": "পৃষ্ঠার বিষয়বস্তুর ছবি ব্যবহার করা হচ্ছে: {name}",
     "Selected image": "নির্বাচিত ছবি",
 
-  "Choose image": "ছবি নির্বাচন করুন", Close: "বন্ধ করুন", "Filter by URL…": "URL দিয়ে ফিল্টার করুন…", "Last modified": "সর্বশেষ পরিবর্তন", "Loading sitemap…": "সাইটম্যাপ লোড হচ্ছে…", "No URLs match this filter.": "কোনো URL এই ফিল্টারের সঙ্গে মেলে না।", "Raw XML": "কাঁচা XML", Remove: "সরান", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "সাইটম্যাপ বন্ধ আছে। প্রকাশ করতে উপরে \"সাইটম্যাপ সক্ষম\" চালু করুন।", "Sitemap · {count} URLs": "সাইটম্যাপ · {count} URL", Table: "সারণি", "The sitemap has no URLs yet.": "সাইটম্যাপে এখনও কোনো URL নেই।", Title: "শিরোনাম", URL: "URL", "View sitemap": "সাইটম্যাপ দেখুন", "sitemap.xml ↗": "sitemap.xml ↗", "—": "—",
+  "Choose image": "ছবি নির্বাচন করুন", Close: "বন্ধ করুন", "Filter by URL…": "URL দিয়ে ফিল্টার করুন…", "Last modified": "সর্বশেষ পরিবর্তন", "Loading sitemap…": "সাইটম্যাপ লোড হচ্ছে…", "No URLs match this filter.": "কোনো URL এই ফিল্টারের সঙ্গে মেলে না।", "Raw XML": "কাঁচা XML", Remove: "সরান", "Sitemap is off. Turn on \"Sitemap enabled\" above to publish one.": "সাইটম্যাপ বন্ধ আছে। প্রকাশ করতে উপরে \"সাইটম্যাপ সক্ষম\" চালু করুন।", "Sitemap · {count} URLs": "সাইটম্যাপ · {count} URL", Table: "সারণি", "The sitemap has no URLs yet.": "সাইটম্যাপে এখনও কোনো URL নেই।", Title: "শিরোনাম", URL: "URL", "View sitemap": "সাইটম্যাপ দেখুন", [SITEMAP_LINK]: SITEMAP_LINK, "—": "—",
   "Filter sitemap URLs": "সাইটম্যাপের URL ফিল্টার করুন",
   "Cached sitemap": "ক্যাশ করা সাইটম্যাপ",
   Crawling: "ক্রলিং",

@@ -273,10 +273,12 @@ export function readExecutionMode(raw: unknown, fallback: ExecutionConfig["mode"
   return raw === "local-cli" || raw === "byok" ? raw : fallback;
 }
 
+const BYOK_PROTOCOLS: readonly ByokConfig["protocol"][] = ["anthropic", "openai", "azure", "google"];
+
 /** Ledger `byok.protocol` value -> `ByokConfig["protocol"]`, same fallback contract as
  *  {@link readExecutionMode}. */
 export function readByokProtocol(raw: unknown, fallback: ByokConfig["protocol"]): ByokConfig["protocol"] {
-  return raw === "anthropic" || raw === "openai" || raw === "azure" || raw === "google" ? raw : fallback;
+  return BYOK_PROTOCOLS.includes(raw as ByokConfig["protocol"]) ? (raw as ByokConfig["protocol"]) : fallback;
 }
 
 /** `null` is a real, distinct value here (it selects the custom endpoint), so only `undefined`
@@ -475,7 +477,10 @@ export async function saveExecutionConfig(
       written.push(key);
     }
   } catch (error) {
-    const previousValues = new Map(changedLedgerEntries(previous, next).map((entry) => [entry.key, entry.valueJson]));
+    // Diffed the other way round: the entries `previous` holds for the keys this write changed.
+    const restoreTarget = previous;
+    const failedWrite = next;
+    const previousValues = new Map(changedLedgerEntries(restoreTarget, failedWrite).map((entry) => [entry.key, entry.valueJson]));
     await restoreLedgerKeys(written, previousValues);
     throw error;
   }

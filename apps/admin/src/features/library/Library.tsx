@@ -195,7 +195,9 @@ function RenameField({ item, controller }: { item: AdminMedia; controller: Libra
     if (event.key === "Enter") {
       event.preventDefault();
       void rename.save();
-    } else if (event.key === "Escape") {
+      return;
+    }
+    if (event.key === "Escape") {
       event.preventDefault();
       rename.cancel();
     }

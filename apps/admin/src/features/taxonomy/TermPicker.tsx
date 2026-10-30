@@ -32,7 +32,7 @@ export function TermPicker(props: {
     contentType: props.contentType,
     contentId: props.contentId,
   });
-  const { taxonomies, hidden, subject, selected, toggle, loading, dirty, saving, message, error, save, t } = picker;
+  const { taxonomies, hidden, subject, loading, dirty, saving, message, error, save, t } = picker;
 
   if (hidden) return null;
 

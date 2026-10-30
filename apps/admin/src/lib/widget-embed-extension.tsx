@@ -11,6 +11,7 @@ import { HtmlAttributeRows } from "../components/WidgetConfigFields/HtmlAttribut
 import { t as sharedComponentsT } from "../components/shared-components-i18n";
 import { t as translateApp } from "../app-i18n";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
+import { uniqueId } from "./unique-id";
 
 /**
  * @file The shared TipTap `widgetEmbed` node extension (SPEC-043 REQ-18, `ui.spec.md` §3.10/§4.9) —
@@ -36,7 +37,7 @@ declare module "@tiptap/core" {
 }
 
 function newPlacementId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `placement-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return globalThis.crypto?.randomUUID?.() ?? `placement-${uniqueId()}`;
 }
 
 /** The type-option label for a resolved widget's `widgetType`, falling back to the raw type string

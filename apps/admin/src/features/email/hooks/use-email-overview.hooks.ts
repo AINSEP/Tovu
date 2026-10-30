@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ApiError } from "@/lib/api";
 import { emailApi, type EmailApi, type MailTestSendResult, type MailUseRow } from "../email-api";
 import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
+import { uniqueId } from "../../../lib/unique-id";
 
 /**
  * @file Overview tab state beyond the status read: **What uses email** (`GET …/mail-uses`) and
@@ -28,8 +29,7 @@ export interface EmailOverviewController {
 
 /** A fresh idempotency key for one click (8-64 of `[A-Za-z0-9_-]`). */
 export function newRequestId(): string {
-  const random = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  return random.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64).padEnd(8, "0");
+  return uniqueId().replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64).padEnd(8, "0");
 }
 
 /**

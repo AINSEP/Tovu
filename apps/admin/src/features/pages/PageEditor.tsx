@@ -218,6 +218,11 @@ function PageEditorHeader({
  * and this screen's doesn't (2026-09-06: both now carry `agentHandle` tags — only the i18n split
  * remains as the reason not to merge them).
  */
+/** "Save", marked with a bullet while there are unsaved changes. */
+function saveLabel(dirty: boolean, t: Translate): string {
+  return dirty ? `${t("Save")} •` : t("Save");
+}
+
 function PageEditorActions({
   dirty,
   message,
@@ -290,7 +295,7 @@ function PageEditorActions({
           disabled={saving}
           {...agentHandle({ handle: "page-save" }, { role: "button", label: "Save this page's title, slug, status and body" })}
         >
-          {saving ? t("Saving…") : dirty ? `${t("Save")} •` : t("Save")}
+          {saving ? t("Saving…") : saveLabel(dirty, t)}
         </button>
         <button
           type="button"

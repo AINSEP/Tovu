@@ -5,8 +5,9 @@ export type PageMenuTarget = AdminMenuTarget & { entryType?: string; lastKnownHr
 export type MenuTargetEditorKind = AdminMenuTarget["kind"] | "page";
 
 export function menuTargetEditorKind({ target, pages }: { target: PageMenuTarget; pages?: readonly MenuPageChoice[] }, _optional = {}): MenuTargetEditorKind {
-  return target.kind === "entryRef" && (target.entryType === "page" ||
-    (target.entryType === undefined && pages?.some((page) => page.id === target.entryId))) ? "page" : target.kind;
+  if (target.kind !== "entryRef") return target.kind;
+  const untypedPage = target.entryType === undefined && pages?.some((page) => page.id === target.entryId);
+  return target.entryType === "page" || untypedPage ? "page" : target.kind;
 }
 
 export function hasPageLinks({ items }: { items: readonly AdminMenuItem[] }, _optional = {}): boolean {
@@ -45,21 +46,23 @@ export function pageItemsForSave(
  * orEmpty helper. Target reshaping belongs in rules, outside the editor's markup. */
 function orEmpty(value: string | undefined): string { return value ?? ""; }
 
+const TARGET_FOR_KIND: Record<MenuTargetEditorKind, (prev: PageMenuTarget) => PageMenuTarget> = {
+  page: (prev) => {
+    const lastKnownHref = prev.lastKnownHref || prev.href;
+    return { kind: "entryRef", entryId: orEmpty(prev.entryId), entryType: "page",
+      ...(lastKnownHref ? { lastKnownHref } : {}) };
+  },
+  url: (prev) => ({ kind: "url", href: orEmpty(prev.href) }),
+  route: (prev) => ({ kind: "route", route: orEmpty(prev.route) }),
+  entryRef: (prev) => ({ kind: "entryRef", entryId: orEmpty(prev.entryId) }),
+  termRef: (prev) => ({ kind: "termRef", termId: orEmpty(prev.termId), taxonomy: orEmpty(prev.taxonomy) }),
+};
+
 export function targetForKind(
   { kind, prev }: { kind: MenuTargetEditorKind; prev: PageMenuTarget },
   _optional = {},
 ): PageMenuTarget {
-  switch (kind) {
-    case "page": {
-      const lastKnownHref = prev.lastKnownHref || prev.href;
-      return { kind: "entryRef", entryId: orEmpty(prev.entryId), entryType: "page",
-        ...(lastKnownHref ? { lastKnownHref } : {}) };
-    }
-    case "url": return { kind, href: orEmpty(prev.href) };
-    case "route": return { kind, route: orEmpty(prev.route) };
-    case "entryRef": return { kind, entryId: orEmpty(prev.entryId) };
-    case "termRef": return { kind, termId: orEmpty(prev.termId), taxonomy: orEmpty(prev.taxonomy) };
-  }
+  return TARGET_FOR_KIND[kind](prev);
 }
 
 function isUnavailablePageSelection(

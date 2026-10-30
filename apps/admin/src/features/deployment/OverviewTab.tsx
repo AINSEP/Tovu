@@ -182,7 +182,8 @@ function OverviewPathValue({ path }: { path: string }) {
  *  happens when it's absent (`deploymentEnvVarNoteKey`, `rules.ts`). */
 function OverviewEnvVarRow({ varStatus, t }: { varStatus: AdminDeploymentEnvVarStatus; t: Translate }) {
   const unsafe = isEnvVarRowUnsafe(varStatus);
-  const tone: "ok" | "warning" | "neutral" = unsafe ? "warning" : varStatus.set ? "ok" : "neutral";
+  const setTone = varStatus.set ? "ok" : "neutral";
+  const tone: "ok" | "warning" | "neutral" = unsafe ? "warning" : setTone;
   return (
     <li className="deployment-env-row">
       <div className="deployment-env-head">
