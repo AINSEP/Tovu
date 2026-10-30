@@ -1,0 +1,9 @@
+vitest-plugin-ai-trace-langfuse exit 0
+vitest-plugin-analytics-posthog exit 0
+vitest-plugin-catalog exit 0
+vitest-plugin-fixture-provider exit 0
+vitest-plugin-observability-opentelemetry exit 0
+vitest-plugin-observability-sentry exit 0
+vitest-plugin-payments-stripe exit 0
+vitest-plugin-ui-ux-design exit 1
+ALLDONE

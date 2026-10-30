@@ -237,3 +237,4 @@
 0 apps/website/src/assistant/site/__tests__/visitor-executor.unit.test.ts
 0 apps/website/src/assistant/site/__tests__/visitor-tool-budgets.unit.test.ts
 0 apps/website/src/assistant/site/__tests__/visitor-tools.integration.test.ts
+0 apps/website/src/cli/__tests__/integration/adopt-command.integration.test.ts

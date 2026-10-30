@@ -22,3 +22,6 @@ Heartbeat: shards ~332 files done, Jini step 2 and steps 4-5 still running.
 
 ## 2026-10-30T04:58:37Z — PROGRESS
 Fix pass started early in worktree /home/user/Tovu-fix (branch cloud/verify-1030-fixes; main tree untouched so shards stay valid). Pushed fixes: Jini 813e3071 (coupling-isolation test); Tovu: static-render import, clock type, plugin-runtime PostRecord door (boundaries now 0 errors), keyring.activeKey({}) + AssistantToolRegistryDeps.apiConnections, composePluginCredentials HttpClientPort type, 2 stale test imports. Unfixed (design-level DI): tool-catalog-manifest.ts 387/448/560 type errors; plugin-runtime install-tool fallback with no hostSignals. Shards ~800/2788.
+
+## 2026-10-30T05:04:48Z — PROGRESS
+Jini step 2 complete: typecheck 0, guard 0, test:scripts 1 fail (fixed on Jini fixes branch), db vitest 1 fail (loads-without-driver owner-store positive control; R1 likely, unfixed), plugin-ui-ux-design has no test files (vitest exit 1). Shards 1065/2788 files.

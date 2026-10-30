@@ -7,3 +7,6 @@ vitest-chat exit 0
 vitest-db exit 1
 vitest-plugin-catalog exit 0
 vitest-user-management exit 0
+vitest-ui exit 0
+vitest-provider-plugins exit 0
+ALLDONE

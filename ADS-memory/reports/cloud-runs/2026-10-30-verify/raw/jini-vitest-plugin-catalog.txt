@@ -20,11 +20,11 @@ npm notice shasum: dcc49537b14d8912727f24c125689e292168ad5b
 npm notice integrity: sha512-3t1jIYQQnjBKF[...]U2/wrFZGb4b2w==
 npm notice total files: 5
 npm notice
- ✓ __tests__/catalog.test.ts (20 tests) 465ms
-   ✓ standalone plugin catalog > packs only metadata and documentation into the actual npm tarball 440ms
+ ✓ __tests__/catalog.test.ts (20 tests) 439ms
+   ✓ standalone plugin catalog > packs only metadata and documentation into the actual npm tarball 415ms
 
  Test Files  1 passed (1)
       Tests  20 passed (20)
-   Start at  04:56:20
-   Duration  866ms (transform 121ms, setup 0ms, collect 131ms, tests 465ms, environment 0ms, prepare 77ms)
+   Start at  05:03:54
+   Duration  878ms (transform 116ms, setup 0ms, collect 134ms, tests 439ms, environment 0ms, prepare 77ms)
 

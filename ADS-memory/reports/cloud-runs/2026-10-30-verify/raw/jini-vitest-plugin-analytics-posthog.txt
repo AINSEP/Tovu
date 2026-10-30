@@ -1,0 +1,11 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugin-analytics-posthog
+
+ ✓ __tests__/pack.test.ts (4 tests) 831ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  05:03:51
+   Duration  1.78s (transform 456ms, setup 0ms, collect 644ms, tests 831ms, environment 0ms, prepare 108ms)
+

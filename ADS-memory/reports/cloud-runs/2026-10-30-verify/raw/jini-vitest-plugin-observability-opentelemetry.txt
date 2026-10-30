@@ -1,0 +1,11 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugin-observability-opentelemetry
+
+ ✓ __tests__/pack.test.ts (3 tests) 1205ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  05:03:57
+   Duration  2.00s (transform 354ms, setup 0ms, collect 535ms, tests 1.20s, environment 0ms, prepare 80ms)
+

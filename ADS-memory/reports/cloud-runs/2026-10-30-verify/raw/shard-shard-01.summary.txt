@@ -337,3 +337,8 @@
 0 apps/website/src/features/identity/__tests__/delete-user-service.test.ts
 0 apps/website/src/features/identity/__tests__/hasher.test.ts
 0 apps/website/src/features/identity/__tests__/permission-migrations.test.ts
+0 apps/website/src/features/identity/__tests__/repo.contract.test.ts
+0 apps/website/src/features/identity/__tests__/repo.sqlite-kernel.test.ts
+0 apps/website/src/features/identity/__tests__/repo.sqlite.test.ts
+0 apps/website/src/features/identity/__tests__/reset-admin-password-self-verified.test.ts
+DONE
