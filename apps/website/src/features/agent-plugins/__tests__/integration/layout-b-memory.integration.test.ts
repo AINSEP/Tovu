@@ -1,3 +1,4 @@
+import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
