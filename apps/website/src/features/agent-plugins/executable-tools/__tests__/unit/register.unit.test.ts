@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../../assistant/assistant-tool-approval-policy.js";
 /**
  * @file Unit tests for `register.ts`: how each admitted plugin tool is projected onto the registry
  * (approval family by declared effect, a missing effect treated as destructive, no parked executor
@@ -37,7 +38,7 @@ async function register(items: readonly LoadedAgentPluginTool[], options: { read
     apiOrigins: async () => ['https://api.acme.test'], issuedTokens: createIssuedTokenMemories(),
     ...(options.artifacts ? { artifacts: options.artifacts } : {}),
   };
-  const registered = await registerAgentPluginExecutableTools({ registry, workspaceId: WORKSPACE, host, isActive: async () => true, authorize: allowAll, applyApproval });
+  const registered = await registerAgentPluginExecutableTools({ withExtensionApprovalPolicy, registry, workspaceId: WORKSPACE, host, isActive: async () => true, authorize: allowAll, applyApproval });
   const descriptor = (id: string): ToolDescriptor | undefined => registry.list({}).find((entry) => entry.id === id);
   return { registry, registered, wrapped, loads, descriptor };
 }

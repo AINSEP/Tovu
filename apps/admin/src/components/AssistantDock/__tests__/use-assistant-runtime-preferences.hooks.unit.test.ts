@@ -36,18 +36,30 @@ describe("reply length through the runtime preferences hook", () => {
   });
 
   it("keeps the optimistic reply until stored reply length agrees, then accepts external changes", async () => {
+    vi.useFakeTimers();
     const { port, refresh } = fakePort();
     // Simulate a successful save whose effective read is briefly stale.
     port.save = vi.fn(async () => {});
-    const { result } = renderHook(() => useAssistantRuntimePreferences({ port }));
-    await act(async () => {});
-    await act(async () => result.current.update({ replyLength: "short" }));
-    await act(async () => refresh({ replyLength: "normal" }));
-    expect(result.current.preferences.replyLength).toBe("short");
-    await act(async () => refresh({ replyLength: "short" }));
-    await act(async () => {});
-    act(() => refresh({ replyLength: "detailed" }));
-    await waitFor(() => expect(result.current.preferences.replyLength).toBe("detailed"));
+    const { result, unmount } = renderHook(() => useAssistantRuntimePreferences({ port }));
+    // TanStack batches query notifications on timers. Empty act() calls can let the Detailed
+    // refresh overtake the Short acknowledgement, so the hook never sees stored values agree.
+    const flush = () => act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    try {
+      await flush();
+      act(() => result.current.update({ replyLength: "short" }));
+      await flush();
+      act(() => refresh({ replyLength: "normal" }));
+      await flush();
+      expect(result.current.preferences.replyLength).toBe("short");
+      act(() => refresh({ replyLength: "short" }));
+      await flush();
+      act(() => refresh({ replyLength: "detailed" }));
+      await flush();
+      expect(result.current.preferences.replyLength).toBe("detailed");
+    } finally {
+      unmount();
+      vi.useRealTimers();
+    }
   });
 
   it("diffs a rapid Short-to-Normal reversal against the last requested value", async () => {

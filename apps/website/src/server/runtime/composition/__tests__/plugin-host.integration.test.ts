@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtemp, mkdir, rm, readFile, writeFile } from 'node:fs/promises';
@@ -158,7 +159,7 @@ test('search_tools indexes a site plugin keyword and provides capability', async
   await ctx.deps.pluginActivationRepo.save({ workspaceId: 'site', pluginId: 'word-count', version: "1.0.0", enabled: true, updatedAt: '2026-10-09T00:00:00.000Z' });
   const sources = await loadEnabledPluginCapabilityToolSources({ workspaceId: 'site', discoverPlugins: ctx.deps.discoverPlugins, pluginActivationRepo: ctx.deps.pluginActivationRepo });
   const registry = createToolRegistry({});
-  for (const row of buildPluginCapabilityToolRegistrations(sources, { ...ctx.deps, postRepo: {} as never })) registry.register(row);
+  for (const row of buildPluginCapabilityToolRegistrations({ sources: sources, deps: { ...ctx.deps, postRepo: {} as never }, withExtensionApprovalPolicy })) registry.register(row);
   const catalog = buildToolCatalogQuery(registry);
   assert.deepEqual(catalog.search({ query: 'content-metrics' }, { limit: 10 }).map(row => row.id), ['plugin_capability_word_count']);
   assert.deepEqual(catalog.search({ query: 'reading-time' }, { limit: 10 }).map(row => row.id), ['plugin_capability_word_count']);

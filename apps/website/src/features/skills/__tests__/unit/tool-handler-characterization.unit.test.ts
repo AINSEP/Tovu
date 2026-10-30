@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -18,14 +19,14 @@ function context({ input }: { input?: unknown }, _options = {}): ToolExecutionCo
 }
 
 function registration({ readFile }: { readFile?: SkillToolSource["readFile"] }, _options = {}) {
-  const [tool] = buildSkillToolRegistrations([{
+  const [tool] = buildSkillToolRegistrations({ sources: [{
     id: "skill_handler_pin",
     skillName: "Handler Pin",
     description: "Characterization fixture.",
     markdown: "Original instructions.",
     bundledFiles: [{ kind: "references", path: "skills/references/guide.md" }],
     ...(readFile ? { readFile } : {}),
-  }]);
+  }], withExtensionApprovalPolicy });
   assert.ok(tool);
   return tool;
 }

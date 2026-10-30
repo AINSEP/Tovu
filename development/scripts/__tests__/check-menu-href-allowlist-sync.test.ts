@@ -88,6 +88,16 @@ test("extractSafeHrefDeclaration: throws (not a silent empty result) when the co
   assert.throws(() => extractSafeHrefDeclaration(source, "no-consts.ts"), /could not find the SAFE_HREF_RESOLUTION_BASE\/ORIGIN/);
 });
 
+test("extractSafeHrefDeclaration: preserves a URL base and its protocol normalization", () => {
+  const setup = `const SAFE_HREF_RESOLUTION_BASE = new URL("https://tovu-safehref.invalid/");
+// Parsing only: preserve HTTP's default-port normalization.
+SAFE_HREF_RESOLUTION_BASE.protocol = "http:";
+const SAFE_HREF_RESOLUTION_ORIGIN = SAFE_HREF_RESOLUTION_BASE.origin;`;
+  const source = `${setup}\nexport function safeHref(value: string): string { return value; }`;
+  const declaration = extractSafeHrefDeclaration(source, "url-base.ts");
+  assert.ok(declaration.startsWith(setup), "the extracted checker must retain the actual URL setup");
+});
+
 test("extractSafeHrefDeclaration: throws when 'function safeHref(' is missing entirely", () => {
   const source = `
 const SAFE_HREF_RESOLUTION_BASE = "http://tovu-safehref.invalid/";

@@ -2,7 +2,7 @@ import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecyc
 import { projectAgentPluginSearchPage, describeAgentPluginCompatibility, agentPluginDependentWarnings } from "@jini-ai/agent-plugins/lifecycle";
 import { readInstalledAgentPluginIdentity, UNTESTED_PLUGIN_GUIDANCE, type PluginMaturity } from "./identity.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
-import { withExtensionApprovalPolicy } from '../../assistant/mcp-services.js';
+import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import { buildPluginMemoryRegistrations } from "./memory-tools.js";
 import { WRITE_PLUGIN_NOTE, pluginNoteCatalog, pluginNoteRisk, pluginNoteHandler } from "./write-note-tool.js";
 import type { OperatorLocaleDeps } from "../../contracts/headless/index.js";
@@ -621,8 +621,8 @@ function withToolGate(registration: ToolRegistration, gate: AgentPluginToolGate,
  * @complexity O(n) in source count; each source's gate reads are deferred to invocation.
  */
 export function buildAgentPluginToolRegistrations(
-  sources: readonly AgentPluginToolSource[],
-  gate: AgentPluginToolGate,
+  { sources, gate, withExtensionApprovalPolicy }: { sources: readonly AgentPluginToolSource[]; gate: AgentPluginToolGate; withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
+  _optional: Record<string, never> = {},
 ): ToolRegistration[] {
   const catalog: AgentToolDefinition[] = sources.map((source) => ({
     name: source.id,
@@ -674,11 +674,11 @@ export function buildAgentPluginToolRegistrations(
  */
 export async function registerInstalledAgentPluginTools(
   registry: { register: (registration: ToolRegistration) => void },
-  ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout },
+  ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout; readonly withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
 ): Promise<void> {
   const sources = await loadInstalledAgentPluginToolSources(ctx);
   const gate = createAgentPluginToolGate(ctx);
-  for (const registration of buildAgentPluginToolRegistrations(sources, gate)) {
+  for (const registration of buildAgentPluginToolRegistrations({ sources, gate, withExtensionApprovalPolicy: ctx.withExtensionApprovalPolicy })) {
     const handler = registration.handler;
     registry.register({ ...registration, handler: async (execution, optional) => {
       const result = await handler(execution, optional) as { pluginId: string; guidance: string };
@@ -688,7 +688,7 @@ export async function registerInstalledAgentPluginTools(
       }) };
     } });
   }
-  for (const registration of buildPluginMemoryRegistrations({ sources, workspaceId: ctx.workspaceId, agentPluginLayout: ctx.agentPluginLayout, gate })) registry.register(registration);
+  for (const registration of buildPluginMemoryRegistrations({ sources, workspaceId: ctx.workspaceId, agentPluginLayout: ctx.agentPluginLayout, gate, withExtensionApprovalPolicy: ctx.withExtensionApprovalPolicy })) registry.register(registration);
 }
 
 /**

@@ -31,6 +31,7 @@ import { registerEnabledPluginCapabilityTools } from "#src/features/plugin-runti
 import { registerInstalledSkillTools } from "#src/features/skills/tool-registrations";
 import { registerAgentPluginExecutableTools } from "#src/features/agent-plugins/executable-tools/register";
 import { agentPluginActivations } from "#src/features/agent-plugins/activation-effects";
+import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 
 /** Registers every installed Agent Plugin, installed Agent Skill, and enabled plugin-runtime
@@ -45,14 +46,14 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
   try {
     // A retired plugin's tool name (`agent_plugin_deploy`) stays a gated alias of its successor's.
     const aliases = createRetiredPluginToolAliases({ registry });
-    await registerInstalledAgentPluginTools(aliases.registry, deps);
+    await registerInstalledAgentPluginTools(aliases.registry, { ...deps, withExtensionApprovalPolicy });
     aliases.registerAliases();
   } catch (error) {
     warnFamilySkipped({ log, family: "agent-plugin tools", error });
   }
 
   try {
-    await registerInstalledSkillTools(registry, deps);
+    await registerInstalledSkillTools(registry, { ...deps, withExtensionApprovalPolicy });
   } catch (error) {
     warnFamilySkipped({ log, family: "skill tools", error });
   }
@@ -61,6 +62,7 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
 
   try {
     await registerEnabledPluginCapabilityTools(registry, {
+      withExtensionApprovalPolicy,
       authorize: deps.authorize,
       workspaceId: deps.workspaceId,
       postRepo: deps.postRepo,
@@ -85,7 +87,7 @@ async function registerExecutableAgentPluginTools(deps: Parameters<InstalledExte
   try {
     const workspaceRoot = deps.agentPluginLayout.forWorkspace(deps.workspaceId).root;
     const { refusals } = await registerAgentPluginExecutableTools({
-      registry, workspaceId: deps.workspaceId, host, authorize: deps.authorize,
+      registry, workspaceId: deps.workspaceId, host, authorize: deps.authorize, withExtensionApprovalPolicy,
       // Fresh per call and fail-closed: anything but a readable "active" verdict denies.
       isActive: async ({ pluginId }) => (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId })).verdict === "active",
       applyApproval: ({ registration }, { disclose }) => applyToolApprovalPolicy({ registration, surfaces }, { disclose }),

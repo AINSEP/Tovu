@@ -87,3 +87,24 @@ test("discoverAllBuiltInThemes: staging siblings under an engine subfolder (the 
 test("migration staging prefix keeps its persisted historical spelling", () => {
   assert.equal(MIGRATION_STAGING_DIR_PREFIX, ".tovu-migrate-staging-");
 });
+
+for (const source of ["built-in", "site"] as const) {
+  for (const location of ["root", "static"] as const) {
+    test(`discoverAllBuiltInThemes: excludes dot-folders at ${location} for ${source} themes`, () => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-discover-hidden-"));
+      try {
+        const themesRoot = location === "root" ? dir : path.join(dir, location);
+        writeThemeJson(path.join(themesRoot, "tovu-starter"), "tovu-starter");
+        fs.mkdirSync(path.join(themesRoot, ".claude"));
+        // A manifest with a visible id must not turn a hidden folder into a theme either.
+        writeThemeJson(path.join(themesRoot, ".private"), "hidden-theme");
+
+        const themes = discoverAllBuiltInThemes({ dir, source });
+
+        assert.deepEqual(themes.map((theme) => theme.manifest.id), ["tovu-starter"]);
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  }
+}

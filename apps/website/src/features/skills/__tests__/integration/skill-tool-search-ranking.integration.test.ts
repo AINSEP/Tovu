@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createContributionRegistry } from "@jini-ai/core";
@@ -134,7 +135,7 @@ async function buildRealSurfaceWithSkillTool(skillsDir: string) {
 
   const registry = createToolRegistry({});
   for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions })) registry.register(registration);
-  await registerInstalledSkillTools(registry, testSiteLayoutContext({ workspaceId: routeDeps.workspaceId }));
+  await registerInstalledSkillTools(registry, { ...testSiteLayoutContext({ workspaceId: routeDeps.workspaceId }), withExtensionApprovalPolicy });
 
   const catalog = buildToolCatalogQuery(registry);
   return { registry, catalog };

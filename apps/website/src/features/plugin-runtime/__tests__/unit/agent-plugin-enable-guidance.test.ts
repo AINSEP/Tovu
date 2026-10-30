@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import Ajv from "ajv";
+import { Ajv } from "ajv";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";

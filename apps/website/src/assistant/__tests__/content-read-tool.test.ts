@@ -161,18 +161,19 @@ test("the execution gate accepts canonical and legacy menu selectors and rejects
   const execute = (input: unknown) => executor.execute({
     principal: { id: "owner" }, run: { id: "menu-input-regression" }, toolId: "content_read.menu", input,
   });
-  for (const input of [{ id: "m-1" }, { menuId: "m-1" }]) {
+  for (const input of [{ id: "m-1" }, { menuId: "m-1" }, { id: "m-1", menuId: "m-1" }, { menuId: "m-1", id: "m-1" }]) {
     const result = await execute(input);
     assert.equal(result.status, "completed");
   }
-  assert.deepEqual(inputs, [{ id: "m-1" }, { id: "m-1" }]);
-  for (const menuId of ["m-1", "m-2"]) {
-    const result = await execute({ id: "m-1", menuId });
+  assert.deepEqual(inputs, [{ id: "m-1" }, { id: "m-1" }, { id: "m-1" }, { id: "m-1" }]);
+  for (const input of [{ id: "m-1", menuId: "m-2" }, { menuId: "m-2", id: "m-1" }]) {
+    const result = await execute(input);
     assert.equal(result.status, "failed");
     assert.equal(result.errorKind, "validation");
-    assert.equal(result.error, "Conflicting inputs 'id' and 'menuId' both name 'id'. Send only 'id'.");
+    const [first, second] = Object.keys(input);
+    assert.equal(result.error, `Conflicting inputs '${first}' and '${second}' both name 'id'. Send only 'id'.`);
   }
-  assert.equal(inputs.length, 2);
+  assert.equal(inputs.length, 4);
 });
 
 test("canonical selector guidance covers get-only and list-lookup cards without changing canonical-id cards", () => {

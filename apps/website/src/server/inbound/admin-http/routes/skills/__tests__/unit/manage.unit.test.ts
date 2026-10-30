@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "#src/assistant/assistant-tool-approval-policy";
 import { createTempSiteLayoutFixture, testSiteLayoutContext, type TestSiteLayoutFixture } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -17,7 +18,7 @@ async function harness(fn: (call: (method: string, suffix: string, body?: unknow
     const app = express();
     const handlers = new Map<string, Function>();
     for (const method of ["get", "post", "patch", "delete"] as const) app[method] = ((route: string, handler: Function) => { handlers.set(`${method} ${route}`, handler); return app; }) as typeof app[typeof method];
-    registerSkillsManagementRoutes(app, testSiteLayoutContext({ ...siteLayouts.deps, workspaceId: "workspace-local", authorize: async params => { assert.equal(params.principalId, "owner"); assert.equal(params.permission, "admin.assistant.use"); return { allowed, reason: "test" }; } }));
+    registerSkillsManagementRoutes(app, testSiteLayoutContext({ withExtensionApprovalPolicy, ...siteLayouts.deps, workspaceId: "workspace-local", authorize: async params => { assert.equal(params.principalId, "owner"); assert.equal(params.permission, "admin.assistant.use"); return { allowed, reason: "test" }; } }));
     await fn(async (method, suffix, body, workspace: string | null = "workspace-local") => {
       const handler = handlers.get(`${method} ${base}${suffix}`);
       assert.equal(typeof handler, "function");

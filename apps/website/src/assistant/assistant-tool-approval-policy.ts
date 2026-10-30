@@ -20,7 +20,7 @@ const DIRECT_PAGE_HANDLES: ReadonlySet<string> = new Set([
   'plugins-install-cancel', 'plugins-install-confirm',
   'agent-plugin-add-choose', 'agent-plugin-add-choose-folder', 'agent-plugin-add-replace',
   'agent-plugin-add-install', 'agent-plugin-add-url', 'agent-plugin-add-from-url',
-  'skills-add-github-url', 'skills-add-github', 'skills-add-files', 'skills-add-folder',
+  'skills-add-url-input', 'skills-add-url', 'skills-add-files', 'skills-add-folder',
   'skills-install-cancel', 'skills-install-confirm',
 ]);
 

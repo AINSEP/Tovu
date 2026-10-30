@@ -1,5 +1,5 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/skills.js';
-import { withExtensionApprovalPolicy } from '../../assistant/mcp-services.js';
+import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import * as filesystem from "node:fs/promises";
 import { readFile, readdir } from "node:fs/promises";
 import { createSkillFileReader, type SkillFileReader } from "@jini-ai/agent-plugins/lifecycle";
@@ -356,7 +356,10 @@ function buildSkillToolResult({ source, content, file }: {
  * @throws Error when a handler receives invalid input; reader errors propagate unchanged.
  * @complexity O(s) registration time/space for s sources; a handler validates O(k) keys before one read.
  */
-export function buildSkillToolRegistrations(sources: readonly SkillToolSource[]): ToolRegistration[] {
+export function buildSkillToolRegistrations(
+  { sources, withExtensionApprovalPolicy }: { sources: readonly SkillToolSource[]; withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
+  _optional: Record<string, never> = {},
+): ToolRegistration[] {
   const catalog: AgentToolDefinition[] = sources.map((source) => ({
     name: source.id,
     description: source.description,
@@ -396,10 +399,10 @@ const liveRegistrations = new WeakMap<object, (tools: readonly ToolRegistration[
 
 export async function registerInstalledSkillTools(
   registry: Pick<SkillsRefreshRegistry, "register"> & Partial<Pick<SkillsRefreshRegistry, "has" | "list" | "refreshInstalledSkills">>,
-  ctx: { readonly workspaceId: string; readonly skillLayout: SkillLayout; readonly siteBinding: { readonly dir: string } },
+  ctx: { readonly workspaceId: string; readonly skillLayout: SkillLayout; readonly siteBinding: { readonly dir: string }; readonly withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
 ): Promise<void> {
   if (!registry.has || !registry.list) {
-    for (const registration of buildSkillToolRegistrations(await loadInstalledSkillToolSources(ctx))) registry.register(registration);
+    for (const registration of buildSkillToolRegistrations({ sources: await loadInstalledSkillToolSources(ctx), withExtensionApprovalPolicy: ctx.withExtensionApprovalPolicy })) registry.register(registration);
     return;
   }
   let replace = liveRegistrations.get(registry);
@@ -411,7 +414,7 @@ export async function registerInstalledSkillTools(
     const apply = replace;
     registry.refreshInstalledSkills = () => {
       if (!pending) pending = loadInstalledSkillToolSources(ctx)
-        .then(sources => apply(buildSkillToolRegistrations(sources)))
+        .then(sources => apply(buildSkillToolRegistrations({ sources, withExtensionApprovalPolicy: ctx.withExtensionApprovalPolicy })))
         .finally(() => { pending = undefined; });
       return pending;
     };

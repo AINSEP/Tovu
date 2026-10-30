@@ -5,6 +5,7 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { installSkill, setSkillEnabled, uninstallSkill, SkillInputError } from "#src/features/skills/install-service";
 import { loadInstalledSkillToolSources, buildSkillToolRegistrations } from "#src/features/skills/tool-registrations";
 import type { SkillsRouteRegistrar } from "./deps.js";
+import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 
 function hasUploadedSkillFiles(fields: Record<string, unknown>, _options = {}): fields is Record<string, unknown> & { files: { path: string; contentBase64: string }[] } {
   return Array.isArray(fields.files) && fields.files.every(f => {
@@ -27,7 +28,10 @@ function installationInput(body: unknown, workspaceId: string): SkillInstallInpu
 }
 
 /** Session-gated routes; one validator/service owns every installation transport. */
-export const registerSkillsManagementRoutes: SkillsRouteRegistrar = (app, deps) => {
+export const registerSkillsManagementRoutes = (
+  app: Parameters<SkillsRouteRegistrar>[0],
+  deps: Parameters<SkillsRouteRegistrar>[1] & { withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
+): void => {
   const base = "/api/admin/v1/workspaces/:workspaceId/skills";
   const guarded = (work: (req: Request, res: Response) => Promise<void>) => async (req: Request, res: Response) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return; }
@@ -57,7 +61,7 @@ export const registerSkillsManagementRoutes: SkillsRouteRegistrar = (app, deps) 
     const sources = await loadInstalledSkillToolSources(deps);
     const source = sources.find(s => s.id === req.params.toolId);
     if (!source) { res.status(404).json({ error: "Skill was not found or is disabled.", code: "NOT_FOUND" }); return; }
-    const [registration] = buildSkillToolRegistrations([source]);
+    const [registration] = buildSkillToolRegistrations({ sources: [source], withExtensionApprovalPolicy: deps.withExtensionApprovalPolicy });
     // The selected skill's read-only handler and the browser share exactly the same payload.
     res.json(await registration!.handler({ executionId: "skill-preview", principal: { id: getAuthedPrincipal(res).id }, run: { id: "skill-preview" }, input: {}, signal: new AbortController().signal }));
   }));

@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp } from "node:fs/promises";
@@ -17,7 +18,7 @@ test("L025b memory pairs pin scoped read/write schemas, validation and revocatio
   let callable = true;
   const owners: string[] = [];
   const layout = resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: root } });
-  const registrations = buildPluginMemoryRegistrations({ workspaceId: "workspace-local", agentPluginLayout: layout,
+  const registrations = buildPluginMemoryRegistrations({ withExtensionApprovalPolicy, workspaceId: "workspace-local", agentPluginLayout: layout,
     sources: [{ id: "agent_plugin_pinned", pluginId: "pinned", archiveDigest: "a".repeat(64) }],
     gate: { isCallable: async owner => { owners.push(owner.pluginId); return callable; } },
   });

@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -187,7 +188,7 @@ test("each installed plugin produces exactly one stable, collision-free tool id 
     assert.equal(source.skills.length, 3);
 
     const registry = createToolRegistry({});
-    for (const registration of buildAgentPluginToolRegistrations(sources, gate())) registry.register(registration);
+    for (const registration of buildAgentPluginToolRegistrations({ sources: sources, gate: gate(), withExtensionApprovalPolicy })) registry.register(registration);
 
     const ids = registry.list({}).map((d) => d.id);
     assert.deepEqual(ids, ["agent_plugin_ui_ux_design"]);
@@ -209,7 +210,7 @@ test("registerInstalledAgentPluginTools registers one guidance tool plus its sco
     await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, "archive-direct");
 
     const registry = createToolRegistry({});
-    await registerInstalledAgentPluginTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
+    await registerInstalledAgentPluginTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy });
 
     // Layout B (852d711e6) gives every plugin its own learned-memory read/write tools beside the
     // guidance tool (`memory-tools.ts`), each closed over that one plugin.
@@ -229,7 +230,7 @@ test("the input schema documents an optional 'skill' property whose enum names e
     );
 
     const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
-    const [registration] = buildAgentPluginToolRegistrations(sources, gate());
+    const [registration] = buildAgentPluginToolRegistrations({ sources: sources, gate: gate(), withExtensionApprovalPolicy });
     assert.ok(registration);
 
     const schema = registration.descriptor.inputSchema as {
@@ -251,7 +252,7 @@ test("calling with no 'skill' argument returns the plugin's own eponymous skill 
     );
 
     const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
-    const [registration] = buildAgentPluginToolRegistrations(sources, gate());
+    const [registration] = buildAgentPluginToolRegistrations({ sources: sources, gate: gate(), withExtensionApprovalPolicy });
     assert.ok(registration);
 
     const result = (await invokeFixtureHandler(registration, fakeCtx(undefined))) as {
@@ -281,7 +282,7 @@ test("when a plugin has no eponymous skill folder, the default falls back to its
     assert.equal(source.defaultSkillName, "frontend-accessibility", "alphabetically first of the two installed skills");
     assert.match(source.description, /no eponymous skill folder/);
 
-    const [registration] = buildAgentPluginToolRegistrations([source], gate());
+    const [registration] = buildAgentPluginToolRegistrations({ sources: [source], gate: gate(), withExtensionApprovalPolicy });
     assert.ok(registration);
     const result = (await invokeFixtureHandler(registration, fakeCtx(undefined))) as { skillName: string };
     assert.equal(result.skillName, "frontend-accessibility");
@@ -298,7 +299,7 @@ test("an explicit, recognized 'skill' argument returns that skill's own guidance
     );
 
     const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
-    const [registration] = buildAgentPluginToolRegistrations(sources, gate());
+    const [registration] = buildAgentPluginToolRegistrations({ sources: sources, gate: gate(), withExtensionApprovalPolicy });
     assert.ok(registration);
 
     const result = (await invokeFixtureHandler(registration, fakeCtx({ skill: "frontend-accessibility" }))) as {
@@ -323,7 +324,7 @@ test("an unrecognized 'skill' argument falls back to the default skill gracefull
     );
 
     const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
-    const [registration] = buildAgentPluginToolRegistrations(sources, gate());
+    const [registration] = buildAgentPluginToolRegistrations({ sources: sources, gate: gate(), withExtensionApprovalPolicy });
     assert.ok(registration);
 
     const result = (await invokeFixtureHandler(registration, fakeCtx({ skill: "does-not-exist" }))) as {
@@ -342,7 +343,7 @@ test("a malformed 'skill' argument (wrong type) or an unexpected extra field sti
     await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, "archive-shape");
 
     const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
-    const [registration] = buildAgentPluginToolRegistrations(sources, gate());
+    const [registration] = buildAgentPluginToolRegistrations({ sources: sources, gate: gate(), withExtensionApprovalPolicy });
     assert.ok(registration);
 
     await assert.rejects(() => invokeFixtureHandler(registration, fakeCtx({ skill: 123 })), error => { assert.ok(error instanceof ToolInputError); assert.equal(error.message, "'skill' must be a string"); return true; });
@@ -358,7 +359,7 @@ test("the handler returns the exact same guidance markdown readInstalledSkillMar
     const [source] = sources;
     assert.ok(source);
 
-    const [registration] = buildAgentPluginToolRegistrations(sources, gate());
+    const [registration] = buildAgentPluginToolRegistrations({ sources: sources, gate: gate(), withExtensionApprovalPolicy });
     assert.ok(registration);
     const result = (await invokeFixtureHandler(registration, fakeCtx(undefined))) as { pluginId: string; skillName: string; guidance: string };
 
@@ -387,7 +388,7 @@ test("SECURITY: no absolute host path appears in any registered tool's id, descr
     assert.ok(installed.packageRoot.startsWith(canonicalDir));
 
     const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
-    const registrations = buildAgentPluginToolRegistrations(sources, gate());
+    const registrations = buildAgentPluginToolRegistrations({ sources: sources, gate: gate(), withExtensionApprovalPolicy });
     assert.ok(registrations.length > 0);
 
     for (const registration of registrations) {
@@ -473,7 +474,7 @@ test("an empty (never-installed) workspace produces zero sources and an empty re
   await withAgentPluginsDir(async () => {
     const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.deepEqual(sources, []);
-    assert.deepEqual(buildAgentPluginToolRegistrations(sources, gate()), []);
+    assert.deepEqual(buildAgentPluginToolRegistrations({ sources: sources, gate: gate(), withExtensionApprovalPolicy }), []);
   });
 });
 
@@ -487,7 +488,7 @@ for (const revocation of ["disable", "uninstall", "unreadable-activation"] as co
     await withAgentPluginsDir(async () => {
       await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, `archive-policy-${revocation}`);
       const registry = createToolRegistry({});
-      await registerInstalledAgentPluginTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
+      await registerInstalledAgentPluginTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy });
       const executor = createToolExecutor({ registry });
       const invoke = () => executor.execute({ principal: { id: "principal-1" }, run: { id: "run-1" }, toolId: "agent_plugin_coffee_roastery", input: {} });
       assert.equal((await invoke()).status, "completed");
@@ -538,10 +539,10 @@ function invokeFixtureHandler(
 
 test("plugin guidance carries maturity and warns before keys/actions for every maturity flag", async () => {
   for (const maturity of ['untested', 'soon', undefined] as const) {
-    const [registration] = buildAgentPluginToolRegistrations([{
+    const [registration] = buildAgentPluginToolRegistrations({ sources: [{
       id: 'agent_plugin_fixture', pluginId: 'fixture', archiveDigest: 'a'.repeat(64), description: 'Fixture',
       defaultSkillName: 'fixture', maturity, skills: [{ name: 'fixture', summary: 'Fixture', markdown: 'GUIDANCE' }],
-    }], { isCallable: async () => true });
+    }], gate: { isCallable: async () => true }, withExtensionApprovalPolicy });
     const result = await registration!.handler(fakeCtx(), {}) as { maturity?: string; guidance: string };
     assert.equal(result.maturity, maturity);
     assert.equal(Object.hasOwn(result, 'maturity'), maturity !== undefined);
@@ -558,7 +559,7 @@ test("L025b guidance pins selection guards, reader recovery and sanitized unknow
   };
   const allow = { isCallable: async () => true };
   for (const skill of [undefined, "pinned", "missing", "/private/operator/path"]) {
-    const [registration] = buildAgentPluginToolRegistrations([source], allow);
+    const [registration] = buildAgentPluginToolRegistrations({ sources: [source], gate: allow, withExtensionApprovalPolicy });
     const result = await registration!.handler(fakeCtx({ ...(skill === undefined ? {} : { skill }), file: "reference.md" }), {}) as { guidance: string; note: string; files: string[]; availableSkills: { description: string }[] };
     assert.equal(result.guidance, "DEFAULT");
     assert.deepEqual(result.files, []);
@@ -568,12 +569,12 @@ test("L025b guidance pins selection guards, reader recovery and sanitized unknow
     assert.equal(result.availableSkills[0]!.description.length, 320);
   }
   for (const content of [{ text: "", files: ["reference.md"], note: "refused" }, { text: "FILE", files: ["reference.md"], note: "context" }, { text: "", files: [] }]) {
-    const [registration] = buildAgentPluginToolRegistrations([{ ...source, skills: [{ ...source.skills[0]!, readFile: async () => content }] }], allow);
+    const [registration] = buildAgentPluginToolRegistrations({ sources: [{ ...source, skills: [{ ...source.skills[0]!, readFile: async () => content }] }], gate: allow, withExtensionApprovalPolicy });
     const result = await registration!.handler(fakeCtx(), {}) as { guidance: string; files: string[]; note?: string };
     assert.equal(result.guidance, content.note && !content.text ? "DEFAULT" : content.text);
     assert.deepEqual(result.files, content.files);
     assert.equal(result.note, content.note);
   }
-  const [broken] = buildAgentPluginToolRegistrations([{ ...source, defaultSkillName: "absent" }], allow);
+  const [broken] = buildAgentPluginToolRegistrations({ sources: [{ ...source, defaultSkillName: "absent" }], gate: allow, withExtensionApprovalPolicy });
   await assert.rejects(() => broken!.handler(fakeCtx(), {}), /default skill 'absent' missing/);
 });

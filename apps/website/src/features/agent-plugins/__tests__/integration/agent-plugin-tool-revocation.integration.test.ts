@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
 // activation.ts was deleted; Jini owns the lifecycle, this host binding owns its effects.
@@ -116,7 +117,7 @@ function entries(manifest: string, pluginId = PLUGIN_ID): readonly AgentPluginAr
  *  registry for the rest of the process's life. */
 async function bootDaemonToolSurface(): Promise<ToolRegistry> {
   const registry = createToolRegistry({});
-  await registerInstalledAgentPluginTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));
+  await registerInstalledAgentPluginTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_ID }), withExtensionApprovalPolicy });
   assert.equal(registry.has({ toolId: TOOL_ID }), true, "precondition: an enabled plugin must register its tool at boot");
   return registry;
 }
@@ -248,7 +249,7 @@ test("revocation is scoped to the plugin and workspace in an already-booted regi
     await installReal("isolation-other-workspace", { workspaceId: otherWorkspace });
     const mine = await bootDaemonToolSurface();
     const other = createToolRegistry({});
-    await registerInstalledAgentPluginTools(other, testSiteLayoutContext({ workspaceId: otherWorkspace }));
+    await registerInstalledAgentPluginTools(other, { ...testSiteLayoutContext({ workspaceId: otherWorkspace }), withExtensionApprovalPolicy });
     const execute = (registry: ToolRegistry, toolId: string) => createToolExecutor({ registry }).execute({
       principal: PRINCIPAL, run: { id: "isolation-run" }, toolId, input: {},
     });

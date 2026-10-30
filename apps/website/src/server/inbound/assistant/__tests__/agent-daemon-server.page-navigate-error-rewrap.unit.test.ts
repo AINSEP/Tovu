@@ -20,11 +20,17 @@ import test, { describe } from "node:test";
 
 const DAEMON_ENTRY_SOURCE = fs.readFileSync(path.join(import.meta.dirname, "../agent-daemon-server.ts"), "utf8");
 
-test("imports withPageNavigateErrorRewrap from the Tovu-side rewrap module", () => {
+test("imports withPageNavigateErrorRewrap through the daemon port from the Tovu-side rewrap module", () => {
   assert.match(
     DAEMON_ENTRY_SOURCE,
-    /import\s*\{\s*withPageNavigateErrorRewrap\s*\}\s*from\s*["']#src\/assistant\/rewrap-page-navigate-error["']/,
-    "expected a top-level import of withPageNavigateErrorRewrap from #src/assistant/rewrap-page-navigate-error",
+    /import\s*\{[^}]*\bwithPageNavigateErrorRewrap\b[^}]*\}\s*from\s*["']#src\/assistant\/agent-daemon-port["']/,
+    "expected withPageNavigateErrorRewrap in the daemon port's top-level import",
+  );
+  const portSource = fs.readFileSync(path.join(import.meta.dirname, "../../../../assistant/agent-daemon-port.ts"), "utf8");
+  assert.match(
+    portSource,
+    /export\s*\{\s*withPageNavigateErrorRewrap\s*\}\s*from\s*["']\.\/rewrap-page-navigate-error\.js["']/,
+    "the daemon port must re-export the Tovu-side navigation error wrapper",
   );
 });
 

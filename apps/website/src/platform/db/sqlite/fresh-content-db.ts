@@ -24,7 +24,7 @@ import { CORE_COMMERCE_TABLES_IN_DROP_ORDER } from "../migrations/0011_drop_empt
 import { secretsVaultStatements, MCP_VAULT_SQLITE_STATEMENTS } from "../migrations/0012_secrets_vault.js";
 import { widenedVaultTableDdl } from "../migrations/0020_vault_api_connection_kind.js";
 import { readFrozenChain } from "../migrations/legacy-sqlite.js";
-import type { NativeSqliteDatabase } from "../kernel/drivers/sqlite.js";
+import { sqliteClientOf, type NativeSqliteDatabase } from "../kernel/drivers/sqlite.js";
 
 /**
  * @file Synchronous construction of a BRAND-NEW Tovu content database at head.
@@ -52,7 +52,7 @@ export function bootstrapFreshContentDb(
   // Injectable for the drift guard's own test; production always uses the real step list.
   { migrations = CONTENT_MIGRATIONS }: { migrations?: readonly MigrationStep[] } = {},
 ): boolean {
-  const client = db.$client;
+  const client = sqliteClientOf(db);
   const hasTables = () => client.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND substr(name, 1, 7) <> 'sqlite_' LIMIT 1").get() !== undefined;
   if (hasTables()) return false;
 

@@ -15,8 +15,8 @@ test('a confirmed write tool call runs end to end through the registry, approval
 
   const input = { connectionRef: 'conn-1', table: 'Leads', values: ['a', 'b'] };
   const call = await startConfirmingCall(fixture, 'p_acme_office__append_rows', input);
-  assert.deepEqual(call.rows.map(([label]) => label), ['Connection ref', 'Table', 'Values', 'Account', 'Affects']);
-  assert.deepEqual(call.rows, [['Connection ref', 'conn-1'], ['Table', 'Leads'], ['Values', 'a, b'], ['Account', 'alice@acme.test'], ['Affects', 'table Leads']]);
+  assert.deepEqual(call.rows.map(([label]) => label), ['Account', 'Affects', 'Connection ref', 'Table', 'Values']);
+  assert.deepEqual(call.rows, [['Account', 'alice@acme.test'], ['Affects', 'table Leads'], ['Connection ref', 'conn-1'], ['Table', 'Leads'], ['Values', 'a, b']]);
   assert.equal(fixture.calls.length, 0, 'nothing runs before the human answers');
 
   call.answer('confirm');

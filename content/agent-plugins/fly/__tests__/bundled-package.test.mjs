@@ -119,7 +119,7 @@ test("every operator-supplied value in both templates is marked as a placeholder
   const config = parseToml(flyToml);
   assert.equal(config.app, "<<PLACEHOLDER: fly app name>>");
   assert.equal(config.primary_region, "<<PLACEHOLDER: fly region, e.g. iad — this is NOT a default>>");
-  assert.deepEqual(config.mounts, [{
+  assert.deepEqual(config.mounts.map(mount => ({ ...mount })), [{
     source: "<<PLACEHOLDER: volume name — must match `flyctl volumes create` exactly>>",
     destination: "/workspace/Tovu/sites",
   }]);

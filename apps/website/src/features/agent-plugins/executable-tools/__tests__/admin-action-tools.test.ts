@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 /** Host parity: admin actions use the same handler/permission and the existing confirmation card. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -40,7 +41,7 @@ async function fixture(authorize: AuthorizeFn = allowAll) {
     } },
   };
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
-  const register = () => registerAgentPluginExecutableTools({ registry, workspaceId: WORKSPACE, host, authorize, isActive: async () => active,
+  const register = () => registerAgentPluginExecutableTools({ withExtensionApprovalPolicy, registry, workspaceId: WORKSPACE, host, authorize, isActive: async () => active,
     applyApproval: ({ registration }, { disclose }) => applyToolApprovalPolicy({ registration, surfaces }, { disclose }),
   });
   const registered = await register();
@@ -174,7 +175,7 @@ test('security: an admin action whose account is switched while its approval wai
   } };
   const registry = createToolRegistry({});
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
-  const registered = await registerAgentPluginExecutableTools({ registry, workspaceId: WORKSPACE, authorize: allowAll, isActive: async () => true,
+  const registered = await registerAgentPluginExecutableTools({ withExtensionApprovalPolicy, registry, workspaceId: WORKSPACE, authorize: allowAll, isActive: async () => true,
     host: { loadContributions: async () => ({ items: [], refusals: [] }), connections, http: fakeHttp().http, limiter: { check: async () => ({ allowed: true }) },
       state: () => ({ get: async () => null }), apiOrigins: async () => [], issuedTokens: createIssuedTokenMemories(), frozen,
       adminSurfaces: { source: { list: async () => [synced] }, host: { refresh: async () => [], handlersFor: () => handlers, bootstrapData: async () => null } } },

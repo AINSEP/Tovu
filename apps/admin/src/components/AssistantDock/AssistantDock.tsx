@@ -2,10 +2,9 @@ import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
 import { ConfirmDialog, useConfirmRequest } from "@jini-ai/admin/react";
 import { DockHeader } from "./DockHeader";
 import { DockLeadingAccessory } from "./DockLeadingAccessory";
-import { composerFooterLeading, optionalChatPaneProps, voiceFooterAccessory } from "./assistant-dock-props";
+import { composerFooterLeading, optionalChatPaneProps, pickedFolderAccessory, voiceFooterAccessory } from "./assistant-dock-props";
 import { useNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
 import { usePickedFolder } from "../../features/fs-files/hooks/use-picked-folder.hooks";
-import { PickedFolderChip } from "./PickedFolderChip";
 import { dockSettingsMenuSections } from "./dock-header-rules";
 import { chatPaneDisplayProps } from "./chat-display-preferences";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
@@ -585,7 +584,7 @@ export function AssistantDock({
           //
           // The folder button (owner 2026-10-27: "a folder icon next to the plus button") rides the same
           // slot, ahead of the mic — see `composerFooterLeading`.
-          footerLeadingAccessory: composerFooterLeading({ folderPicker, pickedFolder: pickedFolder.path ? <PickedFolderChip path={pickedFolder.path} onClear={pickedFolder.clear} /> : undefined,
+          footerLeadingAccessory: composerFooterLeading({ folderPicker, pickedFolder: pickedFolderAccessory({ path: pickedFolder.path, onClear: pickedFolder.clear }, {}),
             voice: voiceFooterAccessory({ enabled: VOICE_INPUT_ENABLED, onTranscript: voiceInput.insertTranscript }) }),
         }}
         // Renders the pinned-plugin chip tray above the composer's textarea. NOT passed inside

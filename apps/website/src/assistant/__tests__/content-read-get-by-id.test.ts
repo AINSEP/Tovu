@@ -236,15 +236,15 @@ test("media (real handler): canonical id and mediaId select one scoped asset, in
     mediaRepo: { list: async ({ workspaceId }: { workspaceId: string }) => { reads.push(workspaceId); return media; } },
   } as unknown as Parameters<typeof buildMediaRegistrations>[0];
   const registration = card(buildMediaRegistrations(deps), "content_read.media_asset");
-  for (const input of [{ id: "asset-1" }, { mediaId: "asset-1" }]) {
+  for (const input of [{ id: "asset-1" }, { mediaId: "asset-1" }, { id: "asset-1", mediaId: "asset-1" }, { mediaId: "asset-1", id: "asset-1" }]) {
     const result = await executeRegisteredTool({ registration, input });
     assert.equal(result.status, "completed");
     const media = [{ id: "asset-1", createdBy: null, slug: "photo-1", title: "Photo 1", alt: "alt", caption: "caption", credit: "credit", sha256: "sha-1", status: "trashed", version: 1, cssClass: null, htmlAttributes: null, publicUrl: null }];
     // The legacy selector is aliased in the gate, which reports the rename it applied.
     assert.deepEqual(result.output, "mediaId" in input ? { media, normalizationNotes: ["mediaId→id"] } : { media });
   }
-  assert.deepEqual(reads, ["ws-media", "ws-media"]);
-  assert.equal(permissions.length, 2, "the source authorization runs exactly once per lookup");
+  assert.deepEqual(reads, ["ws-media", "ws-media", "ws-media", "ws-media"]);
+  assert.equal(permissions.length, 4, "the source authorization runs exactly once per lookup");
   const listed = await executeRegisteredTool({ registration, input: {} });
   assert.equal(listed.status, "completed");
   assert.equal((listed.output as { media: unknown[] }).media.length, 2);
@@ -252,7 +252,7 @@ test("media (real handler): canonical id and mediaId select one scoped asset, in
   assert.equal(missing.errorKind, "validation");
   assert.match(missing.error!, /media_asset 'other-workspace-asset' was not found.*without id/);
   const readsBeforeInvalid = reads.length;
-  for (const input of [{ id: "" }, { id: 42 }, { id: "asset-1", mediaId: "asset-1" }, { slug: "photo-1" }]) {
+  for (const input of [{ id: "" }, { id: 42 }, { id: "asset-1", mediaId: "asset-2" }, { mediaId: "asset-2", id: "asset-1" }, { slug: "photo-1" }]) {
     assert.equal((await executeRegisteredTool({ registration, input })).errorKind, "validation");
   }
   assert.equal(reads.length, readsBeforeInvalid, "invalid selectors must not reach the source reader");
@@ -383,9 +383,11 @@ for (const [resource, getId, selector, listId] of GET_SELECTORS) {
       assert.deepEqual(list.inputs, [{ context: "ctx" }]);
     }
     if (selector !== "id") {
-      for (const value of ["natural-key", "other"]) await assert.rejects(
-        normalizeToolInput({ input: { id: "natural-key", [selector]: value }, registration }), /Conflicting inputs/,
+      const readsBeforeConflict = inputs.length;
+      for (const input of [{ id: "natural-key", [selector]: "other" }, { [selector]: "other", id: "natural-key" }]) await assert.rejects(
+        normalizeToolInput({ input, registration }).then(({ input }) => registration.handler(executionContext(input))), /Conflicting inputs/,
       );
+      assert.equal(inputs.length, readsBeforeConflict, "conflicting selectors must not reach the source reader");
     }
   });
 }
@@ -423,9 +425,11 @@ for (const [resource, listId, selector, itemsKey, itemKey] of LOOKUP_SELECTORS) 
     }
     const normalized = await normalizeToolInput({ input: { id: "missing" }, registration });
     await assert.rejects(registration.handler(executionContext(normalized.input)), /was not found/);
-    if (selector !== "id") for (const value of ["folder-or-label", "other"]) await assert.rejects(
-      normalizeToolInput({ input: { id: "folder-or-label", [selector]: value }, registration }), /Conflicting inputs/,
+    const readsBeforeConflict = list.inputs.length;
+    if (selector !== "id") for (const input of [{ id: "folder-or-label", [selector]: "other" }, { [selector]: "other", id: "folder-or-label" }]) await assert.rejects(
+      normalizeToolInput({ input, registration }).then(({ input }) => registration.handler(executionContext(input))), /Conflicting inputs/,
     );
+    assert.equal(list.inputs.length, readsBeforeConflict, "conflicting selectors must not reach the source reader");
     assert.deepEqual(await registration.handler(executionContext({})), listed);
   });
 }

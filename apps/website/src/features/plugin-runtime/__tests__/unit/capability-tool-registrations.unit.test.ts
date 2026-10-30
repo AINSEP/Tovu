@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -192,14 +193,14 @@ const WORD_COUNT_SOURCE: PluginCapabilityToolSource = {
 
 test("the built registration is read-only, content.read-gated, and requires a postId", async () => {
   const requests: unknown[] = [];
-  const [registration] = buildPluginCapabilityToolRegistrations([WORD_COUNT_SOURCE], deps({
+  const [registration] = buildPluginCapabilityToolRegistrations({ sources: [WORD_COUNT_SOURCE], deps: deps({
     postRepo: new InMemoryPostRepo([post()]),
     authorize: async (request) => {
       requests.push(request);
       assert.deepEqual(request, { principalId: PRINCIPAL_ID, permission: "content.read", workspaceId: WORKSPACE, entityType: "post", entityId: "post-1" });
       return { allowed: true } as never;
     },
-  }));
+  }), withExtensionApprovalPolicy });
   assert.ok(registration);
   assert.equal(registration.descriptor.id, "plugin_capability_word_count");
   assert.equal(pluginCapabilityToolDerivedRisk([WORD_COUNT_SOURCE]).get("plugin_capability_word_count"), "none");
@@ -218,7 +219,7 @@ test("the tool description contains the real user vocabulary this fix targets", 
     discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],
     pluginActivationRepo: activationRepoWith([enabledActivation("word-count")]),
   });
-  const [registration] = buildPluginCapabilityToolRegistrations(sources, deps());
+  const [registration] = buildPluginCapabilityToolRegistrations({ sources: sources, deps: deps(), withExtensionApprovalPolicy });
   const description = registration?.descriptor.description ?? "";
   for (const term of ["word count", "reading time", "content metrics", "post"]) {
     assert.ok(description.toLowerCase().includes(term), `description must contain '${term}': ${description}`);
@@ -228,14 +229,13 @@ test("the tool description contains the real user vocabulary this fix targets", 
 test("the handler refuses a caller the authorizer denies", async () => {
   const requests: unknown[] = [];
   const registrations = buildPluginCapabilityToolRegistrations(
-    [WORD_COUNT_SOURCE],
-    deps({
+    { sources: [WORD_COUNT_SOURCE], deps: deps({
       postRepo: new InMemoryPostRepo([post({ ext: { "word-count": { count: 42 } } })]),
       authorize: async (request) => {
         requests.push(request);
         return { allowed: false, reason: "nope" } as never;
       },
-    }),
+    }), withExtensionApprovalPolicy },
   );
   const registration = registrations.find((entry) => entry.descriptor.id === "plugin_capability_word_count");
   assert.ok(registration);
@@ -248,7 +248,7 @@ test("the handler refuses a caller the authorizer denies", async () => {
 
 test("reading an existing post that already carries the plugin's stored field returns the real value", async () => {
   const postRepo = new InMemoryPostRepo([post({ ext: { "word-count": { count: 42 } } })]);
-  const registrations = buildPluginCapabilityToolRegistrations([WORD_COUNT_SOURCE], deps({ postRepo }));
+  const registrations = buildPluginCapabilityToolRegistrations({ sources: [WORD_COUNT_SOURCE], deps: deps({ postRepo }), withExtensionApprovalPolicy });
   const registration = registrations.find((entry) => entry.descriptor.id === "plugin_capability_word_count");
   assert.ok(registration);
 
@@ -270,7 +270,7 @@ test("stored falsy computed values are returned without a not-computed note", as
   };
   const fields = { count: 0, flag: false, label: "" };
   const postRepo = new InMemoryPostRepo([post({ ext: { "word-count": fields } })]);
-  const [registration] = buildPluginCapabilityToolRegistrations([source], deps({ postRepo }));
+  const [registration] = buildPluginCapabilityToolRegistrations({ sources: [source], deps: deps({ postRepo }), withExtensionApprovalPolicy });
   assert.ok(registration);
   const result = await registration.handler(toolContext({ postId: "post-1" })) as Record<string, unknown>;
   assert.deepEqual(result.fields, fields);
@@ -279,7 +279,7 @@ test("stored falsy computed values are returned without a not-computed note", as
 
 test("reading a post that has never been saved since the plugin was enabled returns null + an explanatory note, not an error", async () => {
   const postRepo = new InMemoryPostRepo([post()]); // no `ext` at all
-  const registrations = buildPluginCapabilityToolRegistrations([WORD_COUNT_SOURCE], deps({ postRepo }));
+  const registrations = buildPluginCapabilityToolRegistrations({ sources: [WORD_COUNT_SOURCE], deps: deps({ postRepo }), withExtensionApprovalPolicy });
   const registration = registrations.find((entry) => entry.descriptor.id === "plugin_capability_word_count");
   assert.ok(registration);
 
@@ -289,7 +289,7 @@ test("reading a post that has never been saved since the plugin was enabled retu
 });
 
 test("reading a nonexistent postId throws with the exact not-found message", async () => {
-  const registrations = buildPluginCapabilityToolRegistrations([WORD_COUNT_SOURCE], deps());
+  const registrations = buildPluginCapabilityToolRegistrations({ sources: [WORD_COUNT_SOURCE], deps: deps(), withExtensionApprovalPolicy });
   const registration = registrations.find((entry) => entry.descriptor.id === "plugin_capability_word_count");
   assert.ok(registration);
 
@@ -303,7 +303,7 @@ test("an ext bag shaped unexpectedly (not an object) degrades to null + note rat
   // Defensive case: `post.ext` is a generic JsonObject at the type level (see post.ts's own field
   // doc) — this asserts the handler's `isRecord` narrowing, not merely the happy path.
   const postRepo = new InMemoryPostRepo([post({ ext: { "word-count": "not-an-object" } as never })]);
-  const registrations = buildPluginCapabilityToolRegistrations([WORD_COUNT_SOURCE], deps({ postRepo }));
+  const registrations = buildPluginCapabilityToolRegistrations({ sources: [WORD_COUNT_SOURCE], deps: deps({ postRepo }), withExtensionApprovalPolicy });
   const registration = registrations.find((entry) => entry.descriptor.id === "plugin_capability_word_count");
   assert.ok(registration);
 
@@ -318,7 +318,7 @@ test("an ext bag shaped unexpectedly (not an object) degrades to null + note rat
 
 test("registerEnabledPluginCapabilityTools registers exactly one tool for one enabled plugin", async () => {
   const registry = createToolRegistry({});
-  await registerEnabledPluginCapabilityTools(registry, {
+  await registerEnabledPluginCapabilityTools(registry, { withExtensionApprovalPolicy,
     ...deps(),
     discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],
     pluginActivationRepo: activationRepoWith([enabledActivation("word-count")]),
@@ -330,7 +330,7 @@ test("registerEnabledPluginCapabilityTools registers exactly one tool for one en
 
 test("registerEnabledPluginCapabilityTools registers nothing for a disabled plugin", async () => {
   const registry = createToolRegistry({});
-  await registerEnabledPluginCapabilityTools(registry, {
+  await registerEnabledPluginCapabilityTools(registry, { withExtensionApprovalPolicy,
     ...deps(),
     discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],
     pluginActivationRepo: activationRepoWith([]),
@@ -350,7 +350,7 @@ test("a tool id that collides with an already-registered tool fails LOUDLY at re
 
   await assert.rejects(
     () =>
-      registerEnabledPluginCapabilityTools(registry, {
+      registerEnabledPluginCapabilityTools(registry, { withExtensionApprovalPolicy,
         ...deps(),
         discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],
         pluginActivationRepo: activationRepoWith([enabledActivation("word-count")]),
@@ -407,14 +407,14 @@ test("a tier-2 plugin with no beforeSave hook does not claim to run fresh", asyn
 test("a fresh tier-2 call previews the stored post through the port and returns the parsed report and the summary", async () => {
   const stored = post({ ext: { "content-analyzer": { score: 10, summary: "stale" }, "word-count": { count: 3 } } });
   const calls: Array<{ pluginId: string; entry: unknown }> = [];
-  const [registration] = buildPluginCapabilityToolRegistrations([await contentAnalyzerSource()], deps({
+  const [registration] = buildPluginCapabilityToolRegistrations({ sources: [await contentAnalyzerSource()], deps: deps({
     postRepo: new InMemoryPostRepo([stored]),
     pluginActivationRepo: activationRepoWith([enabledActivation("content-analyzer")]),
     previewPluginBeforeSave: async (pluginId, entry) => {
       calls.push({ pluginId, entry });
       return { score: 84, wordCount: 120, readingTimeMinutes: 1, readability: 71.5, summary: "Score 84/100.", report: JSON.stringify(CONTENT_ANALYZER_REPORT) };
     },
-  }));
+  }), withExtensionApprovalPolicy });
   assert.ok(registration);
 
   const result = (await registration.handler(toolContext({ postId: "post-1" }))) as Record<string, unknown>;
@@ -433,13 +433,13 @@ test("a fresh tier-2 call previews the stored post through the port and returns 
 
 test("a fresh call on a post with no ext hands the plugin an empty ext", async () => {
   const entries: unknown[] = [];
-  const [registration] = buildPluginCapabilityToolRegistrations([await contentAnalyzerSource()], deps({
+  const [registration] = buildPluginCapabilityToolRegistrations({ sources: [await contentAnalyzerSource()], deps: deps({
     postRepo: new InMemoryPostRepo([post()]),
     previewPluginBeforeSave: async (_pluginId, entry) => {
       entries.push(entry.ext);
       return { score: 1 };
     },
-  }));
+  }), withExtensionApprovalPolicy });
   assert.ok(registration);
   await registration.handler(toolContext({ postId: "post-1" }));
   assert.deepEqual(entries, [{}]);
@@ -447,10 +447,10 @@ test("a fresh call on a post with no ext hands the plugin an empty ext", async (
 
 test("a tier-2 plugin this process has not attached falls back to its stored values, still parsed", async () => {
   const postRepo = new InMemoryPostRepo([post({ ext: { "content-analyzer": { score: 70, report: JSON.stringify(CONTENT_ANALYZER_REPORT) } } })]);
-  const [registration] = buildPluginCapabilityToolRegistrations([await contentAnalyzerSource()], deps({
+  const [registration] = buildPluginCapabilityToolRegistrations({ sources: [await contentAnalyzerSource()], deps: deps({
     postRepo,
     previewPluginBeforeSave: async () => null,
-  }));
+  }), withExtensionApprovalPolicy });
   assert.ok(registration);
 
   const result = (await registration.handler(toolContext({ postId: "post-1" }))) as Record<string, unknown>;
@@ -459,9 +459,9 @@ test("a tier-2 plugin this process has not attached falls back to its stored val
 });
 
 test("without a preview port a tier-2 plugin reads its stored values", async () => {
-  const [registration] = buildPluginCapabilityToolRegistrations([await contentAnalyzerSource()], deps({
+  const [registration] = buildPluginCapabilityToolRegistrations({ sources: [await contentAnalyzerSource()], deps: deps({
     postRepo: new InMemoryPostRepo([post({ ext: { "content-analyzer": { score: 70 } } })]),
-  }));
+  }), withExtensionApprovalPolicy });
   assert.ok(registration);
   const result = (await registration.handler(toolContext({ postId: "post-1" }))) as Record<string, unknown>;
   assert.equal(result.computedNow, false);
@@ -470,13 +470,13 @@ test("without a preview port a tier-2 plugin reads its stored values", async () 
 
 test("a tier-3 plugin never calls the preview port", async () => {
   let previews = 0;
-  const [registration] = buildPluginCapabilityToolRegistrations([{ ...WORD_COUNT_SOURCE, runsFresh: false }], deps({
+  const [registration] = buildPluginCapabilityToolRegistrations({ sources: [{ ...WORD_COUNT_SOURCE, runsFresh: false }], deps: deps({
     postRepo: new InMemoryPostRepo([post({ ext: { "word-count": { count: 42 } } })]),
     previewPluginBeforeSave: async () => {
       previews += 1;
       return { count: 1 };
     },
-  }));
+  }), withExtensionApprovalPolicy });
   assert.ok(registration);
   const result = (await registration.handler(toolContext({ postId: "post-1" }))) as Record<string, unknown>;
   assert.equal(previews, 0);
@@ -485,12 +485,12 @@ test("a tier-3 plugin never calls the preview port", async () => {
 });
 
 test("a fresh run that fails reaches the model as a ToolInputError naming the plugin, not a redacted crash", async () => {
-  const [registration] = buildPluginCapabilityToolRegistrations([await contentAnalyzerSource()], deps({
+  const [registration] = buildPluginCapabilityToolRegistrations({ sources: [await contentAnalyzerSource()], deps: deps({
     postRepo: new InMemoryPostRepo([post()]),
     previewPluginBeforeSave: async () => {
       throw new Error("plugin 'content-analyzer' beforeSave hook failed");
     },
-  }));
+  }), withExtensionApprovalPolicy });
   assert.ok(registration);
   await assert.rejects(() => registration.handler(toolContext({ postId: "post-1" })), (error: unknown) => {
     assert.ok(error instanceof ToolInputError);
@@ -507,9 +507,9 @@ test("only a string holding a JSON object or array is parsed; other strings are 
     ...WORD_COUNT_SOURCE,
     fields: ["list", "broken", "plain", "numeric"].map((key) => ({ path: `ext.word-count.${key}`, fieldKey: key, type: "string" as const, description: key })),
   };
-  const [registration] = buildPluginCapabilityToolRegistrations([source], deps({
+  const [registration] = buildPluginCapabilityToolRegistrations({ sources: [source], deps: deps({
     postRepo: new InMemoryPostRepo([post({ ext: { "word-count": { list: "[1,2]", broken: "{not json", plain: "hello", numeric: "42" } } })]),
-  }));
+  }), withExtensionApprovalPolicy });
   assert.ok(registration);
   const result = (await registration.handler(toolContext({ postId: "post-1" }))) as Record<string, unknown>;
   assert.deepEqual(result.fields, { list: [1, 2], broken: "{not json", plain: "hello", numeric: "42" });
@@ -533,13 +533,13 @@ test("an enabled plugin that declares no fields, or none in its own namespace, p
 
 test("an activation read that throws a non-Error denies the call and logs the thrown value", async (t) => {
   const warn = t.mock.method(console, "warn", () => undefined);
-  const [registration] = buildPluginCapabilityToolRegistrations([WORD_COUNT_SOURCE], deps({
+  const [registration] = buildPluginCapabilityToolRegistrations({ sources: [WORD_COUNT_SOURCE], deps: deps({
     pluginActivationRepo: Object.assign(activationRepoWith([]), {
       getActivation: async (): Promise<never> => {
         throw "locked";
       },
     }),
-  }));
+  }), withExtensionApprovalPolicy });
   assert.ok(registration);
   const decision = await registration.policy.authorize(toolContext({ postId: "post-1" }));
   assert.equal(decision, "deny");
@@ -562,7 +562,7 @@ function recordingContributions(): PluginContributionRegistry & { subscriptions:
 test("registerEnabledPluginCapabilityTools attaches executable plugin tools to the registry it was given when no separate executable registry is wired", async () => {
   const registry = createToolRegistry({});
   const contributions = recordingContributions();
-  await registerEnabledPluginCapabilityTools(registry, {
+  await registerEnabledPluginCapabilityTools(registry, { withExtensionApprovalPolicy,
     ...deps(),
     pluginContributions: contributions,
     discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],
@@ -576,7 +576,7 @@ test("registerEnabledPluginCapabilityTools attaches executable plugin tools to t
 test("registerEnabledPluginCapabilityTools skips executable plugin tools for a register-only sink with no executable registry", async () => {
   const registered: string[] = [];
   const contributions = recordingContributions();
-  await registerEnabledPluginCapabilityTools({ register: (registration) => { registered.push(registration.descriptor.id); } }, {
+  await registerEnabledPluginCapabilityTools({ register: (registration) => { registered.push(registration.descriptor.id); } }, { withExtensionApprovalPolicy,
     ...deps(),
     pluginContributions: contributions,
     discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],

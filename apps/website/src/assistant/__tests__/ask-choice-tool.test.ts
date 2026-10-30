@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import Ajv from "ajv";
+import { Ajv } from "ajv";
 
 import type { SurfaceEmitter } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/core";

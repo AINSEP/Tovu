@@ -1,6 +1,6 @@
 import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import { toolMetadata } from '../../contracts/core/tool-metadata/agent-plugins.js';
-import { withExtensionApprovalPolicy } from '../../assistant/mcp-services.js';
+import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString,
   type AgentToolDefinition, type AgentToolSideEffect, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { pluginMemory } from "./memory.js";
@@ -24,9 +24,11 @@ async function readMemory({ memory, pluginId, input }: { memory: PluginMemory; p
 interface Identity { readonly id: string; readonly pluginId: string; readonly archiveDigest: string; }
 /** Every capability closes over its owning plugin. Caller-controlled ids/kinds are rejected. */
 export function buildPluginMemoryRegistrations(required: {
+  withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy;
   sources: readonly Identity[]; workspaceId: string; agentPluginLayout: import("./layout.js").AgentPluginLayout;
   gate: { isCallable(plugin: { pluginId: string; archiveDigest: string }): Promise<boolean> };
 }, _optional: {} = {}): ToolRegistration[] {
+  const { withExtensionApprovalPolicy } = required;
   const catalog: AgentToolDefinition[] = [];
   const handlers: Record<string, ToolHandler> = {};
   const risk = new Map<string, AgentToolSideEffect>();

@@ -202,8 +202,8 @@ test("renderFlyToml escapes variable values instead of treating them as TOML syn
     buildArgs: { CUSTOM_BUILD: value },
   });
   const parsed = parseToml(result.contents);
-  assert.deepEqual(parsed.env, { TOVU_RUNTIME_MODE: "production", PORT: "4321", TOVU_PUBLIC_URL: value });
-  assert.deepEqual(parsed.build, { dockerfile: "Dockerfile", args: { CUSTOM_BUILD: value } });
+  assert.deepEqual({ ...parsed.env }, { TOVU_RUNTIME_MODE: "production", PORT: "4321", TOVU_PUBLIC_URL: value });
+  assert.deepEqual({ ...parsed.build, args: { ...parsed.build.args } }, { dockerfile: "Dockerfile", args: { CUSTOM_BUILD: value } });
   assert.equal((result.contents.match(/^  PORT = /gm) ?? []).length, 1, "overrides emit a single TOML key");
   assert.match(result.contents, /^  PORT = "4321"$/m);
   assert.doesNotMatch(result.contents, /^\[unexpected\]/m);
@@ -233,5 +233,5 @@ test("renderFlyToml escapes the TOML-forbidden DEL control character", () => {
   const result = renderFlyToml(FIXTURE_DESCRIPTOR, { region: "iad", env: { LABEL: "before\u007fafter" } });
   assert.ok(result.contents.includes('  LABEL = "before\\u007fafter"\n'));
   assert.ok(!result.contents.includes("\u007f"));
-  assert.deepEqual(parseToml(result.contents).env, { TOVU_RUNTIME_MODE: "production", PORT: "4000", LABEL: "before\u007fafter" });
+  assert.deepEqual({ ...parseToml(result.contents).env }, { TOVU_RUNTIME_MODE: "production", PORT: "4000", LABEL: "before\u007fafter" });
 });

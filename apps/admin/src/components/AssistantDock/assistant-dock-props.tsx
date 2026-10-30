@@ -4,6 +4,7 @@ import type { ChatPane } from "@jini-ai/chat/react";
 import { PushToTalkMicButton } from "../../features/voice-input/PushToTalkMicButton";
 import type { UseNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
 import { FolderPathButton } from "./FolderPathButton";
+import { PickedFolderChip } from "./PickedFolderChip";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 
 /**
@@ -54,6 +55,11 @@ export function optionalChatPaneProps(input: OptionalChatPanePropsInput) {
  */
 export function voiceFooterAccessory(input: { readonly enabled: boolean; readonly onTranscript: (text: string) => void }) {
   return input.enabled ? <PushToTalkMicButton onTranscript={input.onTranscript} /> : undefined;
+}
+
+/** Render the folder chip only while a folder is picked. @complexity O(1). */
+export function pickedFolderAccessory({ path, onClear }: { readonly path: string | null; readonly onClear: () => void }, _options = {}) {
+  return path ? <PickedFolderChip path={path} onClear={onClear} /> : undefined;
 }
 
 /**

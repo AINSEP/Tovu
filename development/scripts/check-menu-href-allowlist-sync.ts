@@ -132,7 +132,7 @@ export function extractBalancedBraces(source: string, openBraceIndex: number): s
 }
 
 const SAFE_HREF_CONSTS_RE =
-  /const SAFE_HREF_RESOLUTION_BASE\s*=\s*"[^"]*";\s*\nconst SAFE_HREF_RESOLUTION_ORIGIN\s*=\s*new URL\(SAFE_HREF_RESOLUTION_BASE\)\.origin;/;
+  /const SAFE_HREF_RESOLUTION_BASE\s*=[\s\S]*?const SAFE_HREF_RESOLUTION_ORIGIN\s*=[^;]+;/;
 const SAFE_HREF_FN_START_RE = /function safeHref\([^)]*\)[^{]*\{/;
 
 /**

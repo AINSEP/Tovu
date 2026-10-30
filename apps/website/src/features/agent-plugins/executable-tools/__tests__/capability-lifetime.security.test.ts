@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 /**
  * Security pins for the one capability gate (Jini `openCapabilityGate` + `runInCapabilitySession`):
  * capabilities a plugin's admin-surface handler kept from an admin action the assistant ran, or from
@@ -83,7 +84,7 @@ async function boot() {
   const listed: LoadedAdminSurface = { plugin: { pluginId: PLUGIN, packageRoot: '/trusted/acme' }, descriptor };
   const registry = createToolRegistry({});
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
-  const registered = await registerAgentPluginExecutableTools({ registry, workspaceId: WORKSPACE, authorize: allowAll, isActive: async () => true,
+  const registered = await registerAgentPluginExecutableTools({ withExtensionApprovalPolicy, registry, workspaceId: WORKSPACE, authorize: allowAll, isActive: async () => true,
     host: { loadContributions: async () => ({ items: [], refusals: [] }), connections, http, limiter, state, apiOrigins, issuedTokens, frozen,
       adminSurfaces: { source: { list: async () => [listed] }, host: adminHost } },
     applyApproval: ({ registration }, { disclose }) => applyToolApprovalPolicy({ registration, surfaces }, { disclose }),

@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import Ajv from "ajv";
+import { Ajv } from "ajv";
 import { EMBED_MARKER_TARGET_KEYS, parseEmbedMarkerConfig, parseGalleryConfig } from "@jini-ai/cms/widgets/markers";
 
 import { InMemoryPostRepo, createPost, VERSION_CONFLICT_CODE } from "../../post/index.js";

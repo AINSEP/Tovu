@@ -1,5 +1,12 @@
 import { nativeToolMetadata } from '../core/tool-metadata/index.js';
 import type { ToolApprovalPolicy } from '../core/tool-metadata/approval-policy.js';
+import type { ToolRegistration } from '@jini-ai/core';
+
+/** The assistant owns classification; composition supplies it to feature registration builders. */
+export type ApplyExtensionApprovalPolicy = (
+  required: { registration: ToolRegistration; family: keyof typeof EXTENSION_TOOL_APPROVAL_POLICY },
+  optional?: Record<string, never>,
+) => ToolRegistration;
 
 const EXECUTION_NAMESPACE = "core.execution";
 export type { ToolApprovalClass, ToolApprovalPolicy } from '../core/tool-metadata/approval-policy.js';

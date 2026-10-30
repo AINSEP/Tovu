@@ -58,6 +58,7 @@ test("deep-import rules exempt tests and current composition, retaining other pr
   ], { cwd: scratch, encoding: "utf8", timeout: 30_000 });
   assert.equal(result.error, undefined);
   assert.equal(result.signal, null);
+  assert.equal(result.status, 0, `dependency-cruiser failed before producing its graph: ${result.stderr}`);
   const report = JSON.parse(result.stdout);
   assert.ok(report.modules.length > 0, "the fixture must produce a real dependency graph");
   for (const mod of modules) {

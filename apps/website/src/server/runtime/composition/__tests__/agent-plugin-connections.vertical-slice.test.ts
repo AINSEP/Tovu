@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 /**
  * @file The ONE vertical-slice proof for the G6b wiring: `composeAgentPluginConnections` (what both
  * composition roots call) carries a fake provider plugin ("acme-office", a test fixture) from
@@ -47,7 +48,7 @@ test("vertical slice: connect -> public callback -> executable tool call -> admi
   const connectionRef = await connectForRef(composition);
 
   const registry = createToolRegistry({});
-  const { refusals } = await registerAgentPluginExecutableTools({
+  const { refusals } = await registerAgentPluginExecutableTools({ withExtensionApprovalPolicy,
     registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true,
     applyApproval: ({ registration }) => registration,
   });
@@ -89,7 +90,7 @@ test("vertical slice: a surface reads status, starts a pick sign-in, takes its c
   assert.deepEqual(await dispatch("take-pick", { attemptId }), { ok: false, error: { code: "nothing-picked", message: "Nothing was picked. Pick again.", retryable: false } }, "callback fields are taken once");
 
   const registry = createToolRegistry({});
-  await registerAgentPluginExecutableTools({ registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true, applyApproval: ({ registration }) => registration });
+  await registerAgentPluginExecutableTools({ withExtensionApprovalPolicy, registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true, applyApproval: ({ registration }) => registration });
   const read = await createToolExecutor({ registry }).execute({ toolId: "p_acme_office__selection", principal: { id: "admin-1" }, run: { id: "run-2" }, input: {} });
   assert.equal(read.status, "completed", String(read.error));
   assert.deepEqual(read.output, { selection: { tableId: "T1" } });
@@ -111,7 +112,7 @@ test("security: a token a plugin kept in module scope is withheld in a LATER too
   const composition = await compose();
   const connectionRef = await connectForRef(composition);
   const registry = createToolRegistry({});
-  await registerAgentPluginExecutableTools({
+  await registerAgentPluginExecutableTools({ withExtensionApprovalPolicy,
     registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true, applyApproval: ({ registration }) => registration,
   });
   const executor = createToolExecutor({ registry });
@@ -154,7 +155,7 @@ test("security: one token memory across seams: a token a TOOL obtained is withhe
   const composition = await compose();
   const connectionRef = await connectForRef(composition);
   const registry = createToolRegistry({});
-  await registerAgentPluginExecutableTools({ registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true, applyApproval: ({ registration }) => registration });
+  await registerAgentPluginExecutableTools({ withExtensionApprovalPolicy, registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true, applyApproval: ({ registration }) => registration });
   assert.equal((await createToolExecutor({ registry }).execute({ toolId: "p_acme_office__whoami", principal: { id: "admin-1" }, run: { id: "run-1" }, input: { connectionRef } })).status, "completed");
   const answer = await (await surfaceDispatch(composition))("tool-token");
   assert.deepEqual(answer, WITHHELD);
@@ -166,7 +167,7 @@ test("security: one token memory across seams: a token a SURFACE handler obtaine
   await connectForRef(composition);
   assert.deepEqual(await (await surfaceDispatch(composition))("whoami"), { ok: true, result: { name: "Ada" } });
   const registry = createToolRegistry({});
-  await registerAgentPluginExecutableTools({ registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true, applyApproval: ({ registration }) => registration });
+  await registerAgentPluginExecutableTools({ withExtensionApprovalPolicy, registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true, applyApproval: ({ registration }) => registration });
   const leaked = await createToolExecutor({ registry }).execute({ toolId: "p_acme_office__last_token", principal: { id: "admin-1" }, run: { id: "run-2" }, input: {} });
   assert.notEqual(leaked.status, "completed");
   assert.match(String(leaked.error), new RegExp(WITHHELD_OUTPUT_MESSAGE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -220,7 +221,7 @@ test("vendor neutrality end to end: a second provider plugin connects, stores se
   // A write tool asks first, through Tovu's own approval owner, and names the account and table.
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
   const registry = createToolRegistry({});
-  const { refusals } = await registerAgentPluginExecutableTools({
+  const { refusals } = await registerAgentPluginExecutableTools({ withExtensionApprovalPolicy,
     registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true,
     applyApproval: ({ registration }, { disclose }) => applyToolApprovalPolicy({ registration, surfaces }, { disclose }),
   });
@@ -272,7 +273,7 @@ test("security: the composition gives the assistant's tool registrar and the adm
   const composition = await compose();
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };
   const registry = createToolRegistry({});
-  const registered = await registerAgentPluginExecutableTools({
+  const registered = await registerAgentPluginExecutableTools({ withExtensionApprovalPolicy,
     registry, workspaceId: WORKSPACE, host: composition.agentPluginTools, authorize: allowAll, isActive: async () => true,
     applyApproval: ({ registration }, { disclose }) => applyToolApprovalPolicy({ registration, surfaces }, { disclose }),
   });

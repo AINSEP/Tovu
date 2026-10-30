@@ -194,17 +194,34 @@ export function toWireSurfacePayload(emission: SurfaceEmission, toolUseId: strin
   };
 }
 
+/** Validate the BYOK wire entry before either current-turn selection or redaction. @complexity O(1). */
+function readByokHistoryMessage({ entry }: { entry: unknown }, _options = {}): (ByokChatMessage & { secretRedacted: unknown }) | null {
+  if (!isPlainMessage(entry)) return null;
+  const role = entry.role === "user" || entry.role === "assistant" ? entry.role : null;
+  if (role === null) return null;
+  if (typeof entry.content !== "string" || entry.content.length === 0) return null;
+  return { role, content: entry.content, secretRedacted: entry.secretRedacted };
+}
+
+/** ES2022-compatible reverse scan; malformed user entries never claim the current turn. @complexity O(n). */
+function lastUserMessageIndex({ entries }: { entries: readonly unknown[] }, _options = {}): number {
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = readByokHistoryMessage({ entry: entries[index] }, {});
+    if (entry && entry.role === "user") return index;
+  }
+  return -1;
+}
+
 /** One raw history entry -> a valid {@link ByokChatMessage}, or `null` if it isn't one — the single
  *  per-entry validation `resolveMessages` below loops over. Always redacts user text; only the
  *  current user turn receives a notice. Does not mutate the entry or perform I/O.
  *  @complexity Redaction cost in the message content; constant validation work. */
 function toByokChatMessage({ entry, currentUserTurn }: { entry: unknown; currentUserTurn: boolean }, _optional = {}): ByokChatMessage | null {
-  if (!isPlainMessage(entry)) return null;
-  const role = entry.role === "user" || entry.role === "assistant" ? entry.role : null;
-  const content = typeof entry.content === "string" ? entry.content : null;
-  if (role === null || content === null || content.length === 0) return null;
+  const message = readByokHistoryMessage({ entry }, {});
+  if (message === null) return null;
+  const { role, content, secretRedacted } = message;
   const modelContent = role === "user" ? guardUserText({ text: content }, {
-    modelNote: currentUserTurn ? CREDENTIAL_PASTE_MODEL_NOTE : "", secretRedacted: entry.secretRedacted === true,
+    modelNote: currentUserTurn ? CREDENTIAL_PASTE_MODEL_NOTE : "", secretRedacted: secretRedacted === true,
   }) : content;
   return { role, content: modelContent };
 }
@@ -219,8 +236,7 @@ export function resolveMessages(raw: unknown): ByokChatMessage[] {
   if (!Array.isArray(raw)) return [];
   // Redact every user turn, but notify only for the latest valid user message. Historical flags
   // and raw historical secrets must not turn an unrelated request into another rotation warning.
-  const currentUserIndex = raw.findLastIndex(entry => isPlainMessage(entry) && entry.role === "user"
-    && typeof entry.content === "string" && entry.content.length > 0);
+  const currentUserIndex = lastUserMessageIndex({ entries: raw }, {});
   const messages: ByokChatMessage[] = [];
   for (const [index, entry] of raw.entries()) {
     const message = toByokChatMessage({ entry, currentUserTurn: index === currentUserIndex }, {});

@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 /**
  * @file Shared typed fakes for the executable Agent Plugin tool tests: a vendor-neutral
  * "acme-office" plugin with one read and one write tool, a connection accessor, an HTTP port that
@@ -73,7 +74,7 @@ export async function bootFixture(options: { readonly active?: () => boolean; re
   const surfaces = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: 'mcp-ui' }) };
   const registry: ToolRegistry = createToolRegistry({});
   const loadContributions: AgentPluginExecutableToolHost['loadContributions'] = async () => ({ items: [...acmeTools(calls), ...(options.extraTools ?? [])], refusals: [] });
-  const registered = await registerAgentPluginExecutableTools({
+  const registered = await registerAgentPluginExecutableTools({ withExtensionApprovalPolicy,
     registry, workspaceId: WORKSPACE, authorize: options.authorize ?? allowAll,
     host: { loadContributions, connections, http, limiter: { check: async () => ({ allowed: true }) }, state: () => ({ get: async () => null }), apiOrigins: async () => ['https://api.acme.test'], issuedTokens: createIssuedTokenMemories() },
     isActive: async () => options.active?.() ?? true,

@@ -10,6 +10,7 @@ test('page kind delegates to content_post_delete with the real row kind and cano
   const calls: unknown[] = [];
   const delegate: ToolRegistration = {
     descriptor: { id: 'content_post_delete' },
+    policy: { authorize: () => 'allow' },
     handler: async ctx => { calls.push(ctx.input); return { trashed: true }; },
   };
   const deps = { workspaceId: 'ws', registry: new Map(), isTrashableEntityType: (kind: string) => kind === 'post',

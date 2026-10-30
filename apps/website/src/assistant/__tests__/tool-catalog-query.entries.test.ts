@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { toolCatalogDescribeRoute } from "@jini-ai/daemon/http";
 
 import { buildToolCatalogQuery, listToolCatalogEntries } from "../tool-catalog-query.js";
 import { KEYWORD_MARKER } from "../tool-search-keywords.js";
+import { realToolCatalog } from "./real-tool-catalog.fixture.js";
 
 /**
  * @file `listToolCatalogEntries` — the live-registry reader `site_describe_capabilities` is handed.
@@ -46,3 +48,29 @@ test("listToolCatalogEntries: reads the registry on every call, so a tool regist
 
   assert.deepEqual(listToolCatalogEntries(registry).at(-1), { id: "media_list_assets", source: "media", description: "" });
 });
+
+for (const [id, currentId, purpose] of [
+  ["content_read.content_region", "content_read.widget_region", /\bregion\b/i],
+  ["content_read.form", "content_read.form_definition", /\bform\b/i],
+] as const) {
+  test(`describe_tool HTTP path: ${id} describes the sub-read or points to ${currentId}`, async () => {
+    const { catalog } = await realToolCatalog();
+    const current = catalog.describe({ id: currentId });
+    assert.ok(current?.inputSchema, `${currentId} must be registered in the real catalog`);
+
+    // MCP describe_tool calls this GET route. Keep its parser and the host's real catalog;
+    // a mocked daemon response would hide the NOT_FOUND that agents currently receive.
+    const parsed = toolCatalogDescribeRoute.parse({ body: {}, query: {}, params: { id } });
+    assert.ok(parsed.ok);
+    const result = await toolCatalogDescribeRoute.handle({ input: parsed.value, deps: { catalog } });
+
+    assert.ok(result.ok, `describe_tool(${id}) must return actionable guidance, got ${JSON.stringify(result)}`);
+    if (result.value.inputSchema != null) {
+      assert.deepEqual(result.value.inputSchema, current.inputSchema);
+      assert.match(result.value.description, purpose);
+    } else {
+      // 238f6ba46 made content_read a namespace: the pointer must name the exact card.
+      assert.ok(result.value.description.includes(currentId), `guidance must name ${currentId}`);
+    }
+  });
+}

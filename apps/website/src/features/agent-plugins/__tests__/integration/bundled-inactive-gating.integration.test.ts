@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import { anonymousMemberAccess } from "#src/assistant/site/__tests__/member-access.fixture";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 
@@ -218,7 +219,7 @@ test("re-seeding is idempotent — same digest, no duplicate install, decision p
 test("every core, public and bundled guide tool pointer resolves to a currently registered tool", async () => {
   await withSeededWorkspace(async () => {
     const { registry } = await realToolCatalog();
-    await registerInstalledAgentPluginTools(registry, { workspaceId: WORKSPACE_ID, agentPluginLayout: resolveAgentPluginLayout() });
+    await registerInstalledAgentPluginTools(registry, { withExtensionApprovalPolicy, workspaceId: WORKSPACE_ID, agentPluginLayout: resolveAgentPluginLayout() });
     const ids = new Set(registry.list({}).map(tool => tool.id));
     const parsed = resolveSiteGuideEngine({}).parseGuideTopics({ raw: await readFile(path.join(BUNDLED_SOURCE_ROOT, "how-tovu-works", "tovu-site-guide.json"), "utf8") });
     if (!parsed.ok) throw new Error(parsed.reason);

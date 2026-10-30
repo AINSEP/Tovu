@@ -40,8 +40,6 @@ import { parseEmbedHtmlAttributes } from "@jini-ai/cms/widgets/markers";
 import { LISTING_BATCH_DEFAULT, listingBatchPath, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
 import { mediaPublicPath, mediaUrlKey } from "#src/features/media/public-path";
 import { safeAspectRatio, safeTextAlign } from "#src/platform/html/style-values";
-import { renderHandlebarsInSandbox } from "./handlebars-sandbox.js";
-import { renderLiquidInSandbox } from "./liquid-sandbox.js";
 import { FORM_BASELINE_STYLE, FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, renderFormSuccessSlot, renderFormErrorSlot, stampFormFieldMaxLengths } from "./form-render.js";
 import {
   decodeFormSubmissionResultFromQuery,
@@ -3514,6 +3512,8 @@ async function renderTemplatedTierBody(
   const liquidId = liquidTemplateIdOverride ?? resolveLiquidTemplateId({ route, liquidTemplates: theme.liquidTemplates });
   const source = liquidId ? theme.liquidTemplates[liquidId] : undefined;
   try {
+    // Workers use this module's block/data seams, never the parent-side worker launcher.
+    const { renderLiquidInSandbox } = await import("./liquid-sandbox.js");
     return source
       ? await renderLiquidInSandbox({ source, ctx })
       : fallbackSiteBody(ctx, route);
@@ -3529,6 +3529,7 @@ async function renderHandlebarsTierBody(theme: DiscoveredTheme, route: SiteRende
   const hbsId = resolveHandlebarsTemplateId({ route, handlebarsTemplates: theme.handlebarsTemplates });
   const source = hbsId ? theme.handlebarsTemplates[hbsId] : undefined;
   try {
+    const { renderHandlebarsInSandbox } = await import("./handlebars-sandbox.js");
     return source ? await renderHandlebarsInSandbox({ source, ctx }) : fallbackSiteBody(ctx, route);
   } catch (err) {
     return `<!-- theme render error: ${escapeHtml((err as Error).message)} -->${fallbackSiteBody(ctx, route)}`;

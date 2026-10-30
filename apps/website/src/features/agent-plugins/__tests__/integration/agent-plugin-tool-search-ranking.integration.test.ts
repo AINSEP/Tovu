@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
@@ -178,7 +179,7 @@ async function buildRealSurfaceWithPluginTool() {
 
   const registry = createToolRegistry({});
   for (const registration of buildAssistantToolRegistrations(toAssistantRegistryDeps({ routeDeps }), undefined, { contributions })) registry.register(registration);
-  await registerInstalledAgentPluginTools(registry, testSiteLayoutContext({ workspaceId: routeDeps.workspaceId }));
+  await registerInstalledAgentPluginTools(registry, { ...testSiteLayoutContext({ workspaceId: routeDeps.workspaceId }), withExtensionApprovalPolicy });
 
   const catalog = buildToolCatalogQuery(registry);
   return { registry, catalog };
@@ -256,7 +257,7 @@ test("owner 2026-10-09: search_tools finds author keywords and provides absent f
       archiveReader: reader([fileEntry("plugin.json", JSON.stringify(value)), fileEntry("skills/directory-bridge/SKILL.md", "---\nname: directory-bridge\ndescription: Reference instructions\n---\nFollow these instructions.\n")]),
     });
     const registry = createToolRegistry({});
-    await registerInstalledAgentPluginTools(registry, { workspaceId, agentPluginLayout: layout });
+    await registerInstalledAgentPluginTools(registry, { withExtensionApprovalPolicy, workspaceId, agentPluginLayout: layout });
     const catalog = buildToolCatalogQuery(registry);
     for (const query of ["pidkeyword", "source-control"]) {
       assert.deepEqual(catalog.search({ query }, { limit: 10 }).map(hit => hit.id), ["agent_plugin_directory_bridge"]);

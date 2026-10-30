@@ -27,7 +27,7 @@ test('Claude Edit spellings preserve exact replacement bytes and empty deletions
 });
 
 test('media query remains the declared search filter rather than being dropped', async () => {
-  const source: ToolRegistration = { ...registration({ id: 'media_list_assets' }), handler: async ctx => ({ media: [], received: ctx.input }) };
+  const source: ToolRegistration = { ...registration({ id: 'media_list_assets' }), policy: { authorize: () => 'allow' }, handler: async ctx => ({ media: [], received: ctx.input }) };
   const card = deriveContentReadRegistrations([source]).find(tool => tool.descriptor.id === 'content_read.media_asset');
   assert.ok(card);
   const result = await executeRegisteredTool({ registration: card, input: { query: 'hero' } });

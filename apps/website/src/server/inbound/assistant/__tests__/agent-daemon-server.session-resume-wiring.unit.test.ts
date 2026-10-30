@@ -382,7 +382,8 @@ for (const userMcp of [undefined, false, true]) test(`fresh and resumed in-app l
   });
   const key = { conversationId: "isolated-mcp-chat", agentId: "claude" };
   const first = await sessionFixture();
-  for (const resumed of [false, true]) {
+  const overlays: string[] = [];
+  for (const [resumed, shell] of [[false, true], [true, true], [true, false]] as const) {
     const fixture = resumed ? await sessionFixture() : first;
     let launched: AgentExecutorRunInput | undefined;
     let overlay = "";
@@ -393,7 +394,7 @@ for (const userMcp of [undefined, false, true]) test(`fresh and resumed in-app l
           ownerPrincipalId: Promise.resolve("daemon-test-principal"), toolAttemptAuditSink: { append: async () => {} } },
         assistantCliCapabilitiesContext: capabilitiesContext, assistantNativeToolsContext, assistantRuntimeGuidanceContext,
         readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: true, capabilities: {
-          shell: !resumed, ...(userMcp === undefined ? {} : { userMcp }),
+          shell, ...(userMcp === undefined ? {} : { userMcp }),
         } }),
         agentExecutor: { run: async (required: AgentExecutorRunInput, optional: Partial<AgentExecutorRunInput> = {}) => {
           launched = { ...required, ...optional };
@@ -407,7 +408,7 @@ for (const userMcp of [undefined, false, true]) test(`fresh and resumed in-app l
     assert.equal(launched.nativeToolAccess, true);
     assert.equal(launched.cliParity, true);
     assert.equal(launched.nativeCapabilities?.userMcp, userMcp === true);
-    assert.equal(launched.nativeCapabilities?.shell, !resumed);
+    assert.equal(launched.nativeCapabilities?.shell, shell);
     assert.equal(launched.resumeSessionId, resumed ? "unused-session-id" : undefined);
     const args = getAgentDef({ id: "claude" })!.buildArgs({ prompt: launched.prompt, imagePaths: [] }, {
       options: launched, runtimeContext: { mcpJsonPath: "/staged/tovu-mcp.json",
@@ -419,13 +420,16 @@ for (const userMcp of [undefined, false, true]) test(`fresh and resumed in-app l
     assert.match(overlay, /does not inherit your personal Claude hooks or permissions/);
     assert.equal(args.includes("--resume"), resumed);
     assert.equal(args[args.indexOf("--mcp-config") + 1], "/staged/tovu-mcp.json");
-    assert.equal(args.includes("Bash"), resumed, "shell choice must reach actual CLI arguments");
+    assert.equal(args.includes("Bash"), !shell, "shell choice must reach actual CLI arguments");
     assert.doesNotMatch(overlay, /Full CLI access is ON/);
     assert.match(overlay, /Native agents\/subagents\/Task are available/);
     assert.equal(overlay.includes("Your MCP servers"), userMcp !== true);
-    assert.equal(overlay.includes("Bash/shell"), resumed);
+    assert.match(overlay, /use these Tovu tools instead of Bash\/shell for site work/);
+    assert.equal(/Disabled native capabilities for this chat: [^.]*Bash\/shell/.test(overlay), !shell);
+    overlays.push(overlay);
     assert.equal(capabilitiesContext.getStore(), undefined);
     await fixture.lifecycle.finish({ runId: "daemon-test-run", status: "succeeded", code: 0, signal: null, resumable: true }, { sessionRef: "unused-session-id" });
     await new Promise<void>(resolve => setImmediate(resolve));
   }
+  assert.equal(overlays[0], overlays[1], "fresh and resumed launches with the same grants must disclose the same native permissions");
 });

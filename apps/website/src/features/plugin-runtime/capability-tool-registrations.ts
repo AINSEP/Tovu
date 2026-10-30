@@ -2,7 +2,7 @@ import { type ToolRegistry } from "@jini-ai/core";
 import { attachPluginContributionTools, type PluginToolContributionPorts, type PluginContributionRegistry } from "@jini-ai/plugins/host";
 import { readPluginIdentity } from "@jini-ai/core/plugin-directory";
 import { toolMetadata } from '../../contracts/core/tool-metadata/plugin-runtime.js';
-import { withExtensionApprovalPolicy } from '../../assistant/mcp-services.js';
+import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import { buildDomainRegistrations, indexCatalogById, isRecord, requireInputRecord, requireString, ToolInputError, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
@@ -458,8 +458,8 @@ function withActivationGate(registration: ToolRegistration, deps: PluginCapabili
  * authorized.
  */
 export function buildPluginCapabilityToolRegistrations(
-  sources: readonly PluginCapabilityToolSource[],
-  deps: PluginCapabilityToolDeps,
+  { sources, deps, withExtensionApprovalPolicy }: { sources: readonly PluginCapabilityToolSource[]; deps: PluginCapabilityToolDeps; withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
+  _optional: Record<string, never> = {},
 ): ToolRegistration[] {
   return sources.flatMap((source) =>
     buildDomainRegistrations({ metadata: toolMetadata,
@@ -491,10 +491,11 @@ export async function registerEnabledPluginCapabilityTools(
   registry: { register: (registration: ToolRegistration) => void; has?: ToolRegistry["has"]; list?: ToolRegistry["list"] },
   deps: PluginCapabilityToolDeps & {
     readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
+    readonly withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy;
   },
 ): Promise<void> {
   const sources = await loadEnabledPluginCapabilityToolSources(deps);
-  for (const registration of buildPluginCapabilityToolRegistrations(sources, deps)) {
+  for (const registration of buildPluginCapabilityToolRegistrations({ sources, deps, withExtensionApprovalPolicy: deps.withExtensionApprovalPolicy })) {
     registry.register(registration);
   }
   if (deps.pluginContributions && (deps.executablePluginToolRegistry || (registry.has && registry.list))) {

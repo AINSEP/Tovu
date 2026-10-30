@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import { createHash } from "node:crypto";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -36,7 +37,7 @@ export async function installSupportingFilesFixture(
   try {
     const installed = await installAgentPlugin({ archive, archiveReader, expectedSha256: createHash("sha256").update(archive).digest("hex"), layout: agentPluginLayout, workspaceId });
     const registry = createToolRegistry({});
-    await registerInstalledAgentPluginTools(registry, { workspaceId, agentPluginLayout });
+    await registerInstalledAgentPluginTools(registry, { withExtensionApprovalPolicy, workspaceId, agentPluginLayout });
     return { root, registry, installed, workspaceId, agentPluginLayout, skillRoot: path.join(installed.packageRoot, "skills/ui-ux-design"), cleanup: () => forceRemove(root) };
   } catch (error) { await forceRemove(root); throw error; }
 }

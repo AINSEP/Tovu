@@ -190,7 +190,7 @@ test("catalog schema, domain registration and derived risk declare a permission-
   assert.deepEqual(schema.required, ["root", "path"]);
   assert.deepEqual(schema.properties.root.enum, FS_ROOT_IDS);
   assert.deepEqual(Object.keys(schema.properties).sort(), ["alt", "caption", "path", "root", "title"]);
-  assert.match(definition.description, /inside this site folder/);
+  assert.match(definition.description, /saved in this site or the owner-picked folder/);
   assert.ok(definition.description.includes(RECOVERY));
   assert.doesNotMatch(definition.description, /retry with root 'custom'/);
   assert.equal(f.registration().descriptor.readOnly, false);
@@ -395,19 +395,18 @@ test("an injected local cap cannot widen the production 50 MiB ceiling", async (
   await f.noWrites();
 });
 
-test("site local import routes rejected outside roots through files_copy before reading canaries", async t => {
+test("site local import refuses repo and unpicked folders with picker recovery before reading canaries", async t => {
   const f = await setup(t);
   const hidden = 'OUTSIDE_CANARY_NAME.png';
   fs.writeFileSync(path.join(f.parent, 'payload.png'), Buffer.concat([PNG, Buffer.from('OUTSIDE_CANARY_CONTENT')]));
   fs.writeFileSync(path.join(f.parent, hidden), PNG);
-  f.deps.resolveRoots = () => ({ repo: f.parent, custom: f.parent, site: f.rootPath });
+  f.deps.resolveRoots = () => ({ repo: f.parent, custom: undefined, site: f.rootPath });
   const reads = t.mock.method(fs, 'createReadStream');
   for (const root of ['repo', 'custom']) {
     await assert.rejects(() => f.run({ root, path: 'payload.png' }), error => {
       assert.ok(error instanceof ToolInputError);
       const reason = error.message.split("Schema for")[0]!;
-      assert.match(reason, /files_copy with sources:\[\{root:"picked",path:"<relative file path>"\}\], destination:\{kind:"media"\}/);
-      assert.match(reason, /owner-selected folder grant/);
+      assert.ok(reason.includes(RECOVERY), "refusals must explain the owner-controlled picker and attachment recovery");
       assert.doesNotMatch(reason, /retry with root 'custom'/);
       assert.doesNotMatch(error.message, /OUTSIDE_CANARY_CONTENT|OUTSIDE_CANARY_NAME/);
       return true;

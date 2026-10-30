@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -42,12 +43,12 @@ async function buildCatalogDescriptors(withRegistration: boolean, suppliedSource
       discoverPlugins: async () => [discoveryRecord()],
       pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [enabledActivation()] }),
     });
-    const registrations = buildPluginCapabilityToolRegistrations(sources, {
+    const registrations = buildPluginCapabilityToolRegistrations({ sources: sources, deps: {
       authorize: async () => ({ allowed: true }) as never,
       workspaceId: WORKSPACE,
       postRepo: new InMemoryPostRepo(),
       pluginActivationRepo: new InMemoryPluginActivationRepo({ initialRows: [enabledActivation()] }),
-    });
+    }, withExtensionApprovalPolicy });
     for (const registration of registrations) registry.register(registration);
   }
   return registry.list({});

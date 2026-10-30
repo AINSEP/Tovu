@@ -14,7 +14,7 @@ import { installSupportingFilesFixture } from "../fixtures/supporting-files.js";
 /** Real provider turn + real ToolExecutor + real installed skill bytes; only the model is scripted. */
 test("assistant tool-call transcript contains the installed ui-ux-design foundations reference", async t => {
   const require = createRequire(import.meta.url);
-  const foundations = await readFile(require.resolve("@jini-ai/agent-plugins/ui-ux-design/skills/ui-ux-design/references/foundations.md"), "utf8");
+  const foundations = await readFile(require.resolve("@jini-ai/plugin-ui-ux-design/ui-ux-design/skills/ui-ux-design/references/foundations.md"), "utf8");
   const distinctiveLine = "Give Programmer a constrained, reusable system instead of one-off styling decisions.";
   assert.ok(foundations.includes(distinctiveLine));
   const fixture = await installSupportingFilesFixture({}, { files: { "skills/ui-ux-design/references/foundations.md": foundations } });

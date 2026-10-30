@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
@@ -118,7 +119,7 @@ test("an installed skill folder produces exactly one tool with id 'skill_<name>'
     );
 
     const registry = createToolRegistry({});
-    for (const registration of buildSkillToolRegistrations(sources)) registry.register(registration);
+    for (const registration of buildSkillToolRegistrations({ sources: sources, withExtensionApprovalPolicy })) registry.register(registration);
     assert.deepEqual(registry.list({}).map((d) => d.id), ["skill_incident_response"]);
     assert.equal(registry.list({})[0]?.description, source.description);
   });
@@ -196,7 +197,7 @@ test("the handler returns the exact SKILL.md body, unmodified", async () => {
   await withSkillsDir(async (skillsDir) => {
     await writeSkill(skillsDir, WORKSPACE_A, "incident-response", { "SKILL.md": INCIDENT_RESPONSE_SKILL_MD });
     const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
-    const [registration] = buildSkillToolRegistrations(sources);
+    const [registration] = buildSkillToolRegistrations({ sources: sources, withExtensionApprovalPolicy });
     assert.ok(registration);
     const result = (await registration.handler(fakeCtx())) as { guidance: string };
     assert.equal(result.guidance, INCIDENT_RESPONSE_SKILL_MD);
@@ -216,7 +217,7 @@ test("the handler lists bundled references/scripts/assets files by site-relative
     });
 
     const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
-    const [registration] = buildSkillToolRegistrations(sources);
+    const [registration] = buildSkillToolRegistrations({ sources: sources, withExtensionApprovalPolicy });
     assert.ok(registration);
     const result = (await registration.handler(fakeCtx())) as {
       bundledFiles: readonly { kind: string; path: string }[];
@@ -251,7 +252,7 @@ test("a skill with no bundled subdirectories at all returns an empty bundledFile
   await withSkillsDir(async (skillsDir) => {
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
     const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
-    const [registration] = buildSkillToolRegistrations(sources);
+    const [registration] = buildSkillToolRegistrations({ sources: sources, withExtensionApprovalPolicy });
     assert.ok(registration);
     const result = (await registration.handler(fakeCtx())) as { bundledFiles: readonly unknown[] };
     assert.deepEqual(result.bundledFiles, []);
@@ -262,7 +263,7 @@ test("the input schema accepts an optional file and refuses unexpected fields", 
   await withSkillsDir(async (skillsDir) => {
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
     const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
-    const [registration] = buildSkillToolRegistrations(sources);
+    const [registration] = buildSkillToolRegistrations({ sources: sources, withExtensionApprovalPolicy });
     assert.ok(registration);
 
     const schema = registration.descriptor.inputSchema as { required: readonly string[]; properties: Record<string, unknown> };
@@ -292,7 +293,7 @@ test("registerInstalledSkillTools loads and registers one tool per skill directl
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
 
     const registry = createToolRegistry({});
-    await registerInstalledSkillTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
+    await registerInstalledSkillTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy });
 
     assert.equal(registry.has({ toolId: "skill_incident_response" }), true);
     assert.equal(registry.has({ toolId: "skill_code_review" }), true);
@@ -313,7 +314,7 @@ test("an empty (never-installed) workspace produces zero sources and an empty re
   await withSkillsDir(async () => {
     const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
     assert.deepEqual(sources, []);
-    assert.deepEqual(buildSkillToolRegistrations(sources), []);
+    assert.deepEqual(buildSkillToolRegistrations({ sources: sources, withExtensionApprovalPolicy }), []);
   });
 });
 
@@ -326,7 +327,7 @@ for (const [name, scalar, expected] of [
       await writeSkill(skillsDir, WORKSPACE_A, name, { "SKILL.md": `---\nname: ${name}\ndescription: ${scalar}\n  First line.\n  Second line.\n---\n# Body\n` });
       const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
       const registry = createToolRegistry({});
-      for (const registration of buildSkillToolRegistrations(sources)) registry.register(registration);
+      for (const registration of buildSkillToolRegistrations({ sources: sources, withExtensionApprovalPolicy })) registry.register(registration);
       assert.deepEqual(registry.list({}).map(({ id, description }) => ({ id, description })), [{ id: `skill_${name}`, description: expected }]);
     });
   });
@@ -345,16 +346,16 @@ test("different skill names that sanitize to the same tool id refuse loudly", as
 test("refreshing installed skills adds, updates, removes and re-adds without a restart", async () => {
   await withSkillsDir(async (skillsDir) => {
     const registry = createToolRegistry({});
-    await registerInstalledSkillTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
+    await registerInstalledSkillTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy });
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD });
-    await registerInstalledSkillTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
+    await registerInstalledSkillTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy });
     assert.deepEqual(registry.list({}).map(d => d.id), ["skill_code_review"]);
     await rm(path.join(skillsDir, "ws", WORKSPACE_A, "code-review"), { recursive: true });
-    await registerInstalledSkillTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
+    await registerInstalledSkillTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy });
     assert.deepEqual(registry.list({}).map(d => d.id), []);
     assert.equal(registry.has({ toolId: "skill_code_review" }), false);
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD.replace("Code Review", "Updated Rules") });
-    await registerInstalledSkillTools(registry, testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
+    await registerInstalledSkillTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy });
     assert.deepEqual(registry.list({}).map(d => d.id), ["skill_code_review"]);
   });
 });
@@ -363,7 +364,7 @@ test("a skill bundledFiles pointer chains directly into the real fs_read_file ha
   const { buildFsFilesRegistrations } = await import("../../../fs-files/tool-registrations.js");
   await withSkillsDir(async (skillsDir) => {
     await writeSkill(skillsDir, WORKSPACE_A, "code-review", { "SKILL.md": CODE_REVIEW_SKILL_MD, "references/check.md": "Check ownership before deleting.\n" });
-    const [registration] = buildSkillToolRegistrations(await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A })));
+    const [registration] = buildSkillToolRegistrations({ sources: await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A })), withExtensionApprovalPolicy });
     const output = await registration!.handler(fakeCtx()) as { bundledFiles: { kind: string; root: string; path: string }[] };
     assert.equal(output.bundledFiles[0]!.root, "site");
     const fsTools = buildFsFilesRegistrations(testSiteLayoutContext({ workspaceId: WORKSPACE_A, authorize: async () => ({ allowed: true, reason: "test" }), resolveRoots: () => ({ site: path.dirname(skillsDir), repo: undefined, custom: undefined }) }));
@@ -382,7 +383,7 @@ test("standalone skill tools read references, resources and examples through the
       "examples/component.tsx": "export const Example = () => <div />;\n",
     });
     const sources = await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A, siteBinding: { dir: path.join(skillsDir, "unrelated-site") } }));
-    const [registration] = buildSkillToolRegistrations(sources);
+    const [registration] = buildSkillToolRegistrations({ sources: sources, withExtensionApprovalPolicy });
     assert.ok(registration);
     const expectedFiles = ["examples/component.tsx", "references/check.md", "resources/contracts.json"];
     const overview = await registration.handler(fakeCtx()) as { files: string[]; bundledFiles: unknown[] };
@@ -408,7 +409,7 @@ test("standalone skill tools refuse unsafe, missing, binary, disallowed and over
     });
     const otherRoot = await writeSkill(skillsDir, WORKSPACE_A, "incident-response", { "SKILL.md": INCIDENT_RESPONSE_SKILL_MD });
     await symlink(path.join(otherRoot, "SKILL.md"), path.join(skillRoot, "escape.md"));
-    const registration = buildSkillToolRegistrations(await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }))).find(tool => tool.descriptor.id === "skill_code_review");
+    const registration = buildSkillToolRegistrations({ sources: await loadInstalledSkillToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A })), withExtensionApprovalPolicy }).find(tool => tool.descriptor.id === "skill_code_review");
     assert.ok(registration);
     for (const file of ["../incident-response/SKILL.md", path.join(skillRoot, "SKILL.md"), "escape.md", "missing.md", "resources/binary.txt", "resources/asset.png", "resources/large.md"]) {
       const output = await registration.handler(fakeCtx({ file })) as { guidance: string; files: string[]; note: string };

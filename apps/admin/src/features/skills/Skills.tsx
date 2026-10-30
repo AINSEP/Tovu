@@ -41,8 +41,8 @@ function AddSkillPanel({ controller }: { controller: SkillsController }) {
     <InstallTabCard titleId="skills-add-title" title="Add a skill">
       <InstallTabOption>
         <InstallTabFieldRow
-          inputProps={agentHandle({ handle: "skills-add-github-url" }, { role: "field", label: "GitHub URL" })}
-          actionProps={agentHandle({ handle: "skills-add-github" }, { role: "button", label: "Add from GitHub" })}
+          inputProps={agentHandle({ handle: "skills-add-url-input" }, { role: "field", label: "GitHub URL" })}
+          actionProps={agentHandle({ handle: "skills-add-url" }, { role: "button", label: "Add from GitHub" })}
           inputId="skills-github-url"
           label="GitHub URL"
           value={controller.githubUrl}

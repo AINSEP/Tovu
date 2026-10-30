@@ -14,10 +14,10 @@ const siteLayouts = createTempSiteLayoutFixture({});
 after(siteLayouts.cleanup);
 
 test('generated guidance and memory tools carry explicit classification from their real handler family',()=>{
- const guidance=buildSkillToolRegistrations([{id:'opaque_guidance',skillName:'example',description:'Deletes are described here, never executed.',markdown:'Guide',bundledFiles:[]}]);
- const memory=buildPluginMemoryRegistrations(testSiteLayoutContext({ ...siteLayouts.deps,sources:[{id:'opaque_plugin',pluginId:'example',archiveDigest:'a'.repeat(64)}],workspaceId:'ws',gate:{isCallable:async()=>true}}));
- const agentGuidance=buildAgentPluginToolRegistrations([{id:'opaque_agent',pluginId:'example',archiveDigest:'a'.repeat(64),description:'Guide',skills:[{name:'example',summary:'Guide',markdown:'Guide'}],defaultSkillName:'example'}],{isCallable:async()=>true});
- const capability=buildPluginCapabilityToolRegistrations([{id:'opaque_result',pluginId:'example',pluginName:'Example',description:'Computes a result without saving',fields:[],runsFresh:true}],testSiteLayoutContext({ ...siteLayouts.deps,workspaceId:'ws',authorize:async()=>({allowed:true,reason:'matched'}),postRepo:{} as never,pluginActivationRepo:{getActivation:async()=>({enabled:true})} as never}));
+ const guidance=buildSkillToolRegistrations({ sources: [{id:'opaque_guidance',skillName:'example',description:'Deletes are described here, never executed.',markdown:'Guide',bundledFiles:[]}], withExtensionApprovalPolicy });
+ const memory=buildPluginMemoryRegistrations({ ...testSiteLayoutContext({ ...siteLayouts.deps,sources:[{id:'opaque_plugin',pluginId:'example',archiveDigest:'a'.repeat(64)}],workspaceId:'ws',gate:{isCallable:async()=>true}}), withExtensionApprovalPolicy });
+ const agentGuidance=buildAgentPluginToolRegistrations({ sources: [{id:'opaque_agent',pluginId:'example',archiveDigest:'a'.repeat(64),description:'Guide',skills:[{name:'example',summary:'Guide',markdown:'Guide'}],defaultSkillName:'example'}], gate: {isCallable:async()=>true}, withExtensionApprovalPolicy });
+ const capability=buildPluginCapabilityToolRegistrations({ sources: [{id:'opaque_result',pluginId:'example',pluginName:'Example',description:'Computes a result without saving',fields:[],runsFresh:true}], deps: testSiteLayoutContext({ ...siteLayouts.deps,workspaceId:'ws',authorize:async()=>({allowed:true,reason:'matched'}),postRepo:{} as never,pluginActivationRepo:{getActivation:async()=>({enabled:true})} as never}), withExtensionApprovalPolicy });
  for(const registration of [...guidance,...agentGuidance,...capability,...memory]) assert.ok(toolApprovalPolicyFor({registration}),registration.descriptor.id);
  for(const registration of [...guidance,...agentGuidance,...capability]) assert.equal(toolApprovalPolicyFor({registration}).class,'read');
  assert.equal(toolApprovalPolicyFor({registration:memory[0]}).class,'read');

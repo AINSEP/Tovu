@@ -24,7 +24,7 @@ import type { AgentPluginAdminSurfaceHandlers } from '../admin-surfaces/handlers
 import type { SurfaceDetail } from '@jini-ai/ui/mcp-ui/surfaces';
 import type { HttpClientPort } from '@jini-ai/core/primitives';
 import { EXTENSION_TOOL_APPROVAL_POLICY } from '../../../contracts/headless/index.js';
-import { withExtensionApprovalPolicy } from '../../../assistant/mcp-services.js';
+import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import type { AuthorizeFn } from '../../../contracts/core/commands/index.js';
 import { APPROVAL_FAMILY_BY_EFFECT, createAgentPluginDisclosure } from './approval.js';
 import {
@@ -94,10 +94,11 @@ export async function registerAgentPluginExecutableTools(
     readonly registry: ToolRegistry; readonly workspaceId: string; readonly host: AgentPluginExecutableToolHost;
     readonly isActive: (required: { readonly pluginId: string }) => Promise<boolean>;
     readonly authorize: AuthorizeFn; readonly applyApproval: ApplyAgentPluginApproval;
+    readonly withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy;
   },
   _optional: Record<string, never> = {},
 ): Promise<{ readonly refusals: readonly string[]; refresh(): Promise<{ readonly refusals: readonly string[] }>; dispose(): void }> {
-  const { registry, workspaceId, host } = required;
+  const { registry, workspaceId, host, withExtensionApprovalPolicy } = required;
   const frozen = host.frozen ?? createFrozenConnectionAccounts();
   const capabilities = createAgentPluginToolCapabilities({ connections: host.connections, http: host.http, limiter: host.limiter, frozen, state: host.state, apiOrigins: host.apiOrigins }, host.artifacts ? { artifacts: host.artifacts } : {});
   const contributions = createPluginContributionRegistry({});

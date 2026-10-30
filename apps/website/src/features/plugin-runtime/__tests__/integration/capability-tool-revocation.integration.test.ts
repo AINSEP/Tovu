@@ -1,3 +1,4 @@
+import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-tool-approval-policy.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -67,7 +68,7 @@ function post(overrides: Partial<PostRecord> = {}): PostRecord {
  *  registry for the rest of the process's life. */
 async function bootDaemonToolSurface(repo: PluginActivationRepoPort): Promise<ToolRegistry> {
   const registry = createToolRegistry({});
-  await registerEnabledPluginCapabilityTools(registry, {
+  await registerEnabledPluginCapabilityTools(registry, { withExtensionApprovalPolicy,
     authorize: async () => ({ allowed: true }) as never,
     workspaceId: WORKSPACE,
     postRepo: new InMemoryPostRepo([post()]),

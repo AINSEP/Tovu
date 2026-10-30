@@ -228,10 +228,10 @@ it("tags every Skills add-tab input/action and both install confirmation choices
   window.history.replaceState(null, "", "/admin/addons/skills?tab=add");
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ skills: [] })));
   render(<Skills />);
-  for (const [name, handle] of [["GitHub URL", "skills-add-github-url"], ["Choose skill files", "skills-add-files-input"], ["Choose skill folder", "skills-add-folder-input"]]) {
+  for (const [name, handle] of [["GitHub URL", "skills-add-url-input"], ["Choose skill files", "skills-add-files-input"], ["Choose skill folder", "skills-add-folder-input"]]) {
     expect(screen.getByLabelText(name)).toHaveAttribute("data-agent-element", handle);
   }
-  for (const [name, handle] of [["Add from GitHub", "skills-add-github"], ["Upload files", "skills-add-files"], ["Upload folder", "skills-add-folder"]]) {
+  for (const [name, handle] of [["Add from GitHub", "skills-add-url"], ["Upload files", "skills-add-files"], ["Upload folder", "skills-add-folder"]]) {
     expect(screen.getByRole("button", { name })).toHaveAttribute("data-agent-element", handle);
   }
   fireEvent.change(screen.getByRole("textbox", { name: "GitHub URL" }), { target: { value: "https://github.com/acme/incident" } });

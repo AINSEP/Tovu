@@ -1,5 +1,6 @@
 import { buildConfirmedAssistantToolRegistrations } from "./fixtures/confirmed-registrations.js";
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, createToolRegistry } from "@jini-ai/core";
+import { createToolExecutor } from "@jini-ai/daemon";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -18,6 +19,7 @@ import { resolveBatchableTools, batchDescriptorFor } from "../batch-tool-inputs.
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
+import { mapToolExecutionResult } from "../byok-meta-tool-result.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -336,6 +338,31 @@ test("an unknown themeId is a schema-decorated refusal naming the themes that do
     () => wired(deps, "theme_read_file").handler(executionContext({ themeId: "nope", path: "theme.json" })),
     (err: Error) => /theme 'nope' was not found/.test(err.message) && /discovered themes are: hb, plain/.test(err.message)
   );
+});
+
+test("theme_write_file: missing theme error tells the agent to create it first with theme_duplicate", async (t) => {
+  const { deps, themesDir } = fakeRouteDeps();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const registry = createToolRegistry({});
+  registry.register(wired(deps, "theme_write_file"));
+  const executor = createToolExecutor({ registry });
+
+  const outcome = await executor.execute({
+    principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, toolId: "theme_write_file",
+    input: { themeId: "apple", path: "styles.css", content: "body{color:red}" },
+  });
+  const result = mapToolExecutionResult(outcome, "theme_write_file");
+
+  assert.equal(outcome.status, "failed");
+  assert.equal(outcome.errorKind, "validation");
+  assert.equal(result.isError, true);
+  assert.equal(typeof result.content, "string");
+  if (typeof result.content !== "string") assert.fail("expected model-readable error text");
+  assert.match(result.content, /theme 'apple' was not found/);
+  assert.match(result.content, /discovered themes are: hb, plain/);
+  assert.equal(fs.existsSync(path.join(themesDir, "apple")), false, "a refused write must not create a theme");
+  assert.match(result.content, /\btheme_duplicate\b/, "name the tool that creates the missing theme");
+  assert.match(result.content, /\b(?:first|before)\b/i, "creation must precede theme_write_file");
 });
 
 // ---------------------------------------------------------------------------

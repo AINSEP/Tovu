@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import Ajv from "ajv";
+import { Ajv } from "ajv";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { DOC_NODE_HANDLERS, MARK_RENDERERS, renderDocNode, type MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render";
