@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { OwnerStoreBridge, OwnerStoreEntry } from '../contracts/owner-store.js';
 import { ownerStoreBridge } from './runner-api.js';
 import { useSharedKeys } from './SharedKeys.hooks.js';
+import { ToolIcon } from './tool-icons.js';
 
 type StoreState = ReturnType<typeof useSharedKeys>;
 
@@ -12,7 +13,10 @@ type StoreState = ReturnType<typeof useSharedKeys>;
 export function SharedKeysLauncher(_input = {}, _options = {}) {
   const [open, setOpen] = useState(false);
   return <>
-    <button type="button" className="button button--quiet" aria-haspopup="dialog" onClick={() => setOpen(true)}>Shared keys</button>
+    <button type="button" className="button button--quiet button--icon jini-tooltip" data-tooltip-placement="bottom"
+      data-tooltip="Keys shared by all your sites" aria-label="Shared keys" aria-haspopup="dialog" onClick={() => setOpen(true)}>
+      <ToolIcon kind="keys" />
+    </button>
     {open && <SharedKeys onClose={() => setOpen(false)} />}
   </>;
 }

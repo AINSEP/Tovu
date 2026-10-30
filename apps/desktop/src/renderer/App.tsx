@@ -4,6 +4,7 @@ import { useProductScreen } from './use-product-screen.hooks.js';
 import { useTabStrip } from './use-tab-strip.hooks.js';
 import { findSection, visibleSections, type RunnerSection, type RunnerSectionId } from '../contracts/sections.js';
 import { GearIcon, MenuIcon, NavIcon, SectionIcon } from './icons.js';
+import { ToolIcon } from './tool-icons.js';
 import { useTheme, type ThemePreference } from './theme.js';
 import {
   appPresentation,
@@ -1137,8 +1138,10 @@ function MainHeader({
         <div className="main__tools">
           {/* Ahead of "Create website" and styled quiet: this one only ever ADDS cards for sites
               that already exist, so it must not compete with the primary action. */}
-          <button type="button" className="button button--quiet" onClick={() => void onRescan()} disabled={rescanning}>
-            {rescanning ? 'Scanning…' : 'Rescan'}
+          <button type="button" className="button button--quiet button--icon jini-tooltip" data-tooltip-placement="bottom"
+            data-tooltip="Rescan your sites folder for websites" aria-label={rescanning ? 'Scanning…' : 'Rescan'} aria-busy={rescanning}
+            onClick={() => void onRescan()} disabled={rescanning}>
+            <ToolIcon kind="rescan" />
           </button>
           <SitesFolders useSettings={useFolders} />
           <SharedKeysLauncher />
@@ -1153,8 +1156,9 @@ function MainHeader({
           </button>
           {/* Quiet like Rescan: it opens a site's own Import & Export > Import tab, where the import lives. */}
           {onImportSite && (
-            <button type="button" className="button button--quiet" onClick={onImportSite}>
-              Import site
+            <button type="button" className="button button--quiet button--icon jini-tooltip" data-tooltip-placement="bottom"
+              data-tooltip="Import a site from a Tovu export or a live website" aria-label="Import site" onClick={onImportSite}>
+              <ToolIcon kind="import" />
             </button>
           )}
           <button type="button" className="button button--create" onClick={onCreateWebsite}>

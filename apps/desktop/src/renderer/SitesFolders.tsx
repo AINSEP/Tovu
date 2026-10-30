@@ -7,6 +7,7 @@ import { useSiteFolders } from './use-site-folders.hooks.js';
 import { useSiteStorageSettings } from './use-site-storage-settings.hooks.js';
 import { useSitesFoldersDialog } from './use-sites-folders-dialog.hooks.js';
 import { reportShellTelemetry } from './product-telemetry.js';
+import { ToolIcon } from './tool-icons.js';
 
 /** Jini supplies dialog lifecycle/accessibility; hooks own all state and preload effects. */
 export function SitesFolders({ useSettings = useSiteFolders, Shell }: {
@@ -30,7 +31,9 @@ export function SitesFoldersDialog({ settings, showTrigger, Shell = SettingsDial
   const view = useSitesFoldersDialog({ settings }, { showTrigger });
   const warning = <SitesFoldersWarning settings={settings} view={view} />;
   return <>
-    {view.showTrigger && <button type="button" className="button button--quiet" onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'open_settings' } }); settings.show(); }}>Sites settings</button>}
+    {view.showTrigger && <button type="button" className="button button--quiet button--icon jini-tooltip" data-tooltip-placement="bottom"
+      data-tooltip="Settings for all sites" aria-label="Sites settings" aria-haspopup="dialog"
+      onClick={() => { reportShellTelemetry({ payload: { kind: 'action', id: 'open_settings' } }); settings.show(); }}><ToolIcon kind="sliders" /></button>}
     {view.showOutsideWarning && warning}
     {settings.open && <Shell onClose={settings.close} fullscreenEnabled={false} dialogAriaLabelledBy="desktop-sites-settings-title"
       className="sites-settings-dialog"

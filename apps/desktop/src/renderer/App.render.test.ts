@@ -43,7 +43,9 @@ test('App: the header chip and running card display the same resource snapshot',
       sites: [{ ...metrics, siteId: 'a', processes: [] }],
     }),
   });
-  assert.equal(app.container.querySelector('.topnav__tools .resources-chip')?.textContent, 'Memory: ~250MB');
+  const chip = app.container.querySelector('.topnav__tools .resources-chip');
+  assert.equal(chip?.textContent, '~250MB');
+  assert.equal(chip?.getAttribute('data-tooltip'), 'Memory used by Tovu and running sites: ~250 MB');
   assert.equal(app.container.querySelector('article.card .card__resources')?.textContent, '~250MB');
 });
 
@@ -67,14 +69,14 @@ test('App: an empty Projects screen explains the three header actions, and the h
   const app = await renderApp(t);
   assert.match(app.text(), /No websites yet\. Use Create website/);
   assert.equal(app.container.querySelector('.topnav__version')?.textContent, '1.2.3');
-  assert.equal(app.byText('Import site'), undefined, 'no site, nothing to import into');
-  await app.click(app.byText('Rescan'));
+  assert.equal(app.byLabel('Import site'), null, 'no site, nothing to import into');
+  await app.click(app.byLabel('Rescan'));
   await app.click(app.byText('Add Tovu Website'));
   assert.deepEqual(app.calls, ['rescan', 'add']);
   await app.click(app.all('button').find((b) => b.textContent?.includes('Create website')));
   assert.equal(app.container.querySelector('.main__title')?.textContent, 'Create a website');
   assert.equal(app.container.querySelector('.create-website-host')?.getAttribute('aria-hidden'), 'false');
-  assert.equal(app.byText('Rescan'), undefined, 'the header tools give way to the form');
+  assert.equal(app.byLabel('Rescan'), null, 'the header tools give way to the form');
 });
 
 test('App: loading, a failed list, a failed rescan and a refused add each read as their own message', async (t) => {
@@ -91,7 +93,7 @@ test('App: loading, a failed list, a failed rescan and a refused add each read a
     rescanSites: () => Promise.reject(new Error('scan root unreadable')),
     addSite: () => Promise.reject(new Error('That folder is not a Tovu site.')),
   });
-  await refused.click(refused.byText('Rescan'));
+  await refused.click(refused.byLabel('Rescan'));
   await refused.click(refused.byText('Add Tovu Website'));
   assert.match(refused.text(), /scan root unreadable/);
   assert.equal(refused.container.querySelector('.projects-feedback')?.textContent?.length !== 0, true);
@@ -109,9 +111,9 @@ test('App: the nav badges running sites, inert links do nothing, and an agent na
   await act(async () => { for (const listener of app.listeners.navigate) listener('agents' as RunnerSectionId); });
   await settle();
   assert.match(app.text(), /isn’t built yet/);
-  assert.equal(app.byText('Rescan'), undefined, 'the Projects tools belong to Projects only');
+  assert.equal(app.byLabel('Rescan'), null, 'the Projects tools belong to Projects only');
   await app.click(app.byLabel('Websites'));
-  await app.click(app.byText('Import site'));
+  await app.click(app.byLabel('Import site'));
   assert.ok(app.all('[role="tab"]').some((tab) => tab.textContent?.includes('Site a') && tab.getAttribute('aria-selected') === 'true'),
     'Import site opens the running site\'s own tab');
   assert.match(app.container.querySelector('webview')?.getAttribute('src') ?? '', /\/admin\/.*import/, 'on its Import page');

@@ -70,3 +70,14 @@ test('the Settings menu glyphs are six distinct shapes in the shared frame', asy
   for (const body of bodies) assert.match(body, /^<(path|rect|circle) /);
   assert.equal(new Set(bodies).size, kinds.length);
 });
+
+test('the toolbar glyphs share the frame; Rescan is not the reload arrow, keys and sliders are the hidden sections\' own', async () => {
+  const { ToolIcon } = await import('./tool-icons.js');
+  const kinds = ['rescan', 'keys', 'import', 'sliders', 'memory'] as const;
+  const bodies = kinds.map((kind) => inner(renderToStaticMarkup(React.createElement(ToolIcon, { kind }))));
+  assert.equal(new Set(bodies).size, kinds.length);
+  assert.notEqual(bodies[0], inner(renderToStaticMarkup(React.createElement(NavIcon, { kind: 'reload' }))));
+  assert.equal(bodies[1], inner(renderToStaticMarkup(React.createElement(SectionIcon, { id: 'api-keys' }))));
+  assert.equal(bodies[3], inner(renderToStaticMarkup(React.createElement(SectionIcon, { id: 'settings' }))));
+  assert.notEqual(bodies[2], inner(renderToStaticMarkup(React.createElement(SectionIcon, { id: 'deploy' }))));
+});

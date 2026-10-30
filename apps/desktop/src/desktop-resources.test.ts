@@ -204,3 +204,25 @@ test('S2 sampler rejection returns unavailable without native error text and can
   fail = false; at += 5000;
   assert.equal((await monitor.get({ panelOpen: true })).status, 'available');
 });
+
+test('the usage probe (ps; PowerShell on Windows) never counts itself, so the total CPU is measured', async () => {
+  for (const [platform, probe] of [['darwin', 'ps'], ['win32', 'powershell.exe']] as const) {
+    const f = fixture({ platform });
+    f.rows([usage(1, 0, 100, 10), usage(2, 1, 100, 10, 'Tovu Helper'), usage(50, 1, 1_000_000, 0, probe)]);
+    await f.monitor.get({ panelOpen: true });
+    // Each read spawns a fresh probe pid, which never has a previous CPU sample.
+    f.advance(10_000); f.rows([usage(1, 0, 100, 11), usage(2, 1, 100, 10.5, 'Tovu Helper'), usage(51, 1, 1_000_000, 0, probe)]);
+    const result = await f.monitor.get({ panelOpen: true });
+    assert.deepEqual(result.app.processes.map((row) => row.name), ['node', 'Tovu Helper']);
+    assert.equal(result.total.rssBytes, 200);
+    assert.equal(result.total.cpuPercent, 15);
+  }
+});
+
+test('a ps that is not the desktop\'s own probe is still counted', async () => {
+  const f = fixture();
+  f.sites([{ id: '/one', pid: 10 }]);
+  f.rows([usage(1, 0), usage(10, 1), usage(11, 10, 100, 0, 'ps')]);
+  const result = await f.monitor.get({ panelOpen: true });
+  assert.deepEqual(result.sites[0]!.processes.map((row) => row.name), ['node', 'ps']);
+});

@@ -62,7 +62,7 @@ test('the tab hook remembers a requested admin page per tab and forgets it on cl
 test('the header button opens the target tab on the import page and hides with no target', () => {
   assert.match(app, /resolveImportSiteTarget\(\{ projects \}\)/);
   assert.match(app, /openProjectTab\(importTarget, \{ adminPage: 'import' \}\)/);
-  assert.match(app, /onImportSite && \(\s*<button type="button" className="button button--quiet" onClick=\{onImportSite\}>\s*Import site\s*<\/button>/);
+  assert.match(app, /onImportSite && \(\s*<button type="button" className="button button--quiet button--icon jini-tooltip"[^>]*aria-label="Import site" onClick=\{onImportSite\}>/);
 });
 
 test('each workspace receives its own requested admin page', () => {

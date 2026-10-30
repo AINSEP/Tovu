@@ -53,6 +53,15 @@ function processRows({ usages, rootPid, rootRole, readings }: {
   });
 }
 
+/** The sampler's own probe (`ps`; PowerShell on Windows) is a fresh direct child of the desktop on every
+ * read: not a cost of Tovu, and its always-unmeasured CPU would make the total unavailable forever. O(n). */
+function withoutUsageProbe({ usages, desktopPid, platform }: {
+  usages: readonly ProcessUsage[]; desktopPid: number; platform: NodeJS.Platform;
+}, _options = {}): readonly ProcessUsage[] {
+  const probe = platform === 'win32' ? /^powershell(?:\.exe)?$/i : /^ps$/;
+  return usages.filter((row) => !(row.ppid === desktopPid && probe.test(row.name)));
+}
+
 /** Null is distinct from zero: missing roots and failed samples must not look inexpensive. */
 function metrics({ processes, available, warningBytes }: {
   processes: readonly ResourceProcess[]; available: boolean; warningBytes: number;
@@ -61,6 +70,7 @@ function metrics({ processes, available, warningBytes }: {
   const rssBytes = processes.reduce((sum, row) => sum + row.rssBytes, 0);
   return {
     rssBytes,
+    // Every pid must be measured: a new pid has no previous sample, so a partial sum would understate CPU.
     cpuPercent: processes.every((row) => row.cpuPercent !== null)
       ? processes.reduce((sum, row) => sum + row.cpuPercent!, 0) : null,
     memoryWarning: rssBytes >= warningBytes,
@@ -122,7 +132,8 @@ export function createDesktopResources(ports: DesktopResourcesPorts, _options = 
     let usages: readonly ProcessUsage[];
     try {
       const sampled = await ports.listUsage();
-      usages = applyElectronMemoryReadings({ processes: sampled, electronMetrics: ports.listElectronMetrics?.() ?? [] });
+      usages = applyElectronMemoryReadings({ processes: withoutUsageProbe({ usages: sampled, desktopPid: ports.desktopPid, platform: ports.platform }),
+        electronMetrics: ports.listElectronMetrics?.() ?? [] });
     } catch { usages = []; }
     const result = groupSample({ usages, sites: ports.openSites(), desktopPid: ports.desktopPid,
       previous, at: ports.now(), totalMemoryBytes: ports.totalMem(), pollIntervalMs });

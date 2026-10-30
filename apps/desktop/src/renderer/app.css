@@ -1732,6 +1732,14 @@ webview { display: flex; }
 .button--contrast:disabled,
 .button--create:disabled { opacity: 0.45; cursor: not-allowed; }
 
+/* The Websites toolbar's secondary actions: square, the nav's 20px glyph, name in `aria-label`,
+   sentence in a Jini tooltip. Hover and focus come from `.button--quiet` and the global ring. */
+.button--icon { width: 34px; padding: 0; }
+.button--icon[aria-busy="true"] .icon { animation: spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .button--icon[aria-busy="true"] .icon { animation: none; }
+}
+
 /*
  * A QUERY CONTAINER, not a plain block — the form inside it has genuine multi-column layouts that
  * need a real threshold, and the viewport is the wrong thing to measure them against.
@@ -2238,7 +2246,8 @@ webview { display: flex; }
 .creation-notice__text { min-width: 0; overflow-wrap: anywhere; }
 
 /* Main owns warning policy. Yellow copy remains explicit so colour is never the only signal. */
-.resources-chip { border: 1px solid var(--border); border-radius: var(--r-pill); background: var(--surface); padding: 0.35rem 0.65rem; font-size: 0.75rem; cursor: pointer; max-width: 22rem; }
+.resources-chip { display: inline-flex; align-items: center; gap: 0.3rem; border: 1px solid var(--border); border-radius: var(--r-pill); background: var(--surface); padding: 0.35rem 0.65rem; font-size: 0.75rem; font-variant-numeric: tabular-nums; cursor: pointer; max-width: 22rem; }
+.resources-chip .icon { width: 14px; height: 14px; color: var(--muted); }
 .resources-chip:hover { background: var(--surface-2); }
 .resources-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 .resources-chip.is-warning, .card__resources.is-warning { color: var(--warning); }
@@ -2248,17 +2257,23 @@ webview { display: flex; }
 .resources-dialog .jini-tabbed-dialog-sidebar-toggle { display: none; }
 .resources-dialog .jini-tabbed-dialog-body { grid-template-columns: minmax(0, 1fr); }
 .resources-dialog .jini-tabbed-dialog-content { grid-column: 1; padding: 1.25rem; }
-.resources-dialog .resource-row-list-hero-title { margin: 0; font-size: 1.1rem; }
-.resources-dialog .resource-row-list-hero-lede, .resources-dialog .resource-row-list-item-meta { color: var(--muted); font-size: 0.8rem; }
-.resources-dialog .resource-row-list-section-head h2 { margin: 1.25rem 0 0.5rem; font-size: 0.85rem; }
-.resources-dialog .resource-row-list-items { list-style: none; margin: 0; padding: 0; }
-.resources-dialog .resource-row-list-item { display: flex; align-items: flex-start; gap: 1rem; border-top: 1px solid var(--border); padding: 0.9rem 0; }
-.resources-dialog .resource-row-list-item-main { flex: 1; min-width: 0; }
-.resources-dialog .resource-row-list-item-content { display: grid; gap: 0.25rem; overflow-wrap: anywhere; }
-.resources-dialog .resource-row-list-item-title { font-weight: 600; }
-.resources-dialog .resource-row-list-item-detail { color: var(--muted); font-size: 0.7rem; }
-.resources-dialog .resource-row-list-item-actions button { border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface-2); padding: 0.3rem 0.7rem; cursor: pointer; }
-.resources-dialog .resource-row-list-item-actions button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.resources-dialog .resource-row-list-item-actions button:disabled { opacity: 0.6; cursor: default; }
-.resources-dialog .resource-row-list-action-error { color: var(--warning); overflow-wrap: anywhere; }
-.resources-total { margin-top: 0; font-weight: 600; overflow-wrap: anywhere; }
+.resources-total { margin: 0 0 0.75rem; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.resources-error { margin: 0 0 0.75rem; color: var(--warning); overflow-wrap: anywhere; }
+/* Process | PID | Memory | CPU, one <tbody> per owner. Numbers right-aligned in tabular figures so
+   digits line up down a column. */
+.resources-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.resources-table th, .resources-table td { padding: 0.4rem 0.5rem; text-align: left; vertical-align: middle; }
+.resources-table .num { text-align: right; white-space: nowrap; }
+.resources-table thead th { color: var(--muted); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border-strong); }
+.resources-table__group > * { border-top: 1px solid var(--border); padding-top: 0.75rem; font-weight: 600; }
+.resources-table tbody:first-of-type .resources-table__group > * { border-top: 0; }
+.resources-table tbody tr:not(.resources-table__group) td { color: var(--muted); }
+.resources-table td.resources-table__process { padding-left: 1.25rem; overflow-wrap: anywhere; }
+.resources-table__role { margin-left: 0.5rem; font-size: 0.7rem; color: var(--muted); opacity: 0.8; }
+.resources-table__warning { color: var(--warning); font-weight: 500; }
+.resources-table__action { width: 1%; text-align: right; white-space: nowrap; }
+.resources-table__action button { border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface-2); color: var(--fg); padding: 0.2rem 0.65rem; font-size: 0.75rem; cursor: pointer; }
+.resources-table__action button:hover:not(:disabled) { background: var(--surface); }
+.resources-table__action button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.resources-table__action button:disabled { opacity: 0.6; cursor: default; }
+.resources-note { margin: 1rem 0 0; color: var(--muted); font-size: 0.75rem; }

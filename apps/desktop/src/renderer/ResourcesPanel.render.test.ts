@@ -7,7 +7,7 @@ import type { SettingsDialogShell } from '@jini-ai/ui';
 import type { ResourcesSnapshot } from '../contracts/resources.js';
 import type { SiteRecord } from '../contracts/project.js';
 import { installDom, settle } from './dom-hook-harness.js';
-import { ResourcesMonitor, ResourcesChip, ResourceSiteFigure, ResourcesPanel, memoryText, resourceWarnings, resourceRows } from './ResourcesPanel.js';
+import { ResourcesMonitor, ResourcesChip, ResourceSiteFigure, ResourcesPanel, memoryText, resourceWarnings, resourceGroups } from './ResourcesPanel.js';
 import { useSitePower } from './use-site-power.hooks.js';
 
 Object.assign(globalThis, { React });
@@ -39,6 +39,7 @@ test('one snapshot drives the chip and site figure, warnings and panel-open cade
   assert.equal(memoryText({ bytes: null }), 'Memory unavailable');
   assert.equal(memoryText({ bytes: 1_500_000_000 }), '~1.5GB');
   assert.equal(memoryText({ bytes: 1_100_000_000 }), '~1.1GB');
+  assert.equal(memoryText({ bytes: 559_000_000 }, { unitGap: ' ' }), '~559 MB');
   assert.equal(resourceWarnings({ metrics }), 'High memory use · Sustained high CPU use');
   assert.equal(resourceWarnings({ metrics: null }), '');
 });
@@ -53,7 +54,11 @@ test('chip is a focusable dialog trigger; all readers share data and close resto
     children: createElement(React.Fragment, null, createElement(ResourcesChip), createElement(ResourceSiteFigure, { project: SITE })),
   }));
   const chip = host.querySelector<HTMLButtonElement>('.resources-chip')!;
-  assert.equal(chip.textContent, 'Memory: ~1.5GB · High memory use · Sustained high CPU use');
+  assert.equal(chip.textContent, '~1.5GB · High memory use · Sustained high CPU use');
+  assert.ok(chip.querySelector('svg[aria-hidden="true"]'), 'a memory-chip icon replaces the word "Memory:"');
+  assert.equal(chip.getAttribute('data-tooltip'), 'Memory used by Tovu and running sites: ~1.5 GB');
+  assert.equal(chip.getAttribute('aria-label'), 'Memory used by Tovu and running sites: ~1.5 GB · High memory use · Sustained high CPU use');
+  assert.ok(chip.classList.contains('jini-tooltip'));
   assert.equal(host.querySelector('.card__resources')!.textContent, '~1.5GB · High memory use · Sustained high CPU use');
   assert.equal(chip.getAttribute('aria-haspopup'), 'dialog');
   chip.focus(); assert.equal(document.activeElement, chip);
@@ -66,19 +71,45 @@ test('chip is a focusable dialog trigger; all readers share data and close resto
   assert.equal(requests.at(-1), false);
 });
 
-test('rows join by identity, exclude external/stopped sites and withdraw stale process rows', () => {
+test('groups join by identity: Tovu app first, external/stopped sites excluded, stale process rows withdrawn', () => {
   const duplicateName = { ...SITE, id: '/sites/b' };
   const projects = [SITE, duplicateName, { ...SITE, id: '/external', externalUrl: 'http://localhost:4000' }, { ...SITE, id: '/stopped', status: 'stopped' as const }];
-  const rows = resourceRows({ projects, snapshot: SNAPSHOT, statusOf: (site) => site.status });
-  assert.deepEqual(rows.map((row) => row.id), [SITE.id, duplicateName.id, 'tovu-app']);
-  assert.equal(rows[0]!.metaLine, '~1.5GB · CPU 81% of one core · High memory use · Sustained high CPU use');
-  assert.equal(rows[0]!.detailLine, 'Site server: node (PID 42), ~1.5GB · CPU unavailable');
-  assert.equal(rows[1]!.metaLine, 'Memory unavailable · CPU unavailable');
-  assert.deepEqual(rows[2]!.actions, []);
-  const unavailable = resourceRows({ projects: [SITE], snapshot: { ...SNAPSHOT, status: 'unavailable' }, statusOf: (site) => site.status });
-  assert.equal(unavailable[0]!.detailLine, '');
-  assert.equal(unavailable[0]!.metaLine, 'Memory unavailable · CPU unavailable');
-  assert.equal(unavailable[0]!.actions[0]!.label, 'Stop');
+  const groups = resourceGroups({ projects, snapshot: SNAPSHOT, statusOf: (site) => site.status });
+  assert.deepEqual(groups.map((group) => group.id), ['tovu-app', SITE.id, duplicateName.id]);
+  assert.equal(groups[0]!.stop, null);
+  assert.deepEqual(groups[1]!.processes.map((row) => row.pid), [42]);
+  assert.equal(groups[2]!.metrics, undefined);
+  assert.deepEqual(groups[2]!.processes, []);
+  const unavailable = resourceGroups({ projects: [SITE], snapshot: { ...SNAPSHOT, status: 'unavailable' }, statusOf: (site) => site.status });
+  assert.deepEqual(unavailable[1]!.processes, []);
+  assert.deepEqual(unavailable[1]!.stop, { label: 'Stop', disabled: false });
+});
+
+test('panel is a Process | PID | Memory | CPU table with a subtotal row per group and right-aligned numbers', (t) => {
+  const snapshot: ResourcesSnapshot = { ...SNAPSHOT,
+    total: { ...metrics, rssBytes: 1_722_000_000, cpuPercent: 3 },
+    app: { siteId: null, rssBytes: 222_000_000, cpuPercent: 3, memoryWarning: false, cpuWarning: false, processes: [
+      { pid: 23743, ppid: 1, name: 'Tovu', role: 'app', rssBytes: 110_000_000, cpuPercent: 2, cpuWarning: false },
+      { pid: 23745, ppid: 23743, name: 'Tovu Helper', role: 'process', rssBytes: 112_000_000, cpuPercent: 1, cpuWarning: false }] } };
+  const { host } = mount(t, createElement(ResourcesPanel, {
+    projects: [SITE], snapshot, onSiteUpdated() {}, onClose() {}, usePower: () => useSitePower(() => {}, { getBridge: () => ({}) as never }), Shell, useTrap() {},
+  }));
+  const table = host.querySelector('table.resources-table')!;
+  assert.deepEqual([...table.querySelectorAll('thead th')].map((th) => th.textContent), ['Process', 'PID', 'Memory', 'CPU', 'Actions']);
+  const text = (row: Element) => [...row.children].map((cell) => cell.textContent);
+  const bodies = [...table.querySelectorAll('tbody')];
+  assert.deepEqual(bodies.map((body) => text(body.rows[0]!)), [
+    ['Tovu app', '~222MB', '3%', ''],
+    ['Bakery · High memory use · Sustained high CPU use', '~1.5GB', '81%', 'Stop'],
+  ]);
+  assert.deepEqual([...bodies[0]!.rows].slice(1).map(text), [
+    ['TovuMain process', '23743', '~110MB', '2%', ''], ['Tovu Helper', '23745', '~112MB', '1%', '']]);
+  // An unmeasured CPU is a dash spoken as "unavailable", never 0%.
+  assert.deepEqual(text(bodies[1]!.rows[1]!), ['nodeSite server', '42', '~1.5GB', '—unavailable', '']);
+  assert.equal(bodies[0]!.rows[0]!.querySelector('th')!.getAttribute('scope'), 'rowgroup');
+  assert.ok([...table.querySelectorAll('tbody td.num')].length >= 6);
+  assert.equal(host.querySelector('.resources-total')!.textContent, 'Total: ~1.7GB · CPU 3% of one core · High memory use · Sustained high CPU use');
+  assert.match(host.querySelector('.resources-note')!.textContent!, /^Memory totals are estimates/);
 });
 
 test('panel Stop reaches the existing stop API once, applies main record and shows a rejection', async (t) => {
@@ -111,7 +142,8 @@ test('unavailable snapshot shows unavailable chip/cards, and stopped cards hide 
     children: createElement(React.Fragment, null, createElement(ResourcesChip),
       createElement(ResourceSiteFigure, { project: SITE }), createElement(ResourceSiteFigure, { project: { ...SITE, status: 'stopped' } })),
   }));
-  assert.equal(host.querySelector('.resources-chip')!.textContent, 'Memory: Unavailable');
+  assert.equal(host.querySelector('.resources-chip')!.textContent, 'Unavailable');
+  assert.equal(host.querySelector('.resources-chip')!.getAttribute('data-tooltip'), 'Memory used by Tovu and running sites: unavailable');
   assert.equal(host.querySelectorAll('.card__resources').length, 1);
   assert.equal(host.querySelector('.card__resources')!.textContent, 'Memory unavailable');
 });

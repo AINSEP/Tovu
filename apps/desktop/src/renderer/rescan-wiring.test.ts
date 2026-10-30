@@ -82,16 +82,16 @@ test("a refused broad-root scan shows the exact remedy and keeps the existing pr
 
 test("the Projects header renders a Rescan control wired to that hook", () => {
   let calls = 0;
-  const header = sourceFunction(appTsx, 'MainHeader', { SitesFolders: () => null, SharedKeysLauncher: () => null });
+  const header = sourceFunction(appTsx, 'MainHeader', { SitesFolders: () => null, SharedKeysLauncher: () => null, ToolIcon: () => null });
   const button = elements(header({ activeId: 'projects', isCreating: false, activeLabel: 'Projects',
-    onRescan: async () => { calls++; }, rescanning: false })).find((element) => element.type === 'button' && element.props.children === 'Rescan');
+    onRescan: async () => { calls++; }, rescanning: false })).find((element) => element.type === 'button' && element.props['aria-label'] === 'Rescan');
   assert.ok(button, 'the Rescan button must render');
   button.props.onClick();
   assert.equal(calls, 1, 'the button itself must invoke onRescan');
   const area = sourceFunction(appTsx, 'MainArea', { MainHeader: header, MainContent: () => null });
   const areaButton = elements(area({ appearanceOpen: false, showSitesHome: true, activeId: 'projects',
     isCreating: false, onRescan: async () => { calls++; }, rescanning: false,
-  })).find((element) => element.type === 'button' && element.props.children === 'Rescan');
+  })).find((element) => element.type === 'button' && element.props['aria-label'] === 'Rescan');
   assert.ok(areaButton); areaButton.props.onClick(); assert.equal(calls, 2);
 });
 

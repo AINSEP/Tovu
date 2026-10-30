@@ -21,6 +21,7 @@ test('Websites fits at 375px with every nav control and header action inside the
     else Reflect.deleteProperty(globalThis, 'React');
   });
   const { SectionIcon, GearIcon } = await import('./icons.js');
+  const { ToolIcon } = await import('./tool-icons.js');
   const { ResourcesChip, ResourcesMonitor } = await import('./ResourcesPanel.js');
   const { SharedKeysLauncher } = await import('./SharedKeys.js');
   const source = fs.readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
@@ -28,7 +29,7 @@ test('Websites fits at 375px with every nav control and header action inside the
   const settings = { folders: { roots: [], extraRoots: [], home: '' }, open: false, show() {}, close() {} };
   // `SettingsDialogShell` is the dialog's default `Shell` parameter; the dialog stays closed here, so its frame never renders.
   const SitesFoldersDialog = sourceFunction(foldersSource, 'SitesFoldersDialog', {
-    useSitesFoldersDialog, SitesFoldersWarning: sourceFunction(foldersSource, 'SitesFoldersWarning'), SettingsDialogShell: () => null,
+    useSitesFoldersDialog, SitesFoldersWarning: sourceFunction(foldersSource, 'SitesFoldersWarning'), SettingsDialogShell: () => null, ToolIcon,
   });
   const SitesFolders = () => createElement(SitesFoldersDialog, { settings });
   const NavLink = sourceFunction(source, 'NavLink', { navLinkClick, navAvailability, SectionIcon });
@@ -41,7 +42,7 @@ test('Websites fits at 375px with every nav control and header action inside the
   const TopNav = sourceFunction(source, 'TopNav', {
     useAppVersion: () => ({ version: '0.1.13-preview-long-version', error: null }), visibleSections, NavLink, SettingsControl, ResourcesChip,
   });
-  const MainHeader = sourceFunction(source, 'MainHeader', { SitesFolders, SharedKeysLauncher });
+  const MainHeader = sourceFunction(source, 'MainHeader', { SitesFolders, SharedKeysLauncher, ToolIcon });
   // The real chip needs its monitor; without it, the control disappears from the width check.
   const nav = renderToStaticMarkup(createElement(ResourcesMonitor, {
     projects: [], onSiteUpdated() {}, useReadings: () => null,
@@ -66,7 +67,7 @@ test('Websites fits at 375px with every nav control and header action inside the
     <div class="card__body"><div class="card__head"><h2 class="card__name">${'LongWebsiteName'.repeat(12)}</h2><button>⋮</button></div>
     <div class="card__actions"><button class="button">Start</button><button class="button">Restart</button></div></div></article></div>
     </main></div>`);
-  assert.equal(await page.getByRole('button', { name: 'Memory: Unavailable', exact: true }).count(), 1);
+  assert.equal(await page.getByRole('button', { name: 'Memory used by Tovu and running sites: unavailable', exact: true }).count(), 1);
   assert.equal(await page.getByRole('button', { name: 'Shared keys', exact: true }).count(), 1);
   await page.evaluate(() => document.fonts.ready);
   for (const theme of ['light', 'dark']) {
