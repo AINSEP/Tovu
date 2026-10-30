@@ -9,7 +9,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createAssistantToolExecutor } from "#src/assistant/tool-recovery-preset";
 import { runByokProviderTurn, type ByokTurnEvent } from "#src/assistant/byok-provider-turn";
 import { startStubProviderServer } from "#src/server/__tests__/helpers/stub-provider-server";
-import { installSupportingFilesFixture } from "#src/features/agent-plugins/__tests__/fixtures/supporting-files.js";
+import { installSupportingFilesFixture } from "#src/features/agent-plugins/__tests__/fixtures/supporting-files";
 
 /** Real provider turn + real ToolExecutor + real installed skill bytes; only the model is scripted. */
 test("assistant tool-call transcript contains the installed ui-ux-design foundations reference", async t => {
