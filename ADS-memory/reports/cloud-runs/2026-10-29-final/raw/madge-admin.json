@@ -1,0 +1,26 @@
+[
+  [
+    "../../../../Jini/packages/chat/dist/react/hooks/useUserTextGuard.d.ts",
+    "../../../../Jini/packages/chat/dist/react/index.d.ts"
+  ],
+  [
+    "../../../../Jini/packages/ui/dist/features/panel-kit/helpers/standing-draft-local-backup.d.ts",
+    "../../../../Jini/packages/ui/dist/features/panel-kit/hooks/use-standing-draft-autosave.hooks.d.ts"
+  ],
+  [
+    "components/WidgetPickerDialog/WidgetPickerDialog.tsx",
+    "components/WidgetPickerDialog/WidgetPickerDialog.hooks.tsx"
+  ],
+  [
+    "components/MediaPickerDialog/MediaPickerDialog.tsx",
+    "components/MediaPickerDialog/JiniMediaPicker.hooks.ts"
+  ],
+  [
+    "features/pages/hooks/use-theme-pages.hooks.ts",
+    "features/pages/lib/theme-page-publish-state.ts"
+  ],
+  [
+    "features/pages/rules.ts",
+    "features/pages/hooks/use-theme-pages.hooks.ts"
+  ]
+]

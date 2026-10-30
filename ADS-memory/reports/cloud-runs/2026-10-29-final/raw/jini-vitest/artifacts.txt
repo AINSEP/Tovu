@@ -1,0 +1,34 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/artifacts
+      Coverage enabled with v8
+
+ ✓ src/__tests__/manifest.test.ts (30 tests) 22ms
+ ✓ src/node/__tests__/stub-guard.test.ts (17 tests) 50ms
+ ✓ src/__tests__/text-suppression.test.ts (27 tests) 42ms
+ ✓ src/__tests__/stub-guard.test.ts (24 tests) 14ms
+ ✓ src/__tests__/manifest-l071.test.ts (47 tests) 38ms
+ ✓ src/__tests__/store.test.ts (16 tests) 32ms
+ ✓ src/__tests__/publication-guard.test.ts (12 tests) 10ms
+ ✓ src/node/__tests__/stub-guard-l071.test.ts (10 tests) 33ms
+ ✓ src/node/__tests__/stub-guard-sidecar-reader.test.ts (2 tests) 7ms
+ ✓ src/__tests__/integration-ports.test.ts (3 tests) 28ms
+ ✓ src/__tests__/runtime-compat.test.ts (4 tests) 9ms
+ ✓ src/__tests__/stub-guard-l071.test.ts (8 tests) 6ms
+ ✓ src/__tests__/index.test.ts (3 tests) 6ms
+ ✓ src/__tests__/publication-guard.universal.test.ts (1 test) 81ms
+
+ Test Files  14 passed (14)
+      Tests  204 passed (204)
+   Start at  00:50:27
+   Duration  4.10s (transform 818ms, setup 0ms, collect 1.50s, tests 378ms, environment 4ms, prepare 1.46s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 707/707 )
+Branches     : 100% ( 365/365 )
+Functions    : 100% ( 77/77 )
+Lines        : 100% ( 707/707 )
+================================================================================
+exit=0 secs=5

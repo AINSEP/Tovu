@@ -1,0 +1,18 @@
+
+> @jini-ai/plugin-fixture-provider@0.7.0 prepack /home/user/Jini/packages/plugin-fixture-provider
+> node --import tsx ../provider-plugins/scripts/build.ts fixture-provider .
+
+📦  @jini-ai/plugin-fixture-provider@0.7.0
+Tarball Contents
+LICENSE
+NOTICE
+package.json
+plugins/fixture-provider/0.7.0/jini.plugin.json
+plugins/fixture-provider/0.7.0/licenses/_jini-ai_plugin-fixture-provider/LICENSE
+plugins/fixture-provider/0.7.0/licenses/_jini-ai_plugin-fixture-provider/NOTICE
+plugins/fixture-provider/0.7.0/licenses/_jini-ai_plugin-fixture-provider/package-license.json
+plugins/fixture-provider/0.7.0/server/index.mjs
+README.md
+Tarball Details
+/tmp/tarballs/jini-ai-plugin-fixture-provider-0.7.0.tgz
+exit=0

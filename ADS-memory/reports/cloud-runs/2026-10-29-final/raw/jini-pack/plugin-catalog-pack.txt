@@ -1,0 +1,24 @@
+
+> @jini-ai/plugin-catalog@0.7.0 prepack /home/user/Jini/packages/plugin-catalog
+> node --import tsx scripts/generate.ts
+
+node:internal/fs/promises:1345
+  return new FileHandle(await PromisePrototypeThen(
+                        ^
+
+Error: ENOENT: no such file or directory, open '/home/user/Jini/packages/plugin-ui-ux-design/ui-ux-design/plugin.json'
+    at async open (node:internal/fs/promises:1345:25)
+    at async readFile (node:internal/fs/promises:2003:14)
+    at async Object.readJson (/home/user/Jini/packages/plugin-catalog/scripts/generate.ts:112:40)
+    at async generateCatalog (/home/user/Jini/packages/plugin-catalog/scripts/generate.ts:78:22)
+    at async writeCatalog (/home/user/Jini/packages/plugin-catalog/scripts/generate.ts:111:19)
+    at async <anonymous> (/home/user/Jini/packages/plugin-catalog/scripts/generate.ts:120:95) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/Jini/packages/plugin-ui-ux-design/ui-ux-design/plugin.json'
+}
+
+Node.js v24.22.0
+ ELIFECYCLE  Command failed with exit code 1.
+exit=1

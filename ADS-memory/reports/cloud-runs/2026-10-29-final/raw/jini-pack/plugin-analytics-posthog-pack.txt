@@ -1,0 +1,36 @@
+
+> @jini-ai/plugin-analytics-posthog@0.7.0 prepack /home/user/Jini/packages/plugin-analytics-posthog
+> node --import tsx ../provider-plugins/scripts/build.ts analytics-posthog .
+
+📦  @jini-ai/plugin-analytics-posthog@0.7.0
+Tarball Contents
+LICENSE
+NOTICE
+package.json
+plugins/analytics-posthog/0.7.0/jini.plugin.json
+plugins/analytics-posthog/0.7.0/licenses/_jini-ai_cookie-consent/LICENSE
+plugins/analytics-posthog/0.7.0/licenses/_jini-ai_cookie-consent/LICENSE-SOURCE
+plugins/analytics-posthog/0.7.0/licenses/_jini-ai_cookie-consent/NOTICE
+plugins/analytics-posthog/0.7.0/licenses/_jini-ai_cookie-consent/package-license.json
+plugins/analytics-posthog/0.7.0/licenses/_jini-ai_core/LICENSE
+plugins/analytics-posthog/0.7.0/licenses/_jini-ai_core/package-license.json
+plugins/analytics-posthog/0.7.0/licenses/_jini-ai_diagnostics/LICENSE
+plugins/analytics-posthog/0.7.0/licenses/_jini-ai_diagnostics/package-license.json
+plugins/analytics-posthog/0.7.0/licenses/_jini-ai_plugin-analytics-posthog/LICENSE
+plugins/analytics-posthog/0.7.0/licenses/_jini-ai_plugin-analytics-posthog/NOTICE
+plugins/analytics-posthog/0.7.0/licenses/_jini-ai_plugin-analytics-posthog/package-license.json
+plugins/analytics-posthog/0.7.0/licenses/_posthog_core/LICENSE
+plugins/analytics-posthog/0.7.0/licenses/_posthog_core/package-license.json
+plugins/analytics-posthog/0.7.0/licenses/js-tokens/LICENSE
+plugins/analytics-posthog/0.7.0/licenses/js-tokens/package-license.json
+plugins/analytics-posthog/0.7.0/licenses/posthog-js/LICENSE
+plugins/analytics-posthog/0.7.0/licenses/posthog-js/package-license.json
+plugins/analytics-posthog/0.7.0/licenses/posthog-node/LICENSE
+plugins/analytics-posthog/0.7.0/licenses/posthog-node/package-license.json
+plugins/analytics-posthog/0.7.0/server/consent-adapter.mjs
+plugins/analytics-posthog/0.7.0/server/index.mjs
+plugins/analytics-posthog/0.7.0/server/posthog-browser.js
+README.md
+Tarball Details
+/tmp/tarballs/jini-ai-plugin-analytics-posthog-0.7.0.tgz
+exit=0

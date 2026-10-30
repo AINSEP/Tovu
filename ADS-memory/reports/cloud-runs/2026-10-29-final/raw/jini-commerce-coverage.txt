@@ -1,0 +1,183 @@
+
+> @jini-ai/commerce@0.6.13 test:coverage /home/user/Jini/packages/commerce
+> vitest run -c vitest.coverage.config.ts --maxWorkers=2 --minWorkers=1 --coverage
+
+
+ RUN  v2.1.9 /home/user/Jini/packages/commerce
+      Coverage enabled with v8
+
+ ✓ src/payments/ops/__tests__/reconciler.vitest.test.ts (30 tests) 178ms
+ ✓ src/payments/ingest/__tests__/worker.vitest.test.ts (29 tests) 97ms
+ ✓ src/payments/accounting/__tests__/apply-evidence.vitest.test.ts (45 tests) 1891ms
+   ✓ property: any delivery order of the same facts ends in the same ledger > sqlite: shuffled deliveries (responses, both webhook types, duplicates, a stale snapshot, timeouts), retrying only deferred ones 1075ms
+ ✓ src/payments/ops/__tests__/intent.vitest.test.ts (54 tests) 240ms
+ ✓ src/catalog/__tests__/unit/repo.vitest.test.ts (11 tests) 290ms
+ ✓ src/payments/tools/__tests__/money-tools.vitest.test.ts (27 tests) 82ms
+ ✓ src/payments/ops/__tests__/capture-void.vitest.test.ts (24 tests) 165ms
+ ✓ src/payments/accounting/__tests__/plan-evidence.vitest.test.ts (38 tests) 25ms
+ ✓ src/payments/ledger/__tests__/migrations.vitest.test.ts (17 tests) 127ms
+ ✓ src/payments/ops/__tests__/refund.vitest.test.ts (25 tests) 123ms
+ ✓ src/http/__tests__/payments-webhook.vitest.test.ts (22 tests) 146ms
+ ✓ src/payments/ledger/__tests__/rows.vitest.test.ts (50 tests) 394ms
+   ✓ entry points > payments/kernel carries the port, records and memory adapter; the SQL half (kysely, @jini-ai/db at runtime) is ledger/sql 360ms
+ ✓ src/payments/state/__tests__/status.vitest.test.ts (114 tests) 42ms
+ ✓ src/payments/ingest/__tests__/receive.vitest.test.ts (18 tests) 32ms
+ ✓ src/payments/accounting/__tests__/apply-evidence-ops.vitest.test.ts (22 tests) 546ms
+ ✓ src/catalog/__tests__/unit/storefront-rows.vitest.test.ts (13 tests) 12ms
+ ✓ src/payments/accounting/__tests__/review-fixes.vitest.test.ts (22 tests) 359ms
+ ✓ src/catalog/__tests__/unit/status-tools.vitest.test.ts (10 tests) 17ms
+ ✓ src/catalog/__tests__/unit/checkout-boundaries.vitest.test.ts (31 tests) 47ms
+ ✓ src/catalog/__tests__/unit/pay-order.vitest.test.ts (11 tests) 46ms
+ ✓ src/payments/ingest/__tests__/outbox-relay.vitest.test.ts (6 tests) 34ms
+ ✓ src/payments/testkit/__tests__/provider-conformance.vitest.test.ts (19 tests) 95ms
+ ✓ src/catalog/__tests__/unit/settle-order-payment.vitest.test.ts (45 tests) 60ms
+ ✓ src/payments/tools/__tests__/approval-boundaries.vitest.test.ts (18 tests) 49ms
+ ✓ src/payments/testkit/__tests__/lipay-fake.vitest.test.ts (8 tests) 16ms
+ ✓ src/payments/ops/__tests__/transaction-boundaries.vitest.test.ts (10 tests) 38ms
+ ✓ src/payments/ingest/__tests__/worker-boundaries.vitest.test.ts (16 tests) 419ms
+ ✓ src/payments/accounting/__tests__/writer-boundaries.vitest.test.ts (26 tests) 288ms
+ ✓ src/payments/accounting/__tests__/plan-evidence-boundaries.vitest.test.ts (23 tests) 27ms
+ ✓ src/payments/ops/__tests__/lost-response.vitest.test.ts (4 tests) 117ms
+ ✓ src/payments/ingest/__tests__/receive-boundaries.vitest.test.ts (10 tests) 363ms
+   ✓ webhook receive atomicity on sqlite > a mixed batch counts new and revived facts as received and preserves open and applied duplicates 311ms
+ ✓ src/payments/tools/__tests__/registrations.vitest.test.ts (9 tests) 38ms
+ ✓ src/payments/__tests__/kernel/provider-contract.vitest.test.ts (10 tests) 13ms
+ ✓ src/payments/ops/__tests__/operator.vitest.test.ts (14 tests) 310ms
+ ✓ src/catalog/__tests__/unit/load-payable-order.vitest.test.ts (18 tests) 17ms
+ ✓ src/catalog/__tests__/unit/repo.order-payments.vitest.test.ts (11 tests) 65ms
+ ✓ src/payments/contract/__tests__/risk.vitest.test.ts (18 tests) 32ms
+ ✓ src/payments/ingest/__tests__/worker-sqlite.vitest.test.ts (3 tests) 602ms
+   ✓ inbox worker on SQLite > a signed charge webhook is received, applied and purged 543ms
+ ✓ src/payments/ops/__tests__/grants.vitest.test.ts (18 tests) 11ms
+ ✓ src/payments/ops/__tests__/outcome-boundaries.vitest.test.ts (14 tests) 29ms
+ ✓ src/payments/ledger/__tests__/sqlite.vitest.test.ts (58 tests) 830ms
+ ✓ src/payments/__tests__/kernel/provider-contexts.vitest.test.ts (14 tests) 10ms
+ ✓ src/money/__tests__/boundaries.vitest.test.ts (76 tests) 24ms
+ ✓ src/payments/ingest/__tests__/outbox-recovery.vitest.test.ts (4 tests) 338ms
+   ✓ outbox delivery recovery on sqlite > a published message whose acknowledgement fails is replayed with its original id before later events 302ms
+ ✓ src/catalog/__tests__/unit/order-projection.vitest.test.ts (8 tests) 65ms
+ ✓ src/catalog/__tests__/unit/repo.mark-paid.vitest.test.ts (6 tests) 62ms
+ ✓ src/payments/contract/__tests__/contract.vitest.test.ts (17 tests) 10ms
+ ✓ src/money/__tests__/money.vitest.test.ts (7 tests) 9ms
+ ✓ src/payments/__tests__/kernel/provider-registry.vitest.test.ts (12 tests) 18ms
+ ✓ src/payments/__tests__/kernel/provider-module-guard.vitest.test.ts (21 tests) 10ms
+ ✓ src/payments/tools/__tests__/read-tools.vitest.test.ts (7 tests) 41ms
+ ✓ src/payments/ops/__tests__/service.vitest.test.ts (4 tests) 18ms
+ ✓ src/payments/__tests__/kernel/checkout-client.vitest.test.ts (19 tests) 15ms
+ ✓ src/catalog/__tests__/unit/repo.price-refs.vitest.test.ts (8 tests) 100ms
+ ✓ src/payments/ledger/__tests__/memory.vitest.test.ts (59 tests) 147ms
+ ↓ src/payments/ledger/__tests__/postgres.vitest.test.ts (1 test | 1 skipped)
+ ✓ src/__tests__/packaging.vitest.test.ts (1 test) 5408ms
+   ✓ ships the Open SaaS MIT attribution in the commerce npm file list 5407ms
+ ✓ src/payments/providers/__tests__/lipay-signing.vitest.test.ts (3 tests) 5ms
+ ✓ src/payments/contract/__tests__/alerts.vitest.test.ts (2 tests) 8018ms
+   ✓ noopAlertPort > fulfillment-blocked is an alert kind accepted by the host port 8013ms
+ ✓ src/react/__tests__/Payments.unit.test.tsx (3 tests) 370ms
+ ✓ src/react/__tests__/Payments.locale.unit.test.tsx (2 tests) 258ms
+ ✓ src/react/__tests__/Payments.boundaries.unit.test.tsx (5 tests) 555ms
+
+ Test Files  61 passed | 1 skipped (62)
+      Tests  1249 passed | 1 skipped (1250)
+   Start at  01:31:17
+   Duration  41.72s (transform 3.11s, setup 12.48s, collect 14.02s, tests 23.79s, environment 1.94s, prepare 6.87s)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   99.95 |      100 |   99.83 |   99.95 |                   
+ src               |     100 |      100 |     100 |     100 |                   
+  index.ts         |     100 |      100 |     100 |     100 |                   
+  tools.ts         |     100 |      100 |     100 |     100 |                   
+ src/catalog       |     100 |      100 |     100 |     100 |                   
+  checkout.ts      |     100 |      100 |     100 |     100 |                   
+  contracts.ts     |       0 |        0 |       0 |       0 |                   
+  database.ts      |       0 |        0 |       0 |       0 |                   
+  errors.ts        |     100 |      100 |     100 |     100 |                   
+  index.ts         |     100 |      100 |     100 |     100 |                   
+  ...able-order.ts |     100 |      100 |     100 |     100 |                   
+  ...projection.ts |     100 |      100 |     100 |     100 |                   
+  pay-order.ts     |     100 |      100 |     100 |     100 |                   
+  ports.ts         |       0 |        0 |       0 |       0 |                   
+  ...r-payments.ts |     100 |      100 |     100 |     100 |                   
+  ...price-refs.ts |     100 |      100 |     100 |     100 |                   
+  repo.rows.ts     |     100 |      100 |     100 |     100 |                   
+  repo.ts          |     100 |      100 |     100 |     100 |                   
+  ...er-payment.ts |     100 |      100 |     100 |     100 |                   
+  status.ts        |     100 |      100 |     100 |     100 |                   
+  storefront.ts    |     100 |      100 |     100 |     100 |                   
+  types.ts         |       0 |        0 |       0 |       0 |                   
+ src/http          |     100 |      100 |     100 |     100 |                   
+  index.ts         |     100 |      100 |     100 |     100 |                   
+  ...ts-webhook.ts |     100 |      100 |     100 |     100 |                   
+ src/money         |     100 |      100 |     100 |     100 |                   
+  money.ts         |     100 |      100 |     100 |     100 |                   
+ src/payments      |   98.63 |      100 |   96.29 |   98.63 |                   
+  client.ts        |     100 |      100 |     100 |     100 |                   
+  kernel.ts        |     100 |      100 |     100 |     100 |                   
+  ...r-contexts.ts |     100 |      100 |     100 |     100 |                   
+  ...r-contract.ts |     100 |      100 |     100 |     100 |                   
+  ...dule-guard.ts |   95.74 |      100 |   93.75 |   95.74 | 77-78             
+  ...r-registry.ts |     100 |      100 |     100 |     100 |                   
+ ...nts/accounting |     100 |      100 |     100 |     100 |                   
+  ...y-evidence.ts |     100 |      100 |     100 |     100 |                   
+  plan-evidence.ts |     100 |      100 |     100 |     100 |                   
+ ...ments/contract |     100 |      100 |     100 |     100 |                   
+  alerts.ts        |     100 |      100 |     100 |     100 |                   
+  ...out-client.ts |     100 |      100 |     100 |     100 |                   
+  evidence.ts      |       0 |        0 |       0 |       0 |                   
+  payments-port.ts |       0 |        0 |       0 |       0 |                   
+  provider.ts      |     100 |      100 |     100 |     100 |                   
+  risk.ts          |     100 |      100 |     100 |     100 |                   
+  scope.ts         |     100 |      100 |     100 |     100 |                   
+  tokens.ts        |     100 |      100 |     100 |     100 |                   
+ ...ayments/ingest |     100 |      100 |     100 |     100 |                   
+  outbox-relay.ts  |     100 |      100 |     100 |     100 |                   
+  receive.ts       |     100 |      100 |     100 |     100 |                   
+  worker.ts        |     100 |      100 |     100 |     100 |                   
+ ...ayments/ledger |     100 |      100 |     100 |     100 |                   
+  repo.memory.ts   |     100 |      100 |     100 |     100 |                   
+  repo.sql.ts      |     100 |      100 |     100 |     100 |                   
+  repo.ts          |     100 |      100 |     100 |     100 |                   
+  rows.ts          |     100 |      100 |     100 |     100 |                   
+  sql.ts           |     100 |      100 |     100 |     100 |                   
+ ...ger/migrations |     100 |      100 |     100 |     100 |                   
+  ...nts_ledger.ts |     100 |      100 |     100 |     100 |                   
+  ...or_actions.ts |     100 |      100 |     100 |     100 |                   
+  ...t_recovery.ts |     100 |      100 |     100 |     100 |                   
+  checksums.ts     |     100 |      100 |     100 |     100 |                   
+  index.ts         |     100 |      100 |     100 |     100 |                   
+ src/payments/ops  |     100 |      100 |     100 |     100 |                   
+  capture-void.ts  |     100 |      100 |     100 |     100 |                   
+  common.ts        |     100 |      100 |     100 |     100 |                   
+  deps.ts          |     100 |      100 |     100 |     100 |                   
+  grants.ts        |     100 |      100 |     100 |     100 |                   
+  intent.ts        |     100 |      100 |     100 |     100 |                   
+  operator.ts      |     100 |      100 |     100 |     100 |                   
+  ...e-attempts.ts |     100 |      100 |     100 |     100 |                   
+  ...e-snapshot.ts |     100 |      100 |     100 |     100 |                   
+  reconciler.ts    |     100 |      100 |     100 |     100 |                   
+  refund.ts        |     100 |      100 |     100 |     100 |                   
+  service.ts       |     100 |      100 |     100 |     100 |                   
+  view.ts          |     100 |      100 |     100 |     100 |                   
+ ...ents/providers |     100 |      100 |     100 |     100 |                   
+  lipay-gateway.ts |     100 |      100 |     100 |     100 |                   
+ ...payments/state |     100 |      100 |     100 |     100 |                   
+  status.ts        |     100 |      100 |     100 |     100 |                   
+ ...yments/testkit |     100 |      100 |     100 |     100 |                   
+  index.ts         |     100 |      100 |     100 |     100 |                   
+  lipay-fake.ts    |     100 |      100 |     100 |     100 |                   
+  ...onformance.ts |     100 |      100 |     100 |     100 |                   
+ ...payments/tools |     100 |      100 |     100 |     100 |                   
+  catalog.ts       |     100 |      100 |     100 |     100 |                   
+  deps.ts          |     100 |      100 |     100 |     100 |                   
+  index.ts         |     100 |      100 |     100 |     100 |                   
+  input.ts         |     100 |      100 |     100 |     100 |                   
+  money-tools.ts   |     100 |      100 |     100 |     100 |                   
+  read-tools.ts    |     100 |      100 |     100 |     100 |                   
+ src/react         |     100 |      100 |     100 |     100 |                   
+  Payments.tsx     |     100 |      100 |     100 |     100 |                   
+  commerce-i18n.ts |     100 |      100 |     100 |     100 |                   
+  index.ts         |     100 |      100 |     100 |     100 |                   
+-------------------|---------|----------|---------|---------|-------------------
+exit=0

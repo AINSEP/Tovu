@@ -1,0 +1,22 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugin-ai-trace-langfuse
+      Coverage enabled with v8
+
+ ✓ __tests__/package.test.ts (2 tests) 727ms
+   ✓ packs exactly the selected versioned payload with verified integrity and retained attribution 719ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  01:14:52
+   Duration  2.17s (transform 413ms, setup 0ms, collect 651ms, tests 727ms, environment 2ms, prepare 92ms)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 0% ( 0/4162 )
+Branches     : 0% ( 0/1 )
+Functions    : 0% ( 0/1 )
+Lines        : 0% ( 0/4162 )
+================================================================================
+exit=0 secs=3

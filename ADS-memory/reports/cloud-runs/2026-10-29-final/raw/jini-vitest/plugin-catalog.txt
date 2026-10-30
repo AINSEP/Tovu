@@ -1,0 +1,112 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugin-catalog
+      Coverage enabled with v8
+
+npm notice
+npm notice package: @jini-ai/plugin-catalog@0.7.0
+npm notice Tarball Contents
+npm notice 11.3kB LICENSE
+npm notice 256B NOTICE
+npm notice 2.0kB README.md
+npm notice 2.7kB catalog.json
+npm notice 844B package.json
+npm notice Tarball Details
+npm notice name: @jini-ai/plugin-catalog
+npm notice version: 0.7.0
+npm notice filename: jini-ai-plugin-catalog-0.7.0.tgz
+npm notice package size: 5.8 kB
+npm notice unpacked size: 17.1 kB
+npm notice shasum: afb17c6d75c5b18c7bf16a92c58515ad0ac257ad
+npm notice integrity: sha512-j5lrHbRNY40pB[...]Y6WC3cSw8CuLg==
+npm notice total files: 5
+npm notice
+ ❯ __tests__/catalog.test.ts (20 tests | 2 failed) 570ms
+   × standalone plugin catalog > 'ui-ux-design' matches its real package, publisher, path and contract 15ms
+     → expected { kind: 'agent', …(9) } to deeply equal { kind: 'agent', …(9) }
+   ✓ standalone plugin catalog > packs only metadata and documentation into the actual npm tarball 518ms
+   × release catalog generation > records agent file digests without changing its manifest or schema version 4ms
+     → expected { kind: 'agent', …(9) } to match object { kind: 'agent', …(4) }
+(5 matching properties omitted from actual)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/catalog.test.ts > standalone plugin catalog > 'ui-ux-design' matches its real package, publisher, path and contract
+AssertionError: expected { kind: 'agent', …(9) } to deeply equal { kind: 'agent', …(9) }
+
+- Expected
++ Received
+
+  Object {
+    "contract": Object {
+      "id": "agent-plugins",
+      "version": "1.0.0",
+    },
+    "description": "UI/UX design, interface-design-system, accessibility, and shadcn/ui component skills bundled as one portable Agent Plugin.",
+    "expectedDigests": null,
+    "id": "ui-ux-design",
+    "kind": "agent",
+    "packageName": "@jini-ai/plugin-ui-ux-design",
+    "path": "ui-ux-design",
+    "pluginVersion": "0.4.6",
+    "publisherIdentity": "jini/ui-ux-design",
+-   "version": "0.6.13",
++   "version": "0.7.0",
+  }
+
+ ❯ __tests__/catalog.test.ts:28:19
+     26|       : `provider-plugins/src/${entry.id}/jini.plugin.json`;
+     27|     const pluginManifest = await readJson(path.join(packagesRoot, sour…
+     28|     expect(entry).toEqual({ ...catalogEntry({ id: entry.id, packageMan…
+       |                   ^
+     29|     expect(entry.publisherIdentity).toBe(`jini/${entry.id}`);
+     30|     expect(packageManifest.version).toBe('0.7.0');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  __tests__/catalog.test.ts > release catalog generation > records agent file digests without changing its manifest or schema version
+AssertionError: expected { kind: 'agent', …(9) } to match object { kind: 'agent', …(4) }
+(5 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+    "contract": Object {
+      "id": "agent-plugins",
+      "version": "1.0.0",
+    },
+    "expectedDigests": Object {
+      "plugin.json": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "skills/ui-ux-design/SKILL.md": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    },
+    "kind": "agent",
+    "pluginVersion": "0.4.6",
+-   "version": "0.7.0",
++   "version": "0.6.13",
+  }
+
+ ❯ __tests__/catalog.test.ts:135:23
+    133|       integrity: async () => ({ 'plugin.json': digest, 'skills/ui-ux-d…
+    134|     } });
+    135|     expect(result[0]).toMatchObject({ kind: 'agent', pluginVersion: '0…
+       |                       ^
+    136|       contract: { id: 'agent-plugins', version: '1.0.0' },
+    137|       expectedDigests: { 'plugin.json': digest, 'skills/ui-ux-design/S…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 18 passed (20)
+   Start at  01:15:00
+   Duration  1.15s (transform 101ms, setup 0ms, collect 133ms, tests 570ms, environment 0ms, prepare 102ms)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 80% ( 56/70 )
+Branches     : 96.66% ( 29/30 )
+Functions    : 80% ( 4/5 )
+Lines        : 80% ( 56/70 )
+================================================================================
+exit=1 secs=2

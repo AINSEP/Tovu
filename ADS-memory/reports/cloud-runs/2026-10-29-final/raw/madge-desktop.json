@@ -1,0 +1,10 @@
+[
+  [
+    "../../../../Jini/packages/chat/dist/react/hooks/useUserTextGuard.d.ts",
+    "../../../../Jini/packages/chat/dist/react/index.d.ts"
+  ],
+  [
+    "../../../../Jini/packages/ui/dist/features/panel-kit/helpers/standing-draft-local-backup.d.ts",
+    "../../../../Jini/packages/ui/dist/features/panel-kit/hooks/use-standing-draft-autosave.hooks.d.ts"
+  ]
+]

@@ -1,0 +1,21 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugin-observability-sentry
+      Coverage enabled with v8
+
+ ✓ __tests__/pack.test.ts (3 tests) 1479ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  01:15:10
+   Duration  4.03s (transform 452ms, setup 0ms, collect 748ms, tests 1.48s, environment 0ms, prepare 100ms)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 0% ( 0/12894 )
+Branches     : 0% ( 0/1 )
+Functions    : 0% ( 0/1 )
+Lines        : 0% ( 0/12894 )
+================================================================================
+exit=0 secs=5

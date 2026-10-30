@@ -1,0 +1,53 @@
+
+> @jini-ai/plugin-observability-opentelemetry@0.7.0 prepack /home/user/Jini/packages/plugin-observability-opentelemetry
+> node --import tsx ../provider-plugins/scripts/build.ts observability-opentelemetry .
+
+📦  @jini-ai/plugin-observability-opentelemetry@0.7.0
+Tarball Contents
+LICENSE
+NOTICE
+package.json
+plugins/observability-opentelemetry/0.7.0/jini.plugin.json
+plugins/observability-opentelemetry/0.7.0/licenses/_jini-ai_core/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_jini-ai_core/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/_jini-ai_diagnostics/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_jini-ai_diagnostics/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/_jini-ai_plugin-observability-opentelemetry/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_jini-ai_plugin-observability-opentelemetry/NOTICE
+plugins/observability-opentelemetry/0.7.0/licenses/_jini-ai_plugin-observability-opentelemetry/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/_jini-ai_plugins/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_jini-ai_plugins/LICENSE-SOURCE
+plugins/observability-opentelemetry/0.7.0/licenses/_jini-ai_plugins/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_api-logs/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_api-logs/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_api/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_api/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_context-async-hooks/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_context-async-hooks/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_core/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_core/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_otlp-exporter-base/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_otlp-exporter-base/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_otlp-transformer/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_otlp-transformer/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_resources/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_resources/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_sdk-metrics/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_sdk-metrics/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_sdk-trace-base/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_sdk-trace-base/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_sdk-trace-node/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_sdk-trace-node/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_sdk-trace/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_sdk-trace/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_semantic-conventions/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/_opentelemetry_semantic-conventions/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/js-tokens/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/js-tokens/package-license.json
+plugins/observability-opentelemetry/0.7.0/licenses/semver/LICENSE
+plugins/observability-opentelemetry/0.7.0/licenses/semver/package-license.json
+plugins/observability-opentelemetry/0.7.0/server/index.mjs
+README.md
+Tarball Details
+/tmp/tarballs/jini-ai-plugin-observability-opentelemetry-0.7.0.tgz
+exit=0

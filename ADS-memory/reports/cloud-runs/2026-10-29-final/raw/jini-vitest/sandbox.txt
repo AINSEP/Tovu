@@ -1,0 +1,42 @@
+Loaded  vitest@3.2.7  and  @vitest/coverage-v8@2.1.9 .
+Running mixed versions is not supported and may lead into bugs
+Update your dependencies and make sure the versions match.
+
+ RUN  v3.2.7 /home/user/Jini/packages/sandbox
+      Coverage enabled with v8
+
+ ✓ src/e2b/__tests__/wrap-e2b-sandbox.test.ts (54 tests) 214ms
+ ✓ src/e2b/__tests__/provider.test.ts (11 tests) 314ms
+   ✓ createE2bSandboxProvider > C54: releases failed boots and returns non-zero command exits as results  302ms
+ ✓ src/e2b/__tests__/mount-characterization.test.ts (7 tests) 26ms
+ ✓ src/__tests__/node-worker.test.ts (14 tests) 18ms
+ ✓ src/__tests__/node-worker-native.test.ts (5 tests) 293ms
+ ✓ src/e2b/__tests__/to-e2b-handle.test.ts (8 tests) 21ms
+ ✓ src/e2b/__tests__/default-vite-react-template.test.ts (3 tests) 10ms
+ ✓ src/e2b/__tests__/categorize-e2b-error.test.ts (3 tests) 6ms
+ ✓ src/e2b/__tests__/to-array-buffer.test.ts (4 tests) 6ms
+ ✓ src/e2b/__tests__/index.test.ts (2 tests) 9ms
+ ✓ src/core/__tests__/errors.test.ts (3 tests) 5ms
+ ✓ src/core/__tests__/index.test.ts (2 tests) 7ms
+ ✓ src/e2b/__tests__/shell-quote.test.ts (5 tests) 4ms
+ ✓ src/__tests__/integration-surface.test.ts (1 test) 4ms
+ ✓ src/core/__tests__/loads-without-driver.test.ts (4 tests) 4097ms
+ ✓ src/e2b/__tests__/args-convention.test.ts (1 test) 5ms
+
+ Test Files  16 passed (16)
+      Tests  127 passed (127)
+   Start at  01:18:00
+   Duration  7.33s (transform 663ms, setup 0ms, collect 1.65s, tests 5.04s, environment 4ms, prepare 1.95s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.78% ( 464/465 )
+Branches     : 98.59% ( 210/213 )
+Functions    : 100% ( 44/44 )
+Lines        : 99.78% ( 464/465 )
+================================================================================
+ERROR: Coverage for lines (99.78%) does not meet global threshold (100%)
+ERROR: Coverage for statements (99.78%) does not meet global threshold (100%)
+ERROR: Coverage for branches (98.59%) does not meet global threshold (100%)
+exit=1 secs=8

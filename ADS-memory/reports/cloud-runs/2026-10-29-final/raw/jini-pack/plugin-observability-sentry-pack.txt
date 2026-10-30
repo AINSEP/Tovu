@@ -1,0 +1,40 @@
+
+> @jini-ai/plugin-observability-sentry@0.7.0 prepack /home/user/Jini/packages/plugin-observability-sentry
+> node --import tsx ../provider-plugins/scripts/build.ts observability-sentry .
+
+📦  @jini-ai/plugin-observability-sentry@0.7.0
+Tarball Contents
+LICENSE
+NOTICE
+package.json
+plugins/observability-sentry/0.7.0/jini.plugin.json
+plugins/observability-sentry/0.7.0/licenses/_jini-ai_core/LICENSE
+plugins/observability-sentry/0.7.0/licenses/_jini-ai_core/package-license.json
+plugins/observability-sentry/0.7.0/licenses/_jini-ai_diagnostics/LICENSE
+plugins/observability-sentry/0.7.0/licenses/_jini-ai_diagnostics/package-license.json
+plugins/observability-sentry/0.7.0/licenses/_jini-ai_plugin-observability-sentry/LICENSE
+plugins/observability-sentry/0.7.0/licenses/_jini-ai_plugin-observability-sentry/NOTICE
+plugins/observability-sentry/0.7.0/licenses/_jini-ai_plugin-observability-sentry/package-license.json
+plugins/observability-sentry/0.7.0/licenses/_opentelemetry_api/LICENSE
+plugins/observability-sentry/0.7.0/licenses/_opentelemetry_api/package-license.json
+plugins/observability-sentry/0.7.0/licenses/_sentry_conventions/LICENSE
+plugins/observability-sentry/0.7.0/licenses/_sentry_conventions/package-license.json
+plugins/observability-sentry/0.7.0/licenses/_sentry_core/LICENSE
+plugins/observability-sentry/0.7.0/licenses/_sentry_core/package-license.json
+plugins/observability-sentry/0.7.0/licenses/_sentry_node/LICENSE
+plugins/observability-sentry/0.7.0/licenses/_sentry_node/package-license.json
+plugins/observability-sentry/0.7.0/licenses/_sentry_opentelemetry/LICENSE
+plugins/observability-sentry/0.7.0/licenses/_sentry_opentelemetry/package-license.json
+plugins/observability-sentry/0.7.0/licenses/_sentry_server-runtime-injection/LICENSE
+plugins/observability-sentry/0.7.0/licenses/_sentry_server-runtime-injection/LICENSE-SOURCE
+plugins/observability-sentry/0.7.0/licenses/_sentry_server-runtime-injection/package-license.json
+plugins/observability-sentry/0.7.0/licenses/_sentry_server-utils/LICENSE
+plugins/observability-sentry/0.7.0/licenses/_sentry_server-utils/LICENSE-SOURCE
+plugins/observability-sentry/0.7.0/licenses/_sentry_server-utils/package-license.json
+plugins/observability-sentry/0.7.0/licenses/js-tokens/LICENSE
+plugins/observability-sentry/0.7.0/licenses/js-tokens/package-license.json
+plugins/observability-sentry/0.7.0/server/index.mjs
+README.md
+Tarball Details
+/tmp/tarballs/jini-ai-plugin-observability-sentry-0.7.0.tgz
+exit=0

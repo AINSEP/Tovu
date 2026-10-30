@@ -1,0 +1,157 @@
+apps/desktop/src/renderer/App.hooks.render.test.ts(15,98): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/App.hooks.render.test.ts(16,28): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/App.hooks.render.test.ts(159,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.render.test.ts(174,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.render.test.ts(187,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.render.test.ts(271,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.render.test.ts(273,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.render.test.ts(275,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.render.test.ts(361,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.test.ts(42,37): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/App.hooks.ts(40,8): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/App.hooks.ts(100,85): error TS7006: Parameter 'next' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(322,18): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(325,35): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(330,19): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(331,18): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(331,46): error TS7006: Parameter 'tabId' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(332,20): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(407,20): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(408,26): error TS7006: Parameter 'project' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(446,23): error TS7006: Parameter 'key' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(459,23): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(465,23): error TS7006: Parameter 'key' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(474,23): error TS7006: Parameter 'key' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(486,23): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(486,51): error TS7006: Parameter 'project' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(574,18): error TS7006: Parameter 'on' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(585,20): error TS7006: Parameter 'on' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(737,22): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(1250,17): error TS7006: Parameter 'err' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(1266,23): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(1283,25): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(1283,53): error TS7006: Parameter 'c' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(1284,46): error TS7006: Parameter 'c' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(1313,25): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(1313,50): error TS7006: Parameter 'c' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(1340,81): error TS7006: Parameter 'err' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(1376,18): error TS7006: Parameter 'conversation' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(1377,31): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(1387,19): error TS7006: Parameter 'err' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.hooks.ts(1394,27): error TS7006: Parameter 'id' implicitly has an 'any' type.
+apps/desktop/src/renderer/App.tsx(171,5): error TS2875: This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed.
+apps/desktop/src/renderer/CreateWebsiteOnboarding.test.ts(17,19): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/CreateWebsiteOnboarding.test.ts(18,38): error TS2307: Cannot find module 'react-dom/server' or its corresponding type declarations.
+apps/desktop/src/renderer/CreateWebsiteOnboarding.test.ts(83,48): error TS18046: 'node' is of type 'unknown'.
+apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx(13,32): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx(21,10): error TS2875: This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed.
+apps/desktop/src/renderer/ResourcesPanel.render.test.ts(3,24): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/ResourcesPanel.render.test.ts(4,36): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/ResourcesPanel.render.test.ts(5,28): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/ResourcesPanel.render.test.ts(52,21): error TS7031: Binding element 'panelOpen' implicitly has an 'any' type.
+apps/desktop/src/renderer/ResourcesPanel.render.test.ts(95,59): error TS7006: Parameter 'record' implicitly has an 'any' type.
+apps/desktop/src/renderer/ResourcesPanel.tsx(2,97): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/ResourcesPanel.tsx(81,94): error TS7006: Parameter 'group' implicitly has an 'any' type.
+apps/desktop/src/renderer/ResourcesPanel.tsx(82,10): error TS2875: This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed.
+apps/desktop/src/renderer/SharedKeys.hooks.test.ts(3,21): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/SharedKeys.hooks.ts(2,58): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/SharedKeys.render.test.ts(3,43): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/SharedKeys.render.test.ts(4,28): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/SharedKeys.tsx(2,61): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/SharedKeys.tsx(14,10): error TS2875: This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed.
+apps/desktop/src/renderer/SharedKeys.tsx(51,28): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+apps/desktop/src/renderer/SiteGrid.jsdom.test.ts(15,24): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/SiteGrid.jsdom.test.ts(16,36): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/SiteGrid.jsdom.test.ts(38,37): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/SiteGrid.refactor.test.ts(5,38): error TS2307: Cannot find module 'react-dom/server' or its corresponding type declarations.
+apps/desktop/src/renderer/SiteGrid.tsx(127,5): error TS2875: This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed.
+apps/desktop/src/renderer/SiteGrid.tsx(599,33): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/SitesFolders.jsdom.test.ts(14,24): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/SitesFolders.jsdom.test.ts(15,36): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/SitesFolders.jsdom.test.ts(30,37): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/SitesFolders.tsx(18,10): error TS2875: This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed.
+apps/desktop/src/renderer/WorkspaceChatPane.render.test.ts(17,88): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/WorkspaceChatPane.render.test.ts(18,28): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/WorkspaceChatPane.tsx(54,5): error TS2875: This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed.
+apps/desktop/src/renderer/app-render-harness.ts(10,43): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/app-render-harness.ts(45,37): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/dom-hook-harness.ts(11,36): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/dom-hook-harness.ts(12,28): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/icons.test.ts(12,19): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/icons.test.ts(13,38): error TS2307: Cannot find module 'react-dom/server' or its corresponding type declarations.
+apps/desktop/src/renderer/icons.tsx(7,26): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/icons.tsx(14,5): error TS2875: This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed.
+apps/desktop/src/renderer/imported-hooks.hooks.test.ts(12,46): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/imported-hooks.hooks.test.ts(13,28): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/loading-overlay.test.ts(4,38): error TS2307: Cannot find module 'react-dom/server' or its corresponding type declarations.
+apps/desktop/src/renderer/main.tsx(5,28): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/main.tsx(6,28): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/main.tsx(22,5): error TS2875: This JSX tag requires the module path 'react/jsx-runtime' to exist, but none could be found. Make sure you have types for the appropriate package installed.
+apps/desktop/src/renderer/mount-renderer.ts(7,32): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/site-card-menu-wiring.test.ts(14,24): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/site-card-menu-wiring.test.ts(15,38): error TS2307: Cannot find module 'react-dom/server' or its corresponding type declarations.
+apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts(15,36): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts(28,37): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/site-port.rules.test.ts(4,24): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/site-port.rules.test.ts(5,38): error TS2307: Cannot find module 'react-dom/server' or its corresponding type declarations.
+apps/desktop/src/renderer/site-toolbar-wiring.test.ts(15,24): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/sitesnest-card.test.ts(5,24): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/sitesnest-card.test.ts(6,36): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/sitesnest-card.test.ts(7,28): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/source-test-harness.ts(4,19): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/stalecard-paths.test.ts(5,24): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/stalecard-paths.test.ts(6,36): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/stalecard-paths.test.ts(7,28): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/theme.test.ts(4,36): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/theme.test.ts(5,28): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/theme.ts(1,37): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-add-site.hooks.ts(13,39): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-add-site.hooks.ts(14,47): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-add-site.hooks.ts(73,20): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-app-version.hooks.ts(2,37): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts(1,58): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-find-in-page.hooks.ts(64,60): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-find-in-page.jsdom.test.ts(15,36): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-find-in-page.jsdom.test.ts(45,37): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/use-new-site-dir.hooks.test.ts(4,36): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-new-site-dir.hooks.test.ts(5,28): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/use-new-site-dir.hooks.ts(2,37): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-product-screen.hooks.ts(2,35): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-resources.hooks.render.test.ts(3,21): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-resources.hooks.ts(2,45): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-site-folders.hooks.test.ts(5,31): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-site-folders.hooks.ts(2,50): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-site-locate.hooks.test.ts(6,36): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-site-locate.hooks.test.ts(7,28): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/use-site-locate.hooks.ts(10,39): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-site-locate.hooks.ts(60,18): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(22,39): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-site-power.hooks.ts(263,50): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<SitePowerAction, SiteLifecycleStatus>'.
+apps/desktop/src/renderer/use-site-power.hooks.ts(282,19): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(283,18): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(287,40): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(293,21): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(307,16): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(308,15): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(312,22): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-power.hooks.ts(315,18): error TS7006: Parameter 'current' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-preview.hooks.ts(23,37): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-site-rename.hooks.render.test.ts(10,21): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-site-rename.hooks.ts(26,37): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-site-storage-settings.hooks.ts(1,50): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-site-workspace.hooks.render.test.ts(10,21): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-site-workspace.hooks.render.test.ts(109,16): error TS7006: Parameter 'action' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-site-workspace.hooks.ts(24,64): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-sites-folders-dialog.hooks.test.ts(80,20): error TS7006: Parameter 'value' implicitly has an 'any' type.
+apps/desktop/src/renderer/use-tab-strip.hooks.render.test.ts(10,52): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-tab-strip.hooks.render.test.ts(11,28): error TS2307: Cannot find module 'react-dom/client' or its corresponding type declarations.
+apps/desktop/src/renderer/use-tab-strip.hooks.render.test.ts(99,25): error TS18046: 'tab' is of type 'unknown'.
+apps/desktop/src/renderer/use-tab-strip.hooks.render.test.ts(99,74): error TS18046: 'tab' is of type 'unknown'.
+apps/desktop/src/renderer/use-tab-strip.hooks.ts(1,87): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-update-check.hooks.ts(2,26): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-workspace-chat-pane.hooks.render.test.ts(10,37): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-workspace-chat-pane.hooks.ts(23,8): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/use-zoom.hooks.ts(29,48): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/websites-width.test.ts(6,38): error TS2307: Cannot find module 'react' or its corresponding type declarations.
+apps/desktop/src/renderer/websites-width.test.ts(7,38): error TS2307: Cannot find module 'react-dom/server' or its corresponding type declarations.
+apps/desktop/vite.config.mts(3,19): error TS2307: Cannot find module '@vitejs/plugin-react' or its corresponding type declarations.

@@ -1,0 +1,130 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/mcp
+      Coverage enabled with v8
+
+ ✓ src/federation/__tests__/mcp-federation.registrations.test.ts (48 tests) 392ms
+daemon URL http://daemon.example is neither loopback nor HTTPS; traffic to a remote, non-HTTPS daemon is not encrypted. ✓ src/server/__tests__/tool-server.wire.test.ts (30 tests) 257ms
+ ✓ src/server/__tests__/tool-server.test.ts (38 tests) 136ms
+ ✓ src/server/__tests__/tool-protocol.test.ts (67 tests) 80ms
+ ✓ src/bin/__tests__/serve.test.ts (56 tests) 2177ms
+ ✓ src/federation/__tests__/mcp-federation.http-adapter.test.ts (44 tests) 230ms
+ ✓ src/server/__tests__/daemon-client.test.ts (68 tests) 133ms
+ ✓ src/federation/__tests__/mcp-federation.trust.test.ts (43 tests) 21ms
+stderr | src/core/__tests__/config.test.ts > readMcpConfig / writeMcpConfig > returns empty and logs on corrupt JSON
+[mcp-config] Corrupted JSON, returning empty: Expected property name or '}' in JSON at position 2 (line 1 column 3)
+
+ ✓ src/agent-install/__tests__/install.test.ts (52 tests) 112ms
+ ✓ src/core/__tests__/config.test.ts (59 tests) 177ms
+ ✓ src/federation/__tests__/trust.pins.unit.test.ts (114 tests) 39ms
+ ✓ src/federation/__tests__/mcp-federation.refusal-notice.test.ts (25 tests) 12ms
+ ✓ src/tools/ask-choice/__tests__/ports.test.ts (52 tests) 65ms
+ ✓ src/server/tools/__tests__/delegated-tool.test.ts (35 tests) 29ms
+ ✓ src/tools/ask-choice/__tests__/ask-choice.test.ts (17 tests) 26ms
+ ✓ src/federation/__tests__/mcp-federation.stdio-adapter.test.ts (20 tests) 442ms
+ ✓ src/federation/__tests__/call-confirmation.pins.test.ts (29 tests) 42ms
+ ✓ src/federation/__tests__/fed-security.unit.test.ts (37 tests) 27ms
+ ✓ src/federation/__tests__/call-confirmation.p5.test.ts (22 tests) 34ms
+ ✓ src/federation/__tests__/mcp-federation.reload.test.ts (9 tests) 7ms
+ ✓ src/client/__tests__/client.test.ts (38 tests) 70ms
+stdout | src/federation/__tests__/mcp-federation.bootstrap.test.ts > defaultConnect hands the hosted transport callTimeoutMs as its per-request bound, matching the stdio arm — not connectTimeoutMs
+agent-daemon mcp-federation: 'hosted-vendor' registered 0 federated tool(s): (none)
+
+stdout | src/federation/__tests__/mcp-federation.bootstrap.test.ts > attachFederatedMcpTools stamps preset connections with a preset origin, for external-mcp-revocation.ts's roster/preset split
+agent-daemon mcp-federation: 'hosted-vendor' registered 1 federated tool(s): mcp__hosted-vendor__ping
+
+stderr | src/federation/__tests__/mcp-federation.bootstrap.test.ts > a connect timeout produces a human-readable connectFailures entry with no report entry, for the connection admin admissions must surface
+agent-daemon mcp-federation: 'namecom' failed, continuing without its tools — connect timed out after 15000ms
+
+ ✓ src/federation/__tests__/mcp-federation.bootstrap.test.ts (4 tests) 71ms
+ ✓ src/federation/__tests__/mcp-federation.stdio-launch-resolver.test.ts (17 tests) 11ms
+stderr | src/core/__tests__/tokens.test.ts > readTokensFile > returns an empty store on corrupt JSON
+[mcp-tokens] Corrupted JSON, returning empty: Expected property name or '}' in JSON at position 2 (line 1 column 3)
+
+stderr | src/core/__tests__/tokens.test.ts > token store mutations > C31: returns null for inherited entries and preserves corrupt contents before replacing the store
+[mcp-tokens] Corrupted JSON, returning empty: Expected ',' or '}' after property value in JSON at position 46 (line 1 column 47)
+
+ ✓ src/core/__tests__/tokens.test.ts (22 tests) 122ms
+ ✓ src/server/__tests__/tool-server.hosting.test.ts (18 tests) 253ms
+ ✓ src/federation/__tests__/stdio-launch-resolver.pins.test.ts (20 tests) 62ms
+ ✓ src/federation/__tests__/mcp-federation.stdio-exit-reason.test.ts (15 tests) 161ms
+ ✓ src/federation/__tests__/revocation.pins.test.ts (21 tests) 15ms
+ ✓ src/federation/__tests__/http-challenge-isolation.test.ts (8 tests) 19ms
+ ✓ src/federation/__tests__/adapter.stdio.pins.test.ts (18 tests) 1369ms
+   ✓ spawnMcpStdioChannel exit draining > a grandchild holding stderr open cannot postpone the close reason past the drain bound 1166ms
+ ✓ src/federation/__tests__/mcp-federation.stdio-child-env.test.ts (9 tests) 6ms
+ ✓ src/federation/__tests__/mcp-federation.bundled-toolchain-spawn.test.ts (2 tests) 156ms
+ ✓ src/__tests__/finish-pass.unit.test.ts (23 tests) 53ms
+ ✓ src/server/tools/__tests__/run-tools.test.ts (18 tests) 18ms
+ ✓ src/server/tools/__tests__/argument-shapes.test.ts (26 tests) 44ms
+ ✓ src/server/__tests__/message-relay.test.ts (5 tests) 33ms
+ ✓ src/federation/__tests__/approval-contradictions.unit.test.ts (9 tests) 33ms
+ ✓ src/__tests__/args-convention.unit.test.ts (8 tests) 18ms
+ ✓ src/server/__tests__/resource-protocol.test.ts (14 tests) 16ms
+ ✓ src/__tests__/integration-contracts.test.ts (11 tests) 53ms
+ ✓ src/federation/__tests__/confirmation-policy.unit.test.ts (31 tests) 19ms
+ ✓ src/federation/__tests__/mcp-federation.adapter-memory.test.ts (8 tests) 28ms
+ ✓ src/server/__tests__/auth-propagation.test.ts (22 tests) 33ms
+ ✓ src/federation/__tests__/mcp-federation.admission-logging.test.ts (3 tests) 9ms
+ ✓ src/server/tools/__tests__/tool-catalog-tools.test.ts (16 tests) 23ms
+ ✓ src/federation/__tests__/registrations.read-only.test.ts (4 tests) 19ms
+ ✓ src/core/__tests__/secure-write.test.ts (7 tests) 183ms
+ ✓ src/federation/__tests__/approval-fingerprint.test.ts (6 tests) 12ms
+ ✓ src/federation/__tests__/approval-stores.test.ts (4 tests) 8ms
+stdout | src/federation/__tests__/fed-presets.unit.test.ts > fed-presets: a preset's write tool with no write grant is refused per call and never sent
+agent-daemon mcp-federation: 'vendor' registered 2 federated tool(s): mcp__vendor__create_project, mcp__vendor__list_tables
+
+stdout | src/federation/__tests__/fed-presets.unit.test.ts > fed-presets: a preset's explicit default write grant lets the write run, and the admission report shows it
+agent-daemon mcp-federation: 'vendor' registered 2 federated tool(s): mcp__vendor__create_project, mcp__vendor__list_tables
+
+stderr | src/federation/__tests__/fed-presets.unit.test.ts > fed-presets: a preset's explicit default write grant lets the write run, and the admission report shows it
+agent-daemon mcp-federation: 'vendor' admitted WRITE tool 'create_project' (operator-authorized)
+
+stdout | src/federation/__tests__/fed-presets.unit.test.ts > fed-presets: a preset's read tool needs no write grant
+agent-daemon mcp-federation: 'vendor' registered 2 federated tool(s): mcp__vendor__create_project, mcp__vendor__list_tables
+
+ ✓ src/federation/__tests__/fed-presets.unit.test.ts (3 tests) 10ms
+ ✓ src/federation/__tests__/http-authentication-ports.test.ts (3 tests) 11ms
+ ✓ src/server/tools/__tests__/component-catalog-tools.test.ts (15 tests) 23ms
+ ✓ src/federation/__tests__/revocation.p5.test.ts (12 tests) 7ms
+ ✓ src/bin/__tests__/serve-delegated-timeout.test.ts (6 tests) 8ms
+ ✓ src/federation/__tests__/remembered-approval.test.ts (8 tests) 14ms
+ ✓ src/federation/__tests__/http-fetch-guards.test.ts (5 tests) 81ms
+ ✓ src/federation/__tests__/mcp-protocol.parse.unit.test.ts (6 tests) 9ms
+ ✓ src/__tests__/index.test.ts (4 tests) 8ms
+ ✓ src/tools/ask-choice/__tests__/question.unit.test.ts (12 tests) 12ms
+ ✓ src/federation/__tests__/mcp-federation.config.test.ts (13 tests) 13ms
+ ✓ src/federation/__tests__/default-connect.unit.test.ts (4 tests) 19ms
+ ✓ src/server/__tests__/tool-arguments.test.ts (11 tests) 8ms
+ ✓ src/server/resources/__tests__/active-resource.test.ts (6 tests) 12ms
+ ✓ src/core/__tests__/install-info.test.ts (5 tests) 6ms
+ ✓ src/server/resources/__tests__/site-guide-resource.test.ts (3 tests) 28ms
+ ✓ src/server/__tests__/sdk-transport.unit.test.ts (5 tests) 6ms
+ ✓ src/__tests__/package-exports.test.ts (5 tests) 13ms
+ ✓ src/agent-install/__tests__/chrome-devtools.test.ts (5 tests) 10ms
+ ✓ src/federation/__tests__/presets.hwa.test.ts (2 tests) 6ms
+ ✓ src/server/__tests__/schema-ref-boundaries.unit.test.ts (3 tests) 13ms
+ ✓ src/__tests__/diagnostic-contradictions.unit.test.ts (5 tests) 41ms
+ ✓ src/federation/__tests__/trust.operator-read-only.test.ts (19 tests) 4ms
+ ✓ src/server/__tests__/stdio-lifetime-w2g.unit.test.ts (2 tests) 10ms
+ ✓ src/tools/ask-choice/__tests__/question.jw6.characterization.test.ts (3 tests) 6ms
+ ✓ src/core/__tests__/oauth-retired.test.ts (1 test) 14ms
+ ✓ src/federation/__tests__/neutrality.test.ts (1 test) 21ms
+ ✓ src/federation/__tests__/launch-spec.unit.test.ts (1 test) 3ms
+
+ Test Files  77 passed (77)
+      Tests  1440 passed (1440)
+   Start at  01:13:04
+   Duration  30.40s (transform 4.66s, setup 0ms, collect 21.10s, tests 7.77s, environment 21ms, prepare 8.30s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.82% ( 4612/4620 )
+Branches     : 99.06% ( 2436/2459 )
+Functions    : 100% ( 531/531 )
+Lines        : 99.82% ( 4612/4620 )
+================================================================================
+ERROR: Coverage for lines (99.82%) does not meet global threshold (100%)
+ERROR: Coverage for statements (99.82%) does not meet global threshold (100%)
+ERROR: Coverage for branches (99.06%) does not meet global threshold (100%)
+exit=1 secs=32

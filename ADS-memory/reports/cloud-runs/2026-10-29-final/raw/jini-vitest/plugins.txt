@@ -1,0 +1,90 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugins
+      Coverage enabled with v8
+
+ ✓ src/host/__tests__/unit/install.unit.test.ts (43 tests) 636ms
+ ✓ src/host/__tests__/integration/hook-registry.integration.test.ts (31 tests) 23ms
+ ✓ src/host/__tests__/unit/manifest.unit.test.ts (38 tests) 19ms
+ ✓ src/host/__tests__/unit/provider-contributions.unit.test.ts (18 tests) 267ms
+ ✓ src/host/__tests__/unit/package-files.unit.test.ts (20 tests) 146ms
+ ✓ src/host/__tests__/integration/loader.integration.test.ts (14 tests) 116ms
+ ✓ src/host/__tests__/unit/plugin-claims.unit.test.ts (16 tests) 19ms
+ ✓ src/host/__tests__/unit/plugin-identity.unit.test.ts (15 tests) 268ms
+ ✓ src/host/__tests__/integration/discovery.integration.test.ts (7 tests) 120ms
+ ✓ src/host/__tests__/unit/module-snapshot-lifecycle.unit.test.ts (12 tests) 18ms
+ ✓ src/host/worker/__tests__/run-call.l237.characterization.test.ts (19 tests) 10ms
+ ✓ src/host/__tests__/unit/contributions.l121.characterization.unit.test.ts (36 tests) 30ms
+ ✓ src/host/__tests__/unit/discovery.unit.test.ts (9 tests) 184ms
+ ✓ src/host/__tests__/unit/source-drafts.unit.test.ts (37 tests) 7436ms
+   ✓ read, write, edit and delete reject traversal, absolute paths and invalid ids without touching outside files 324ms
+   ✓ authoring accepts the existing manifest id grammar, including adjacent and edge hyphens 506ms
+   ✓ file and aggregate size caps refuse writes before any mutation 404ms
+   ✓ entry caps include pre-existing empty directories and refuse a write before it exceeds the limit 812ms
+   ✓ seal hashes all files, pins the installer digest, bumps patches, preserves prior versions and calls reload last 361ms
+   ✓ seal can append for enabled workspaces; ordinary installs and same-version replacement still refuse enabled packages 335ms
+   ✓ rollback seals prior bytes as a new version, reloads and leaves draft edits alone 314ms
+   ✓ built-ins and missing drafts refuse, and source lock serializes concurrent seal/edit without leaking a temporary tree 305ms
+   ✓ successful reload keeps every active version and the newest three, and retires provenance too 526ms
+   ✓ failed reload never prunes recovery bytes 497ms
+   ✓ approvals persist beside provenance, survive pruning, ignore damage and cannot be written through a draft path 482ms
+ ✓ src/host/__tests__/unit/uninstall.unit.test.ts (13 tests) 10ms
+ ✓ src/host/__tests__/unit/capability-sdk.unit.test.ts (36 tests) 16ms
+ ✓ src/host/__tests__/integration/browser-provider-assets.integration.test.ts (8 tests) 116ms
+ ✓ src/glue/__tests__/manifest.test.ts (25 tests) 7ms
+ ✓ src/host/__tests__/unit/loader.unit.test.ts (22 tests) 26ms
+ ✓ src/host/__tests__/unit/tier2-import-seam.unit.test.ts (13 tests) 10ms
+ ✓ src/host/__tests__/unit/contribution-sdk.unit.test.ts (5 tests) 19ms
+ ✓ src/glue/__tests__/capability-gate.test.ts (25 tests) 10ms
+ ✓ src/glue/__tests__/tool-registration.test.ts (8 tests) 9ms
+ ✓ src/host/__tests__/unit/contributions.edges.unit.test.ts (16 tests) 18ms
+ ✓ src/host/__tests__/unit/manifest.l121.characterization.unit.test.ts (43 tests) 25ms
+ ✓ src/host/__tests__/unit/tier2-run-call.unit.test.ts (13 tests) 10ms
+ ✓ src/host/__tests__/unit/plugin-format.unit.test.ts (8 tests) 141ms
+ ✓ src/host/__tests__/unit/tool-contributions.characterization.unit.test.ts (8 tests) 22ms
+ ✓ src/host/__tests__/unit/activation.unit.test.ts (11 tests) 11ms
+ ✓ src/host/__tests__/unit/claim-conflicts.unit.test.ts (16 tests) 8ms
+ ✓ src/host/__tests__/unit/browser-providers.l121.characterization.unit.test.ts (42 tests) 61ms
+ ✓ src/host/__tests__/unit/declarative-enable.unit.test.ts (8 tests) 20ms
+ ✓ src/host/__tests__/integration/repo.contract.integration.test.ts (10 tests) 48ms
+ ✓ src/host/__tests__/integration/provider-artifact.integration.test.ts (5 tests) 106ms
+ ✓ src/host/__tests__/unit/module-snapshot.unit.test.ts (6 tests) 193ms
+ ✓ src/host/__tests__/unit/provider-setting-required.unit.test.ts (6 tests) 9ms
+ ✓ src/host/worker/__tests__/protocol.l237.characterization.test.ts (35 tests) 10ms
+ ✓ src/__tests__/package-surface.integration.test.ts (3 tests) 520ms
+   ✓ each host entry barrel re-exports the runtime APIs its package.json entry promises 516ms
+ ✓ src/host/__tests__/unit/contributions.unit.test.ts (3 tests) 10ms
+ ✓ src/host/__tests__/unit/hook-registry-preview.unit.test.ts (5 tests) 11ms
+ ✓ src/host/__tests__/unit/quarantine-observer.unit.test.ts (3 tests) 19ms
+ ✓ src/host/__tests__/unit/attach-loaded-plugin.unit.test.ts (5 tests) 5ms
+ ✓ src/host/__tests__/unit/bundled-initialization.test.ts (3 tests) 7ms
+ ✓ src/glue/__tests__/injected-host.test.ts (4 tests) 8ms
+ ✓ src/host/__tests__/unit/provider-settings-migrations.unit.test.ts (2 tests) 8ms
+ ✓ src/host/__tests__/unit/tier2-protocol.unit.test.ts (13 tests) 6ms
+ ✓ src/host/__tests__/unit/quarantine.unit.test.ts (2 tests) 4ms
+ ✓ src/host/__tests__/unit/provider-guidance.unit.test.ts (13 tests) 9ms
+ ✓ src/glue/__tests__/delegate-ownership.w8.test.ts (2 tests) 4ms
+ ✓ src/glue/__tests__/delegate-forwarding.test.ts (2 tests) 4ms
+ ✓ src/__tests__/args-convention.contract.test.ts (2 tests) 7ms
+ ✓ src/host/__tests__/unit/provider-schema-w2g.unit.test.ts (5 tests) 15ms
+ ✓ src/host/__tests__/unit/hook-quarantine-w2g.unit.test.ts (1 test) 8ms
+ ✓ src/glue/__tests__/content-lifecycle.test.ts (2 tests) 14ms
+ ✓ src/glue/__tests__/events.test.ts (2 tests) 4ms
+ ✓ src/host/__tests__/host-entry-purity.test.ts (1 test) 42272ms
+   ✓ ./host is universal and never evaluates executable source 42271ms
+ ✓ src/host/__tests__/unit/open-flags.unit.test.ts (2 tests) 4ms
+
+ Test Files  57 passed (57)
+      Tests  772 passed (772)
+   Start at  01:15:18
+   Duration  61.42s (transform 2.37s, setup 0ms, collect 7.31s, tests 53.14s, environment 21ms, prepare 6.59s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 99.55% ( 3368/3383 )
+Branches     : 99.22% ( 2059/2075 )
+Functions    : 99.75% ( 403/404 )
+Lines        : 99.55% ( 3368/3383 )
+================================================================================
+exit=0 secs=62

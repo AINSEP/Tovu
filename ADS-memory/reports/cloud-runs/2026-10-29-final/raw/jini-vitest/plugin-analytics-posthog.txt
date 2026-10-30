@@ -1,0 +1,34 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugin-analytics-posthog
+      Coverage enabled with v8
+
+ ✓ __tests__/pack.test.ts (4 tests) 1041ms
+1:14:57 AM [vite] Failed to load source map for /home/user/Jini/packages/plugin-analytics-posthog/plugins/analytics-posthog/0.7.0/server/posthog-browser.js.
+Error: An error occurred while trying to read the map file at module.full.no-external.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Jini/packages/plugin-analytics-posthog/plugins/analytics-posthog/0.7.0/server/module.full.no-external.js.map'
+    at async open (node:internal/fs/promises:1345:25)
+    at async Object.readFile (node:internal/fs/promises:2003:14)
+    at async extractSourcemapFromFile (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:21002:53)
+    at async loadAndTransform (file:///home/user/Jini/node_modules/.pnpm/vite@5.4.21_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51941:27)
+    at async ViteNodeServer._transformRequest (file:///home/user/Jini/node_modules/.pnpm/vite-node@2.1.9_@types+node@24.13.3_lightningcss@1.33.0_sass@1.51.0/node_modules/vite-node/dist/server.mjs:542:16)
+    at async transformFile (file:///home/user/Jini/node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/coverage.js:369:18)
+    at async V8CoverageProvider.getSources (file:///home/user/Jini/node_modules/.pnpm/@vitest+coverage-v8@2.1.9_vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0_/node_modules/@vitest/coverage-v8/dist/provider.js:2697:25)
+    at async file:///home/user/Jini/node_modules/.pnpm/@vitest+coverage-v8@2.1.9_vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0_/node_modules/@vitest/coverage-v8/dist/provider.js:2655:38
+    at async Promise.all (index 0)
+    at async V8CoverageProvider.getUntestedFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+coverage-v8@2.1.9_vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0_/node_modules/@vitest/coverage-v8/dist/provider.js:2653:25)
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  01:14:55
+   Duration  3.83s (transform 404ms, setup 0ms, collect 651ms, tests 1.04s, environment 0ms, prepare 96ms)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 0% ( 0/9445 )
+Branches     : 0% ( 0/3 )
+Functions    : 0% ( 0/3 )
+Lines        : 0% ( 0/9445 )
+================================================================================
+exit=0 secs=5

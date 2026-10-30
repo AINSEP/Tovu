@@ -1,0 +1,60 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/http-kit
+      Coverage enabled with v8
+
+ ✓ src/__tests__/rate-limit.test.ts (28 tests) 24ms
+ ✓ src/__tests__/origin-validation.test.ts (69 tests) 50ms
+ ✓ src/__tests__/api-security-middleware.test.ts (57 tests) 41ms
+ ✓ src/__tests__/sse.test.ts (29 tests) 94ms
+stderr | src/__tests__/adapter.test.ts > http adapter > leaves no dangling close listener after a route that throws
+[@jini-ai/http-kit] internal error (GET /boom-cleanup, correlationId=4d2d8749-5aa4-43d4-b3c5-87069e2d3a48) Error: boom
+    at Object.handle (/home/user/Jini/packages/http-kit/src/__tests__/adapter.test.ts:289:15)
+    at Object.GET /boom-cleanup (/home/user/Jini/packages/http-kit/src/adapter.ts:132:33)
+    at /home/user/Jini/packages/http-kit/src/__tests__/adapter.test.ts:296:43
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ ✓ src/__tests__/adapter.test.ts (13 tests) 82ms
+ ✓ src/__tests__/adapter-pins.test.ts (21 tests) 59ms
+ ✓ src/__tests__/verified-origin-registry.test.ts (28 tests) 15ms
+ ✓ src/__tests__/local-daemon-request.test.ts (61 tests) 38ms
+ ✓ src/__tests__/verified-origin-configured.test.ts (24 tests) 13ms
+ ✓ src/__tests__/raw-sse.test.ts (19 tests) 676ms
+   ✓ createSseResponse — client-disconnect detection over a real socket > keeps the stream open while a bodyless GET client stays connected 321ms
+   ✓ createSseResponse — client-disconnect detection over a real socket > closes the stream when the client actually disconnects 306ms
+ ✓ src/__tests__/verified-origin-site-path.test.ts (36 tests) 8ms
+ ✓ src/__tests__/route-registration-guard.test.ts (15 tests) 21ms
+ ✓ src/__tests__/adapter-ports.test.ts (8 tests) 18ms
+ ✓ src/__tests__/observability.test.ts (19 tests) 71ms
+ ✓ src/__tests__/verified-origin-branches.test.ts (8 tests) 8ms
+ ✓ src/__tests__/body-size-limit.test.ts (7 tests) 9ms
+ ✓ src/__tests__/local-daemon-request-pins.test.ts (37 tests) 38ms
+ ✓ src/__tests__/pack-http.test.ts (4 tests) 106ms
+ ✓ src/__tests__/verified-origin-normalize.test.ts (13 tests) 11ms
+ ✓ src/__tests__/origin.test.ts (4 tests) 7ms
+ ✓ src/__tests__/verified-origin-repo.test.ts (5 tests) 7ms
+ ✓ src/__tests__/index.test.ts (16 tests) 14ms
+ ✓ src/__tests__/compat.test.ts (5 tests) 9ms
+ ✓ src/__tests__/verified-origin-allowlist-boundaries.unit.test.ts (10 tests) 8ms
+ ✓ src/__tests__/response.test.ts (4 tests) 13ms
+ ✓ src/__tests__/request.test.ts (4 tests) 4ms
+
+ Test Files  26 passed (26)
+      Tests  544 passed (544)
+   Start at  01:12:12
+   Duration  8.35s (transform 1.37s, setup 0ms, collect 4.23s, tests 1.45s, environment 9ms, prepare 3.03s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 918/918 )
+Branches     : 100% ( 507/507 )
+Functions    : 100% ( 113/113 )
+Lines        : 100% ( 918/918 )
+================================================================================
+exit=0 secs=9

@@ -1,0 +1,9 @@
+package/LICENSE
+package/plugins/fixture-provider/0.7.0/licenses/_jini-ai_plugin-fixture-provider/LICENSE
+package/NOTICE
+package/plugins/fixture-provider/0.7.0/licenses/_jini-ai_plugin-fixture-provider/NOTICE
+package/plugins/fixture-provider/0.7.0/jini.plugin.json
+package/plugins/fixture-provider/0.7.0/licenses/_jini-ai_plugin-fixture-provider/package-license.json
+package/package.json
+package/README.md
+package/plugins/fixture-provider/0.7.0/server/index.mjs

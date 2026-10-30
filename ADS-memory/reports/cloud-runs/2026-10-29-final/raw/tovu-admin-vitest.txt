@@ -1,0 +1,5 @@
+
+ RUN  v4.1.12 /home/user/Tovu/apps/admin
+      Coverage enabled with v8
+
+Not implemented: Window's confirm() method

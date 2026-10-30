@@ -1,0 +1,325 @@
+
+> jini@ complexity:strict /home/user/Jini
+> eslint --no-error-on-unmatched-pattern --no-inline-config --ignore-pattern '**/{__tests__,__measurements__,__mocks__,fixtures,test,tests,vendor,.build}/**' --ignore-pattern '**/*.{test,spec,typecheck}.*' --ignore-pattern '**/*.d.{ts,mts,cts}' --rule '{"complexity":["error",10],"sonarjs/cognitive-complexity":["error",10]}' "packages/*/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}" "packages/cms/forms/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}" -- -f json -o /home/user/Tovu/ADS-memory/reports/cloud-runs/2026-10-29-final/raw/jini-complexity.json
+
+
+/home/user/Jini/packages/admin/src/consent/react/ConsentFields.tsx
+  112:110  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/admin/src/seo/messages.en.ts
+  6:3   error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+  6:37  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+  7:3   error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+  7:76  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/admin/src/seo/react/hooks/SeoPage.hooks.ts
+  18:29  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+  18:64  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/admin/src/seo/react/pages/SeoPage.tsx
+  643:22  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/agent-plugins/src/lifecycle/manifest.ts
+  243:104  error  Consumer product identities belong to the host  no-restricted-syntax
+
+/home/user/Jini/packages/agent-plugins/src/lifecycle/update.ts
+  211:48  warning  Make sure this permission is safe  sonarjs/file-permissions
+  269:43  warning  Make sure this permission is safe  sonarjs/file-permissions
+
+/home/user/Jini/packages/agent-plugins/src/manifest.ts
+  86:138  error  Consumer product identities belong to the host  no-restricted-syntax
+
+/home/user/Jini/packages/agentic/src/core/site-guide/site-guide.ts
+  4:22  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/chat/src/core/question-form/scan.ts
+  339:10  error  Refactor this function to reduce its Cognitive Complexity from 13 to the 10 allowed  sonarjs/cognitive-complexity
+
+/home/user/Jini/packages/chat/src/core/todos.ts
+  128:44  warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+
+/home/user/Jini/packages/chat/src/react/artifact-types.ts
+  12:4  warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+
+/home/user/Jini/packages/chat/src/react/components/Markdown.tsx
+  37:57  warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+
+/home/user/Jini/packages/chat/src/react/features/chat-pane/hooks/useChatPane.hooks.ts
+  249:43  warning  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+
+/home/user/Jini/packages/chat/src/react/hooks/useArtifactStream.ts
+  12:4  warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+
+/home/user/Jini/packages/chat/src/react/hooks/useCopyToClipboard.ts
+  8:34  warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+
+/home/user/Jini/packages/chat/src/react/hooks/usePinnedTodos.ts
+  22:25  warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+
+/home/user/Jini/packages/chat/src/store/ports.ts
+  40:13  warning  Remove this redundant type alias and replace its occurrences with "string"  sonarjs/redundant-type-aliases
+
+/home/user/Jini/packages/chat/src/store/runtime/history-tools.ts
+   19:18  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+  116:59  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/cli/src/flags.ts
+  100:17  error  Refactor this function to reduce its Cognitive Complexity from 11 to the 10 allowed  sonarjs/cognitive-complexity
+
+/home/user/Jini/packages/cms/src/consent/css-parser.ts
+  118:17  warning  Simplify this regular expression to reduce its complexity from 28 to the 20 allowed  sonarjs/regex-complexity
+
+/home/user/Jini/packages/cms/src/consent/express/index.ts
+   93:27   error  Specification IDs belong in rationale comments, never runtime strings  no-restricted-syntax
+  112:67   error  Use host-neutral messages and injected wire constants                  no-restricted-syntax
+  115:54   error  Use host-neutral messages and injected wire constants                  no-restricted-syntax
+  162:151  error  Specification IDs belong in rationale comments, never runtime strings  no-restricted-syntax
+  179:42   error  Specification IDs belong in rationale comments, never runtime strings  no-restricted-syntax
+  240:79   error  Specification IDs belong in rationale comments, never runtime strings  no-restricted-syntax
+  253:19   error  Specification IDs belong in rationale comments, never runtime strings  no-restricted-syntax
+  289:24   error  Specification IDs belong in rationale comments, never runtime strings  no-restricted-syntax
+
+/home/user/Jini/packages/cms/src/consent/html/resources.ts
+  17:22  warning  Simplify this regular expression to reduce its complexity from 28 to the 20 allowed  sonarjs/regex-complexity
+  17:22  warning  Simplify this regular expression to reduce its complexity from 28 to the 20 allowed  sonarjs/regex-complexity
+  17:22  warning  Simplify this regular expression to reduce its complexity from 28 to the 20 allowed  sonarjs/regex-complexity
+
+/home/user/Jini/packages/cms/src/forms/field-registry.ts
+  205:63  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+/home/user/Jini/packages/cms/src/media/agent-tools.ts
+  88:18  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/cms/src/media/document-ingress.ts
+  162:126  warning  Using http protocol is insecure. Use https instead  sonarjs/no-clear-text-protocols
+
+/home/user/Jini/packages/cms/src/navigation/menu-service.ts
+  155:35  warning  Using http protocol is insecure. Use https instead  sonarjs/no-clear-text-protocols
+
+/home/user/Jini/packages/cms/src/navigation/repo.memory.ts
+  131:9  error  Refactor this function to reduce its Cognitive Complexity from 11 to the 10 allowed  sonarjs/cognitive-complexity
+
+/home/user/Jini/packages/cms/src/navigation/tool-registrations.ts
+  128:73  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/cms/src/navigation/types.ts
+  195:13  warning  Remove this redundant type alias and replace its occurrences with "string"  sonarjs/redundant-type-aliases
+
+/home/user/Jini/packages/cms/src/redirects/ports.ts
+  184:6  warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+
+/home/user/Jini/packages/cms/src/redirects/redirects.ts
+  244:10  warning  Refactor this function to use "return" consistently    sonarjs/no-inconsistent-returns
+  249:47  error    Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/cms/src/routing/routing.ts
+  224:6  warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+
+/home/user/Jini/packages/cms/src/routing/types.ts
+  100:6  warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+
+/home/user/Jini/packages/cms/src/seo/absolute-url.ts
+  16:85  warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+  19:64  warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+
+/home/user/Jini/packages/cms/src/seo/dom/index.ts
+  16:49  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+/home/user/Jini/packages/cms/src/seo/types.ts
+  95:13  warning  Remove this redundant type alias and replace its occurrences with "string"  sonarjs/redundant-type-aliases
+
+/home/user/Jini/packages/cms/src/trash/ports.ts
+  8:13  warning  Remove this redundant type alias and replace its occurrences with "string"  sonarjs/redundant-type-aliases
+
+/home/user/Jini/packages/cms/src/widgets/html/gallery-render.ts
+  59:6  warning  Complete the task associated to this "TODO" comment  sonarjs/todo-tag
+
+/home/user/Jini/packages/cms/src/widgets/markers/marker.ts
+  129:24  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+  129:24  warning  Simplify this regular expression to reduce its complexity from 23 to the 20 allowed                             sonarjs/regex-complexity
+  133:34  warning  Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking  sonarjs/super-linear-regex
+
+/home/user/Jini/packages/cms/src/widgets/resolver-service.ts
+  107:10  error  Refactor this function to reduce its Cognitive Complexity from 13 to the 10 allowed  sonarjs/cognitive-complexity
+
+/home/user/Jini/packages/cms/src/widgets/resolvers/menu.ts
+  69:11  error  Refactor this function to reduce its Cognitive Complexity from 12 to the 10 allowed  sonarjs/cognitive-complexity
+
+/home/user/Jini/packages/cms/src/widgets/resolvers/taxonomy.ts
+  6:23  error  Refactor this function to reduce its Cognitive Complexity from 11 to the 10 allowed  sonarjs/cognitive-complexity
+
+/home/user/Jini/packages/cms/src/widgets/types.ts
+  144:13  warning  Remove this redundant type alias and replace its occurrences with "string"  sonarjs/redundant-type-aliases
+
+/home/user/Jini/packages/commerce/src/catalog/repo.order-payments.ts
+  30:24  warning  Refactor this code to not nest functions more than 4 levels deep  sonarjs/no-nested-functions
+
+/home/user/Jini/packages/commerce/src/catalog/settle-order-payment.ts
+  55:8  error  Async function 'settleOrderPayment' has a complexity of 11. Maximum allowed is 10  complexity
+
+/home/user/Jini/packages/commerce/src/payments/accounting/apply-evidence.ts
+  124:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+  140:16  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+/home/user/Jini/packages/commerce/src/payments/accounting/plan-evidence.ts
+  102:19  warning  Replace this union type with a type alias  sonarjs/use-type-alias
+
+/home/user/Jini/packages/commerce/src/payments/contract/checkout-client.ts
+  29:23  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+/home/user/Jini/packages/commerce/src/payments/ledger/repo.memory.ts
+  149:19  warning  Reduce the number of conditional operators (6) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+/home/user/Jini/packages/commerce/src/payments/ops/common.ts
+  114:10  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+/home/user/Jini/packages/commerce/src/payments/state/status.ts
+  100:5  warning  Add the missing "else" clause  sonarjs/elseif-without-else
+
+/home/user/Jini/packages/commerce/src/payments/testkit/lipay-fake.ts
+  115:46  warning  Extract this increment operation into a dedicated statement  sonarjs/no-nested-incdec
+  124:46  warning  Extract this increment operation into a dedicated statement  sonarjs/no-nested-incdec
+
+/home/user/Jini/packages/commerce/src/payments/tools/catalog.ts
+  93:20  warning  Define a constant instead of duplicating this literal 6 times  sonarjs/no-duplicate-string
+
+/home/user/Jini/packages/commerce/src/payments/tools/money-tools.ts
+  153:67  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+/home/user/Jini/packages/cookie-consent/src/server/receipt.ts
+  59:35  error  Specification IDs belong in rationale comments, never runtime strings  no-restricted-syntax
+
+/home/user/Jini/packages/core/src/origin-validation.ts
+   31:5   error  Specification IDs belong in rationale comments, never runtime strings  no-restricted-syntax
+  281:33  error  Specification IDs belong in rationale comments, never runtime strings  no-restricted-syntax
+
+/home/user/Jini/packages/core/src/primitives/ids.ts
+  2:13  warning  Remove this redundant type alias and replace its occurrences with "string"  sonarjs/redundant-type-aliases
+
+/home/user/Jini/packages/core/src/primitives/time.ts
+  2:13  warning  Remove this redundant type alias and replace its occurrences with "string"  sonarjs/redundant-type-aliases
+
+/home/user/Jini/packages/core/src/surface-exchanges.ts
+  67:13  warning  Remove this redundant type alias and replace its occurrences with "string"  sonarjs/redundant-type-aliases
+
+/home/user/Jini/packages/daemon/src/agent-executor/launch.ts
+  1120:54  warning  Make sure publicly writable directories are used safely here  sonarjs/publicly-writable-directories
+
+/home/user/Jini/packages/db/src/kernel/pglite/dialect.ts
+  41:10  warning  Add a "yield" statement to this generator  sonarjs/generator-without-yield
+
+/home/user/Jini/packages/db/src/recovery/degraded-banners.ts
+   69:9  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+   78:9  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+   87:9  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+  104:9  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/db/src/recovery/recovery-orchestrator.ts
+  88:56  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/db/src/recovery/restore-point-create.ts
+  92:18  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/db/src/transfer/postgres-target.ts
+  120:9  warning  Make sure the "PATH" variable only contains fixed, unwriteable directories  sonarjs/no-os-command-from-path
+
+/home/user/Jini/packages/desktop-host/src/electron/updates/instance-presence.ts
+  69:5  error  Refactor this function to reduce its Cognitive Complexity from 11 to the 10 allowed  sonarjs/cognitive-complexity
+
+/home/user/Jini/packages/desktop-host/src/tauri/testing.ts
+  133:9  warning  Refactor this function to not always return the same value  sonarjs/no-invariant-returns
+
+/home/user/Jini/packages/http-kit/src/verified-origin/site-path.ts
+  52:22  warning  Using http protocol is insecure. Use https instead  sonarjs/no-clear-text-protocols
+  54:29  warning  Using http protocol is insecure. Use https instead  sonarjs/no-clear-text-protocols
+
+/home/user/Jini/packages/integrations/src/webhooks/types.ts
+   6:13  warning  Remove this redundant type alias and replace its occurrences with "string"  sonarjs/redundant-type-aliases
+  14:13  warning  Remove this redundant type alias and replace its occurrences with "number"  sonarjs/redundant-type-aliases
+
+/home/user/Jini/packages/mcp/src/server/resources/site-guide-resource.ts
+  16:37  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/platform/src/fs/directory-user-config.ts
+  159:75  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/platform/src/process.ts
+  325:14  warning  Make sure the "PATH" variable only contains fixed, unwriteable directories  sonarjs/no-os-command-from-path
+
+/home/user/Jini/packages/plugins/src/glue/manifest.ts
+  4:13  warning  Remove this redundant type alias and replace its occurrences with "string"  sonarjs/redundant-type-aliases
+  6:13  warning  Remove this redundant type alias and replace its occurrences with "string"  sonarjs/redundant-type-aliases
+
+/home/user/Jini/packages/plugins/src/glue/ports.ts
+  10:13  warning  Remove this redundant type alias and replace its occurrences with "unknown"  sonarjs/redundant-type-aliases
+
+/home/user/Jini/packages/plugins/src/host/declarative-enable.ts
+  60:63  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/plugins/src/host/manifest-types.ts
+  25:13  warning  Remove this redundant type alias and replace its occurrences with "string"  sonarjs/redundant-type-aliases
+
+/home/user/Jini/packages/plugins/src/host/plugin-format.ts
+  3:48  error  Consumer product identities belong to the host  no-restricted-syntax
+  6:44  error  Consumer source paths are forbidden             no-restricted-syntax
+  6:44  error  Consumer product identities belong to the host  no-restricted-syntax
+
+/home/user/Jini/packages/provider-plugins/src/payments-stripe/checkout-session.ts
+  32:8  error  Async function 'createCheckoutSession' has a complexity of 11. Maximum allowed is 10  complexity
+
+/home/user/Jini/packages/provider-plugins/src/payments-stripe/session-reading.ts
+  19:1  error  Function 'sessionStatus' has a complexity of 11. Maximum allowed is 10  complexity
+
+/home/user/Jini/packages/search/src/tools.ts
+  61:18  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+  78:18  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+  85:18  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+  93:18  error  Use host-neutral messages and injected wire constants  no-restricted-syntax
+
+/home/user/Jini/packages/server/src/builtin-features.ts
+  56:25  warning  Use a standard "import" statement instead of "require"  sonarjs/no-require-or-define
+
+/home/user/Jini/packages/server/src/create-local-node-daemon.ts
+  53:25  warning  Use a standard "import" statement instead of "require"  sonarjs/no-require-or-define
+
+/home/user/Jini/packages/ui-kit/src/react/testing/driver.ts
+  87:23  error  Refactor this function to reduce its Cognitive Complexity from 11 to the 10 allowed  sonarjs/cognitive-complexity
+
+/home/user/Jini/packages/ui/src/features/execution/types.ts
+  147:13  warning  Remove this redundant type alias and replace its occurrences with "boolean"  sonarjs/redundant-type-aliases
+
+/home/user/Jini/packages/ui/src/features/i18n/dictionaries/settings-dialog.ja.ts
+  11:112  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+
+/home/user/Jini/packages/ui/src/features/i18n/dictionaries/settings-dialog.zh-CN.ts
+  21:112  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+
+/home/user/Jini/packages/ui/src/features/i18n/dictionaries/settings-dialog.zh-TW.ts
+  24:112  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+
+/home/user/Jini/packages/ui/src/features/i18n/types.ts
+  13:13  warning  Remove this redundant type alias and replace its occurrences with "string"  sonarjs/redundant-type-aliases
+
+/home/user/Jini/packages/ui/src/features/notifications/notifications-catalog.ts
+  15:13  warning  Remove this redundant type alias and replace its occurrences with "string"  sonarjs/redundant-type-aliases
+
+/home/user/Jini/packages/ui/src/react/components/HeaderActionsMenu.tsx
+  65:36  warning  Provide a default value for 'active' so that the logic of the function is more evident when this parameter is missing. Consider defining another function if providing default value is not possible  sonarjs/bool-param-default
+  70:43  warning  Provide a default value for 'active' so that the logic of the function is more evident when this parameter is missing. Consider defining another function if providing default value is not possible  sonarjs/bool-param-default
+
+/home/user/Jini/packages/ui/src/utils/notifications.ts
+  37:7  warning  Either use this collection's contents or remove the collection  sonarjs/no-unused-collection
+
+/home/user/Jini/packages/ui/src/utils/uuid.ts
+  48:16  warning  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+
+/home/user/Jini/packages/user-management/src/admin/conformance/index.ts
+  93:114  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+
+/home/user/Jini/packages/vibecoding/src/core/types.ts
+  27:13  warning  Remove this redundant type alias and replace its occurrences with "string"  sonarjs/redundant-type-aliases
+
+✖ 128 problems (54 errors, 74 warnings)
+
+ ELIFECYCLE  Command failed with exit code 1.
+exit=1

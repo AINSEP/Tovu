@@ -1,0 +1,22 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugin-payments-stripe
+      Coverage enabled with v8
+
+ ✓ __tests__/package.test.ts (2 tests) 745ms
+   ✓ packs exactly the selected versioned payload with verified integrity and retained attribution 738ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  01:15:15
+   Duration  1.84s (transform 381ms, setup 0ms, collect 617ms, tests 745ms, environment 0ms, prepare 114ms)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 0% ( 0/296 )
+Branches     : 0% ( 0/1 )
+Functions    : 0% ( 0/1 )
+Lines        : 0% ( 0/296 )
+================================================================================
+exit=0 secs=3

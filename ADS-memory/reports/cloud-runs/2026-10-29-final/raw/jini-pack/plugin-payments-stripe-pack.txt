@@ -1,0 +1,23 @@
+
+> @jini-ai/plugin-payments-stripe@0.7.0 prepack /home/user/Jini/packages/plugin-payments-stripe
+> node --import tsx ../provider-plugins/scripts/build.ts payments-stripe .
+
+📦  @jini-ai/plugin-payments-stripe@0.7.0
+Tarball Contents
+LICENSE
+NOTICE
+package.json
+plugins/payments-stripe/0.7.0/jini.plugin.json
+plugins/payments-stripe/0.7.0/licenses/_jini-ai_commerce/LICENSE
+plugins/payments-stripe/0.7.0/licenses/_jini-ai_commerce/NOTICE
+plugins/payments-stripe/0.7.0/licenses/_jini-ai_commerce/package-license.json
+plugins/payments-stripe/0.7.0/licenses/_jini-ai_core/LICENSE
+plugins/payments-stripe/0.7.0/licenses/_jini-ai_core/package-license.json
+plugins/payments-stripe/0.7.0/licenses/_jini-ai_plugin-payments-stripe/LICENSE
+plugins/payments-stripe/0.7.0/licenses/_jini-ai_plugin-payments-stripe/NOTICE
+plugins/payments-stripe/0.7.0/licenses/_jini-ai_plugin-payments-stripe/package-license.json
+plugins/payments-stripe/0.7.0/server/index.mjs
+README.md
+Tarball Details
+/tmp/tarballs/jini-ai-plugin-payments-stripe-0.7.0.tgz
+exit=0

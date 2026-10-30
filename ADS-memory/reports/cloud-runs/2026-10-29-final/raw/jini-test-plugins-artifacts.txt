@@ -1,0 +1,20 @@
+
+> jini@ test:plugins:artifacts /home/user/Jini
+> pnpm --filter @jini-ai/provider-plugins exec vitest run src/__tests__/artifact.integration.test.ts
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/provider-plugins
+
+ ✓ src/__tests__/artifact.integration.test.ts (8 tests) 9765ms
+   ✓ ai-trace-langfuse: packs, installs and loads identical standalone bytes with both host SDK ABIs outside the workspace 555ms
+   ✓ analytics-posthog: packs, installs and loads identical standalone bytes with both host SDK ABIs outside the workspace 988ms
+   ✓ observability-opentelemetry: packs, installs and loads identical standalone bytes with both host SDK ABIs outside the workspace 1343ms
+   ✓ observability-sentry: packs, installs and loads identical standalone bytes with both host SDK ABIs outside the workspace 865ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  01:31:04
+   Duration  11.68s (transform 1.92s, setup 0ms, collect 1.15s, tests 9.77s, environment 0ms, prepare 220ms)
+
+exit=0

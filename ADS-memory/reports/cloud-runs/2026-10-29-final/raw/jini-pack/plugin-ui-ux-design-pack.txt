@@ -1,0 +1,26 @@
+
+> @jini-ai/plugin-ui-ux-design@0.6.13 prepack /home/user/Jini/packages/plugin-ui-ux-design
+> node --import tsx ../../scripts/assemble-agent-plugin-package.ts
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 1 error:
+/home/user/Jini/scripts/assemble-agent-plugin-package.ts:60:2: ERROR: Top-level await is currently not supported with the "cjs" output format
+    at failureErrorWithLog (/home/user/Jini/node_modules/.pnpm/esbuild@0.28.1/node_modules/esbuild/lib/main.js:1748:15)
+    at /home/user/Jini/node_modules/.pnpm/esbuild@0.28.1/node_modules/esbuild/lib/main.js:1017:50
+    at responseCallbacks.<computed> (/home/user/Jini/node_modules/.pnpm/esbuild@0.28.1/node_modules/esbuild/lib/main.js:884:9)
+    at handleIncomingPacket (/home/user/Jini/node_modules/.pnpm/esbuild@0.28.1/node_modules/esbuild/lib/main.js:939:12)
+    at Socket.readFromStdout (/home/user/Jini/node_modules/.pnpm/esbuild@0.28.1/node_modules/esbuild/lib/main.js:862:7)
+    at Socket.emit (node:events:514:28)
+    at addChunk (node:internal/streams/readable:569:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:520:3)
+    at Readable.push (node:internal/streams/readable:400:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:194:23) {
+  name: 'TransformError'
+}
+
+Node.js v24.22.0
+ ELIFECYCLE  Command failed with exit code 1.
+exit=1

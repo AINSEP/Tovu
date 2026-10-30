@@ -1,0 +1,31 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/search
+      Coverage enabled with v8
+
+ ✓ src/__tests__/indexer.test.ts (44 tests) 58ms
+ ✓ src/testkit/__tests__/conformance-failures.test.ts (58 tests) 67ms
+ ✓ src/testkit/__tests__/memory-provider.test.ts (12 tests) 23ms
+ ✓ src/__tests__/tools.test.ts (15 tests) 21ms
+ ✓ src/__tests__/service.test.ts (15 tests) 32ms
+ ✓ src/testkit/__tests__/fakes.test.ts (12 tests) 14ms
+ ✓ src/__tests__/registry.test.ts (24 tests) 24ms
+ ✓ src/__tests__/contract-keys.test.ts (4 tests) 15ms
+ ✓ src/__tests__/contribution.test.ts (25 tests) 19ms
+ ✓ src/testkit/__tests__/conformance.test.ts (106 tests) 48ms
+ ✓ src/__tests__/exports.test.ts (3 tests) 5ms
+ ✓ src/__tests__/digest.test.ts (2 tests) 7ms
+
+ Test Files  12 passed (12)
+      Tests  320 passed (320)
+   Start at  01:18:08
+   Duration  4.27s (transform 1.48s, setup 0ms, collect 2.71s, tests 335ms, environment 8ms, prepare 1.43s)
+
+ % Coverage report from v8
+
+=============================== Coverage summary ===============================
+Statements   : 100% ( 1407/1407 )
+Branches     : 100% ( 838/838 )
+Functions    : 100% ( 207/207 )
+Lines        : 100% ( 1407/1407 )
+================================================================================
+exit=0 secs=6

@@ -1,0 +1,14 @@
+package/LICENSE
+package/plugins/payments-stripe/0.7.0/licenses/_jini-ai_commerce/LICENSE
+package/plugins/payments-stripe/0.7.0/licenses/_jini-ai_core/LICENSE
+package/plugins/payments-stripe/0.7.0/licenses/_jini-ai_plugin-payments-stripe/LICENSE
+package/NOTICE
+package/plugins/payments-stripe/0.7.0/licenses/_jini-ai_commerce/NOTICE
+package/plugins/payments-stripe/0.7.0/licenses/_jini-ai_plugin-payments-stripe/NOTICE
+package/plugins/payments-stripe/0.7.0/jini.plugin.json
+package/plugins/payments-stripe/0.7.0/licenses/_jini-ai_commerce/package-license.json
+package/plugins/payments-stripe/0.7.0/licenses/_jini-ai_core/package-license.json
+package/plugins/payments-stripe/0.7.0/licenses/_jini-ai_plugin-payments-stripe/package-license.json
+package/package.json
+package/README.md
+package/plugins/payments-stripe/0.7.0/server/index.mjs

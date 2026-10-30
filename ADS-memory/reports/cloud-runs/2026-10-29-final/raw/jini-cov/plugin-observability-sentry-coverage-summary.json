@@ -1,0 +1,3 @@
+{"total": {"lines":{"total":12894,"covered":0,"skipped":0,"pct":0},"statements":{"total":12894,"covered":0,"skipped":0,"pct":0},"functions":{"total":1,"covered":0,"skipped":0,"pct":0},"branches":{"total":1,"covered":0,"skipped":0,"pct":0},"branchesTrue":{"total":0,"covered":0,"skipped":0,"pct":"Unknown"}}
+,"/home/user/Jini/packages/plugin-observability-sentry/plugins/observability-sentry/0.7.0/server/index.mjs": {"lines":{"total":12894,"covered":0,"skipped":0,"pct":0},"functions":{"total":1,"covered":0,"skipped":0,"pct":0},"statements":{"total":12894,"covered":0,"skipped":0,"pct":0},"branches":{"total":1,"covered":0,"skipped":0,"pct":0}}
+}
