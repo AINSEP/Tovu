@@ -1,0 +1,25 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/admin
+      Coverage enabled with v8
+
+ ✓ src/widgets/react/__tests__/use-widget-instance-editor.hooks.unit.test.ts (36 tests) 1582ms
+ ✓ src/comments/react/__tests__/use-comment-queue.unit.test.tsx (26 tests) 2682ms
+stderr | src/seo/react/__tests__/Seo.unit.test.tsx > SeoEntryPanel > the checkbox reflects fieldValue() falling back to false when neither touched nor resolved sets it
+Received `false` for a non-boolean attribute `placeholder`.
+
+If you want to write it to the DOM, pass a string instead: placeholder="false" or placeholder={value.toString()}.
+
+If you used to conditionally omit it with placeholder={condition && value}, pass placeholder={condition ? value : undefined} instead.
+
+ ✓ src/seo/react/__tests__/Seo.unit.test.tsx (72 tests) 4206ms
+   ✓ SeoEntryPanel > every text/textarea field falls back to '' when fieldValue() itself returns undefined (e.g. setField(key, undefined) was called) 370ms
+ ✓ src/react/__tests__/components/ConfirmDialog.test.tsx (41 tests) 908ms
+ ✓ src/forms/react/__tests__/FormsList.unit.test.tsx (16 tests) 2259ms
+ ✓ src/redirects/react/__tests__/use-redirects.hooks.unit.test.tsx (20 tests) 1530ms
+ ✓ src/forms/react/__tests__/FormEditor.unit.test.tsx (14 tests) 3376ms
+   ✓ field attributes modal > opens from the row's kebab trigger, and round-trips a CSS class + an allowlisted attribute into the save payload 828ms
+   ✓ field attributes modal > rejects a non-allowlisted attribute name client-side, keeping the modal open with an error 604ms
+   ✓ field attributes modal > Cancel discards edits without touching the field 446ms
+   ✓ existing form — tab strip, status toggle, submissions panel > switching Fields -> Submissions -> Fields does NOT remount FormEditor — an in-progress Name edit survives (ADR-063) 429ms
+ ✓ src/seo/react/__tests__/share-image-warning.unit.test.tsx (37 tests) 991ms
+ ✓ src/react/components/RowMenu/__tests__/RowMenu.test.tsx (34 tests) 798ms
