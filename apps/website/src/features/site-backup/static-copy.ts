@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ExportReport } from "../site-export/site-exporter.js";
 import { shareFileStem } from "./share-service.js";
+import { downloadForms } from "../site-export/export-html-policy.js";
 
 export interface StaticSiteMetadata {
   exportedAt: string;
@@ -31,18 +32,46 @@ function exportStamp({ date, timeZone }: { date: Date; timeZone?: string }, _opt
   const day = `${fields.year}-${fields.month}-${fields.day}`;
   const offset = fields.timeZoneName === "GMT" ? "+00:00" : fields.timeZoneName!.replace("GMT", "");
   return { iso: `${day}T${fields.hour}:${fields.minute}:${fields.second}${offset}`, filename: `${day}-${fields.hour}${fields.minute}`,
-    words: `${new Intl.DateTimeFormat("en-US", { timeZone: zone, dateStyle: "full", timeStyle: "long" }).format(date)} (${zone})` };
+    words: `${new Intl.DateTimeFormat("en-US", { timeZone: zone, dateStyle: "full" }).format(date)} at ${new Intl.DateTimeFormat("en-US", { timeZone: zone, hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(date)}` };
 }
 
-/** Lists every known gap, including assets a crawl could not discover. O(report entries). */
-function exportedText({ name, words, metadata }: { name: string; words: string; metadata: StaticSiteMetadata }, _options = {}): Buffer {
-  const { failed, skipped } = metadata;
-  const sections = [
-    ["Failed routes", failed.routes], ["Failed assets", failed.assets], ["Skipped routes", skipped.routes],
-    ["Unreferenced theme assets", skipped.assets], ["Dropped references", skipped.references],
-  ] as const;
-  return Buffer.from([`Site: ${name}`, `Exported at: ${metadata.exportedAt}`, words, `Active theme: ${metadata.theme}`, `Rendered routes: ${metadata.routes.length}`,
-    ...sections.flatMap(([label, entries]) => [`${label}: ${entries.length}`, ...entries.map(entry => JSON.stringify(entry))]), ""].join("\n"));
+/** Plain-language gaps are limited to things that could not render or need a server.
+ * The full machine diagnostics, including assets a crawl could not discover, stay in the manifest.
+ * @complexity O(report entries + exported file count).
+ */
+function readmeText({ name, words, metadata, rendered }: { name: string; words: string; metadata: StaticSiteMetadata; rendered: Awaited<ReturnType<typeof renderCopy>> }, _options = {}): Buffer {
+  const formNotes = [...new Set(metadata.skipped.references.map(reference => `${reference.url.startsWith("/forms/contact/") ? "Contact form" : "Form"} on ${reference.page}.`))];
+  const { pages, images, videos } = copyCounts({ files: rendered.files });
+  const lines = [`${name} — static copy`, `Exported: ${words} (${metadata.exportedAt})`, `Theme: ${metadata.theme}`,
+    `Contains: ${pages} pages and posts, ${images} ${images === 1 ? "image" : "images"}, ${videos} ${videos === 1 ? "video" : "videos"}.`,
+    "Open with any static web host (links start at the site root).",
+    ...formNotes.map(note => `Needs a server (does not work in this copy): ${note}`),
+    ...metadata.failed.routes.map(item => `Not included: Page ${item.path} could not be rendered.`),
+    ...metadata.failed.assets.map(item => `Not included: File ${item.url} could not be copied.`)];
+  if (!rendered.publicOrigin) lines.push("No public domain is set, so sitemap.xml was left out.",
+    "The Sitemap line in robots.txt was removed and feed.xml was left out because both need absolute public URLs.",
+    "Canonical and og:url metadata and JSON-LD url/@id values were removed; social images and llms.txt links use paths starting at the site root.");
+  return Buffer.from([...lines, ""].join("\n"));
+}
+
+/** Count delivered HTML pages (excluding the error document) and image/video files. */
+function copyCounts({ files }: { files: readonly { path: string }[] }, _options = {}) {
+  return { pages: files.filter(file => file.path !== "404.html" && /\.html$/i.test(file.path)).length,
+    images: files.filter(file => /\.(?:avif|webp|png|jpe?g|gif|svg|ico)$/i.test(file.path)).length,
+    videos: files.filter(file => /\.(?:mp4|webm|mov|m4v|ogv)$/i.test(file.path)).length };
+}
+
+/** Only downloadable copies disable backend forms; the normal exporter retains publish receivers. */
+function downloadableFiles({ files, publicOrigin, pages }: { files: { path: string; content: Buffer }[]; publicOrigin?: string; pages: ReadonlyMap<string, string> }, _options = {}) {
+  const references: ExportReport["droppedReferences"] = [];
+  const rewritten = files.map(file => {
+    if (!/\.html$/i.test(file.path)) return file;
+    const page = pages.get(file.path) ?? "/" + file.path.replace(/(?:\/)?index\.html$/, "");
+    const result = downloadForms({ html: file.content.toString(), page, publicOrigin });
+    references.push(...result.removed);
+    return { ...file, content: Buffer.from(result.html) };
+  });
+  return { files: rewritten, references };
 }
 
 /** The report carries the exact bytes/layout written by the existing exporter. No second renderer. */
@@ -64,13 +93,16 @@ async function partialFiles({ outputDir }: { outputDir: string }, _options = {})
 async function renderCopy({ ports, outputDir }: { ports: StaticSitePorts; outputDir: string }, _options = {}) {
   try {
     const report = await ports.render!({ outputDir, clean: true });
-    return { files: reportFiles({ report }), routes: report.routes.succeeded.map(route => route.path),
+    const downloads = downloadableFiles({ files: reportFiles({ report }), publicOrigin: report.publicOrigin,
+      pages: new Map(report.routes.succeeded.map(route => [route.outputFile, route.path])) });
+    return { files: downloads.files, publicOrigin: report.publicOrigin, routes: report.routes.succeeded.map(route => route.path),
       failed: { routes: report.routes.failed, assets: report.assets.failed },
-      skipped: { routes: report.skippedManifestEntries, assets: report.unreferencedThemeFiles, references: report.droppedReferences } };
+      skipped: { routes: report.skippedManifestEntries, assets: report.unreferencedThemeFiles, references: downloads.references } };
   } catch (error) {
-    return { files: await partialFiles({ outputDir }), routes: [],
+    const downloads = downloadableFiles({ files: await partialFiles({ outputDir }), pages: new Map() });
+    return { files: downloads.files, publicOrigin: undefined, routes: [],
       failed: { routes: [{ path: "(export)", kind: "export", reason: String(error) }], assets: [] },
-      skipped: { routes: [], assets: [], references: [] } };
+      skipped: { routes: [], assets: [], references: downloads.references } };
   }
 }
 
@@ -81,8 +113,8 @@ async function stampedCopy({ ports, outputDir }: { ports: StaticSitePorts; outpu
   const rendered = await renderCopy({ ports, outputDir });
   if (!rendered.files.some(file => file.path !== "404.html" && /\.html$/i.test(file.path))) return { reason: rendered.failed.routes[0]?.reason ?? "The exporter produced no HTML pages." };
   const metadata: StaticSiteMetadata = { exportedAt: stamp.iso, theme: context.theme, routes: rendered.routes, failed: rendered.failed, skipped: rendered.skipped };
-  const slug = shareFileStem({ name: context.slug });
-  return { metadata, filename: `${slug}-static-${stamp.filename}.zip`, files: [...rendered.files, { path: "EXPORTED.txt", content: exportedText({ name: context.name, words: stamp.words, metadata }) }] };
+  const slug = shareFileStem({ name: context.name });
+  return { metadata, filename: `${slug}-static-${stamp.filename}.zip`, files: [...rendered.files, { path: "README.txt", content: readmeText({ name: context.name, words: stamp.words, metadata, rendered }) }] };
 }
 
 /**

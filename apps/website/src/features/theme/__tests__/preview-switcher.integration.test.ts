@@ -1,6 +1,6 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { type TestContext } from "node:test";
@@ -182,14 +182,17 @@ test("static manifest and real export include themed pages/assets, noindex, cano
   const variant = readFileSync(join(outputDir, "_themes/preview-two/about/index.html"), "utf8");
   assert.match(variant, /<h1>preview-two<\/h1>/);
   assert.match(variant, /name="robots" content="noindex"/);
-  assert.match(variant, /rel="canonical" href="http:\/\/localhost:3000\/about"/);
+  // 2026-10-30: an export never carries the render origin; this fixture sets no public origin, so no canonical.
+  assert.doesNotMatch(variant, /localhost/);
+  assert.doesNotMatch(variant, /rel="canonical"/);
   assert.match(variant, /href="\/_themes\/preview-two\/about"/);
   assert.match(variant, /href="\/_themes\/preview-two\/welcome"/);
   assert.match(variant, /tovu-theme-preview-host/);
   assert.match(variant, /href="\/theme-assets\/preview-two\/css\/theme.css"/);
   assert.match(readFileSync(join(outputDir, "theme-assets/preview-two/css/theme.css"), "utf8"), /blue/);
   assert.match(readFileSync(join(outputDir, "index.html"), "utf8"), /tovu-theme-preview-host/);
-  assert.doesNotMatch(readFileSync(join(outputDir, "sitemap.xml"), "utf8"), /_themes/);
+  // No public origin: sitemap.xml needs absolute URLs, so the export omits it.
+  assert.equal(existsSync(join(outputDir, "sitemap.xml")), false);
   assert.equal(result.themePreview?.themeCount, 2);
   assert.ok(result.themePreview!.htmlSizeMultiplier > 1);
   assert.ok(result.themePreview!.sizeMultiplier > 1);

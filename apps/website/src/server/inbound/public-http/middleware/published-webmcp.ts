@@ -13,7 +13,9 @@ export function applyPublishedWebMcp(
       next(); return;
     }
     let enabled = false;
-    try { enabled = await readEnabled(); } catch { /* Policy read failure disables tools, not the page. */ }
+    // The export marker is scoped to the crawl request, just like the visitor-chat opt-out.
+    // Disable before injection; the same owner also removes native form-tool annotations.
+    try { enabled = req.get('x-tovu-static-export') !== '1' && await readEnabled(); } catch { /* Policy read failure disables tools, not the page. */ }
     const send = res.send;
     res.send = function (body: unknown): Response {
       const type = String(res.getHeader('content-type') ?? '');

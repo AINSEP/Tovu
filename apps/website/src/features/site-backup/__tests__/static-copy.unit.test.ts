@@ -44,31 +44,35 @@ async function rootFor(t: TestContext) {
   return root;
 }
 
-test("backup ZIP contains static_site/index.html and EXPORTED.txt with offset time and manifest exportedAt", async () => {
+test("backup ZIP contains static_site/index.html and README.txt with offset time and manifest exportedAt", async () => {
   const copy = await captureStaticSite({ render: async ({ outputDir }) => report(outputDir), context, now });
   const files = await unpack(await buildShareZip({ plan: plan(), zip: zipFolderFiles }, { staticCopy: copy, packageFiles: new Map() }));
   assert.equal(files.get("static_site/index.html")?.toString(), "<main>Active theme</main>");
   assert.equal(files.get("static_site/theme-assets/site.css")?.toString(), "body{}");
   assert.equal(files.get("static_site/theme-assets/site.js")?.toString(), "window.site=true;");
-  const stamp = files.get("static_site/EXPORTED.txt")!.toString();
+  const stamp = files.get("static_site/README.txt")!.toString();
   assert.match(stamp, /2026-10-30T10:15:00-07:00/);
-  assert.match(stamp, /America\/Los_Angeles/);
+  assert.match(stamp, /10:15 AM PDT/);
   assert.match(stamp, /Friday, October 30, 2026/);
   assert.match(stamp, /Active Theme/);
   assert.match(stamp, /My Site/);
   assert.equal(JSON.parse(files.get("manifest.json")!.toString()).staticSite.exportedAt, "2026-10-30T10:15:00-07:00");
 });
 
-test("partial static route and asset failures still produce a backup and name every failure and skip", async () => {
+test("partial static failures appear plainly in README while full skips stay in the manifest", async () => {
   const copy = await captureStaticSite({ context, now, render: async ({ outputDir }) => ({ ...report(outputDir),
     routes: { ...report(outputDir).routes, failed: [{ path: "/broken", kind: "page", reason: "render failed" }] },
     assets: { succeeded: [], failed: [{ url: "/missing.css", reason: "404" }] },
     skippedManifestEntries: [{ reason: "wildcard", detail: "/old/*" }], unreferencedThemeFiles: ["unused.png"],
   }) });
   const files = await unpack(await buildShareZip({ plan: plan(), zip: zipFolderFiles }, { staticCopy: copy, packageFiles: new Map() }));
-  const stamp = files.get("static_site/EXPORTED.txt")!.toString();
-  for (const item of ["/broken", "/missing.css", "/old/*", "unused.png"]) assert.ok(stamp.includes(item));
-  for (const label of ["Failed routes", "Failed assets", "Skipped routes", "Unreferenced theme assets"]) assert.ok(stamp.includes(`${label}: 1`));
+  const stamp = files.get("static_site/README.txt")!.toString();
+  assert.match(stamp, /Not included: Page \/broken could not be rendered\./);
+  assert.match(stamp, /Not included: File \/missing.css could not be copied\./);
+  assert.doesNotMatch(stamp, /\{|\}|routes|unused.png|old\/|Unreferenced/);
+  const metadata = JSON.parse(files.get("manifest.json")!.toString()).staticSite;
+  assert.equal(metadata.skipped.routes[0].detail, "/old/*");
+  assert.deepEqual(metadata.skipped.assets, ["unused.png"]);
   assert.equal(JSON.parse(files.get("manifest.json")!.toString()).staticSite.failed.routes[0].path, "/broken");
   assert.ok(files.has("content.db"));
 });
@@ -95,8 +99,9 @@ test("an unconfigured timezone stamps the plain-words time with the server's nam
   const copy = await captureStaticSite({ context: async () => ({ name: "Site", slug: "site", theme: "Active" }), now,
     render: async ({ outputDir }) => report(outputDir) });
   assert.ok(!("reason" in copy));
-  const text = copy.files.find(file => file.path === "EXPORTED.txt")!.content.toString();
-  assert.ok(text.includes(`(${Intl.DateTimeFormat().resolvedOptions().timeZone})`));
+  const text = copy.files.find(file => file.path === "README.txt")!.content.toString();
+  const localTime = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(now());
+  assert.ok(text.includes(localTime));
   assert.match(copy.metadata.exportedAt, /T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/);
 });
 
@@ -109,20 +114,20 @@ test("a thrown render retains partial files and deletes its temporary render fol
   } });
   const files = await unpack(await buildShareZip({ plan: plan(), zip: zipFolderFiles }, { staticCopy: copy, packageFiles: new Map() }));
   assert.equal(files.get("static_site/index.html")?.toString(), "partial");
-  assert.match(files.get("static_site/EXPORTED.txt")!.toString(), /Render interrupted/);
+  assert.match(files.get("static_site/README.txt")!.toString(), /Not included: Page \(export\) could not be rendered\./);
   await assert.rejects(readFile(path.join(folder, "index.html")), { code: "ENOENT" });
 });
 
-test("static-only export ZIP has date-time filename and root EXPORTED.txt with no backup content", async t => {
+test("static-only ZIP and top folder use the display name with a dated README and no backup content", async t => {
   const registry = new SiteShareRegistry({ directory: await rootFor(t) });
   const backend = createSiteShareBackend({ registry, site: "ws", zip: zipFolderFiles,
     prepare: async () => { throw new Error("Static export must not snapshot the database"); }, delivery: async () => { throw new Error("Static download must stay local"); },
-    staticSite: { context, now, render: async ({ outputDir }) => report(outputDir) } });
+    staticSite: { context: async () => ({ ...await context(), slug: "internal-old-slug" }), now, render: async ({ outputDir }) => report(outputDir) } });
   const result = await backend.create({ principalId: "owner", signal: new AbortController().signal, format: "static" }, { waitMs: 60_000 }) as { shareId: string; file: string };
   assert.equal(result.file, "my-site-static-2026-10-30-1015.zip");
   assert.ok(!("message" in result), "a private static download does not suggest missing public hosting");
   const files = await unpack(await readFile(registry.artifactPath({ shareId: result.shareId })));
-  assert.deepEqual([...files.keys()].sort(), ["EXPORTED.txt", "index.html", "theme-assets/site.css", "theme-assets/site.js"]);
+  assert.deepEqual([...files.keys()].sort(), ["README.txt", "index.html", "theme-assets/site.css", "theme-assets/site.js"].map(file => "my-site-static-2026-10-30-1015/" + file));
 });
 
 test("import ignores static_site entirely and restores the same database and files", async () => {

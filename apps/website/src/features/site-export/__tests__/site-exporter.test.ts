@@ -10,7 +10,7 @@ import test from "node:test";
 import express from "express";
 import { JSDOM } from "jsdom";
 import type { UUID } from "@jini-ai/core/primitives";
-import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
+import { createApp, createRouteDeps as createSeededRouteDeps } from "#src/server/runtime/composition/app";
 import type { PostRepoPort, PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
@@ -31,6 +31,13 @@ import type { ExportReport } from "../site-exporter.js";
  * `route-manifest.test.ts` uses), over a real in-process HTTP server — no mocked render path, per
  * this feature's own "do not write a second renderer" rule.
  */
+
+/** Public identity fixture: development origins are deliberately omitted by static export. */
+function createRouteDeps() {
+  const deps = createSeededRouteDeps();
+  deps.originRegistry.canonicalOrigin = async () => ({ scheme: "https", host: "export.example.test", source: "workspace-setting", verifiedAt: "2026-10-30T00:00:00Z" });
+  return deps;
+}
 
 function makeTmpOutputDir(): string {
   return mkdtempSync(path.join(tmpdir(), "tovu-export-test-"));
@@ -103,20 +110,19 @@ test("exportSite: --base-path unset leaves every written byte identical to a pla
   assert.match(home, /href="\/welcome"/, "an internal link must stay bare root-relative when no base path is requested");
   assert.match(home, /href="\/theme-assets\/tovu-starter\//, "a theme asset reference must stay bare root-relative when no base path is requested");
 
-  // `createRouteDeps()` seeds a verified `dev-capability` origin (`http://localhost:3000`,
-  // `pages.route.test.ts`'s own precedent) for the seeded workspace, so both <loc> (2026-09-03 fix)
-  // and the Sitemap: line (2026-09-04 fix) are absolute, not the bare relative paths this assertion
-  // checked before either fix landed.
+  // The base fixture seeds a dev-capability origin. This suite supplies public registry evidence
+  // so <loc> and the Sitemap line remain absolute; a dev seed alone now omits both discovery files.
+  // Root-relative sitemap entries are invalid, which is why this fixture must declare an origin.
   const sitemap = readFileSync(path.join(outputDir, "sitemap.xml"), "utf8");
-  assert.match(sitemap, /<loc>http:\/\/localhost:3000\/welcome<\/loc>/);
+  assert.match(sitemap, /<loc>https:\/\/export\.example\.test\/welcome<\/loc>/);
 
   const robots = readFileSync(path.join(outputDir, "robots.txt"), "utf8");
-  assert.match(robots, /^Sitemap: http:\/\/localhost:3000\/sitemap\.xml$/m);
+  assert.match(robots, /^Sitemap: https:\/\/export\.example\.test\/sitemap\.xml$/m);
 
   // The RSS feed is written exactly as served: feed readers need absolute links, and the base-path
   // rewrite has nothing to add to them.
   const feed = readFileSync(path.join(outputDir, "feed.xml"), "utf8");
-  assert.match(feed, /<link>http:\/\/localhost:3000\/welcome<\/link>/);
+  assert.match(feed, /<link>https:\/\/export\.example\.test\/welcome<\/link>/);
   assert.equal(feed.includes("/my-repo"), false, "the feed must not be base-path rewritten");
 });
 
@@ -327,10 +333,10 @@ test("exportSite: --base-path rewrites HTML hrefs, leaves the already-absolute s
   // absolute value UNTOUCHED rather than grafting `/my-repo` onto a foreign, fully-qualified URL that
   // was never part of this static export's own relative tree in the first place.
   const sitemap = readFileSync(path.join(outputDir, "sitemap.xml"), "utf8");
-  assert.match(sitemap, /<loc>http:\/\/localhost:3000\/welcome<\/loc>/);
+  assert.match(sitemap, /<loc>https:\/\/export\.example\.test\/welcome<\/loc>/);
 
   const robots = readFileSync(path.join(outputDir, "robots.txt"), "utf8");
-  assert.match(robots, /^Sitemap: http:\/\/localhost:3000\/sitemap\.xml$/m);
+  assert.match(robots, /^Sitemap: https:\/\/export\.example\.test\/sitemap\.xml$/m);
 
   // Idempotency/no-double-prefix, checked across EVERY route this export actually wrote — not one
   // hand-picked value — because a doubling bug in the shared prefixRootRelativePath helper would

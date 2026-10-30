@@ -116,7 +116,8 @@ export async function buildShareZip(required: { plan: SiteSharePlanContent; zip:
 
 /** Static-only ZIP uses the same picked-file path/scanning pipeline and Jini encoder, without a backup manifest. */
 export async function buildStaticSiteZip(required: { copy: Exclude<StaticSiteCopy, { reason: string }>; zip: typeof zipFolderFiles }, optional: ShareZipProgressOptions = {}): Promise<Buffer> {
-  const entries = required.copy.files;
+  const folder = required.copy.filename.replace(/\.zip$/i, "");
+  const entries = required.copy.files.map(file => ({ ...file, path: `${folder}/${file.path}` }));
   checkShareLimits({ files: entries.map(file => ({ path: file.path, bytes: file.content.length })) });
   claimArchivePaths({ entries }, { manifest: false });
   if (optional.progress) Object.assign(optional.progress, { filesTotal: entries.length, bytesTotal: entries.reduce((sum, file) => sum + file.content.length, 0) });

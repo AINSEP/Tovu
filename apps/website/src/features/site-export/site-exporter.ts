@@ -1,5 +1,6 @@
 import type { RequestListener } from "node:http";
 import path from "node:path";
+import { rm } from "node:fs/promises";
 import { exportSite as runExport, redirectOutcomeFor as redirectDecision } from "@jini-ai/devops/static-export";
 import { createNodeAppFactory, createNodeArtifactWriter, createNodeAssetSource } from "@jini-ai/devops/static-export/node";
 import { extractListingMoreHrefs, extractListingPageHrefs, listingJsonNextPath } from "@jini-ai/cms/listing";
@@ -11,10 +12,14 @@ import { buildPreviewExportManifest } from "./theme-preview-manifest.js";
 import { themePreviewExportSize, type ThemePreviewExportSize } from "./theme-preview-report.js";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { rewriteExportMediaResponse, type ExportMediaUrlDeps } from "./media-original-urls.js";
+import { exportPublicOrigin, rewriteExportOriginResponse } from "./public-origin-policy.js";
+import { exportHtml } from "./export-html-policy.js";
 export { ExportOutputNotEmptyError } from "@jini-ai/devops/static-export";
 export type { ExportedRoute, FailedRoute, ExportedAsset, FailedAsset } from "@jini-ai/devops/static-export";
 import type { ExportReport as BaseExportReport } from "@jini-ai/devops/static-export";
 export interface ExportReport extends BaseExportReport {
+  /** Public registry evidence used for this copy; absent when identity/discovery falls back. */
+  publicOrigin?: string;
   /** Configured page multiplier and measured HTML byte multiplier; assets are crawled/deduplicated. */
   themePreview?: ThemePreviewExportSize;
 }
@@ -520,12 +525,22 @@ function listingRoutes({ hrefs, kind }: { hrefs: readonly string[]; kind: string
 export async function exportSite({ routeDeps, outputDir, clean, basePath, includeThemePreviews }: ExportSiteOptions, _options = {}): Promise<ExportReport> {
   const tracedFetch = trackFetch({ fetch: (input, init) => fetch(input, init), observability: routeDeps.observability });
   const { manifest, themeCount } = await buildPreviewExportManifest({ routeDeps }, { includeThemePreviews });
+  const publicOrigin = await exportPublicOrigin({ registry: routeDeps.originRegistry, workspaceId: routeDeps.workspaceId });
+  const writer = createNodeArtifactWriter({}, {});
+  // Sitemaps require absolute loc values; RSS requires an absolute channel link. With no public
+  // identity omit both, including stale copies in a reused output directory (the CLI default).
+  const omitted = publicOrigin ? [] : ["/sitemap.xml", "/feed.xml"];
   const report = await runExport({
     outputDir: path.resolve(outputDir),
-    manifest: { build: async () => manifest },
+    manifest: { build: async () => ({ ...manifest, routes: manifest.routes.filter(route => !omitted.includes(route.path)) }) },
     app: createNodeAppFactory({ createApp: () => routeDeps.createSiteApp() }, {}),
-    writer: createNodeArtifactWriter({}, {}),
-    fetch: async ({ url }, options) => rewriteExportMediaResponse({ response: await tracedFetch(url, options?.init), deps: routeDeps }),
+    writer: { ...writer, prepare: async (required, optional) => {
+      await writer.prepare(required, optional);
+      for (const file of omitted) await rm(path.join(required.outputDir, file.slice(1)), { force: true });
+    } },
+    fetch: async ({ url }, options) => rewriteExportMediaResponse({
+      response: await rewriteExportOriginResponse({ response: await tracedFetch(url, options?.init), url, publicOrigin }), deps: routeDeps,
+    }),
     assetSource: createNodeAssetSource({}, {}),
     themeLayout: { resolve: ({ theme }) => ({
       pagesDir: resolveThemeLayout(theme.apiVersion as 2 | undefined).pagesDir,
@@ -533,7 +548,7 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
     }) },
     assetUrlPrefixes: ["/theme-assets/", "/agent-icons/", "/m/", "/api/agent-plugin-exports/v1/"],
     requestHeaders: { "x-tovu-static-export": "1" },
-    security: { transformHtml: ({ html }) => withSecurityMeta(html) },
+    security: { transformHtml: ({ html }) => withSecurityMeta(exportHtml({ html, publicOrigin })) },
     errorPage: { outputFile: "404.html", acceptStatus: ({ status }) => status >= 400 && status < 500,
       rejectionReason: ({ status }) => `expected a 4xx response for the 404 probe, got ${status}` },
     assetPathFailureReason: "asset URL resolved outside the output directory — refused",
@@ -548,8 +563,11 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
       ...listingRoutes({ hrefs: extractListingPageHrefs({ html }), kind: "listing-page" }),
     ],
   }, { ...(clean !== undefined ? { clean } : {}), ...(basePath !== undefined ? { basePath } : {}) });
-  if (themeCount === 1) return { ...report, outputDir };
+  // Jini's reference scan diagnoses retained broken links; it does not remove them. A dropped
+  // reference must be backed by an actual removal. Download-only removals are recorded by static-copy.
+  const result = { ...report, outputDir, droppedReferences: [], ...(publicOrigin ? { publicOrigin } : {}) };
+  if (themeCount === 1) return result;
   const themePreview = themePreviewExportSize({ report, themeCount });
   console.info(`[export] Theme previews: ${themeCount} themes, ${themePreview.additionalPages} additional pages, ${themePreview.sizeMultiplier.toFixed(2)}x export bytes (${themePreview.htmlSizeMultiplier.toFixed(2)}x HTML); shared assets are deduplicated.`);
-  return { ...report, outputDir, themePreview };
+  return { ...result, themePreview };
 }
