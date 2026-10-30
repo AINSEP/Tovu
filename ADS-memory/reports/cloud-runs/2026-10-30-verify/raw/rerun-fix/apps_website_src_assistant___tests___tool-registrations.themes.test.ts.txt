@@ -1,0 +1,51 @@
+✔ exactly the 13 themes entries are registered — nothing else (22.749475ms)
+✔ no whole-theme or file-delete operation is agent-callable anywhere in the whole assistant tool set (8.976769ms)
+✔ an id with no DERIVED_RISK_BY_TOOL_ID classification cannot be wired (unknown operations are refused, never assumed safe) (0.996176ms)
+✔ every wired themes registration publishes its catalog entry's inputSchema and description verbatim (6.841707ms)
+✔ each catalog entry's declared risk matches what this layer derives from its handler (0.55079ms)
+✔ file writes and rescan declare durable effects; theme and file reads declare none (0.21019ms)
+✔ reads and theme lifecycle tools require theme.set; file writes require theme.edit (0.184716ms)
+✔ every themes tool refuses when authorize() denies, and performs no work (31.151376ms)
+✔ each themes tool checks exactly the permission its catalog entry declares (34.794354ms)
+✔ theme_list returns every discovered theme with id/name/tier/status/errors, and never leaks the server's filesystem path (21.676559ms)
+✔ theme_list filters by tier and by status (16.744157ms)
+✔ theme_list_files lists every file in one theme's folder, relative to it (7.805419ms)
+✔ theme_read_file returns the raw file content (7.828985ms)
+✔ an unknown themeId is a schema-decorated refusal naming the themes that do exist (8.198892ms)
+✖ theme_write_file: missing theme error tells the agent to create it first with theme_duplicate (28.217153ms)
+✔ theme_read_file and theme_write_file both refuse a ../ escape out of the theme's folder (31.150812ms)
+✔ theme_write_file refuses an absolute path (28.066872ms)
+✔ theme_write_file writes the file and reports the theme still valid (12.461266ms)
+✔ theme_write_file refuses to overwrite an existing file past the 1 MB read limit without overwriteOversized, and leaves its bytes (13.13912ms)
+✔ theme_write_file with overwriteOversized: true replaces an existing file past the 1 MB read limit (13.455348ms)
+✔ theme_write_file's published schema and description carry the overwriteOversized flag (0.175233ms)
+✔ writing INVALID JSON reports status 'invalid' with a naming error — the immediate feedback an editing agent needs (8.999759ms)
+✔ writing a Handlebars template with a disallowed construct reports status 'invalid' naming the file and the construct (9.310312ms)
+✔ writing a Liquid template with a disallowed tag into a templated theme is caught by the SAME loader a human edit goes through (17.722229ms)
+✔ a successful write refreshes the live routeDeps.themes entry, so the running site serves the edit (11.46555ms)
+✔ an invalid write is reflected in the live theme list too — theme_list immediately reports what theme_write_file just reported (11.508359ms)
+✔ list -> list_files -> read -> write -> re-read stays consistent across the whole sequence (30.566875ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 26
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3899.749028
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/tool-registrations.themes.test.ts:1:13347
+✖ theme_write_file: missing theme error tells the agent to create it first with theme_duplicate (28.217153ms)
+  AssertionError [ERR_ASSERTION]: name the tool that creates the missing theme
+      at TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/assistant/__tests__/tool-registrations.themes.test.ts:364:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: `theme 'apple' was not found — discovered themes are: hb, plain. Fix the input and retry — this will not resolve on retry without an input change. Schema for 'theme_write_file': {"type":"object","additionalProperties":false,"required":["themeId","path","content"],"properties":{"themeId":{"type":"string","minLength":1,"description":"A theme's id, exactly as returned by content_read.theme (it is also the theme's folder name)."},"path":{"type":"string","minLength":1,"description":"A path relative to the theme's own folder, e.g. 'theme.json', 'tokens.json', 'styles.css', or 'templates/home.liquid'. Must stay inside that folder: an absolute path, or one escaping via '../', is refused. Use theme_list_files to discover what exists."},"content":{"type":"string","maxLength":1000000,"description":"The file's complete new contents as UTF-8 text. This is an overwrite, not a patch — send the whole file. Up to 1000000 bytes. For a small change to a large file, theme_edit_file is usually cheaper and safer: it replaces one exact substring instead of requiring you to re-send the entire file."},"overwriteOversized":{"type":"boolean","description":"Set to true only to replace an EXISTING file larger than 1000000 bytes. theme_read_file cannot read a file that size, so without this flag the write is refused instead of discarding contents you never saw. Not needed for a new file or one within the limit."}}}`,
+    expected: /\btheme_duplicate\b/,
+    operator: 'match',
+    diff: 'simple'
+  }

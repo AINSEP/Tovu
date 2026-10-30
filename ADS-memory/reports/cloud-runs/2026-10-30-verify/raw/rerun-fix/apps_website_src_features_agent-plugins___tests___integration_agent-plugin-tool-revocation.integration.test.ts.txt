@@ -1,0 +1,108 @@
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✖ a plugin disabled through setAgentPluginEnabled — the composition BOTH the admin toggle and plugins_set_enabled call — stops answering in the already-running daemon, with no restart (192.707026ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✖ revocation follows the activation RECORD, not the caller: a bare setAgentPluginActivation write revokes the live tool too (92.817635ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✖ uninstalling a DISABLED plugin must not re-admit its revoked tool — deleting the activation record is not consent (69.602549ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✖ uninstalling an ENABLED plugin revokes its live tool too — uninstall alone is a revocation, not just a disk operation (46.639182ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✖ the gate's INSTALLED half stands on its own: the package bytes disappearing revokes the tool even while the record still says enabled (55.203729ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'tea-roastery' has no publisher-qualified id; using 'unknown/tea-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✖ revocation is scoped to the plugin and workspace in an already-booted registry (126.852478ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3229.772408
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:1:3460
+✖ a plugin disabled through setAgentPluginEnabled — the composition BOTH the admin toggle and plugins_set_enabled call — stops answering in the already-running daemon, with no restart (192.707026ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu-fix/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu-fix/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu-fix/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at resolveSkillLayout (/home/user/Tovu-fix/apps/website/src/features/skills/layout.ts:80:71)
+      at Object.get (/home/user/Tovu-fix/apps/website/src/__tests__/fixtures/site-layout-context.ts:64:69)
+      at bootDaemonToolSurface (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:121:58)
+      at <anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:135:28)
+      at async withAgentPluginsDir (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:88:12)
+      at async TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:133:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+
+test at apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:1:4664
+✖ revocation follows the activation RECORD, not the caller: a bare setAgentPluginActivation write revokes the live tool too (92.817635ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu-fix/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu-fix/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu-fix/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at resolveSkillLayout (/home/user/Tovu-fix/apps/website/src/features/skills/layout.ts:80:71)
+      at Object.get (/home/user/Tovu-fix/apps/website/src/__tests__/fixtures/site-layout-context.ts:64:69)
+      at bootDaemonToolSurface (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:121:58)
+      at <anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:161:28)
+      at async withAgentPluginsDir (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:88:12)
+      at async TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:159:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+
+test at apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:1:5516
+✖ uninstalling a DISABLED plugin must not re-admit its revoked tool — deleting the activation record is not consent (69.602549ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu-fix/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu-fix/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu-fix/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at resolveSkillLayout (/home/user/Tovu-fix/apps/website/src/features/skills/layout.ts:80:71)
+      at Object.get (/home/user/Tovu-fix/apps/website/src/__tests__/fixtures/site-layout-context.ts:64:69)
+      at bootDaemonToolSurface (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:121:58)
+      at <anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:188:28)
+      at async withAgentPluginsDir (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:88:12)
+      at async TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:186:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+
+test at apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:1:6755
+✖ uninstalling an ENABLED plugin revokes its live tool too — uninstall alone is a revocation, not just a disk operation (46.639182ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu-fix/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu-fix/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu-fix/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at resolveSkillLayout (/home/user/Tovu-fix/apps/website/src/features/skills/layout.ts:80:71)
+      at Object.get (/home/user/Tovu-fix/apps/website/src/__tests__/fixtures/site-layout-context.ts:64:69)
+      at bootDaemonToolSurface (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:121:58)
+      at <anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:213:28)
+      at async withAgentPluginsDir (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:88:12)
+      at async TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:211:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+
+test at apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:1:7646
+✖ the gate's INSTALLED half stands on its own: the package bytes disappearing revokes the tool even while the record still says enabled (55.203729ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu-fix/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu-fix/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu-fix/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at resolveSkillLayout (/home/user/Tovu-fix/apps/website/src/features/skills/layout.ts:80:71)
+      at Object.get (/home/user/Tovu-fix/apps/website/src/__tests__/fixtures/site-layout-context.ts:64:69)
+      at bootDaemonToolSurface (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:121:58)
+      at <anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:227:28)
+      at async withAgentPluginsDir (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:88:12)
+      at async TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:225:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+
+test at apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:1:8604
+✖ revocation is scoped to the plugin and workspace in an already-booted registry (126.852478ms)
+  Error: Test home isolation required: refusing the real user home for Tovu sites or site keys. Use isolated-catalog-home or a temporary HOME and desktop profile.
+      at assertTestHomeIsolation (/home/user/Tovu-fix/apps/website/src/platform/test-home-isolation.ts:20:11)
+      at createSitesWorkspace (/home/user/Tovu-fix/apps/website/src/platform/site-dir/sites-home.ts:22:3)
+      at resolveSiteRoot (/home/user/Tovu-fix/apps/website/src/platform/site-dir/site-root.ts:78:21)
+      at resolveSkillLayout (/home/user/Tovu-fix/apps/website/src/features/skills/layout.ts:80:71)
+      at Object.get (/home/user/Tovu-fix/apps/website/src/__tests__/fixtures/site-layout-context.ts:64:69)
+      at bootDaemonToolSurface (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:121:58)
+      at <anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:251:24)
+      at async withAgentPluginsDir (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:88:12)
+      at async TestContext.<anonymous> (/home/user/Tovu-fix/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts:246:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)

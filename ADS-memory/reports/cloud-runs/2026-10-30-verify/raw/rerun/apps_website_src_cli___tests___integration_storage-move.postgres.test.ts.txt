@@ -1,2 +1,11 @@
 ✔ refuses a target other than postgres, and a --storage-env that is not set (1.441686ms)
 ✔ the program routes `storage move` to the command (5.505551ms)
+✔ --storage-env moves the site and leaves the connection string in that variable (6130.063583ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10651.683887

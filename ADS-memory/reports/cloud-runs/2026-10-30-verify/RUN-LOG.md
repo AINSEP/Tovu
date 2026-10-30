@@ -34,3 +34,6 @@ Heartbeat: shards 2504/2788 files done.
 
 ## 2026-10-30T05:59:19Z — PROGRESS
 Step 1 shards COMPLETE: 2788 files, 65 non-zero (raw/failing-files.txt; 25 are *.postgres.* = no PG server at first). Postgres 16 installed (apt-get update needed first; docker apt repo cert warning ignored), socket /tmp/.s.PGSQL.5432, role la. Solo re-runs of all 65 in progress (raw/rerun/, rerun-status.txt). Jini plugin-* vitest all 0 (ui-ux-design has no tests).
+
+## 2026-10-30T05:59:51Z — PROGRESS
+Solo reruns: 42/65 done on main tree; fix-branch reruns 5/36. Writing RESULTS.md next.

@@ -1,0 +1,22 @@
+Plugin 'higgsfield-media-busy' has no publisher-qualified id; using 'unknown/higgsfield-media-busy'.
+[agent-plugins] 'higgsfield-media-busy': plugins_set_enabled refused — agent-plugin activation: could not take the write lock (/tmp/tovu-plugin-family-busy-7AFOGN/ws/66666666-6666-4666-8666-666666666666/activations.json.lock) within 15s — held by pid 9201 on otherhost since 2026-10-30T05:59:42.373Z. Nothing was written, so no recorded enable/disable decision was changed. This clears by itself when the other host process (server, agent daemon, or the agent-plugin:activation CLI) finishes; a lock left by a crashed process is removed automatically once that process is gone or the lock is older than 10s. If it persists, stop every host process for this workspace and delete /tmp/tovu-plugin-family-busy-7AFOGN/ws/66666666-6666-4666-8666-666666666666/activations.json.lock.
+✔ plugins_set_enabled: a busy lock on ENABLE returns changed:false/reason:activations-busy WITHOUT raising the confirmation dialog (120.2097ms)
+Plugin 'higgsfield-media-busy' has no publisher-qualified id; using 'unknown/higgsfield-media-busy'.
+Plugin 'higgsfield-media-busy' has no publisher-qualified id; using 'unknown/higgsfield-media-busy'.
+Plugin 'higgsfield-media-busy' has no publisher-qualified id; using 'unknown/higgsfield-media-busy'.
+[agent-plugins] 'higgsfield-media-busy': plugins_set_enabled refused — agent-plugin activation: could not take the write lock (/tmp/tovu-plugin-family-busy-Me6U2Q/ws/66666666-6666-4666-8666-666666666666/activations.json.lock) within 15s — held by pid 9202 on otherhost since 2026-10-30T05:59:42.404Z. Nothing was written, so no recorded enable/disable decision was changed. This clears by itself when the other host process (server, agent daemon, or the agent-plugin:activation CLI) finishes; a lock left by a crashed process is removed automatically once that process is gone or the lock is older than 10s. If it persists, stop every host process for this workspace and delete /tmp/tovu-plugin-family-busy-Me6U2Q/ws/66666666-6666-4666-8666-666666666666/activations.json.lock.
+✔ plugins_set_enabled: a busy lock on DISABLE returns the same changed:false/reason:activations-busy result (45.878761ms)
+Plugin 'higgsfield-media-busy' has no publisher-qualified id; using 'unknown/higgsfield-media-busy'.
+✔ plugins_set_enabled: a permission failure on ENABLE is not reported as activations-busy (20.352935ms)
+Plugin 'higgsfield-media-busy' has no publisher-qualified id; using 'unknown/higgsfield-media-busy'.
+Plugin 'higgsfield-media-busy' has no publisher-qualified id; using 'unknown/higgsfield-media-busy'.
+Plugin 'higgsfield-media-busy' has no publisher-qualified id; using 'unknown/higgsfield-media-busy'.
+✔ plugins_set_enabled: a permission failure on DISABLE is not reported as activations-busy (15.633069ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2572.071294

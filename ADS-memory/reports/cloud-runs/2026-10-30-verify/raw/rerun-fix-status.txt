@@ -1,0 +1,5 @@
+0 apps/website/src/assistant/__tests__/tool-registrations.plugins-set-enabled-busy.test.ts
+0 apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts
+1 apps/website/src/assistant/__tests__/tool-registrations.themes.test.ts
+1 apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-tool-revocation.integration.test.ts
+1 apps/website/src/features/agent-plugins/__tests__/integration/layout-b-memory.integration.test.ts

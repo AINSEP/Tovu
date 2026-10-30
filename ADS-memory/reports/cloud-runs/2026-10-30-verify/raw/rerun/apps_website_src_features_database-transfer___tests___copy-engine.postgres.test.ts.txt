@@ -1,0 +1,32 @@
+[migrations] /tmp/tovu-transfer-XESqv0/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+✔ the first site's copy lands in `tovu` with the same row count as SQLite for every copied core table, and leaves out logins and saved keys (4693.789054ms)
+✔ a re-copy replaces the site's own copy and never appends (1646.882235ms)
+✔ cross-site wipe regression: a copy aimed at a schema holding ANOTHER site's copy is refused inside the transaction (982.95033ms)
+✔ a schema someone else made (no marker) is refused and left untouched, and a new site is given its own schema instead (1279.786946ms)
+✔ two sites share one database: the second gets `tovu_<site>`, each re-copy replaces only its own, and a site keeps its schema after `tovu` frees up (2818.518144ms)
+✔ a row Postgres rejects rolls the whole copy back and names only the table (833.576559ms)
+✔ a count mismatch or rejected replacement preserves the earlier rows and marker (2734.825015ms)
+✔ a setting marked secret stays behind (values at every scope and its history); ordinary settings are copied (1684.704543ms)
+✔ T1: the copy carries the schema's indexes, foreign keys, checks, defaults and identity columns, and new rows number after the copied ones (1801.168713ms)
+✔ T1: a source row whose parent is missing does not stop the copy; that foreign key is kept unvalidated and named in the result (1365.865885ms)
+✔ T2: every table in the snapshot is copied or left out with a reason; a plugin's tables are copied from the snapshot's own layout (1396.778724ms)
+✔ an unconfirmed first-copy plan cannot overwrite a copy created since planning (1419.850552ms)
+✔ a Postgres site copy preserves publish backstop audit rows and their undo inverses (1315.512524ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25437.993995

@@ -1,0 +1,59 @@
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ each installed plugin produces exactly one stable, collision-free tool id with a non-empty description naming every one of its skills (118.912981ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✖ registerInstalledAgentPluginTools registers one guidance tool plus its scoped memory read/write pair per plugin directly onto a real ToolRegistry, the same registration call agent-daemon-server.ts makes for every other domain (28.131063ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ the input schema documents an optional 'skill' property whose enum names every skill this specific plugin has (42.605835ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ calling with no 'skill' argument returns the plugin's own eponymous skill plus the other available skill names (33.04172ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ when a plugin has no eponymous skill folder, the default falls back to its alphabetically-first skill and the description says so (42.335769ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ an explicit, recognized 'skill' argument returns that skill's own guidance, not the default (51.800241ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ an unrecognized 'skill' argument falls back to the default skill gracefully, with an informative note listing the valid values — never a thrown error (51.260601ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ a malformed 'skill' argument (wrong type) or an unexpected extra field still throws — only an unrecognized VALUE is graceful (51.192187ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ the handler returns the exact same guidance markdown readInstalledSkillMarkdown reads for that skill — real content, not a stub (69.577882ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ SECURITY: no absolute host path appears in any registered tool's id, description, schema, or handler output (225.971362ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+[agent-plugins] 'ui-ux-design': agent-plugin tools: 'ui-ux-design' is installed under more than one digest (e413b4326316e6da9fc12c1d323f818bd84c3e25d00a368802632ffa781fca6b and fc6b4649a5f729bda56118fd337d11d96515ac2376b5d0d9be7cbc02aad193cc) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+✔ two installed digests of the same plugin id refuse that plugin loudly, without aborting the load (183.894655ms)
+Plugin 'healthy-before' has no publisher-qualified id; using 'unknown/healthy-before'.
+Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+Plugin 'healthy-after' has no publisher-qualified id; using 'unknown/healthy-after'.
+Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+Plugin 'healthy-after' has no publisher-qualified id; using 'unknown/healthy-after'.
+Plugin 'healthy-before' has no publisher-qualified id; using 'unknown/healthy-before'.
+[agent-plugins] 'conflicted-plugin': agent-plugin tools: 'conflicted-plugin' is installed under more than one digest (241022268f6d96562dbe1515d8bbef1914dee41085cd25f6024a80e1f535cc30 and 347db903facb95abb81a339bd4cd0002f812f23616e46d14b76a9ec63281716c) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+✔ a per-plugin resolution failure (digest ambiguity) is isolated to that plugin — every other installed plugin still gets its tool source (191.073657ms)
+Plugin 'upgraded-plugin' has no publisher-qualified id; using 'unknown/upgraded-plugin'.
+Plugin 'upgraded-plugin' has no publisher-qualified id; using 'unknown/upgraded-plugin'.
+Plugin 'upgraded-plugin' has no publisher-qualified id; using 'unknown/upgraded-plugin'.
+✔ a current upgrade exposes only the accepted replacement's guidance (57.223133ms)
+Plugin 'only-in-other' has no publisher-qualified id; using 'unknown/only-in-other'.
+✔ workspace isolation: a load for workspace A sees nothing installed only under a different workspace (54.734629ms)
+✔ an empty (never-installed) workspace produces zero sources and an empty registration list, no throw (2.69475ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✖ the executor denies cached guidance after disable (70.105428ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✖ the executor denies cached guidance after uninstall (21.560105ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✖ the executor denies cached guidance after unreadable-activation (26.461013ms)
+[agent-plugins:migration-complete] /tmp/tovu-agent-plugin-tool-registrations-test-8pSqKJ/ws/55555555-5555-4555-8555-555555555555

@@ -38,3 +38,5 @@
 1 packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts
 0 apps/website/src/server/runtime/composition/__tests__/vault-boot.integration.test.ts
 0 apps/website/src/cli/__tests__/integration/init-storage.postgres.test.ts
+0 apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts
+0 apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts
