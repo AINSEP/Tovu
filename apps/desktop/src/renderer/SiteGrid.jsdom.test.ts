@@ -90,7 +90,7 @@ function fakeHooks() {
         errorOf: (id) => state.errors[id] ?? null,
         toggle: async (project) => { calls.push(`toggle ${project.id}`); },
         restart: async (project) => { calls.push(`restart ${project.id}`); },
-        restartControlOf: (project) => state.restart ?? { label: 'Restart', ariaLabel: `Restart ${project.displayName}`, disabled: false },
+        restartControlOf: (project) => state.restart ?? { label: 'Restart', ariaLabel: `Restart ${project.displayName}`, disabled: false, busy: false, tooltip: 'Restart site' },
       };
       if (!state.withRestart) Reflect.deleteProperty(power, 'restartControlOf');
       if (state.withStopConfirm) {
@@ -144,7 +144,15 @@ test('a stopped card opens on click and Enter, shows its details, and Start reac
   act(() => { card!.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
   assert.deepEqual(grid.opened, ['/sites/bakery', '/sites/bakery']);
 
-  grid.click(grid.button(card!, 'Start Bakery'));
+  // Stopped: an outlined ⏻ glyph, no visible text; the sentence is the Jini tooltip.
+  const start = grid.button(card!, 'Start Bakery');
+  assert.equal(start.textContent, '');
+  assert.ok(start.querySelector('svg.icon'));
+  assert.equal(start.dataset.tooltip, 'Start site');
+  assert.ok(start.classList.contains('button--quiet') && start.classList.contains('jini-tooltip'));
+  assert.equal(start.getAttribute('aria-busy'), 'false');
+  assert.equal(grid.button(card!, 'Restart Bakery').dataset.tooltip, 'Restart site');
+  grid.click(start);
   grid.click(grid.button(card!, 'Restart Bakery'));
   assert.deepEqual(grid.calls, ['toggle /sites/bakery', 'restart /sites/bakery']);
   assert.equal(grid.opened.length, 2, 'action buttons never also open the card');
@@ -187,7 +195,9 @@ test('a running card shows its capture, failure line and details; the menu offer
   assert.equal(card!.querySelector('.state')!.getAttribute('title'), 'Running in Web at http://localhost:4321');
   assert.equal(card!.querySelector('.card__actionerror')!.textContent, 'Port 3000 is in use.');
   assert.equal(failedCard!.querySelector('.card__detail')!.textContent, 'the server exited (code 1)');
-  assert.ok(grid.button(card!, 'Stop Bakery'));
+  const stop = grid.button(card!, 'Stop Bakery');
+  assert.equal(stop.dataset.tooltip, 'Stop site');
+  assert.ok(stop.classList.contains('button--create'), 'a running site\'s ⏻ is filled in the accent');
 
   const trigger = grid.button(card!, 'More actions for Bakery');
   assert.equal(trigger.getAttribute('aria-expanded'), 'false');
@@ -255,6 +265,8 @@ test('mid-transition, provisioning, external and restart-less cards render the m
   const [starting, ext, draft] = grid.cards();
   const busy = grid.button(starting!, 'Starting… Bakery');
   assert.equal(busy.disabled, true, 'no second action while one is in flight');
+  assert.equal(busy.getAttribute('aria-busy'), 'true', 'the ⏻ pulses while it is busy');
+  assert.equal(busy.dataset.tooltip, 'Starting…');
   assert.equal(starting!.querySelectorAll('button.card__restart').length, 0, 'no restart control when the hook offers none');
   assert.equal(ext!.querySelector('button.card__power'), null, 'a site another process serves has no Start/Stop');
   assert.equal(draft!.querySelector('.card__draft')!.textContent, 'Provisioning setup');

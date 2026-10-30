@@ -1493,10 +1493,8 @@ webview { display: flex; }
 /* Restart sits at the row's right edge whether or not Start/Stop is beside it. */
 .card__restart { margin-left: auto; }
 
-/* The lifecycle control. A LABELLED button, not a glyph: it is the one control on the card whose
-   meaning changes with the site's state, and no icon says "Stopping…". No colour or sizing rule of
-   its own — it wears `.button` and `.button--create` (the header's "Create website" look) verbatim,
-   on the owner's own request, so this class is layout-only now. */
+/* The lifecycle controls (⏻ and Restart, owner 2026-10-30). Colour comes from `.button--create`
+   (on) or `.button--quiet` (off); the square glyph box and the busy pulse are after `.button--icon`. */
 .card__power { flex: none; }
 /* Mid-transition. Dimmed and inert, but still the same box in the same place — a disabled control
    that vanished would let the next click land on the ⋮ trigger beside it. `.button--create:disabled`
@@ -1738,6 +1736,15 @@ webview { display: flex; }
 .button--icon[aria-busy="true"] .icon { animation: spin 1s linear infinite; }
 @media (prefers-reduced-motion: reduce) {
   .button--icon[aria-busy="true"] .icon { animation: none; }
+}
+/* A card's ⏻ and Restart: a touch larger than the toolbar's, the card's main controls. Mid-transition
+   the glyph pulses instead of spinning (a spinning ⏻ reads as "rotate"), and the button keeps full
+   strength rather than `:disabled`'s 0.45 so the pulse is visible; it stays inert. */
+.card__power.button--icon { width: 36px; min-height: 36px; }
+.card__power[aria-busy="true"] { opacity: 1; cursor: progress; }
+.card__power[aria-busy="true"] .icon { animation: pulse 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .card__power[aria-busy="true"] .icon { animation: none; }
 }
 
 /*

@@ -34,6 +34,13 @@ test('Restart is offered only for running sites with a present folder', () => {
   assert.equal(restartControl({ project: { ...record, folderMissing: true }, status: 'running', restarting: false }).disabled, true);
   assert.equal(restartControl({ project: record, status: 'starting', restarting: true }).label, 'Restarting…');
 });
+test('Restart\'s tooltip says what it does, or why it is greyed', () => {
+  const tip = (status: SiteRecord['status'], restarting = false, project: SiteRecord = record) => restartControl({ project, status, restarting });
+  assert.deepEqual([tip('running').tooltip, tip('running').busy], ['Restart site', false]);
+  for (const status of ['stopped', 'failed', 'starting', 'stopping'] as const) assert.equal(tip(status).tooltip, 'Start the site first');
+  assert.deepEqual([tip('stopping', true).tooltip, tip('stopping', true).busy], ['Restarting…', true]);
+  assert.equal(tip('running', false, { ...record, externalUrl: 'https://localhost:4200/admin/' }).tooltip, 'Restart is not available for this site');
+});
 test('rapid Restart/Stop clicks share one synchronous guard and clear it after failure', async () => {
   const source = fs.readFileSync(new URL('./use-site-power.hooks.ts', import.meta.url), 'utf8');
   const harness = hookHarness();
@@ -57,13 +64,15 @@ test('rapid Restart/Stop clicks share one synchronous guard and clear it after f
 });
 test('rendered Restart button invokes the hook and is disabled during a transition', () => {
   const source = fs.readFileSync(new URL('./SiteGrid.tsx', import.meta.url), 'utf8');
-  const CardActions = sourceFunction(source, 'CardActions', { powerControl, SiteCardMenu: () => null });
+  const CardActions = sourceFunction(source, 'CardActions', { powerControl, SiteCardMenu: () => null, ToolIcon: () => null });
   let restarts = 0;
   for (const status of ['running', 'starting'] as const) {
     const power = { toggle: () => {}, restart: () => { restarts++; }, restartControlOf: () => restartControl({ project: record, status, restarting: status === 'starting' }) };
     const tree = CardActions({ project: record, status, power });
-    const button = elements(tree).find(e => e.type === 'button' && e.props.children === (status === 'running' ? 'Restart' : 'Restarting…'));
+    const button = elements(tree).find(e => e.type === 'button' && e.props['aria-label'] === `${status === 'running' ? 'Restart' : 'Restarting…'} ${record.displayName}`);
     assert.ok(button);
+    assert.equal(button.props['data-tooltip'], status === 'running' ? 'Restart site' : 'Restarting…');
+    assert.equal(button.props['aria-busy'], status !== 'running');
     assert.equal(button.props.disabled, status !== 'running');
     if (status === 'running') button.props.onClick();
   }

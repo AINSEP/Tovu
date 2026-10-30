@@ -34,6 +34,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
 import path from 'node:path';
+import React from 'react';
 import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
 import { IN_FLIGHT_STATUS, codeSpans, externalStopConfirm, performPowerAction, powerControl, powerToggleIntent, runPowerToggle } from './use-site-power.hooks.js';
 
@@ -119,7 +120,7 @@ test('Start/Stop sits on its own row UNDER the text, with Restart on that same r
   const actions = actionsBody();
   assert.doesNotMatch(actions, /<SiteCardMenu/, 'the ⋮ no longer lives in the button row');
   assert.ok(actions.indexOf('power.toggle(project)') < actions.indexOf('card__restart'), 'Start/Stop renders before Restart');
-  assert.match(actions, /className="button button--quiet card__power card__restart"[\s\S]*?onClick=\{\(\) => void power\.restart\(project\)\}/);
+  assert.match(actions, /className="button button--quiet button--icon card__power card__restart jini-tooltip"[\s\S]*?onClick=\{\(\) => void power\.restart\(project\)\}/);
 });
 
 test('no standalone trash control exists anywhere — delete lives only inside the ⋮ menu', () => {
@@ -155,25 +156,29 @@ test('the ⋮ trigger carries an accessible name, since it has no visible text',
 test('the power button calls power.toggle and renders the label powerControl decided', () => {
   const actions = actionsBody();
   assert.match(actions, /const control = powerControl\(status, \{ external: Boolean\(project\.externalUrl\) && !project\.externalLauncher \}\);/);
-  assert.match(actions, /className="button button--create card__power"[\s\S]*?onClick=\{\(\) => void power\.toggle\(project\)\}/);
+  assert.match(actions, /className=\{`button \$\{control\.on \? 'button--create' : 'button--quiet'\} button--icon card__power jini-tooltip`\}[\s\S]*?onClick=\{\(\) => void power\.toggle\(project\)\}/);
   assert.match(actions, /disabled=\{control\.action === null\}/, 'a busy control must be inert, not merely dimmed');
-  assert.match(actions, /\{control\.label\}/, 'the label must come from the control, never from what was clicked');
+  assert.match(actions, /aria-label=\{`\$\{control\.label\} \$\{project\.displayName\}`\}/, 'the name must come from the control, never from what was clicked');
   // `: control && (` since a missing-folder card renders Locate / Remove in this slot instead.
   assert.match(actions, /: control && \(/, 'a status with no honest button renders none');
   // Execute the real component too: the external-owner option must hide Stop, while local
   // controls retain their labels, transition disablement and selected-project click wiring.
-  const CardActions = sourceFunction(grid, 'CardActions', { powerControl });
+  const CardActions = sourceFunction(grid, 'CardActions', { powerControl, ToolIcon: ({ kind }: { kind: string }) => React.createElement('svg', { 'data-kind': kind }) });
   const project = { id: '/sites/power', displayName: 'Power site', folderMissing: false };
   const toggled: unknown[] = [];
   const powerPort = { toggle: (selected: unknown) => { toggled.push(selected); } };
-  for (const [status, label, disabled] of [
-    ['stopped', 'Start', false], ['running', 'Stop', false],
-    ['starting', 'Starting…', true], ['stopping', 'Stopping…', true],
+  for (const [status, label, tooltip, disabled, fill] of [
+    ['stopped', 'Start', 'Start site', false, 'button--quiet'], ['running', 'Stop', 'Stop site', false, 'button--create'],
+    ['starting', 'Starting…', 'Starting…', true, 'button--quiet'], ['stopping', 'Stopping…', 'Stopping…', true, 'button--create'],
   ] as const) {
     const buttons = elements(CardActions({ project, status, power: powerPort, locate: {} }))
       .filter((element) => element.type === 'button');
     assert.equal(buttons.length, 1);
-    assert.equal(buttons[0].props.children, label);
+    assert.equal(buttons[0].props['aria-label'], `${label} Power site`);
+    assert.equal(buttons[0].props['data-tooltip'], tooltip);
+    assert.equal(buttons[0].props.children.props.kind, 'power', 'the button is the ⏻ glyph, not text');
+    assert.ok(buttons[0].props.className.split(' ').includes(fill), `${status}: ${fill}`);
+    assert.equal(buttons[0].props['aria-busy'], disabled, 'busy exactly while inert');
     assert.equal(buttons[0].props.disabled, disabled);
     if (!disabled) buttons[0].props.onClick();
   }
@@ -195,7 +200,7 @@ test('Start/Stop reuses the header\'s "Create website" class rather than a hand-
   // class, not eyeball a matching colour. `app` carries the header button (`App.tsx`); `grid`
   // carries the card's power button (`SiteGrid.tsx`).
   assert.match(app, /className="button button--create"[\s\S]{0,40}onClick=\{onCreateWebsite\}/, 'the header button must still exist as the source of the style');
-  assert.match(grid, /className="button button--create card__power"/, 'the power button must carry the same button--create class');
+  assert.match(grid, /className=\{`button \$\{control\.on \? 'button--create' : 'button--quiet'\}/, 'the running ⏻ must carry the same button--create class');
   // The class itself must resolve to a token, not a hand-copied hex value.
   assert.match(css, /\.button--primary,\s*\.button--create\s*\{\s*border:\s*1px solid var\(--primary\);\s*background:\s*var\(--primary\);/);
 });

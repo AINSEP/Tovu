@@ -49,7 +49,15 @@ export function restartControl({ project, status, restarting }: {
 }, { locale = runtimeLocale() }: { locale?: string } = {}) {
   const copy = desktopCopy({ locale });
   const label = restarting ? copy.restarting : copy.restart;
-  return { label, ariaLabel: `${label} ${project.displayName}`, disabled: status !== 'running' || Boolean(project.folderMissing) || Boolean(project.externalUrl) };
+  const disabled = status !== 'running' || Boolean(project.folderMissing) || Boolean(project.externalUrl);
+  return { label, ariaLabel: `${label} ${project.displayName}`, disabled, busy: restarting, tooltip: restartTooltip({ label, status, restarting, disabled }) };
+}
+
+/** The Restart glyph's tooltip: why it is greyed when it is, otherwise what it does. */
+function restartTooltip({ label, status, restarting, disabled }: { label: string; status: SiteLifecycleStatus; restarting: boolean; disabled: boolean }) {
+  if (restarting) return label;
+  if (status !== 'running') return 'Start the site first';
+  return disabled ? 'Restart is not available for this site' : 'Restart site';
 }
 
 /**
@@ -93,8 +101,13 @@ export interface SitePowerControl {
   /** What a click does — `null` while a transition is in flight, which renders the button disabled
    *  rather than hiding it, so the row does not reflow under the pointer mid-press. */
   action: SitePowerAction | null;
+  /** The accessible name's verb ("Start", "Stopping…"); the button itself is a ⏻ glyph. */
   label: string;
+  /** The sentence the glyph's tooltip shows. */
+  tooltip: string;
   busy: boolean;
+  /** Running or on its way down: the ⏻ is drawn filled, as "on". */
+  on: boolean;
 }
 
 /**
@@ -114,10 +127,10 @@ export interface SitePowerControl {
  */
 export function powerControl(status: SiteLifecycleStatus, { external = false }: { external?: boolean } = {}): SitePowerControl | null {
   if (external) return null;
-  if (status === 'running') return { action: 'stop', label: 'Stop', busy: false };
-  if (status === 'stopped' || status === 'failed') return { action: 'start', label: 'Start', busy: false };
-  if (status === 'starting') return { action: null, label: 'Starting…', busy: true };
-  if (status === 'stopping') return { action: null, label: 'Stopping…', busy: true };
+  if (status === 'running') return { action: 'stop', label: 'Stop', tooltip: 'Stop site', busy: false, on: true };
+  if (status === 'stopped' || status === 'failed') return { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false };
+  if (status === 'starting') return { action: null, label: 'Starting…', tooltip: 'Starting…', busy: true, on: false };
+  if (status === 'stopping') return { action: null, label: 'Stopping…', tooltip: 'Stopping…', busy: true, on: true };
   return null;
 }
 

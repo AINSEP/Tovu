@@ -70,29 +70,33 @@ test('rapid Start clicks use the synchronous lock and settle updates before open
 // ---------------------------------------------------------------------------------------------
 
 test('a running site is offered Stop', () => {
-  assert.deepEqual(powerControl('running'), { action: 'stop', label: 'Stop', busy: false });
+  assert.deepEqual(powerControl('running'), { action: 'stop', label: 'Stop', tooltip: 'Stop site', busy: false, on: true });
 });
 
 test('a stopped site is offered Start', () => {
-  assert.deepEqual(powerControl('stopped'), { action: 'start', label: 'Start', busy: false });
+  assert.deepEqual(powerControl('stopped'), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
 });
 
 test('a FAILED site is offered Start, not a disabled button — a failed boot is the one you retry', () => {
-  assert.deepEqual(powerControl('failed'), { action: 'start', label: 'Start', busy: false });
+  assert.deepEqual(powerControl('failed'), { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false });
 });
 
 test('mid-start the button says Starting… and does nothing when pressed', () => {
   const control = powerControl('starting');
   assert.equal(control?.label, 'Starting…');
+  assert.equal(control?.tooltip, 'Starting…');
   assert.equal(control?.action, null, 'a press mid-transition must not queue a second one');
   assert.equal(control?.busy, true);
+  assert.equal(control?.on, false, 'not on yet: the ⏻ stays outlined while it pulses');
 });
 
 test('mid-stop the button says Stopping… and does nothing when pressed', () => {
   const control = powerControl('stopping');
   assert.equal(control?.label, 'Stopping…');
+  assert.equal(control?.tooltip, 'Stopping…');
   assert.equal(control?.action, null);
   assert.equal(control?.busy, true);
+  assert.equal(control?.on, true, 'still on until it is down: the ⏻ stays filled while it pulses');
 });
 
 test('provisioning and blocked get NO button rather than an inert one', () => {

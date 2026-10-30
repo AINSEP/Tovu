@@ -24,7 +24,7 @@ import { namePasteHandler } from '../contracts/site-name.js';
  * The layout is the owner's, after four rounds: the ⋮ level with the site name at the card's right
  * edge, "SQLite" under the name and the status ("● Stopped") under the ⋮, then Start/Stop on its
  * own row at the left with Restart on that same row at the right edge. So the body is two rows —
- * `.card__head` (a 2x2 grid: name | ⋮, SQLite | status) and `CardActions` (the labelled buttons) —
+ * `.card__head` (a 2x2 grid: name | ⋮, SQLite | status) and `CardActions` (the ⏻ and Restart buttons) —
  * which is what lets the ⋮ share a line with the name without either one being positioned on top of
  * the other. (Before 2026-10-06 Start/Stop and Restart were stacked under the ⋮ in a right-hand
  * column, and the status sat on its own line under the name.)
@@ -33,10 +33,8 @@ import { namePasteHandler } from '../contracts/site-name.js';
  * always-visible trash button beside Start/Stop; the owner's own reason for pulling it inside the
  * menu is misclicks — a destructive control next to a button pressed often is too easy to hit by
  * accident. It is a `role="menuitem"` in `SiteCardMenu` now, and it still opens the exact same
- * confirm overlay before anything happens. Start/Stop stays the lifecycle and the one labelled
- * button, wearing `.button--create` — the header's "Create website" style — on the owner's own
- * request, so the app's two ways to bring a site up read as one family rather than two different
- * looks. Nothing is reachable two ways, which is the rule that keeps the column readable as it
+ * confirm overlay before anything happens. Start/Stop is a ⏻ glyph filled with `.button--create` —
+ * the header's "Create website" fill — while the site is on (owner 2026-10-30). Nothing is reachable two ways, which is the rule that keeps the column readable as it
  * grows.
  */
 import { useDeleteConfirmation, useDismissibleDropdown } from './App.hooks.js';
@@ -54,6 +52,7 @@ import type { SiteActions } from './use-site-actions.hooks.js';
 import type { SitePower } from './use-site-power.hooks.js';
 import type { SiteLocate } from './use-site-locate.hooks.js';
 import { ResourceSiteFigure } from './ResourcesPanel.js';
+import { ToolIcon } from './tool-icons.js';
 
 /**
  * `useDeleteState` is the delete-confirm hook itself, defaulted to the real one — the function,
@@ -434,11 +433,14 @@ function CardConfirmOverlay({
  *
  * **No icon controls here.** Delete moved inside the ⋮ menu — see `SiteCardMenu`'s own doc — so
  * this row carries no standalone trash button at all, hover-revealed or not: the owner's reason is
- * misclicks, a destructive control beside a button pressed often. Start/Stop is
- * the site's lifecycle and stays a LABELLED button rather than a glyph — it is the one control here
- * whose meaning changes with the site's state, and an icon cannot say "Stopping…". It wears
- * `.button--create`, the header's "Create website" style, on the owner's own request: reusing that
- * class rather than a one-off look, so the two read as one family.
+ * misclicks, a destructive control beside a button pressed often.
+ *
+ * **Start/Stop and Restart are glyphs (owner 2026-10-30)**, the toolbar's 20px icon buttons: one ⏻
+ * that is outlined while the site is off and filled in the accent (`.button--create`, the header's
+ * "Create website" fill) while it is on, and a ⏻ inside a circular arrow for Restart. The verb
+ * ("Start", "Stopping…") lives in the `aria-label` and the sentence in a Jini tooltip; mid-transition
+ * the ⏻ pulses (`aria-busy`) and the status beside it says "Starting"/"Stopping". Locate…/Remove stay
+ * text.
  *
  * @complexity O(1) — at most two conditional buttons plus Restart.
  */
@@ -488,14 +490,17 @@ function CardActions({
       ) : control && (
         <button
           type="button"
-          className="button button--create card__power"
+          // Filled in the accent (`.button--create`) while on, outlined (`.button--quiet`) while off.
+          className={`button ${control.on ? 'button--create' : 'button--quiet'} button--icon card__power jini-tooltip`}
+          data-tooltip={control.tooltip}
           // Disabled mid-transition rather than hidden: a row that reflows under the pointer is how
           // a second click lands on Restart beside it.
           disabled={control.action === null}
+          aria-busy={control.busy}
           aria-label={`${control.label} ${project.displayName}`}
           onClick={() => void power.toggle(project)}
         >
-          {control.label}
+          <ToolIcon kind="power" />
         </button>
       )}
       {/* Last, and pushed to the row's right edge by `.card__restart` — on its own as well as
@@ -503,12 +508,14 @@ function CardActions({
       {restart && (
         <button
           type="button"
-          className="button button--quiet card__power card__restart"
+          className="button button--quiet button--icon card__power card__restart jini-tooltip"
+          data-tooltip={restart.tooltip}
           disabled={restart.disabled}
+          aria-busy={restart.busy}
           aria-label={restart.ariaLabel}
           onClick={() => void power.restart(project)}
         >
-          {restart.label}
+          <ToolIcon kind="restart" />
         </button>
       )}
     </div>
@@ -552,7 +559,7 @@ function CardActions({
  *
  * **Start and Stop are deliberately absent, and this is the whole reason the card has an action
  * row.** Start used to live here, because a stopped site had no other way up; it is now a
- * labelled button in the row below the card's text (`CardActions`). The same action in a menu AND on a button is the
+ * ⏻ button in the row below the card's text (`CardActions`). The same action in a menu AND on a button is the
  * duplicate affordance a coherent card cannot have — an operator would have two places to look for
  * one thing, and the menu's copy would have to restate what the button already says.
  *
