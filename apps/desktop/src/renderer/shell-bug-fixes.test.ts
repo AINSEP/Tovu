@@ -287,3 +287,20 @@ test('siteOperationError falls back to English copy in a host with no navigator'
     'No Tovu website was found in this folder. Choose an existing website or use Create website.');
   assert.equal(siteOperationError({ error: new Error('Port 4300 is busy.'), operation: 'start' }), 'Port 4300 is busy.');
 });
+
+// UI test 2026-10-30: after Rename -> Save the card kept the old name for ~1.4 s, until the next
+// poll, because ProjectsBody never handed SiteGrid an `onRenamed`.
+test('a rename updates the Websites grid at once through the same setter as Start/Stop', () => {
+  const source = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+  let gridProps: { onRenamed?: (record: SiteRecord) => void } | undefined;
+  const SiteGrid = (props: typeof gridProps) => { gridProps = props; return null; };
+  const ProjectsBody = sourceFunction(source, 'ProjectsBody', { SiteGrid, NoWebsitesYet: () => null });
+  const updated: SiteRecord[] = [];
+  const tree = ProjectsBody({ projectsLoading: false, loadError: null, rescanError: null, addError: null,
+    projects: [site()], onOpen: () => {}, onDelete: async () => {}, onSiteUpdated: (record: SiteRecord) => updated.push(record) });
+  for (const element of elements(tree)) if (typeof element.type === 'function') element.type(element.props);
+  const renamed = site({ displayName: 'Harbor Florist' });
+  assert.equal(typeof gridProps?.onRenamed, 'function');
+  gridProps!.onRenamed!(renamed);
+  assert.deepEqual(updated, [renamed]);
+});

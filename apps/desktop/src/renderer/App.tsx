@@ -1224,7 +1224,7 @@ function ProjectsBody({
     <>
       {rescanError && <p className="empty__body">{rescanError}</p>}
       {addError && <p className="projects-feedback" role="status">{addError}</p>}
-      {projects.length === 0 ? <NoWebsitesYet /> : <SiteGrid projects={projects} onOpen={onOpen} onDelete={onDelete} onSiteUpdated={onSiteUpdated} />}
+      {projects.length === 0 ? <NoWebsitesYet /> : <SiteGrid projects={projects} onOpen={onOpen} onDelete={onDelete} onRenamed={onSiteUpdated} onSiteUpdated={onSiteUpdated} />}
     </>
   );
 }
