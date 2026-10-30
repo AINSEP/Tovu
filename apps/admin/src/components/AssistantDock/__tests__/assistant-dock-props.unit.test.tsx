@@ -2,8 +2,10 @@ import { isValidElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PushToTalkMicButton } from "../../../features/voice-input/PushToTalkMicButton";
-import { composerFooterLeading, optionalChatPaneProps, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";
+import { VoiceInputPlaceholder } from "../../../features/voice-input/VoiceInputPlaceholder";
+import { composerFooterLeading, optionalChatPaneProps, pickedFoldersAccessory, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";
 import { FolderPathButton } from "../FolderPathButton";
+import { PickedFoldersButton } from "../PickedFoldersButton";
 
 /**
  * @file The pure prop builders `AssistantDock.tsx` hands to `ChatPane` and its header, on every
@@ -41,8 +43,9 @@ describe("voiceFooterAccessory", () => {
     expect(isValidElement<{ onTranscript: unknown }>(slot) && slot.props.onTranscript).toBe(onTranscript);
   });
 
-  it("omits the slot entirely when voice input is off", () => {
-    expect(voiceFooterAccessory({ enabled: false, onTranscript: vi.fn() })).toBeUndefined();
+  it("holds the slot with the disabled mic placeholder when voice input is off", () => {
+    const slot = voiceFooterAccessory({ enabled: false, onTranscript: vi.fn() });
+    expect(isValidElement(slot) && slot.type).toBe(VoiceInputPlaceholder);
   });
 });
 
@@ -57,6 +60,16 @@ describe("renameActiveConversation", () => {
     const rename = vi.fn(async () => undefined);
     expect(renameActiveConversation({ activeId: null, rename })("Quarterly report")).toBeUndefined();
     expect(rename).not.toHaveBeenCalled();
+  });
+});
+
+describe("pickedFoldersAccessory", () => {
+  it("renders the attached-folders button only while a folder is attached", () => {
+    const onRemove = vi.fn();
+    const slot = pickedFoldersAccessory({ folders: ["/a/Brand"], onRemove }, {});
+    expect(isValidElement(slot) && slot.type).toBe(PickedFoldersButton);
+    expect(isValidElement<{ folders: unknown; onRemove: unknown }>(slot) && [slot.props.folders, slot.props.onRemove]).toEqual([["/a/Brand"], onRemove]);
+    expect(pickedFoldersAccessory({ folders: [], onRemove }, {})).toBeUndefined();
   });
 });
 
@@ -78,7 +91,7 @@ describe("composerFooterLeading", () => {
     expect(voice).toBe(mic);
   });
 
-  it("puts the picked-folder chip after the folder button, before the mic, even with no folder dialog here", () => {
+  it("puts the attached-folders button after the folder button, before the mic, even with no folder dialog here", () => {
     const chip = <span>chip</span>;
     const children = (slot: unknown) => (isValidElement<{ children: unknown[] }>(slot) ? slot.props.children : []);
     const [button, placed, voice] = children(composerFooterLeading({ folderPicker: picker, voice: mic, pickedFolder: chip })) as [unknown, unknown, unknown];

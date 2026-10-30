@@ -2,9 +2,10 @@ import type { ComponentProps, ReactNode } from "react";
 import type { ChatPane } from "@jini-ai/chat/react";
 
 import { PushToTalkMicButton } from "../../features/voice-input/PushToTalkMicButton";
+import { VoiceInputPlaceholder } from "../../features/voice-input/VoiceInputPlaceholder";
 import type { UseNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
 import { FolderPathButton } from "./FolderPathButton";
-import { PickedFolderChip } from "./PickedFolderChip";
+import { PickedFoldersButton } from "./PickedFoldersButton";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 
 /**
@@ -44,33 +45,36 @@ export function optionalChatPaneProps(input: OptionalChatPanePropsInput) {
 }
 
 /**
- * The composer footer's push-to-talk slot. `undefined` when voice input is switched off, which
- * omits the slot entirely rather than rendering a disabled/hidden button — see the
- * `footerLeadingAccessory` comment in `AssistantDock.tsx` and `voice-input-config.ts`.
+ * The composer footer's push-to-talk slot. When voice input is switched off it holds a grayed,
+ * disabled mic (`VoiceInputPlaceholder`) — owner, 2026-10-30, reversing 2026-09-13's "omit the slot
+ * entirely": the footer keeps its final one-line shape. See the `footerLeadingAccessory` comment in
+ * `AssistantDock.tsx` and `voice-input-config.ts`.
  *
  * @param input.enabled `VOICE_INPUT_ENABLED` at the call site.
  * @param input.onTranscript Where a finished transcript is appended (`useComposerVoiceInput`).
- * @returns The mic button, or `undefined` when disabled.
+ * @returns The mic button, or the disabled placeholder.
  * @complexity O(1).
  */
 export function voiceFooterAccessory(input: { readonly enabled: boolean; readonly onTranscript: (text: string) => void }) {
-  return input.enabled ? <PushToTalkMicButton onTranscript={input.onTranscript} /> : undefined;
+  return input.enabled ? <PushToTalkMicButton onTranscript={input.onTranscript} /> : <VoiceInputPlaceholder />;
 }
 
-/** Render the folder chip only while a folder is picked. @complexity O(1). */
-export function pickedFolderAccessory({ path, onClear }: { readonly path: string | null; readonly onClear: () => void }, _options = {}) {
-  return path ? <PickedFolderChip path={path} onClear={onClear} /> : undefined;
+/** Render the attached-folders button only while at least one folder is attached. @complexity O(1). */
+export function pickedFoldersAccessory(
+  { folders, onRemove }: { readonly folders: readonly string[]; readonly onRemove: (path: string) => void }, _options = {},
+) {
+  return folders.length > 0 ? <PickedFoldersButton folders={folders} onRemove={onRemove} /> : undefined;
 }
 
 /**
  * Everything in the composer footer's `footerLeadingAccessory` slot, right after "+": the folder
- * button (only once the server confirmed it can open a folder dialog here), the picked-folder chip
- * (`PickedFolderChip`, while a folder is picked), then the mic. `undefined`
- * when neither shows, so the slot is omitted rather than rendered empty.
+ * button (only once the server confirmed it can open a folder dialog here), the attached-folders
+ * button (`PickedFoldersButton`, while a folder is attached), then the mic. `undefined`
+ * when none shows, so the slot is omitted rather than rendered empty.
  *
  * @param input.folderPicker `useNativeFolderPicker`'s result.
  * @param input.voice `voiceFooterAccessory`'s result.
- * @param input.pickedFolder The rendered `PickedFolderChip`, if any.
+ * @param input.pickedFolder The rendered `PickedFoldersButton`, if any.
  * @complexity O(1).
  */
 export function composerFooterLeading(input: { readonly folderPicker: UseNativeFolderPicker; readonly voice: ReactNode | undefined; readonly pickedFolder?: ReactNode }) {

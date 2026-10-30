@@ -976,11 +976,19 @@ export const t = (locale: string, key: string): string => translateDockCopy({ lo
  * agent waits on a question was NOT sent (`describeTypedAnswerNotice` in `@jini-ai/chat/react`): the
  * question already closed, or the answer could not be delivered. Extended 2026-10-05 with the
  * "Send as a new message" button on the closed-question notice (the held answer's explicit way out).
+ *
+ * Extended 2026-10-30 with the composer footer's Tovu-authored controls, which render inside the
+ * provider through `useT()`: the folder button, the attached-folders button and list, and the
+ * disabled mic placeholder.
  */
 const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   es: {
     "Using:": "En uso:",
     "Stop using": "Dejar de usar",
+    "Insert a folder path": "Insertar la ruta de una carpeta",
+    "Agent reads: {names}": "El agente lee: {names}",
+    "Stop using {name}": "Dejar de usar {name}",
+    "Voice input (coming soon)": "Entrada de voz (próximamente)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "Detiene el uso futuro en este chat. Las instrucciones ya cargadas permanecen en el contexto actual.",
     "Rename chat": "Renombrar chat",
     Conversations: "Conversaciones",
@@ -1011,6 +1019,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   id: {
     "Using:": "Digunakan:",
     "Stop using": "Berhenti menggunakan",
+    "Insert a folder path": "Sisipkan jalur folder",
+    "Agent reads: {names}": "Agen membaca: {names}",
+    "Stop using {name}": "Berhenti menggunakan {name}",
+    "Voice input (coming soon)": "Input suara (segera hadir)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "Menghentikan penggunaan berikutnya dalam obrolan ini. Panduan yang sudah dimuat tetap berada dalam konteks saat ini.",
     "Rename chat": "Ganti nama obrolan",
     Conversations: "Percakapan",
@@ -1041,6 +1053,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   de: {
     "Using:": "Verwendet:",
     "Stop using": "Nicht mehr verwenden",
+    "Insert a folder path": "Ordnerpfad einfügen",
+    "Agent reads: {names}": "Agent liest: {names}",
+    "Stop using {name}": "{name} nicht mehr verwenden",
+    "Voice input (coming soon)": "Spracheingabe (demnächst)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "Beendet die künftige Verwendung in diesem Chat. Bereits geladene Anweisungen bleiben im aktuellen Kontext.",
     "Rename chat": "Chat umbenennen",
     Conversations: "Unterhaltungen",
@@ -1071,6 +1087,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   "zh-CN": {
     "Using:": "正在使用：",
     "Stop using": "停止使用",
+    "Insert a folder path": "插入文件夹路径",
+    "Agent reads: {names}": "智能体读取：{names}",
+    "Stop using {name}": "停止使用 {name}",
+    "Voice input (coming soon)": "语音输入（即将推出）",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "停止在此聊天中继续使用。已加载的指导内容仍保留在当前上下文中。",
     "Rename chat": "重命名聊天",
     Conversations: "对话",
@@ -1101,6 +1121,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   "zh-TW": {
     "Using:": "正在使用：",
     "Stop using": "停止使用",
+    "Insert a folder path": "插入資料夾路徑",
+    "Agent reads: {names}": "代理程式讀取：{names}",
+    "Stop using {name}": "停止使用 {name}",
+    "Voice input (coming soon)": "語音輸入（即將推出）",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "停止在此聊天中繼續使用。已載入的指引仍保留在目前的上下文中。",
     "Rename chat": "重新命名聊天",
     Conversations: "對話",
@@ -1131,6 +1155,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   "pt-BR": {
     "Using:": "Em uso:",
     "Stop using": "Parar de usar",
+    "Insert a folder path": "Inserir o caminho de uma pasta",
+    "Agent reads: {names}": "O agente lê: {names}",
+    "Stop using {name}": "Parar de usar {name}",
+    "Voice input (coming soon)": "Entrada de voz (em breve)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "Interrompe o uso futuro neste chat. As orientações já carregadas permanecem no contexto atual.",
     "Rename chat": "Renomear conversa",
     Conversations: "Conversas",
@@ -1161,6 +1189,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   ru: {
     "Using:": "Используются:",
     "Stop using": "Прекратить использование",
+    "Insert a folder path": "Вставить путь к папке",
+    "Agent reads: {names}": "Агент читает: {names}",
+    "Stop using {name}": "Не использовать {name}",
+    "Voice input (coming soon)": "Голосовой ввод (скоро)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "Прекращает дальнейшее использование в этом чате. Уже загруженные инструкции остаются в текущем контексте.",
     "Rename chat": "Переименовать чат",
     Conversations: "Беседы",
@@ -1191,6 +1223,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   fa: {
     "Using:": "در حال استفاده:",
     "Stop using": "توقف استفاده",
+    "Insert a folder path": "درج مسیر پوشه",
+    "Agent reads: {names}": "عامل می‌خواند: {names}",
+    "Stop using {name}": "توقف استفاده از {name}",
+    "Voice input (coming soon)": "ورودی صوتی (به‌زودی)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "استفاده در ادامهٔ این گفتگو را متوقف می‌کند. راهنمایی‌های بارگذاری‌شده در زمینهٔ فعلی باقی می‌مانند.",
     "Rename chat": "تغییر نام گفتگو",
     Conversations: "گفتگوها",
@@ -1221,6 +1257,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   ar: {
     "Using:": "قيد الاستخدام:",
     "Stop using": "إيقاف الاستخدام",
+    "Insert a folder path": "إدراج مسار مجلد",
+    "Agent reads: {names}": "يقرأ الوكيل: {names}",
+    "Stop using {name}": "إيقاف استخدام {name}",
+    "Voice input (coming soon)": "الإدخال الصوتي (قريبًا)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "يوقف الاستخدام المستقبلي في هذه المحادثة. تبقى الإرشادات المحمّلة مسبقًا في السياق الحالي.",
     "Rename chat": "إعادة تسمية المحادثة",
     Conversations: "المحادثات",
@@ -1251,6 +1291,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   ja: {
     "Using:": "使用中：",
     "Stop using": "使用を停止",
+    "Insert a folder path": "フォルダーのパスを挿入",
+    "Agent reads: {names}": "エージェントが読むフォルダー: {names}",
+    "Stop using {name}": "{name} の使用をやめる",
+    "Voice input (coming soon)": "音声入力（近日公開）",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "このチャットでの今後の使用を停止します。読み込み済みのガイダンスは現在のコンテキストに残ります。",
     "Rename chat": "チャットの名前を変更",
     Conversations: "会話",
@@ -1281,6 +1325,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   ko: {
     "Using:": "사용 중:",
     "Stop using": "사용 중지",
+    "Insert a folder path": "폴더 경로 삽입",
+    "Agent reads: {names}": "에이전트가 읽는 폴더: {names}",
+    "Stop using {name}": "{name} 사용 중지",
+    "Voice input (coming soon)": "음성 입력(출시 예정)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "이 채팅에서 앞으로 사용하지 않습니다. 이미 불러온 지침은 현재 컨텍스트에 남아 있습니다.",
     "Rename chat": "채팅 이름 변경",
     Conversations: "대화",
@@ -1311,6 +1359,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   pl: {
     "Using:": "W użyciu:",
     "Stop using": "Przestań używać",
+    "Insert a folder path": "Wstaw ścieżkę folderu",
+    "Agent reads: {names}": "Agent czyta: {names}",
+    "Stop using {name}": "Przestań używać: {name}",
+    "Voice input (coming soon)": "Wprowadzanie głosowe (wkrótce)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "Zatrzymuje dalsze użycie w tym czacie. Już wczytane instrukcje pozostają w bieżącym kontekście.",
     "Rename chat": "Zmień nazwę czatu",
     Conversations: "Rozmowy",
@@ -1341,6 +1393,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   hu: {
     "Using:": "Használatban:",
     "Stop using": "Használat leállítása",
+    "Insert a folder path": "Mappa elérési útjának beszúrása",
+    "Agent reads: {names}": "Az ügynök olvassa: {names}",
+    "Stop using {name}": "{name} használatának leállítása",
+    "Voice input (coming soon)": "Hangbevitel (hamarosan)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "Leállítja a további használatot ebben a csevegésben. A már betöltött útmutatás megmarad az aktuális kontextusban.",
     "Rename chat": "Csevegés átnevezése",
     Conversations: "Beszélgetések",
@@ -1371,6 +1427,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   fr: {
     "Using:": "En cours d’utilisation :",
     "Stop using": "Ne plus utiliser",
+    "Insert a folder path": "Insérer le chemin d’un dossier",
+    "Agent reads: {names}": "L’agent lit : {names}",
+    "Stop using {name}": "Ne plus utiliser {name}",
+    "Voice input (coming soon)": "Saisie vocale (bientôt disponible)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "Arrête toute utilisation future dans cette discussion. Les instructions déjà chargées restent dans le contexte actuel.",
     "Rename chat": "Renommer la discussion",
     Conversations: "Discussions",
@@ -1401,6 +1461,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   uk: {
     "Using:": "Використовуються:",
     "Stop using": "Припинити використання",
+    "Insert a folder path": "Вставити шлях до папки",
+    "Agent reads: {names}": "Агент читає: {names}",
+    "Stop using {name}": "Не використовувати {name}",
+    "Voice input (coming soon)": "Голосове введення (незабаром)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "Припиняє подальше використання в цьому чаті. Уже завантажені інструкції залишаються в поточному контексті.",
     "Rename chat": "Перейменувати чат",
     Conversations: "Розмови",
@@ -1431,6 +1495,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   tr: {
     "Using:": "Kullanılan:",
     "Stop using": "Kullanmayı bırak",
+    "Insert a folder path": "Klasör yolu ekle",
+    "Agent reads: {names}": "Ajanın okuduğu: {names}",
+    "Stop using {name}": "{name} kullanımını durdur",
+    "Voice input (coming soon)": "Sesli giriş (yakında)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "Bu sohbette gelecekteki kullanımı durdurur. Önceden yüklenen yönergeler mevcut bağlamda kalır.",
     "Rename chat": "Sohbeti yeniden adlandır",
     Conversations: "Konuşmalar",
@@ -1461,6 +1529,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   th: {
     "Using:": "กำลังใช้:",
     "Stop using": "หยุดใช้",
+    "Insert a folder path": "แทรกพาธของโฟลเดอร์",
+    "Agent reads: {names}": "เอเจนต์อ่าน: {names}",
+    "Stop using {name}": "หยุดใช้ {name}",
+    "Voice input (coming soon)": "ป้อนข้อมูลด้วยเสียง (เร็วๆ นี้)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "หยุดการใช้ในอนาคตสำหรับแชตนี้ คำแนะนำที่โหลดแล้วจะยังคงอยู่ในบริบทปัจจุบัน",
     "Rename chat": "เปลี่ยนชื่อแชต",
     Conversations: "การสนทนา",
@@ -1491,6 +1563,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   it: {
     "Using:": "In uso:",
     "Stop using": "Smetti di usare",
+    "Insert a folder path": "Inserisci il percorso di una cartella",
+    "Agent reads: {names}": "L’agente legge: {names}",
+    "Stop using {name}": "Smetti di usare {name}",
+    "Voice input (coming soon)": "Input vocale (in arrivo)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "Interrompe gli utilizzi futuri in questa chat. Le istruzioni già caricate restano nel contesto attuale.",
     "Rename chat": "Rinomina chat",
     Conversations: "Conversazioni",
@@ -1521,6 +1597,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   hi: {
     "Using:": "उपयोग में:",
     "Stop using": "उपयोग बंद करें",
+    "Insert a folder path": "फ़ोल्डर पाथ डालें",
+    "Agent reads: {names}": "एजेंट पढ़ता है: {names}",
+    "Stop using {name}": "{name} का उपयोग बंद करें",
+    "Voice input (coming soon)": "वॉइस इनपुट (जल्द आ रहा है)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "इस चैट में आगे उपयोग बंद करता है। पहले से लोड किए गए निर्देश वर्तमान संदर्भ में बने रहते हैं।",
     "Rename chat": "चैट का नाम बदलें",
     Conversations: "बातचीत",
@@ -1551,6 +1631,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   ur: {
     "Using:": "زیر استعمال:",
     "Stop using": "استعمال بند کریں",
+    "Insert a folder path": "فولڈر کا پاتھ داخل کریں",
+    "Agent reads: {names}": "ایجنٹ پڑھتا ہے: {names}",
+    "Stop using {name}": "{name} کا استعمال بند کریں",
+    "Voice input (coming soon)": "آواز سے اندراج (جلد آ رہا ہے)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "اس چیٹ میں آئندہ استعمال روک دیتا ہے۔ پہلے سے لوڈ شدہ ہدایات موجودہ سیاق میں رہتی ہیں۔",
     "Rename chat": "چیٹ کا نام تبدیل کریں",
     Conversations: "گفتگو",
@@ -1581,6 +1665,10 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   bn: {
     "Using:": "ব্যবহৃত হচ্ছে:",
     "Stop using": "ব্যবহার বন্ধ করুন",
+    "Insert a folder path": "ফোল্ডারের পাথ যোগ করুন",
+    "Agent reads: {names}": "এজেন্ট পড়ে: {names}",
+    "Stop using {name}": "{name} ব্যবহার বন্ধ করুন",
+    "Voice input (coming soon)": "ভয়েস ইনপুট (শীঘ্রই আসছে)",
     "Stops future use in this chat. Guidance already loaded stays in the current context.": "এই চ্যাটে পরবর্তী ব্যবহার বন্ধ করে। ইতিমধ্যে লোড করা নির্দেশনা বর্তমান প্রসঙ্গে থেকে যায়।",
     "Rename chat": "চ্যাটের নাম পরিবর্তন করুন",
     Conversations: "কথোপকথন",

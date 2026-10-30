@@ -18,8 +18,9 @@ export function FolderPathButton({ picking, onPick }: FolderPathButtonProps) {
   return (
     <button type="button" className="jini-composer-attach tovu-composer-folder-path" onClick={onPick} disabled={picking}
       title={label} aria-label={label}>
-      {/* 18px, not "+"'s 20px: the folder glyph fills more of its box, so this reads at the same weight. */}
-      <RemixIcon name="folder-line" size={18} />
+      {/* 18px, not "+"'s 20px: the folder glyph fills more of its box, so this reads at the same weight.
+          The arrow points up (owner, 2026-10-30): the composer sits at the bottom of the page. */}
+      <RemixIcon name="folder-upload-line" size={18} />
     </button>
   );
 }

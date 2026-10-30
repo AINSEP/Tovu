@@ -2,7 +2,7 @@ import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
 import { ConfirmDialog, useConfirmRequest } from "@jini-ai/admin/react";
 import { DockHeader } from "./DockHeader";
 import { DockLeadingAccessory } from "./DockLeadingAccessory";
-import { composerFooterLeading, optionalChatPaneProps, pickedFolderAccessory, voiceFooterAccessory } from "./assistant-dock-props";
+import { composerFooterLeading, optionalChatPaneProps, pickedFoldersAccessory, voiceFooterAccessory } from "./assistant-dock-props";
 import { useNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
 import { usePickedFolder } from "../../features/fs-files/hooks/use-picked-folder.hooks";
 import { dockSettingsMenuSections } from "./dock-header-rules";
@@ -583,13 +583,14 @@ export function AssistantDock({
           // immediately after the attach/discovery button with no change to the button itself.
           //
           // Owner report, 2026-09-13: the button should not show at all in Workspace chat.
-          // `VOICE_INPUT_ENABLED` (`voice-input-config.ts`) is the reversible switch — `undefined`
-          // here omits the slot entirely rather than rendering a disabled/hidden button, and
-          // flipping that one constant back to `true` restores this exactly as it was.
+          // `VOICE_INPUT_ENABLED` (`voice-input-config.ts`) is the reversible switch, and flipping
+          // that one constant back to `true` restores the live mic exactly as it was. Owner,
+          // 2026-10-30: while it is off the slot holds a grayed, disabled mic ("coming soon")
+          // instead of being omitted, so the one-line footer keeps its final shape.
           //
           // The folder button (owner 2026-10-27: "a folder icon next to the plus button") rides the same
           // slot, ahead of the mic — see `composerFooterLeading`.
-          footerLeadingAccessory: composerFooterLeading({ folderPicker, pickedFolder: pickedFolderAccessory({ path: pickedFolder.path, onClear: pickedFolder.clear }, {}),
+          footerLeadingAccessory: composerFooterLeading({ folderPicker, pickedFolder: pickedFoldersAccessory({ folders: pickedFolder.folders, onRemove: pickedFolder.remove }, {}),
             voice: voiceFooterAccessory({ enabled: VOICE_INPUT_ENABLED, onTranscript: voiceInput.insertTranscript }) }),
         }}
         // Renders the pinned-plugin chip tray above the composer's textarea. NOT passed inside

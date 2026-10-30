@@ -7,6 +7,8 @@
  * desktop shell makes it available. This flag goes one step further, at the one call site that
  * mounts the button (`AssistantDock.tsx`'s `composerSlots.footerLeadingAccessory`): when `false`,
  * the button is not mounted at all, so no disabled/enabled state is ever computed or shown.
+ * Owner, 2026-10-30: in its place the footer shows `VoiceInputPlaceholder`, a grayed mic that
+ * does nothing ("Voice input (coming soon)"), so the slot is reserved.
  *
  * Deliberately a flag, not a deletion — `PushToTalkMicButton`, its hooks, the desktop-side
  * `tovuVoice` bridge, and every test covering them are untouched, so restoring the button is
