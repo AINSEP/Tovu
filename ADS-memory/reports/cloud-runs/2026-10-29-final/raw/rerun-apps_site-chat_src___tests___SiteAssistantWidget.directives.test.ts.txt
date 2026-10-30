@@ -3,3 +3,16 @@
 Not implemented: navigation to another Document
 ✔ a proposed navigation waits for the visitor, then queues the bundled effect and navigates (235.232997ms)
 Not implemented: navigation to another Document
+✔ a proposal with no bundled effect navigates without queueing anything (237.499461ms)
+Not implemented: navigation to another Document
+✔ an auto navigation the visitor asked for queues its effect and navigates at once (263.401926ms)
+Not implemented: navigation to another Document
+✔ an auto navigation with nothing bundled queues nothing (256.633661ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4833.27184

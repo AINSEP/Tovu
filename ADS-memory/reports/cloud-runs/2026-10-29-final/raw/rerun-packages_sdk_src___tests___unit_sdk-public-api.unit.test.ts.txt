@@ -1,0 +1,46 @@
+✔ REQ-08/AC-10: @tovu/sdk's runtime export surface is exactly the certified set — no more, no less (1.689855ms)
+✔ REQ-04: the three v1 capability tokens are the exact, pinned literal strings (0.234394ms)
+✔ REQ-05: the hook-point constant is the exact, pinned literal string (0.116621ms)
+✔ hooks v2 §3.1: HOOK_POINTS has exactly one entry, content.entry.beforeSave, kind filter, capability hooks.attach, since 0.1.0 (0.166003ms)
+✔ REQ-08/C-001: definePlugin is a function export (0.141717ms)
+✔ REQ-08/C-001: definePlugin(def) returns the same definition, typed as Plugin (pure identity, no I/O) (0.173795ms)
+✔ REQ-08/C-001: definePlugin performs no filesystem writes or fetches and throws nothing (1.161667ms)
+✔ SDK consumer types resolve for sync/async filters and route/tool/widget/provider contributions (884.48885ms)
+✖ SDK external type contracts are declared package dependencies for standalone consumers (3.684849ms)
+✔ REQ-08/ADR-005 rule 1: @tovu/sdk exports nothing from @tovu/core — no import of '@tovu/core' or a relative reach into ../../../../src anywhere in the package's own source (6.011488ms)
+✔ REQ-08/AC-10: package.json's exports map blocks deep imports into anything but the package root (55.837512ms)
+✔ the package root export targets exist and @tovu/sdk is importable (10.23062ms)
+✔ plugwire: executable route/tool/widget capability names are pinned public exports (0.312588ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 12
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1986.882487
+
+✖ failing tests:
+
+test at packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts:12:1209
+✖ SDK external type contracts are declared package dependencies for standalone consumers (3.684849ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'file:/home/user/Jini/packages/plugins'
+  - '^0.6.13'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts:142:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'file:/home/user/Jini/packages/plugins',
+    expected: '^0.6.13',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1459,3 +1459,1145 @@ Plugin 'blocked-mail' has no publisher-qualified id; using 'unknown/blocked-mail
 ✔ sheets exactly at the combined tile pixel budget are accepted (2.369924ms)
 ✔ sheets one pixel edge over the combined tile pixel budget are refused (0.343768ms)
 ✔ the contributor binds its ports into the registrations it builds (0.938326ms)
+✔ a member who signs up through the public routes is denied every admin capability and every admin route (F3144) (2344.776556ms)
+✔ representative MemberRecord and MemberContext fixtures carry no role/permission field (0.915309ms)
+✔ getContact: returns null for an unknown subscriber id (1.579154ms)
+✔ getContact: an active + verified member is emailDeliverable, subscriberId = memberId (1.251129ms)
+✔ getContact: an unverified member is not emailDeliverable (0.341673ms)
+✔ getContact: a pending (not-yet-active) member is not emailDeliverable (0.159623ms)
+✔ getContact: a disabled member (even if previously verified) is not emailDeliverable (0.182782ms)
+✔ getContact: a member in another workspace is not visible (workspace scoping) (0.226625ms)
+✔ getContacts: returns one contact per found id, in no particular required order (0.45276ms)
+✔ getContacts: unknown ids are silently omitted from the result, not errored or null-padded (1.023043ms)
+✔ getContacts: an empty subscriberIds array returns an empty array (0.496757ms)
+✔ getContact: a pending but verified member is still not emailDeliverable (0.542675ms)
+✔ a routing miss uses only a safe last-known URL, scoped to the requested workspace (3.590705ms)
+✔ a URL target is left to the menu's URL resolver (0.247671ms)
+✔ a missing entry with a whitespace-only URL snapshot stays unresolved (0.253569ms)
+✔ transitionCampaignStatus: the full 7x7x4 status/tier matrix is unchanged (5.220202ms)
+✔ transitionCampaignStatus: exactly nine (from, to, tier) triples are permitted (0.53271ms)
+✔ processUnsubscribe: a stale-revision token (from a re-subscribe under a new consent grant) is REJECTED (AC-18) (4.396973ms)
+✔ processUnsubscribe: a current-revision token succeeds and calls MembersConsentCapability.revoke (AC-19) (2.624561ms)
+✔ processUnsubscribe: a repeat of the SAME now-processed token is idempotent success, not rejected (AC-20/EC-03) (0.602082ms)
+✔ processUnsubscribe: the EC-03 carve-out does not swallow INV-04 — a stale token can never reach idempotent-success, even for an already-unsubscribed row (0.741363ms)
+✔ processUnsubscribe: a tampered token (bad signature) is rejected (0.706124ms)
+✔ processUnsubscribe: unknown subscription is rejected as not_found (0.504739ms)
+✔ buildUnsubscribeLink: links are built ONLY via OriginRegistryPort.canonicalOrigin — never a raw Host header (REQ-30/INV-09/AC-39) (0.383779ms)
+✔ buildUnsubscribeLink: a non-default port on the verified origin is included in the link (0.567414ms)
+✔ processUnsubscribe: a token derived with a non-null campaignId round-trips correctly (derivationInfo's ?? branch) (0.970768ms)
+✔ processUnsubscribe: a malformed (non-JSON) claims payload is rejected as signature_invalid, not a crash (2.350889ms)
+✔ processUnsubscribe: a signature of the WRONG LENGTH is rejected without reaching the timing-safe compare (0.594635ms)
+✔ processUnsubscribe: changing any signed claim with the original signature is rejected before lookup or mutation (2.279858ms)
+✔ processUnsubscribe: an unbound consent capability still persists the self-service unsubscribe (0.469866ms)
+✔ processUnsubscribe rejects missing token parts before looking up or changing consent (0.689877ms)
+✔ buildUnsubscribeLink preserves the verified base path and omits only the scheme's default port (1.075298ms)
+✔ parseObjectStoresFile: accepts entries with and without a label, keeping label only when given (3.31956ms)
+✔ parseObjectStoresFile: a label of exactly 100 characters is accepted, 101 is refused (0.35215ms)
+✔ parseObjectStoresFile: refuses text that is not JSON (0.211941ms)
+✔ parseObjectStoresFile: refuses a non-object root or any schemaVersion other than 1 (0.526847ms)
+✔ parseObjectStoresFile: refuses providers that is not an array (0.173395ms)
+✔ parseObjectStoresFile: refuses an entry that is not a plain object, naming its index (0.286205ms)
+✔ parseObjectStoresFile: refuses a non-string id (0.210924ms)
+✔ parseObjectStoresFile: refuses a module that is not a string, not .mjs, or absolute (0.982156ms)
+✔ parseObjectStoresFile: refuses a label that is non-string or blank (0.526872ms)
+✔ parseObjectStoresFile: refuses an id declared twice in one file (0.169703ms)
+✔ loadObjectStoreRegistry: local is seeded and default; plugin items are contributed; loader and registry refusals merge in order (39.26249ms)
+✔ loadObjectStoreRegistry: the seeded local provider writes under uploadsDir (27.883501ms)
+✔ loadBundledObjectStoreRegistry: the real bundled source contributes s3_compatible from the s3-compatible plugin, with no refusals (51.362433ms)
+✔ loadBundledObjectStoreRegistry: a bad manifest and a non-provider module become refusal lines; good plugins still load (38.384481ms)
+✔ loadBundledObjectStoreRegistry: an empty source root yields only local (2.26359ms)
+✔ ensureMediaObjectStoreSetting: registers core.storage/mediaObjectStore as a workspace-scoped string defaulting to '' (4.225555ms)
+✔ readMediaObjectStoreSetting: returns the owner's saved provider id, trimmed (1.482681ms)
+✔ ensureMediaObjectStoreSetting: running again on the next boot keeps the owner's value (1.120127ms)
+✔ readMediaObjectStoreSetting: a blank saved value reads as '' (4.829841ms)
+✔ readMediaObjectStoreSetting: an unregistered setting reads as '' (0.26065ms)
+✔ readMediaObjectStoreSetting: a non-string effective value (a definition registered under another schema) reads as '' (0.340004ms)
+✔ every registered embed marker type except collection reaches the page writers' contract (1.487606ms)
+✔ a type registered without a placeholder or a note is still listed, with a generic <key> target and no note (0.248946ms)
+✔ a type with no target key is listed with its type alone (0.143835ms)
+✔ an inline opacity:0 or visibility:hidden style is reported with its element (8.30351ms)
+✔ a partial opacity is a design choice, not hidden content (2.074115ms)
+✔ scroll-reveal library attributes and classes are reported; look-alike class names are not (0.740938ms)
+✔ a bare (valueless) reveal attribute is reported, and a bare class attribute is not mistaken for a reveal class (0.474407ms)
+✔ a <style> rule that hides a reveal-named selector is reported; keyframes and ordinary hidden overlays are not (0.903693ms)
+✔ markup inside an HTML comment is not content and is not reported (0.351555ms)
+✔ findings stop at the cap with a count of the rest (0.498153ms)
+✔ pages_write_html still writes hidden markup but returns a warning naming it (20.156145ms)
+✔ pages_write_html on clean markup carries no warning (2.660946ms)
+✔ pages_write_region warns about hidden markup in the fragment it wrote (11.505494ms)
+▶ SqlPagesHtmlDocumentStore [sqlite]
+  ✔ read() returns the current body_html of an existing html-format page (155.670137ms)
+  ✔ read() throws PageNotFoundError for an id that does not exist (138.427846ms)
+  ✔ read() throws PageNotFoundError for a 'doc'-format row with the same id — indistinguishable from not-found (120.139323ms)
+  ✔ read() is workspace-scoped — a page in another workspace is not found (119.749042ms)
+  ✔ write() after read() updates body_html and increments version (218.154755ms)
+  ✔ write() before any read() throws — there is no version to condition the write on (117.833047ms)
+  ✔ write() lets a single instance write repeatedly with no intervening read() — mirrors createHtmlRegionTarget's restore() calling write() several times in one pass (155.316461ms)
+  ✔ CIC-1: two readers, then two writers (read, read, write, write) — the second, stale writer is rejected, never silently applied (112.966011ms)
+  ✔ CIC-1: after a rejection, re-read() gives the writer a fresh version it can then successfully write with (133.823585ms)
+  ✔ write()'s WHERE clause is bodyFormat-scoped in its own right, not just version-scoped: a row converted to 'doc' out-of-band after read() rejects the write even though the version still matches (131.137155ms)
+  ✔ write() with entryRefsRepo supplied replaces this page's entry_refs to match the newly-written html's embeds (129.544128ms)
+  ✔ write() with entryRefsRepo supplied REPLACES the prior ref set, not appends — an embed removed in a later write no longer appears (167.79485ms)
+  ✔ write() with NO entryRefsRepo supplied still succeeds — the dependency is optional, not required (110.618905ms)
+  ✔ write() stores a canvas-serialized (double-quoted, &quot;-encoded) embed marker in the readable single-quoted form (175.343577ms)
+  ✔ ensureHtmlFormat() seeds a canvas-serialized embed marker in the readable single-quoted form (290.647075ms)
+  ✔ write() indexes a ref for an embed pointing at an id with no corresponding widget/form row — entry_refs must see the dangling reference, not silently skip it (this store has no widget/form repo to check against, so it cannot filter on resolution status even if it wanted to) (134.403248ms)
+  ✔ ensureHtmlFormat() reindexes entry_refs on the seeding conversion (doc -> html), using the seed html's own embeds (134.415416ms)
+  ✔ read() rejects a trashed html-format page with the entity-liveness message (139.401478ms)
+  ✔ ensureHtmlFormat() rejects a trashed page before the bodyFormat conversion — a trashed doc-format page also reports Trash, not not-found (137.312688ms)
+  ✔ write() rejects when the row was trashed between this instance's read() and write() — the row's body_html stays unchanged (118.856687ms)
+  ✔ write() still throws PageConcurrentEditError (not the Trash message) for an ordinary stale write on a LIVE row (113.955837ms)
+  ✔ ensureHtmlFormat() refuses a post and leaves its doc body and revision ledger unchanged (142.247886ms)
+  ✔ pages_write_region accepts the version captured by a SQL-backed read and persists the edit (132.706336ms)
+  ✔ ensureHtmlFormat refuses a missing page without capturing a version (114.346265ms)
+  ✔ write refuses a page permanently removed after read (112.763039ms)
+  ✔ write CAS refuses a concurrent edit after its freshness read (206.634584ms)
+  ✔ write CAS refuses a concurrent trash after its freshness read (174.881936ms)
+  ✔ write CAS refuses a concurrent delete after its freshness read (121.903153ms)
+✔ SqlPagesHtmlDocumentStore [sqlite] (4081.603893ms)
+▶ SqlPagesHtmlDocumentStore [pglite]
+  ✔ read() returns the current body_html of an existing html-format page (6328.345953ms)
+  ✔ read() throws PageNotFoundError for an id that does not exist (8.993867ms)
+  ✔ read() throws PageNotFoundError for a 'doc'-format row with the same id — indistinguishable from not-found (10.842777ms)
+  ✔ read() is workspace-scoped — a page in another workspace is not found (13.659681ms)
+  ✔ write() after read() updates body_html and increments version (23.272718ms)
+  ✔ write() before any read() throws — there is no version to condition the write on (39.398683ms)
+  ✔ write() lets a single instance write repeatedly with no intervening read() — mirrors createHtmlRegionTarget's restore() calling write() several times in one pass (24.800025ms)
+  ✔ CIC-1: two readers, then two writers (read, read, write, write) — the second, stale writer is rejected, never silently applied (20.177202ms)
+  ✔ CIC-1: after a rejection, re-read() gives the writer a fresh version it can then successfully write with (31.48955ms)
+  ✔ write()'s WHERE clause is bodyFormat-scoped in its own right, not just version-scoped: a row converted to 'doc' out-of-band after read() rejects the write even though the version still matches (20.938489ms)
+  ✔ write() with entryRefsRepo supplied replaces this page's entry_refs to match the newly-written html's embeds (19.051661ms)
+  ✔ write() with entryRefsRepo supplied REPLACES the prior ref set, not appends — an embed removed in a later write no longer appears (18.027502ms)
+  ✔ write() with NO entryRefsRepo supplied still succeeds — the dependency is optional, not required (16.170931ms)
+  ✔ write() stores a canvas-serialized (double-quoted, &quot;-encoded) embed marker in the readable single-quoted form (21.277697ms)
+  ✔ ensureHtmlFormat() seeds a canvas-serialized embed marker in the readable single-quoted form (16.815984ms)
+  ✔ write() indexes a ref for an embed pointing at an id with no corresponding widget/form row — entry_refs must see the dangling reference, not silently skip it (this store has no widget/form repo to check against, so it cannot filter on resolution status even if it wanted to) (12.541825ms)
+  ✔ ensureHtmlFormat() reindexes entry_refs on the seeding conversion (doc -> html), using the seed html's own embeds (12.137243ms)
+  ✔ read() rejects a trashed html-format page with the entity-liveness message (10.92794ms)
+  ✔ ensureHtmlFormat() rejects a trashed page before the bodyFormat conversion — a trashed doc-format page also reports Trash, not not-found (10.077507ms)
+  ✔ write() rejects when the row was trashed between this instance's read() and write() — the row's body_html stays unchanged (19.747596ms)
+  ✔ write() still throws PageConcurrentEditError (not the Trash message) for an ordinary stale write on a LIVE row (18.442004ms)
+  ✔ ensureHtmlFormat() refuses a post and leaves its doc body and revision ledger unchanged (33.432661ms)
+  ✔ pages_write_region accepts the version captured by a SQL-backed read and persists the edit (20.567803ms)
+  ✔ ensureHtmlFormat refuses a missing page without capturing a version (12.687969ms)
+  ✔ write refuses a page permanently removed after read (15.529963ms)
+  ✔ write CAS refuses a concurrent edit after its freshness read (16.023694ms)
+  ✔ write CAS refuses a concurrent trash after its freshness read (24.111935ms)
+  ✔ write CAS refuses a concurrent delete after its freshness read (26.167428ms)
+✔ SqlPagesHtmlDocumentStore [pglite] (6848.628167ms)
+✔ pages_write_region is registered and publishes an input schema (3.876007ms)
+✔ pages_write_region replaces ONLY the addressed region — every other byte of the document survives (18.020604ms)
+✔ pages_write_region keeps the region's own tag and attributes — the handle cannot be destroyed by the write that targets it (5.254319ms)
+✔ a handle that is not in the document is refused, and the refusal names the handles that ARE (4.219388ms)
+✔ a handle carried by two elements is refused rather than guessed — an address that resolves to two places is not an address (1.8219ms)
+✔ a region containing a nested same-tag element is replaced whole — the splice does not stop at the first inner </section> (3.086812ms)
+✔ writing an OUTER region that contains an addressable nested region removes the nested handle — the tool's own 'check the surviving handles' promise, confirmed at the handler level (2.496378ms)
+✔ pages_write_region rejects a stale expectedVersion and writes NOTHING — two region edits cannot silently clobber each other (5.333501ms)
+✔ pages_write_html rejects a stale expectedVersion and writes NOTHING (6.976817ms)
+✔ a malformed expectedVersion is rejected on both writers rather than coerced to 'no basis sent' (2.375518ms)
+✔ pages_write_html REFUSES untagged top-level markup instead of warning about it after the fact (1.515853ms)
+✔ the untagged-markup refusal suggests a handle derived from the section's own heading, never a positional one (1.235239ms)
+✔ a <style> block at top level needs no handle — the tagging rule is about sections, not about every node (1.225023ms)
+✔ writing a region fragment that reuses an UNRELATED handle already in the document is refused, naming that handle (2.253025ms)
+✔ a page that already carries a duplicate handle stays editable in its other regions — only a write that ADDS ambiguity is refused (2.786184ms)
+✔ pages_write_html refuses a full rewrite that puts one handle on two elements, and leaves the stored page untouched (3.071699ms)
+✔ pages_write_html refuses a FIRST write with duplicate handles before converting the row, so the page stays a doc (1.146662ms)
+✔ pages_write_html still rewrites a legacy page whose existing duplicate it does not make worse (1.75829ms)
+✔ pages_write_region reports a store CAS race as an actionable input error and preserves the winner (3.135541ms)
+✔ pages_write_region refuses doc, trashed, and missing pages without changing rows (1.602607ms)
+✔ normalization: real region alias keeps expectedVersion protection; dual targets fail before writing (8.978026ms)
+✔ delegated normalization: region aliases persist; foreign targets in single, shared and per-item inputs make zero writes (745.8248ms)
+✔ pages_write_region: regionId preserves DOM handles, placement and versioning (4.105011ms)
+✔ pages_write_region: regionId refuses absent and duplicate DOM regions without writes (4.300402ms)
+✔ pages_write_region: regionId requires pages.edit_html before opening a store (35.328655ms)
+✔ pages_write_region: handle preserves DOM handles, placement and versioning (2.786325ms)
+✔ pages_write_region: handle refuses absent and duplicate DOM regions without writes (2.203721ms)
+✔ pages_write_region: handle requires pages.edit_html before opening a store (1.166549ms)
+✔ pages_write_region: region preserves DOM handles, placement and versioning (2.191278ms)
+✔ pages_write_region: region refuses absent and duplicate DOM regions without writes (3.44538ms)
+✔ pages_write_region: region requires pages.edit_html before opening a store (1.627401ms)
+✔ pages_write_region: only canonical regionId is published; missing or invalid targets cannot write (2.776179ms)
+✔ pages_write_region: all coexisting target spellings are rejected, including equal values, before I/O (3.114541ms)
+✔ pages_write_region: mixed batch keeps valid canonical/legacy items and refuses conflicting aliases (4.892102ms)
+✔ empty Trash refuses new arrivals or changed rows before deleting any reviewed item (5.351274ms)
+✔ Trash per-kind permissions use force-delete for media/comments; revocation prevents purge (1.077258ms)
+✔ empty Trash refuses an empty list and includes every page of a large selection (41.258363ms)
+✔ single Trash lookup paginates; a missing row and an unauthorized kind fail before consent (2.198912ms)
+✔ user deletion refuses self/seeded owner/live users and purges only the trashed principal (2.0842ms)
+✔ user deletion only considers trashed users, never another kind's row with the same entity id (0.299918ms)
+✔ generic Trash purges cannot bypass self and seeded-owner protection (1.032462ms)
+✔ custom_credential_delete: real adapter scopes writes to the workspace and keeps secret fields off the card (1.086368ms)
+✔ custom_credential_delete: missing and changed records never reach the deletion service (0.679029ms)
+✔ deployment_delete_provider_credential: real adapter scopes writes to the workspace and keeps secret fields off the card (0.803022ms)
+✔ deployment_delete_provider_credential: missing and changed records never reach the deletion service (0.344797ms)
+✔ source_control_delete_credential: real adapter scopes writes to the workspace and keeps secret fields off the card (0.594358ms)
+✔ source_control_delete_credential: missing and changed records never reach the deletion service (0.282495ms)
+✔ external_mcp_delete: real adapter scopes writes to the workspace and keeps secret fields off the card (0.437152ms)
+✔ external_mcp_delete: missing and changed records never reach the deletion service (0.289819ms)
+✔ comments_purge_comment: real adapter scopes writes to the workspace and keeps secret fields off the card (0.316136ms)
+✔ comments_purge_comment: missing and changed records never reach the deletion service (0.218459ms)
+✔ media purge reuses purgeMedia and removes renditions, asset and Trash index only after preparation (1.298072ms)
+✔ media purge refuses a missing asset, a live asset, and an edit during confirmation (0.363978ms)
+✔ an unlabeled MCP server is identified on the card by its saved server id (0.281083ms)
+✔ empty Trash requires a new card when the only change is a new arrival (0.300136ms)
+✔ one Trash purge requires a new card when the reviewed row disappears (0.23259ms)
+✔ Empty Trash card renders every row across pages with its type/title and exact count (16.54281ms)
+✔ custom_credential_delete: the real emitted card names the saved label/id/count and never exposes ciphertext (6.008517ms)
+✔ deployment_delete_provider_credential: the real emitted card names the saved label/id/count and never exposes ciphertext (0.878972ms)
+✔ source_control_delete_credential: the real emitted card names the saved label/id/count and never exposes ciphertext (0.682324ms)
+✔ external_mcp_delete: the real emitted card names the saved label/id/count and never exposes ciphertext (0.668731ms)
+✔ media purge rechecks references after confirmation and refuses lookup failures without effects (0.720135ms)
+✔ folder preview -> install publishes valid bytes, stays off everywhere and cleans staging (114.057319ms)
+✔ folder install refuses missing without publishing (41.001579ms)
+✔ folder install refuses extra without publishing (35.142596ms)
+✔ folder install refuses mismatch without publishing (22.606805ms)
+✔ folder install refuses symlink without publishing (19.494436ms)
+✔ folder install refuses hardlink without publishing (7.193004ms)
+✔ folder install refuses traversal without publishing (12.395845ms)
+✔ folder install refuses changed without publishing (36.522817ms)
+✔ folder install refuses builtin without publishing (11.505906ms)
+✔ folder install refuses trash without publishing (12.145151ms)
+✔ folder install refuses enabled without publishing (13.305264ms)
+✔ folder install refuses case without publishing (9.969333ms)
+✔ folder install refuses tier without publishing (8.177671ms)
+✔ version collisions require explicit replacement, upgrades refuse downgrades (41.037682ms)
+✔ mid-install failure removes staging and lock while preserving installed bytes (41.770014ms)
+✔ source within the installed tree is refused, and oversized files fail before hashing (6.353739ms)
+✔ same-version replacement refreshes nested dynamic ESM and CommonJS helpers with unchanged entry, never on install (82.638431ms)
+▶ plugin activation repo [sqlite]
+  ✔ save then getActivation round-trips, enabled as a boolean and no quarantine keys (206.180473ms)
+  ✔ getActivation misses unknown plugins and other workspaces (124.262946ms)
+  ✔ save upserts on (workspace, plugin): quarantine fields round-trip and clear again (127.426914ms)
+  ✔ deleteActivation removes only the named row; deleting a missing row is a no-op (127.039323ms)
+  ✔ listAll is empty on a fresh database (118.9759ms)
+  ✔ writes inside a failed transaction roll back (126.981416ms)
+✔ plugin activation repo [sqlite] (832.870584ms)
+▶ plugin activation repo [pglite]
+  ✔ save then getActivation round-trips, enabled as a boolean and no quarantine keys (4814.813155ms)
+  ✔ getActivation misses unknown plugins and other workspaces (6.037344ms)
+  ✔ save upserts on (workspace, plugin): quarantine fields round-trip and clear again (10.17089ms)
+  ✔ deleteActivation removes only the named row; deleting a missing row is a no-op (11.138444ms)
+  ✔ listAll is empty on a fresh database (6.182054ms)
+  ✔ writes inside a failed transaction roll back (15.192681ms)
+✔ plugin activation repo [pglite] (4864.478068ms)
+✔ absent or null contentTypes declare nothing (2.601281ms)
+✔ a valid declaration fills required/queryable defaults (0.455453ms)
+✔ every error carries the CONTENT_TYPE_DECL_INVALID code and no file (0.285698ms)
+✔ the list is bounded (0.274135ms)
+✔ entry shape errors are collected, not first-failure (0.21422ms)
+✔ key: must be a string, pass the identifier grammar and not be reserved (0.68864ms)
+✔ label: a non-empty string of at most 100 characters (2.662387ms)
+✔ fields: an array of 1..MAX entries (0.279047ms)
+✔ queryable fields: at most core's per-type cap, so registration cannot refuse it after the code loaded (0.721167ms)
+✔ field errors: shape, unknown key, name, kind, flags, storage-only queryable (0.247234ms)
+✔ duplicate keys and duplicate field names are refused (0.316051ms)
+✔ an indexable queryable field is accepted (1.158371ms)
+✔ validateDeclarativeManifest: a tier-1 manifest with content types only is valid (0.455432ms)
+✔ validateDeclarativeManifest: tier-1 cannot declare code surfaces (capabilities, hooks, fields) (0.367936ms)
+✔ validateDeclarativeManifest: a tier-3 manifest may combine code surfaces and content types (0.187511ms)
+✔ plan: a missing type is created (0.393069ms)
+✔ plan: an existing type holding every declared field with the same kind is kept (extra owner fields allowed) (0.501514ms)
+✔ plan: a tombstoned type is skipped — the owner deleted it and its key cannot be reused (0.187523ms)
+✔ plan: an existing type that lacks a field or types it differently is a conflict (0.25457ms)
+✔ apply: creates planned types as the plugin's system actor and reports each outcome (0.566026ms)
+✔ apply: losing a concurrent create race to a compatible type counts as kept (4.971563ms)
+✔ apply: losing the race to an incompatible type refuses the enable, as planning would have (6.882049ms)
+✔ apply: losing the race to a type that was then tombstoned counts as skipped (0.491777ms)
+✔ apply: any other register failure is thrown unchanged (0.299044ms)
+✔ apply: a race whose winner cannot be read back rethrows the original duplicate error (0.23108ms)
+✔ archive one byte over the upload limit is refused before reading (3.798603ms)
+✔ archive exactly at the upload limit is read (0.443567ms)
+✔ 4096 entries are accepted (46.033602ms)
+✔ the 4097th entry is refused (44.967874ms)
+✔ a symlink entry is refused (0.309148ms)
+✔ a hardlink entry is refused (0.182864ms)
+✔ a device entry is refused (0.170425ms)
+✔ a fifo entry is refused (0.147227ms)
+✔ an empty file path is refused as outside the package (0.281177ms)
+✔ a root directory is refused as outside the package (0.168426ms)
+✔ a NUL byte is refused as outside the package (0.118683ms)
+✔ an absolute path is refused as outside the package (0.122894ms)
+✔ a drive letter is refused as outside the package (0.144615ms)
+✔ an empty segment is refused as outside the package (0.103256ms)
+✔ a file with a trailing slash is refused as outside the package (0.092804ms)
+✔ a dot segment is refused as outside the package (0.086615ms)
+✔ a dot-dot segment is refused as outside the package (0.206966ms)
+✔ a backslash dot-dot segment is refused as outside the package (0.126283ms)
+✔ a colon inside a segment is refused as outside the package (0.124974ms)
+✔ backslashes become slashes and directories are not returned as files (1.193311ms)
+✔ an exact duplicate path is refused (0.217276ms)
+✔ a directory listed twice is refused as a duplicate (0.183145ms)
+✔ a case alias of a file is refused (0.202565ms)
+✔ a case alias of a parent directory is refused (0.193431ms)
+✔ a mixed-case parent reused with the same spelling is accepted (0.181503ms)
+✔ a path of 4096 distinct prefixes is accepted (228.477114ms)
+✔ a path adding the 4097th distinct prefix is refused (219.274024ms)
+✔ a path under an earlier file is refused (0.861629ms)
+✔ a file over an earlier file's subtree is refused (0.358901ms)
+✔ a file over an earlier explicit directory's subtree is refused (0.229383ms)
+✔ a directory after a file inside it is accepted (0.275645ms)
+✔ a sibling sharing a name prefix is not a subtree (0.297676ms)
+✔ a fractional declared size is refused before streaming (0.191766ms)
+✔ a NaN declared size is refused before streaming (0.117249ms)
+✔ an infinite declared size is refused before streaming (0.103229ms)
+✔ a negative declared size is refused before streaming (0.119269ms)
+✔ an over-16 MiB declared size is refused before streaming (0.100508ms)
+✔ a declared size of exactly 16 MiB passes the declared check (0.217789ms)
+✔ a declared size of zero passes the declared check (0.200343ms)
+✔ a declared size that would push the expanded total over 64 MiB is refused (99.875558ms)
+✔ a declared size reaching exactly 64 MiB total is accepted (80.60247ms)
+✔ a file streaming one byte past 16 MiB is refused (14.934763ms)
+✔ streamed bytes pushing the expanded total past 64 MiB are refused (59.366449ms)
+✔ a file's chunks are concatenated in order (0.697461ms)
+✔ a reader failure that is not a policy refusal becomes PLUGIN_ARCHIVE_INVALID (0.465825ms)
+✔ a policy refusal raised by the reader passes through unchanged (0.326352ms)
+✔ default reader returns a real archive's files and skips its directories (37.996379ms)
+✔ default reader refuses a Unix symlink before the shared reader classifies it (3.561615ms)
+✔ default reader refuses a Unix device entry (1.879926ms)
+✔ default reader accepts a Unix entry with no file-type bits (3.59397ms)
+✔ default reader ignores Unix mode bits on a non-Unix-authored entry (3.639195ms)
+✔ default reader turns bytes that are not a ZIP into PLUGIN_ARCHIVE_INVALID (1.065613ms)
+✔ a package that ships code is disclosed as running with full access (1.520127ms)
+✔ a code-free package says so, and names the content types it adds when there are any (0.305347ms)
+✔ the full consent lists every disclosure line in order, ending with stays-off and a blank line (1.190589ms)
+✔ empty capabilities and hooks render as a dash; no warnings or upgrade adds no lines (0.195962ms)
+▶ plugin dataModule engine [sqlite]
+  ▶ install
+    ✔ creates the declared tables and indexes, records the DDL, and a repeat declare is a no-op (144.796559ms)
+    ✔ INTEGER holds a millisecond timestamp and REAL a fraction, read back as numbers (118.051585ms)
+    ✔ a Postgres kernel takes no snapshot and opens no journal entry, whatever dbPath says (115.715598ms)
+  ✔ install (380.176902ms)
+  ▶ upgrade
+    ✔ adds a declared nullable column and a new index to an existing table (116.551029ms)
+    ✔ recreates an index whose declared shape changed (119.914026ms)
+    ✔ fails closed on a changed column type and on a NOT NULL column added to an existing table (114.658469ms)
+    ✔ a failing statement rolls the whole alteration back, the added column included (130.154798ms)
+  ✔ upgrade (481.809097ms)
+  ▶ identity guard
+    ✔ mints on first sight, allows an unchanged repeat, refuses a mismatch without overwriting (179.779399ms)
+    ✔ a declare with a mismatched provenance is refused before any DDL (111.319394ms)
+  ✔ identity guard (291.718941ms)
+  ▶ journal and recovery scan
+    ✔ entries move through their phases; only non-terminal ones are surfaced for recovery (141.782826ms)
+    ✔ a staged phase rolls back with its transaction (111.940906ms)
+  ✔ journal and recovery scan (254.04405ms)
+✔ plugin dataModule engine [sqlite] (1408.449763ms)
+▶ plugin dataModule engine [pglite]
+  ▶ install
+    ✔ creates the declared tables and indexes, records the DDL, and a repeat declare is a no-op (4776.860227ms)
+    ✔ INTEGER holds a millisecond timestamp and REAL a fraction, read back as numbers (32.727757ms)
+    ✔ a Postgres kernel takes no snapshot and opens no journal entry, whatever dbPath says (34.650606ms)
+  ✔ install (4844.729555ms)
+  ▶ upgrade
+    ✔ adds a declared nullable column and a new index to an existing table (144.009521ms)
+    ✔ recreates an index whose declared shape changed (99.519993ms)
+    ✔ fails closed on a changed column type and on a NOT NULL column added to an existing table (102.118398ms)
+    ✔ a failing statement rolls the whole alteration back, the added column included (115.231803ms)
+  ✔ upgrade (461.385911ms)
+  ▶ identity guard
+    ✔ mints on first sight, allows an unchanged repeat, refuses a mismatch without overwriting (46.33814ms)
+    ✔ a declare with a mismatched provenance is refused before any DDL (81.9516ms)
+  ✔ identity guard (128.617797ms)
+  ▶ journal and recovery scan
+    ✔ entries move through their phases; only non-terminal ones are surfaced for recovery (27.932741ms)
+    ✔ a staged phase rolls back with its transaction (13.435416ms)
+  ✔ journal and recovery scan (41.79037ms)
+✔ plugin dataModule engine [pglite] (5476.92269ms)
+✔ featfallback: nested first body image supplies cover, featured wins, no image yields null, and storage is untouched (3.163422ms)
+✔ featfallback: media nodes skip videos, select the first image, and default empty alt to the title (0.481379ms)
+✔ featfallback: HTML uses real document order, entity-decoded alt, and the existing media marker parser (8.989967ms)
+✔ featfallback: external images are opt-in HTTPS OG candidates, never private previews or malformed schemes (0.674533ms)
+✔ featfallback: HTML external URL and deep documents work without recursive traversal (6.209419ms)
+✔ postpolish: omit exactly the selected nested occurrence, preserving repeats, captions and the stored tree (3.159649ms)
+✔ postpolish: repeating the same node object still removes exactly one occurrence (0.32526ms)
+✔ postpolish: malformed nested arrays keep occurrence numbering aligned with selection (0.300123ms)
+✔ cover refs: a rendition src resolves to its library ref, and a malformed escape is no ref (0.313222ms)
+✔ cover refs: non-string src/assetId/alt attributes are ignored rather than coerced (0.176932ms)
+✔ cover refs: image nodes without an attrs object, and non-object nodes, are not candidates (0.231697ms)
+✔ cover refs: deduplicates repeated references in first-seen order (0.259701ms)
+✔ cover refs: an HTML post with no stored HTML has no candidates (0.3117ms)
+✔ HTML media markers: the id wins over the slug, a marker without a string ref is skipped, and its fallback is never a candidate (1.115362ms)
+✔ HTML media markers: with no marker alt, the element alt is the fallback (0.517782ms)
+✔ resolve: unknown MIME follows the featured contract, and lookup canonical ids replace slugs (0.212669ms)
+✔ resolve: an external candidate without a usable URL falls through to a later library image (0.413706ms)
+✔ external OG URLs: an upper-case HTTPS scheme is accepted verbatim, and a password-only credential is refused (0.257986ms)
+✔ projectPostBody: a non-object stored body is returned as-is even when a cover is selected (0.13454ms)
+✔ projectPostBody: an explicit hideCoverImageInBody true still hides, and a non-object presentation is ignored (0.285386ms)
+✔ projectPostBody: an image node without attrs is copied and does not consume an occurrence (0.159445ms)
+✔ projectPostBody: no usable cover returns the stored body unchanged (0.105851ms)
+✔ HTML: images inside parser-implied elements (a table's tbody has no source location) are still candidates (1.06671ms)
+✔ projectPostBody: primitive children in malformed content are copied through in place (0.153591ms)
+✔ version parsing preserves zero and positive integers while omission remains opt-in (1.484127ms)
+✔ version parsing rejects NaN with the validation contract (1.03822ms)
+✔ version parsing rejects Infinity with the validation contract (0.116694ms)
+✔ version parsing rejects -Infinity with the validation contract (0.082535ms)
+✔ BUG: HTML entity decoding accepts uppercase hex and preserves surrogate references (2.860474ms)
+✔ BUG: only the exact header class token removes prose (0.87383ms)
+✔ creation defaults to the actor username once, stays hidden, and records the whole credit in revisions (7.633372ms)
+✔ explicit credit, including null, skips account lookup; unknown actors remain unknown (1.362455ms)
+✔ invalid author or toggle fails before writing or account lookup, with exact domain errors (1.395561ms)
+✔ author accepts 200 display characters and rejects a longer edit without changing the post or revisions (0.551922ms)
+✔ author counts Unicode code points across creation and edits, with no write on overflow (1.366076ms)
+✔ undo restores the captured credit and toggle, while older inverses preserve current byline fields (1.448701ms)
+✔ InMemoryPostRepo: readAutosave returns null when nothing has ever been parked (1.806868ms)
+✔ InMemoryPostRepo: writeAutosave at the row's current version applies and round-trips (1.897988ms)
+✔ InMemoryPostRepo: a stale writeAutosave (baseVersion behind a real save) is rejected and does not disturb the parked snapshot (0.681483ms)
+✔ InMemoryPostRepo: clearAutosave removes the snapshot unconditionally, even after the row's version has moved (0.275481ms)
+✔ InMemoryPostRepo: writeAutosave/readAutosave/clearAutosave against a row that does not exist are all safe no-ops (1.697906ms)
+✔ InMemoryPostRepo: foreign workspace cannot read, replace or clear an existing autosave (0.302304ms)
+✔ SqlitePostRepo: readAutosave returns null when nothing has ever been parked (190.682303ms)
+✔ SqlitePostRepo: writeAutosave at the row's current version applies and round-trips (128.124571ms)
+✔ SqlitePostRepo: a stale writeAutosave (baseVersion behind a real save) is rejected and does not disturb the parked snapshot (116.250144ms)
+✔ SqlitePostRepo: clearAutosave removes the snapshot unconditionally, even after the row's version has moved (114.384561ms)
+✔ SqlitePostRepo: writeAutosave/readAutosave/clearAutosave against a row that does not exist are all safe no-ops (153.616831ms)
+✔ SqlitePostRepo: foreign workspace cannot read, replace or clear an existing autosave (114.059789ms)
+✔ PglitePostRepo: readAutosave returns null when nothing has ever been parked (4488.471285ms)
+✔ PglitePostRepo: writeAutosave at the row's current version applies and round-trips (18.611295ms)
+✔ PglitePostRepo: a stale writeAutosave (baseVersion behind a real save) is rejected and does not disturb the parked snapshot (26.194642ms)
+✔ PglitePostRepo: clearAutosave removes the snapshot unconditionally, even after the row's version has moved (22.536532ms)
+✔ PglitePostRepo: writeAutosave/readAutosave/clearAutosave against a row that does not exist are all safe no-ops (15.682599ms)
+✔ PglitePostRepo: foreign workspace cannot read, replace or clear an existing autosave (20.706875ms)
+✔ updatePost transition table: not-published -> published emits exactly one entry.published event (5.192508ms)
+✔ updatePost transition table: published -> published (edited) emits exactly one entry.updated event (0.553261ms)
+✔ updatePost transition table: published -> not-published emits exactly one entry.unpublished event (0.47017ms)
+✔ updatePost transition table: not-published -> not-published (edited) emits no event (0.378378ms)
+✔ updatePost transition table: the emitted event's payload carries entryId + contentType (1.407193ms)
+[theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+[theme] active theme '' did not resolve and no theme is installed at all (none of the default themes (tovu-starter, tovu-theme) are); the site has no theme to render
+✔ preview passes unsaved fields, shapes the page and is readOnly with no repo writes (252.962638ms)
+✔ permission denied prevents lookup and rendering (2.150085ms)
+✔ unknown posts and invalid optional inputs are actionable refusals (173.02339ms)
+✔ preview body output strips before capping and preserves explicit empty unsaved fields (151.230396ms)
+✔ tool uses the REAL extracted renderer for an unsaved bare-page draft (175.639372ms)
+✔ preview accepts id or legacy postId; id takes precedence and invalid id never falls back (199.181059ms)
+✔ preview exposes the active theme's page templates using the admin applicability rule (185.151852ms)
+✔ L156 preview rejects every malformed override before authorization and keeps omitted keys absent (148.582721ms)
+✔ a repository failure other than not-found propagates unchanged rather than being reworded as a missing post (1.791085ms)
+✔ the preview contributor builds the same read-only preview tool with the renderer it was given (140.808478ms)
+✔ a scheduled post lands at the destination with its publishAt, so it does not go live early (8.971714ms)
+✔ a featured image lands at the destination (1.443509ms)
+✔ scheduling a post changes its content hash, so a newly scheduled post is offered for publish (0.929236ms)
+✔ a source without a schedule clears the destination's schedule and featured image (1.681891ms)
+✔ a row without a schedule or featured image packs without either key (0.662109ms)
+✔ toPublishableState agrees with the packed hash for a scheduled row (planRetire/retire hash it) (0.849901ms)
+✔ the featured image is a reference, so a scoped publish carries the media along (3.314619ms)
+✔ two connections: a concurrent appendRevision waits for the open one and chains after it (159.461443ms)
+✔ History undo restoring a still-scheduled pre-image emits nothing; the sweep announces it at go-live (5.649943ms)
+✔ History undo of a row that went live unannounced announces the go-live before it moves updatedAt (0.622132ms)
+✔ Trash undo of a still-scheduled post emits nothing; the sweep announces it at go-live (1.163256ms)
+✔ Trash undo after the scheduled time passed publishes it now (0.533417ms)
+✔ an undo whose event enqueue fails rolls the restore back (1.373484ms)
+✔ both reverters' currentActor: the actor of the current revision, else null (missing row or ledger) (0.850458ms)
+✔ derivePostSlugBase leaves room for a collision suffix, trims a trailing dash, and falls back to untitled (3.277712ms)
+✔ isAutomaticPostSlug recognises the derived slug, its numeric collision suffixes, and untitled placeholders (0.557802ms)
+✔ isAutomaticPostSlug treats an edited slug as manual, including a non-numeric suffix on the derived base (0.361692ms)
+(node:25412) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25412) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ content_post_create: a not-image refusal with no recorded content type says 'not an image' and writes nothing (5.155949ms)
+✔ SQL attachment identity, retry, renaming and cleanup preserve other sites and keys (31.073444ms)
+✔ stageBundle computes expiresAt as receivedAt + TTL, never from caller input (5.201128ms)
+✔ stageBundle serializes entities/blobManifest and records sourcePrincipalId as the AUTHENTICATED pusher (1.50125ms)
+✔ isBundleActive is true exactly at the expiresAt boundary (inclusive), false just after (0.223395ms)
+✔ loadActiveBundle REFUSES (returns null for) a bundle past its expiresAt — required Task 6 property (0.272931ms)
+✔ loadActiveBundle returns the record when it has not yet expired (0.492958ms)
+✔ loadActiveBundle returns null for an unknown id (never throws) (0.157207ms)
+✔ staging sweeps rows strictly past expiry while preserving the inclusive expiry boundary (1.089725ms)
+✔ computeBundleExpiry is a pure function of receivedAt + ttlMs, no hidden clock read (0.177374ms)
+✔ checks the blob store first and never touches the file index when it has the blob (2.863509ms)
+✔ falls back to the file index and reads real bytes off disk when the store does not have it (31.502462ms)
+✔ answers unavailable (exists -> false) when the sha is in neither the store nor the index (0.917025ms)
+✔ answers unavailable when the file at the indexed path changed since it was packed (8.475438ms)
+✔ answers unavailable when the indexed file was deleted since it was packed (2.29593ms)
+✔ get() throws FileBlobUnavailableError for a sha in neither the store nor the index (the TOCTOU backstop) (1.011369ms)
+✔ get() throws FileBlobUnavailableError when a same-tick file mutation races past exists() (8.024657ms)
+✔ memory composition applies a bundle staged through its exposed repository (8573.46439ms)
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+✔ sqlite composition applies a bundle staged through its exposed repository (1336.295458ms)
+✔ a private-address peer without a devHostAllowlist entry fails with a message naming devHostAllowlist (4.567425ms)
+✔ the same diagnosis is produced for a push, not only a pull (0.985178ms)
+✔ describePeerEgressRefusal names the bracket-stripped IPv6 host exactly as an allowlist entry is written (0.338637ms)
+✔ the api key is sent as a bearer header and appears in NO result and NO error message (2.037769ms)
+✔ push uploads only the blobs the peer is missing, BEFORE staging and planning (2.220842ms)
+✔ a blob the peer lacks and this instance no longer holds is reported, never silently skipped (0.343938ms)
+✔ push skips the probe entirely when the bundle needs no blobs (0.256657ms)
+✔ push skips the capabilities probe entirely when the bundle has no entities (0.276542ms)
+✔ push probes capabilities BEFORE blobs/bundle/plan, trims to the legacy set on a 404, and reports what stayed behind (1.093835ms)
+✔ L061 a peer cannot request a blob removed by capability trimming (0.555222ms)
+✔ an OLD build answers a publishing credential's capabilities probe with 401 (its route allowlist predates the route) — read as the legacy set, and the push proceeds (0.352592ms)
+✔ a 401 probe never masks a genuinely refused credential: the next leg's own 401 still aborts the push (0.439566ms)
+✔ a peer that names its own accepted types trims to exactly those, counting each excluded type separately (0.314884ms)
+✔ a capabilities response with no entityTypes array is a response-shape failure, not a silent 'accepts nothing' (0.331582ms)
+✔ a non-404 capabilities failure aborts the push rather than silently falling back to the legacy set (1.094388ms)
+✔ a peer that stages without returning a bundleId is a response-shape failure, not a silent undefined (0.446696ms)
+✔ a non-JSON peer response is diagnosed as 'is this a Tovu instance', not as a parse crash (0.630189ms)
+✔ confirm and execute relay to the peer's own gated ceremony (0.609349ms)
+✔ a peer that confirms without returning a token is a response-shape failure (0.327409ms)
+✔ pull returns the peer's envelope, and a non-bundle response is refused rather than staged (0.961652ms)
+✔ a transport failure that is not an egress refusal reads as unreachable, and still carries no key (0.762594ms)
+✔ every peer route is built under the PEER's workspace id, never this instance's (0.260384ms)
+✔ a capabilities probe with no 'features' array gives liveCanOverwrite:false (0.279723ms)
+✔ a capabilities probe naming 'overwrite-live' in 'features' gives liveCanOverwrite:true (0.212243ms)
+✔ an old peer (404/401 legacy probe) always gives liveCanOverwrite:false (0.370879ms)
+✔ liveCanOverwrite is false, not undefined, when the probe is skipped for an empty bundle (0.300781ms)
+✔ pushBundleToPeer sends overwriteEntityKeys on /import/plan when given, and omits the field entirely when not (0.507771ms)
+✔ executePeerImport sends overwriteEntityKeys when given, and omits the field entirely when not (0.460004ms)
+✔ a 403 credential_kind_not_permitted from live becomes a plain sentence, for plan and execute (0.682067ms)
+✔ pushBundleToPeer refuses overwriteEntityKeys when the peer does not advertise 'overwrite-live', and stages nothing (0.641268ms)
+✔ pushBundleToPeer with an empty overwriteEntityKeys list is not a request to overwrite, so an older peer is fine (0.209803ms)
+✔ executePeerImport refuses overwriteEntityKeys when the peer does not advertise 'overwrite-live', and never calls execute (0.431573ms)
+✔ outbound successful and partial peer applies append saved-peer history and list only that workspace's saved destinations (92.644494ms)
+✔ a throwing history store preserves the successful remote apply and logs no error payload (1.153422ms)
+✔ outbound failures, refusals and malformed success bodies never establish destinations (0.503886ms)
+✔ pull labels an envelope with no sourceLabel after the saved peer (0.165458ms)
+✔ a transport error raised inside the http client passes through unchanged, not re-wrapped as unreachable (0.427281ms)
+✔ normalizePeerBaseUrl refuses a non-https scheme (2.510101ms)
+✔ normalizePeerBaseUrl refuses a userinfo component (0.298323ms)
+✔ normalizePeerBaseUrl refuses a query string or fragment (0.224819ms)
+✔ normalizePeerBaseUrl refuses a control character or backslash before the parser can normalize it away (0.141254ms)
+✔ normalizePeerBaseUrl refuses a blank or unparseable value (0.200463ms)
+✔ normalizePeerBaseUrl lower-cases the host, strips a trailing dot and strips trailing slashes (0.404156ms)
+✔ normalizePeerBaseUrl ACCEPTS a private or loopback host — the egress policy, not this validator, decides (0.208949ms)
+✔ peerUrl joins a normalized base with an absolute route path without doubling the slash (0.19727ms)
+✔ peerHostname returns the bracket-stripped hostname devHostAllowlist is matched against (0.225807ms)
+✔ normalizePeerBaseUrl refuses a host that is only the root dot, which strips to nothing (0.162861ms)
+✔ peerHostname hands back an unparseable value unchanged rather than throwing inside a diagnosis (0.162849ms)
+✔ a created peer's summary carries masked + hasCredential and NOTHING sealed (9.907582ms)
+✔ the sealed key never appears in a list response, a get, or a stored record's summary (2.241227ms)
+✔ maskApiKey reveals at most the last four characters, and nothing at all for a short key (0.143544ms)
+✔ resolvePeerCredential round-trips the key through the real sealer (2.118391ms)
+✔ a ciphertext sealed for one peer cannot be opened as another peer's — the AAD binds the row id (4.870125ms)
+✔ an unopenable ciphertext surfaces as the typed secret-store error, never a raw driver error (1.4466ms)
+✔ create persists a vault JSON payload under Jini AAD (0.76798ms)
+✔ create validates every operator-supplied field (0.7304ms)
+✔ a duplicate label is a typed conflict, not a raw UNIQUE-constraint driver error (2.307889ms)
+✔ update leaves an absent field alone and reseals only a supplied apiKey (3.0974ms)
+✔ update and resolve refuse an unknown peer; delete is idempotent (1.457094ms)
+✔ a peer row with no sealed credential refuses at resolve rather than pushing unauthenticated (1.144322ms)
+✔ a failing keyring fails CLOSED — the row is never written in plaintext (0.80113ms)
+✔ peers are workspace-scoped — another workspace's rows are never listed (0.926724ms)
+✔ metadata-only peers need no key and remain removable after vault storage (0.950127ms)
+✔ short peer keys have no vault suffix and label-only edits require no crypto (1.187508ms)
+✔ a freshly reset registry has no contributors (4.897679ms)
+✔ registerPublishContentContributor appends in call order (0.804788ms)
+✔ a contributor registered AFTER the first list() call is seen by a SECOND list() call — fresh read, never cached (0.613958ms)
+✔ re-registering the same entityType REPLACES the earlier entry in place, not appends (0.473166ms)
+✔ catalog rebuild includes contributors registered after the first build (1.550515ms)
+✔ resetPublishContentContributorsForTests clears every registration (0.327846ms)
+✔ buildPublishContentCatalog rejects a dependency on an unregistered type before building handlers (0.851504ms)
+✔ buildPublishContentCatalog rejects dependency cycles instead of inventing an apply order (0.315538ms)
+✔ buildPublishContentCatalog derives deterministic apply order without reordering handlers (0.422994ms)
+✔ every authorize call a built handler makes names its publish type, and a caller cannot override it (0.576291ms)
+✔ registeredPublishTypePermissions lists each type's permission plus what it also authorizes (0.367334ms)
+✔ L163 catalog deduplicates dependency edges and preserves stable ready-type ordering (0.194615ms)
+✔ L163 catalog reports every remaining cycle-dependent type before building handlers (0.384991ms)
+✔ a well-formed document parses into exactly the grant fields (3.550038ms)
+✔ null is refused as not a JSON object (0.323819ms)
+✔ "grant" is refused as not a JSON object (0.086709ms)
+✔ 7 is refused as not a JSON object (0.066125ms)
+✔ [] is refused as not a JSON object (0.265081ms)
+✔ an unsupported version is named alongside the implemented one (0.235309ms)
+✔ a missing version is named as undefined (0.171114ms)
+✔ a string version is refused rather than coerced (0.148646ms)
+✔ the version is checked before the source installation (0.14935ms)
+✔ sourceInstallationId "" is refused (0.120217ms)
+✔ sourceInstallationId "xxxxxxxxxxx is refused (0.06334ms)
+✔ sourceInstallationId 42 is refused (0.167483ms)
+✔ sourceInstallationId undefined is refused (0.076072ms)
+✔ a 512-character sourceInstallationId is accepted (0.183834ms)
+✔ the source installation is checked before the workspace (0.091631ms)
+✔ a non-string workspaceId is refused (0.07762ms)
+✔ the workspace is checked before the expiry (0.073312ms)
+✔ notAfter "" is refused (0.075217ms)
+✔ notAfter "never" is refused (0.09834ms)
+✔ notAfter 410244480000 is refused (0.05298ms)
+✔ notAfter "xxxxxxxxxxx is refused (0.099231ms)
+✔ the expiry is checked before the public keys (0.13595ms)
+✔ the public keys are checked before the capabilities (0.150613ms)
+✔ the capabilities are checked before the entity types (0.104804ms)
+✔ the entity types are checked last (0.08854ms)
+✔ publicKeys undefined is refused as not a non-empty array (0.094652ms)
+✔ publicKeys {} is refused as not a non-empty array (0.068532ms)
+✔ publicKeys [] is refused as not a non-empty array (0.066029ms)
+✔ five public keys are refused before any entry is inspected (0.085079ms)
+✔ four public keys with distinct generations are accepted (0.139485ms)
+✔ public key entry null is refused as not an object (0.139634ms)
+✔ public key entry "key" is refused as not an object (1.540762ms)
+✔ public key entry 3 is refused as not an object (0.13296ms)
+✔ an array entry passes the object check and is refused for its missing key (0.225409ms)
+✔ publicKeyB64u "" is refused (0.139518ms)
+✔ publicKeyB64u "kkkkkkkkkkk is refused (0.065077ms)
+✔ publicKeyB64u 9 is refused (0.144412ms)
+✔ publicKeyB64u undefined is refused (0.06452ms)
+✔ the key string is checked before the generation (0.161005ms)
+✔ generation 1 is refused (0.087383ms)
+✔ generation 1.5 is refused (0.061072ms)
+✔ generation -1 is refused (0.135446ms)
+✔ generation NaN is refused (0.063003ms)
+✔ generation undefined is refused (0.051541ms)
+✔ generation zero is accepted (0.157788ms)
+✔ a repeated generation is refused and named (0.113251ms)
+✔ the first bad entry decides the reason (0.082484ms)
+✔ parsed keys carry only the key and generation, in document order (0.247062ms)
+✔ the happy path: a source that never received a secret authenticates end to end (9.39855ms)
+✔ a valid signature under an expired grant is refused (1.037467ms)
+✔ missing, empty and non-string challenge nonces are refused without throwing (0.944658ms)
+✔ a valid signature claiming another source installation is refused (1.136006ms)
+✔ a validly signed challenge requesting no capabilities is refused (1.029269ms)
+✔ changing a signed read request to apply invalidates the signature (0.782694ms)
+✔ a read-only handshake mints a read-only session (0.993826ms)
+✔ PROOF 1 — an UNSIGNED request is refused (1.772442ms)
+✔ PROOF 2 — a signature from the WRONG KEY is refused (1.094064ms)
+✔ PROOF 3 — a REPLAYED nonce is refused (0.955373ms)
+✔ a nonce is burned even by a FAILED attempt — a rejection cannot keep it alive (1.423965ms)
+✔ an EXPIRED nonce is refused (1.26759ms)
+✔ issuing a later challenge sweeps unanswered expired nonces and preserves live ones (0.590578ms)
+✔ PROOF 4 — an EXPIRED session is refused (1.832826ms)
+✔ PROOF 5 — a token presented to a DIFFERENT DESTINATION is refused (0.399088ms)
+✔ PROOF 6 — a valid publish token still cannot reach an ordinary content.write route (0.569779ms)
+✔ a nonce issued by another destination is refused (0.998662ms)
+✔ a capability the grant does not hold is refused, not narrowed (0.540997ms)
+✔ a response claiming a generation the grant does not accept is refused (0.594758ms)
+✔ a tampered session payload is refused — the MAC covers every field (0.353637ms)
+✔ a token minted under a different Site key is refused (0.312228ms)
+✔ malformed session tokens are refused without throwing (0.272148ms)
+✔ missing and non-string session tokens are refused without throwing (0.17692ms)
+✔ a correctly authenticated non-JSON session body is refused after MAC verification (0.313198ms)
+✔ an authenticated primitive session payload "plain text" is refused (0.25973ms)
+✔ an authenticated primitive session payload 42 is refused (0.234637ms)
+✔ an authenticated primitive session payload true is refused (0.183761ms)
+✔ an absent challenge response is refused without consuming the issued nonce (0.708389ms)
+✔ an unusable verification clock refuses and consumes an otherwise valid challenge (0.688502ms)
+✔ a stored challenge with expiry "corrupt" is refused and consumed (0.531467ms)
+✔ the in-memory challenge sweep removes expiry "corrupt" and retains live records (0.297016ms)
+✔ a stored challenge with expiry undefined is refused and consumed (0.552794ms)
+✔ the in-memory challenge sweep removes expiry undefined and retains live records (0.127284ms)
+✔ non-array challenge capabilities undefined refuse and burn the nonce (0.712938ms)
+✔ non-array challenge capabilities null refuse and burn the nonce (0.565514ms)
+✔ non-array challenge capabilities "publish_content.read" refuse and burn the nonce (0.508762ms)
+✔ non-array challenge capabilities {} refuse and burn the nonce (0.568817ms)
+✔ a signed null session payload is refused without throwing (0.270179ms)
+✔ a signed session with an unsupported version is refused (0.378334ms)
+✔ a signed session for another workspace is refused (0.238988ms)
+✔ sessions with an unusable expiry or verification clock are refused (0.740627ms)
+✔ verifyPublishSignature: a malformed public key never reaches createPublicKey/verify — the line-177 guard fires before any crypto call, not merely via the outer catch's coincidental throw (6.979408ms)
+✔ admin.redirects.manage is checked before any dialog is raised, and a denied principal never sees one (8.657462ms)
+✔ a nonexistent redirect id is refused before any dialog is raised (1.070589ms)
+✔ list/get/hits registrations forward filters and rule identity and return stored data (3.940437ms)
+✔ create/update/import registrations persist the supplied fields and actor (2.837494ms)
+✔ redirects_list: a denied principal leaves all rules unchanged (1.404879ms)
+✔ redirects_get: a denied principal leaves all rules unchanged (0.719449ms)
+✔ redirects_get_hits: a denied principal leaves all rules unchanged (0.632444ms)
+✔ redirects_create: a denied principal leaves all rules unchanged (0.594972ms)
+✔ redirects_update: a denied principal leaves all rules unchanged (0.912148ms)
+✔ redirects_import: a denied principal leaves all rules unchanged (1.149796ms)
+✔ n06: reversible removal runs without a confirmation channel (1.687739ms)
+✔ Bug B: redirects_tombstone moves a rule to the Trash — redirects_list drops it, redirects_update status 'active' brings it back (3.053463ms)
+✔ Bug B: the tool text says what removal does — Trash, off the list, restorable — and no longer calls it a disable (0.718094ms)
+✔ TW2-L302: featured media and absent covers preserve the original post identity (1.454045ms)
+✔ TW2-L302: library cover projects only featuredMediaId, preserving stored SEO and the raw row (1.363358ms)
+✔ TW2-L302: external cover treats missing, malformed, scalar, null and array SEO as empty overrides (0.702309ms)
+✔ TW2-L302: truthy OG overrides win; falsy overrides use the external cover and retain other keys (0.306355ms)
+✔ TW2-L302: empty media id uses URL fallback; missing URL omits a falsy OG override (0.282306ms)
+✔ no raw row, or an image that is not an override, leaves the meta as evaluated (1.46453ms)
+✔ a stored ogImage override keeps the override label (0.289742ms)
+✔ a projected cover with no stored override (absent, empty or malformed SEO) is relabelled content (0.266494ms)
+✔ no filters returns everything oldest first with counts (3.45871ms)
+✔ level is a minimum severity (0.584719ms)
+✔ sinceIso is inclusive and contains is case-insensitive (0.387344ms)
+✔ limit keeps the NEWEST matches and reports truncation (0.765055ms)
+✔ capturing false is passed through so an empty list is not read as no errors (0.266404ms)
+✔ parse accepts tool JSON and HTTP query strings alike (0.955905ms)
+✔ parse rejects each unusable field with a message naming it (1.282339ms)
+✔ unrelated and missing definitions bypass chat authorization (2.95312ms)
+✔ chat scope and entitlement fail before discovery (1.085543ms)
+✔ empty localCli.model repairs an axis without inventory or a valid sibling (1.02625ms)
+✔ empty localCli.reasoning repairs an axis without inventory or a valid sibling (0.326692ms)
+✔ agent  is rejected before inventory (1.145732ms)
+✔ agent null is rejected before inventory (0.435624ms)
+✔ agent 42 is rejected before inventory (0.279792ms)
+✔ missing inventory and runtime refusals propagate (1.895844ms)
+✔ snapshot binds model "default" and only binds concrete Default for default choices (0.691736ms)
+✔ snapshot binds model "model-a" and only binds concrete Default for default choices (0.258016ms)
+✔ clear validates inherited defaults and binds unresolved Default as null (0.65959ms)
+✔ canonical aliases bind the chat axis while registered unrelated settings bypass it (0.616797ms)
+✔ a chat axis with no registered definition reads as empty in the bound snapshot (0.361441ms)
+✔ clearing an axis whose inherited default is null binds it as empty (0.29726ms)
+✔ list combines source eligibility, frozen upgrade defaults, configured choices and unavailable entries without enabling them (16.499623ms)
+✔ single and site patches preserve other dimensions, merge atomically, and gate mixed source exposure once (6.753676ms)
+✔ unavailable sources never join site enable; unknown ids and an empty catalog refuse without writes (2.570498ms)
+✔ prepared concurrent edits and catalog changes cannot silently overwrite or retarget an approval (2.598352ms)
+✔ permission is fresh on list, prepare and apply; missing definitions remain infrastructure failures (1.216794ms)
+✔ catalog bounds reject ambiguous identities; overflow reclaims only unavailable Off entries (5.445972ms)
+✔ corrupt, future and oversized policies list as invalid/Off and accept only a revisioned site Off repair (6.684904ms)
+✔ invalid policy repair also works when every source has disappeared (0.66399ms)
+✔ overlapping applies on the same prepared revision commit exactly one policy and ledger revision (1.319294ms)
+✔ registered empty policy preserves defaults; only the dedicated service can save a choice (8.566153ms)
+✔ the host reset still clears unrelated namespaces through the existing settings owner (1.900143ms)
+✔ invalid input and wrong scope cannot reach the ledger (0.994126ms)
+✔ revision CAS accepts the unset snapshot and rolls back both value and revision on stale writes (1.971029ms)
+✔ revision-only CAS refuses a stale corrupt row and can repair it at the real row seq (1.190394ms)
+✔ unexpected transaction and snapshot failures propagate rather than becoming reloads or invalid policies (1.298615ms)
+✔ the revision adapter preserves methods/metadata and compares only after appendRevision acquires the ledger lock (0.743204ms)
+✔ aliases cannot bypass set, clear or namespace reset (0.665121ms)
+✔ stored JSON corruption, missing definitions, and repo failures all fail closed (0.948443ms)
+✔ input boundary refuses malformed source/options null (2.82436ms)
+✔ input boundary refuses malformed source/options undefined (0.234444ms)
+✔ input boundary refuses malformed source/options [] (0.165594ms)
+✔ input boundary refuses malformed source/options false (0.090621ms)
+✔ input boundary refuses malformed source/options "url" (0.084481ms)
+✔ input boundary refuses malformed source/options {"url":1} (0.227334ms)
+✔ input boundary refuses malformed source/options {"url":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (0.132682ms)
+✔ input boundary refuses malformed source/options {"url":"not a URL"} (0.189629ms)
+✔ input boundary refuses malformed source/options {"url":"https://:password@example.com"} (0.231753ms)
+✔ input boundary refuses malformed source/options {"url":"https://example.com/#fragment"} (0.164217ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":null} (0.119587ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":4} (0.136151ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":""} (0.117774ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":" "} (0.082784ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":"xxxxxxxxx (0.069824ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":null} (0.15261ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":4} (0.07845ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":""} (0.199252ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":"bad space"} (0.187285ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":"xxxxxxxxxxx (0.082555ms)
+✔ input boundary refuses malformed source/options {"uploadId":null} (0.158503ms)
+✔ input boundary refuses malformed source/options {"uploadId":1} (0.077175ms)
+✔ input boundary refuses malformed source/options {"uploadId":"bad-id"} (0.092255ms)
+✔ input boundary refuses malformed source/options {"uploadId":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"} (0.115883ms)
+✔ source boundary accepts bounded optional metadata and normalizes HTTPS URLs (1.102548ms)
+✔ registry protects principal boundaries, invalid identifiers, unreadable history and private permissions (901.723299ms)
+✔ registry expires only old staged payloads and pending owner rows, retaining ready history and corrupt evidence (779.456258ms)
+✔ upload budget refuses a fifth payload and low disk space before retaining bytes (822.190812ms)
+✔ upload metadata failure removes the private ZIP and releases the transfer lock (694.41401ms)
+✔ in-flight import rejects another operation, then releases its lane on verification failure (1038.855173ms)
+✔ a consumed upload cannot create a second import, while request replay is idempotent and source-bound (6366.5461ms)
+✔ unfinished creation without an allocation is classified as failed only under the lane lock (715.437965ms)
+✔ owner creation remains ready and idempotent after no URL (6342.043053ms)
+✔ owner creation remains ready and idempotent after supervisor error (6467.969336ms)
+✔ owner creation checks volume space before allocating and keeps staged data for retry (6253.615405ms)
+✔ staging writes the projected database, every verified file and the inventory, all private (25.585097ms)
+✔ staging refuses a stage folder that already exists (3.154831ms)
+✔ staging refuses an unsafe file path before writing it (2.441596ms)
+✔ custom code that lands switched off gets one warning per unit; trusted, live and edited code do not (11.473941ms)
+✔ uploads are restored into the live site (12.000105ms)
+✔ settings files are never restored, live or quarantined (5.121895ms)
+✔ plugins/custom/plugin.json is quarantined, never placed live (6.837513ms)
+✔ overrides/custom.html is quarantined, never placed live (9.356845ms)
+✔ skills/s/SKILL.md is quarantined, never placed live (10.868982ms)
+✔ agent-plugins/ws/w/activations.json is quarantined, never placed live (11.962935ms)
+✔ themes/code/site/index.ts is quarantined, never placed live (9.984972ms)
+✔ a static theme of supported assets is placed live and replaces the existing tree (11.458852ms)
+✔ a declarative theme tree without a theme.json is still placed live (9.475078ms)
+✔ an unsupported file extension quarantines the whole theme tree (6.746801ms)
+✔ a quarantined theme's existing live tree is left in place (6.910512ms)
+✔ a theme manifest with a tier that differs from its folder quarantines the theme (6.652611ms)
+✔ a theme manifest with malformed JSON quarantines the theme (6.174251ms)
+✔ a theme manifest with a null manifest quarantines the theme (6.940324ms)
+✔ a theme manifest with a compiled declarative build quarantines the theme (11.664606ms)
+✔ a theme manifest with a compiled build without a source folder quarantines the theme (14.621371ms)
+✔ a theme manifest with a source folder outside the theme quarantines the theme (7.80365ms)
+✔ a theme manifest with an unsafe source folder quarantines the theme (9.933264ms)
+✔ a theme manifest with compiled output the theme owner rejects quarantines the theme (10.954147ms)
+✔ a build that is not compiled is treated as a plain asset theme (7.894882ms)
+✔ compiled output goes live while its authored source stays quarantined (14.735611ms)
+✔ a compiled source folder written with a trailing slash fails the share path policy and quarantines the theme (19.97789ms)
+✔ an active theme that was not placed live falls back to the starter theme (16.339969ms)
+✔ restore refuses to overwrite an existing database file (4.125044ms)
+✔ restore refuses to overwrite an existing site file (6.569781ms)
+✔ a database without presentation settings fails the restore after closing the database (6.486703ms)
+✔ the containment guard refuses a path that escapes the root even if the path policy let it through (2.161027ms)
+✔ B valid archive and recipient-only owner: inSite (12201.836394ms)
+✔ B valid archive and recipient-only owner: appData (12889.268467ms)
+✔ B compiled static output renders through the theme owner while authored build source remains quarantined (6889.535378ms)
+✔ restore quarantines malformed, executable and unsafe compiled theme variants while preserving ordinary static assets (1279.027139ms)
+✔ a create without a wait budget waits for a quick export and returns the ZIP-only share (366.011704ms)
+✔ archive progress reaches its totals: buffered files plus the database, and the planned bytes (168.80765ms)
+✔ a share plan without a database is refused before delivery (155.102301ms)
+✔ 'agent-plugins/ws/w/data/x' is a known private location and is excluded (3.330299ms)
+✔ 'agent-plugins/ws/w/staging' is a known private location and is excluded (0.244133ms)
+✔ 'agent-plugins/ws/w/p/data' is a known private location and is excluded (0.156068ms)
+✔ 'agent-plugins/ws/w/p/memory/x' is a known private location and is excluded (0.126874ms)
+✔ 'uploads/chat-attachments' is a known private location and is excluded (0.172251ms)
+✔ 'uploads/chat-attachments/a.png' is a known private location and is excluded (0.126176ms)
+✔ 'Uploads/Chat-Attachments/a.png' is a known private location and is excluded (0.124895ms)
+✔ 'themes/.env' is a known private location and is excluded (0.15847ms)
+✔ 'themes/.env.production' is a known private location and is excluded (0.150925ms)
+✔ 'themes/chat.db' is a known private location and is excluded (0.099179ms)
+✔ 'settings/chat.db-wal' is a known private location and is excluded (0.132178ms)
+✔ 'settings/chat.db.bak' is a known private location and is excluded (0.086855ms)
+✔ 'plugins/a/package/src/data/x' is ordinary content and is kept (0.81533ms)
+✔ 'plugins/a/package/data/x' is ordinary content and is kept (0.211174ms)
+✔ 'plugins/a/package/1.0.0/data/x' is ordinary content and is kept (0.196519ms)
+✔ 'plugins/a/package/lib/memory/x' is ordinary content and is kept (0.085524ms)
+✔ 'agent-plugins/ws/w/p/q/data' is ordinary content and is kept (0.116379ms)
+✔ 'uploads/chat-attachmentsx' is ordinary content and is kept (0.078122ms)
+✔ 'themes/chat.dbx' is ordinary content and is kept (0.068301ms)
+✔ 'themes/site/index.html' is ordinary content and is kept (0.065529ms)
+✔ a '.git' segment refuses the share by its original path (1.072683ms)
+✔ a 'node_modules' segment refuses the share by its original path (0.1293ms)
+✔ a '.publish-staging' segment refuses the share by its original path (0.089414ms)
+✔ a '.publish-previous' segment refuses the share by its original path (0.081417ms)
+✔ a '.storage-secret.json' segment refuses the share by its original path (0.12913ms)
+✔ a '.DS_Store' segment refuses the share by its original path (0.109534ms)
+✔ a '_share' segment refuses the share by its original path (0.084676ms)
+✔ a 'mcp.json' segment refuses the share by its original path (0.078615ms)
+✔ a '.npmrc' segment refuses the share by its original path (0.124388ms)
+✔ a '.netrc' segment refuses the share by its original path (0.094875ms)
+✔ a '.fs-custom-root.json' segment refuses the share by its original path (0.119613ms)
+✔ a '.share-private' segment refuses the share by its original path (0.088831ms)
+✔ a 'my-credentials.txt' segment refuses the share by its original path (0.130504ms)
+✔ a 'vault' segment refuses the share by its original path (0.092335ms)
+✔ a 'keyring.json' segment refuses the share by its original path (0.143298ms)
+✔ a 'site-key' segment refuses the share by its original path (0.100121ms)
+✔ a 'private-key' segment refuses the share by its original path (0.082299ms)
+✔ a 'private_key.txt' segment refuses the share by its original path (0.080475ms)
+✔ a 'privatekey' segment refuses the share by its original path (0.076816ms)
+✔ a 'id_rsa' segment refuses the share by its original path (0.076956ms)
+✔ a 'id_dsa.pub' segment refuses the share by its original path (0.125628ms)
+✔ a 'id_ecdsa' segment refuses the share by its original path (0.115559ms)
+✔ a 'id_ed25519' segment refuses the share by its original path (0.077999ms)
+✔ a 'cert.pem' segment refuses the share by its original path (0.10317ms)
+✔ a 'tls.key' segment refuses the share by its original path (0.080881ms)
+✔ a 'cert.p12' segment refuses the share by its original path (0.079454ms)
+✔ a 'cert.pfx' segment refuses the share by its original path (0.077244ms)
+✔ a 'cert.pem.bak' segment refuses the share by its original path (0.080755ms)
+✔ a 'tls.key-old' segment refuses the share by its original path (0.178555ms)
+✔ a 'x.db' segment refuses the share by its original path (0.134483ms)
+✔ a 'x.sqlite' segment refuses the share by its original path (0.098018ms)
+✔ a 'x.sqlite3' segment refuses the share by its original path (0.084488ms)
+✔ a 'x.db-wal' segment refuses the share by its original path (0.080097ms)
+✔ a '.mcp.json' segment refuses the share by its original path (0.076221ms)
+✔ a '.mcp.local.json' segment refuses the share by its original path (0.105917ms)
+✔ a 'restore-point-1' segment refuses the share by its original path (0.101363ms)
+✔ a 'superseded-1' segment refuses the share by its original path (0.096508ms)
+✔ 'mcp.json' below an installed package root is package content (0.157423ms)
+✔ 'tovu-credential-schemes.json' below an installed package root is package content (0.088686ms)
+✔ 'nested/dir/MCP.json' below an installed package root is package content (0.072638ms)
+✔ other suspicious names below a package root still refuse (0.165629ms)
+✔ a credential-like name below an installed package root is package content (__tests__/credential-card.test.mjs) (0.172221ms)
+✔ a credential-like name below an installed package root is package content (src/vault.js) (0.153829ms)
+✔ a credential-like name below an installed package root is package content (docs/keyring.md) (0.219015ms)
+✔ a credential-like name below an installed package root is package content (docs/private-key-setup.md) (0.102576ms)
+✔ a credential-like name outside an installed package root still refuses (plugins/p/__tests__/credential-card.test.mjs) (0.145776ms)
+✔ a credential-like name outside an installed package root still refuses (agent-plugins/ws/w/p/__tests__/credential-card.test.mjs) (0.109872ms)
+✔ a credential-like name outside an installed package root still refuses (agent-plugins/ws/w/credential/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/x) (0.135359ms)
+✔ a credential-like name outside an installed package root still refuses (agent-plugins/ws/w/p/package/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/credential-card.test.mjs) (0.15327ms)
+✔ every other suspicious-name rule still refuses below a package root (certs/tls.pem) (0.192185ms)
+✔ every other suspicious-name rule still refuses below a package root (keys/deploy.key) (5.895235ms)
+✔ every other suspicious-name rule still refuses below a package root (.git/config) (0.145484ms)
+✔ every other suspicious-name rule still refuses below a package root (node_modules/x/index.js) (0.083339ms)
+✔ every other suspicious-name rule still refuses below a package root (data.db) (0.072767ms)
+✔ every other suspicious-name rule still refuses below a package root (id_rsa) (0.157892ms)
+✔ every other suspicious-name rule still refuses below a package root (.mcp.json) (0.097104ms)
+✔ a .env file below a package root is still a private location and is excluded (0.193267ms)
+✔ the content scan still refuses a PEM private key inside an exempted package file (1.402473ms)
+✔ the content scan still refuses a provider key inside an exempted package file (0.445002ms)
+✔ a bundled package file this build ships byte for byte keeps its credential-like name (0.213547ms)
+✔ a forged package-shaped credentials.json holding a password is refused (no inventory) (0.226174ms)
+✔ a forged package-shaped credentials.json holding a password is refused (a digest this build never shipped) (0.118559ms)
+✔ a file a verified package root does not list gets every name rule and the full scan (0.935659ms)
+✔ a listed file whose bytes differ from the build's gets the ordinary rules (0.309875ms)
+✔ an opaque credentials.gz under a forged root is refused by name; the scanner never decodes it (1.072792ms)
+✔ package manifest names stay exempt by name below any package root; their bytes get the full scan (0.331173ms)
+✔ the inventory is keyed by the digest the seeder's own packer gives each bundled source folder (65.899ms)
+✔ a missing bundled source root verifies nothing (20.516115ms)
+✔ the package exemption covers only segments below the seven-segment root (0.593601ms)
+✔ a package exemption name outside any package root refuses (0.204796ms)
+✔ the trusted database projection path is exempt from the tree-path deny list (0.556691ms)
+✔ an ordinary portable path passes (0.480575ms)
+✔ a tree-path refusal is reported with its reason ("themes/content.db") (0.224121ms)
+✔ a tree-path refusal is reported with its reason ("themes\\a.txt") (0.165179ms)
+✔ a tree-path refusal is reported with its reason ("themes/\u0000") (0.07784ms)
+✔ a tree-path refusal is reported with its reason ("themes/x/x/x/x/x/x/x/x/) (0.073333ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a:b") (0.142824ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/100%") (0.133513ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a\u0001") (0.076656ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a") (0.072624ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/é") (0.153781ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/ﬁle") (0.136271ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a<b") (0.164096ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a>b") (0.082542ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a\"b") (0.073908ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a|b") (0.066609ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a?b") (0.063786ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/a*b") (0.062795ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/con") (0.070801ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/CON.txt") (0.112815ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/prn") (0.076795ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/aux.md") (0.066086ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/nul") (0.064884ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/com1") (0.0726ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/lpt9.x") (0.0692ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/x.") (0.065142ms)
+✔ a spelling some recipient filesystem rejects or aliases is unsafe ("themes/x /y") (0.067779ms)
+✔ a near-miss spelling stays portable ("themes/console") (0.102981ms)
+✔ a near-miss spelling stays portable ("themes/com0") (0.065907ms)
+✔ a near-miss spelling stays portable ("themes/x.y") (0.081244ms)
+✔ a near-miss spelling stays portable ("themes/ x") (0.063108ms)
+✔ plain content bytes are secret-free (0.279428ms)
+✔ a provider key format refuses the share (0.231977ms)
+✔ a provider key inside binary bytes refuses the share (0.204674ms)
+✔ a credential reference in content (not code) refuses the share (0.257242ms)
+✔ a credential reference in code is allowed (plugins/p/index.js) (2.273612ms)
+✔ a credential reference in code is allowed (plugins/p/index.MJS) (0.155941ms)
+✔ a credential reference in code is allowed (plugins/p/a.cjs) (0.102255ms)
+✔ a credential reference in code is allowed (plugins/p/a.ts) (0.086407ms)
+✔ a credential reference in code is allowed (plugins/p/a.tsx) (0.129458ms)
+✔ a credential reference in code is allowed (plugins/p/a.jsx) (0.091271ms)
+✔ translated credential labels in a verified package file are allowed (0.26134ms)
+✔ the package payload relaxation matches the package root case-insensitively (0.186935ms)
+✔ the same labels in an unverified package-shaped file get the full scan (0.406728ms)
+✔ a provider key in an installed package payload still refuses (0.371127ms)
+✔ aliases fold case, compatibility forms, sharp-s and final sigma onto one key (0.203627ms)
+✔ a claim validates its path first (0.35223ms)
+✔ a claim records every ancestor spelling and the file key (0.397462ms)
+✔ a directory claim records spellings but no file key (0.193221ms)
+✔ the same directory spelling may be claimed twice and hold files (0.234616ms)
+✔ two spellings of one ancestor are refused as aliases (0.198495ms)
+✔ a path below an already-claimed file is a file/directory collision (0.172224ms)
+✔ a file over an already-claimed directory is a duplicate (0.150187ms)
+✔ the same file claimed twice is a duplicate (0.139217ms)
+✔ a sibling sharing a name prefix is not a collision (0.157933ms)
+✔ only notes and learned plugin memory travel, with the same credential scan (0.494231ms)
+✔ runtime artifact contract: upload/anonymous verify/delete/confirmed absence; unrelated objects survive (146.800581ms)
+✔ failed deletion never reports success, and the token is disabled before the provider is called (66.242601ms)
+✔ changing the default storage cannot delete objects in a different bucket (26.592552ms)
+✔ populated undeclared plugin tables still refuse by name beside declared tables (1112.51073ms)

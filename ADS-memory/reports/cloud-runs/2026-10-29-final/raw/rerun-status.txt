@@ -1,2 +1,17 @@
 apps/site-chat/src/__tests__/SiteAssistantActivation.test.ts exit=0 ℹ pass 4 ℹ fail 0 
 apps/site-chat/src/__tests__/SiteAssistantHeader.test.ts exit=0 ℹ pass 11 ℹ fail 0 
+apps/site-chat/src/__tests__/SiteAssistantWidget.directives.test.ts exit=0 ℹ pass 6 ℹ fail 0 
+apps/site-chat/src/__tests__/user-bubble-theme.test.ts exit=0 ℹ pass 1 ℹ fail 0 
+apps/site-chat/src/__tests__/vanilla-host.confirmation.test.ts exit=0 ℹ pass 2 ℹ fail 0 
+apps/website/src/features/deployments/deploy-targets/__tests__/no-vendor-in-core.boundary.test.ts exit=1 ℹ pass 14 ℹ fail 1 
+apps/website/src/platform/db/kernel/__tests__/no-raw-sqlite.boundary.test.ts exit=1 ℹ pass 5 ℹ fail 1 
+apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts exit=1 ℹ pass 2 ℹ fail 1 
+apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.page-navigate-error-rewrap.unit.test.ts exit=1 ℹ pass 5 ℹ fail 1 
+apps/website/src/server/inbound/public-http/http/site/__tests__/render-form-layout.test.ts exit=1 ℹ pass 0 ℹ fail 3 
+apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts exit=1 ℹ pass 0 ℹ fail 2 
+apps/website/src/server/runtime/composition/__tests__/product-telemetry.unit.test.ts exit=1 ℹ pass 16 ℹ fail 1 
+content/agent-plugins/fly/__tests__/bundled-package.test.mjs exit=1 ℹ pass 14 ℹ fail 1 
+content/agent-plugins/fly/deploy-configs/__tests__/fly.test.mjs exit=1 ℹ pass 9 ℹ fail 2 
+development/scripts/__tests__/dead-path-sweep.test.ts exit=1 ℹ pass 39 ℹ fail 2 
+packages/sdk/src/__tests__/unit/sdk-public-api.unit.test.ts exit=1 ℹ pass 12 ℹ fail 1 
+ALLDONE

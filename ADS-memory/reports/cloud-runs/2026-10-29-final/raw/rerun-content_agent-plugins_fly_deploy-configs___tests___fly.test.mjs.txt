@@ -1,0 +1,75 @@
+✔ renderFlyToml: exact fly.toml contents for a known descriptor and region (1.696638ms)
+✔ renderFlyToml: never emits a secret VALUE — only fly secrets set NAME instructions in notes (2.027717ms)
+✔ renderFlyToml: rejects a missing region rather than defaulting to one (0.522234ms)
+✔ renderFlyToml: rejects a --region that would inject a new top-level TOML key (regression) (0.199503ms)
+✔ renderFlyToml: rejects a quote- or newline-bearing appName/volumeName, not just region (regression) (0.210916ms)
+✔ renderFlyToml preserves every production field, including the live volume folder and public origin (0.377653ms)
+✔ the production workflow's generation command uses the plugin and emits the parity config without npm or a built CLI (83.269564ms)
+✖ renderFlyToml escapes variable values instead of treating them as TOML syntax (7.006127ms)
+✔ renderFlyToml rejects invalid variable names, non-string values, and declared secrets in either map (0.452943ms)
+✔ renderFlyToml omits an empty build args table and preserves defaults for empty options maps (0.239405ms)
+✖ renderFlyToml escapes the TOML-forbidden DEL control character (1.115378ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 9
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2609.938422
+
+✖ failing tests:
+
+test at content/agent-plugins/fly/deploy-configs/__tests__/fly.test.mjs:198:1
+✖ renderFlyToml escapes variable values instead of treating them as TOML syntax (7.006127ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [Object: null prototype] {
+  - {
+      PORT: '4321',
+      TOVU_PUBLIC_URL: 'https://example.test/a?next="quoted"\\path\n[unexpected]\r\t',
+      TOVU_RUNTIME_MODE: 'production'
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/content/agent-plugins/fly/deploy-configs/__tests__/fly.test.mjs:205:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { TOVU_RUNTIME_MODE: 'production', PORT: '4321', TOVU_PUBLIC_URL: 'https://example.test/a?next="quoted"\\path\n[unexpected]\r\t' },
+    expected: { TOVU_RUNTIME_MODE: 'production', PORT: '4321', TOVU_PUBLIC_URL: 'https://example.test/a?next="quoted"\\path\n[unexpected]\r\t' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at content/agent-plugins/fly/deploy-configs/__tests__/fly.test.mjs:232:1
+✖ renderFlyToml escapes the TOML-forbidden DEL control character (1.115378ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [Object: null prototype] {
+  - {
+      LABEL: 'before\x7Fafter',
+      PORT: '4000',
+      TOVU_RUNTIME_MODE: 'production'
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/content/agent-plugins/fly/deploy-configs/__tests__/fly.test.mjs:236:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { TOVU_RUNTIME_MODE: 'production', PORT: '4000', LABEL: 'before\x7Fafter' },
+    expected: { TOVU_RUNTIME_MODE: 'production', PORT: '4000', LABEL: 'before\x7Fafter' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

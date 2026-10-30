@@ -1,0 +1,11 @@
+✔ a successful contact form is hidden by the emitted stylesheet in a browser (1081.628478ms)
+✔ contact form fallback error and success colors apply in both modes without theme tokens (363.729217ms)
+✔ checkbox fields render inline before their label with only the emitted stylesheet (343.926349ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2694.557082

@@ -1,0 +1,59 @@
+✔ extractBalancedBraces: a flat block with no nesting (1.321436ms)
+✔ extractBalancedBraces: nested braces (if/try inside the outer block) do not truncate early (0.169502ms)
+✔ extractBalancedBraces: throws when the index does not point at '{' (0.400569ms)
+✔ extractBalancedBraces: throws on unbalanced input rather than returning a truncated slice (0.187988ms)
+✔ extractSafeHrefDeclaration: pulls the const pair and the whole function, and the result is importable JS/TS (0.464088ms)
+✔ extractSafeHrefDeclaration: throws (not a silent empty result) when the const pair is missing (0.20437ms)
+✔ extractSafeHrefDeclaration: throws when 'function safeHref(' is missing entirely (0.262842ms)
+✔ compareCheckers: no mismatches when every checker agrees with the expected outcome (0.866332ms)
+✔ compareCheckers: SYNTHETIC MISMATCH — a deliberately-wrong checker is caught and named by the comparator (0.423686ms)
+✔ buildSharedTable: every REJECTED_HREFS row is expectedAccept:false and every ACCEPTED_HREFS row is expectedAccept:true (0.459236ms)
+✔ loadHrefChecker: extracts a real, callable checker from render.ts that behaves correctly (25.031787ms)
+✖ live: jini:isAllowedHref, render.ts:safeHref, and static-render.ts:safeHref agree on every table row (10.049106ms)
+✖ CLI returns nonzero for mismatch and reports the reason (304.15599ms)
+✔ CLI returns nonzero for extraction and reports the reason (299.78195ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 12
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1201.502465
+
+✖ failing tests:
+
+test at development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts:17:2423
+✖ live: jini:isAllowedHref, render.ts:safeHref, and static-render.ts:safeHref agree on every table row (10.049106ms)
+  Error: extractSafeHrefDeclaration: could not find the SAFE_HREF_RESOLUTION_BASE/ORIGIN const pair in /home/user/Tovu/apps/website/src/features/theme/render-contract.ts
+      at extractSafeHrefDeclaration (/home/user/Tovu/development/scripts/check-menu-href-allowlist-sync.ts:155:11)
+      at loadHrefChecker (/home/user/Tovu/development/scripts/check-menu-href-allowlist-sync.ts:182:23)
+      at runMenuHrefAllowlistSync (/home/user/Tovu/development/scripts/check-menu-href-allowlist-sync.ts:255:5)
+      at TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts:177:28)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts:17:2741
+✖ CLI returns nonzero for mismatch and reports the reason (304.15599ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /produced disagreement/. Input:
+  
+  'check:menu-href-allowlist-sync — could not run the comparison at all (extraction failure, not a behavioral mismatch): extractSafeHrefDeclaration: could not find the SAFE_HREF_RESOLUTION_BASE/ORIGIN const pair in /home/user/Tovu/apps/website/src/features/theme/render-contract.ts\n'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts:207:16)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'check:menu-href-allowlist-sync — could not run the comparison at all (extraction failure, not a behavioral mismatch): extractSafeHrefDeclaration: could not find the SAFE_HREF_RESOLUTION_BASE/ORIGIN const pair in /home/user/Tovu/apps/website/src/features/theme/render-contract.ts\n',
+    expected: /produced disagreement/,
+    operator: 'match',
+    diff: 'simple'
+  }

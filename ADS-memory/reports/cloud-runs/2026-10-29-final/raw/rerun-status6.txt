@@ -1,0 +1,5 @@
+apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts exit=1 ℹ pass 2 ℹ fail 1 
+apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts exit=1 ℹ pass 0 ℹ fail 1 
+apps/website/src/features/agent-plugins/__tests__/integration/skill-supporting-files.chat.integration.test.ts exit=1 ℹ pass 0 ℹ fail 1 
+development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts exit=1 ℹ pass 12 ℹ fail 2 
+ALLDONE

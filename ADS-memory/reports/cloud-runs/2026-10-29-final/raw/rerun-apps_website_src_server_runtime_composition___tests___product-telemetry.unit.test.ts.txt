@@ -1,0 +1,46 @@
+✔ memory gauges follow usage consent with fixed labels; warnings retain crash consent and severity (49.273566ms)
+✔ unset or incomplete child env never loads providers or reads config, and returns no product branch (0.507601ms)
+✔ catalog event uses installation identity; unknown and visitor events are dropped, free-text enum properties are omitted (11.456573ms)
+✔ unknown enum drops only its property and still sends the event; known enum is kept (14.418116ms)
+✔ admin route is renamed and projected to two segments; queries and later slugs do not escape (56.719478ms)
+✔ each next event sees mtime consent changes; usage and crashes are independent; no identity drops usage (29.435512ms)
+✔ error payload masks POSIX/Windows/UNC/file paths, credentials and email; context and lifecycle signals are restricted (11.875759ms)
+✔ preference reader parses only on mtime change, and stat/read/JSON/malformed booleans fail closed (1.144777ms)
+✔ missing/corrupt config, invalid shape and load/init failure yield both noops and exactly one fixed warning (15.970885ms)
+✔ post-load failure disposes resources and a throwing warning sink cannot fail boot (6.413088ms)
+✔ catalog is frozen; declared free-text enum values and unknown identity fields are omitted (0.586246ms)
+✔ maker errors discard site trace IDs and arbitrary attributes while preserving permitted context (4.93748ms)
+✔ standalone catalog resolves only configured packages; real provider ports retain live consent and attribution (266.2074ms)
+✔ one configured standalone provider leaves the other noop without resolving its package (53.335993ms)
+✔ standalone lookup, discovery, integrity and init failures release earlier providers and disable both outputs (198.301963ms)
+✔ missing or malformed catalog and unknown selections fail closed before importing any provider (43.901838ms)
+✖ Tovu declares no production vendor plugins; OTLP is development-only and lock entries match the selected packages (9.21108ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 16
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1317.817887
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/product-telemetry.unit.test.ts:21:7546
+✖ Tovu declares no production vendor plugins; OTLP is development-only and lock entries match the selected packages (9.21108ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'file:/home/user/Jini/packages/plugin-catalog'
+  - '^0.7.0'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/product-telemetry.unit.test.ts:484:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'file:/home/user/Jini/packages/plugin-catalog',
+    expected: '^0.7.0',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

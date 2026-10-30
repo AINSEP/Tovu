@@ -1,0 +1,49 @@
+✔ the old tovu-deploy-fly package is gone — retire-bundled.ts removes it from workspaces (10.73609ms)
+✔ plugin.json still parses and carries the fly vocabulary an operator would search for (8.999489ms)
+✔ the fly skill triggers for a Fly server deploy and points at the procedure (1.668849ms)
+✔ the package packs through the real installer's own packer, fly references and templates included (13.304456ms)
+✔ the templates are separate asset files, not inlined, and fly-server.md points at each (1.279374ms)
+✖ every operator-supplied value in both templates is marked as a placeholder (9.688903ms)
+✔ fly-server.md encodes the single-machine rule and forbids autoscaling (10.039987ms)
+✔ fly-server.md states that the volume shadows the image's ENTIRE sites/ tree (1.405036ms)
+✔ fly-server.md keeps secrets out of fly.toml and names all three as boot-blocking (1.030912ms)
+✔ fly-server.md says plainly and EARLY that deploying ships code, not content (3.711484ms)
+✔ fly-server.md forbids org-wide or account-wide Fly API listing calls during pre-flight (0.9728ms)
+✔ fly-server.md documents the Machines API path as BLOCKED and never as a procedure to run (0.904979ms)
+✔ fly-server.md defers every GitHub step to the `github` plugin instead of restating the procedure (0.682593ms)
+✔ fly-server.md never tells the assistant to handle a secret value itself (0.824783ms)
+✔ Fly owns ops, config and FlyV1 scheme with no static publish target, and seeds disabled (9.823223ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 14
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 473.794171
+
+✖ failing tests:
+
+test at content/agent-plugins/fly/__tests__/bundled-package.test.mjs:105:1
+✖ every operator-supplied value in both templates is marked as a placeholder (9.688903ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   [Object: null prototype] {
+  -   {
+        destination: '/workspace/Tovu/sites',
+        source: '<<PLACEHOLDER: volume name — must match `flyctl volumes create` exactly>>'
+      }
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/content/agent-plugins/fly/__tests__/bundled-package.test.mjs:122:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { source: '<<PLACEHOLDER: volume name — must match `flyctl volumes create` exactly>>', destination: '/workspace/Tovu/sites' } ],
+    expected: [ { source: '<<PLACEHOLDER: volume name — must match `flyctl volumes create` exactly>>', destination: '/workspace/Tovu/sites' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

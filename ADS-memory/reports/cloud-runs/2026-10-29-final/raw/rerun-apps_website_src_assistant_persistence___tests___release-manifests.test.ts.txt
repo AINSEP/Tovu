@@ -1,0 +1,25 @@
+✖ root/admin/site-chat select the same new chat release and preserve the UI override (3.003598ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 406.961527
+
+✖ failing tests:
+
+test at apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts:1:321
+✖ root/admin/site-chat select the same new chat release and preserve the UI override (3.003598ms)
+  TypeError [Error]: Invalid comparator: file:/home/user/Jini/packages/chat
+      at Comparator.parse (/home/user/Tovu/node_modules/semver/classes/comparator.js:41:13)
+      at new Comparator (/home/user/Tovu/node_modules/semver/classes/comparator.js:25:10)
+      at /home/user/Tovu/node_modules/semver/classes/range.js:157:47
+      at Array.map (<anonymous>)
+      at Range.parseRange (/home/user/Tovu/node_modules/semver/classes/range.js:157:35)
+      at /home/user/Tovu/node_modules/semver/classes/range.js:42:22
+      at Array.map (<anonymous>)
+      at new Range (/home/user/Tovu/node_modules/semver/classes/range.js:42:8)
+      at Object.minVersion (/home/user/Tovu/node_modules/semver/ranges/min-version.js:8:11)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/persistence/__tests__/release-manifests.test.ts:11:26)
