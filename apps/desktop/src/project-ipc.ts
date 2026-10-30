@@ -1,5 +1,6 @@
 import { withFileLock as withDirectoryFileLock } from "@jini-ai/platform/fs";
 import { createSitesWorkspace, shareSiteDirectories, type SitesWorkspace } from "./shared-sites.ts";
+import { ensureIndependentSiteIdentity, type SiteIdentityOptions } from "./site-directory-identity.ts";
 /**
  * @file Real handlers for the ten `runner:sites:*` IPC verbs the Projects screen needs — see
  * `contracts/project.ts`'s `SITE_IPC_CHANNELS` for what each one is for. Registered in
@@ -233,7 +234,7 @@ interface AdoptSiteDirInput {
 /** {@link handleAddSite}'s own `addSitePointer` shape — mirrors `add-site-pointer.ts`'s real
  *  `addSitePointer`, duplicated rather than imported for the same reason as {@link AdoptSiteDirInput}. */
 interface AddSitePointerLike {
-  (input: { siteDir: string; projectsPath: string }): { siteDir: string; alreadyTracked: boolean; alreadyDismissed: boolean };
+  (input: { siteDir: string; projectsPath: string }, options?: SiteIdentityOptions): { siteDir: string; alreadyTracked: boolean; alreadyDismissed: boolean };
 }
 
 /**
@@ -484,7 +485,7 @@ function recordsWithRememberedNames(
  * @returns the record at its new folder.
  * @throws {Error} operator-facing, when the dialog is cancelled, the picked folder is not a complete
  *   Tovu site, or `id` is not tracked.
- * @complexity O(n) in the tracked-project count, plus one classification.
+ * @complexity O(n + r + m) for n tracked rows, r catalog rows and m marker bytes.
  */
 async function handleLocate(id: string, deps: Pick<ProjectIpcDeps, "dialog" | "classifySiteDir" | "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites">) {
   const picked = await deps.dialog.showOpenDialog({
@@ -709,8 +710,8 @@ async function handleAddSite(deps: Pick<ProjectIpcDeps, "dialog" | "addSitePoint
     return null;
   }
 
-  const { siteDir, alreadyTracked } = deps.addSitePointer({ siteDir: picked.filePaths[0]!, projectsPath: deps.projectsPath });
-  if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop" }); // just checked `filePaths.length === 0` above, so index 0 exists
+  const { siteDir, alreadyTracked } = deps.addSitePointer({ siteDir: picked.filePaths[0]!, projectsPath: deps.projectsPath }, { workspace: deps.sharedSites });
+  if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [siteDir], createdBy: "Desktop", allowRelocation: true }); // just checked `filePaths.length === 0` above, so index 0 exists
   const row = readTrackedSites(deps.projectsPath).find((entry) => entry.siteDir === siteDir)!; // addSitePointer just tracked this exact siteDir above, so a row for it always exists
   // Read back rather than synthesized: an already-tracked folder keeps its ORIGINAL `createdAt` and
   // origin, and a fabricated row would report today's date and reorder the operator's grid.
@@ -1094,8 +1095,8 @@ function handleGetPreview(id: string, deps: Pick<ProjectIpcDeps, "readPreviewDat
  *
  * @throws {Error} when `id` names a project this shell is not tracking — a stale id from a renderer
  *   that has not yet re-polled past a delete, refused rather than opening an arbitrary path.
- * @complexity O(1) beyond `openSiteServer`'s own cost, plus however long an already-queued
- *   operation on the same site takes to settle.
+ * @complexity O(n + r + m) for n tracked rows, r catalog rows and m marker bytes, beyond
+ *   `openSiteServer` and any already-queued operation on the same site.
  */
 async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "serializer" | "projectsPath" | "openSiteServer" | "ctx" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites"> & Partial<Pick<ProjectIpcDeps, "classifySiteDir">>) {
   return await deps.serializer.run(id, async () => {
@@ -1104,6 +1105,8 @@ async function handleStart<TCtx>(id: string, deps: Pick<ProjectIpcDeps<TCtx>, "s
       throw new Error(`Unknown project: ${id}`);
     }
     if ((deps.classifySiteDir ?? classifySiteDirSafely)(row.siteDir) !== "site") throw new Error("Folder moved or not a site. Locate the website folder or remove this card.");
+    ensureIndependentSiteIdentity({ siteDir: row.siteDir }, { workspace: deps.sharedSites });
+    if (deps.sharedSites) shareSiteDirectories({ workspace: deps.sharedSites, dirs: [row.siteDir], createdBy: "Desktop", allowRelocation: true });
     await markTransition(deps.transitions, id, "starting", () => explainMissingSiteDir(id, deps.openSiteServer(id, deps.ctx)));
     return buildSiteRecord(row, deps);
   });

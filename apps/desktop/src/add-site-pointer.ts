@@ -6,7 +6,8 @@
  * counts as a site or about what adding one does to the operator's files.
  *
  * **POINTER SEMANTICS, and this is the whole point of the file existing.** The registry stores the
- * PATH. Nothing is moved, nothing is copied, and nothing is created. That is why this cannot be
+ * PATH. Nothing is moved, copied or initialized. A copied site's marker gets a fresh directory
+ * identity so it can start independently; every other marker field is preserved. This cannot be
  * `adoptSiteDir` (`site-dir-store.ts`) even though the name sounds right: `adoptSiteDir` is a
  * fixed-policy wrapper over `resolveOrInitSiteDir({onMissingSite: "init"})`, so handing it an EMPTY
  * folder runs `tovu init` and creates a site there. For "Open Site…" that is correct — a person just
@@ -26,6 +27,7 @@ import path from "node:path";
 
 import { SITE_ORIGIN, isSiteDirKnown, readTrackedSites, trackSite } from "./tracked-sites.ts";
 import { classifySiteDirSafely } from "./site-dir-store.ts";
+import { ensureIndependentSiteIdentity, type SiteIdentityOptions } from "./site-directory-identity.ts";
 
 /**
  * A refusal an operator (or a model) can act on, carrying a stable `code` so a caller can branch
@@ -152,7 +154,7 @@ interface AddSitePointerResult {
 
 /**
  * Track an EXISTING Tovu site folder as a project, or refuse with a specific reason. Never creates,
- * moves, copies, initializes, or opens anything — see this file's header.
+ * moves, copies, initializes, or opens a site — see this file's header for copy re-identification.
  *
  * Idempotent: a folder that is already tracked reports `alreadyTracked: true` and leaves its row
  * untouched (`trackSite` neither duplicates nor bumps it), so a model retrying a call, a rescan
@@ -173,16 +175,18 @@ interface AddSitePointerResult {
  *   here is an MCP tool and a CLI, neither of which should turn an EACCES into a stack trace.
  * @returns `{siteDir, alreadyTracked, alreadyDismissed}` — `siteDir` normalized, so a caller
  *   reports the path that was actually recorded rather than the one it was handed.
- * @throws {AddSitePointerError} when `siteDir` is not a complete Tovu site. Nothing is written on
- *   any throwing path.
- * @complexity O(n) in the tracked-row count, plus `classifySiteDir`'s own cost.
+ * @param options Registry and marker-write ports for copied-folder identity recovery.
+ * @throws {AddSitePointerError} when `siteDir` is not a complete Tovu site. A copy whose marker
+ *   cannot be replaced throws a plain sentence before any project row is written.
+ * @complexity O(n + r + m) for n tracked rows, r catalog rows and m marker bytes.
  */
-function addSitePointer(input: AddSitePointerInput): AddSitePointerResult {
+function addSitePointer(input: AddSitePointerInput, options: SiteIdentityOptions = {}): AddSitePointerResult {
   const classify = input.classifySiteDir ?? classifySiteDirSafely;
   const siteDir = normalizeSiteDirPath(input.siteDir, input.cwd ?? process.cwd());
 
   const kind = classify(siteDir);
   if (kind !== "site") throw refusalFor(kind, siteDir);
+  ensureIndependentSiteIdentity({ siteDir }, options);
 
   // Read BEFORE the write, because afterwards both answers are gone: `trackSite` is idempotent
   // and clears the tombstone, so a caller asking after the fact cannot tell a fresh add from a
