@@ -3,7 +3,8 @@ import type { ApiConnectionHost } from '#src/features/api-connections/host';
 /** Bind plugin consumers to the existing service owners; secret custody stays in composition. */
 import type { SetValueRequired } from '@jini-ai/core/settings';
 import { getEffective, set } from '#src/features/settings/index';
-import type { Clock, HttpClientPort } from '@jini-ai/core/primitives';
+import type { Clock } from '@jini-ai/core/primitives';
+import type { HttpClientPort } from '#src/platform/http/ports';
 import { saveExternalMcpServer, ExternalMcpValidationError, ExternalMcpSecretStoreUnconfiguredError } from '#src/features/external-mcp/external-mcp-store';
 import type { ExternalMcpOAuthService, ExternalMcpStoreDeps } from '#src/features/external-mcp/contracts';
 import { notifyExternalMcpRosterChanged } from '#src/assistant/external-mcp-roster-change';
