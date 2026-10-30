@@ -3,7 +3,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { VIDEO_MAX_FRAMES, VIDEO_MAX_FRAME_BYTES, VIDEO_MAX_INPUT_BYTES, VIDEO_MAX_OUTPUT_BYTES, VIDEO_MAX_SHEET_BYTES, VIDEO_MAX_SHEETS, type VideoFrameExtractor } from '@jini-ai/cms/media';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, ToolInputError, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from '@jini-ai/core';
 import { prepareMessageAttachments } from '@jini-ai/daemon';
-import type { ToolContributor } from '#src/assistant/index';
+import type { ToolContributor } from '@jini-ai/core';
 import type { AuthorizeFn } from '../../contracts/core/commands/index.js';
 import { sniffContentType, type AssetBlobRepoPort, type BlobStorePort, type MediaRepoPort } from './index.js';
 import { CHAT_ATTACHMENT_REF_PATTERN, type ChatAttachmentReadResult } from './read-chat-attachment.js';
@@ -64,7 +64,10 @@ function readSource({ record }: { record: Record<string, unknown> }, _optional: 
   const refs = ['mediaId', 'attachmentRef'].filter(key => record[key] !== undefined);
   const key = refs.length === 1 ? refs[0]! : '';
   const value = record[key];
-  if (!key || typeof value !== 'string' || !value || /[/\\\0]/u.test(value) || (key === 'attachmentRef' && !CHAT_ATTACHMENT_REF_PATTERN.test(value))) {
+  if (!key || typeof value !== 'string' || !value) {
+    throw refusal({ message: 'pass exactly one mediaId or attachmentRef (attachment:<uuid>); filesystem paths are refused.' });
+  }
+  if (/[/\\\0]/u.test(value) || (key === 'attachmentRef' && !CHAT_ATTACHMENT_REF_PATTERN.test(value))) {
     throw refusal({ message: 'pass exactly one mediaId or attachmentRef (attachment:<uuid>); filesystem paths are refused.' });
   }
   return { key, value };
@@ -94,7 +97,8 @@ function readInput({ input }: { input: unknown }, _optional: Record<string, neve
   return { key, value, layout: record.layout as 'frames' | 'sheet' | undefined, frames: record.frames as number | undefined, at: record.at as number[] | undefined, every: record.every as number | undefined, start: record.start as number | undefined };
 }
 function isPreviewableSize(size: number | null | undefined): boolean {
-  return size !== undefined && size !== null && Number.isFinite(size) && size > 0 && size <= VIDEO_MAX_INPUT_BYTES;
+  if (size === undefined || size === null) return false;
+  return Number.isFinite(size) && size > 0 && size <= VIDEO_MAX_INPUT_BYTES;
 }
 async function ownedMediaBytes(
   { deps, mediaId, principalId }: { deps: MediaViewVideoToolDeps; mediaId: string; principalId: string }, _optional: Record<string, never> = {},
@@ -142,17 +146,22 @@ function isGridSize(value: number, max: number): boolean {
 /** Tile metadata must actually map each row-major position to a nonnegative finite time. */
 function hasRowMajorTiles(sheet: ContactSheet): boolean {
   if (!Array.isArray(sheet.tiles) || sheet.tiles.length === 0 || sheet.tiles.length > 16 || sheet.tiles.length > sheet.columns * sheet.rows) return false;
-  return sheet.tiles.every((tile, index) => tile.index === index + 1 && tile.row === Math.floor(index / sheet.columns) + 1 &&
-    tile.column === index % sheet.columns + 1 && Number.isFinite(tile.at) && tile.at >= 0);
+  return sheet.tiles.every((tile, index) => {
+    if (tile.index !== index + 1 || tile.row !== Math.floor(index / sheet.columns) + 1 || tile.column !== index % sheet.columns + 1) return false;
+    return Number.isFinite(tile.at) && tile.at >= 0;
+  });
 }
 function isSheetWithinLimits(sheet: ContactSheet): boolean {
-  return sheet.bytes.byteLength <= VIDEO_MAX_SHEET_BYTES && sheet.mimeType === 'image/jpeg' && isGridSize(sheet.columns, 4) &&
-    isGridSize(sheet.rows, 4) && isGridSize(sheet.tileEdgePx, 768) && hasRowMajorTiles(sheet);
+  const validFormat = sheet.bytes.byteLength <= VIDEO_MAX_SHEET_BYTES && sheet.mimeType === 'image/jpeg';
+  if (!validFormat) return false;
+  return isGridSize(sheet.columns, 4) && isGridSize(sheet.rows, 4) && isGridSize(sheet.tileEdgePx, 768) && hasRowMajorTiles(sheet);
 }
 function assertSheetOutput({ result }: { result: ExtractedVideo }, _optional: Record<string, never> = {}): readonly ContactSheet[] {
   const sheets = result.sheets;
-  if (result.frames.length !== 0 || !sheets?.length || sheets.length > VIDEO_MAX_SHEETS || !sheets.every(isSheetWithinLimits) ||
-    sheets.reduce((sum, sheet) => sum + sheet.tiles.length, 0) > VIDEO_MAX_FRAMES ||
+  if (result.frames.length !== 0 || !sheets?.length || sheets.length > VIDEO_MAX_SHEETS) {
+    throw refusal({ message: 'the video extractor exceeded the sheet output limit.' });
+  }
+  if (!sheets.every(isSheetWithinLimits) || sheets.reduce((sum, sheet) => sum + sheet.tiles.length, 0) > VIDEO_MAX_FRAMES ||
     sheets.reduce((sum, sheet) => sum + sheet.columns * sheet.rows * sheet.tileEdgePx ** 2, 0) > 20_000 * 750) {
     throw refusal({ message: 'the video extractor exceeded the sheet output limit.' });
   }
@@ -200,6 +209,6 @@ export function buildMediaViewVideoRegistrations(
     } },
   });
 }
-export function contributeMediaViewVideoTools(ports: MediaVideoToolPorts, _optional: Record<string, never> = {}): ToolContributor {
+export function contributeMediaViewVideoTools(ports: MediaVideoToolPorts, _optional: Record<string, never> = {}): ToolContributor<Omit<MediaViewVideoToolDeps, keyof MediaVideoToolPorts>, unknown> {
   return { domain: 'media-video-view', risk: mediaViewVideoDerivedRisk, build: deps => buildMediaViewVideoRegistrations({ ...deps, ...ports }, {}) };
 }

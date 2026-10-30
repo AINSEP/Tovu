@@ -6,12 +6,12 @@ import { SqlEntryTermRepo, SqlTaxonomyRepo, SqlTaxonomyRevisionRepo, SqlTermRepo
  * @file The taxonomy repos on a site's SQLite `content.db`: thin named subclasses of the one Kysely
  * query body in `repo.ts` (`SqlTaxonomyRepo` / `SqlTermRepo` / `SqlEntryTermRepo` /
  * `SqlTaxonomyRevisionRepo`), kept so existing call sites that construct them from the content db
- * handle stay as they are; new code calls the `…For(kernel, workspaceId)` factories.
+ * handle stay as they are; kernel callers construct the SQL classes directly.
  *
- * The port-adjacent types live with the query body and are re-exported here for their importers.
+ * The port-adjacent types live in contracts.ts and are re-exported here for their importers.
  */
 
-export type { AssignedTermView, EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "./repo.js";
+export type { AssignedTermView, EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "./contracts.js";
 
 /** Constructor deps shared by every class here: the connection's kernel (or the db handle it derives from). */
 interface SqliteTaxonomyDeps {

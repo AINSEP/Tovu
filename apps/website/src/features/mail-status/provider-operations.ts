@@ -1,6 +1,6 @@
 import { createCustomCredential, describeCredential, updateCustomCredential, type CustomCredentialSummary, type CustomCredentialWriteDeps } from "#src/features/custom-credentials/index";
 import type { ProjectKeysPort } from "#src/features/project-keys/service";
-import type { MailProviderConfiguration, MailProviderConfigurationReport, MailProviderControl } from "#src/platform/mail/mail-status";
+import type { MailProviderConfiguration, MailProviderConfigurationReport, MailProviderControl } from "#src/platform/mail/index";
 
 /**
  * @file The mail provider operations the admin HTTP routes (`server/inbound/admin-http/routes/system/

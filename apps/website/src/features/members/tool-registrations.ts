@@ -17,7 +17,7 @@ import { buildDomainRegistrations, indexCatalogById, optionalString, readToolLim
 import { type AuthorizeFn, requireToolPermission } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
@@ -32,6 +32,10 @@ import type {
 } from "./ports.js";
 import { MemberSignInUnavailableError, MemberConflictError, MemberNotFoundError, MemberValidationError, type MemberRecord } from "./types.js";
 import { createMember, disableMember, requestSignInLink, updateProfile } from "./write-service.js";
+
+const MEMBER_MANAGE_PERMISSION = "member.manage" as const;
+
+const DURABLE_MUTATION = "mutates-durable-state" as const;
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: membersAgentToolCatalog });
 
@@ -118,14 +122,14 @@ export const membersDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   // -> memberRepo.findById: read only.
   ["members_get_by_id", "none"],
   // Existing member creation and profile chokepoints, without auth tokens or entitlements.
-  ["members_create", "mutates-durable-state"],
-  ["members_update_profile", "mutates-durable-state"],
+  ["members_create", DURABLE_MUTATION],
+  ["members_update_profile", DURABLE_MUTATION],
   // -> disableMember (write-service.ts): status flip + revokes every live session.
-  ["members_disable", "mutates-durable-state"],
-  ["members_delete", "mutates-durable-state"],
+  ["members_disable", DURABLE_MUTATION],
+  ["members_delete", DURABLE_MUTATION],
   // -> requestSignInLink (write-service.ts): saves a new-address challenge without creating a member, saves a magic-link
   //    token row, and sends mail; settleMailer refreshes configuration without sending.
-  ["members_request_magic_link", "mutates-durable-state"],
+  ["members_request_magic_link", DURABLE_MUTATION],
 ]);
 
 /**
@@ -193,7 +197,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
     /** Operator creation shares sign-up persistence while withholding tokens and mail. */
     members_create: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member" });
       const { member } = await createMember({ deps: { ...toMembersWriteServiceDeps(deps), onMemberCreated: ({ workspaceId, memberId, creationSource, initialState }) => {
         deps.tracker?.capture({ name: "member_registered", userId: ctx.principal.id }, { properties: {
           eventId: `member-registered:${workspaceId}:${memberId}`, creationSource, initialState,
@@ -205,14 +209,14 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
     members_update_profile: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const memberId = requireString({ input, key: "memberId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member", entityId: memberId });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
       const { member } = await updateProfile({ deps: toMembersWriteServiceDeps(deps), input: { workspaceId: deps.workspaceId, memberId, name: requireString({ input, key: "name" }) } });
       return { member: toMemberToolView(member) };
     },
     members_list: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
 
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member" });
 
       const afterId = optionalString({ input, key: "afterId" });
       const limit = readToolLimit({ input, max: MEMBERS_LIST_MAX_LIMIT, fallback: MEMBERS_LIST_MAX_LIMIT });
@@ -228,7 +232,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
     members_get_by_id: async (ctx) => {
       const memberId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "memberId" });
 
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member", entityId: memberId });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
 
       const member = await deps.memberRepo.findById({ workspaceId: deps.workspaceId, id: memberId });
       if (!member) throw new MemberNotFoundError(`member '${memberId}' was not found`);
@@ -237,7 +241,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
 
     members_delete: async (ctx) => {
       const memberId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "memberId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member", entityId: memberId });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
       return trashMember({ workspaceId: deps.workspaceId, memberId, actor: { principalId: ctx.principal.id } },
         { members: deps.memberRepo, remove: deps.removeMember, clock: { nowIso: () => nowIso({ clock: deps.clock }) } });
     },
@@ -245,7 +249,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
     members_disable: async (ctx) => {
       const memberId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "memberId" });
 
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member", entityId: memberId });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member", entityId: memberId });
 
       const { member } = await disableMember({ deps: toMembersWriteServiceDeps(deps), input: { workspaceId: deps.workspaceId, memberId } });
       return { member: toMemberToolView(member) };
@@ -255,7 +259,7 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
       const input = requireInputRecord({ input: ctx.input });
       const email = requireString({ input: input, key: "email" });
 
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "member.manage" }, { entityType: "member" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MEMBER_MANAGE_PERMISSION }, { entityType: "member" });
 
       // INV-NEW-03: the shared per-email rate limit is consulted strictly AFTER authorize() —
       // mirrors `request-magic-link.ts`'s own ordering, so an unauthorized caller can never spend
@@ -311,6 +315,6 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
  * rollout — no sibling domain still statically wired through `assistant` imports `members`, so this
  * one-directional `members -> assistant` call closes no new cycle).
  */
-export function contributeMembersTools(): ToolContributor {
+export function contributeMembersTools(): ToolContributor<MembersToolDeps, unknown> {
   return { domain: "members", build: buildMembersRegistrations, risk: membersDerivedRisk };
 }

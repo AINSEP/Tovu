@@ -7,11 +7,13 @@ import path from "node:path";
 import test from "node:test";
 import { AGENT_PLUGINS_INSTALL_TOOL_ID, buildRegistrations, catalog, contributeAgentPluginsInstallTools, derivedRisk } from "../../install-tool.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
+import { readPluginInstallRequest, readPluginInstallArchive } from "../../../plugin-runtime/install-source.js";
 import { buildZipFixture } from "../fixtures/build-zip.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { ToolInputError } from "@jini-ai/core";
 import { agentPluginActivations } from "../../activation-effects.js";
 
+const pluginInstallSource = { readRequest: readPluginInstallRequest, readArchive: readPluginInstallArchive };
 const input = { source: { kind: "zip", attachmentRef: "attachment:agent123" } };
 const context = (value: unknown = input) => ({ executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input: value, signal: new AbortController().signal });
 
@@ -76,7 +78,7 @@ test("agent tool rejects malformed input and invalid archives at preview", async
 test("the install contribution wires the host's attachment reader into the tool it builds", async () => {
   let reads = 0;
   const readInstallAttachment = async () => { reads++; return { ok: false as const, refusal: "not-owner" as const }; };
-  const contribution = contributeAgentPluginsInstallTools({ readInstallAttachment });
+  const contribution = contributeAgentPluginsInstallTools({ readInstallAttachment, pluginInstallSource });
   assert.equal(contribution.domain, "agent-plugins-install");
   assert.equal(contribution.risk, derivedRisk);
   // The contributor's build takes the whole assistant deps bag; this tool reads only the install subset.
@@ -85,5 +87,5 @@ test("the install contribution wires the host's attachment reader into the tool 
   assert.equal(tool?.descriptor.id, AGENT_PLUGINS_INSTALL_TOOL_ID);
   await assert.rejects(() => tool!.handler(context(), {}), ToolInputError);
   assert.equal(reads, 1, "the contributed reader, not a default, read the attachment");
-  assert.equal(contributeAgentPluginsInstallTools().domain, "agent-plugins-install");
+  assert.equal(contributeAgentPluginsInstallTools({ pluginInstallSource }).domain, "agent-plugins-install");
 });

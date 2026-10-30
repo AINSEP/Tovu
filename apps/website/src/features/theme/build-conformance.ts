@@ -4,6 +4,8 @@ import { join } from "node:path";
 
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
 
+const ARTIFACT_HASH_RULE = "artifact-hash";
+
 /**
  * @file The install-time conformance gate a `build.source: "compiled"` theme (ADR-020 §5) must pass
  * before `loadTheme()` accepts it as `status: "valid"`.
@@ -141,10 +143,18 @@ function checkAssetPaths(pageId: string, html: string, themeId: string, apiVersi
  * as content; nested tags are stripped, not their text.
  */
 function visibleIslandText(innerHtml: string): string {
-  return innerHtml
+  const chunks = innerHtml
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, "")
-    .replace(/<[^>]+>/g, "")
+    .split(">");
+  // Each closing bracket ends at most one non-empty tag. Splitting once also keeps
+  // nested '<' and unfinished tags identical to the old tolerant tag scan.
+  const text = chunks.map((chunk, index) => {
+    if (index === chunks.length - 1) return chunk;
+    const start = chunk.indexOf("<");
+    return start >= 0 && start < chunk.length - 1 ? chunk.slice(0, start) : chunk + ">";
+  }).join("");
+  return text
     .replace(/&(?:nbsp|#160);/gi, "")
     .trim();
 }
@@ -294,7 +304,7 @@ function visitGeneratedTreeEntry(
   if (kind === "symlink") {
     rejected.set(relativePath, {
       page: relativePath,
-      rule: "artifact-hash",
+      rule: ARTIFACT_HASH_RULE,
       message: `'${relativePath}' is a symbolic link inside the built theme's generated tree — symlinks are never permitted there, matching this repo's Agent Plugins package-extraction rule for the identical "content from someone other than the operator" threat model; the entry is refused outright, not followed`,
     });
     return undefined;
@@ -387,7 +397,7 @@ function checkOneArtifactHashEntry(
     return {
       issue: {
         page: relativePath,
-        rule: "artifact-hash",
+        rule: ARTIFACT_HASH_RULE,
         message: `build.artifactHashes references '${relativePath}', which does not exist on disk (or is outside the generated tree)`,
       },
       bytesHashed: totalHashedBytesSoFar,
@@ -400,7 +410,7 @@ function checkOneArtifactHashEntry(
     return {
       issue: {
         page: relativePath,
-        rule: "artifact-hash",
+        rule: ARTIFACT_HASH_RULE,
         message: `'${relativePath}' is ${size} bytes, over the ${MAX_HASHED_FILE_BYTES}-byte per-file verification cap`,
       },
       bytesHashed: totalHashedBytesSoFar,
@@ -413,7 +423,7 @@ function checkOneArtifactHashEntry(
     return {
       issue: {
         page: relativePath,
-        rule: "artifact-hash",
+        rule: ARTIFACT_HASH_RULE,
         message: `the generated tree's total verified size exceeds the ${MAX_TOTAL_HASHED_BYTES}-byte cap at '${relativePath}'`,
       },
       bytesHashed,
@@ -429,7 +439,7 @@ function checkOneArtifactHashEntry(
     return {
       issue: {
         page: relativePath,
-        rule: "artifact-hash",
+        rule: ARTIFACT_HASH_RULE,
         message: `'${relativePath}' does not match its recorded build.artifactHashes digest — the file changed after the build produced it`,
       },
       bytesHashed,
@@ -473,7 +483,7 @@ function findUndeclaredGeneratedFiles(
     if (!declared.has(relativePath)) {
       issues.push({
         page: relativePath,
-        rule: "artifact-hash",
+        rule: ARTIFACT_HASH_RULE,
         message: `'${relativePath}' exists in this build's generated tree but has no entry in build.artifactHashes — every generated file must be accounted for now that a built theme can originate from an untrusted publisher`,
       });
     }
@@ -492,7 +502,7 @@ function checkArtifactHashes(
   } catch (error) {
     if (error instanceof GeneratedTreeInventoryLimitExceeded) {
       // an unfinished walk cannot safely back a "here is everything" claim either way
-      return [{ page: themeDir, rule: "artifact-hash", message: error.message }];
+      return [{ page: themeDir, rule: ARTIFACT_HASH_RULE, message: error.message }];
     }
     throw error;
   }

@@ -2,9 +2,8 @@ import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { attachGlueContentLifecycle, type AttachGlueContentLifecycleRequired } from "@jini-ai/plugins/glue";
-import type { GlueContentLifecycleFilter, GlueFieldDecl } from "../../ports.js";
-import { attachLoadedPlugin } from "@jini-ai/plugins/host";
+import { attachGlueContentLifecycle, type AttachGlueContentLifecycleRequired, type GlueContentLifecycleFilter, type GlueFieldDecl } from "@jini-ai/plugins/glue";
+import { attachLoadedPlugin, type BeforeSaveFilter } from "@jini-ai/plugins/host";
 import { createHookRegistry } from "@jini-ai/plugins/host";
 import type { ContentEntryDraft } from "@tovu/sdk";
 
@@ -18,8 +17,8 @@ import type { ContentEntryDraft } from "@tovu/sdk";
  * worked example of what the host's real composition-root adapter is expected to do: translate a
  * glue-vocabulary filter (`ctx.moduleId`) into the shape `hook-registry.ts` already understands
  * (`ctx.pluginId`, via `packages/sdk`'s `HookContext`) and call `attachLoadedPlugin` with a live
- * registry and `source: "glue"`. Site-glue's own product code (`content-lifecycle.ts`) never
- * imports `plugin-runtime` directly — only this test does, to prove the composition works.
+ * registry and `source: "glue"`. Jini's product-neutral content-lifecycle adapter never imports
+ * the host's `plugin-runtime` — this test proves the composition at the host boundary.
  */
 
 function draft(overrides: Partial<ContentEntryDraft> = {}): ContentEntryDraft {
@@ -37,7 +36,7 @@ function draft(overrides: Partial<ContentEntryDraft> = {}): ContentEntryDraft {
 
 /** A worked example of a real `GlueHostPort.attachContentLifecycleFilter` implementation, wired to
  * a live `hookRegistry` via `attachLoadedPlugin` — this is what the host's composition root is
- * expected to do; site-glue's own core never does this itself (see file header). */
+ * expected to do; Jini's product-neutral adapter never does this itself (see file header). */
 function makeRealHostPort(hookRegistry: ReturnType<typeof createHookRegistry>): AttachGlueContentLifecycleRequired<GlueContentLifecycleFilter>["hostPort"] {
   return {
     attachContentLifecycleFilter({ moduleId, filter, declaredFields }) {
@@ -48,7 +47,8 @@ function makeRealHostPort(hookRegistry: ReturnType<typeof createHookRegistry>): 
         // Adapt the glue-vocabulary filter (ctx.moduleId) to hook-registry's own ctx shape
         // (ctx.pluginId) — this translation is real, host-specific glue, deliberately not owned by
         // Jini's product-neutral `glue/attachment-points/content-lifecycle.ts`.
-        filter: (entry, ctx) => filter(entry as Parameters<GlueContentLifecycleFilter>[0], { moduleId: ctx.pluginId, workspaceId: ctx.workspaceId }),
+        // The host registry validates the generic Jini patch's scalar fields at runtime.
+        filter: (entry, ctx) => filter({ entry: entry as Readonly<Record<string, unknown>>, ctx: { moduleId: ctx.pluginId, workspaceId: ctx.workspaceId } }) as ReturnType<BeforeSaveFilter>,
         declaredFields: declaredFields.map((f) => ({ path: `ext.${moduleId}.${f.path}`, type: f.type })),
       });
     },
@@ -59,7 +59,7 @@ test("ADR-057 Decision 2.1: a glue module's filter actually fires through attach
   const hookRegistry = createHookRegistry({ pluginSdkBinding: pluginHostBinding.pluginSdkBinding });
   const hostPort = makeRealHostPort(hookRegistry);
 
-  const glueFilter: GlueContentLifecycleFilter = async (_entry, ctx) => ({ greeted: ctx.moduleId });
+  const glueFilter: GlueContentLifecycleFilter = async ({ ctx }) => ({ greeted: ctx.moduleId });
   const declaredFields: readonly GlueFieldDecl[] = [{ path: "greeted", type: "string" }];
 
   attachGlueContentLifecycle({ moduleId: "site-glue-example", filter: glueFilter, declaredFields, hostPort });

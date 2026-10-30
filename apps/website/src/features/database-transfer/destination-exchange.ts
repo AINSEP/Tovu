@@ -37,7 +37,7 @@ async function reportDestinationSuccess<T>({ result, store, workspaceId, exchang
   const destination = await store.get(workspaceId).catch(() => null);
   const tokenHint = destination?.tokenHint ?? null;
   const hint = formatCredentialHint({ hint: tokenHint, locale });
-  const message = `${hint ? `${hint}. ` : ''}${credentialText({ id: 'connected', locale })}`;
+  const message = `${hint ? hint + '. ' : ''}${credentialText({ id: 'connected', locale })}`;
   return {
     result: { ...result, tokenHint, connection: 'connected' },
     outcome: { channel: 'mcp-ui' as const, payload: { resource: buildDestinationOutcome({ exchangeId, state: 'success', message }) } },

@@ -1,3 +1,5 @@
+import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
@@ -16,7 +18,7 @@ for (const action of ["hide", "purge"] as const) test(`user adapter ${action}: i
     db.$client.prepare("INSERT INTO workspaces (id,name,slug,created_at) VALUES ('w','w','w','now')").run();
     db.$client.prepare("INSERT INTO principals (id,workspace_id,kind,display_name,status,created_at) VALUES ('u','w','user','admin','disabled','now')").run();
     let purged = false;
-    const adapter = createUserTrashAdapter({ db, purge: { async purgeUser() { purged = true; throw new Error("must not purge"); } }, idGen: { next: () => "event" }, clock: { nowIso: () => "2026-10-07T00:00:00Z" },
+    const adapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel(db), purge: { async purgeUser() { purged = true; throw new Error("must not purge"); } }, idGen: { next: () => "event" }, clock: { nowIso: () => "2026-10-07T00:00:00Z" },
       assertAccountAction: async () => { throw new SelfDeleteError("you cannot delete your own account"); },
     } as Parameters<typeof createUserTrashAdapter>[0]);
     await assert.rejects(adapter[action]({ workspaceId: "w", entityId: "u", at: "2026-10-07T00:00:00Z", expectedVersion: null }, { actor: { principalId: "u" } }), { name: "Error", message: "you cannot delete your own account" });

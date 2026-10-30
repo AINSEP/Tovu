@@ -4,13 +4,13 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
 import type { HttpClientPort } from "#src/platform/http/index";
-import { createSite, type CreateSiteResult } from "#src/platform/site-dir/site-registry";
-import { resolveNewSiteAdminPassword } from "#src/platform/site-dir/new-site-owner";
-import type { SitesWorkspace } from "#src/platform/site-dir/sites-home";
+import type { CreateSitePort, CreateSiteResult } from "#src/platform/site-dir/index";
+import { resolveNewSiteAdminPassword } from "#src/platform/site-dir/index";
+import type { SitesWorkspace } from "#src/platform/site-dir/index";
 import type { SiteImportRegistry, SiteImportRecord } from "./import-registry.js";
 import { SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseSanitizer } from "./share-policy.js";
 import { verifySiteImport } from "./import-verifier.js";
-import { restoreStagedImport, stageVerifiedImport, stagedImportWarnings } from "./import-restore.js";
+import { stageVerifiedImport, stagedImportWarnings } from "./import-restore.js";
 import {
   consumeUpload, deadlineSignal, downloadShareArchive, importSiteSlug, parseImportInput, reconcileInterruptedImports, refusal,
   requireFreeSpace, requireOwnerSetup, requireStagingBudget, siteImportView, startImportedSite,
@@ -41,10 +41,12 @@ export function createSiteImportBackend(required: {
   sanitize: ShareDatabaseSanitizer; schema: { index: number; tag: string };
   startSite: (required: { name: string }) => Promise<{ adminUrl: string | null; status: string }>;
   tracker?: Tracker;
+  createSite: CreateSitePort;
+  restoreStagedImport: (required: { root: string; dir: string; dbPath: string }, optional?: { pluginSourceRoot?: string }) => Promise<void>;
   setupBase?: string;
-  creationOptions?: Parameters<typeof createSite>[1];
+  creationOptions?: Parameters<CreateSitePort>[1];
 }, optional: {
-  createSite?: typeof createSite;
+  createSite?: CreateSitePort;
   report?: (required: { importId: string; status: string }) => void;
 } = {}): SiteImportBackend {
   const { registry, workspace } = required;
@@ -94,7 +96,7 @@ export function createSiteImportBackend(required: {
     const { signal } = input;
     let row = input.row;
     try {
-      const created = await (optional.createSite ?? createSite)({ name: importSiteSlug(row), displayName: row.displayName, adminPassword: input.adminPassword }, { ...required.creationOptions, workspace, collisionSafe: true,
+      const created = await (optional.createSite ?? required.createSite)({ name: importSiteSlug(row), displayName: row.displayName, adminPassword: input.adminPassword }, { ...required.creationOptions, workspace, collisionSafe: true,
         onAllocated: allocation => {
           signal.throwIfAborted();
           // Persist idempotency before shared registration. A registry failure is still inside
@@ -105,7 +107,7 @@ export function createSiteImportBackend(required: {
         beforeRegister: () => { signal.throwIfAborted(); },
         verifiedRestore: { signal, restore: async ({ dir, dbPath }) => {
           signal.throwIfAborted();
-          await restoreStagedImport({ root: registry.stagePath(row), dir, dbPath });
+          await required.restoreStagedImport({ root: registry.stagePath(row), dir, dbPath });
         } },
       });
       return { row, created };

@@ -1,3 +1,4 @@
+import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -49,7 +50,7 @@ async function setup(workspaceId: string, idGen: { next(): string } = counterIdG
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(workspaceId, workspaceId, workspaceId, "2026-01-01T00:00:00.000Z");
   const clock = { nowIso: () => AT, nowMs: () => Date.parse(AT) };
-  const wiring = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db, workspaceId, clock, idGen: counterIdGenNew() });
+  const wiring = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createAppPermissionGrants({}), db: contentKernel(db), workspaceId, clock, idGen: counterIdGenNew() });
   await wiring.identityReady;
   const ownerPrincipalId = await wiring.ownerPrincipalId;
 
@@ -73,7 +74,7 @@ async function setup(workspaceId: string, idGen: { next(): string } = counterIdG
   };
 
   const registry = buildTrashRegistry();
-  const adapter: TrashAdapter = createUserTrashAdapter({ db, purge: new SqliteUserPurge(db), idGen, clock });
+  const adapter: TrashAdapter = createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel(db), purge: new SqliteUserPurge({ kernel: contentKernel(db), eventValues: outboxEventValues }), idGen, clock });
   const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, adapter]]);
   const trash = createTrashService({
     repo: new SqliteTrashRepo(db.$client),
@@ -290,7 +291,7 @@ test("sweeper: purges a user past its retention window and records identity.user
   // produced an "id-1" event, and the sweep's purge-time event must not collide with it.
   let sweepSeq = 0;
   const sweepIdGen = { next: () => `sweep-id-${++sweepSeq}` };
-  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ db: f.db, purge: new SqliteUserPurge(f.db), idGen: sweepIdGen, clock: createFakeClock({ startIso: purgeAfter }) })]]);
+  const adapters = new Map<string, TrashAdapter>([[USER_ENTITY_TYPE, createUserTrashAdapter({ eventValues: outboxEventValues, db: contentKernel(f.db), purge: new SqliteUserPurge({ kernel: contentKernel(f.db), eventValues: outboxEventValues }), idGen: sweepIdGen, clock: createFakeClock({ startIso: purgeAfter }) })]]);
   const sweep = createTrashSweep({
     repo: new SqliteTrashRepo(f.db.$client),
     adapters,
@@ -405,9 +406,9 @@ function kernelWithWriterAfterFirstRead(db: ContentDb, sneak: () => void) {
 test("hide: a status change committed between the read and the write reports version-changed — no stale priorMarker, no event", async () => {
   const f = await setup(WS);
   const targetId = await createBareUser(f, "racing");
-  const adapter = createUserTrashAdapter({
-    db: kernelWithWriterAfterFirstRead(f.db, () => f.db.$client.prepare(`UPDATE principals SET status = 'disabled' WHERE id = ?`).run(targetId)),
-    purge: new SqliteUserPurge(f.db),
+  const adapter = createUserTrashAdapter({ eventValues: outboxEventValues,
+    db: contentKernel(kernelWithWriterAfterFirstRead(f.db, () => f.db.$client.prepare(`UPDATE principals SET status = 'disabled' WHERE id = ?`).run(targetId))),
+    purge: new SqliteUserPurge({ kernel: contentKernel(f.db), eventValues: outboxEventValues }),
     idGen: counterIdGen(),
     clock: createFakeClock({ startIso: AT }),
   });
@@ -422,11 +423,11 @@ test("unhide: a re-enable committed between the read and the write is not overwr
   const f = await setup(WS);
   const targetId = await createBareUser(f, "racing");
   f.db.$client.prepare(`UPDATE principals SET status = 'disabled', disabled_at = ? WHERE id = ?`).run(AT, targetId);
-  const adapter = createUserTrashAdapter({
-    db: kernelWithWriterAfterFirstRead(f.db, () =>
+  const adapter = createUserTrashAdapter({ eventValues: outboxEventValues,
+    db: contentKernel(kernelWithWriterAfterFirstRead(f.db, () =>
       f.db.$client.prepare(`UPDATE principals SET status = 'active', disabled_at = NULL WHERE id = ?`).run(targetId)
-    ),
-    purge: new SqliteUserPurge(f.db),
+    )),
+    purge: new SqliteUserPurge({ kernel: contentKernel(f.db), eventValues: outboxEventValues }),
     idGen: counterIdGen(),
     clock: createFakeClock({ startIso: AT }),
   });

@@ -11,7 +11,7 @@ import {
 } from "#src/platform/site-dir/index";
 
 import type { DevRestartPort } from "#src/platform/dev-supervisor/index";
-import type { SitesWorkspace } from "#src/platform/site-dir/sites-home";
+import type { SitesWorkspace } from "#src/platform/site-dir/index";
 
 import type { ActivateSitePorts, CreateSiteForOwnerPorts } from "./site-admin.js";
 
@@ -37,13 +37,14 @@ import type { ActivateSitePorts, CreateSiteForOwnerPorts } from "./site-admin.js
  * `tool-registrations.ts`'s handler falls back to `false` (disabled) if it is ever still absent,
  * matching the flag's own documented default-OFF safety posture rather than assuming enabled.
  *
- * Every service field is OPTIONAL, mirroring `server/inbound/admin-http/routes/system/sites.ts`'s
- * own `AdminSitesDeps` exactly (that route's `listSites?`/`createSite?`/`isSiteSwitcherEnabled?`
+ * Read, duplicate and activation service fields are OPTIONAL, mirroring `server/inbound/admin-http/routes/system/sites.ts`'s
+ * own `AdminSitesDeps` read seams (that route's `listSites?`/`isSiteSwitcherEnabled?`
  * fields): a real `RouteDeps` object already satisfies this interface as-is (it already carries
  * `workspaceId`/`authorize`/`siteBinding`; it simply has no `duplicateSite`/`listSites`/
  * `isSiteSwitcherEnabled` keys at all, which is exactly what an optional field allows) — so wiring
  * this domain into the assistant's tool catalog needs no change to how a real `RouteDeps` is
- * constructed. A test supplies fakes for the optional fields instead of touching a real filesystem
+ * constructed. Creation is now an explicit port bound by both composition roots, because its repairs
+ * and storage operations must not be constructed by site-dir. A test supplies fakes for the optional fields instead of touching a real filesystem
  * or `sites/`.
  *
  * `siteBinding` is REQUIRED, and there is no `cwd` field: the `sites/` root the tool reads and
@@ -63,8 +64,8 @@ export interface SitesToolDeps {
   listSites?: (optional?: { cwd?: string }) => readonly SiteListEntry[];
   /** Defaults to the real `duplicateSite`. Injectable for the same reason as `listSites`. */
   duplicateSite?: (required: { sourceDir: string; targetDir: string; name?: string }) => Promise<DuplicateSiteResult>;
-  /** Defaults to the real `createSite` (via `site-admin.ts`). Injectable for `sites_create_site` tests. */
-  createSite?: CreateSiteForOwnerPorts["createSite"];
+  /** The composition root binds site creation; tests supply a fake. */
+  createSite: CreateSiteForOwnerPorts["createSite"];
   /** Defaults to the real `persistActiveSite` (via `site-admin.ts`). Injectable for `sites_switch_site` tests. */
   persistActiveSite?: ActivateSitePorts["persistActiveSite"];
   readSiteRunning?: ActivateSitePorts["readSiteRunning"];

@@ -29,10 +29,10 @@ function delivery(id: string, createdAt: string, subscriptionId: string): Webhoo
 /** Returns its rows in the given (deliberately unsorted) order and records every requested limit. */
 class RecordingDeliveryRepo extends InMemoryWebhookDeliveryRepo {
   readonly limits: number[] = [];
-  rows: WebhookDeliveryRecord[] = [];
+  recordedRows: WebhookDeliveryRecord[] = [];
   override async listBySubscription(required: { workspaceId: string; subscriptionId: string; limit: number }): Promise<WebhookDeliveryRecord[]> {
     this.limits.push(required.limit);
-    return this.rows.filter(row => row.subscriptionId === required.subscriptionId);
+    return this.recordedRows.filter(row => row.subscriptionId === required.subscriptionId);
   }
 }
 
@@ -80,7 +80,7 @@ test("list: each row summarises its most recent delivery by createdAt, whatever 
   const { call, deliveries } = makeHarness();
   const withDeliveries = await created(call, ["post.published"]);
   const without = await created(call, ["post.published"]);
-  deliveries.rows = [
+  deliveries.recordedRows = [
     delivery("d-mid", "2026-09-02T00:00:00.000Z", withDeliveries.id),
     delivery("d-new", "2026-09-03T00:00:00.000Z", withDeliveries.id),
     delivery("d-old", "2026-09-01T00:00:00.000Z", withDeliveries.id),
@@ -95,7 +95,7 @@ test("list: each row summarises its most recent delivery by createdAt, whatever 
 test("get_deliveries: limit is defaulted, floored and capped, and rows come back newest first", async () => {
   const { call, deliveries } = makeHarness();
   const subscription = await created(call, ["post.published"]);
-  deliveries.rows = [
+  deliveries.recordedRows = [
     delivery("d-old", "2026-09-01T00:00:00.000Z", subscription.id),
     delivery("d-new", "2026-09-03T00:00:00.000Z", subscription.id),
   ];
@@ -115,7 +115,7 @@ test("update: topics must be an array of strings; a valid update reports the lat
       /topics must be an array of strings/,
     );
   }
-  deliveries.rows = [delivery("d-1", "2026-09-01T00:00:00.000Z", subscription.id)];
+  deliveries.recordedRows = [delivery("d-1", "2026-09-01T00:00:00.000Z", subscription.id)];
   const updated = await call("webhooks_update_subscription", { subscriptionId: subscription.id, label: "Renamed", targetUrl: "https://example.test/hooks", topics: ["post.published"] });
   assert.equal(updated.subscription.label, "Renamed");
   assert.equal(updated.subscription.lastDelivery?.id, "d-1");

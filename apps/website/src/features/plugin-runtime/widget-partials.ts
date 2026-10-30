@@ -3,7 +3,7 @@
 import { renderPluginWidgetFragments, type PluginContributionRegistry, type PluginActivationRepoPort } from '@jini-ai/plugins/host';
 import { markersOfType, PARTIAL_MARKER_TYPE } from '@jini-ai/cms/widgets/markers';
 import { validateServerWidgetFragment } from '@jini-ai/cms/widgets/html';
-import { expandPartials } from '../theme/static-render.js';
+import { expandPartials } from '../theme/rendering.js';
 export async function renderPluginWidgetPartials(required: {
   html: string; workspaceId: string; contributions: PluginContributionRegistry;
   activationRepo: PluginActivationRepoPort;

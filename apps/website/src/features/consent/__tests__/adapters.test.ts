@@ -5,6 +5,7 @@ import type { Request } from 'express';
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
 import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, resolveSiteConsentActivation, SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, SITE_CONSENT_OFF } from '../settings.js';
 import { createSiteConsentRequestPorts } from '../host.js';
+import { renderSiteConsentPreview } from '../cookie-consent.js';
 import { ensureSettingsUiTabDefinitions } from '../../webmcp/settings.js';
 
 const clock = { nowMs: () => Date.parse('2026-10-09T12:00:00.000Z'), nowIso: () => '2026-10-09T12:00:00.000Z' };
@@ -175,7 +176,10 @@ test('consent has independent readiness after the shared ledger boot and cannot 
 test('all no-choice sites default ON, including missing definitions', async () => {
   for (const register of [false, true]) {
     const { settingsRepo } = await ledger({ register });
-    assert.deepEqual(await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), { ...SITE_CONSENT_DEFAULTS, reopen: 'link' });
+    const config = await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get();
+    assert.deepEqual(config, { ...SITE_CONSENT_DEFAULTS, reopen: 'link' });
+    assert.equal(config.privacyPolicyUrl, '/privacy');
+    assert.match(renderSiteConsentPreview({ config, policy: config.policyVersion }).body, /<a href="\/privacy">Privacy policy<\/a>/);
     assert.deepEqual(await resolveSiteConsentActivation({ settingsRepo, workspaceId: 'site-a' }), { enabled: true, source: 'default' });
   }
 });
@@ -184,6 +188,14 @@ test('the ledger default stays distinguishable from an explicit owner choice', a
   const { settingsRepo } = await ledger();
   const definition = await settingsRepo.findActiveDefinition({ namespace: SITE_CONSENT_NAMESPACE, key: 'enabled', workspaceId: null });
   assert.equal(definition?.defaultValue, false);
+  const privacy = await settingsRepo.findActiveDefinition({ namespace: SITE_CONSENT_NAMESPACE, key: 'privacyPolicyUrl', workspaceId: null });
+  assert.equal(privacy?.defaultValue, '', 'privacy bootstrap must still select the site page');
+});
+
+test('an explicit empty owner privacy URL is not replaced by the host default', async () => {
+  const { settingsRepo, write } = await ledger();
+  await write('privacyPolicyUrl', '');
+  assert.equal((await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get()).privacyPolicyUrl, '');
 });
 
 test('explicit owner ON and OFF win over the product default', async () => {

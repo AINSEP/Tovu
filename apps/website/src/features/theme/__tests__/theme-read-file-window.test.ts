@@ -59,6 +59,45 @@ test("t02: no params retains the pinned complete response and bytes", async (t) 
   assert.equal(JSON.stringify(result), JSON.stringify(expected));
 });
 
+test('s5: an 80 KB single-line CSS read is bounded and nextOffset recovers every byte', async t => {
+  const content = 'a'.repeat(3999) + '😀' + 'body{color:red}'.repeat(6000);
+  const { read } = fixture(t, content, true, { filePath: 'large.css' });
+  let offset: number | undefined;
+  let recovered = '';
+  do {
+    const result = await read(offset === undefined ? {} : { offset }) as {
+      content: string; offset: number; nextOffset: number | null; totalBytes: number; truncated: boolean;
+    };
+    assert.ok(Buffer.byteLength(result.content) <= 4000);
+    assert.equal(result.offset, offset ?? 0);
+    assert.equal(result.totalBytes, Buffer.byteLength(content));
+    assert.equal(result.truncated, result.nextOffset !== null);
+    assert.ok(!result.content.includes('�'));
+    recovered += result.content;
+    if (result.nextOffset === null) break;
+    assert.ok(result.nextOffset > result.offset);
+    offset = result.nextOffset;
+  } while (true);
+  assert.equal(recovered, content);
+});
+
+test('s5: a line window containing a minified line is also paged without losing its range', async t => {
+  const { read } = fixture(t, 'header\n' + 'x'.repeat(80000) + '\nfooter');
+  const first = await read({ startLine: 2, lineCount: 1 }) as { content: string; nextOffset: number; returned: unknown };
+  assert.equal(first.content, 'x'.repeat(4000));
+  assert.equal(first.nextOffset, 4000);
+  assert.deepEqual(first.returned, { startLine: 2, endLine: 2 });
+  const next = await read({ startLine: 2, lineCount: 1, offset: first.nextOffset }) as { content: string; offset: number };
+  assert.equal(next.content, 'x'.repeat(4000));
+  assert.equal(next.offset, 4000);
+});
+
+test('s5: byte cursors reject invalid positions before returning content', async t => {
+  const { read } = fixture(t, 'é'.repeat(3000));
+  for (const offset of [-1, 0.5, 1, 7000]) await assert.rejects(read({ offset }), /offset/);
+  await assert.rejects(read({ offset: 0, find: 'é' }), /offset.*find/);
+});
+
 test("t02: line window is one-based, preserves CRLF and reports UTF-8 bytes", async (t) => {
   const content = "é first\r\nsecond\r\nthird\r\nlast";
   assert.deepEqual(await fixture(t, content).read({ startLine: 2, lineCount: 2 }), {

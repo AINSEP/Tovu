@@ -2,8 +2,7 @@
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 // Catalog/migration rationale: Jini/packages/user-management/src/core/builtin-permissions.ts.
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort, UUID } from "@jini-ai/core/primitives";
-import { contentKernel, type ContentKernel } from "../../platform/db/content-kernel.js";
-import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
+import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { authorize as authorizeCore } from "@jini-ai/user-management/server";
 import { Argon2PasswordHasher, loadArgon2Binding } from "@jini-ai/user-management/server";
 import { migrateDeprecatedPermissionGrants } from "@jini-ai/user-management/server";
@@ -50,13 +49,8 @@ import { createIdentityTransactions } from "./repo.js";
  * identity repos — see `inbound/admin-http/dev-auth.ts`.
  */
 
-/**
- * SPEC-022 §4.2 / `production-readiness-gate.ts` — the literal owner-password default this
- * module seeds when `TOVU_ADMIN_PASSWORD` is unset. Exported (not inlined below) so
- * `runBootGateOrExit()` in `src/index.ts` can compare the configured password against the exact
- * same value this seeder falls back to, with no second copy of the string to drift out of sync.
- */
-export const DEFAULT_OWNER_PASSWORD = "tovu-dev";
+import { DEFAULT_OWNER_PASSWORD } from "#src/platform/site-dir/index";
+export { DEFAULT_OWNER_PASSWORD } from "#src/platform/site-dir/index";
 
 /** The first-boot owner login `seedIdentity` creates when no owner exists yet. */
 export interface OwnerCredentials {
@@ -331,8 +325,8 @@ export function createSqliteIdentityRouteDeps(
     /** The first-boot owner login: explicit for init; the serving site's root passes
      *  `resolveOwnerCredentials({ env: process.env })` (its existing env contract). */
     ownerCredentials: OwnerCredentials;
-    /** The content kernel, or the SQLite handle it is derived from. */
-    db: ContentKernel | ContentDb;
+    /** The content kernel supplied by the composition root. */
+    db: ContentKernel;
     workspaceId: UUID;
     clock: ClockPort | { nowIso(): string };
     idGen: IdGeneratorPort;
@@ -355,9 +349,8 @@ export function createSqliteIdentityRouteDeps(
   } = {},
 ): IdentityRouteDepsSlice {
   const { db, ...seedRequired } = required;
-  const kernel = contentKernel(db);
   const repos: IdentityRepos = {
-    transactions: createIdentityTransactions({ kernel }),
+    transactions: createIdentityTransactions({ kernel: db }),
     principals: new SqlitePrincipalRepo(db),
     users: new SqliteUserRepo(db),
     sessions: new SqliteSessionRepo(db),

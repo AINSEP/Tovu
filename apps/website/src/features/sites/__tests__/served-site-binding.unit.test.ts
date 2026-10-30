@@ -90,6 +90,7 @@ function duplicateDeps(fixture: ReturnType<typeof setupTrees>, calls: Array<{ so
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "test" }),
     isSiteSwitcherEnabled: () => true,
+    createSite: async () => assert.fail("unexpected site creation"),
     siteBinding: fixture.binding,
     sitesWorkspace: fixture.sitesWorkspace,
     listSites: fixture.listFixtureSites,
@@ -105,6 +106,7 @@ test("site dependency resolution defaults to the shared site-dir implementations
   const resolved = resolveSitesDeps({
     workspaceId: WORKSPACE_ID,
     authorize: async () => ({ allowed: true, reason: "test" }),
+    createSite: async () => assert.fail("unexpected site creation"),
     siteBinding: fixture.binding,
   });
 

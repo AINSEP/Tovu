@@ -14,7 +14,7 @@ import {
   type ExternalMcpOAuthService,
   type ExternalMcpServerRecord,
   type ExternalMcpServerRepoPort,
-} from "#src/assistant/index";
+} from "#src/assistant/mcp-services";
 import { externalMcpRecordHasStaticAccessToken } from "../external-mcp/auth-mode.js";
 
 import { buildAgentPluginConnectCard } from "./connect-card-ui.js";

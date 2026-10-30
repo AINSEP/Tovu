@@ -2,7 +2,7 @@ import { sql } from "kysely";
 
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { PostSearchDocument, PostSearchQuery } from "./search.js";
-import { type PostSearchDialect, type PostSearchRow, toPostSearchHit } from "./search-index.js";
+import { type PostSearchDialect, type PostSearchRow, toPostSearchHit } from "./search-index.contract.js";
 
 /**
  * @file Post search on Postgres and PGlite: a `tsvector` column with a GIN index, ranked with

@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type Database from "better-sqlite3";
@@ -74,7 +75,7 @@ function harness(): Harness {
 
   const trashRepo = new SqliteTrashRepo(client);
   let seq = 0;
-  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter(client)]]);
+  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel(client))]]);
   const trash = createTrashService({
     repo: trashRepo,
     adapters,

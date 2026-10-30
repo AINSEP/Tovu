@@ -1,4 +1,6 @@
-import type { PublishHistoryStore } from "#src/features/deployments/static-publish/publish-history";
+export type { PublishContentToolDeps } from "./tool-deps.js";
+import type { PublishContentToolDeps } from "./tool-deps.js";
+import type { PublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { toolMetadata } from '../../contracts/core/tool-metadata/publish-content.js';
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -11,7 +13,7 @@ import { requireToolPermission } from "@jini-ai/cms/core";
 // `features/site-evidence/tool-registrations.ts`.
 import { ToolInputError } from "@jini-ai/core";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 import { plan as gatewayPlan, confirm as gatewayConfirm, execute as gatewayExecute, ForbiddenError, PlanStaleError, type GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
@@ -103,67 +105,6 @@ const publishContentDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
 ]);
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: publishContentAgentToolCatalog });
-
-/** Publish planning needs the complete contributor ports, including taxonomy import lookups.
- * Other tools' read-only repo slices cannot describe these capabilities; composition supplies the
- * same concrete ports it supplies to the HTTP importer. */
-interface PublishContentToolSources {
-  postRepo: PublishContentPorts["post"]["repo"];
-  formDefinitionRepo: PublishContentPorts["form"]["repo"];
-  contentTypeRepo: PublishContentPorts["content-type"]["repo"];
-  contentTypeIndexProvisioner: PublishContentPorts["content-type"]["indexProvisioner"];
-  taxonomyRepo: PublishContentPorts["taxonomy"]["taxonomies"];
-  termRepo: PublishContentPorts["taxonomy"]["terms"];
-  entryTermRepo: PublishContentPorts["taxonomy"]["entryTerms"];
-  taxonomyRevisionRepo: PublishContentPorts["taxonomy"]["revisions"];
-  stampWatermark: PublishContentPorts["taxonomy"]["stampWatermark"];
-  entryRepo: EntryPublishPorts["entries"] & WidgetPublishPorts["entries"];
-  entryRefsRepo: WidgetPublishPorts["entryRefs"];
-  widgetBindingRepo: WidgetPublishPorts["bindings"];
-  settingsRepo: PublishContentPorts["site-setting"]["settings"];
-  principalRepo: PublishContentPorts["site-setting"]["principals"];
-  presentationRepo: PublishContentPorts["active-theme"]["presentation"];
-  themes: PublishContentPorts["active-theme"]["themes"];
-}
-
-export interface PublishContentToolDeps extends PublishContentPullDeps, PublishContentToolSources {
-  blobStore: PublishContentPullDeps["blobStore"] & CompositeBlobStoreRead;
-  gatedMutations: { gatewayDeps: GatewayDeps };
-  publishContentBaselineRepo: BuildPublishContentImportHooksInput["baselineRepo"];
-  publishContentRunRepo: PublishContentRunRepoPort;
-  publishContentApplyPort: BuildPublishContentImportHooksInput["applyPort"];
-  publishContentSeedHash?: BuildPublishContentImportHooksInput["getSeedHash"];
-  restorePointsRepo: BuildPublishContentImportHooksInput["restorePointsRepo"];
-  dbOps: BuildPublishContentImportHooksInput["dbOps"] & {
-    getCapabilities(): Promise<{ restorePoint: { costClass: "cheap" | "expensive" | "unavailable" } }>;
-  };
-  /** Composition injects the SAME projection the HTTP importer uses, without a feature->server import. */
-  makePublishContentDeps?: () => PublishContentDeps;
-  workspaceId: string;
-  authorize: PublishContentToolAuthorize;
-  clock: Clock;
-  idGen: { newId(): string };
-  pluginBeforeSaveHook: BeforeSaveHookPort | undefined;
-  outbox: OutboxPort | undefined;
-  /** One-bag-per-type ports for callers supplying an explicit projection. Production uses
-   *  makePublishContentDeps so pulls share the HTTP importer's complete projection. */
-  publishContentPorts?: Partial<PublishContentPorts>;
-  /** Needed by the shared production content projection for theme-file pulls. */
-  fileBlobIndex: NonNullable<PublishContentPorts["theme-files"]["fileBlobIndex"]>;
-  mediaRepo: PublishContentPorts["media"]["repo"];
-  workspaceRepo: { findById(required: { id: string }): Promise<{ name?: string } | null> };
-  publishContentPeerRepo: PublishContentPeerRepoPort;
-  publishHistoryStore?: PublishHistoryStore;
-  publishContentPeerHttpClient: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["httpClient"];
-  siteAssistantSecretSealer: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["sealer"];
-  siteAssistantSecretKeyring: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["keyring"];
-  /** Test seam. Absent in production, where the committed-config port is composed below. */
-  publishTrustProvisioning?: PublishTrustProvisioningPort;
-  /** Test seam. Absent in production, where the repo's own deploy config is read. */
-  findPublishCandidate?: () => Promise<string | null>;
-}
-
-type PublishContentToolAuthorize = Parameters<typeof requireToolPermission>[0]["authorize"];
 
 /** The real committed-config provisioning port — the same three constants
  *  `server/runtime/composition/modules/publish-content.ts` composes for the HTTP route, resolved
@@ -432,9 +373,9 @@ export { publishContentDerivedRisk };
  * @example contributePublishContentTools({ buildPublishContentDeps: toPublishContentDeps });
  * @complexity O(1); registrations are built lazily by the contributor's build callback.
  */
-export function contributePublishContentTools(options: {
-  buildPublishContentDeps?: (deps: Parameters<ToolContributor["build"]>[0]) => PublishContentDeps;
-} = {}): ToolContributor {
+export function contributePublishContentTools<TDeps extends PublishContentToolDeps = PublishContentToolDeps>(options: {
+  buildPublishContentDeps?: (deps: TDeps) => PublishContentDeps;
+} = {}): ToolContributor<TDeps, AssistantSurfaceDeps> {
   return { domain: "publish-content", risk: publishContentDerivedRisk, build: (deps, surfaces) => {
     const buildDeps = options.buildPublishContentDeps;
     return buildPublishContentRegistrations(buildDeps ? { ...deps, makePublishContentDeps: () => buildDeps(deps) } : deps, surfaces);

@@ -1,6 +1,6 @@
 import type { PublishTrustGrant } from "./grant.js";
 import { isGrantActive } from "./grant.js";
-import type { ProvisioningFileIo, PublishTrustResolution } from "./provisioning.js";
+import type { PublishTrustResolution } from "./provisioning.js";
 import { findGrantForSource } from "./provisioning.js";
 
 /**
@@ -66,13 +66,10 @@ export type RevocationWrite =
  *
  * Reconnecting is deliberately an explicit act rather than something a later publish or deploy can
  * do on its own. A revocation that could lapse by accident is not a revocation.
+ * Production has no revocation-file path or environment override: its deny rows live in the site's
+ * content database instead, so a missing second mount cannot silently reconnect a computer.
  */
 export interface PublishTrustRevocationPort {
-  /**
-   * Present only for the legacy file test adapter. Production deliberately has no revocation-file
-   * path: its deny rows live in the site's content database instead.
-   */
-  readonly path?: string;
   list(): Promise<RevocationRead>;
   revoke(input: {
     readonly sourceInstallationId: string;
@@ -138,11 +135,6 @@ function parseRevocationEntry(entry: unknown): PublishTrustRevocation | string {
   return { sourceInstallationId, revokedAt, note: typeof note === "string" ? note : null };
 }
 
-/** @complexity O(n) in the record count. */
-export function serializeRevocationDocument(revocations: readonly PublishTrustRevocation[]): string {
-  return `${JSON.stringify(revocations, null, 2)}\n`;
-}
-
 /**
  * True when `sourceInstallationId` has been disconnected.
  *
@@ -186,6 +178,8 @@ function refusalMessage(refusal: Exclude<AdmissionRefusal, never>, siteLabel: st
       return `${siteLabel} is still set up for this computer's previous sign-in. This happens right after the Site key is regenerated — reconnect and deploy once to finish the change.`;
     case "revocations-unreadable":
       return `${siteLabel} can't check which computers are allowed to publish right now, so it isn't accepting changes. This clears once the site is healthy again.`;
+    default:
+      return undefined as never;
   }
 }
 
@@ -232,10 +226,10 @@ export function admitPublish(input: {
 }
 
 // ---------------------------------------------------------------------------
-// The edits both adapters apply
+// The edits the in-memory adapter applies
 // ---------------------------------------------------------------------------
 
-/** One whole-list edit; both adapters apply the same two. */
+/** One whole-list edit for the in-memory adapter. */
 type RevocationEdit = (current: readonly PublishTrustRevocation[]) => readonly PublishTrustRevocation[];
 
 /**
@@ -271,44 +265,6 @@ function planEdit({ current, edit }: {
     return { ok: false, reason: `this site already lists ${MAX_REVOCATIONS} disconnected computers` };
   }
   return { ok: true, next, changed: JSON.stringify(next) !== JSON.stringify(current) };
-}
-
-// ---------------------------------------------------------------------------
-// The file-backed adapter
-// ---------------------------------------------------------------------------
-
-/**
- * Legacy file adapter retained only for parser/port unit tests. Production must use the SQLite
- * adapter; no composition root selects this adapter or exposes a revocation-file environment
- * override.
- *
- * @param deps - Test-controlled file I/O.
- * @complexity O(n) in the record count per call; one read and at most one write.
- */
-export function createFileRevocations(deps: {
-  readonly io: ProvisioningFileIo;
-  readonly path: string;
-}): PublishTrustRevocationPort {
-  const { io, path } = deps;
-
-  const list = async (): Promise<RevocationRead> => parseRevocationDocument((await io.read(path)) ?? "");
-
-  const applyEdit = async (edit: RevocationEdit): Promise<RevocationWrite> => {
-    const current = await list();
-    if (!current.ok) return current;
-
-    const plan = planEdit({ current: current.revocations, edit });
-    if (!plan.ok) return plan;
-    if (plan.changed) await io.write(path, serializeRevocationDocument(plan.next));
-    return { ok: true, revocations: plan.next, changed: plan.changed };
-  };
-
-  return {
-    path,
-    list,
-    revoke: (input) => applyEdit(revokeEdit(input)),
-    restore: (input) => applyEdit(restoreEdit(input)),
-  };
 }
 
 /**

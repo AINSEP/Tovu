@@ -20,6 +20,9 @@ export {
   presentScheduleFields,
   restorePostForward,
   updatePost,
+  EMAIL_TEMPLATE_KIND,
+  SYSTEM_ACTOR_ID,
+  hasPostBeenPublished,
   DEFAULT_BODY_JSON,
   MAX_SLUG_LENGTH,
   MAX_TITLE_LENGTH,
@@ -70,12 +73,13 @@ export {
   type PostSearchQuery,
 } from "./search.js";
 export { extractPlainTextFromHtml } from "./html-plain-text.js";
-export { startPostGoLiveSweep, type GoLiveCandidatesPort } from "./go-live.js";
+export { announcePendingGoLive, startPostGoLiveSweep, type GoLiveCandidatesPort } from "./go-live.js";
 export { resolveFeaturedImageRef, resolveFeaturedMediaIdForWrite, type FeaturedImageDeps } from "./featured-image.js";
 export { InMemoryPostRepo } from "./repo.memory.js";
 export { SqlitePostRepo } from "./repo.sqlite.js";
 export { InMemoryPostSearchIndex } from "./search-index.memory.js";
 export { backfillPostSearchIndex, PostSearchIndex, postSearchFor, postSearchIndexFor, preparePostSearchIndex, reindexStalePostSearchIndex } from "./search-index.js";
-export { SqlitePostSearchIndex } from "./search-index.sqlite.js";
+// Defined in `search-index.ts` (a subclass in the SQLite adapter would be evaluated inside the module cycle).
+export { SqlitePostSearchIndex } from "./search-index.js";
 export { CONTENT_POST_DELETE_TOOL_ID } from "./agent-tools.js";
 export { createPostReverters, createPostRevertRegistry, type PostReverterDeps } from "./reverters.js";

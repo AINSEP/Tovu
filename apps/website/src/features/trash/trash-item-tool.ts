@@ -261,8 +261,9 @@ function trashItemToolDefinition(reachableKinds: readonly TrashEntityType[]): Ag
       properties: {
         entityType: {
           type: "string",
-          enum: [...reachableKinds],
-          description: "Which kind of thing to trash.",
+          enum: [...reachableKinds, ...(reachableKinds.includes(POST_ENTITY_TYPE) ? ["page"] : [])],
+          aliases: ["kind"],
+          description: "Which kind of thing to trash. page uses the existing post adapter and content_post_delete; the stored Trash entityType is post.",
         },
         entityId: { type: "string", minLength: 1, description: "That thing's own id." },
       },
@@ -490,11 +491,14 @@ export function deriveTrashItemRegistrations(
   const handlers: Record<string, ToolHandler> = {
     trash_item: async (ctx, options = {}) => {
       const input = requireInputRecord({ input: ctx.input });
-      const entityType = requireString({ input: input, key: "entityType" });
+      const requestedType = requireString({ input: input, key: "entityType" });
+      // Pages already use the post delete service/adapter. Keep one stored Trash kind so list,
+      // restore, revisions and publication hooks all retain their existing owner.
+      const entityType = requestedType === "page" ? POST_ENTITY_TYPE : requestedType;
 
       // Against the live adapter map, on every call — never a list captured when this was built.
       const kindHandler = handlerByEntityType.get(entityType);
-      if (kindHandler && routeDeps.isTrashableEntityType(entityType)) return kindHandler(ctx, options);
+      if (kindHandler && routeDeps.isTrashableEntityType(entityType)) return kindHandler({ ...ctx, input: { ...input, entityType } }, options);
 
       requireString({ input: input, key: "entityId" });
       const accepted = reachableKinds.filter((kind) => routeDeps.isTrashableEntityType(kind));

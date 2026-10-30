@@ -192,18 +192,23 @@ test("a 'secrets' path segment is refused through the real handler", async () =>
 // 4. The operator-set `custom` root.
 // ---------------------------------------------------------------------------
 
-test("site agents refuse repo and outside custom roots at execution (owner 2026-10-23)", async () => {
+// s5 owner brief supersedes e0d811ab0 only for the owner-picked external read grant.
+test("site agents refuse repo and other-site selectors while allowing picked-folder reads", async () => {
   const { roots } = makeFixtureRoots();
   const outside = path.dirname(roots.site);
   fs.writeFileSync(path.join(outside, "outside-canary.txt"), "OUTSIDE_CANARY_CONTENT");
   const deps = toolDeps({ siteBinding: { dir: roots.site }, resolveRoots: () => ({ ...roots, custom: outside }) });
   for (const toolId of [FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID]) {
     const handler = handlerFor(buildFsFilesRegistrations(deps), toolId);
-    for (const root of ["repo", "custom"]) {
-      await assert.rejects(() => handler(toolContext({ root, path: "outside-canary.txt" }, toolId)));
-    }
+    await assert.rejects(() => handler(toolContext({ root: "repo", path: "outside-canary.txt" }, toolId)));
     await assert.rejects(() => handler(toolContext({ root: "site", path: "outside-canary.txt", site: "another-site" }, toolId)), /active site/);
   }
+  const registrations = buildFsFilesRegistrations(deps);
+  const read = await handlerFor(registrations, FS_READ_FILE_TOOL_ID)(toolContext({ root: "custom", path: "outside-canary.txt" }, FS_READ_FILE_TOOL_ID)) as { content: string };
+  assert.equal(read.content, "OUTSIDE_CANARY_CONTENT");
+  const listing = await handlerFor(registrations, FS_LIST_FILES_TOOL_ID)(toolContext({ root: "custom" }, FS_LIST_FILES_TOOL_ID));
+  assert.ok(JSON.stringify(listing).includes("outside-canary.txt"));
+  await assert.rejects(() => handlerFor(registrations, FS_READ_FILE_TOOL_ID)(toolContext({ root: "custom", path: "../unpicked.txt" }, FS_READ_FILE_TOOL_ID)), /folder button/);
 });
 
 test("an in-site custom root reads normally without exposing a sibling canary", async () => {
@@ -233,11 +238,12 @@ test('a custom-root symlink replaced between validation and reading cannot estab
   fs.symlinkSync(safe, alias);
   const originalRealpath = fs.realpathSync;
   let aliasResolutions = 0;
-  t.mock.method(fs, 'realpathSync', (input, options) => {
+  t.mock.method(fs, 'realpathSync', (...args: Parameters<typeof originalRealpath>) => {
+    const [input] = args;
     if (String(input) === alias && ++aliasResolutions === 3) {
       fs.rmSync(alias); fs.symlinkSync(outside, alias);
     }
-    return originalRealpath(input, options);
+    return originalRealpath(...args);
   });
   const deps = toolDeps({ siteBinding: { dir: site }, resolveRoots: () => ({ ...roots, site, custom: alias }) });
   const handler = handlerFor(buildFsFilesRegistrations(deps), FS_READ_FILE_TOOL_ID);

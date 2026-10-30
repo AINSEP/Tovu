@@ -4,7 +4,7 @@ import { parse, type DefaultTreeAdapterMap } from 'parse5';
 type Node = DefaultTreeAdapterMap['childNode'];
 type Element = DefaultTreeAdapterMap['element'];
 /** Which consent engine delivered the page: the old one marks its runtime; cookie-consent emits its
- * config script and opens on `data-consent-open`. TODO(P4): drop 'legacy'. */
+ * config script and opens on `data-consent-open`. P4 follow-up: drop 'legacy'. */
 type Engine = 'legacy' | 'cookie-consent';
 const ANCHORS: Readonly<Record<Engine, string>> = {
   legacy: '<a href="#jini-consent" data-jini-consent-open>Cookie settings</a>',
@@ -20,7 +20,7 @@ const ownControl = ({ engine, tag, attrs }: { engine: Engine; tag: string; attrs
   ? attrs.has('data-jini-consent-open') : attrs.has('data-consent-open') || (tag === 'a' && attrs.get('href') === '#privacy-choices');
 
 /** Legacy only: the engine's own section says whether it reopens through a link; undefined for any other
- * element. TODO(P4): delete with the legacy engine. */
+ * element. P4 follow-up: delete with the legacy engine. */
 const legacyReopensByLink = ({ engine, tag, attrs }: { engine: Engine; tag: string; attrs: Map<string, string> }) =>
   engine === 'legacy' && tag === 'section' && attrs.get('id') === 'jini-consent' ? attrs.get('data-reopen') === 'link' : undefined;
 
@@ -51,6 +51,13 @@ function lastRow({ footer }: { footer: Element }, _options = {}): Element {
   }
 }
 
+/** Keep the footer whose content ends last, including implicitly closed markup. */
+function laterFooter({ node, footer }: { node: Element; footer: Element | null }, _options = {}): Element | null {
+  if (node.tagName !== 'footer') return footer;
+  const previousEnd = footer ? contentEnd({ node: footer }) : -1;
+  return contentEnd({ node }) > previousEnd ? node : footer;
+}
+
 /** Locate the live engine UI and the theme's footer/body insertion point in one parse.
  * The last-ending footer is the page footer: article/card footers close before it. A theme that
  * already ships its own live control keeps it alone, so the page never shows two links. */
@@ -63,7 +70,7 @@ function linkPlacement({ html }: { html: string }, { engine = 'legacy' }: { engi
     const attrs = new Map(node.attrs.map(attr => [attr.name, attr.value]));
     if (ownControl({ engine, tag: node.tagName, attrs })) return { enabled: false, offset: 0, inline: false };
     enabled = legacyReopensByLink({ engine, tag: node.tagName, attrs }) ?? enabled;
-    if (node.tagName === 'footer' && contentEnd({ node }) > (footer ? contentEnd({ node: footer }) : -1)) footer = node;
+    footer = laterFooter({ node, footer });
     if (node.tagName === 'body') bodyEnd = contentEnd({ node }, { fallback: bodyEnd });
   }
   if (!footer) return { enabled, offset: bodyEnd, inline: false };

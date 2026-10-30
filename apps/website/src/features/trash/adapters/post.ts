@@ -4,7 +4,7 @@
  * Column-only, by contract — `posts.body_json` is never read here, so a post whose body JSON is
  * unparseable is still trashable and restorable.
  */
-import { tableExists } from "../../../platform/db/kernel/dialect.js";
+import { tableExists } from "@jini-ai/db/kernel";
 import { loose } from "../entry-sql.js";
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";

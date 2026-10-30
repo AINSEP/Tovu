@@ -20,7 +20,7 @@ export const SITE_CONSENT_DEFAULTS = {
   // A configured trusted header resolves US opt-out; unknown stays strict (Reject shown).
   regionMode: 'auto' as SiteConsentRegionMode,
   policyVersion: '1',
-  privacyPolicyUrl: '',
+  privacyPolicyUrl: '/privacy',
   secondaryLinkLabel: '',
   secondaryLinkUrl: '',
   title: 'Your cookie choices',

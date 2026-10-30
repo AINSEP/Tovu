@@ -1,6 +1,6 @@
 import type { PurgeCounts, UserPurgePort, UserPurgeReason } from "#src/features/identity/user-purge-types";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import type { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
 import type { DomainEvent } from "@jini-ai/cms/core";
 
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
@@ -32,6 +32,7 @@ import { lazyKernel, type MarkerStore } from "./marker-sql.js";
 export const USER_ENTITY_TYPE = "user";
 
 export interface UserTrashAdapterDeps {
+  eventValues: typeof outboxEventValues;
   /** Host identity guard, bound in production for manual actions and retention. */
   assertAccountAction?: (required: { workspaceId: string; principalId: string; action: "trash" | "purge" }, optional: { callerPrincipalId?: string }) => Promise<void>;
   /** The content kernel (or, while call sites still hold one, the `content.db` handle). */
@@ -76,8 +77,8 @@ async function readDisplayUsername(kernel: ContentKernel, workspaceId: string, p
 }
 
 /** @complexity O(1), one insert. */
-async function appendEvent(kernel: ContentKernel, event: DomainEvent): Promise<void> {
-  await kernel.run((db) => db.insertInto("outbox_events").values(outboxEventValues(event)).execute());
+async function appendEvent({ kernel, event, eventValues }: { kernel: ContentKernel; event: DomainEvent; eventValues: typeof outboxEventValues }, _optional = {}): Promise<void> {
+  await kernel.run((db) => db.insertInto("outbox_events").values(eventValues(event)).execute());
 }
 
 /**
@@ -133,7 +134,7 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
         );
 
         const username = await readDisplayUsername(k, workspaceId, entityId, before.displayName);
-        await appendEvent(k, {
+        await appendEvent({ kernel: k, eventValues: deps.eventValues, event: {
           id: idGen.next(),
           name: "identity.user.trashed",
           occurredAt: clock.nowIso(),
@@ -141,7 +142,7 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
           workspaceId,
           ...(optional.actor ? { actorId: optional.actor.principalId } : {}),
           payload: { principalId: entityId, username, priorStatus: before.status, sessionsRevoked: Number(revoked.numDeletedRows) },
-        });
+        } });
 
         return { ok: true, version: null, priorMarker: before.status };
       });
@@ -171,7 +172,7 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
         if (Number(restored.numUpdatedRows) === 0) return { ok: false, reason: "version-changed" };
 
         const username = await readDisplayUsername(k, workspaceId, entityId, before.displayName);
-        await appendEvent(k, {
+        await appendEvent({ kernel: k, eventValues: deps.eventValues, event: {
           id: idGen.next(),
           name: "identity.user.restored",
           occurredAt: clock.nowIso(),
@@ -179,7 +180,7 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
           workspaceId,
           ...(optional.actor ? { actorId: optional.actor.principalId } : {}),
           payload: { principalId: entityId, username, restoredStatus },
-        });
+        } });
 
         return { ok: true, version: null };
       });

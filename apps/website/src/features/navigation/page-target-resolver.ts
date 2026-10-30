@@ -1,5 +1,5 @@
 import type { PostRepoPort } from "#src/features/post/index";
-import { entryPublicPath } from "#src/platform/routing/adapter";
+import { entryPublicPath } from "#src/platform/routing/index";
 import { isAllowedHref } from "@jini-ai/cms/navigation";
 import type { ResolveTargetHrefFn } from "./index.js";
 

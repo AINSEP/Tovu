@@ -206,7 +206,7 @@ test("L025b host admission surrounds publication and same-byte no-ops", async ()
   await withLayout(async layout => {
     const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("hosted") }]);
     const candidates: unknown[] = [];
-    const pluginHost: import("../../../../contracts/headless/plugin-host.js").PluginHostPort = {
+    const pluginHost: import("../../../../contracts/headless/index.js").PluginHostPort = {
       getPlugin: async () => null,
       findProviders: async () => [],
       getHostCapability: () => undefined,

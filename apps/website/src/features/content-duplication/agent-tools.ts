@@ -22,15 +22,10 @@
  * `tool-registrations.ts`'s handler.
  */
 
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "deletes-durable-state" | "mints-token";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition;
 
 export const contentDuplicationAgentToolCatalog: AgentToolDefinition[] = [
   {

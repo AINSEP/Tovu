@@ -6,7 +6,7 @@ import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/hu
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
 import { FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
-import { resolveOperatorLocale } from "./operator-locale.js";
+import { resolveOperatorLocale } from "../settings/index.js";
 import {
   AgentPluginChangedSincePreviewError,
   AgentPluginNotFoundError,
@@ -47,8 +47,8 @@ import { describeAgentPluginUninstallApproval } from "./uninstall-confirmation-u
  * radii (site plugins go to the Trash; Agent Plugins do not).
  */
 
-import type { AgentPluginUninstallToolDeps } from '../../contracts/headless/plugin-host.js';
-export type { AgentPluginUninstallToolDeps } from '../../contracts/headless/plugin-host.js';
+import type { AgentPluginUninstallToolDeps } from '../../contracts/headless/index.js';
+export type { AgentPluginUninstallToolDeps } from '../../contracts/headless/index.js';
 
 /**
  * Re-classifies `uninstallAgentPlugin`'s own domain errors into `ToolInputError` on their way to the

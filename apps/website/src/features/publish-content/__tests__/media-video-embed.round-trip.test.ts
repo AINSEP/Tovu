@@ -139,7 +139,7 @@ test("publishing only a video media item carries its poster along, and the recei
   const rendered = renderHtmlPageBody(html, resolved);
 
   assert.doesNotMatch(rendered, /<img\b/);
-  assert.match(rendered, /<video\b[^>]*\bsrc="\/m\/promo-01\/original\.mp4"/);
+  assert.equal(rendered.match(/<video\b[^>]*\bsrc="([^"]*)"/)?.[1], `/m/promo-01/original.mp4?v=${VIDEO_SHA.slice(0, 12)}`);
   assert.match(rendered, /<video\b[^>]*\bposter="\/m\/promo-poster\/public\.v1\/image\.webp"/);
 
   // The poster URL resolves on the receiving site: its media row and bytes are both there.

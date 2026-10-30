@@ -1,6 +1,9 @@
 import type { ContentTypeFieldDef, ContentTypeFieldKind, ContentTypeRecord } from "#src/features/content-types/index";
-import { NAV_MENU_CONTENT_TYPE } from "@jini-ai/cms/navigation/types";
-import type { EntryRecord, EntryStatus } from "./index.js";
+import type { EntryRecord } from "@jini-ai/cms/entries";
+import { SYSTEM_CONTENT_TYPES, COLLECTION_LIST_FAQ_PAGE, isCollectionListLayout } from "./contracts.js";
+import type { CollectionListLayout, CollectionListStructuredData } from "./contracts.js";
+export { SYSTEM_CONTENT_TYPES, COLLECTION_LIST_LAYOUTS, COLLECTION_LIST_FAQ_PAGE, isCollectionListLayout } from "./contracts.js";
+export type { CollectionListLayout, CollectionListStructuredData, EntryListExcludingTypesPort } from "./contracts.js";
 
 /**
  * @file Collections plan C1 (`collections-exec-plan-2026-09-23.md` lines 125-148) — the pure
@@ -11,11 +14,6 @@ import type { EntryRecord, EntryStatus } from "./index.js";
  * export here is a pure function over already-loaded data (mirrors the post-previews clamp
  * precedent at `features/theme/static-render.ts:403-436`, generalized to a full config shape).
  */
-
-/** Content types a collection list must never resolve against, even if asked to by config —
- * these are platform plumbing, not user content (D8). `NAV_MENU_CONTENT_TYPE` is re-exported from
- * the `@jini-ai/cms` navigation package via this repo's own barrel. */
-export const SYSTEM_CONTENT_TYPES: readonly string[] = ["widget", "widget_area", NAV_MENU_CONTENT_TYPE];
 
 /** Field kinds a card/list item may display by default. `relation` and `json` are excluded from
  * the default set (D-plan "relation/json never shown by default") — they still render when named
@@ -63,21 +61,6 @@ export interface CollectionListQuery {
   readonly offset?: number;
 }
 
-/** Every collection-list presentation `theme/entry-list-render.ts` renders. `accordion` (an FAQ
- *  disclosure list) and `carousel` (a scroll-snap track of cards) were added for AW-7's zero-code
- *  Testimonials + FAQ plugin (2026-10-04). */
-export const COLLECTION_LIST_LAYOUTS = ["cards", "list", "accordion", "carousel"] as const;
-export type CollectionListLayout = (typeof COLLECTION_LIST_LAYOUTS)[number];
-
-/** Whether `value` names a {@link COLLECTION_LIST_LAYOUTS} member. @complexity O(1) */
-export function isCollectionListLayout(value: unknown): value is CollectionListLayout {
-  return (COLLECTION_LIST_LAYOUTS as readonly unknown[]).includes(value);
-}
-
-/** The only structured-data block a collection list can opt into: schema.org `FAQPage`. */
-export const COLLECTION_LIST_FAQ_PAGE = "faq-page";
-export type CollectionListStructuredData = typeof COLLECTION_LIST_FAQ_PAGE;
-
 /** Presentation-only knobs, kept separate from {@link CollectionListQuery} because they never
  * reach the query layer: `columns`/`layout`/`structuredData` only affect markup, and `fields` only
  * affects which already-fetched entry fields a card/list item shows. */
@@ -102,31 +85,6 @@ export interface EntryDisplayListPort {
   listPublishedForDisplay(params: {
     readonly workspaceId: string;
     readonly query: CollectionListQuery;
-  }): Promise<EntryRecord[]>;
-}
-
-/**
- * Review fix 3b (`2026-09-23-review-E4-R1-report.md`): the legacy (no-`collection`) Recent
- * Entries path used to run `EntryListPort.listByWorkspace` bounded to the registered clamp and
- * only THEN filter {@link SYSTEM_CONTENT_TYPES} rows out — so a batch of system rows newer than
- * real content could fill the limited query result and crowd out (or fully replace) the real
- * entries the widget should show. This port excludes those types INSIDE the query instead, so the
- * `limit` only ever counts rows that could actually be shown. It is a new, local port (not a
- * change to `@jini-ai/cms`'s `EntryListPort`) — both entry repos (`repo.sqlite.ts`,
- * `trash-aware-memory-repo.ts`) implement it structurally, the same pattern
- * {@link EntryDisplayListPort} already established for C2.
- */
-export interface EntryListExcludingTypesPort {
-  /** @returns non-trashed entries whose `type` is NOT one of `excludeTypes`, matching `status`
-   * (when given), ordered by `orderBy`/`orderDirection`, bounded to `limit` — the exclusion is
-   * applied before `limit`, never after. */
-  listByWorkspaceExcludingTypes(params: {
-    readonly workspaceId: string;
-    readonly excludeTypes: readonly string[];
-    readonly status?: EntryStatus;
-    readonly orderBy?: "updatedAt";
-    readonly orderDirection?: "asc" | "desc";
-    readonly limit?: number;
   }): Promise<EntryRecord[]>;
 }
 

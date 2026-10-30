@@ -140,7 +140,9 @@ async function runBounded(count: number, concurrency: number, signal: AbortSigna
   let failure: PushFailure | null = null;
   const worker = async (): Promise<void> => {
     while (failure === null && !signal.aborted && next < count) {
-      const outcome = await work(next++);
+      const index = next;
+      next++;
+      const outcome = await work(index);
       if (outcome !== null && failure === null) failure = outcome;
     }
   };
@@ -157,7 +159,8 @@ export async function uploadPlannedContent(input: UploadPlannedContentInput): Pr
   const { plan, progress } = input;
   const builder = new EntryBuilder(input);
   const files = pendingFiles(plan);
-  const entries: BackupTreeEntry[] = new Array(files.length);
+  const entries: BackupTreeEntry[] = [];
+  entries.length = files.length;
   const failure = await runBounded(files.length, input.concurrency ?? SITE_BACKUP_UPLOAD_CONCURRENCY, input.signal, async (index) => {
     const file = files[index]!;
     const loaded = await file.load();

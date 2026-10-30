@@ -4,12 +4,10 @@ import test from "node:test";
 
 import type { PublishTrustGrant } from "../grant.js";
 import { PUBLISH_TRUST_GRANT_VERSION } from "../grant.js";
-import type { ProvisioningFileIo } from "../provisioning.js";
 import { resolvePublishTrust } from "../provisioning.js";
 import type { PublishTrustRevocation } from "../revocations.js";
 import {
   admitPublish,
-  createFileRevocations,
   createInMemoryRevocations,
   isRevoked,
   MAX_REVOCATIONS,
@@ -42,17 +40,6 @@ function grantFor(sourceInstallationId: string, overrides: Partial<PublishTrustG
     capabilities: ["publish_content.read", "publish_content.apply"],
     notAfter: "2027-09-19T12:00:00.000Z",
     ...overrides,
-  };
-}
-
-function memoryIo(seed: Record<string, string> = {}): ProvisioningFileIo & { files: Record<string, string> } {
-  const files = { ...seed };
-  return {
-    files,
-    read: async (path) => (path in files ? files[path] : null),
-    write: async (path, contents) => {
-      files[path] = contents;
-    },
   };
 }
 
@@ -143,10 +130,8 @@ test("an unreadable revocation list refuses everybody", () => {
   assert.equal(admission.allowed === false && admission.refusal, "revocations-unreadable");
 });
 
-test("a corrupt revocation file reads as unreadable, not as empty", async () => {
-  const io = memoryIo({ "/state/publish-trust-disconnected.json": "{ not json" });
-  const port = createFileRevocations({ io, path: "/state/publish-trust-disconnected.json" });
-  const read = await port.list();
+test("a corrupt revocation document reads as unreadable, not as empty", () => {
+  const read = parseRevocationDocument("{ not json");
 
   assert.equal(read.ok, false, "an empty read here would silently reconnect every disconnected computer");
 });
@@ -196,15 +181,6 @@ test("a revocation note must be a non-empty string when present", () => {
   assert.deepEqual(parseRevocationDocument(JSON.stringify([{ ...REVOKED_LAPTOP, note: 42 }])), {
     ok: false, reason: "a revocation 'note' must be a non-empty string when present",
   });
-});
-
-test("a missing revocation file is an empty list, which is the honest reading", async () => {
-  const io = memoryIo();
-  const port = createFileRevocations({ io, path: "/state/publish-trust-disconnected.json" });
-  const read = await port.list();
-
-  assert.equal(read.ok, true);
-  assert.deepEqual(read.ok ? read.revocations : null, [], "nothing has been disconnected yet");
 });
 
 // ---------------------------------------------------------------------------
@@ -257,8 +233,7 @@ test("a rotated Site key is explained as a rotation, not as a mystery", () => {
 // ---------------------------------------------------------------------------
 
 test("disconnecting takes effect on the next read, with no deploy in between", async () => {
-  const io = memoryIo();
-  const port = createFileRevocations({ io, path: "/state/publish-trust-disconnected.json" });
+  const port = createInMemoryRevocations();
   const grants = [grantFor("laptop")];
 
   const before = await port.list();
@@ -271,15 +246,13 @@ test("disconnecting takes effect on the next read, with no deploy in between", a
 });
 
 test("reconnecting is an explicit act that restores publishing", async () => {
-  const io = memoryIo();
-  const port = createFileRevocations({ io, path: "/state/publish-trust-disconnected.json" });
+  const port = createInMemoryRevocations();
   await port.revoke({ sourceInstallationId: "laptop", nowIso: NOW });
 
   await port.revoke({ sourceInstallationId: "desktop", nowIso: NOW, note: "keep disconnected" });
   const restored = await port.restore({ sourceInstallationId: "laptop" });
   assert.equal(restored.ok && restored.changed, true);
-  const reopened = createFileRevocations({ io, path: "/state/publish-trust-disconnected.json" });
-  const read = await reopened.list();
+  const read = await port.list();
   assert.deepEqual(read.ok ? read.revocations : null, [
     { sourceInstallationId: "desktop", revokedAt: NOW, note: "keep disconnected" },
   ]);
@@ -288,8 +261,7 @@ test("reconnecting is an explicit act that restores publishing", async () => {
 });
 
 test("disconnecting the same computer twice is a no-op, and keeps the first timestamp", async () => {
-  const io = memoryIo();
-  const port = createFileRevocations({ io, path: "/state/publish-trust-disconnected.json" });
+  const port = createInMemoryRevocations();
   await port.revoke({ sourceInstallationId: "laptop", nowIso: NOW, note: "first" });
   const again = await port.revoke({ sourceInstallationId: "laptop", nowIso: "2026-12-25T00:00:00.000Z", note: "second" });
 
@@ -300,8 +272,7 @@ test("disconnecting the same computer twice is a no-op, and keeps the first time
 });
 
 test("reconnecting a computer that was never disconnected is a no-op, not an error", async () => {
-  const io = memoryIo();
-  const port = createFileRevocations({ io, path: "/state/publish-trust-disconnected.json" });
+  const port = createInMemoryRevocations();
   const restored = await port.restore({ sourceInstallationId: "never-seen" });
 
   assert.equal(restored.ok, true);
@@ -309,46 +280,16 @@ test("reconnecting a computer that was never disconnected is a no-op, not an err
   assert.deepEqual(await port.list(), { ok: true, revocations: [] });
 });
 
-test("a corrupt revocation file is never overwritten by a disconnect", async () => {
-  const io = memoryIo({ "/state/publish-trust-disconnected.json": "{ not json" });
-  const port = createFileRevocations({ io, path: "/state/publish-trust-disconnected.json" });
-
-  const written = await port.revoke({ sourceInstallationId: "laptop", nowIso: NOW });
-  assert.equal(written.ok, false);
-  assert.equal(io.files["/state/publish-trust-disconnected.json"], "{ not json");
-});
-
-test("the revocation list is bounded", async () => {
-  const full = Array.from({ length: MAX_REVOCATIONS }, (_, i) => ({
-    sourceInstallationId: `m${i}`,
-    revokedAt: NOW,
-    note: null,
-  }));
-  const io = memoryIo({ "/state/publish-trust-disconnected.json": JSON.stringify(full) });
-  const port = createFileRevocations({ io, path: "/state/publish-trust-disconnected.json" });
-
-  const overflow = await port.revoke({ sourceInstallationId: "one-too-many", nowIso: NOW });
-  assert.equal(overflow.ok, false);
-});
-
-test("a stored disconnect survives a reread through the file, notes and all", async () => {
-  const io = memoryIo();
-  const port = createFileRevocations({ io, path: "/state/publish-trust-disconnected.json" });
+test("a stored disconnect survives a reread, notes and all", async () => {
+  const port = createInMemoryRevocations();
   await port.revoke({ sourceInstallationId: "laptop", nowIso: NOW, note: "left it on a train" });
 
-  const reread = createFileRevocations({ io, path: "/state/publish-trust-disconnected.json" });
-  const read = await reread.list();
+  const read = await port.list();
   assert.deepEqual(read.ok ? read.revocations : null, [
     { sourceInstallationId: "laptop", revokedAt: NOW, note: "left it on a train" },
   ]);
   assert.equal(isRevoked(read.ok ? read.revocations : [], "laptop"), true);
 });
-
-test("the port names where its state lives, because that path must be the persistent volume", () => {
-  const port = createFileRevocations({ io: memoryIo(), path: "/workspace/Tovu/sites/publish-trust-disconnected.json" });
-  assert.equal(port.path, "/workspace/Tovu/sites/publish-trust-disconnected.json");
-});
-
 
 test("the in-memory store revokes, restores, preserves idempotency and refuses overflow", async () => {
   const port = createInMemoryRevocations();

@@ -23,7 +23,8 @@ import { ADMIN_SURFACE_ACTION_PERMISSION, withAdminSurfaceSignIns, type AdminSur
 import type { AgentPluginAdminSurfaceHandlers } from '../admin-surfaces/handlers.js';
 import type { SurfaceDetail } from '@jini-ai/ui/mcp-ui/surfaces';
 import type { HttpClientPort } from '@jini-ai/core/primitives';
-import { EXTENSION_TOOL_APPROVAL_POLICY, withExtensionApprovalPolicy } from '../../../contracts/headless/assistant-tool-approval-policy.js';
+import { EXTENSION_TOOL_APPROVAL_POLICY } from '../../../contracts/headless/index.js';
+import { withExtensionApprovalPolicy } from '../../../assistant/mcp-services.js';
 import type { AuthorizeFn } from '../../../contracts/core/commands/index.js';
 import { APPROVAL_FAMILY_BY_EFFECT, createAgentPluginDisclosure } from './approval.js';
 import {
@@ -153,7 +154,9 @@ export async function registerAgentPluginExecutableTools(
         return 'allow' as const;
       } catch { return 'deny' as const; }
     } } } : registration;
-    const classified = withExtensionApprovalPolicy({ registration: { ...gated, descriptor: { ...descriptor, readOnly: !asks, sideEffects: owner.effect === 'destructive' ? 'deletes-durable-state' : asks ? 'mutates-durable-state' : 'none', ...(asks ? {} : { timeoutMs }) } }, family: APPROVAL_FAMILY_BY_EFFECT[owner.effect] });
+    const nonDestructiveEffect = asks ? 'mutates-durable-state' : 'none';
+    const sideEffects = owner.effect === 'destructive' ? 'deletes-durable-state' : nonDestructiveEffect;
+    const classified = withExtensionApprovalPolicy({ registration: { ...gated, descriptor: { ...descriptor, readOnly: !asks, sideEffects, ...(asks ? {} : { timeoutMs }) } }, family: APPROVAL_FAMILY_BY_EFFECT[owner.effect] });
     // An admin action may be the one that signs a connection in, so its unconnected ones are left unbound.
     const skipUnconnected = adminToolIds.has(toolId);
     return asks ? required.applyApproval({ registration: classified }, { disclose: ({ ctx }) => disclose({ ctx, toolId, pluginId: owner.pluginId, workspaceId }, { skipUnconnected }) }) : classified;

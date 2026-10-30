@@ -1,3 +1,4 @@
+import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import express from "express";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { registerAdminSourceControlCredentialsRoutes, type AdminSourceControlCredentialsDeps } from "#src/server/inbound/admin-http/routes/system/source-control-credentials";
@@ -46,7 +47,7 @@ function projectHalf(): CredentialProjectHalf<SourceControlCredentialSetRepoPort
 }
 
 let ids = 0;
-function site(project?: CredentialProjectHalf<SourceControlCredentialSetRepoPort>): SourceControlCredentialWriteDeps {
+function site(project?: CredentialProjectHalf<SourceControlCredentialSetRepoPort>): SourceControlCredentialWriteDeps & { clock: ReturnType<typeof createFakeClock> } {
   const keyring = new InMemoryKeyring();
   return { repo: new InMemorySourceControlCredentialSetRepo({}, project ? { project } : {}), sealer: new AesGcmSecretSealer(keyring), keyring,
     clock: createFakeClock({ startIso: "2026-10-25T00:00:00.000Z" }), idGen: { newId: () => `sc-${++ids}` },
@@ -207,6 +208,7 @@ test('a Source control-page save is visible after reload on this site only; site
   let rejectAttachment = false;
   const app = express();
   registerAdminSourceControlCredentialsRoutes(app, {
+    observability: createNoopObservabilityPort({}),
     workspaceId: SITE_A, authorize: async () => ({ allowed: true, reason: 'test' }), clock: a.clock, idGen: a.idGen,
     sourceControlCredentialSetRepo: a.repo, siteAssistantSecretSealer: a.sealer, siteAssistantSecretKeyring: a.keyring,
     loadSourceControlProviders: exampleProvidersWithoutProbe, projectKeys: { ...keys, use: async (input, options) => {
@@ -214,7 +216,7 @@ test('a Source control-page save is visible after reload on this site only; site
       if (rejectAttachment) throw new Error('attachment unavailable');
       return keys.use(input, options);
     } },
-  } as AdminSourceControlCredentialsDeps);
+  });
   const path = '/api/admin/v1/workspaces/:workspaceId/system/source-control/credentials';
   const { res, capture } = createCapturingResponse(); res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'post', path)({ params: { workspaceId: SITE_A }, body: { label: 'Git', connection: { providerId: 'example-git', token: secret('git') } } }, res);

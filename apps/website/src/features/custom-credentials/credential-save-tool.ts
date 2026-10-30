@@ -2,7 +2,7 @@ import type { ToolExecutionOptions } from "@jini-ai/core";
 import { loadPluginCredentialCardsSafely, type PluginCredentialCard } from "./plugin-credential-card.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from '@jini-ai/core';
-import { CREDENTIAL_SAVE_TOOL_ID } from '../../contracts/headless/secret-form-cards.js';
+import { CREDENTIAL_SAVE_TOOL_ID } from '../../contracts/headless/index.js';
 import { CUSTOM_CREDENTIAL_CATEGORIES } from './types.js';
 
 /** Tovu credential kinds delegate to the existing domain authorization and sealed-store owners.
@@ -67,9 +67,9 @@ function selectSave({ input, adapters }: { input: Record<string, unknown>; adapt
   const selectedKind = kind as CredentialKind;
   const { kind: _kind, ...metadata } = input;
   const targetOnly = ['plugin-provider', 'provider-settings'].includes(selectedKind);
+  const providerFields = targetOnly ? ['target'] : ['target', 'prefill'];
   const fields = selectedKind === 'api'
-    ? ['target', 'label', 'baseUrl', 'category', 'worksFor']
-    : targetOnly ? ['target'] : ['target', 'prefill'];
+    ? ['target', 'label', 'baseUrl', 'category', 'worksFor'] : providerFields;
   // A plugin card fixes its row on the server, so no label, base URL or category may ride along.
   const validateHere = selectedKind === 'publish-host' || targetOnly || (selectedKind === 'api' && !('target' in metadata));
   if (validateHere && Object.keys(metadata).some(key => !fields.includes(key))) {
@@ -95,14 +95,17 @@ function routeSave({ selectedKind, metadata, adapters }: {
       return { handler: adapters.agentPluginToken, input: { ...hints, pluginId: metadata.target } };
     }
     case 'publish-host': return selectPublishSave({ metadata, adapters });
-    case 'provider-settings': {
-      if (!adapters.providerSettings) throw new ToolInputError({ message: 'Provider settings are not available here.' });
-      return { handler: adapters.providerSettings, input: { pluginId: metadata.target } };
-    }
+    case 'provider-settings': return selectProviderSettingsSave({ adapters, target: metadata.target });
     case 'plugin-provider': return { handler: adapters.pluginProvider, input: { provider: metadata.target } };
-    // No default: selectSave refuses any kind outside KINDS before routing, and this switch covers
-    // every CredentialKind, so the compiler proves no other value reaches here.
+    // selectSave refuses any kind outside KINDS before routing. The default protects the
+    // internal boundary if a future caller bypasses that check.
+    default: throw new ToolInputError({ message: 'Unknown credential kind.' });
   }
+}
+
+function selectProviderSettingsSave({ adapters, target }: { adapters: CredentialSaveAdapters; target: unknown }, _options = {}): { handler: ToolHandler; input: Record<string, unknown> } {
+  if (!adapters.providerSettings) throw new ToolInputError({ message: 'Provider settings are not available here.' });
+  return { handler: adapters.providerSettings, input: { pluginId: target } };
 }
 
 /** Forward a provider target to its existing domain, retaining that domain's validation.
@@ -158,15 +161,13 @@ export function buildCredentialSaveRegistrations({ adapters, loadPluginCredentia
 
 /** A declared destination reuses the existing permission, validation, probe and sealed-store owner. */
 function routePluginCard({ card, selected, adapters }: { card?: PluginCredentialCard; selected: { handler: ToolHandler; input: Record<string, unknown> }; adapters: CredentialSaveAdapters }, _options = {}): { handler: ToolHandler; input: Record<string, unknown> } {
-  const target = card?.saveTarget ?? card?.providerId;
-  switch (card?.saveKind) {
+  if (!card) return selected;
+  const target = card.saveTarget ?? card.providerId;
+  switch (card.saveKind) {
     case 'publish-host': return { handler: adapters.publishHost, input: { target } };
     case 'source-control': return { handler: adapters.sourceControl, input: { provider: target } };
     case 'agent-plugin-token': return { handler: adapters.agentPluginToken, input: { pluginId: target } };
-    case 'provider-settings': {
-      if (!adapters.providerSettings) throw new ToolInputError({ message: 'Provider settings are not available here.' });
-      return { handler: adapters.providerSettings, input: { pluginId: target } };
-    }
+    case 'provider-settings': return selectProviderSettingsSave({ adapters, target });
     case 'oauth': throw new ToolInputError({ message: 'This plugin connects by browser sign-in. Use agent_plugin_connect with its pluginId.' });
     default: return selected;
   }

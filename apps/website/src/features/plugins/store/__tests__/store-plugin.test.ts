@@ -28,9 +28,9 @@ test("store: activation refuses a retained namespace owned by different provenan
   const { db, dbPath, dir } = tempDb();
   t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
   const provenance = { sourceUrl: "https://previous.example/store", publisher: "previous-owner" };
-  await checkNamespaceAdoption({ db, pluginId: "store", provenance });
+  await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "store", provenance });
 
-  await assert.rejects(activateStore({ db, dbPath }), {
+  await assert.rejects(activateStore({ db: contentKernel(db), dbPath }), {
     message: "store dataModule declaration failed: IDENTITY_ADOPTION_REQUIRES_CONSENT — pluginId 'store' has retained data from a previously-seen, provenance-mismatched artifact — explicit operator consent is required before adopting this namespace",
   });
   assert.deepEqual(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('p_store__products', 'p_store__orders')").all(), []);
@@ -41,7 +41,7 @@ test("store: activation refuses a retained namespace owned by different provenan
 
 test("store: activation declares p_store__products (via the never-brick seam) and seeds it", async () => {
   const { db, dbPath, dir } = tempDb();
-  const store = await activateStore({ db, dbPath });
+  const store = await activateStore({ db: contentKernel(db), dbPath });
 
   const tableExists = !!db
     .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='p_store__products'`)

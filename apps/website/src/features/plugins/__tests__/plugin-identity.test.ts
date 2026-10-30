@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -18,9 +19,9 @@ function openDb(): { db: Database.Database; dir: string } {
 
 test("first declare for a pluginId mints its identity record and is always allowed", async () => {
   const { db, dir } = openDb();
-  const decision = await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a", publisher: "acme" } });
+  const decision = await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a", publisher: "acme" } });
   assert.deepEqual(decision, { allowed: true, track: "first-mint" });
-  const identity = await getPluginIdentity({ db, pluginId: "plugin-a" });
+  const identity = await getPluginIdentity({ db: contentKernel(db), pluginId: "plugin-a" });
   assert.equal(identity?.provenance.sourceUrl, "https://example.com/a");
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
@@ -29,8 +30,8 @@ test("first declare for a pluginId mints its identity record and is always allow
 test("a repeat declare with IDENTICAL provenance is allowed on the 'unchanged' track (the common boot-time case)", async () => {
   const { db, dir } = openDb();
   const provenance = { sourceUrl: "builtin://newsletter", publisher: "tovu-core" };
-  await checkNamespaceAdoption({ db, pluginId: "newsletter", provenance });
-  const second = await checkNamespaceAdoption({ db, pluginId: "newsletter", provenance: { ...provenance } });
+  await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "newsletter", provenance });
+  const second = await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "newsletter", provenance: { ...provenance } });
   assert.deepEqual(second, { allowed: true, track: "unchanged" });
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
@@ -38,8 +39,8 @@ test("a repeat declare with IDENTICAL provenance is allowed on the 'unchanged' t
 
 test("track (a): a verified same-key signature match on BOTH sides auto-adopts despite a provenance mismatch elsewhere", async () => {
   const { db, dir } = openDb();
-  await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a", publisher: "acme", signature: "sig-xyz" } });
-  const decision = await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a-v2", publisher: "acme-renamed", signature: "sig-xyz" } });
+  await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a", publisher: "acme", signature: "sig-xyz" } });
+  const decision = await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a-v2", publisher: "acme-renamed", signature: "sig-xyz" } });
   assert.deepEqual(decision, { allowed: true, track: "verified-signature" });
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
@@ -47,8 +48,8 @@ test("track (a): a verified same-key signature match on BOTH sides auto-adopts d
 
 test("track (b): an unsigned provenance mismatch requires consent — refused, not silently adopted", async () => {
   const { db, dir } = openDb();
-  await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a", publisher: "acme" } });
-  const decision = await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance: { sourceUrl: "https://evil.example.com", publisher: "acme" } });
+  await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a", publisher: "acme" } });
+  const decision = await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "plugin-a", provenance: { sourceUrl: "https://evil.example.com", publisher: "acme" } });
   assert.equal(decision.allowed, false);
   assert.equal(decision.track, "consent-required");
   db.close();
@@ -57,8 +58,8 @@ test("track (b): an unsigned provenance mismatch requires consent — refused, n
 
 test("track (b): a publisher-string-only match with no signature on either side still requires consent", async () => {
   const { db, dir } = openDb();
-  await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a", publisher: "acme" } });
-  const decision = await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance: { sourceUrl: "https://different.example.com/a", publisher: "acme" } });
+  await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a", publisher: "acme" } });
+  const decision = await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "plugin-a", provenance: { sourceUrl: "https://different.example.com/a", publisher: "acme" } });
   assert.equal(decision.allowed, false, "publisher alone is self-declared and non-cryptographic — cannot carry identity proof");
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
@@ -66,8 +67,8 @@ test("track (b): a publisher-string-only match with no signature on either side 
 
 test("track (b): a signature on only ONE side does not auto-adopt", async () => {
   const { db, dir } = openDb();
-  await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a", publisher: "acme", signature: "sig-xyz" } });
-  const decision = await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a", publisher: "acme" } }); // no signature this time
+  await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a", publisher: "acme", signature: "sig-xyz" } });
+  const decision = await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a", publisher: "acme" } }); // no signature this time
   assert.equal(decision.allowed, false);
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
@@ -75,9 +76,9 @@ test("track (b): a signature on only ONE side does not auto-adopt", async () => 
 
 test("the identity record itself is never overwritten by a later mismatched declare (permanent retirement)", async () => {
   const { db, dir } = openDb();
-  await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a", publisher: "acme" } });
-  await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance: { sourceUrl: "https://evil.example.com", publisher: "acme" } }); // refused, but attempted
-  const identity = await getPluginIdentity({ db, pluginId: "plugin-a" });
+  await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "plugin-a", provenance: { sourceUrl: "https://example.com/a", publisher: "acme" } });
+  await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "plugin-a", provenance: { sourceUrl: "https://evil.example.com", publisher: "acme" } }); // refused, but attempted
+  const identity = await getPluginIdentity({ db: contentKernel(db), pluginId: "plugin-a" });
   assert.equal(identity?.provenance.sourceUrl, "https://example.com/a", "the original, first-minted provenance is retained");
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
@@ -89,13 +90,13 @@ for (const signed of [false, true]) {
     const { db, dir } = openDb();
     try {
       const provenance = { sourceUrl: "https://example.com/a", publisher: "acme", ...(signed ? { signature: "sig-original" } : {}) };
-      await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance });
-      const before = await getPluginIdentity({ db, pluginId: "plugin-a" });
+      await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "plugin-a", provenance });
+      const before = await getPluginIdentity({ db: contentKernel(db), pluginId: "plugin-a" });
       const changed = signed ? { ...provenance, signature: "sig-different" } : { ...provenance, publisher: "impostor" };
-      const decision = await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance: changed });
+      const decision = await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "plugin-a", provenance: changed });
       assert.equal(decision.allowed, false);
       assert.equal(decision.track, "consent-required");
-      assert.deepEqual(await getPluginIdentity({ db, pluginId: "plugin-a" }), before);
+      assert.deepEqual(await getPluginIdentity({ db: contentKernel(db), pluginId: "plugin-a" }), before);
     } finally {
       db.close();
       fs.rmSync(dir, { recursive: true, force: true });
@@ -107,27 +108,27 @@ test("identical signed provenance stays unchanged without reminting the identity
   const { db, dir } = openDb();
   t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
   const provenance = { sourceUrl: "https://example.com/signed", publisher: "acme", signature: "sig-original" };
-  await checkNamespaceAdoption({ db, pluginId: "signed-plugin", provenance });
-  const before = await getPluginIdentity({ db, pluginId: "signed-plugin" });
+  await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "signed-plugin", provenance });
+  const before = await getPluginIdentity({ db: contentKernel(db), pluginId: "signed-plugin" });
   assert.deepEqual(before?.provenance, provenance);
 
-  assert.deepEqual(await checkNamespaceAdoption({ db, pluginId: "signed-plugin", provenance: { ...provenance } }), {
+  assert.deepEqual(await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "signed-plugin", provenance: { ...provenance } }), {
     allowed: true, track: "unchanged",
   });
-  assert.deepEqual(await getPluginIdentity({ db, pluginId: "signed-plugin" }), before);
+  assert.deepEqual(await getPluginIdentity({ db: contentKernel(db), pluginId: "signed-plugin" }), before);
 });
 
 test("adding a signature to an unsigned identity requires consent and preserves its unsigned provenance", async (t) => {
   const { db, dir } = openDb();
   t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
   const provenance = { sourceUrl: "https://example.com/a", publisher: "acme" };
-  await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance });
-  const before = await getPluginIdentity({ db, pluginId: "plugin-a" });
+  await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "plugin-a", provenance });
+  const before = await getPluginIdentity({ db: contentKernel(db), pluginId: "plugin-a" });
 
-  assert.deepEqual(await checkNamespaceAdoption({ db, pluginId: "plugin-a", provenance: { ...provenance, signature: "new-signature" } }), {
+  assert.deepEqual(await checkNamespaceAdoption({ db: contentKernel(db), pluginId: "plugin-a", provenance: { ...provenance, signature: "new-signature" } }), {
     allowed: false,
     track: "consent-required",
     reason: "pluginId 'plugin-a' has retained data from a previously-seen, provenance-mismatched artifact — explicit operator consent is required before adopting this namespace",
   });
-  assert.deepEqual(await getPluginIdentity({ db, pluginId: "plugin-a" }), before);
+  assert.deepEqual(await getPluginIdentity({ db: contentKernel(db), pluginId: "plugin-a" }), before);
 });

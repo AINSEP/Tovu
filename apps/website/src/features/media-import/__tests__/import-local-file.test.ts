@@ -23,7 +23,7 @@ import { invokeRegisteredTool } from "#src/assistant/__tests__/fixtures/execute-
 const TOOL = "media_import_local_file";
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1sAAAAASUVORK5CYII=", "base64");
 const MP4 = Buffer.concat([Buffer.from([0, 0, 0, 32]), Buffer.from("ftypisom"), Buffer.from([0, 0, 0, 0]), Buffer.from("isomiso2avc1mp41")]);
-const RECOVERY = "Ask the owner to attach the file to the chat, then use media_promote_chat_attachment, or choose that folder using the folder control ('No folder set') in the admin chat composer, then retry with root 'custom'.";
+const RECOVERY = 'Ask the owner to pick that folder with the chat composer folder button (or drop the folder onto the composer), then call fs_list_files with root:"custom" and media_import_local_file with root:"custom" and the file path relative to that folder. Alternatively, ask the owner to attach the file to this chat, then use media_promote_chat_attachment.';
 interface Result {
   media: { id: string; slug: string; title: string; alt: string; caption: string; credit: string; sha256: string; status: string; version: number; publicUrl: string | null; sourceUrl: string };
 }
@@ -85,7 +85,21 @@ test("the assistant imports a local SVG logo, persists sanitized bytes and retur
   assert.doesNotMatch(Buffer.from(bytes).toString(), /script|onload|foreignObject|alert/);
   assert.match(Buffer.from(bytes).toString(), /viewBox="0 0 12 12"/);
   assert.equal(createHash("sha256").update(bytes).digest("hex"), media.sha256);
-  assert.equal(media.publicUrl, `/m/${media.slug}/original.svg`);
+  assert.equal(media.publicUrl, `/m/${media.slug}/original.svg?v=${media.sha256.slice(0, 12)}`);
+});
+
+test('s5: local import reads the owner-picked external folder through the normal upload pipeline', async t => {
+  const f = await setup(t);
+  const picked = path.join(f.parent, 'Additional Assets');
+  fs.mkdirSync(picked);
+  fs.writeFileSync(path.join(picked, 'hero.png'), PNG);
+  f.deps.resolveRoots = () => ({ repo: f.parent, site: f.rootPath, custom: picked });
+  for (const source of ['hero.png', path.join(picked, 'hero.png')]) {
+    const { media } = await f.run({ root: 'custom', path: source });
+    assert.equal(media.sha256, createHash('sha256').update(PNG).digest('hex'));
+    assert.equal(media.status, 'active');
+  }
+  await assert.rejects(f.run({ root: 'custom', path: '../not-picked.png' }), /folder button.*root.*custom/);
 });
 
 test("local import batches eleven images, preserves per-item errors and keeps the shared cap", async (t) => {
@@ -136,6 +150,7 @@ test("local imports stamp the authenticated owner, ignoring caller attribution",
   const stored = await fixture.deps.mediaRepo.findById({ workspaceId: "ws-local", id: result.media.id });
   assert.ok(stored);
   assert.equal((stored as { createdBy?: string }).createdBy, "owner");
+  assert.deepEqual(stored.source.provenance, { kind: 'upload', path: 'created-by.png' });
 });
 
 test("an omitted root resolver reads the booted site through the existing filesystem root owner", async (t) => {
@@ -175,6 +190,9 @@ test("catalog schema, domain registration and derived risk declare a permission-
   assert.deepEqual(schema.required, ["root", "path"]);
   assert.deepEqual(schema.properties.root.enum, FS_ROOT_IDS);
   assert.deepEqual(Object.keys(schema.properties).sort(), ["alt", "caption", "path", "root", "title"]);
+  assert.match(definition.description, /inside this site folder/);
+  assert.ok(definition.description.includes(RECOVERY));
+  assert.doesNotMatch(definition.description, /retry with root 'custom'/);
   assert.equal(f.registration().descriptor.readOnly, false);
   assert.equal(f.mediaImportDerivedRisk.get(TOOL), "mutates-durable-state");
   assert.equal(f.contributeMediaImportTools().domain, "media-import");
@@ -192,7 +210,7 @@ for (const [filename, bytes, contentType, publicUrl, defaultTitle] of [
     const first = await f.run({ root: "custom", path: filename, title: "Summer launch", alt: "A summer scene", caption: "Launch video" });
     const sha256 = createHash("sha256").update(bytes).digest("hex");
     assert.deepEqual(Object.keys(first), ["media"]);
-    assert.deepEqual(first.media, { id: "local-2", slug: "summer-launch", title: "Summer launch", alt: "A summer scene", caption: "Launch video", createdBy: "owner", credit: "", sha256, status: "active", version: 1, publicUrl, sourceUrl: "" });
+    assert.deepEqual(first.media, { id: "local-2", slug: "summer-launch", title: "Summer launch", alt: "A summer scene", caption: "Launch video", createdBy: "owner", credit: "", sha256, status: "active", version: 1, publicUrl: publicUrl === null ? null : `${publicUrl}?v=${sha256.slice(0, 12)}`, sourceUrl: "" });
     assert.deepEqual(await f.deps.mediaContentTypeStore.getMany({ workspaceId: "ws-local", sha256s: [sha256] }), new Map([[sha256, contentType]]));
     const stored = await f.deps.blobStore.get({ storageKey: `ws/ws-local/blobs/${sha256.slice(0, 2)}/${sha256}` });
     assert.deepEqual(Buffer.from(stored), bytes);
@@ -215,28 +233,28 @@ for (const [relativePath, message] of [
   ["content.db", "path 'content.db' matches a denied filename pattern and cannot be accessed"],
   ["secrets/photo.png", "path 'secrets/photo.png' contains a denied path segment ('secrets') and cannot be accessed"],
 ]) {
-  test(`refuses ${relativePath} with fs_read_file's exact message before reading`, async (t) => {
+  test(`refuses ${relativePath} with the path reason and transfer recovery before reading`, async (t) => {
     const f = await setup(t);
     const target = path.join(f.rootPath, relativePath);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, PNG);
     const readSpy = t.mock.method(fs, "createReadStream");
     const syncReadSpy = t.mock.method(fs, "readFileSync");
-    await assert.rejects(() => f.run({ root: "site", path: relativePath }), rejection(message));
+    await assert.rejects(() => f.run({ root: "site", path: relativePath }), rejection(`${message}. ${RECOVERY}`));
     assert.equal(readSpy.mock.callCount(), 0);
     assert.equal(syncReadSpy.mock.callCount(), 0);
     await f.noWrites();
   });
 }
 
-test("absolute paths and symlinks outside the root are refused with actionable recovery in the published schema", async (t) => {
+test("absolute paths and symlinks outside the root are refused with actionable transfer recovery", async (t) => {
   const f = await setup(t);
   const outside = path.join(f.parent, "outside.png");
   fs.writeFileSync(outside, PNG);
   fs.symlinkSync(outside, path.join(f.rootPath, "alias.png"));
   const readSpy = t.mock.method(fs, "createReadStream");
-  await assert.rejects(() => f.run({ root: "site", path: outside }), rejection(`path '${outside}' must be relative to the root, not absolute`));
-  await assert.rejects(() => f.run({ root: "site", path: "alias.png" }), rejection("path 'alias.png' resolves outside the allowed root through a symbolic link"));
+  await assert.rejects(() => f.run({ root: "site", path: outside }), rejection(`path '${outside}' must be relative to the root, not absolute. ${RECOVERY}`));
+  await assert.rejects(() => f.run({ root: "site", path: "alias.png" }), rejection(`path 'alias.png' resolves outside the allowed root through a symbolic link. ${RECOVERY}`));
   const schema = mediaImportAgentToolCatalog.find((tool) => tool.name === TOOL)!.inputSchema as { properties: { path: { description: string } } };
   assert.ok(schema.properties.path.description.includes(RECOVERY));
   assert.equal(readSpy.mock.callCount(), 0);
@@ -281,14 +299,14 @@ test("permission denial happens before root resolution, stat or reading", async 
 test("unset custom root gives the shared site-root recovery guidance", async (t) => {
   const f = await setup(t, { unsetCustom: true });
   const statSpy = t.mock.method(fs, "statSync");
-  await assert.rejects(() => f.run({ root: "custom", path: "photo.png" }), rejection("no folder has been set for the 'custom' root yet — ask the operator to set one from the chat composer, then retry"));
+  await assert.rejects(() => f.run({ root: "custom", path: "photo.png" }), rejection(`no folder has been set for the 'custom' root yet — ask the operator to set one from the chat composer, then retry. ${RECOVERY}`));
   assert.equal(statSpy.mock.callCount(), 0);
   await f.noWrites();
 });
 
 test("arbitrary root directory strings cannot widen the sandbox", async (t) => {
   const f = await setup(t);
-  await assert.rejects(() => f.run({ root: f.parent, path: "outside.png" }), rejection(`'${f.parent}' is not a recognized root — expected one of: repo, site, custom`));
+  await assert.rejects(() => f.run({ root: f.parent, path: "outside.png" }), rejection(`'${f.parent}' is not a recognized root — expected one of: repo, site, custom. ${RECOVERY}`));
   assert.equal(f.resolutions(), 0);
   await f.noWrites();
 });
@@ -377,7 +395,7 @@ test("an injected local cap cannot widen the production 50 MiB ceiling", async (
   await f.noWrites();
 });
 
-test("site local import refuses repo, outside custom and symlink sources before reading canaries", async t => {
+test("site local import routes rejected outside roots through files_copy before reading canaries", async t => {
   const f = await setup(t);
   const hidden = 'OUTSIDE_CANARY_NAME.png';
   fs.writeFileSync(path.join(f.parent, 'payload.png'), Buffer.concat([PNG, Buffer.from('OUTSIDE_CANARY_CONTENT')]));
@@ -386,7 +404,11 @@ test("site local import refuses repo, outside custom and symlink sources before 
   const reads = t.mock.method(fs, 'createReadStream');
   for (const root of ['repo', 'custom']) {
     await assert.rejects(() => f.run({ root, path: 'payload.png' }), error => {
-      assert.ok(error instanceof Error);
+      assert.ok(error instanceof ToolInputError);
+      const reason = error.message.split("Schema for")[0]!;
+      assert.match(reason, /files_copy with sources:\[\{root:"picked",path:"<relative file path>"\}\], destination:\{kind:"media"\}/);
+      assert.match(reason, /owner-selected folder grant/);
+      assert.doesNotMatch(reason, /retry with root 'custom'/);
       assert.doesNotMatch(error.message, /OUTSIDE_CANARY_CONTENT|OUTSIDE_CANARY_NAME/);
       return true;
     });

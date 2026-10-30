@@ -14,9 +14,10 @@ import { getCustomFsRoot } from "./custom-root-store.js";
  *
  * ## Site agents (owner decision 2026-10-23)
  *
- * The execution handlers now restrict site-agent reads to the bound site folder, including
- * custom-root resolution. `repo` and another site's selectors are refused. This supersedes the
- * September 10 broad-access decision for site-agent callers; its original why remains below.
+ * The October 23 execution handlers restricted site-agent reads to the bound site folder, including
+ * custom-root resolution. Owner s5 (2026-10-29) restores the persisted owner-picked folder as an
+ * additional read grant. `repo` and another site's selectors remain refused. These decisions
+ * supersede the September 10 broad-access decision for site-agent callers; its original why remains below.
  *
  * ## Historical default-allow (2026-09-10 owner decision)
  *

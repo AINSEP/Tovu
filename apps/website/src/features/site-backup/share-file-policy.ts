@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { checkTreePath } from "../publish-content/file-tree-policy.js";
 import { SiteShareRefusal, SHARE_LIMITS } from "./share-policy.js";
-import { redactSecretShapes } from "#src/contracts/core/secret-redaction";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 /** The seven-segment root of an installed plugin package payload (matched against the lowercased path). */
 const PACKAGE_CONTENT_ROOT = /^agent-plugins\/ws\/[^/]+\/[^/]+\/package\/sha256\/[a-f0-9]{64}\//;
@@ -45,8 +45,8 @@ function suspiciousSharePart({ part }: { part: string }, { packageContent = fals
     /\.(?:db|sqlite|sqlite3)(?:$|[.-])/,
     /^\.mcp(?:\..*)?\.json$/,
   ];
-  return names.includes(part) || prefixes.some(prefix => part.startsWith(prefix)) || patterns.some(pattern => pattern.test(part)) ||
-    (!packageContent && CREDENTIAL_NAME.test(part));
+  if (names.includes(part) || prefixes.some(prefix => part.startsWith(prefix)) || patterns.some(pattern => pattern.test(part))) return true;
+  return !packageContent && CREDENTIAL_NAME.test(part);
 }
 
 /** Exclude known private locations only; suspicious required content must refuse, not disappear. O(depth).
@@ -81,7 +81,7 @@ function refuseSuspiciousSharePath(required: { path: string }, { credentialNameA
  * own bundled sources do. An operator-installed package, a superseded digest, an unlisted file under a
  * verified root, or a tampered file all get the ordinary rules. O(bytes).
  */
-function verifiedPackageFile(required: { path: string; bytes: Uint8Array }, optional: { packageFiles?: PackageFileInventory | undefined }): boolean {
+function verifiedPackageFile(required: { path: string; bytes: Uint8Array }, optional: { packageFiles?: PackageFileInventory }): boolean {
   const match = PACKAGE_FILE.exec(required.path);
   if (!match) return false;
   // The root: a digest this build ships. The file: listed below that root, with the same bytes.
@@ -94,9 +94,9 @@ function verifiedPackageFile(required: { path: string; bytes: Uint8Array }, opti
 function hasUnportableSpelling(required: { path: string }): boolean {
   const p = required.path;
   const parts = p.split("/");
-  return /[:%\x00-\x1f\x7f\\]/.test(p) || p.normalize("NFC") !== p || p.normalize("NFKC") !== p || /[<>"|?*]/.test(p) ||
-    parts.some(part => /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part)) || parts.length > SHARE_LIMITS.maxPathSegments ||
-    parts.some(part => /[. ]$/.test(part));
+  if (/[:%\x00-\x1f\x7f\\]/.test(p) || p.normalize("NFC") !== p || p.normalize("NFKC") !== p || /[<>"|?*]/.test(p)) return true;
+  return parts.some(part => /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part)) ||
+    parts.length > SHARE_LIMITS.maxPathSegments || parts.some(part => /[. ]$/.test(part));
 }
 
 /** A ZIP path has one canonical spelling on every supported recipient filesystem. O(path). */
@@ -113,7 +113,7 @@ export function validateSharePath(required: { path: string }, _optional: Record<
 /** Scan the complete bytes, including binary content; a required file is refused, never damaged. O(bytes).
  * `path` picks the rules; a refusal names `shownPath` when given (the archive path the owner can find,
  * not the synthetic scan path `archiveSecretScanPath` builds). */
-export function requireShareSecretFree(required: { path: string; bytes: Uint8Array }, optional: { packageFiles?: PackageFileInventory | undefined; shownPath?: string } = {}): void {
+export function requireShareSecretFree(required: { path: string; bytes: Uint8Array }, optional: { packageFiles?: PackageFileInventory; shownPath?: string } = {}): void {
   const shownPath = optional.shownPath ?? required.path;
   const text = Buffer.from(required.bytes).toString("latin1");
   // Only code can contain credential references; content/settings retain strict secret detection.

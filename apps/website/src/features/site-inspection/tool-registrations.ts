@@ -7,7 +7,7 @@ import { fetchLiveUrl, listKnownLiveOrigins, type FetchLiveUrlDeps } from "./liv
 import { buildDomainRegistrations, indexCatalogById, optionalNumber, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 
 import { SITE_INSPECTION_READ_PERMISSION, siteInspectionAgentToolCatalog } from "./agent-tools.js";
 import { toSiteCapabilitiesDeps, toSiteProfileDeps, type SiteInspectionToolDeps } from "./deps.js";
@@ -93,6 +93,14 @@ function isShapeRejection(error: unknown): boolean {
   return error instanceof PublishedPagePathError || error instanceof SiteInspectionInputError;
 }
 
+/** No published-page context selector exists: point callers to the existing body selectors.
+ * @throws ToolInputError before rendering; no input mutation or I/O. @complexity O(1).
+ */
+function normalizePublishedPageInput({ input }: { input: Readonly<Record<string, unknown>> }, _options = {}) {
+  if (Object.hasOwn(input, "context")) throw new ToolInputError({ message: "fetch_published_page: context is not supported. Use find for matching snippets, or maxBytes to bound the body; for editable source use pages_read_html. Resend without context." });
+  return { input, notes: [] };
+}
+
 /**
  * Reads and validates the optional `sections` array off a tool input, against one tool's closed
  * vocabulary.
@@ -176,6 +184,7 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
     domain: "site-inspection",
     catalogModule: "features/site-inspection/agent-tools.ts",
     catalog: CATALOG_BY_ID,
+    inputNormalizers: { fetch_published_page: normalizePublishedPageInput },
     handlers,
     derivedRisk: siteInspectionDerivedRisk,
   });
@@ -188,7 +197,7 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
  * `assistant/tool-registrations.ts` reaches it only through a type-only import of
  * `SiteInspectionToolDeps`.
  */
-export function contributeSiteInspectionTools(httpClient?: HttpClientPort): ToolContributor {
+export function contributeSiteInspectionTools(httpClient?: HttpClientPort): ToolContributor<SiteInspectionToolDeps, unknown> {
   return {
     domain: "site-inspection",
     build: deps => buildSiteInspectionRegistrations(deps, httpClient ? {

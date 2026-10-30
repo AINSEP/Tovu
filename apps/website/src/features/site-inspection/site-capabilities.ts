@@ -105,16 +105,16 @@ export interface SiteCapabilitiesDeps {
   clock: { nowIso(): string };
   /** The live registry reader. Absent when the composition root has no registry — the tools section
    *  then reports `unavailable`/{@link TOOLS_NOT_WIRED_REASON}, never an empty catalog. */
-  listCatalogTools?: (() => readonly SiteCapabilityToolRow[]) | undefined;
+  listCatalogTools?: (() => readonly SiteCapabilityToolRow[]);
   listAdminScreens(): readonly SiteCapabilityAdminScreen[];
   listContentTypes(): Promise<readonly SiteCapabilityContentTypeRow[]>;
 }
 
 export interface BuildSiteCapabilitiesOptions {
   /** Which sections to collect. Omitted/empty means all of {@link SITE_CAPABILITIES_SECTION_NAMES}. */
-  sections?: readonly SiteCapabilitiesSectionName[] | undefined;
+  sections?: readonly SiteCapabilitiesSectionName[];
   /** Per-section wall clock before the section is marked `unavailable`/`timed-out`. */
-  sectionTimeoutMs?: number | undefined;
+  sectionTimeoutMs?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -190,7 +190,8 @@ export function summarizeToolDescription(description: string): string {
 
 /** Code-unit order: deterministic regardless of the process locale. */
 function compareCodeUnits(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
 }
 
 /**

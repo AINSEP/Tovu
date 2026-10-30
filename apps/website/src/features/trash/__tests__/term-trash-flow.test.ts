@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -18,7 +19,7 @@ import {
 import { SqlitePostRepo } from "#src/features/post/repo.sqlite";
 import { updatePost, type PostRecord } from "#src/features/post/index";
 
-import { createSqliteTrashDb } from "../db-port.sqlite.js";
+
 import { withFollowUps } from "@jini-ai/cms/trash";
 import { moveToTrash, type MoveToTrashOutcome } from "../move-to-trash.js";
 import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
@@ -65,7 +66,7 @@ function harness(): Harness {
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
   const registry = buildTrashRegistry();
-  const trashDb = createSqliteTrashDb({ db });
+  const trashDb = contentKernel(db);
 
   const taxonomyRepo = new SqliteTaxonomyRepo({ db, workspaceId: WS });
   const termRepo = new SqliteTermRepo({ db, workspaceId: WS });
@@ -199,7 +200,7 @@ async function trashItem(h: Harness, entityType: TrashEntityType, entityId: stri
     {
       registry: h.registry,
       trash: h.trash,
-      db: createSqliteTrashDb({ db: h.db }),
+      db: contentKernel(h.db),
       authorize: async () => ({ allowed: true, reason: "matched" }),
       clock: createFakeClock({ startIso: AT }),
     }

@@ -1,5 +1,5 @@
 import { createContributionRegistry } from "@jini-ai/core";
-import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
+import type { ToolContributions } from "@jini-ai/core";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -30,9 +30,9 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 
 import { contributeMediaTools } from "../tool-registrations.js";
 
-const contributions = {
-  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
-  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>> = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
 };
 
 /**

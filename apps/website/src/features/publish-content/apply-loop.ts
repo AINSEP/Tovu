@@ -1,6 +1,6 @@
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { readBackstopMetadata } from "./backstop-service.js";
-import type { BackstopAuditRecord } from "./backstop-audit.js";
+import type { BackstopInverse, BackstopAuditRecord } from "./backstop-audit.js";
 import { contentHash } from "./content-hash.js";
 import { createHash } from "node:crypto";
 
@@ -608,9 +608,10 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
         for (const row of report.rows) {
           const key = entityKey(row.entityType, row.entityId);
           const entity = entityByKey.get(key);
+          const missingIdentity = `${input.workspaceId}:${sourcePrincipalId}:${key}`;
           const idempotencyKey = entity
             ? publishContentItemIdempotencyKey({ workspaceId: input.workspaceId, sourcePrincipalId, entity })
-            : `publish-content:v1:missing:${createHash("sha256").update(`${input.workspaceId}:${sourcePrincipalId}:${key}`).digest("hex")}`;
+            : `publish-content:v1:missing:${createHash("sha256").update(missingIdentity).digest("hex")}`;
           itemByKey.set(key, {
             entityType: row.entityType,
             entityId: row.entityId,
@@ -709,8 +710,9 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
           // `retiredChangeSetId === null` covers both "never reached the retire" and "the create that
           // followed it failed and was undone" (§2.3 step 1) — either way, nothing was actually
           // replaced, so there is nothing here for a repoint pass to act on.
-          if (!item || item.retiredChangeSetId === null) continue;
-          replacements.push({ entityType: row.retires.entityType, oldId: row.retires.entityId, newId: row.entityId });
+          if (item && item.retiredChangeSetId !== null) {
+            replacements.push({ entityType: row.retires.entityType, oldId: row.retires.entityId, newId: row.entityId });
+          }
         }
         // Every id written THIS run, across every type — a holder in this set already carries the
         // source's own intent (its own row wrote), so repointing it would fight that intent (§2.5).
@@ -761,12 +763,8 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
             const entity = entityByKey.get(key);
             return entity && outcome !== "blocked" && outcome !== "conflict" ? [entity] : [];
           });
-          if (entities.length === 0) continue;
-          try {
-            problems.push(...(await handler.verifyApplied({ entities })));
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            problems.push(`${capitalize(handler.entityType)} could not be checked after publishing: ${message}`);
+          if (entities.length > 0) {
+            problems.push(...(await verifyPublishedEntities({ handler, entities })));
           }
         }
         return problems;
@@ -801,17 +799,7 @@ export function createPublishContentApplyPort(input: CreatePublishContentApplyPo
             record: {
               ...auditRecord, result: "success",
               inverses: handlerDeps.backstop?.inverses ?? [], details: { report: currentReport() },
-              items: auditRecord.items.map((item) => {
-                const inverse = handlerDeps.backstop?.inverses?.find((i) => i.entity.id === item.id && i.entity.entityType === item.entityType);
-                if (!inverse) return item;
-                const beforeHash = inverse.kind === "raw-row"
-                  ? inverse.before === null ? null : contentHash("raw-row", inverse.before as unknown as Record<string, unknown>)
-                  : inverse.before.sha256 === null ? null : contentHash("raw-file", {
-                    path: item.id,
-                    sha256: inverse.before.sha256, size: inverse.before.size, mode: inverse.before.mode
-                  });
-                return { ...item, beforeHash };
-              })
+              items: backstopAuditItems({ items: auditRecord.items, inverses: handlerDeps.backstop?.inverses })
             }
           });
         }
@@ -957,4 +945,37 @@ async function refreshNonWritingRow({ row, ctx }: { row: PublishContentOutcomeRo
     }
   }
   return { row, changeSetId: null, retiredChangeSetId: null };
+}
+
+/** Match each audited item to the inverse captured by its gateway mutation. */
+function backstopAuditItems(
+  { items, inverses }: { items: BackstopAuditRecord["items"]; inverses: readonly BackstopInverse[] | undefined },
+  _optional: Record<string, never> = {},
+): BackstopAuditRecord["items"] {
+  return items.map((item) => {
+    const inverse = inverses?.find((candidate) => candidate.entity.id === item.id && candidate.entity.entityType === item.entityType);
+    if (!inverse) return item;
+    let beforeHash: string | null = null;
+    if (inverse.kind === "raw-row") {
+      if (inverse.before !== null) beforeHash = contentHash("raw-row", inverse.before as unknown as Record<string, unknown>);
+    } else {
+      if (inverse.before.sha256 !== null) beforeHash = contentHash("raw-file", {
+        path: item.id, sha256: inverse.before.sha256, size: inverse.before.size, mode: inverse.before.mode,
+      });
+    }
+    return { ...item, beforeHash };
+  });
+}
+
+/** Verification reports a problem after committed writes; it never aborts the published run. */
+async function verifyPublishedEntities(
+  { handler, entities }: { handler: PublishContentHandler; entities: readonly PackedEntity[] },
+  _optional: Record<string, never> = {},
+): Promise<readonly string[]> {
+  try {
+    return await handler.verifyApplied!({ entities });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return [`${capitalize(handler.entityType)} could not be checked after publishing: ${message}`];
+  }
 }

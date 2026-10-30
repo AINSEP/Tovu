@@ -1,12 +1,14 @@
 import { VaultError, type VaultBatchOp, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
-import type { MediaProviderCredentialRecord, MediaProviderCredentialRepoPort, MediaProviderCredentialReplacePlanner } from "./provider-credential-store.js";
+import type { MediaProviderCredentialRecord, MediaProviderCredentialRepoPort, MediaProviderCredentialReplacePlanner } from "./provider-credential-contracts.js";
+
+const MEDIA_PROVIDER_KIND = "media-provider" as const;
 
 type VaultPutRecord = Parameters<VaultRepoPort["put"]>[0]["record"];
 
 /** Expected nonpersonal ownership, plus an exact provider filter when selecting a singleton. */
 export function mediaVaultScope({ workspaceId, providerId }: { workspaceId: string; providerId?: string }, _options = {}) {
-  return { workspaceId, kind: "media-provider" as const, ownerKey: "tovu", principalId: null, binding: null,
+  return { workspaceId, kind: MEDIA_PROVIDER_KIND, ownerKey: "tovu", principalId: null, binding: null,
     ...(providerId === undefined ? {} : { provider: providerId }) };
 }
 
@@ -25,12 +27,13 @@ export function mediaProviderVault({ vault, providerId }: { vault: VaultRepoPort
 
 /** Deterministic id for a provider's first row; later writes keep whatever id is stored. */
 export function mediaVaultId({ providerId }: { providerId: string }, _options = {}): string {
-  return `vault:${JSON.stringify(["media-provider", providerId])}`;
+  return `vault:${JSON.stringify([MEDIA_PROVIDER_KIND, providerId])}`;
 }
 
 /** Expected ownership is this adapter's, never the row's: anything else is a context breach. */
 function ownedProviderId({ row }: { row: VaultPutRecord }, _options = {}): string {
-  if (row.kind !== "media-provider" || row.ownerKey !== "tovu" || row.principalId !== null || row.binding !== null || row.provider === null) {
+  const owned = row.kind === MEDIA_PROVIDER_KIND && row.ownerKey === "tovu" && row.principalId === null && row.binding === null;
+  if (!owned || row.provider === null) {
     throw new VaultError({ code: "context" });
   }
   return row.provider;
@@ -45,7 +48,7 @@ function keyTailOf({ row }: { row: VaultPutRecord }, _options = {}): string | nu
 /** Historical DTO; vault identity/revision/hints remain private to the adapter, never API fields. */
 export function mediaVaultRecord({ row }: { row: VaultPutRecord }, _options = {}): MediaProviderCredentialRecord {
   const providerId = ownedProviderId({ row });
-  const meta = parseTovuStoreMeta({ kind: "media-provider", meta: row.meta });
+  const meta = parseTovuStoreMeta({ kind: MEDIA_PROVIDER_KIND, meta: row.meta });
   const record: MediaProviderCredentialRecord = { workspaceId: row.workspaceId, providerId,
     baseUrl: meta.baseUrl as string | null, model: meta.model as string | null, sealed: row.sealed,
     keyTail: keyTailOf({ row }), aadVersion: row.sealed ? 1 : 0, createdAt: row.createdAt, updatedAt: row.updatedAt };
@@ -64,7 +67,8 @@ function rowIdentity({ record, existing }: { record: MediaProviderCredentialReco
 /** Safe hints describe one envelope: they survive only while every envelope field is unchanged. */
 function preservedHints({ hint, sealed }: { hint?: VaultPutRecord; sealed: VaultPutRecord["sealed"] }, _options = {}) {
   const stored = hint?.sealed;
-  const unchanged = stored != null && sealed !== null && stored.keyId === sealed.keyId &&
+  if (stored == null || sealed === null) return { last4: null, tokenLength: null };
+  const unchanged = stored.keyId === sealed.keyId &&
     stored.ciphertext === sealed.ciphertext && stored.nonce === sealed.nonce && stored.alg === sealed.alg;
   return unchanged ? { last4: hint!.last4, tokenLength: hint!.tokenLength } : { last4: null, tokenLength: null };
 }
@@ -85,7 +89,7 @@ export class MediaProviderCredentialVaultRepo implements MediaProviderCredential
   private row({ record, existing }: { record: MediaProviderCredentialRecord; existing?: VaultRecord }, _options = {}): VaultRecord {
     const { id, hint } = rowIdentity({ record, existing });
     return { ...mediaVaultScope(record), id, provider: record.providerId, label: record.providerId,
-      meta: parseTovuStoreMeta({ kind: "media-provider", meta: { ...existing?.meta, baseUrl: record.baseUrl, model: record.model } }),
+      meta: parseTovuStoreMeta({ kind: MEDIA_PROVIDER_KIND, meta: { ...existing?.meta, baseUrl: record.baseUrl, model: record.model } }),
       sealed: record.sealed, ...preservedHints({ hint, sealed: record.sealed }), ...carriedFromExisting({ record, existing }) };
   }
   async upsert(record: MediaProviderCredentialRecord): Promise<void> {

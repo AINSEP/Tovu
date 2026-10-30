@@ -6,9 +6,9 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, ToolInputError, type AgentToolDefinition, type DerivedRiskByToolId, type ToolRegistration, type ToolExecutionContext } from "@jini-ai/core";
 import { FolderZipError } from "@jini-ai/agent-plugins/folder-zip";
 import { zipLocalFolder } from "@jini-ai/agent-plugins/folder-zip/node";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import { PLUGIN_INSTALL_SOURCE_SCHEMA, readPluginInstallRequest, readPluginInstallArchive, type InstallAttachmentReader } from "../../contracts/headless/plugin-install-source.js";
+import { PLUGIN_INSTALL_SOURCE_SCHEMA, type InstallAttachmentReader, type PluginInstallSourcePort } from "../../contracts/headless/index.js";
 import { AgentPluginInstallError, listInstalledPlugins, maxAgentPluginInstallArchiveBytes, seedBundledAgentPlugins } from "./lifecycle.js";
 import { AgentPluginUploadError, UPLOADED_AGENT_PLUGIN_TRUST_WARNING, previewUploadedAgentPlugin, installUploadedAgentPlugin } from "./install-upload.js";
 import type { AgentPluginLayout } from "./layout.js";
@@ -19,8 +19,9 @@ import { bundledAgentPluginsSourceRoot, listBundledAgentPluginServers } from "./
  * No opt-in for this family: only bundled digests may run code. Preview verifies the full archive,
  * install verifies the pinned bytes again, and every fresh/replacement install remains disabled. */
 export type AgentPluginsInstallToolDeps = {
+  readonly pluginInstallSource: PluginInstallSourcePort;
   readonly snapshotAgentPluginSettings?: UpdateAgentPluginRequired["snapshotSettings"];
-  readonly pluginHost?: import("../../contracts/headless/plugin-host.js").PluginHostPort;
+  readonly pluginHost?: import("../../contracts/headless/index.js").PluginHostPort;
   readonly workspaceId: string;
   readonly authorize: AuthorizeFn;
   readonly readInstallAttachment?: InstallAttachmentReader;
@@ -103,10 +104,10 @@ function updateMcpEffects({ deps, actor }: { deps: AgentPluginsInstallToolDeps; 
 
 /** The candidate's bytes from a folder, a local zip or a chat attachment, size-capped before reading. */
 async function readToolArchive({ deps, ctx }: { deps: AgentPluginsInstallToolDeps; ctx: ToolExecutionContext }, _optional = {}) {
-  const request = readPluginInstallRequest({ input: ctx.input });
+  const request = deps.pluginInstallSource.readRequest({ input: ctx.input });
   const archive = request.kind === "folder"
     ? await zipLocalFolder({ path: request.path!, maxBytes: maxAgentPluginInstallArchiveBytes() })
-    : await readPluginInstallArchive({ request, ownerId: ctx.principal.id, runId: ctx.run.id, maxBytes: maxAgentPluginInstallArchiveBytes() }, { ...(deps.readInstallAttachment ? { readAttachment: deps.readInstallAttachment } : {}) });
+    : await deps.pluginInstallSource.readArchive({ request, ownerId: ctx.principal.id, runId: ctx.run.id, maxBytes: maxAgentPluginInstallArchiveBytes() }, { ...(deps.readInstallAttachment ? { readAttachment: deps.readInstallAttachment } : {}) });
   return { request, archive, expectedSha256: createHash("sha256").update(archive).digest("hex") };
 }
 
@@ -198,16 +199,17 @@ async function installBundledPlugin(
     await seedMissingBundledPlugin({ deps, sourceRoot, id });
   }
   const { verdict } = await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId: id });
+  const installedNote = verdict === "active" ? "Installed ON (seeded enabled by default)." : "Installed OFF. Enable with plugins_set_enabled (family 'agent-plugin') if requested.";
   return { installed: true, alreadyInstalled: existing, enabled: verdict === "undetermined" ? null : verdict === "active", plugin: { id },
     note: existing ? `Bundled plugin '${id}' is already installed; activation was not changed.`
-      : verdict === "active" ? "Installed ON (seeded enabled by default)." : "Installed OFF. Enable with plugins_set_enabled (family 'agent-plugin') if requested.",
+      : installedNote,
   };
 }
 
 export function contributeAgentPluginsInstallTools(
-  required: { readInstallAttachment?: InstallAttachmentReader } = {},
+  required: Pick<AgentPluginsInstallToolDeps, "readInstallAttachment" | "pluginInstallSource">,
   _optional: Record<string, never> = {},
-): ToolContributor {
+): ToolContributor<Omit<AgentPluginsInstallToolDeps, "pluginInstallSource">, unknown> {
   return { domain: "agent-plugins-install", build: deps => buildRegistrations({ ...deps, ...required }), risk: derivedRisk };
 }
 

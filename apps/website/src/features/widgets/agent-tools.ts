@@ -53,6 +53,9 @@
 
 import { WIDGET_TYPE_REGISTRATIONS } from "@jini-ai/cms/widgets";
 
+const MUTATES_DURABLE_STATE = "mutates-durable-state";
+const PLACE_WIDGET_PERMISSION = "widgets.place";
+
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 
 export type AgentToolActorClassRule = "confirmer-must-equal-own-delegatedBy" | "user-only" | "none";
@@ -189,7 +192,7 @@ export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
       "Creates a new widget instance of a given type with a validated config bag (validated against that type's own " +
       "registered schema). The instance is NOT placed anywhere by this call — use widgets_set_region_placements or " +
       "widgets_insert_embed afterward to make it appear on the site.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "widgets.create" },
     inputSchema: {
       type: "object",
@@ -206,7 +209,7 @@ export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "widgets_update_instance",
     description: "Replaces an existing widget instance's config bag (re-validated against its type's registered schema). The widgetType itself cannot be changed.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "widgets.update" },
     inputSchema: {
       type: "object",
@@ -226,7 +229,7 @@ export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
       "the instance is currently placed somewhere (every referencing placement degrades to a placeholder at render " +
       "time rather than this call being rejected). This is the only delete-adjacent tool in this catalog — there is no " +
       "purge/force-delete tool (see this file's header for why).",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: "widgets.delete" },
     inputSchema: {
       type: "object",
@@ -240,8 +243,8 @@ export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Binds a new region key to a fresh, empty placement list. Idempotent — a region key already bound returns its " +
       "existing area entry rather than creating a duplicate.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: "widgets.place" },
+    sideEffects: MUTATES_DURABLE_STATE,
+    authorization: { permission: PLACE_WIDGET_PERMISSION },
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -256,8 +259,8 @@ export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
       "Every widgetEntryId referenced must be an existing, active widget instance in this workspace — a nonexistent, " +
       "trashed, or purged target is rejected before anything is written. Call content_read.widget_region first to see the " +
       "current baseVersion and existing placements to preserve.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: "widgets.place" },
+    sideEffects: MUTATES_DURABLE_STATE,
+    authorization: { permission: PLACE_WIDGET_PERMISSION },
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -278,8 +281,8 @@ export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
       "a widget instance (no widget-in-widget recursion); or if the resulting embed count would exceed the " +
       "per-document cap. Writing into a post or page also requires content.write on it. Returns the newly-minted " +
       "placementId and the host's new version.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: "widgets.place" },
+    sideEffects: MUTATES_DURABLE_STATE,
+    authorization: { permission: PLACE_WIDGET_PERMISSION },
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -297,8 +300,8 @@ export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
       "Removes one inline widgetEmbed node (by placementId) from a host entry's body. The referenced widget " +
       "instance itself is untouched. The host may be a post, a page, or a custom content entry (not an HTML-format " +
       "page); writing into a post or page also requires content.write.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: "widgets.place" },
+    sideEffects: MUTATES_DURABLE_STATE,
+    authorization: { permission: PLACE_WIDGET_PERMISSION },
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -318,8 +321,8 @@ export const widgetsAgentToolCatalog: AgentToolDefinition[] = [
       "exactly one widgetEntryId per embed slot currently present, or the call is rejected before writing anything. " +
       "The host may be a post, a page, or a custom content entry (not an HTML-format page); writing into a post or " +
       "page also requires content.write.",
-    sideEffects: "mutates-durable-state",
-    authorization: { permission: "widgets.place" },
+    sideEffects: MUTATES_DURABLE_STATE,
+    authorization: { permission: PLACE_WIDGET_PERMISSION },
     inputSchema: {
       type: "object",
       additionalProperties: false,

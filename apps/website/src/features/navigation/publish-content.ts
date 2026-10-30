@@ -220,8 +220,7 @@ function menuReferenceMethods(deps: PublishContentDeps) {
     const notUpdated: string[] = [];
 
     for (const menu of menus) {
-      if (input.skipIds.has(menu.id)) continue;
-      if (repointMenuItems(menu.doc.items, replacementByOldId).count === 0) continue;
+      if (input.skipIds.has(menu.id) || repointMenuItems(menu.doc.items, replacementByOldId).count === 0) continue;
 
       const outcome = await repointOneMenu({
         ...ports,
@@ -233,9 +232,8 @@ function menuReferenceMethods(deps: PublishContentDeps) {
       if (outcome.kind === "written") {
         changeSetIds.push(outcome.changeSetId);
         linksUpdated += outcome.count;
-      } else if (outcome.kind === "not-updated") {
-        notUpdated.push(outcome.message);
       }
+      if (outcome.kind === "not-updated") notUpdated.push(outcome.message);
     }
 
     return { changeSetIds, linksUpdated, notUpdated };

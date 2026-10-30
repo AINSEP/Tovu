@@ -144,7 +144,7 @@ function ownIndex(ownership: Ownership, bindingId: string): number {
  *   then O(b + f); `save` and `remove` add one guarded settings write and retry once on conflict.
  */
 export function createSurfaceDeliveryBindings(
-  required: SurfaceDeliveryBindingsDeps & { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string | undefined },
+  required: SurfaceDeliveryBindingsDeps & { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string },
   _optional: Record<string, never> = {},
 ): AdminSurfaceDeliveryBindings {
   const { pluginId, workspaceId, principalId } = required;

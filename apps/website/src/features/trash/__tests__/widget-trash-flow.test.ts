@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { bindWidgetRemoval } from "../widget-removal.js";
 import { removeEntityWithoutBlocker } from "../remove-without-blocker.js";
@@ -13,7 +14,7 @@ import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sql
 import { buildWidgetInstanceFieldsJson, parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
 import { adoptLegacyTrashedWidgets, createWidgetInstance, restoreWidgetPriorStatus, trashWidgetInstance, type WidgetTrashDeps } from "@jini-ai/cms/widgets";
 
-import { createSqliteTrashDb } from "../db-port.sqlite.js";
+
 import { moveToTrash } from "../move-to-trash.js";
 import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
@@ -50,7 +51,7 @@ function harness(options: { widgetRestoreFollowUp?: UnhideFollowUp } = {}): Harn
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
   const registry = buildTrashRegistry();
-  const trashDb = createSqliteTrashDb({ db });
+  const trashDb = contentKernel(db);
   const adapters = new Map<string, TrashAdapter>(
     [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
   );
@@ -206,7 +207,7 @@ test("the widget entry's scope: moveToTrash on a non-widget entries row reads no
     {
       registry: h.registry,
       trash: h.trash,
-      db: createSqliteTrashDb({ db: h.db }),
+      db: contentKernel(h.db),
       authorize: async () => ({ allowed: true, reason: "matched" }),
       clock: { nowIso: () => AT },
     }

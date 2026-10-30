@@ -115,7 +115,7 @@ test("L156 publish import uses source provenance only on create and keeps destin
   const repo = new InMemoryPostRepo([existing]);
   const savedProvenance: unknown[] = [];
   const save = repo.save.bind(repo);
-  t.mock.method(repo, "save", async record => {
+  t.mock.method(repo, "save", async (record: Parameters<typeof repo.save>[0]) => {
     // Assert the record at the write boundary before any repository normalization or read-back.
     savedProvenance.push({ id: record.id, createdAt: record.createdAt, createdByPrincipalId: record.createdByPrincipalId });
     return save(record);

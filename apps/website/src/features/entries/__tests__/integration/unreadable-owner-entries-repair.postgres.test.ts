@@ -1,3 +1,4 @@
+import { kernelStampWatermark } from "#src/platform/db/watermark-kernel";
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 
@@ -50,7 +51,7 @@ test("two processes booting at once: the mismatched rows go exactly once, one ma
   await insertEntry(api!, "both-widget", "widget", { ext: { widget: { payload: "{}" }, site: { payload: "stray" } } });
   await insertEntry(api!, "recipe", "recipe", { ext: { site: { servings: 2 } } });
 
-  const results = await Promise.all([api!, daemon!].map((kernel) => removeUnreadableOwnerEntries({ kernel }, { log: () => {} })));
+  const results = await Promise.all([api!, daemon!].map((kernel) => removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark(kernel), kernel }, { log: () => {} })));
 
   assert.deepEqual(results.map((result) => result.ran).sort(), [false, true], "the second runner waits on the lock, then sees the marker");
   const winner = results.find((result) => result.ran)!;

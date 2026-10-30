@@ -135,7 +135,9 @@ async function listSeedBlobRelativePaths(root: string, dir: string = root): Prom
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
       results.push(...(await listSeedBlobRelativePaths(root, full)));
-    } else if (entry.isFile()) {
+      continue;
+    }
+    if (entry.isFile()) {
       results.push(relative(root, full).split(sep).join("/"));
     }
   }

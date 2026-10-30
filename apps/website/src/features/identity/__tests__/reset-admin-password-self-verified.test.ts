@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import { NodeSessionTokens } from "@jini-ai/user-management/server";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -60,7 +61,7 @@ test("resetAdminPasswordSelfVerified: resets the seeded owner's password, self-v
   const { dir, dbPath } = tmpDbPath("reset-admin-pw-happy-");
   try {
     const db = await openPreparedContentDb(dbPath);
-    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db: contentKernel(db), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
 
     const repos: IdentityRepos = {
@@ -108,7 +109,7 @@ test("resetAdminPasswordSelfVerified: a write that does not verify is caught bef
   const { dir, dbPath } = tmpDbPath("reset-admin-pw-corrupt-");
   try {
     const db = await openPreparedContentDb(dbPath);
-    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db, workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
+    const identity = createSqliteIdentityRouteDeps({ ownerCredentials: DEFAULT_OWNER_CREDENTIALS, permissionGrants: createPermissionGrantRegistry({}), db: contentKernel(db), workspaceId: WORKSPACE, clock: fixedClock, idGen: counterIdGen() });
     await identity.identityReady;
 
     const repos: IdentityRepos = {

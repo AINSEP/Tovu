@@ -6,7 +6,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import {
   resolveActiveThemeId,
   setActiveTheme,
@@ -170,7 +170,7 @@ export function buildSetActiveThemeRegistrations(routeDeps: SetActiveThemeToolDe
  * contribution on re-registration by that key, so sharing the theme domain's own key here would
  * make one of the two contributors silently vanish rather than adding a fifth tool alongside it.
  */
-export function contributeSetActiveThemeTools(): ToolContributor {
+export function contributeSetActiveThemeTools(): ToolContributor<SetActiveThemeToolDeps, unknown> {
   return {
     domain: "theme-set-active",
     build: buildSetActiveThemeRegistrations,

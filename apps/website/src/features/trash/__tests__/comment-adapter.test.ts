@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
@@ -13,7 +14,7 @@ function harness(t: TestContext) {
   insert.run("c-1", "ws-two", "approved");
   db.prepare("INSERT INTO p_comments__moderation_log VALUES ('c-1', 'prior moderation')").run();
   const read = (ws = "ws-one") => db.prepare("SELECT status, updated_at, version, body_text FROM p_comments__comments WHERE workspace_id = ? AND id = 'c-1'").get(ws);
-  return { db, adapter: createCommentTrashAdapter(db), read };
+  return { db, adapter: createCommentTrashAdapter(contentKernel(db)), read };
 }
 
 // F6.3/F4.5: read the real table before/after; a success response cannot hide a no-op.

@@ -1,5 +1,6 @@
 import type { AgentToolSideEffect } from "@jini-ai/core";
 import { FS_ROOT_IDS } from "../fs-files/layout.js";
+import { FS_FOLDER_READ_RECOVERY } from "../fs-files/site-file-request.js";
 
 /**
  * @file Agent-tool catalog for `features/media-import` — closes the "the assistant is holding a URL
@@ -45,7 +46,7 @@ export interface AgentToolDefinition {
 }
 
 /** Owner-controlled recovery for a path outside the file browser's roots; never set roots from a tool. */
-export const LOCAL_FILE_IMPORT_RECOVERY = "Ask the owner to attach the file to the chat, then use media_promote_chat_attachment, or choose that folder using the folder control ('No folder set') in the admin chat composer, then retry with root 'custom'.";
+export const LOCAL_FILE_IMPORT_RECOVERY = FS_FOLDER_READ_RECOVERY;
 
 const LOCAL_IMPORT_SCHEMA = {
   type: "object",
@@ -55,11 +56,11 @@ const LOCAL_IMPORT_SCHEMA = {
     root: {
       type: "string",
       enum: FS_ROOT_IDS,
-      description: "Use the same root id as fs_list_files/fs_read_file: repo, site, or the owner's configured custom folder. The tool cannot choose or widen the custom folder.",
+      description: "Use site for files in this site, or custom for the folder the owner picked with the chat composer folder button. The picked folder may be outside the site and is readable through these tools. repo and unpicked folders are refused.",
     },
     path: {
       type: "string",
-      description: "File path relative to that root, as found with fs_list_files. Absolute paths, escapes, denied filenames and secrets folders are refused. " + LOCAL_FILE_IMPORT_RECOVERY,
+      description: "File path relative to that root, as found with fs_list_files. For custom, absolute or ~/ paths inside the picked folder are also accepted. Escapes, denied filenames and secrets folders are refused. " + LOCAL_FILE_IMPORT_RECOVERY,
     },
     title: { type: "string", description: "Optional media title; defaults to the file's name without its extension." },
     alt: { type: "string", description: "Optional accessibility alt text." },
@@ -83,6 +84,7 @@ const IMPORT_SCHEMA = {
     },
     filename: {
       type: "string",
+      aliases: ["title"],
       description:
         "Optional. A name for the asset, used to derive its title in the media library. Defaults to " +
         "the last path segment of the URL, which is often a meaningless hash — pass something " +
@@ -121,7 +123,7 @@ export const mediaImportAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "media_import_local_file",
     description:
-      "Put an image or video saved on this computer into the media library. Find the file with fs_list_files first, then pass the same root and relative path that fs_read_file takes. Use this for local files on disk, such as a video in Downloads, a photo on the Desktop, or a logo in a theme folder. For an https link use media_import_from_url. Accepts PNG, JPEG, GIF, WebP, AVIF, SVG, MP4 and WebM, up to 50 MiB, detected from the actual bytes. SVG is sanitized before storage; SVG fonts are refused. Returns { media: ImportedMediaView }, the same media object as media_import_from_url (id, slug, title, alt, caption, credit, sha256, status, version, publicUrl, sourceUrl); sourceUrl is empty for local files. Identical bytes share one stored blob. Files outside the file browser's roots, secrets, denied files, and oversized or unsupported files are refused. " + LOCAL_FILE_IMPORT_RECOVERY,
+      "Put an image or video saved in this site or the owner-picked folder into the media library. Find the file with fs_list_files first, then pass the same root and relative path that fs_read_file takes. Use site for a logo in a theme folder, or custom for assets in the folder picked from the chat composer. For an https link use media_import_from_url. Accepts PNG, JPEG, GIF, WebP, AVIF, SVG, MP4 and WebM, up to 50 MiB, detected from the actual bytes. SVG is sanitized before storage; SVG fonts are refused. Returns { media: ImportedMediaView }, the same media object as media_import_from_url (id, slug, title, alt, caption, credit, sha256, status, version, publicUrl, sourceUrl); sourceUrl is empty for local files. Identical bytes share one stored blob. Unpicked folders, secrets, denied files, and oversized or unsupported files are refused. " + LOCAL_FILE_IMPORT_RECOVERY,
     sideEffects: "mutates-durable-state",
     authorization: { permission: "media.upload" },
     inputSchema: LOCAL_IMPORT_SCHEMA,

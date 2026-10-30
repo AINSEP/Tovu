@@ -1,7 +1,7 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 
 import { THEME_WRITE_PERMISSION } from "./agent-tools.js";
 import { DuplicateThemeError, duplicateDiscoveredTheme } from "./duplicate-theme.js";
@@ -144,7 +144,7 @@ export function buildDuplicateThemeRegistrations(routeDeps: DuplicateThemeToolDe
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`.
  * Own domain key for the same reason `contributeSetActiveThemeTools()` has one (see this file's header).
  */
-export function contributeDuplicateThemeTools(): ToolContributor {
+export function contributeDuplicateThemeTools(): ToolContributor<DuplicateThemeToolDeps, unknown> {
   return {
     domain: "theme-duplicate",
     build: buildDuplicateThemeRegistrations,

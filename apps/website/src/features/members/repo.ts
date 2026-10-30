@@ -386,8 +386,8 @@ export class SqlMemberSessionRepo implements MemberSessionRepoPort {
       const member = await this.kernel.run(db => db.selectFrom("members")
         .select(["status", "credentials_revoked_at"]).where("workspace_id", "=", record.workspaceId)
         .where("id", "=", record.memberId).executeTakeFirst());
-      if (member && (member.status === "trash" || member.status === "disabled"
-        || (member.credentials_revoked_at !== null && member.credentials_revoked_at > record.createdAt))) {
+      const revokedAfterCreation = member && member.credentials_revoked_at !== null && member.credentials_revoked_at > record.createdAt;
+      if (member && (member.status === "trash" || member.status === "disabled" || revokedAfterCreation)) {
         throw new MemberAuthError("member changed before the session was saved; request a new sign-in link");
       }
       await this.kernel.run((db) => db.insertInto("member_sessions").values(row)
@@ -591,34 +591,4 @@ export class SqlMemberConsentRepo implements MemberConsentRepoPort {
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
     return this.kernel.transaction(fn);
   }
-}
-
-/** The member repo for `kernel`. */
-export function memberRepoFor(kernel: ContentKernel): SqlMemberRepo {
-  return new SqlMemberRepo(kernel);
-}
-
-/** The member-tier repo for `kernel`. */
-export function memberTierRepoFor(kernel: ContentKernel): SqlMemberTierRepo {
-  return new SqlMemberTierRepo(kernel);
-}
-
-/** The member-subscription repo for `kernel`. */
-export function memberSubscriptionRepoFor(kernel: ContentKernel): SqlMemberSubscriptionRepo {
-  return new SqlMemberSubscriptionRepo(kernel);
-}
-
-/** The member-session repo for `kernel`. */
-export function memberSessionRepoFor(kernel: ContentKernel): SqlMemberSessionRepo {
-  return new SqlMemberSessionRepo(kernel);
-}
-
-/** The magic-link token repo for `kernel`. */
-export function magicLinkTokenRepoFor(kernel: ContentKernel): SqlMagicLinkTokenRepo {
-  return new SqlMagicLinkTokenRepo(kernel);
-}
-
-/** The member-consent repo for `kernel`. */
-export function memberConsentRepoFor(kernel: ContentKernel): SqlMemberConsentRepo {
-  return new SqlMemberConsentRepo(kernel);
 }

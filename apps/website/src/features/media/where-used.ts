@@ -4,7 +4,7 @@
 import type { EntryRefsRepoPort } from '#src/contracts/core/entry-refs/ports';
 import type { EntryRefRow } from '#src/contracts/core/entry-refs/types';
 import type { VersionedMediaRepoPort } from './versioned-media-repo.js';
-import type { PostRepoPort } from '#src/features/post/post';
+import type { PostRepoPort } from '#src/features/post/contracts';
 import { collectReferencedMediaKeys } from '#src/features/publish-content/media-references';
 
 /** O(n) in current post body bytes plus indexed alias lookups; read-only and workspace-scoped. */
@@ -24,8 +24,7 @@ export async function findMediaWhereUsed(
   for (const row of indexed.flat()) {
     if (!postIds.has(row.sourceEntryId)) references.set(`${row.sourceEntryId}:${row.fieldPath}`, row);
   }
-  for (const post of posts) {
-    if (post.deletedAt != null) continue;
+  for (const post of posts.filter(post => post.deletedAt == null)) {
     const refs = collectReferencedMediaKeys({ bodyJson: post.bodyJson, bodyHtml: post.bodyHtml, seoExtJson: post.seoExtJson });
     if (![...refs].some(key => keys.has(key))) continue;
     const row: EntryRefRow = { workspaceId: input.workspaceId, sourceEntryId: post.id, sourceKind: 'config-field', fieldPath: post.bodyFormat === 'html' ? 'bodyHtml' : 'bodyJson', targetKind: 'asset', targetId: input.mediaId };

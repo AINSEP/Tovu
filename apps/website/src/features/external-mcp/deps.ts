@@ -1,11 +1,11 @@
-import type { OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
+import type { OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 
 // `#src/*` maps to `./src/*.ts` (package.json `imports`), so the subpath carries no `.js`
-// suffix — unlike a relative specifier, which does. `#src/assistant/index` below is the same shape.
+// suffix — unlike a relative specifier, which does. `#src/assistant/mcp-services` below is the same shape.
 import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/index";
-import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "#src/assistant/index";
+import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "#src/assistant/mcp-services";
 
 /**
  * @file The exact slice of a composition root's deps bag this domain's tool handlers read.
@@ -20,7 +20,7 @@ import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "#src/as
  * `SecretSealerPort`/`KeyringPort` (restated as a type-only import from `#src/features/webhooks/index.js`,
  * ADR-058's shared sealer/keyring types, the same instances the BYOK/media-provider stores
  * share). This domain's `tool-registrations.ts` ALREADY value-imports `saveExternalMcpServer`/
- * `listExternalMcpServerViews`/etc. from that same `#src/assistant/index` barrel — the identical
+ * `listExternalMcpServerViews`/etc. from that same `#src/assistant/mcp-services` barrel — the identical
  * seam `server/routes/admin/external-mcp/put.ts` uses — so importing their types from there too adds
  * no new edge, it is the same one already being crossed.
  *

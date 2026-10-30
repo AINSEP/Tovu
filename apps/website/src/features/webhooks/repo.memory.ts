@@ -65,9 +65,7 @@ export class InMemoryWebhookSubscriptionRepo implements WebhookSubscriptionRepoP
   private rows = new Map<string, WebhookSubscriptionRecord>();
 
   constructor(initialRows: WebhookSubscriptionRecord[] = []) {
-    for (const row of initialRows) {
-      this.rows.set(rowKey(row.workspaceId, row.id), row);
-    }
+    this.rows = new Map(initialRows.map(row => [rowKey(row.workspaceId, row.id), row]));
   }
 
   async insert(record: WebhookSubscriptionRecord): Promise<void> {
@@ -122,9 +120,7 @@ export class InMemoryWebhookDeliveryRepo implements WebhookDeliveryRepoPort {
   private rows = new Map<string, WebhookDeliveryRecord>();
 
   constructor(initialRows: WebhookDeliveryRecord[] = []) {
-    for (const row of initialRows) {
-      this.rows.set(rowKey(row.workspaceId, row.id), row);
-    }
+    this.rows = new Map(initialRows.map(row => [rowKey(row.workspaceId, row.id), row]));
   }
 
   async enqueue({ record }: { record: WebhookDeliveryRecord }, _optional: { envelope?: WebhookEventEnvelope } = {}): Promise<void> {

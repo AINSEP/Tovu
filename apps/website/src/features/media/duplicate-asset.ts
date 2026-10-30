@@ -8,8 +8,8 @@ import {
 import { ToolInputError } from "@jini-ai/core";
 import { rollbackUploadedMedia, uploadMedia } from "@jini-ai/cms/media";
 
-import type { DuplicateResourceHandlerContributor } from "#src/assistant/index";
-import type { MediaPublicUrlDeps } from "./tool-registrations.js";
+import type { DuplicateResourceHandlerContributor } from "#src/assistant/tool-contributions";
+import type { MediaPublicUrlDeps } from "./contracts.js";
 import { TOVU_MAX_UPLOAD_BYTES } from "../../contracts/core/upload-limits.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 
@@ -268,7 +268,7 @@ export async function duplicateMediaAsset(
  * rule bans any non-type-only `features/** -> assistant/**` import, so this function returns plain
  * data and imports only the registry's TYPE.
  */
-export function contributeMediaDuplicateHandlers(): DuplicateResourceHandlerContributor[] {
+export function contributeMediaDuplicateHandlers(): DuplicateResourceHandlerContributor<MediaToolDeps & MediaPublicUrlDeps>[] {
   return [
     {
       resource: "media",

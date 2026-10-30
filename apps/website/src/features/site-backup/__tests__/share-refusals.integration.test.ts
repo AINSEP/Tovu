@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 /** Pins the export/import refusal paths not covered elsewhere: revoke edge cases, corrupt
  * uploads, undeclared bundled plugin tables (store/lipay) and publish-history privacy.
  * Covered elsewhere (not repeated here): path traversal/aliases/bombs/caps in
@@ -13,8 +14,8 @@ import { tmpdir } from "node:os";
 import Database from "better-sqlite3";
 import { SiteShareRegistry, newShareIdentity } from "../share-registry.js";
 import { createSiteShare, receiveSiteShareArtifact, revokeSiteShare, type ShareDelivery } from "../share-service.js";
-import { sanitizeShareDatabase } from "../../../platform/db/sqlite/share-database.js";
-import { FIRST_PARTY_DATA_MODULES } from "../../plugins/data-modules.js";
+import { sanitizeShareDatabase } from "#src/server/runtime/composition/site-portability";
+import { FIRST_PARTY_DATA_MODULES } from "../../../server/runtime/composition/data-modules.js";
 import { declareDataModule } from "../../plugins/data-module.js";
 import { importFixture, stamp } from "./import.fixture.js";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
@@ -114,7 +115,7 @@ for (const [pluginId, table, columns] of [
   const h = await importFixture(t);
   const decl = FIRST_PARTY_DATA_MODULES.find(module => module.pluginId === pluginId)!;
   assert.ok(decl.tables.every(entry => entry.portability === undefined), `${pluginId} gained a portability policy; update this pin`);
-  const result = await declareDataModule({ db: h.db, dbPath: ":memory:", decl });
+  const result = await declareDataModule({ db: contentKernel(h.db), dbPath: ":memory:", decl });
   assert.equal(result.ok, true, result.error?.message);
   await sanitizeShareDatabase({ snapshot: h.db.$client.serialize() });
   const name = `p_${pluginId}__${table}`;

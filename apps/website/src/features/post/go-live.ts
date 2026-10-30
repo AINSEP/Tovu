@@ -1,9 +1,9 @@
 import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
-import type { Clock as ClockPort } from "@jini-ai/core/primitives";
+import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 
 import { isTrashed } from "../../contracts/core/soft-delete.js";
-import type { PostRecord } from "./post.js";
+import type { PostKind, PostStatus } from "./post-vocabulary.js";
 
 /**
  * @file Scheduled go-live announcements (2026-10-21) — the one place a scheduled post's
@@ -46,12 +46,20 @@ export interface GoLiveCandidatesPort {
    * bound when `afterIso` is absent) and `publishAt > updatedAt` — saved while still scheduled.
    * Oldest go-live first.
    */
-  listGoLiveCandidates(required: { workspaceId: string; nowIso: string; afterIso?: string }, optional?: Record<string, never>): Promise<PostRecord[]>;
+  listGoLiveCandidates(required: { workspaceId: string; nowIso: string; afterIso?: string }, optional?: Record<string, never>): Promise<GoLiveRow[]>;
 }
 
 /** The row fields a go-live decision and its event read — what an HTML page write can supply
- *  straight off its own SELECT, without a full {@link PostRecord}. */
-export type GoLiveRow = Pick<PostRecord, "id" | "workspaceId" | "kind" | "status" | "publishAt" | "updatedAt" | "deletedAt">;
+ *  straight off its own SELECT, without a full `PostRecord`. */
+export interface GoLiveRow {
+  id: UUID;
+  workspaceId: UUID;
+  kind: PostKind;
+  status: PostStatus;
+  publishAt?: string | null;
+  updatedAt: string;
+  deletedAt?: string | null;
+}
 
 /** True when `post` was saved while scheduled and its go-live time has since passed, so the save
  *  that wrote it announced nothing and the sweep may not have run yet. @complexity O(1). */

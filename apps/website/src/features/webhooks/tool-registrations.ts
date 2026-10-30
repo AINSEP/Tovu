@@ -21,7 +21,7 @@ import { adaptLegacyAuthorize, type AuthorizeFn, requireToolPermission } from "@
 // The transport raises ToolInputError for a missing channel: delegated tools must see the
 // missing capability, not an opaque SEC-005-redacted internal error that invites retries.
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import {
   forbiddenRule,
@@ -45,6 +45,8 @@ import {
 import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "./types.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
+const MANAGE_INTEGRATIONS_PERMISSION = "admin.integrations.manage";
 
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: getWebhooksAgentToolCatalog() });
@@ -195,7 +197,7 @@ export function buildWebhooksRegistrations(
   const handlers: Record<string, ToolHandler> = {
     webhooks_list_subscriptions: async (ctx) => {
       requireNoInput({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.integrations.manage" }, { entityType: "webhook_subscription" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription" });
 
       const subscriptions = await routeDeps.webhookSubscriptionRepo.listByWorkspace({ workspaceId: routeDeps.workspaceId });
       const views = await Promise.all(
@@ -214,7 +216,7 @@ export function buildWebhooksRegistrations(
     webhooks_get_deliveries: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const subscriptionId = requireString({ input, key: "subscriptionId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.integrations.manage" }, { entityType: "webhook_subscription", entityId: subscriptionId });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
 
       const subscription = await routeDeps.webhookSubscriptionRepo.findById({ workspaceId: routeDeps.workspaceId, id: subscriptionId });
       if (!subscription) throw new WebhookSubscriptionNotFoundError({ message: `webhook subscription '${subscriptionId}' was not found` });
@@ -230,7 +232,7 @@ export function buildWebhooksRegistrations(
 
     webhooks_create_subscription: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.integrations.manage" }, { entityType: "webhook_subscription" });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription" });
 
       const rawTopics = input.topics;
       const { subscription } = await createSubscription({
@@ -254,7 +256,7 @@ export function buildWebhooksRegistrations(
     webhooks_update_subscription: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const subscriptionId = requireString({ input, key: "subscriptionId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.integrations.manage" }, { entityType: "webhook_subscription", entityId: subscriptionId });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
       if (!Array.isArray(input.topics) || !input.topics.every(topic => typeof topic === "string")) {
         throw new WebhookSubscriptionValidationError({ message: "topics must be an array of strings" });
       }
@@ -270,7 +272,7 @@ export function buildWebhooksRegistrations(
     webhooks_pause_subscription: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const subscriptionId = requireString({ input, key: "subscriptionId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.integrations.manage" }, { entityType: "webhook_subscription", entityId: subscriptionId });
+      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
 
       const { subscription } = await pauseSubscription(
         {
@@ -294,7 +296,7 @@ export function buildWebhooksRegistrations(
     webhooks_delete_subscription: approvalToolHandler({ surfaces,
       prepare: async ({ ctx }) => {
         const subscriptionId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "subscriptionId" });
-        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.integrations.manage" }, { entityType: "webhook_subscription", entityId: subscriptionId });
+        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
         const existing = await routeDeps.webhookSubscriptionRepo.findById({ workspaceId: routeDeps.workspaceId, id: subscriptionId });
         if (!existing) throw new WebhookSubscriptionNotFoundError({ message: `webhook subscription '${subscriptionId}' was not found` });
         return { subscriptionId, existing: structuredClone(existing) };
@@ -317,7 +319,7 @@ export function buildWebhooksRegistrations(
       }),
       run: async ({ ctx, prepared: { subscriptionId, existing } }) => {
         // Authorization can be revoked while the human reads the card; the service has no gate.
-        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.integrations.manage" }, { entityType: "webhook_subscription", entityId: subscriptionId });
+        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
         if (ctx.signal.aborted) return { deleted: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
         const current = await routeDeps.webhookSubscriptionRepo.findById({ workspaceId: routeDeps.workspaceId, id: subscriptionId });
         if (!isDeepStrictEqual(current, existing)) throw new ToolInputError({ message: "webhooks_delete_subscription: target changed while confirmation was open. Request a new confirmation; nothing was deleted." });
@@ -369,6 +371,6 @@ export function buildWebhooksRegistrations(
  * test.ts`'s currently-failing DOMAIN_SLICES collision checks); changing it here risked colliding
  * with work this task was told not to touch. Flagged for the coordinator, not decided here.
  */
-export function contributeWebhooksTools(): ToolContributor {
+export function contributeWebhooksTools(): ToolContributor<IntegrationsToolDeps, AssistantSurfaceDeps> {
   return { domain: "integrations", build: buildWebhooksRegistrations, risk: webhooksDerivedRisk };
 }

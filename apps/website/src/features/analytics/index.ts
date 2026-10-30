@@ -60,3 +60,5 @@ export {
   AnalyticsValidationError,
   AnalyticsWorkspaceUnresolvedError,
 } from "./ports.js";
+export type { VisitorAnalyticsDeps } from "./contracts.js";
+export { createAnalyticsIngestBinding, type AnalyticsIngestRouteDeps } from "./jini-adapters.js";

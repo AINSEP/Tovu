@@ -50,7 +50,7 @@ before(async () => {
     });
   }
   for (const q of EVAL_QUERIES) {
-    const { hits } = await searchAdminPosts({ deps: { search: new PostSearchIndex(kernel) }, input: { workspaceId: WS, query: q.query, limit: 10 } });
+    const { hits } = await searchAdminPosts({ deps: { search: new PostSearchIndex({ kernel }) }, input: { workspaceId: WS, query: q.query, limit: 10 } });
     results.set(q.id, hits.map((hit) => hit.id));
   }
 });

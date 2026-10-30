@@ -32,7 +32,8 @@ export function parseDeployOpsFile(raw: string): ParseResult {
 
 /** Lexical containment is checked before the lifecycle loader checks disk containment. */
 function containedModule({ module }: { module: unknown }, _optional = {}): boolean {
-  return typeof module === "string" && module.endsWith(".mjs") && !module.startsWith("/") && !module.includes("\\") && !module.split("/").some(s => s === ".." || s === "." || !s);
+  if (typeof module !== "string" || !module.endsWith(".mjs")) return false;
+  return !module.startsWith("/") && !module.includes("\\") && !module.split("/").some(s => s === ".." || s === "." || !s);
 }
 
 function validHosts({ hosts }: { hosts: unknown }, _optional = {}): boolean {
@@ -148,7 +149,10 @@ export async function loadDeployOpsRegistry(ctx: { workspaceId: string }, requir
 /** Refuse an absent id with the available ids and loader refusals, rather than guessing a platform. */
 export function requirePlatform(registry: DeployOpsRegistry, id: string): LoadedDeployOps {
   const platform = registry.get(id);
-  if (!platform) throw new ToolInputError({ message: `Unknown deployment ops platform '${id}'. Choose: ${registry.list().map(p => p.descriptor.id).join(", ") || "(none)"}.${registry.refusals.length ? ` ${registry.refusals.join(" ")}` : ""}` });
+  if (!platform) {
+    const refusals = registry.refusals.length ? ` ${registry.refusals.join(" ")}` : "";
+    throw new ToolInputError({ message: `Unknown deployment ops platform '${id}'. Choose: ${registry.list().map(p => p.descriptor.id).join(", ") || "(none)"}.${refusals}` });
+  }
   return platform;
 }
 /** Index uniquely claimed ids. Ambiguous ids are refused for all claimants. O(platforms). */

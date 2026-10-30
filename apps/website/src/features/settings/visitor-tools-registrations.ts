@@ -1,7 +1,7 @@
 /** Admin assistant adapter; no public executor or generic settings path enters these handlers. */
 import { buildDomainRegistrations, indexCatalogById, ToolInputError, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler } from "../../contracts/core/human-confirm.js";
 import { toolMetadata } from "../../contracts/core/tool-metadata/visitor-tools.js";
 import { visitorToolsObject, VisitorToolPolicyValidationError } from "../../contracts/site-assistant/visitor-tools.js";
@@ -87,6 +87,6 @@ export function buildVisitorToolsRegistrations({ deps, surfaces }: {
 }
 
 /** Explicit composition registration, with no import-time mutation. */
-export function contributeVisitorTools(_required: Record<string, never> = {}, _options = {}): ToolContributor {
+export function contributeVisitorTools(_required: Record<string, never> = {}, _options = {}): ToolContributor<VisitorToolsToolDeps, AssistantSurfaceDeps> {
   return { domain: "visitor-tools", build: (deps, surfaces) => buildVisitorToolsRegistrations({ deps, surfaces }), risk: visitorToolsDerivedRisk };
 }

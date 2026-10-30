@@ -1,8 +1,9 @@
+import { safeHref } from "./render-contract.js";
 import { COLLECTION_MARKER_TYPE, FEATURED_IMAGE_MARKER_TYPE, markersOfType, MENU_MARKER_TYPE, PARTIAL_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, substituteMarkers, withAddedId, withElementKeptIfAttributed, withInnerContent, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { extractListingCardTemplate, injectListingScript, listingKeyOfAttributes, parseListingBatchSize, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
 import { injectMenuDropdownScript, renderMenuToggle } from "@jini-ai/cms/navigation/dropdown";
-import { postAuthorForDisplay } from "../post/author.js";
-import { renderHtmlMenu } from "#src/features/navigation/html-render";
+import { postAuthorForDisplay } from "../../contracts/core/post-author.js";
+import { renderHtmlMenu } from "#src/features/navigation/render-entry";
 import { escapeHtml } from "#src/platform/html/escape";
 import { withEntryListStyleOnce } from "./entry-list-render.js";
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
@@ -151,18 +152,17 @@ export interface StaticMenuItem {
   readonly available: boolean;
   readonly isCurrent: boolean;
   /** True when this item OR a descendant is current — what a sidebar uses to expand a section. */
-  readonly isActive?: boolean | undefined;
+  readonly isActive?: boolean;
   /** `NavItemAttrs` passthrough — all five presentational fields (`cssClass`/`description`/`icon`
    *  render as before; `rel`/`openInNewTab` added alongside them, same escaped/no-allowlist posture). */
   readonly attrs?:
     | {
-        readonly cssClass?: string | undefined;
-        readonly description?: string | undefined;
-        readonly icon?: string | undefined;
-        readonly rel?: string | undefined;
-        readonly openInNewTab?: boolean | undefined;
-      }
-    | undefined;
+        readonly cssClass?: string;
+        readonly description?: string;
+        readonly icon?: string;
+        readonly rel?: string;
+        readonly openInNewTab?: boolean;
+      };
   readonly children: readonly StaticMenuItem[];
 }
 
@@ -175,63 +175,7 @@ export interface StaticHtmlMenu {
 /** What the route layer resolved for one menu id: its item tree, or its authored HTML. */
 export type StaticMenuContent = readonly StaticMenuItem[] | StaticHtmlMenu;
 
-/**
- * Fixed placeholder origin {@link safeHref} resolves a claimed same-origin-relative href against —
- * mirrors `server/inbound/public-http/http/site/render.ts`'s identically-named constant byte-for-byte.
- */
-const SAFE_HREF_RESOLUTION_BASE = "http://tovu-safehref.invalid/";
-const SAFE_HREF_RESOLUTION_ORIGIN = new URL(SAFE_HREF_RESOLUTION_BASE).origin;
-
-/**
- * Sanitize a menu item's `href` before it reaches public HTML: allow only in-page (`#…`),
- * same-origin relative (`/…`), `http(s)://`, and `mailto:` targets. Everything else — notably
- * `javascript:`, `data:`, and any other scheme — collapses to `"#"` so a menu link can never smuggle
- * script into the page. A menu item's `href` is operator-authored (the admin menu editor, or an
- * agent tool acting on an operator's behalf) and reaches every visitor of the public site, including
- * an authenticated admin — the same "content is data, so a link is an untrusted string" posture
- * `render.ts`'s own `safeHref` doc already states for post-body links.
- *
- * **This is a deliberate DUPLICATE, not a shared import, of
- * `server/inbound/public-http/http/site/render.ts`'s `safeHref` (confirmed byte-identical logic,
- * including its `/…` branch's 2026-08-20 protocol-relative-URL fix — see that function's own doc for
- * the full attack-shape writeup this mirrors).** `render.ts` sits in `server/inbound/`, a layer
- * `features/theme` must never reach into (`check:boundaries`' no-deep-import rule; a feature pulling
- * from an inbound-transport module is backwards), and importing it would open a runtime import cycle
- * back into the file that pulls in widgets/Liquid/Handlebars. (`escapeHtml` had the same problem
- * until it moved to the import-free leaf `platform/html/escape.ts`.) If this logic changes, the `render.ts` copy
- * must change too — that file does not yet cross-reference this one; flagged for whoever next edits
- * either copy to add the reciprocal comment there.
- *
- * **KNOWN GAP, not fixed here (out of this pass's scope):** `render.ts`'s own `announcement`,
- * `siteNav`, and `siteFooterRich` widget renderers build `<a href>` from operator-authored widget
- * props via `escapeHtml(str(o.href, "#"))` alone, with NO `safeHref` call — the exact same class of
- * gap this function closes for static-tier menus, still live in that file's widget-IR path.
- *
- * @returns the original value when it passes the allowlist, otherwise `"#"` — never a malformed or
- *   unsafe href, matching this codebase's "degrade, don't disappear" convention for a link target.
- *
- * Takes `string`, not `string | null` — matching `escapeHtml`'s own signature (`platform/html/escape.ts`).
- * `render.ts`'s `safeHref` accepts `JsonValue | undefined` because ITS callers hand it raw,
- * attacker-shaped widget-prop JSON; both of THIS function's callers already narrow `StaticMenuItem`'s
- * `href: string | null` to a real string before calling (the same `available && href !== null` gate
- * `renderMenuLinks`'s `.filter()` and `renderMenuItem`'s `linkable` both already apply) — adding a
- * second, always-false null guard here would be untestable dead code, not defense in depth.
- */
-export function safeHref(value: string): string {
-  const href = value.trim();
-  if (href.startsWith("#")) return href;
-  if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) return href;
-  if (href.startsWith("/")) {
-    let resolved: URL;
-    try {
-      resolved = new URL(href, SAFE_HREF_RESOLUTION_BASE);
-    } catch {
-      return "#";
-    }
-    return resolved.origin === SAFE_HREF_RESOLUTION_ORIGIN ? href : "#";
-  }
-  return "#";
-}
+export { safeHref } from "./render-contract.js";
 
 /**
  * Renders one location's resolved menu items as a flat sequence of `<a>` tags. Top-level items
@@ -383,7 +327,10 @@ function injectMenuEmbeds(
 ): string {
   // One counter per page, so two dropdown markers never mint the same submenu id.
   let submenuCount = 0;
-  const dropdown: MenuDropdown = { nextId: () => `jini-submenu-${++submenuCount}` };
+  const dropdown: MenuDropdown = { nextId: () => {
+    submenuCount++;
+    return `jini-submenu-${submenuCount}`;
+  } };
   return substituteMarkers({ html: html, resolve: (marker) => {
     if (marker.type !== MENU_MARKER_TYPE || marker.id === undefined) return undefined;
     const items = menus[marker.id];
@@ -395,9 +342,12 @@ function injectMenuEmbeds(
       return plain === "" ? undefined : withElementKeptIfAttributed({ marker: marker, inner: plain });
     }
     const variant = marker.config.variant;
-    const inner = variant === "tree" ? renderMenuTree(items)
-      : variant === "dropdown" ? renderMenuTree(items, dropdown)
-      : renderMenuLinks(items);
+    let inner: string;
+    switch (variant) {
+      case "tree": inner = renderMenuTree(items); break;
+      case "dropdown": inner = renderMenuTree(items, dropdown); break;
+      default: inner = renderMenuLinks(items);
+    }
     return inner === "" ? undefined : withInnerContent({ marker: marker, inner: inner });
   } });
 }
@@ -470,8 +420,11 @@ export interface StaticPostPreview {
   readonly featuredImage?: StaticFeaturedImage | null;
 }
 
-/** One marker's batch size — what {@link scanPostPreviewsLimit} fetches, what
- *  {@link injectPostPreviewsEmbeds} shows, and a see-more listing's batch size, so they never disagree. */
+/** One marker's batch size — what the route fetches, what {@link injectPostPreviewsEmbeds} shows,
+ *  and a see-more listing's batch size, so they never disagree.
+ *  The route scans only the current page: unlike shared menu chrome, post listings are page-scoped,
+ *  so pages without a marker must not query posts. Plain markers share one bounded query at the
+ *  widest clamped size; each marker slices its own limit. Keyed/paged listings resolve separately. */
 export function postPreviewsBatchSize(marker: Pick<EmbedMarker, "config">): number {
   return parseListingBatchSize({ config: marker.config }, { fallback: LEGACY_POST_PREVIEWS_LIMIT });
 }
@@ -563,30 +516,6 @@ function renderPagedPostPreviews(
 ): string | undefined {
   if (page.items.length === 0) return undefined;
   return withInnerContent({ marker, inner: page.items.map(renderPostPreviewCard).join("") }) + page.nav;
-}
-
-/**
- * Every `{"type":"post-previews"}` marker's own `limit` in `html` — the CURRENT page about to
- * render, not the whole theme. Unlike {@link scanMenuEmbedIds}, a post-previews marker's data is
- * PAGE-scoped, not shared chrome: scanning every page/partial the way the menu scan does would fetch
- * posts on every request regardless of whether the page actually being rendered carries the marker,
- * which is exactly the query cost REQ 2 (route layer supplies posts when, and only when, the marker
- * is present) rules out.
- *
- * Returns `undefined` when `html` carries no such marker at all — the route layer's signal to skip
- * the bounded query entirely. When multiple markers appear on one page, returns the WIDEST clamped
- * limit found: `Jini/packages/cms/src/widgets/resolvers/recent-entries.ts`'s own "one batched query bounded to the widest
- * requested max; each instance's own smaller value then slices the already-fetched result" discipline
- * (REQ-24/25), so N markers with different limits on the same page still cost exactly one bounded
- * query — {@link injectPostPreviewsEmbeds} does that per-marker slicing.
- *
- * @complexity O(n) over `html`'s length for the marker scan, plus O(m) over the small, fixed number
- * of post-previews markers a real page carries.
- */
-export function scanPostPreviewsLimit(html: string): number | undefined {
-  const markers = markersOfType({ html: html, type: POST_PREVIEWS_MARKER_TYPE });
-  if (markers.length === 0) return undefined;
-  return markers.reduce((widest, marker) => Math.max(widest, postPreviewsBatchSize(marker)), 0);
 }
 
 /**
@@ -939,7 +868,7 @@ function warnUnrewrittenAssetPaths(required: { html: string; theme: DiscoveredTh
  * {@link injectMenuEmbeds}.
  *
  * `postPreviews` (post-previews marker, 2026-09-03): the route layer's already-bounded,
- * visibility-filtered result — see {@link scanPostPreviewsLimit}/{@link StaticPostPreview}'s own
+ * visibility-filtered result — see {@link postPreviewsBatchSize}/{@link StaticPostPreview}'s own
  * docs for how it decides whether to fetch anything at all. Omitted (or empty) leaves every
  * `{"type":"post-previews"}` marker's authored fallback untouched, see
  * {@link injectPostPreviewsEmbeds} — same "absent input, absent effect" contract `menus` already has.

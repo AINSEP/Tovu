@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import { createTrashScheduler } from "#src/features/trash/scheduler.node";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -5,7 +6,7 @@ import test from "node:test";
 import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
-import { createSqliteTrashDb } from "../db-port.sqlite.js";
+
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { buildTrashRegistry } from "../registry.js";
 import { createTrashSweep, startTrashSweeper, type TrashSweepOnce, type TrashSweepReport } from "@jini-ai/cms/trash";
@@ -190,7 +191,7 @@ test("the sweeper purges a real, overdue menu through the real table adapter —
     .run(REAL_WS, REAL_AT);
 
   const registry = buildTrashRegistry();
-  const trashDb = createSqliteTrashDb({ db });
+  const trashDb = contentKernel(db);
   const menuAdapter = createTableTrashAdapter({ entry: registry.get("menu")!, db: trashDb });
   const adapters = new Map<string, TrashAdapter>([["menu", menuAdapter]]);
   const repo = new SqliteTrashRepo(client);
@@ -241,7 +242,7 @@ test("a thrown adapter error rolls back its purge, leaves the batch leased, and 
     client.prepare("INSERT INTO menus (id, workspace_id, slug, title, status, doc_json, locations_json, updated_at, version) VALUES (?, ?, ?, ?, 'published', '{}', '{}', ?, 1)")
       .run(id, REAL_WS, id, id, REAL_AT);
   }
-  const adapter = createTableTrashAdapter({ entry: buildTrashRegistry().get("menu")!, db: createSqliteTrashDb({ db }) });
+  const adapter = createTableTrashAdapter({ entry: buildTrashRegistry().get("menu")!, db: contentKernel(db) });
   const failure = new Error("purge failed after deletion");
   const calls: string[] = [];
   const adapters = new Map<string, TrashAdapter>([["menu", {

@@ -2,7 +2,7 @@ import { toolMetadata } from "../../contracts/core/tool-metadata/email-templates
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { PAGES_EDIT_HTML_PERMISSION } from "../pages/index.js";
 import { emailTemplatesAgentToolCatalog } from "./agent-tools.js";
@@ -82,6 +82,6 @@ export function buildEmailTemplatesRegistrations(deps: EmailTemplatesToolDeps): 
 }
 
 /** Contributes the email-template tools; registered once by `tool-catalog-manifest.ts`. */
-export function contributeEmailTemplatesTools(): ToolContributor {
+export function contributeEmailTemplatesTools(): ToolContributor<EmailTemplatesToolDeps, unknown> {
   return { domain: "email-templates", build: buildEmailTemplatesRegistrations, risk: emailTemplatesDerivedRisk };
 }

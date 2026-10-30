@@ -6,8 +6,8 @@ import { assertEntityLive, type OutboxPort } from "@jini-ai/cms/core";
 
 import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
 // Not from the barrel above — see `html-document-store.sqlite.ts`'s identical import for why.
-import { SYSTEM_ACTOR_ID, type PostKind } from "../post/post.js";
-import { announcePendingGoLive } from "../post/go-live.js";
+import { SYSTEM_ACTOR_ID, announcePendingGoLive } from "../post/index.js";
+import type { PostKind } from "../post/contracts.js";
 import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";

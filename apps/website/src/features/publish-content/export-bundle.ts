@@ -146,8 +146,7 @@ export async function collectSkippedEntities(input: {
       permission: handler.permission,
       workspaceId: input.workspaceId,
     });
-    if (!typeAuth.allowed) continue;
-    skipped.push(...(await handler.listSkipped()));
+    if (typeAuth.allowed) skipped.push(...(await handler.listSkipped()));
   }
   return skipped;
 }
@@ -287,14 +286,15 @@ export function includeReferencedEntities(
       const target = carriable.get(entityKey(ref.entityType, ref.key));
       if (!target) continue;
       const key = entityKey(target.entityType, target.id);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      if (!rootsByKey.has(key)) {
-        rootsByKey.set(key, new Set());
-        added.push(target);
+      if (!seen.has(key)) {
+        seen.add(key);
+        if (!rootsByKey.has(key)) {
+          rootsByKey.set(key, new Set());
+          added.push(target);
+        }
+        rootsByKey.get(key)!.add(rootEntityKey);
+        pending.push(...referencesOf(target));
       }
-      rootsByKey.get(key)!.add(rootEntityKey);
-      pending.push(...referencesOf(target));
     }
   }
   for (const root of envelope.entities) includeRoot({ root });

@@ -38,8 +38,8 @@ const SAFE_ID_SEGMENT_PATTERN = /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/;
 /** Bounds the segment so a caller cannot drive a pathological path length. Applied to both ids. */
 const MAX_ID_SEGMENT_LENGTH = 64;
 
-import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from '../../contracts/headless/plugin-host.js';
-export type { AgentPluginLayout, AgentPluginWorkspaceLayout } from '../../contracts/headless/plugin-host.js';
+import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from '../../contracts/headless/index.js';
+export type { AgentPluginLayout, AgentPluginWorkspaceLayout } from '../../contracts/headless/index.js';
 
 export interface ResolveAgentPluginLayoutOptional {
   /** Defaults to `process.cwd()`, matching `mediaUploadsDir()`'s own default base — injectable so

@@ -29,7 +29,7 @@ async function capture({ input = { provider: 'github' }, onAuthorize = () => {} 
     workspaceId: 'ws', authorize: async () => { onAuthorize(); return { allowed: true, reason: 'matched' }; },
     sourceControlCredentialSetRepo: new InMemorySourceControlCredentialSetRepo(),
     siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: new AesGcmSecretSealer(keyring),
-    clock: { nowMs: () => 0, nowIso: () => '2026-10-01T00:00:00.000Z' }, idGen: { newId: () => 'credential' },
+    clock: { nowMs: () => 0 }, idGen: { newId: () => 'credential' },
     loadSourceControlProviders: githubFromSource,
   };
   const ctx: ToolExecutionContext = { executionId: 'exec', principal: { id: 'person' },

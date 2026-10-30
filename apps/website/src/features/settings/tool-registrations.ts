@@ -1,8 +1,10 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/settings.js';
+export { contributeVisitorTools, type VisitorToolsToolDeps } from "./visitor-tools-registrations.js";
+export { contributeUiLocalesTools } from "./ui-locales-tool.js";
 import { withToolMetadata } from '@jini-ai/core';
-import { ASSISTANT_EXECUTION_APPROVAL_SETTINGS } from "../../contracts/headless/assistant-tool-approval-policy.js";
-import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "../../contracts/headless/assistant-permanent-deletes-policy.js";
-import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "../../contracts/headless/assistant-subagents-policy.js";
+import { ASSISTANT_EXECUTION_APPROVAL_SETTINGS } from "../../contracts/headless/index.js";
+import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "../../contracts/headless/index.js";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "../../contracts/headless/index.js";
 /**
  * @file Settings' agent-tool registrations — adapted from `@jini-ai/core/settings`.
  *
@@ -31,26 +33,19 @@ import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from 
  * at each of their 2+2 call sites in the same 2 files). `check:architecture` confirms 0 module cycles
  * / largest SCC 0 with `settings` wired this way.
  */
-import type { ToolContributor } from "#src/assistant/index";
-import type { ToolExecutionOptions, ToolExecutionContext, ToolRegistration, RememberedApprovalPort } from "@jini-ai/core";
-import { buildSettingsRegistrations as buildCmsSettingsRegistrations, settingsDerivedRisk, type SettingsToolDeps as CoreSettingsToolDeps, type AgentSettingWriteRule } from "@jini-ai/core/settings";
+import type { ToolContributor } from "@jini-ai/core";
+import type { ToolExecutionOptions, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { buildSettingsRegistrations as buildCmsSettingsRegistrations, settingsDerivedRisk, type AgentSettingWriteRule } from "@jini-ai/core/settings";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { DEDICATED_SETTINGS_WRITERS, set } from "./site-title-write.js";
 import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY, USE_CLAUDE_IN_CHROME_KEY } from "./admin-interface.js";
 import { CHAT_EXECUTION_KEYS, prepareChatExecutionWrite } from "./chat-execution-write.js";
-import type { AssistantAgentInventory } from "#src/assistant/agents";
 
 export { settingsDerivedRisk } from "@jini-ai/core/settings";
 
-/** Native grants are bound to the invoking plugin's admitted identity/version/digest, never model input. */
-export type SettingsToolDeps = CoreSettingsToolDeps & {
-  assistantAgentInventory?: AssistantAgentInventory;
-  /** The composed host writer applies title bounds and visitor-credential policy alike. */
-  set?: typeof set;
-  nativeApprovalMemory?: RememberedApprovalPort;
-  approvalIdentityForRun?: (required: { ctx: ToolExecutionContext }) => Promise<{ key: string; label: string; version?: string }>;
-};
+import type { SettingsToolDeps } from "./tool-deps.js";
+export type { SettingsToolDeps } from "./tool-deps.js";
 
 /** Where visitors' form answers go: delivery bindings send every new submission to outside
  * destinations, and the receiver collects a static site's submissions. Both always ask, because a
@@ -115,16 +110,20 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
           const identity = await routeDeps.approvalIdentityForRun?.({ ctx: snapshot });
           return { rememberKey: identity?.key, identity };
         },
-        describe: ({ prepared }) => ({ toolId, errorCode: "SETTINGS",
-          title: toolId === "settings_set_value" ? "Change this assistant setting?" : "Clear this assistant setting override?",
-          description: reason + (alwaysAsk ? ". This change requires your confirmation every time." : prepared.identity ? ". This escalation approval is saved for this plugin identity, version and digest. It also covers enabling this plugin and the six assistant execution settings; every action still checks its current permissions." : ""),
-          details: [...(prepared.identity ? [{ label: "Plugin", value: prepared.identity.label },
-            ...(prepared.identity.version ? [{ label: "Plugin version", value: prepared.identity.version }] : [])] : []), { label: "Setting", value: `${namespace}.${key}` }, { label: "Scope", value: scope },
-            { label: "Previous override", value: JSON.stringify(previous) },
-            ...(selectionSnapshot !== null ? [{ label: "Resulting chat selection", value: JSON.stringify(JSON.parse(selectionSnapshot)) }] : []),
-            { label: "New value", value: toolId === "settings_clear_value" ? "Fall back to the next layer or default" : JSON.stringify(value ?? null) }],
-          confirmLabel: "Confirm change",
-        }),
+        describe: ({ prepared }) => {
+          let confirmationNote: string;
+          if (alwaysAsk) confirmationNote = ". This change requires your confirmation every time.";
+          else confirmationNote = prepared.identity ? ". This escalation approval is saved for this plugin identity, version and digest. It also covers enabling this plugin and the six assistant execution settings; every action still checks its current permissions." : "";
+          return { toolId, errorCode: "SETTINGS",
+            title: toolId === "settings_set_value" ? "Change this assistant setting?" : "Clear this assistant setting override?",
+            description: reason + confirmationNote,
+            details: [...(prepared.identity ? [{ label: "Plugin", value: prepared.identity.label },
+              ...(prepared.identity.version ? [{ label: "Plugin version", value: prepared.identity.version }] : [])] : []), { label: "Setting", value: `${namespace}.${key}` }, { label: "Scope", value: scope },
+              ...(selectionSnapshot !== null ? [{ label: "Resulting chat selection", value: JSON.parse(selectionSnapshot) }] : []),
+              { label: "New value", previous, value: toolId === "settings_clear_value" ? "Fall back to the next layer or default" : value ?? null }],
+            confirmLabel: "Confirm change",
+          };
+        },
         // The settings owner retains fresh authorization, layer-sequence and definition-version checks.
         run: async ({ ctx: snapshot, prepared }) => {
           // The model/effort depends on the selected runtime too. Consent must not drift to a
@@ -152,6 +151,6 @@ export function buildSettingsRegistrations(routeDeps: SettingsToolDeps, surfaces
  * other domain in this rollout uses (see this file's header for why `settings` needed the 3 side-door
  * files fixed first rather than converting directly).
  */
-export function contributeSettingsTools(): ToolContributor {
+export function contributeSettingsTools(): ToolContributor<SettingsToolDeps, AssistantSurfaceDeps> {
   return { domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk };
 }

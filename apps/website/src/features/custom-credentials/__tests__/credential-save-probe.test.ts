@@ -63,7 +63,11 @@ async function fixture({ rotate, status = 200, probe = true, abort = false, tran
     input: rotate ? { label: card.label } : { provider: card.providerId }, signal: controller.signal } as ToolExecutionContext, {
     emitSurface: async surface => {
       emittedText += JSON.stringify(surface);
-      const html = (surface as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
+      const resource = surface.payload.resource;
+      assert.ok(resource && typeof resource === "object" && "resource" in resource);
+      const content = resource.resource;
+      assert.ok(content && typeof content === "object" && "text" in content && typeof content.text === "string");
+      const html = content.text;
       const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
       if (match) exchangeId = match[1]!;
     },

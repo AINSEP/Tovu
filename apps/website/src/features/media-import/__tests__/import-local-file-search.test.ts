@@ -1,6 +1,6 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createContributionRegistry } from "@jini-ai/core";
-import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
+import type { ToolContributions } from "@jini-ai/core";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -12,9 +12,9 @@ import { installFirstPartyToolContributors } from "../../../server/runtime/compo
 import { buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
 import { buildToolCatalogQuery } from "../../../assistant/tool-catalog-query.js";
 
-const contributions = {
-  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
-  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>> = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
 };
 
 /** t06: full production catalog and real SQLite FTS ranking, including all competing tools. */

@@ -1,4 +1,4 @@
-import { sniffContentType, type MediaRecord } from "#src/features/media/index";
+import { sniffContentType, type MediaRecord } from "@jini-ai/cms/media";
 import type { AssetBlobRepoPort, BlobStorePort } from "@jini-ai/cms/media";
 import type { MediaContentTypeStorePort } from "./content-type-store.js";
 
@@ -57,14 +57,14 @@ export async function resolveContentTypes(
     if (recorded.has(sha256)) continue;
     try {
       const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256 });
-      if (!blob) continue;
-      const contentType = sniffContentType({ bytes: await deps.blobStore.get({ storageKey: blob.storageKey }) });
-      await deps.mediaContentTypeStore.set({ workspaceId: deps.workspaceId, sha256, contentType });
-      recorded.set(sha256, contentType);
+      if (blob) {
+        const contentType = sniffContentType({ bytes: await deps.blobStore.get({ storageKey: blob.storageKey }) });
+        await deps.mediaContentTypeStore.set({ workspaceId: deps.workspaceId, sha256, contentType });
+        recorded.set(sha256, contentType);
+      }
     } catch {
       // Unreadable blob (missing file, permissions, storage outage). Left unrecorded so a later
       // list retries, and this one row goes out untyped.
-      continue;
     }
   }
   return recorded;

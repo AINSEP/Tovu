@@ -10,7 +10,7 @@ import { CustomCredentialValidationError } from "./store.js";
  */
 
 /** Whitespace plus the zero-width characters (ZWSP, ZWNJ, ZWJ, word joiner, BOM) `trim` keeps. */
-const EDGE_JUNK = /^[\s​-‍⁠﻿]+|[\s​-‍⁠﻿]+$/gu;
+const EDGE_JUNK = /^[\s​-‍⁠﻿]$/u;
 
 /** Shown instead of the store's byte-range rule when a cleaned token still has a non-visible-ASCII character. */
 export const TOKEN_PASTE_AGAIN_MESSAGE = "The token has a space, line break or special character in it — paste it again.";
@@ -25,7 +25,11 @@ export const TOKEN_PASTE_AGAIN_MESSAGE = "The token has a space, line break or s
  * @complexity O(n) in the token length.
  */
 export function cleanCardToken({ token }: { token: string }, _optional = {}): string {
-  const cleaned = token.replace(EDGE_JUNK, "");
+  let start = 0;
+  let end = token.length;
+  while (start < end && EDGE_JUNK.test(token[start]!)) start++;
+  while (end > start && EDGE_JUNK.test(token[end - 1]!)) end--;
+  const cleaned = token.slice(start, end);
   if (/[^\x21-\x7e]/.test(cleaned)) throw new CustomCredentialValidationError(TOKEN_PASTE_AGAIN_MESSAGE);
   return cleaned;
 }

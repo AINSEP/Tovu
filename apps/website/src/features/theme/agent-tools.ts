@@ -1,5 +1,7 @@
 import { MAX_THEME_FILE_BYTES } from "./theme-files.js";
 
+const MUTATES_DURABLE_STATE = "mutates-durable-state";
+
 /**
  * @file The Themes domain's agent-tool catalog, instantiating SPEC-016 REQ-22's naming/callability
  * convention (the same shape `redirects/agent-tools.ts`, `seo/agent-tools.ts`, and every other
@@ -185,6 +187,10 @@ const READ_FILE_SCHEMA = {
   properties: {
     themeId: THEME_ID_PROPERTY,
     path: RELATIVE_PATH_PROPERTY,
+    offset: {
+      type: "integer", minimum: 0,
+      description: "UTF-8 byte offset from nextOffset to continue a paged read; default zero. Keep startLine/lineCount unchanged when continuing a line window. Cannot be combined with find.",
+    },
     startLine: {
       type: "integer", minimum: 1,
       description: "First line to return (1-based). Defaults to 1 when lineCount is given.",
@@ -238,6 +244,7 @@ const EDIT_FILE_SCHEMA = {
     path: RELATIVE_PATH_PROPERTY,
     oldString: {
       type: "string",
+      aliases: ["old_string"],
       minLength: 1,
       maxLength: MAX_THEME_FILE_BYTES,
       description:
@@ -245,6 +252,7 @@ const EDIT_FILE_SCHEMA = {
     },
     newString: {
       type: "string",
+      aliases: ["new_string"],
       maxLength: MAX_THEME_FILE_BYTES,
       description: "The text to put in oldString's place. May be an empty string to delete oldString outright. An edit that would leave the whole file empty (or whitespace-only) is refused unless intent is 'delete'.",
     },
@@ -345,7 +353,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: "preview_reload",
       description: "Reloads every open admin theme/site preview with fresh page, CSS and JS. Optionally navigates previews to a site-relative public path such as /create-a-theme. Does not change published content.",
-      sideEffects: "mutates-durable-state",
+      sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_READ_PERMISSION },
       inputSchema: { type: "object", additionalProperties: false, properties: { path: { type: "string", description: "Optional site-relative public URL starting with /." } } },
     },
@@ -353,7 +361,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       name: "theme_rescan",
       description:
         "Rescans theme folders and refreshes the site's theme registry. Call after a NEW theme folder was created or removed after boot, or when a theme is not showing. Returns { added, removed, invalid: [{ themeId, errors }] }. Invalid themes remain discoverable with their errors. Requires theme.set. Does not change the active selection.",
-      sideEffects: "mutates-durable-state",
+      sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_READ_PERMISSION },
       inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
     },
@@ -378,7 +386,8 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       description:
         "Reads one file's raw text content from inside a theme's folder. Read-only. The path must stay inside that theme's own folder. " +
         "To search or grep text inside theme files, use theme_read_file with find; no separate Grep tool is needed. Use theme_list_files to discover paths, then batch find over those files. " +
-        "For a large file, pass find (to locate a string) or startLine/lineCount (to read a window) instead of reading the whole file. " +
+        "Full reads and line windows return at most 4000 UTF-8 bytes, even for a single minified line. When truncated is true, pass nextOffset as offset to continue; keep startLine/lineCount unchanged for a window. offset and nextOffset are byte positions within the selected text, like library_read. " +
+        "For a large file, pass find (to locate a string) or startLine/lineCount (to read a window). " +
         "Selected reads also return totalLines, totalBytes and returned (startLine/endLine for a window; matches/truncated for find). " +
         "Find returns at most 2000 characters per window and 4000 per item (80000 content characters across a 20-item batch). When returned.truncated is true, follow returned.hint to narrow the find pattern or reduce context. " +
         "The 1 MB read limit still applies to the whole file, even for a selected read.",
@@ -390,7 +399,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       name: "theme_write_file",
       description:
         "Writes (creates or overwrites) one file inside a theme's folder, then immediately re-validates the whole theme and returns its resulting status and errors. This is a full-file overwrite, not a patch — for changing one line or a short section of an EXISTING file, use theme_edit_file instead, which is cheaper and cannot accidentally drop the rest of the file. The path must stay inside that theme's own folder — absolute paths and '../' escapes are refused. ALWAYS read the returned status: 'invalid' means what you wrote did not pass validation (bad JSON, a disallowed Liquid/Handlebars construct, a syntax error, a missing required template) and the errors array says exactly what to fix. The re-validated theme also becomes what the live site serves, so an invalid write degrades that theme's pages to the built-in fallback body until it is corrected. Replacing an EXISTING file over the 1 MB read limit is refused unless you pass overwriteOversized: true: theme_read_file cannot read a file that size, so set it only when you mean to discard its whole current contents. If you created a NEW theme folder, call theme_rescan so the site picks it up.",
-      sideEffects: "mutates-durable-state",
+      sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: WRITE_FILE_SCHEMA,
     },
@@ -398,7 +407,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       name: "theme_edit_file",
       description:
         "Makes a targeted change to one EXISTING file inside a theme's folder by replacing one exact occurrence of oldString with newString — a patch, not an overwrite, so you never have to re-send content you are not changing. Read the file with theme_read_file first so oldString matches byte-for-byte; a find window with enough context is sufficient. Refused (no write happens) if oldString does not appear in the file, or appears more than once and replaceAll was left false — pass more surrounding context in oldString to make it unique, or pass replaceAll: true to change every occurrence deliberately. To DELETE text, pass newString: '' (empty string). An edit that would leave the whole file empty is refused unless intent: 'delete' is passed. Immediately re-validates the whole theme afterward and returns its resulting status and errors, exactly like theme_write_file — ALWAYS read the returned status the same way.",
-      sideEffects: "mutates-durable-state",
+      sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: EDIT_FILE_SCHEMA,
     },
@@ -406,7 +415,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       name: "theme_reset_file",
       description:
         "Resets one file inside a theme's folder back to its pristine original — the exact bytes captured when this theme was installed or downloaded — discarding whatever is there now, whether it was changed by theme_write_file, theme_edit_file, or a human editing it directly. This is the undo for those tools when 'undo' means 'go back to where it started', not 'go back one step': there is no history, so a reset cannot be reset again except by re-editing. Refused if this theme has no stored original at all (a hand-authored theme with nothing to reset to), or if this particular file has no original of its own — for example a file created after the theme was installed, or landed here via theme_copy_file. If the live file already matches its original byte-for-byte, nothing is written: the call succeeds with wasModified: false and bytesWritten: 0. Otherwise the original's exact bytes are copied back, binary files and files over the 1 MB read limit included, and wasModified is true. The result's content is the restored file as text, or null for a file over that limit. The comparison is exact bytes, so a line-ending-only difference (CRLF vs LF) counts as modified and is reset.",
-      sideEffects: "mutates-durable-state",
+      sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: RESET_FILE_SCHEMA,
     },
@@ -414,7 +423,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       name: "theme_rename_file",
       description:
         "Renames one file inside a theme's folder, keeping it in the same folder and the same extension. Refused (409-equivalent) for a theme's own required files (its index page, theme.json, tokens.json — renaming those breaks the theme the same way deleting them would), for a script (.js/.mjs/.cjs) or any other not-a-page/partial/style/config/asset file, and for anything inside a built theme's generated tree — the same rule this domain's HTTP Explore screen enforces for the identical reason: nothing tracks what still references a file by its old name.",
-      sideEffects: "mutates-durable-state",
+      sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: RENAME_FILE_SCHEMA,
     },
@@ -422,7 +431,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       name: "theme_copy_file",
       description:
         "Duplicates one file inside a theme's folder, byte-for-byte, landing the copy in the SAME folder under the next available name (e.g. copying 'templates/home.liquid' produces 'templates/home-1.liquid', then '-2', … if earlier suffixes are already taken). The destination name is always computed for you, not chosen — pass only the source path. Use this to branch off a variant before experimenting (copy a template, then edit the copy with theme_write_file/theme_edit_file, leaving the original untouched as a fallback) or simply to duplicate any file, including a script or another read-only-to-edit file: copying changes nothing about the original and nothing that already references it by name. Refused if the source path does not exist in this theme, or falls inside a built theme's generated tree (that tree is restored as one release, never edited or copied file-by-file).",
-      sideEffects: "mutates-durable-state",
+      sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: COPY_FILE_SCHEMA,
     },
@@ -430,7 +439,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       name: "theme_trash_file",
       description:
         "Soft-deletes one file inside a theme's folder: moves it into that theme's own trash (a '.trash/...' path), out of the way of pages/partials/file listings, WITHOUT deleting its bytes. Fully reversible with theme_restore_trashed_file, which is why this exists instead of a hard delete — there is no agent-callable hard delete in this domain at all; permanent removal is a human-only action in the Explore screen. Refused for the same reasons a rename would be refused: a theme's own required files (its index page, theme.json, tokens.json), a script (.js/.mjs/.cjs) or any other not-a-page/partial/style/config/asset file, and anything inside a built theme's generated tree.",
-      sideEffects: "mutates-durable-state",
+      sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: TRASH_FILE_SCHEMA,
     },
@@ -438,7 +447,7 @@ export function getThemesAgentToolCatalog(): AgentToolDefinition[] {
       name: "theme_restore_trashed_file",
       description:
         "Restores one file previously soft-deleted with theme_trash_file, moving it out of '.trash/...' and back to a normal path — by default the exact path it was trashed from, or pass restoreTo for a different one. Refused if trashedPath does not look like something theme_trash_file produced, if the destination is already occupied by another file, or if the destination falls inside a built theme's generated tree.",
-      sideEffects: "mutates-durable-state",
+      sideEffects: MUTATES_DURABLE_STATE,
       authorization: { permission: THEME_WRITE_PERMISSION },
       inputSchema: RESTORE_TRASHED_FILE_SCHEMA,
     },

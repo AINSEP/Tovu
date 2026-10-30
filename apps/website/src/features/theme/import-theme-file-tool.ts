@@ -1,14 +1,14 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolDefinition, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 
 import { isImportShapeRejection, resolveLocalImportRequest, withCallerSafeEgressRefusal, type MediaImportToolDeps } from "../media-import/tool-registrations.js";
 import { FsFilePathError } from "../fs-files/fs-files.js";
 import { FS_ROOT_IDS } from "../fs-files/layout.js";
 import { THEME_WRITE_PERMISSION } from "./agent-tools.js";
 import { importThemeFileFromLocalFile, importThemeFileFromUrl, THEME_IMPORT_MAX_BYTES } from "./theme-file-import.js";
-import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, reloadThemeInPlace, type ThemeToolDeps } from "./tool-registrations.js";
+import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, reloadThemeInPlace, type ThemeToolDeps } from "./asset-operations.js";
 
 /**
  * @file `theme_import_file_from_url` (2026-10-08) and `theme_import_local_file` share the binary
@@ -162,7 +162,7 @@ export function buildImportThemeFileRegistrations(routeDeps: ImportThemeFileTool
  * `server/runtime/composition/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`.
  * Own domain key for the same reason `contributeDuplicateThemeTools()` has one (see this file's header).
  */
-export function contributeImportThemeFileTools(): ToolContributor {
+export function contributeImportThemeFileTools(): ToolContributor<ImportThemeFileToolDeps, unknown> {
   return {
     domain: "theme-import-file",
     build: buildImportThemeFileRegistrations,

@@ -1,3 +1,4 @@
+import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -60,7 +61,7 @@ async function events(kernel: ContentKernel): Promise<{ name: string; actorId?: 
 }
 
 function adapterFor(kernel: ContentKernel, idGen: { next(): string } = counter()) {
-  return createUserTrashAdapter({ db: kernel, purge: new SqlUserPurge(kernel), idGen, clock: { nowIso: () => AT } });
+  return createUserTrashAdapter({ eventValues: outboxEventValues, db: kernel, purge: new SqlUserPurge({ kernel: kernel, eventValues: outboxEventValues }), idGen, clock: { nowIso: () => AT } });
 }
 
 function counter(): { next(): string } {

@@ -11,7 +11,7 @@ import { InMemoryExternalMcpServerRepo } from "#src/assistant/index";
 
 import { InMemoryChangeSetRepo } from "../../../../contracts/core/commands/index.js";
 import { InMemoryOutbox } from "../../../../contracts/core/events/memory-bus.js";
-import type { AgentPluginHostCapability, AgentPluginLayout, PluginHostPort } from "../../../../contracts/headless/plugin-host.js";
+import type { AgentPluginHostCapability, AgentPluginLayout, PluginHostPort } from "../../../../contracts/headless/index.js";
 import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../tool-registrations.js";

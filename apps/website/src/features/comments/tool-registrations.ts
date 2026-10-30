@@ -22,7 +22,7 @@ import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from 
 import { ToolInputError } from "@jini-ai/core";
 import { ForbiddenError as SettingsForbiddenError, type SettingsRepoPort } from "../settings/index.js";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { commentsAgentToolCatalog } from "./agent-tools.js";
 import type { CommentRepoPort } from "@jini-ai/cms/comments";
@@ -66,6 +66,8 @@ export interface CommentsToolDeps {
   principalRepo: PrincipalRepoPort;
 }
 
+const MUTATES_DURABLE_STATE = 'mutates-durable-state' as const;
+
 /**
  * This wiring layer's OWN risk classification, authored from what each handler below actually
  * calls. See `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own
@@ -73,7 +75,7 @@ export interface CommentsToolDeps {
  */
 export const commentsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   ['comments_get_provider', 'none'],
-  ['comments_set_provider', 'mutates-durable-state'],
+  ['comments_set_provider', MUTATES_DURABLE_STATE],
   // -> commentRepo.listModerationQueue: read only.
   ["comments_list_moderation_queue", "none"],
   // Workspace-scoped findById, projected through the same moderation view.
@@ -81,12 +83,12 @@ export const commentsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
   // -> getCommentsSettings (settings.ts): settingsRepo read only.
   ["comments_get_settings", "none"],
   // -> setCommentsSettings (settings.ts): N ledger set() calls, one per changed field.
-  ["comments_update_settings", "mutates-durable-state"],
+  ["comments_update_settings", MUTATES_DURABLE_STATE],
   // -> commentWriteService.applyModeration: status flip + moderation_log append + outbox/hooks.
-  ["comments_approve_comment", "mutates-durable-state"],
-  ["comments_mark_comment_spam", "mutates-durable-state"],
-  ["comments_trash_comment", "mutates-durable-state"],
-  ["comments_restore_comment", "mutates-durable-state"],
+  ["comments_approve_comment", MUTATES_DURABLE_STATE],
+  ["comments_mark_comment_spam", MUTATES_DURABLE_STATE],
+  ["comments_trash_comment", MUTATES_DURABLE_STATE],
+  ["comments_restore_comment", MUTATES_DURABLE_STATE],
 ]);
 
 /** What a comment looks like to the model — trims `CommentRecord` to what a moderation decision actually needs. */
@@ -376,6 +378,6 @@ export function buildCommentsRegistrations(
  * `tool-contribution-registry.ts`'s header for why: this edge used to close a module cycle with
  * `assistant`, and a one-directional `comments -> assistant` registration call does not).
  */
-export function contributeCommentsTools(): ToolContributor {
+export function contributeCommentsTools(): ToolContributor<CommentsToolDeps, AssistantSurfaceDeps> {
   return { domain: "comments", build: buildCommentsRegistrations, risk: commentsDerivedRisk };
 }

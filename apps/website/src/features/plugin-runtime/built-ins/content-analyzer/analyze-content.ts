@@ -81,8 +81,6 @@ export interface AnalyzeContentRequired {
 export interface AnalyzeContentOptional {
   /** Absent (or blank) ⇒ the `meta-description-length` check is `skip`. */
   metaDescription?: string;
-  /** Reading speed for `readingTimeMinutes`. Default 200. */
-  wordsPerMinute?: number;
 }
 
 const TITLE_MIN = 30;
@@ -96,23 +94,19 @@ const FAIL_PENALTY = 20;
 const WARN_PENALTY = 8;
 
 const WORD_CHAR = /[\p{L}\p{N}]/u;
-const SENTENCE_BREAK = /[.!?]+(?=\s|$)/;
+const SENTENCE_BREAK = /[.!?](?=\s|$)/;
 
 /**
  * Scores one piece of content. Pure and deterministic.
  *
  * @param required - `title` (the page's H1) and the body as a flat `ContentBlock[]`.
- * @param optional - `metaDescription` (absent ⇒ that check skips) and `wordsPerMinute` (default 200).
+ * @param optional - `metaDescription` (absent ⇒ that check skips).
  * @returns The full `ContentAnalysisReport` (`v: 1`).
- * @throws RangeError when `wordsPerMinute` is not a positive finite number.
  * @complexity O(total characters of title + blocks).
  */
 export function analyzeContent(required: AnalyzeContentRequired, optional: AnalyzeContentOptional = {}): ContentAnalysisReport {
   const { title, blocks } = required;
-  const { metaDescription, wordsPerMinute = DEFAULT_WORDS_PER_MINUTE } = optional;
-  if (!Number.isFinite(wordsPerMinute) || wordsPerMinute <= 0) {
-    throw new RangeError(`wordsPerMinute must be a positive finite number, got ${wordsPerMinute}`);
-  }
+  const { metaDescription } = optional;
 
   const prose = measureProse(blocks);
   const headings = blocks.filter((b): b is Extract<ContentBlock, { kind: "heading" }> => b.kind === "heading");
@@ -134,7 +128,7 @@ export function analyzeContent(required: AnalyzeContentRequired, optional: Analy
     wordCount: prose.words,
     sentenceCount: prose.sentences,
     // ceil() already yields >= 1 for any positive word count.
-    readingTimeMinutes: prose.words > 0 ? Math.ceil(prose.words / wordsPerMinute) : 0,
+    readingTimeMinutes: prose.words > 0 ? Math.ceil(prose.words / DEFAULT_WORDS_PER_MINUTE) : 0,
     readability: readability(prose),
     toc: buildToc(headings),
     checks,
@@ -258,37 +252,32 @@ function checkSubheadings(words: number, headings: ReadonlyArray<{ level: Headin
 }
 
 function scoreChecks(checks: readonly ContentCheck[]): number {
-  const penalty = checks.reduce(
-    (sum, check) => sum + (check.status === "fail" ? FAIL_PENALTY : check.status === "warn" ? WARN_PENALTY : 0),
-    0,
-  );
+  const penaltyByStatus: Record<CheckStatus, number> = { fail: FAIL_PENALTY, warn: WARN_PENALTY, pass: 0, skip: 0 };
+  const penalty = checks.reduce((sum, check) => sum + penaltyByStatus[check.status], 0);
   return Math.min(100, Math.max(0, 100 - penalty));
 }
 
 /**
  * Uses the renderer's slug function so transliteration and empty headings match emitted ids.
- *
- * @param text - The heading's visible text.
- * @returns The anchor slug (not yet de-duplicated), or empty when the renderer emits no id.
- * @complexity O(text.length).
  */
-export function slugifyHeading(text: string): string {
-  return toSlug(text);
-}
-
 function buildToc(headings: ReadonlyArray<{ level: HeadingLevel; text: string }>): TocEntry[] {
   const used = new Set<string>();
   const toc: TocEntry[] = [];
   for (const heading of headings) {
     const text = heading.text.trim();
     if (text === "") continue;
-    const base = slugifyHeading(text);
-    if (base === "") continue;
-    let anchor = base;
-    // Keep counting past a suffix a LITERAL heading already took ("Foo-2" then a second "Foo").
-    for (let n = 2; used.has(anchor); n += 1) anchor = `${base}-${n}`;
-    used.add(anchor);
-    toc.push({ level: heading.level, text, anchor });
+    const base = toSlug(text);
+    if (base !== "") {
+      let anchor = base;
+      // Keep counting past a suffix a LITERAL heading already took ("Foo-2" then a second "Foo").
+      let n = 2;
+      while (used.has(anchor)) {
+        anchor = `${base}-${n}`;
+        n += 1;
+      }
+      used.add(anchor);
+      toc.push({ level: heading.level, text, anchor });
+    }
   }
   return toc;
 }

@@ -14,8 +14,8 @@ import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js
 // symmetrically, `SYSTEM_ACTOR_ID` is a generic actor fallback this file needs directly rather than
 // through the barrel (`index.ts`'s own header explains the one-way rule; nothing forbids importing
 // FROM `post.ts` here, only re-exporting Pages things there).
-import { SYSTEM_ACTOR_ID, type PostKind, type PostRepoPort, type PostStatus } from "../post/post.js";
-import { announcePendingGoLive } from "../post/go-live.js";
+import { SYSTEM_ACTOR_ID, announcePendingGoLive } from "../post/index.js";
+import type { PostKind, PostRepoPort, PostStatus } from "../post/contracts.js";
 
 /**
  * @file SPEC-047/ADR-056 REQ-4 — Tovu's `PagesHtmlDocumentStorePort`
@@ -570,7 +570,8 @@ export class SqlPagesHtmlDocumentStore implements PagesHtmlDocumentStorePort {
         this.thisRow(db).select([...GO_LIVE_COLUMNS, "body_html", "body_format", "version"]).limit(1).executeTakeFirst()
       );
       // Check freshness before equality: matching HTML must never hide a stale captured version.
-      if (!current || !this.allowedKinds.has(current.kind as PostKind) || current.version !== expectedVersion || current.body_format !== "html" || current.deleted_at) return 0;
+      if (!current || !this.allowedKinds.has(current.kind as PostKind)) return 0;
+      if (current.version !== expectedVersion || current.body_format !== "html" || current.deleted_at) return 0;
       if (current.body_html === html) return null;
       const changes = await this.updateThisRow(
         { body_html: html, version: nextVersion, updated_at: updatedAt },

@@ -103,6 +103,8 @@ export {
   compSubscription,
   createMember,
   completeSignIn,
+  issueMemberSession,
+  notifyMemberCreated,
   disableMember,
   membersWriteService,
   requestSignInLink,

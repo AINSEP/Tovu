@@ -16,6 +16,8 @@ import type {
   TermRepoPort,
   UnassignableEntryTermRepoPort,
 } from "./index.js";
+import type { AssignedTermView, EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "./contracts.js";
+export type { AssignedTermView, EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "./contracts.js";
 import { toTaxonomy, toTaxonomyRevisionRow, toTaxonomyRow, toTerm, toTermRow } from "./repo.rows.js";
 
 /**
@@ -39,38 +41,6 @@ import { toTaxonomy, toTaxonomyRevisionRow, toTaxonomyRow, toTerm, toTermRow } f
  */
 
 const TRASH_STATUS = "trash";
-
-/** Publish-content's taxonomy read: the full row, trashed ones included, so a precheck refuses a
- *  trashed destination instead of colliding. */
-export interface TaxonomyPublishReadPort {
-  findAnyById(id: string): Promise<Taxonomy | null>;
-}
-
-/** Publish-content's term read — see {@link TaxonomyPublishReadPort}. */
-export interface TermPublishReadPort {
-  findAnyById(id: string): Promise<Term | null>;
-}
-
-/**
- * One term assigned to a piece of content, joined with its own name and its owning taxonomy's name
- * — the shape {@link EntryTermReadPort.listForContent} returns, and the ONLY shape the public-render
- * surface needs (`pages.ts`'s `resolveAssignedTermsForRender`/`renderAssignedTermsBlock`).
- */
-export interface AssignedTermView {
-  termId: string;
-  termName: string;
-  taxonomyName: string;
-}
-
-/**
- * Additive capability beyond the certified `EntryTermRepoPort` (which has no by-content READ method).
- * Kept a SEPARATE, OPTIONAL field on `RouteDeps` (`entryTermReadRepo`) because `@jini-ai/cms/taxonomy`'s
- * `InMemoryEntryTermRepo` does not implement it; a caller missing this field degrades to "no terms
- * rendered", never a throw.
- */
-export interface EntryTermReadPort {
-  listForContent(params: { contentType: string; contentId: string }): Promise<readonly AssignedTermView[]>;
-}
 
 /** `terms.status <> 'trash' AND NOT EXISTS (the term's own taxonomy is trashed)`. Correlated to the
  *  `terms` row in scope, so it works bare and inside joins. @complexity O(1) to build; the subquery
@@ -582,24 +552,4 @@ export class SqlTaxonomyRevisionRepo implements TaxonomyRevisionRepoPort {
       recordedAt: r.recorded_at,
     }));
   }
-}
-
-/** The taxonomy repo for `kernel`, scoped to `workspaceId`. */
-export function taxonomyRepoFor(kernel: ContentKernel, workspaceId: string): SqlTaxonomyRepo {
-  return new SqlTaxonomyRepo(kernel, workspaceId);
-}
-
-/** The term repo for `kernel`, scoped to `workspaceId`. */
-export function termRepoFor(kernel: ContentKernel, workspaceId: string): SqlTermRepo {
-  return new SqlTermRepo(kernel, workspaceId);
-}
-
-/** The entry-term repo for `kernel`, scoped to `workspaceId`. */
-export function entryTermRepoFor(kernel: ContentKernel, workspaceId: string): SqlEntryTermRepo {
-  return new SqlEntryTermRepo(kernel, workspaceId);
-}
-
-/** The taxonomy-revision repo for `kernel`, scoped to `workspaceId`. */
-export function taxonomyRevisionRepoFor(kernel: ContentKernel, workspaceId: string): SqlTaxonomyRevisionRepo {
-  return new SqlTaxonomyRevisionRepo(kernel, workspaceId);
 }

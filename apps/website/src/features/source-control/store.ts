@@ -1,11 +1,11 @@
 import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken, type CredentialConnection } from '../../contracts/core/credential-token.js';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
-import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
+import { isUniqueViolation } from "@jini-ai/db/kernel";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { VaultError, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
-import { credentialVault, credentialScope, credentialHint } from "../vendor-credentials/vault-adapter.js";
-import { credentialDeletionRepo, credentialCreateTarget, credentialScopes, type CredentialScope, type ScopedCredentialDeps } from "../vendor-credentials/project-scope.js";
+import { credentialVault, credentialScope, credentialHint } from "../vendor-credentials/index.js";
+import { credentialDeletionRepo, credentialCreateTarget, credentialScopes, type CredentialScope, type ScopedCredentialDeps } from "../vendor-credentials/index.js";
 import { buildSourceControlProvider, type LoadSourceControlProviders, type SourceControlProviderRegistry, type SourceControlProviderDescriptor } from "./provider-registry.js";
 import type {
   SourceControlConnectionInput,
@@ -63,7 +63,8 @@ async function probeAccountLabel(deps: SourceControlCredentialWriteDeps, workspa
   const fetchFn: typeof fetch = async (input, init) => {
     try {
       const response = await (deps.fetchFn ?? fetch)(input, init);
-      connection = response.status === 401 || response.status === 403 ? 'auth' : response.ok ? 'connected' : 'unreachable';
+      if (response.status === 401 || response.status === 403) connection = 'auth';
+      else connection = response.ok ? 'connected' : 'unreachable';
       return response;
     } catch (err) {
       connection = err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError') ? 'timeout' : 'unreachable';
@@ -282,11 +283,11 @@ async function credentialRegistry({ deps, workspaceId }: { deps: SourceControlCr
 
 function normalizeStoredToken({ value }: { value: unknown }): string {
   try { return normalizeCredentialToken({ value }); }
-  catch (err) { if (err instanceof CredentialInputError) throw new SourceControlCredentialValidationError(err.message); throw err; }
+  catch (err) { if (err instanceof CredentialInputError) { throw new SourceControlCredentialValidationError(err.message); } throw err; }
 }
 function assertPlainField(required: { value: string; field: string }): void {
   try { assertCredentialFreeField(required); }
-  catch (err) { if (err instanceof CredentialInputError) throw new SourceControlCredentialValidationError(err.message); throw err; }
+  catch (err) { if (err instanceof CredentialInputError) { throw new SourceControlCredentialValidationError(err.message); } throw err; }
 }
 
 /** Validate declared fields before sealing. Authentication pairs stay in one ciphertext blob.

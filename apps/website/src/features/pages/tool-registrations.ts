@@ -4,7 +4,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { EXPECTED_VERSION_REJECTION, isTrashed, PostNotFoundError, VERSION_CONFLICT_CODE, type PostRepoPort } from "../post/index.js";
@@ -746,6 +746,6 @@ export { pagesDerivedRisk };
  * Theme public APIs; active-theme settings are host-injected. `ToolContributor` stays type-only,
  * so contributing these tools creates no runtime edge back toward `assistant`.
  */
-export function contributePagesTools(): ToolContributor {
+export function contributePagesTools(): ToolContributor<PagesToolDeps, unknown> {
   return { domain: "pages", build: buildPagesRegistrations, risk: pagesDerivedRisk };
 }

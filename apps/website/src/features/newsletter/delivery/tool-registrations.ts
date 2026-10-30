@@ -7,7 +7,7 @@ import { ToolInputError, type ToolHandler } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { UserRepoPort } from "@jini-ai/user-management";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
@@ -22,6 +22,8 @@ import { authorizeSend, claimBatch, completeIfDrained, freezeAudience, resumeCam
 import { toNewsletterSendPipelineDeps, type NewsletterToolDeps } from "../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
+const MUTATES_DURABLE_STATE = "mutates-durable-state" as const;
 
 
 /** Owner identity is injected by composition; recipient addresses never come from tool input. */
@@ -40,38 +42,38 @@ export const newsletterDeliveryAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "newsletter_send_test",
     description: "Sends a test copy of an existing newsletter issue only to the site owner's stored email, without a confirmation card. Call before a subscriber send; never accepts recipient addresses. Returns {delivered,mailDeliveryAvailable}. Refuses missing owner email, unconfigured mail or an unverified origin. A successful result means provider acceptance, not confirmed inbox delivery.",
-    sideEffects: "mutates-durable-state", authorization: { permission: "admin.newsletter.campaign.send_test" },
+    sideEffects: MUTATES_DURABLE_STATE, authorization: { permission: "admin.newsletter.campaign.send_test" },
     inputSchema: { type: "object", additionalProperties: false, required: ["campaignId"], properties: { campaignId: campaignIdSchema } },
   },
   {
     name: "newsletter_send_campaign",
     description: "Launches an existing newsletter issue to its subscriber list after a human confirmation card. Call to send an issue now, not to compose a draft or test it. Returns {confirmed,started,campaignId,status,delivered:false,mailDeliveryAvailable}; launch is not inbox delivery. Refuses mail-off, failed launch readiness, stale confirmation or unavailable confirmation channel.",
-    sideEffects: "mutates-durable-state", authorization: { permission: "admin.newsletter.campaign.send" },
+    sideEffects: MUTATES_DURABLE_STATE, authorization: { permission: "admin.newsletter.campaign.send" },
     inputSchema: { type: "object", additionalProperties: false, required: ["campaignId"], properties: { campaignId: campaignIdSchema } },
   },
   {
     name: "newsletter_schedule_campaign",
     description: "Saves a draft newsletter issue's scheduled date after a human confirmation card. Call to record when a subscriber send should occur. Returns {confirmed,scheduled,campaignId,status,scheduledAt,delivered:false,mailDeliveryAvailable,note}. Automatic timed delivery is not wired: use newsletter_send_campaign when due. Refuses mail-off, invalid dates, non-drafts, stale confirmation or unavailable confirmation channel.",
-    sideEffects: "mutates-durable-state", authorization: { permission: "admin.newsletter.campaign.schedule" },
+    sideEffects: MUTATES_DURABLE_STATE, authorization: { permission: "admin.newsletter.campaign.schedule" },
     inputSchema: { type: "object", additionalProperties: false, required: ["campaignId", "scheduledAt"], properties: { campaignId: campaignIdSchema, scheduledAt: { type: "string", format: "date-time", description: "ISO date-time with explicit timezone." } } },
   },
   {
     name: "newsletter_resume_campaign",
     description: "Resumes a paused newsletter issue's remaining subscriber delivery after a human confirmation card. Use after newsletter_pause_campaign, not to resend a finished issue. Returns {confirmed,started,campaignId,status,delivered:false,mailDeliveryAvailable}. Refuses mail-off, failed launch readiness, stale confirmation, wrong status or unavailable confirmation channel.",
-    sideEffects: "mutates-durable-state", authorization: { permission: "admin.newsletter.campaign.send" },
+    sideEffects: MUTATES_DURABLE_STATE, authorization: { permission: "admin.newsletter.campaign.send" },
     inputSchema: { type: "object", additionalProperties: false, required: ["campaignId"], properties: { campaignId: campaignIdSchema } },
   },
 ];
 
 export const newsletterDeliveryDerivedRisk: DerivedRiskByToolId = new Map([
   // sendTestCampaign -> mailer.send (externally visible mail, provider dedup state).
-  ["newsletter_send_test", "mutates-durable-state"],
+  ["newsletter_send_test", MUTATES_DURABLE_STATE],
   // authorizeSend -> campaign/revision writes; freezeAudience -> snapshot/send/outbox writes; claimBatch -> mail.
-  ["newsletter_send_campaign", "mutates-durable-state"],
+  ["newsletter_send_campaign", MUTATES_DURABLE_STATE],
   // scheduleCampaign -> campaign/revision writes, authorizes a future mass send.
-  ["newsletter_schedule_campaign", "mutates-durable-state"],
+  ["newsletter_schedule_campaign", MUTATES_DURABLE_STATE],
   // resumeCampaign -> campaign write; claimBatch -> remaining mail.
-  ["newsletter_resume_campaign", "mutates-durable-state"],
+  ["newsletter_resume_campaign", MUTATES_DURABLE_STATE],
 ]);
 
 /** Returns an explicit refusal for non-delivering adapters before a card or write. @complexity O(1). */
@@ -133,7 +135,10 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
       if (scheduledAt !== null && !isValidScheduleTimestamp(scheduledAt)) throw new NewsletterValidationError("scheduledAt must be a valid ISO date-time string with an explicit timezone", "scheduledAt", "format");
       return { campaignId, existing: structuredClone(existing), scheduledAt };
     }, describe: ({ prepared }) => {
-      const spec = { toolId, errorCode: "NEWSLETTER", title: toolId === "newsletter_schedule_campaign" ? "Schedule this newsletter?" : toolId === "newsletter_resume_campaign" ? "Resume this newsletter?" : "Send this newsletter?",
+      let title = "Send this newsletter?";
+      if (toolId === "newsletter_schedule_campaign") title = "Schedule this newsletter?";
+      if (toolId === "newsletter_resume_campaign") title = "Resume this newsletter?";
+      const spec = { toolId, errorCode: "NEWSLETTER", title,
         description: "This action can send email to real people. Only your confirmation can authorize it.", confirmLabel: "Confirm" };
       if ("refusal" in prepared) return { ...spec, details: [] };
       const { existing, campaignId, scheduledAt } = prepared;
@@ -193,6 +198,6 @@ export function buildNewsletterDeliveryRegistrations(deps: NewsletterDeliveryToo
 }
 
 /** Registers delivery under its own key so it cannot replace the existing newsletter catalog. */
-export function contributeNewsletterDeliveryTools(): ToolContributor {
+export function contributeNewsletterDeliveryTools(): ToolContributor<NewsletterDeliveryToolDeps, AssistantSurfaceDeps> {
   return { domain: "newsletter-delivery", build: buildNewsletterDeliveryRegistrations, risk: newsletterDeliveryDerivedRisk };
 }

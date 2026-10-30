@@ -1,4 +1,4 @@
-import type { FormAnalyticsProvenance } from "./index.js";
+import type { FormAnalyticsProvenance } from "./analytics-provenance.js";
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
 import { validateSubmissionPayload, type FieldError, type FormAnswer, type FormDefinitionRecord, type FormDefinitionRepoPort, type FormOutboxPort, type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
 import type { FormPullRefusal } from "@jini-ai/cms/forms";
@@ -62,6 +62,29 @@ export interface FormImportCounts {
   unmapped: number;
 }
 
+type MutableImportResult = { -readonly [K in keyof RemoteImportResult]: RemoteImportResult[K] };
+
+/** Count only committed rows; validation errors belong to new submissions, never duplicate receipts. */
+function recordImportOutcome(
+  { result, formCounts, item, outcome }: {
+    result: MutableImportResult;
+    formCounts: FormImportCounts;
+    item: RemoteSubmissionInput;
+    outcome: Awaited<ReturnType<typeof importOne>>;
+  },
+  _optional: Record<string, never> = {},
+): void {
+  result.committedIds.push(item.id);
+  if (outcome.kind === "duplicate") {
+    result.duplicates += 1;
+    formCounts.alreadyImported += 1;
+    return;
+  }
+  result.imported += 1;
+  formCounts.imported += 1;
+  if (outcome.fieldErrors) result.invalid.push({ remoteId: item.id, formSlug: item.formSlug, submissionId: outcome.submissionId, fieldErrors: outcome.fieldErrors });
+}
+
 /**
  * Imports one page of remote rows. A failure on one row propagates: rows committed earlier in the
  * page stay committed but are not acknowledged, so the next pull fetches them again and their
@@ -73,7 +96,7 @@ export async function importRemoteFormSubmissions(
   _optional: Record<string, never> = {},
 ): Promise<RemoteImportResult> {
   const { deps, workspaceId, destinationKey, items } = required;
-  const result: { -readonly [K in keyof RemoteImportResult]: RemoteImportResult[K] } = { committedIds: [], imported: 0, duplicates: 0, invalid: [], skipped: [], forms: [] };
+  const result: MutableImportResult = { committedIds: [], imported: 0, duplicates: 0, invalid: [], skipped: [], forms: [] };
   const definitions = new Map<string, FormDefinitionRecord | null>();
   // A Map, not an object: form slugs come from the receiver and may be any string.
   const counts = new Map<string, FormImportCounts>();
@@ -83,11 +106,7 @@ export async function importRemoteFormSubmissions(
     const formCounts = countsFor({ counts, formSlug: item.formSlug });
     if (!definition) { result.skipped.push({ remoteId: item.id, formSlug: item.formSlug, reason: "unknown_form" }); formCounts.unmapped += 1; continue; }
     const outcome = await importOne({ deps, workspaceId, destinationKey, item, definition });
-    result.committedIds.push(item.id);
-    if (outcome.kind === "duplicate") { result.duplicates += 1; formCounts.alreadyImported += 1; continue; }
-    result.imported += 1;
-    formCounts.imported += 1;
-    if (outcome.fieldErrors) result.invalid.push({ remoteId: item.id, formSlug: item.formSlug, submissionId: outcome.submissionId, fieldErrors: outcome.fieldErrors });
+    recordImportOutcome({ result, formCounts, item, outcome });
   }
   result.forms = [...counts.values()];
   return result;

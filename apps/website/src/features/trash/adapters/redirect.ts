@@ -11,7 +11,7 @@
 import { loose } from "../entry-sql.js";
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
-import { REDIRECT_TABLES } from "#src/features/redirects/repo.sqlite";
+import { REDIRECT_TABLES } from "#src/features/redirects/index";
 
 export const REDIRECT_ENTITY_TYPE = "redirect";
 

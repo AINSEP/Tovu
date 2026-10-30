@@ -1,3 +1,4 @@
+import { createDatabaseTransferAdapters } from "#src/server/runtime/composition/database-transfer-adapters";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -22,7 +23,7 @@ const description = { host: "fixture", port: "5432", database: "fixture", user: 
 function harness(options: { allow?: boolean; ttl?: number; version?: string; canCreate?: string } = {}, overrides: Partial<DatabaseTransferToolDeps> = {}) {
   const destinations = new InMemoryDatabaseDestinationStore();
   let now = 0;
-  const plans = new DatabaseTransferPlanStore({ now: () => now });
+  const plans = new DatabaseTransferPlanStore({}, { now: () => now });
   const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }, { idleTtlMs: options.ttl ?? 100 });
   let captures = 0;
   let targetCalls = 0;
@@ -51,7 +52,7 @@ function harness(options: { allow?: boolean; ttl?: number; version?: string; can
     },
     ...overrides,
   };
-  const tools = new Map(buildDatabaseTransferRegistrations(deps, { surfaceExchanges: surfaces }).map((tool) => [tool.descriptor.id, tool]));
+  const tools = new Map(buildDatabaseTransferRegistrations({ ...deps, databaseTransferAdapters: createDatabaseTransferAdapters({}) }, { surfaceExchanges: surfaces }).map((tool) => [tool.descriptor.id, tool]));
   const plan = plans.save({ principalId: "owner", workspaceId: "ws", content: { connectionString: "postgresql://owner@fixture/db", destination: description, replaces: "prior-copy", snapshot: Buffer.alloc(0), snapshotAt: "x", site: "ws", schema: "tovu", tableCount: 0, rowCount: 0, leftOut: [] } });
   return { tools, plan, plans, surfaces, destinations, deps, expire: () => { now = 600001; }, captures: () => captures, targetCalls: () => targetCalls };
 }
@@ -134,11 +135,22 @@ for (const [options, code, captures] of [
   });
 }
 
-test("the contributor exposes the same transfer builder and declared risks", () => {
-  const contributor = contributeDatabaseTransferTools();
+test("the contributor binds the supplied snapshot adapters and declared risks", async (t) => {
+  const h = await snapshotHarness(t, { databaseTransferChatSnapshot: async () => chatBytes() });
+  const adapters = createDatabaseTransferAdapters({});
+  let opened = 0;
+  const contributor = contributeDatabaseTransferTools({ adapters: { ...adapters, openSource: bytes => {
+    opened++;
+    return adapters.openSource(bytes);
+  } } });
   assert.equal(contributor.domain, "database-transfer");
-  assert.equal(contributor.build, buildDatabaseTransferRegistrations);
   assert.equal(contributor.risk, databaseTransferDerivedRisk);
+  const tools = contributor.build(h.deps, { surfaceExchanges: h.surfaces });
+  const plan = tools.find(tool => tool.descriptor.id === "database_transfer_plan")!;
+  const result = await call(plan, {}) as { planned: boolean; rowCount: number };
+  assert.equal(result.planned, true);
+  assert.equal(result.rowCount, 2);
+  assert.equal(opened, 2, "both content and chat use the composition-supplied snapshot opener");
 });
 
 /** Real migrated content is shared with the real snapshot reader; only the destination is a fake. */
@@ -221,7 +233,7 @@ for (const location of ["sibling", "override", "missing", "corrupt"] as const) {
     if (location === "corrupt") await writeFile(path, "this is not a SQLite database");
     const content = new Database(join(h.dir, "content.db"));
     t.after(() => content.close());
-    const tools = new Map(buildDatabaseTransferRegistrations({ ...h.deps, db: content }, { surfaceExchanges: h.surfaces }).map(tool => [tool.descriptor.id, tool]));
+    const tools = new Map(buildDatabaseTransferRegistrations({ ...h.deps, db: content, databaseTransferAdapters: createDatabaseTransferAdapters({}) }, { surfaceExchanges: h.surfaces }).map(tool => [tool.descriptor.id, tool]));
     const result = await call(tools.get("database_transfer_plan")!, {}) as Record<string, unknown>;
     if (location === "sibling" || location === "override") {
       assert.equal(result.planned, true, JSON.stringify(result));

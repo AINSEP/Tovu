@@ -91,7 +91,8 @@ function legacyUse(_required: Record<string, never> = {}, _optional: Record<stri
     const pattern = `${prefix}%`;
     return sql`WHEN old.idempotency_key LIKE ${pattern} THEN ${use}`;
   });
-  return sql`CASE ${sql.join(clauses, sql` `)} ELSE 'unknown' END`;
+  const joined = sql.join(clauses, sql` `);
+  return sql`CASE ${joined} ELSE 'unknown' END`;
 }
 
 const feedbackExists = (kind: MailFeedbackRecord["kind"]) => sql`EXISTS (SELECT 1 FROM mail_feedback_inbox f

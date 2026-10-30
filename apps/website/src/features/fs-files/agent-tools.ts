@@ -1,3 +1,4 @@
+import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION } from "./custom-root-permission.js";
 import { MAX_FS_FILE_BYTES } from "./fs-files.js";
 import { FS_ROOT_DESCRIPTORS, FS_ROOT_IDS } from "./layout.js";
@@ -19,8 +20,10 @@ import { FS_WRITE_LIMITS } from "./write-files.js";
  *
  * ## Site-agent boundary (2026-10-23 owner decision, supersedes September 10 for these callers)
  *
- * Site-agent execution now refuses `repo`, outside `custom` roots, and other-site selectors.
- * `site` and an in-site `custom` root still use Jini's guarded reader and the secret denylist.
+ * Historical rule (superseded for picked folders by owner s5, 2026-10-29): site-agent execution
+ * refused `repo`, outside `custom` roots, and other-site selectors. The persisted owner-picked
+ * `custom` folder now grants read access outside the site; repo and other-site selectors remain
+ * refused. All reads still use Jini's guarded reader and the secret denylist.
  * The historical rationale below is retained to explain why the broader roots still exist.
  *
  * ## Historical default-allow with a denylist (2026-09-10 owner decision)
@@ -82,13 +85,7 @@ import { FS_WRITE_LIMITS } from "./write-files.js";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "deletes-durable-state" | "mints-token";
 
-export interface AgentToolDefinition {
-  name: string;
-  description: string;
-  sideEffects: AgentToolSideEffect;
-  authorization: { permission: string };
-  inputSchema?: Readonly<Record<string, unknown>>;
-}
+export type AgentToolDefinition = SharedAgentToolDefinition;
 
 /**
  * Reused, not invented: `content.read` already gates every other read-only, cross-domain tool with
@@ -111,7 +108,7 @@ const RELATIVE_PATH_PROPERTY = {
   type: "string",
   minLength: 1,
   description:
-    "A path relative to the chosen root, e.g. 'site-compliance/references/checklist.md'. Must stay inside that root: an absolute path, or one escaping via '../', is refused.",
+    "A path relative to the chosen root, e.g. 'site-compliance/references/checklist.md'. For custom, an absolute or ~/ path inside the picked folder is also accepted. Paths escaping the selected root, including through symbolic links, are refused.",
 } as const;
 
 const LIST_FILES_SCHEMA = {

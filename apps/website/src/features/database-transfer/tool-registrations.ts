@@ -1,14 +1,14 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/database-transfer.js';
 import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 import { createDestinationExchangeReporter } from './destination-exchange.js';
-import { resolveOperatorLocale, type OperatorLocaleDeps } from '../agent-plugins/operator-locale.js';
+import { resolveOperatorLocale } from '../settings/index.js';
+import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import { assertCredentialToken, CredentialInputError } from '../../contracts/core/credential-token.js';
-import { readFile } from "node:fs/promises";
 
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission, adaptLegacyAuthorize } from "@jini-ai/cms/core";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { describeErrorForLog, forbiddenRule } from "../../contracts/core/model-facing-tool-errors.js";
@@ -17,23 +17,16 @@ import {
   type AssistantSurfaceDeps,
 } from "@jini-ai/daemon/surface-exchanges";
 import { describeTransferApproval, DATABASE_TRANSFER_RUN_TOOL_ID } from "./confirmation-ui.js";
-import { countPartialExclusions, planSnapshotTables } from "./copy-engine.js";
+import { countPartialExclusions } from "./copy-engine.js";
 import { databaseDestinationStore as DEFAULT_DESTINATION_STORE, DestinationUnreadableError, type DatabaseDestinationStorePort } from "./destination-store.js";
 import { buildDestinationForm, buildDestinationOutcome, DESTINATION_ADDRESS_FIELD, SET_DESTINATION_TOOL_ID } from "./destination-ui.js";
 import { databaseTransferPlanStore as DEFAULT_PLAN_STORE, type DatabaseTransferPlanStore } from "./plan-store.js";
 import { createPsqlPostgresTarget, InvalidConnectionStringError, type PostgresTargetPort } from "./postgres-target.js";
-import { openSqliteSnapshotSource } from "./sqlite-source.js";
 
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { databaseFile } from "@jini-ai/db/kernel";
-import { openSqliteFileKernel, type SqliteKernel } from "../../platform/db/kernel/drivers/sqlite.js";
-import { contentKernel } from "../../platform/db/content-kernel.js";
+import type { contentKernel } from "../../platform/db/content-kernel.js";
 import { createDatabaseTransferTools, getDatabaseTransferAgentToolCatalog } from "@jini-ai/db/tools";
 import { TRANSFER_NAMING } from "./copy-engine.js";
-import { planChatSnapshotTables } from "./table-catalog.js";
 import { TOVU_TRANSFER_MESSAGES } from "./transfer-messages.js";
 /** Tovu's copy and real schema names ('tovu', 'tovu_'), not Jini's neutral defaults ('the source', 'app'). */
 export const databaseTransferAgentToolCatalog = getDatabaseTransferAgentToolCatalog({}, { naming: TRANSFER_NAMING, messages: TOVU_TRANSFER_MESSAGES });
@@ -69,6 +62,10 @@ export interface DatabaseTransferToolDeps extends OperatorLocaleDeps {
   readonly databaseTransferFailureLog?: (line: string) => void;
 }
 
+export type DatabaseTransferAdapters = Pick<Parameters<typeof createDatabaseTransferTools>[0], "openSource" | "catalog"> & {
+  captureChatSnapshot: (deps: Pick<DatabaseTransferToolDeps, "db" | "databaseTransferChatSnapshot">) => Promise<Buffer>;
+};
+
 /** Input errors name the rule, never the connection string. */
 const DATABASE_TRANSFER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   forbiddenRule("DATABASE_TRANSFER"),
@@ -77,26 +74,8 @@ const DATABASE_TRANSFER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
 ];
 
 
-/** Read-only online backup of the exact configured chat DB; never create a missing source. */
-async function captureChatSnapshot(deps: DatabaseTransferToolDeps): Promise<Buffer> {
-  if (deps.databaseTransferChatSnapshot) return deps.databaseTransferChatSnapshot();
-  const contentPath = deps.db === undefined ? null : await databaseFile(contentKernel(deps.db));
-  if (contentPath === null) throw new Error("the chat snapshot source is not wired");
-  const path = process.env.TOVU_CHAT_DB ?? join(dirname(contentPath), "chat.db");
-  const dir = await mkdtemp(join(tmpdir(), "tovu-transfer-chat-"));
-  let source: SqliteKernel<unknown> | undefined;
-  try {
-    source = openSqliteFileKernel(path, { readOnly: true });
-    const snapshotPath = join(dir, "chat.db");
-    await source.backupTo(snapshotPath);
-    return await readFile(snapshotPath);
-  } finally {
-    try { await source?.close(); }
-    finally { await rm(dir, { recursive: true, force: true }); }
-  }
-}
 /** @complexity O(1) at registration; consumer adapters supply all schema/security/UI policy. */
-export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDeps & { databaseTransferAdapters: DatabaseTransferAdapters }, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const destinations = deps.databaseTransferDestinationStore ?? DEFAULT_DESTINATION_STORE;
   const localeByExchange = new Map<string, Promise<string>>();
   const reportDestination = createDestinationExchangeReporter({ store: destinations, workspaceId: deps.workspaceId }, {
@@ -113,14 +92,14 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
     destinations,
     target: connectionString => {
       try { assertCredentialToken({ value: connectionString, field: 'address', hosted: false }); }
-      catch (err) { if (err instanceof CredentialInputError) throw new InvalidConnectionStringError(err.message); throw err; }
+      catch (err) { if (err instanceof CredentialInputError) { throw new InvalidConnectionStringError(err.message); } throw err; }
       return (deps.databaseTransferTarget ?? createPsqlPostgresTarget)(connectionString);
     },
     requirePermission: request => requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: request.principalId, permission: request.permission }, { entityType: request.entityType }),
-    openSource: openSqliteSnapshotSource,
-    catalog: (name, source) => name === "chat" ? planChatSnapshotTables(source) : planSnapshotTables(source),
+    openSource: deps.databaseTransferAdapters.openSource,
+    catalog: deps.databaseTransferAdapters.catalog,
     partialExclusions: (name, source) => name === "content" ? countPartialExclusions(source) : [],
-    captureChatSnapshot: () => captureChatSnapshot(deps),
+    captureChatSnapshot: () => deps.databaseTransferAdapters.captureChatSnapshot(deps),
     failureLog: deps.databaseTransferFailureLog ?? (line => console.warn(line)), describeError: describeErrorForLog,
     schemaMismatchGuidance: "this Tovu version's Postgres layout does not match it",
     readers: { inputRecord: input => requireInputRecord({ input }), string: (input, key) => requireString({ input, key }) },
@@ -141,6 +120,6 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
     handlers: withModelFacingErrors({ handlers: Object.fromEntries(tools.map(tool => [tool.descriptor.id, tool.handler])), rules: DATABASE_TRANSFER_MODEL_FACING_ERRORS }), derivedRisk: databaseTransferDerivedRisk });
 }
 /** Called once by server/runtime/composition/tool-catalog-manifest.ts. */
-export function contributeDatabaseTransferTools(): ToolContributor {
-  return { domain: DOMAIN, build: buildDatabaseTransferRegistrations, risk: databaseTransferDerivedRisk };
+export function contributeDatabaseTransferTools(required: { adapters: DatabaseTransferAdapters }, _optional = {}): ToolContributor<DatabaseTransferToolDeps, AssistantSurfaceDeps> {
+  return { domain: DOMAIN, build: (deps, surfaces) => buildDatabaseTransferRegistrations({ ...deps, databaseTransferAdapters: required.adapters }, surfaces), risk: databaseTransferDerivedRisk };
 }

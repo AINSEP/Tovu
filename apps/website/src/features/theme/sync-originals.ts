@@ -139,8 +139,7 @@ export function syncThemeOriginals(
 
   const results: SyncThemeOriginalsThemeResult[] = [];
   for (const theme of themes) {
-    const tier = theme.manifest.tier;
-    const id = theme.manifest.id;
+    const { tier, id } = theme.manifest;
     writeGeneratedThemeOriginal({
       liveDir: theme.dir,
       targetDir: join(themesRoot, THEME_CATALOG_DIR, tier, id),

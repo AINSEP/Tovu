@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type Database from "better-sqlite3";
@@ -179,7 +180,7 @@ function openRealTrash() {
     .prepare(`INSERT OR IGNORE INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)`)
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
   const repo = new SqlitePostRepo(db);
-  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter(client)]]);
+  const adapters = new Map<string, TrashAdapter>([[POST_ENTITY_TYPE, createPostTrashAdapter(contentKernel(client))]]);
   let seq = 0;
   const trash = createTrashService({
     repo: new SqliteTrashRepo(client),

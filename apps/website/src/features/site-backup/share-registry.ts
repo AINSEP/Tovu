@@ -20,7 +20,8 @@ const ID = /^[0-9a-f-]{36}$/;
 /** Owner decision 2026-10-25: share tokens are 16 ASCII letters (~91 bits), short enough to read
  * aloud yet unguessable. No digits, and no other shape is accepted: old 64-hex links are dead.
  * The one source of the token shape; route and object-store key checks build on SHARE_TOKEN_PATTERN. */
-export const SHARE_TOKEN_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+const ASCII_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+export const SHARE_TOKEN_ALPHABET = ASCII_LETTERS;
 export const SHARE_TOKEN_LENGTH = 16;
 export const SHARE_TOKEN_PATTERN = `[A-Za-z]{${SHARE_TOKEN_LENGTH}}`;
 export const SHARE_TOKEN = new RegExp(`^${SHARE_TOKEN_PATTERN}$`);
@@ -71,7 +72,7 @@ export class SiteShareRegistry {
   async get(required: { shareId: string; site?: string }, _optional: Record<string, never> = {}): Promise<SiteShareRecord | null> {
     let row: SiteShareRecord;
     try { row = JSON.parse(await readFile(this.meta(required.shareId), "utf8")) as SiteShareRecord; }
-    catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return null; throw error; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") { return null; } throw error; }
     if (required.site !== undefined && row.site !== required.site) return null;
     try {
       const revokedAt = await readFile(path.join(this.directory, `${row.shareId}.revoked`), "utf8");
@@ -82,7 +83,7 @@ export class SiteShareRegistry {
   async list(required: { site?: string }, _optional: Record<string, never> = {}): Promise<SiteShareRecord[]> {
     let names: string[];
     try { names = await readdir(this.directory); }
-    catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return []; throw error; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") { return []; } throw error; }
     const rows: SiteShareRecord[] = [];
     for (const name of names) {
       if (!name.endsWith(".json") || !ID.test(name.slice(0, -5))) continue;
@@ -95,7 +96,7 @@ export class SiteShareRegistry {
     if (!SHARE_TOKEN.test(required.token) || !SHARE_FILE.test(required.file)) return null;
     let shareId: string;
     try { shareId = await readFile(path.join(this.directory, `${required.token}.token`), "utf8"); }
-    catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return null; throw error; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") { return null; } throw error; }
     const row = await this.get({ shareId });
     return row?.token === required.token && row.file === required.file && row.status === "active" ? row : null;
   }

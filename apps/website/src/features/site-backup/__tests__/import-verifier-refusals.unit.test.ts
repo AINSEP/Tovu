@@ -11,9 +11,9 @@ import { admitProjectedDocuments, type DocumentAdmission } from "../import-verif
 const schema = { index: 7, tag: "schema" };
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const db = Buffer.from("archive database"), media = Buffer.from("media bytes");
-const content = new Map([["content.db", db], ["settings.json", Buffer.from("{}")], ["media/photo.bin", media]]);
+const content = new Map<string, Buffer>([["content.db", db], ["settings.json", Buffer.from("{}")], ["media/photo.bin", media]]);
 const projection: ShareDatabaseProjection = { bytes: Buffer.from("fresh DB"), media: [{ storageKey: "blob", sha256: sha(media) }] };
-function file(entryPath: string, bytes: Buffer, declaredSize: number | undefined = bytes.length): AgentPluginArchiveEntry {
+function file(entryPath: string, bytes: Buffer, declaredSize: number | undefined = bytes.length): Extract<AgentPluginArchiveEntry, { kind: "file" }> {
   return { kind: "file", entryPath, declaredSize, async *openReadStream() { yield bytes; } };
 }
 function manifest(overrides = {}, files = content): any {
@@ -365,7 +365,7 @@ test("a document the upload policy rejects is refused with the policy's reason",
 
 /** Two archive media copies with different bytes, so a remap can collide with real content. */
 function moveArchive(moves: readonly { storageKey: string; destinationStorageKey?: string; bytes: Buffer }[]) {
-  const files = new Map(content), rows = [...manifest().media];
+  const files = new Map<string, Buffer>(content), rows = [...manifest().media];
   for (const [index, move] of moves.entries()) { files.set(`media/move-${index}.bin`, move.bytes); rows.push({ id: "move-" + index, slug: "move-" + index, path: `media/move-${index}.bin`, sha256: sha(move.bytes) }); }
   const value: ShareDatabaseProjection = { ...projection, media: [...projection.media, ...moves.map(({ storageKey, destinationStorageKey, bytes }) => ({ storageKey, sha256: sha(bytes), ...(destinationStorageKey ? { destinationStorageKey } : {}) }))] };
   return { items: entries(manifest({ media: rows }, files), files), projection: value };

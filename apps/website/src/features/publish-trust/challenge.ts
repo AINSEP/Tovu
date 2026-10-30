@@ -145,7 +145,8 @@ function refuse(reason: string): ChallengeVerification {
  * @complexity O(1).
  */
 function isChallengeExpired(input: { record: PublishChallengeRecord; now: number }, _options = {}): boolean {
-  return !(Date.parse(input.record.expiresAtIso) > input.now);
+  const remaining = Date.parse(input.record.expiresAtIso) - input.now;
+  return Number.isNaN(remaining) || remaining <= 0;
 }
 
 /**

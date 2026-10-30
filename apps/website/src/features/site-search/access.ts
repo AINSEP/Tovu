@@ -10,8 +10,8 @@
 import { encodeSearchKey, type SearchAccessPort, type SearchDocumentKey } from "@jini-ai/search";
 
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import type { MemberContext } from "../members/types.js";
-import type { PostKind } from "../post/post.js";
+import type { MemberContext } from "../members/index.js";
+import type { PostKind } from "../post/contracts.js";
 import { CMS_SEARCH_COLLECTIONS, MEMBER_AUDIENCE, cmsSearchVisibility, isRowLive, toNowIso } from "./cms-document-source.js";
 
 /**

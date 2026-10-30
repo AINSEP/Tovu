@@ -258,7 +258,7 @@ function validateDefaultRobots(defaultRobots: RobotsDirective | undefined): void
   }
 }
 
-function validateSitemapEnabled(sitemapEnabled: boolean | undefined): void {
+function validateSitemapEnabled(sitemapEnabled: boolean | undefined = undefined): void {
   if (sitemapEnabled !== undefined && typeof sitemapEnabled !== "boolean") {
     throw new SeoSettingsValidationError("sitemapEnabled must be a boolean");
   }
@@ -341,7 +341,7 @@ function buildDefaultRobotsWrites(defaultRobots: RobotsDirective | undefined): S
   ];
 }
 
-function buildSitemapEnabledWrites(sitemapEnabled: boolean | undefined): SeoSettingWrite[] {
+function buildSitemapEnabledWrites(sitemapEnabled: boolean | undefined = undefined): SeoSettingWrite[] {
   return sitemapEnabled === undefined ? [] : [{ key: "sitemap_enabled", value: sitemapEnabled }];
 }
 

@@ -3,7 +3,7 @@ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type Ag
 import { createSystemClock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { createRateLimiter, type RateLimitProfile } from "../../contracts/core/rate-limit/rate-limit.js";
 import { readPageBodyOptions, shapePageBody } from "../site-inspection/page-body.js";
@@ -65,7 +65,7 @@ export function buildWebRegistrations(routeDeps: WebToolDeps, ports: WebFetchPor
 export function contributeWebTools(
   { httpClient, htmlToMarkdown, renderPage }: Pick<WebFetchPorts, "httpClient" | "htmlToMarkdown" | "renderPage">,
   { rateLimiter, observeFetch, nowMs }: Partial<Pick<WebFetchPorts, "rateLimiter" | "observeFetch" | "nowMs">> = {},
-): ToolContributor {
+): ToolContributor<WebToolDeps, unknown> {
   const clock = createSystemClock();
   const ports: WebFetchPorts = {
     httpClient, htmlToMarkdown,

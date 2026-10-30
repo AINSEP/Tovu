@@ -648,7 +648,7 @@ for (const mode of ["provisioning-refused", "ownership-changed"] as const) {
     const deps: AgentPluginConnectToolDeps = testSiteLayoutContext({
       workspaceId: WORKSPACE_ID, authorize: async () => ({ allowed: true, reason: "test" }), clock: CLOCK,
       externalMcpServerRepo: store.repo, siteAssistantSecretSealer: store.sealer, siteAssistantSecretKeyring: store.keyring,
-      externalMcpOAuth: { ...oauth, beginConnect: async (input) => { starts.push(input.serverId); return oauth.beginConnect(input); } },
+      externalMcpOAuth: { ...oauth, beginConnect: async (input: Parameters<ExternalMcpOAuthService["beginConnect"]>[0]) => { starts.push(input.serverId); return oauth.beginConnect(input); } },
       waitTimeoutMs: 0, resolveInstalledPlugin: async () => ({ servers: { widget: OAUTH_SERVER } }),
     });
     const surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) };

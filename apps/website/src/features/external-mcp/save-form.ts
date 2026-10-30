@@ -1,6 +1,6 @@
 import type { SecretCardField, SecretCardForm } from "@jini-ai/ui/mcp-ui/secret-card";
-import type { ExternalMcpServerView } from "#src/assistant/index";
-import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/secret-form-cards.js";
+import type { ExternalMcpServerView } from "#src/assistant/mcp-services";
+import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/index.js";
 
 /**
  * @file The confirmation form `external_mcp_save` renders — see `tool-registrations.ts`'s handler
@@ -277,6 +277,9 @@ export function buildExternalMcpSaveForm(input: {
   isUpdate: boolean;
 }, _optional = {}): SecretCardForm {
   const { save, isUpdate } = input;
+  let credentials = "API key / token";
+  if (save.authMode === "oauth") credentials = "Connect via OAuth";
+  if (save.authMode === "none") credentials = "None needed";
   return {
     title: isUpdate ? `Update "${save.id}"` : `Add "${save.id}"`,
     description: isUpdate
@@ -284,7 +287,7 @@ export function buildExternalMcpSaveForm(input: {
       : "The assistant wants to add this external MCP server. Review and edit anything before saving.",
     details: [
       { label: "Connection type", value: save.transport === "streamable_http" ? "Hosted server (URL)" : "Local command (stdio)" },
-      { label: "Credentials", value: save.authMode === "oauth" ? "Connect via OAuth" : save.authMode === "none" ? "None needed" : "API key / token" },
+      { label: "Credentials", value: credentials },
     ],
     submitLabel: isUpdate ? "Save changes" : "Add server",
     fields: buildExternalMcpSaveFormFields(save, isUpdate),

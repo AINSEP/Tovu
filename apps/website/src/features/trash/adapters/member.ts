@@ -23,39 +23,42 @@ export function createMemberTrashAdapter(
     async hide(input, options = {}) {
       return db.transaction(async () => {
         const result = await adapter.hide(input, options);
-        if (!result.ok || result.noop) return result;
-        await db.run(query => query.updateTable("members")
-          .set({ credentials_revoked_at: input.at })
-          .where("workspace_id", "=", input.workspaceId).where("id", "=", input.entityId)
-          .where(eb => eb.or([eb("credentials_revoked_at", "is", null),
-            eb("credentials_revoked_at", "<", input.at)]))
-          .execute());
-        await db.run(query => query.updateTable("member_sessions")
-          .set({ revoked_at: input.at })
-          .where("workspace_id", "=", input.workspaceId)
-          .where("member_id", "=", input.entityId)
-          .where("revoked_at", "is", null).execute());
-        await db.run(query => query.updateTable("member_magic_tokens")
-          .set({ consumed_at: input.at })
-          .where("workspace_id", "=", input.workspaceId)
-          .where("member_id", "=", input.entityId)
-          .where("consumed_at", "is", null).execute());
+        if (result.ok && !result.noop) {
+          await revokeMemberCredentials({ db, input });
+          await db.run(query => query.updateTable("member_sessions")
+            .set({ revoked_at: input.at })
+            .where("workspace_id", "=", input.workspaceId)
+            .where("member_id", "=", input.entityId)
+            .where("revoked_at", "is", null).execute());
+          await db.run(query => query.updateTable("member_magic_tokens")
+            .set({ consumed_at: input.at })
+            .where("workspace_id", "=", input.workspaceId)
+            .where("member_id", "=", input.entityId)
+            .where("consumed_at", "is", null).execute());
+        }
         return result;
       });
     },
     async unhide(input, options = {}) {
       return db.transaction(async () => {
         const result = await adapter.unhide(input, options);
-        if (!result.ok || result.noop) return result;
-        // A delayed request may mint a link while hidden; restoring never revives that link.
-        await db.run(query => query.updateTable("members")
-          .set({ credentials_revoked_at: input.at })
-          .where("workspace_id", "=", input.workspaceId).where("id", "=", input.entityId)
-          .where(eb => eb.or([eb("credentials_revoked_at", "is", null),
-            eb("credentials_revoked_at", "<", input.at)]))
-          .execute());
+        if (result.ok && !result.noop) {
+          // A delayed request may mint a link while hidden; restoring never revives that link.
+          await revokeMemberCredentials({ db, input });
+        }
         return result;
       });
     },
   };
+}
+
+async function revokeMemberCredentials({ db, input }: {
+  db: TrashDb; input: Parameters<TrashAdapter["hide"]>[0];
+}, _options = {}): Promise<void> {
+  await db.run(query => query.updateTable("members")
+    .set({ credentials_revoked_at: input.at })
+    .where("workspace_id", "=", input.workspaceId).where("id", "=", input.entityId)
+    .where(eb => eb.or([eb("credentials_revoked_at", "is", null),
+      eb("credentials_revoked_at", "<", input.at)]))
+    .execute());
 }

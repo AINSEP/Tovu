@@ -20,7 +20,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { BuiltInPluginSource } from "@jini-ai/plugins/host/node";
 import type { PluginManifest } from "@jini-ai/plugins/host";
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 
@@ -47,8 +46,6 @@ export const WORD_COUNT_MANIFEST: PluginManifest = {
   ],
   integrity: {}, // built-in — no packaged files to hash (ADR Decision item 4).
 };
-
-export const WORD_COUNT_BUILT_IN: BuiltInPluginSource = { manifest: WORD_COUNT_MANIFEST };
 
 /**
  * REQ-09's pinned algorithm: walk `bodyJson` depth-first collecting every `text`-node string

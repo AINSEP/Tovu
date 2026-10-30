@@ -1,3 +1,4 @@
+import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -15,7 +16,7 @@ import { IMAGE_TRANSFORM_TOOL_ID, buildImageTransformRegistrations, contributeIm
  */
 
 import { assetToolHarness, until } from "../../fs-files/__tests__/asset-tool-fixture.js";
-const harness = (t: TestContext, options = {}) => assetToolHarness(t, { ...options, build: buildImageTransformRegistrations, toolId: IMAGE_TRANSFORM_TOOL_ID });
+const harness = (t: TestContext, options = {}) => assetToolHarness(t, { ...options, build: (deps, surfaces) => buildImageTransformRegistrations({ ...deps, imageCodec: new SharpImageTransformer() }, surfaces), toolId: IMAGE_TRANSFORM_TOOL_ID });
 
 const SOURCE = { root: "site", path: "logo.png" };
 const FAVICONS = [{ path: "favicon.ico", format: "ico", icoSizes: [16, 32, 48] }, { path: "apple-touch-icon.png", format: "png", resize: { width: 180, height: 180, fit: "contain" } }];

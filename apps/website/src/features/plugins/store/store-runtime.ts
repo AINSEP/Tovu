@@ -16,6 +16,7 @@
  * model and has no equivalent of these `p_store__*` tables or seed. The body is unchanged, so the
  * rendered storefront is identical; `store-plugin.ts` stays the CMS adapter in front of it.
  */
+import { randomUUID } from "node:crypto";
 import type { StorageKernel } from "@jini-ai/db/kernel";
 
 export interface Product {
@@ -58,6 +59,47 @@ export const SEED_PRODUCTS: Product[] = [
   { id: "prod-candle", slug: "prod-candle", title: "Beeswax Candle", price: 1200, stock: 5, version: 0 },
 ];
 
+type Attempt = { done: true; result: CheckoutResult } | { done: false };
+
+/** One checkout attempt: read, then the OCC-guarded decrement and the order row, as ONE transaction. */
+function attemptCheckout(
+  { kernel, productId, qty, retries }: { kernel: StorageKernel<unknown>; productId: string; qty: number; retries: number },
+  _optional: Record<string, never> = {},
+): Promise<Attempt> {
+  return kernel.transaction(async (): Promise<Attempt> => {
+    await kernel.lockKey(`${PRODUCTS}:${productId}`);
+    const product = await kernel.run((k) =>
+      k.withTables<StoreTables>().selectFrom(PRODUCTS).select(["price", "stock", "version"]).where("id", "=", productId).executeTakeFirst()
+    );
+    if (!product) return { done: true, result: { ok: false, reason: "not-found", retries } };
+    if (product.stock < qty) return { done: true, result: { ok: false, reason: "out-of-stock", retries } };
+
+    // The stock decrement and the order insert are TWO writes. They are atomic here ONLY because
+    // this spike store holds the kernel directly. A real Tier-3 plugin behind the frozen async ABI
+    // (ADR-024 §3) CANNOT hold a transaction across the seam — which is exactly why core must own
+    // an atomic multi-write primitive (see the cowork ABI finding → ADR-026).
+    const dec = await kernel.run((k) =>
+      k
+        .withTables<StoreTables>()
+        .updateTable(PRODUCTS)
+        .set((eb) => ({ stock: eb("stock", "-", qty), version: eb("version", "+", 1) }))
+        .where("id", "=", productId)
+        .where("version", "=", product.version)
+        .executeTakeFirst()
+    );
+    if (Number(dec.numUpdatedRows) === 0) return { done: false }; // OCC conflict — the row moved under us; retry
+    const orderId = `ord-${Date.now()}-${randomUUID()}`;
+    await kernel.run((k) =>
+      k
+        .withTables<StoreTables>()
+        .insertInto(ORDERS)
+        .values({ id: orderId, product_id: productId, qty, total: product.price * qty, at: Date.now() })
+        .execute()
+    );
+    return { done: true, result: { ok: true, orderId, remainingStock: product.stock - qty, retries } };
+  });
+}
+
 /**
  * Declare the store's tables through core (snapshot→DDL), seed once, and return the store API.
  *
@@ -84,49 +126,11 @@ export async function activateStore(
     await kernel.run((k) => k.withTables<StoreTables>().insertInto(PRODUCTS).values(rows).execute());
   });
 
-  type Attempt = { done: true; result: CheckoutResult } | { done: false };
-
-  /** One checkout attempt: read, then the OCC-guarded decrement and the order row, as ONE transaction. */
-  function attemptCheckout(productId: string, qty: number, retries: number): Promise<Attempt> {
-    return kernel.transaction(async (): Promise<Attempt> => {
-      await kernel.lockKey(`${PRODUCTS}:${productId}`);
-      const product = await kernel.run((k) =>
-        k.withTables<StoreTables>().selectFrom(PRODUCTS).select(["price", "stock", "version"]).where("id", "=", productId).executeTakeFirst()
-      );
-      if (!product) return { done: true, result: { ok: false, reason: "not-found", retries } };
-      if (product.stock < qty) return { done: true, result: { ok: false, reason: "out-of-stock", retries } };
-
-      // The stock decrement and the order insert are TWO writes. They are atomic here ONLY because
-      // this spike store holds the kernel directly. A real Tier-3 plugin behind the frozen async ABI
-      // (ADR-024 §3) CANNOT hold a transaction across the seam — which is exactly why core must own
-      // an atomic multi-write primitive (see the cowork ABI finding → ADR-026).
-      const dec = await kernel.run((k) =>
-        k
-          .withTables<StoreTables>()
-          .updateTable(PRODUCTS)
-          .set((eb) => ({ stock: eb("stock", "-", qty), version: eb("version", "+", 1) }))
-          .where("id", "=", productId)
-          .where("version", "=", product.version)
-          .executeTakeFirst()
-      );
-      if (Number(dec.numUpdatedRows) === 0) return { done: false }; // OCC conflict — the row moved under us; retry
-      const orderId = `ord-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      await kernel.run((k) =>
-        k
-          .withTables<StoreTables>()
-          .insertInto(ORDERS)
-          .values({ id: orderId, product_id: productId, qty, total: product.price * qty, at: Date.now() })
-          .execute()
-      );
-      return { done: true, result: { ok: true, orderId, remainingStock: product.stock - qty, retries } };
-    });
-  }
-
   async function checkout({ productId, qty }: { productId: string; qty: number }, _optional: Record<string, never> = {}): Promise<CheckoutResult> {
     if (!Number.isSafeInteger(qty) || qty <= 0) return { ok: false, reason: "invalid-quantity", retries: 0 };
     const maxAttempts = 5;
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      const outcome = await attemptCheckout(productId, qty, attempt);
+      const outcome = await attemptCheckout({ kernel, productId, qty, retries: attempt });
       if (outcome.done) return outcome.result;
     }
     return { ok: false, reason: "conflict", retries: maxAttempts };

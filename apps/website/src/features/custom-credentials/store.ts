@@ -2,11 +2,11 @@ import { normalizeCredentialWorksFor, VaultError, type VaultSummary } from "@jin
 import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken } from '../../contracts/core/credential-token.js';
 import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
-import { isUniqueViolation } from "../../platform/db/kernel/dialect.js";
+import { isUniqueViolation } from "@jini-ai/db/kernel";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { byVaultLabel, createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { customVaultRecord, customVaultScope } from "./vault-repo.js";
-import { credentialDeletionRepo, credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "../vendor-credentials/project-scope.js";
+import { credentialDeletionRepo, credentialCreateTarget, credentialScopes, type ScopedCredentialDeps } from "../vendor-credentials/index.js";
 import {
   CUSTOM_CREDENTIAL_CATEGORIES,
   type CustomCredentialCategoryId,
@@ -299,11 +299,11 @@ function isEmptyTokenPatch(raw: unknown): boolean {
 }
 function normalizeStoredToken({ value }: { value: unknown }): string {
   try { return normalizeCredentialToken({ value }); }
-  catch (err) { if (err instanceof CredentialInputError) throw new CustomCredentialValidationError(err.message); throw err; }
+  catch (err) { if (err instanceof CredentialInputError) { throw new CustomCredentialValidationError(err.message); } throw err; }
 }
 function assertPlainField(required: { value: string; field: string }): void {
   try { assertCredentialFreeField(required); }
-  catch (err) { if (err instanceof CredentialInputError) throw new CustomCredentialValidationError(err.message); throw err; }
+  catch (err) { if (err instanceof CredentialInputError) { throw new CustomCredentialValidationError(err.message); } throw err; }
 }
 
 function validateConnection(raw: unknown): CustomProviderConnectionInput {
@@ -315,12 +315,6 @@ function validateConnection(raw: unknown): CustomProviderConnectionInput {
   const username = optionalString(value.username, "username");
   if (username !== undefined) assertPlainField({ value: username, field: "username" });
   return { token, ...(username !== undefined ? { username } : {}) };
-}
-
-/** True iff `err` is the label's UNIQUE `(workspace_id, …, label)` index rejecting a duplicate, on
- *  any database (`isUniqueViolation`, storage kernel). */
-export function isUniqueLabelViolation(err: unknown): boolean {
-  return isUniqueViolation(err);
 }
 
 export interface CreateCustomCredentialInput {
@@ -366,7 +360,8 @@ async function throwSaveError(deps: CustomCredentialReadDeps, input: { err: unkn
   const inventory = credentialDeletionRepo({ repo: deps.repo }).project;
   const hiddenDuplicate = target.scope === "project" && err instanceof VaultError && err.code === "conflict"
     && (await inventory!.repo.listByWorkspace({ workspaceId: target.workspaceId })).some(row => row.label === label && row.id !== id);
-  if (isUniqueLabelViolation(err) || hiddenDuplicate) throw target.scope === "project" ? new CustomCredentialDuplicateLabelError(`Your project already has a key named '${label}'. Use it here, or pick another name.`) : duplicateLabel(label);
+  // The storage kernel recognizes the label's UNIQUE (workspace_id, …, label) index on any database.
+  if (isUniqueViolation(err) || hiddenDuplicate) throw target.scope === "project" ? new CustomCredentialDuplicateLabelError(`Your project already has a key named '${label}'. Use it here, or pick another name.`) : duplicateLabel(label);
   throw err;
 }
 
@@ -539,6 +534,6 @@ async function openLocated({ scoped, record }: Located<CustomCredentialResolveDe
 
 /** Keep the feature's HTTP validation error contract while reusing Jini's canonical ID parser. */
 function validatedWorksFor({ value }: { value: unknown }, _options = {}): string[] {
-  try { const ids = normalizeCredentialWorksFor({ value }); for (const id of ids) assertPlainField({ value: id, field: "worksFor" }); return ids; }
-  catch (error) { if (error instanceof VaultError) throw new CustomCredentialValidationError("worksFor must be an array of provider IDs"); throw error; }
+  try { const ids = normalizeCredentialWorksFor({ value }); for (const id of ids) { assertPlainField({ value: id, field: "worksFor" }); } return ids; }
+  catch (error) { if (error instanceof VaultError) { throw new CustomCredentialValidationError("worksFor must be an array of provider IDs"); } throw error; }
 }

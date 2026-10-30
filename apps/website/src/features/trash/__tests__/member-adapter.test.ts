@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 import express from "express";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";
 import { registerAdminMemberDeleteRoute } from "#src/server/inbound/admin-http/routes/members/delete";
@@ -16,7 +17,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { MembersWriteServiceDeps } from "#src/features/members/ports";
 import { membersWriteService } from "#src/features/members/write-service";
 import { createTrashService } from "@jini-ai/cms/trash";
-import { createSqliteTrashDb } from "../db-port.sqlite.js";
+
 import { SqliteTrashRepo, createContentDbTransactionRunner } from "../repo.sqlite.js";
 import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
@@ -39,7 +40,7 @@ function harness() {
   const db = openContentDb(":memory:");
   const client = db.$client;
   client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run(WS, WS, WS, AT);
-  const kernel = createSqliteTrashDb({ db });
+  const kernel = contentKernel(db);
   const registry = buildTrashRegistry();
   const adapter = createMemberTrashAdapter({
     adapter: createTableTrashAdapter({ entry: registry.get("member")!, db: kernel }), db: kernel,

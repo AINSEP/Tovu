@@ -1,11 +1,11 @@
-import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";
+import { createSitesWorkspace } from "#src/platform/site-dir/index";
 import { toolMetadata } from '../../contracts/core/tool-metadata/sites.js';
 import path from "node:path";
 
 import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalString, ToolInputError, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import {
   includeServingSite, listSitesForBinding, readPersistedActiveSite, isSiteSwitcherEnabled, switcherBaseForBinding, type ListSitesOptional, type SiteBinding, type SiteListEntry,
   InitDirNotEmptyError,
@@ -249,7 +249,7 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
  * module. Same seam every other converted domain uses; this module never imports `server/` (see
  * `deps.ts`'s own header for the one field that would have required it, and how that is avoided).
  */
-export function contributeSitesTools(): ToolContributor {
+export function contributeSitesTools(): ToolContributor<SitesToolDeps, unknown> {
   return {
     domain: "sites",
     build: buildSitesRegistrations,
@@ -303,6 +303,6 @@ export function buildSitesReadRegistrations(deps: SitesReadToolDeps, _optional: 
   });
 }
 /** Installs this distinct domain without replacing its existing sibling tools. */
-export function contributeSitesListTools(): ToolContributor {
+export function contributeSitesListTools(): ToolContributor<SitesReadToolDeps, unknown> {
   return { domain: "sites-list", build: deps => buildSitesReadRegistrations(deps), risk: sitesReadDerivedRisk };
 }

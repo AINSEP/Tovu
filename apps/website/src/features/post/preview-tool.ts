@@ -4,14 +4,14 @@ import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { type JsonObject } from "@jini-ai/core/primitives";
 import { requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { getAdminPostById, PostNotFoundError, type PublicPostRecord as PostRecord, type PostRepoPort } from "./post.js";
 import { readPageBodyOptions, shapePageBody, type ShapedPageBody } from "#src/features/site-inspection/page-body";
 import { readPostTemplateOptions, type PostTemplateDeps } from "./template-options.js";
 
 /** Renderer injected at the server composition root; the feature has no server/assistant value edge. */
 export interface PostPreviewToolDeps extends PostTemplateDeps { authorize: AuthorizeFn; postRepo: PostRepoPort }
-export interface PostPreviewInput { post: PostRecord; templateChoice?: string | null | undefined; bodyJson?: JsonObject | undefined; bodyHtml?: string | undefined }
+export interface PostPreviewInput { post: PostRecord; templateChoice?: string | null; bodyJson?: JsonObject; bodyHtml?: string }
 export interface PostPreviewRenderer {
   renderPostPreview(deps: PostPreviewToolDeps, input: PostPreviewInput): Promise<{ html: string; templateChoice: string | null }>;
 }
@@ -80,6 +80,6 @@ export function buildPostPreviewRegistrations(deps: PostPreviewToolDeps, rendere
   } });
 }
 /** Contributes under its own domain, preserving all of post's existing tools. */
-export function contributePostPreviewTools(renderer: PostPreviewRenderer): ToolContributor {
+export function contributePostPreviewTools(renderer: PostPreviewRenderer): ToolContributor<PostPreviewToolDeps, unknown> {
   return { domain: "post-preview", build: deps => buildPostPreviewRegistrations(deps, renderer), risk: postPreviewDerivedRisk };
 }

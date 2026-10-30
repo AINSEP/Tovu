@@ -10,7 +10,7 @@ import {
   type ToolRegistration,
 } from "@jini-ai/core";
 
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { commitSkillInstall, listManagedSkills, prepareSkillInstall, SkillInputError } from "./install-service.js";
 
 /**
@@ -70,7 +70,7 @@ export const derivedRisk: DerivedRiskByToolId = new Map([
 /** Service refusals are input problems the model can relay; anything else propagates. */
 async function asToolInput<T>(work: () => Promise<T>): Promise<T> {
   try { return await work(); }
-  catch (error) { if (error instanceof SkillInputError) throw new ToolInputError({ message: error.message }); throw error; }
+  catch (error) { if (error instanceof SkillInputError) { throw new ToolInputError({ message: error.message }); } throw error; }
 }
 
 /**
@@ -103,6 +103,6 @@ export function buildRegistrations(deps: SkillsInstallToolDeps): ToolRegistratio
 }
 
 /** Contributes `skills_install` as its own domain. */
-export function contributeSkillsInstallTools(): ToolContributor {
+export function contributeSkillsInstallTools(): ToolContributor<SkillsInstallToolDeps, unknown> {
   return { domain: "skills-install", build: buildRegistrations, risk: derivedRisk };
 }

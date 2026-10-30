@@ -10,7 +10,7 @@ const parameters = { numRuns: 150, seed: 20261021 };
 const copyField = fc.constantFrom(...Object.keys(SITE_CONSENT_TEXT_LIMITS) as (keyof typeof SITE_CONSENT_TEXT_LIMITS)[]);
 
 before(t => {
-  t.diagnostic(`fast-check seed=${parameters.seed}, numRuns=${parameters.numRuns}`);
+  if ("diagnostic" in t) t.diagnostic(`fast-check seed=${parameters.seed}, numRuns=${parameters.numRuns}`);
 });
 
 test('bounded nonblank consent copy survives parsing unchanged', () => {

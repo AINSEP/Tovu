@@ -54,7 +54,10 @@ type Row = { normalized_address: string; scope: MailSuppressionScope; reason: Ma
 
 const toEntry = (row: Row): MailSuppressionEntry => ({ address: row.normalized_address, scope: row.scope, reason: row.reason, createdAt: row.created_at, revision: row.revision });
 const normalize = (address: string): string => address.trim().toLowerCase();
-const likeLiteral = (term: string): string => `%${normalize(term).replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+const likeLiteral = (term: string): string => {
+  const escaped = normalize(term).replace(/[\\%_]/g, (c) => `\\${c}`);
+  return `%${escaped}%`;
+};
 
 function conditions(workspaceId: string, optional: MailSuppressionListFilter): RawBuilder<unknown>[] {
   const where: RawBuilder<unknown>[] = [sql`workspace_id = ${workspaceId}`];

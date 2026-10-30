@@ -115,8 +115,7 @@ export async function listBundledAgentPluginServers(sourceRoot: string): Promise
     if (!entry.isDirectory() || RETIRED_BUNDLED_AGENT_PLUGINS.has(entry.name)) continue;
     const pluginDir = path.join(sourceRoot, entry.name);
     const pluginId = await readBundledPluginId(pluginDir);
-    if (pluginId === null) continue;
-    out.push({ pluginId, servers: await readInstalledMcpServers(pluginDir) });
+    if (pluginId !== null) out.push({ pluginId, servers: await readInstalledMcpServers(pluginDir) });
   }
   return out;
 }

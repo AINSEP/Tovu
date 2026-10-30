@@ -12,7 +12,8 @@ import type {
   EntryListExcludingTypesPort,
 } from "./public-list.js";
 import { type EntryRow, toRecord, toRevisionRow, toRow } from "./repo.rows.js";
-import type { TrashableEntryRecord } from "./trash-aware-memory-repo.js";
+import type { EntryPublishReadPort, TrashableEntryRecord } from "./contracts.js";
+export type { EntryPublishReadPort } from "./contracts.js";
 
 /**
  * @file THE durable `EntryRepoPort` + `EntryListPort` (and the display / exclude-types / publish
@@ -34,23 +35,13 @@ function trashedSlugConflict(slug: string): EntrySlugConflictError {
   return new EntrySlugConflictError({ message: `an entry with slug '${slug}' is in the Trash — restore it, or delete it permanently from the Trash, to reuse the slug` });
 }
 
-/** Publish-content's entry read (`publish-content.ts`): the row plus its Trash marker, trashed rows
- *  included, so a precheck refuses a trashed destination instead of planning a create that `save`
- *  would then silently skip. */
-export interface EntryPublishReadPort {
-  findAnyById(params: { workspaceId: string; id: string }): Promise<TrashableEntryRecord | null>;
-  /** The `(type, slug)` holder, trashed or not: the slug index spans the Trash, so a trashed holder
-   *  still blocks a create and precheck must see it. */
-  findAnyBySlug(params: { workspaceId: string; type: string; slug: string }): Promise<TrashableEntryRecord | null>;
-}
-
 /**
  * What a custom field's name must look like to be used as a JSON path key. Content-type field names
  * are `^[a-z][a-z0-9_]{0,63}$` (`IDENTIFIER_GRAMMAR_PATTERN`), which always passes; anything else
  * can only be a caller that skipped that validation, and it matches nothing rather than throwing
  * (today's behaviour) — the name never reaches SQL either way.
  */
-const SITE_FIELD_KEY = /^[A-Za-z0-9_]+$/;
+const SITE_FIELD_KEY = /^\w+$/;
 
 /** The path of a custom field's value inside `entries.fields_json`. */
 const siteFieldPath = (field: string): string[] => ["ext", "site", field];
@@ -109,7 +100,7 @@ export class SqlEntryRepo implements EntryRepoPort, EntryListPort, EntryDisplayL
    *         ``expected no entry '<id>', found <stored>`` when a create finds the id taken.
    * @complexity O(1).
    */
-  async save(record: EntryRecord, options: { expectedVersion?: number | null | undefined } = {}): Promise<void> {
+  async save(record: EntryRecord, options: { expectedVersion?: number | null } = {}): Promise<void> {
     const values = toRow(record);
     try {
       if (options.expectedVersion === null) {

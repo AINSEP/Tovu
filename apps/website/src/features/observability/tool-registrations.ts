@@ -3,7 +3,7 @@ import { adaptLegacyAuthorize, requireToolPermission, ForbiddenError } from "@ji
 import { forbiddenRule, withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { TelemetryTestResult } from "@jini-ai/diagnostics/observability";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { toolMetadata } from "../../contracts/core/tool-metadata/observability.js";
 
 export interface ObservabilityToolDeps {
@@ -38,6 +38,6 @@ export function buildObservabilityRegistrations(deps: ObservabilityToolDeps, _op
     }, rules: [forbiddenRule({ domainPrefix: "OBSERVABILITY", error: ForbiddenError })] }),
   });
 }
-export function contributeObservabilityTools(_required: Record<string, never>, _options = {}): ToolContributor {
+export function contributeObservabilityTools(_required: Record<string, never>, _options = {}): ToolContributor<ObservabilityToolDeps, object> {
   return { domain: "observability", build: buildObservabilityRegistrations, risk: observabilityDerivedRisk };
 }

@@ -1,3 +1,4 @@
+import { contentKernel } from "#src/platform/db/content-kernel";
 /**
  * @file The dataModule declaration — the tables and indexes core actually creates from
  * `LIPAY_MANIFEST`, plus the naming-grammar constraint that made single-word table names the only
@@ -60,7 +61,7 @@ test("lipay: activation is idempotent — declaring twice creates nothing new an
   const before = objectNames(db, "table").length;
 
   const { declareDataModule } = await import("../../data-module.js");
-  const again = await declareDataModule({ db, dbPath: ":memory:", decl: LIPAY_MANIFEST });
+  const again = await declareDataModule({ db: contentKernel(db), dbPath: ":memory:", decl: LIPAY_MANIFEST });
 
   assert.equal(again.ok, true);
   assert.deepEqual(again.created, []);
@@ -101,7 +102,7 @@ test("activation refuses an incompatible schema before returning a payments API"
   const { db, dbPath, dir } = tempDb();
   t.after(() => cleanup(db, dir));
   const incompatible = { ...LIPAY_MANIFEST, tables: LIPAY_MANIFEST.tables.map((table) => ({ ...table, columns: table.columns.map((column) => column.name === "amount_minor" ? { ...column, type: "TEXT" as const } : column) })) };
-  const seeded = await declareDataModule({ db, dbPath, decl: incompatible });
+  const seeded = await declareDataModule({ db: contentKernel(db), dbPath, decl: incompatible });
   assert.equal(seeded.ok, true, JSON.stringify(seeded.error));
   await assert.rejects(() => lipayOn(db, dbPath), { message: /lipay dataModule declaration failed: COLUMN_TYPE_MISMATCH/ });
   // Refused before the kernel's ledger migrations ran: no payments API, no ledger tables.

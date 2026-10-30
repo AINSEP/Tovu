@@ -11,7 +11,7 @@ import path from "node:path";
 import test from "node:test";
 import { ACTIVATIONS_LOCK_FILENAME } from "@jini-ai/agent-plugins/lifecycle";
 
-import { InMemoryExternalMcpServerRepo, saveExternalMcpServer } from "#src/assistant/index";
+import { InMemoryExternalMcpServerRepo, saveExternalMcpServer, notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 
@@ -80,7 +80,7 @@ async function operatorEnabledRow() {
       provisionedByPluginId: PLUGIN,
     },
   );
-  return { workspaceId: WORKSPACE, agentPluginLayout: resolveAgentPluginLayout(), externalMcpServerRepo: repo, clock, onConnected: async () => {} };
+  return { workspaceId: WORKSPACE, agentPluginLayout: resolveAgentPluginLayout(), externalMcpServerRepo: repo, clock, notifyRosterChanged: notifyExternalMcpRosterChanged, onConnected: async () => {} };
 }
 
 test("the seeder's default 'off' is switched on with the row, and only then reported on", async () => {
@@ -158,7 +158,7 @@ test("the production fallback enables an untouched saved-token row with the inst
     });
     const before = (await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" }))!;
     assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.supabase?.enabled, false);
-    assert.deepEqual(await switchOnSavedTokenConnection({ workspaceId: WORKSPACE, agentPluginLayout: resolveAgentPluginLayout(), externalMcpServerRepo: repo, clock }, { pluginId: "supabase", connectionId: "supabase" }), { state: "on" });
+    assert.deepEqual(await switchOnSavedTokenConnection({ workspaceId: WORKSPACE, agentPluginLayout: resolveAgentPluginLayout(), externalMcpServerRepo: repo, clock, notifyRosterChanged: notifyExternalMcpRosterChanged }, { pluginId: "supabase", connectionId: "supabase" }), { state: "on" });
     const row = (await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "supabase" }))!;
     assert.equal(row.enabled, true);
     assert.ok(JSON.parse(row.allowedToolNames ?? "[]").includes("list_projects"));

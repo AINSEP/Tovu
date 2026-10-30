@@ -1,7 +1,7 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import { createContributionRegistry } from "@jini-ai/core";
-import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
+import type { ToolContributions } from "@jini-ai/core";
 import assert from "node:assert/strict";
 import { createNoopTracker, type Tracker } from "@jini-ai/diagnostics/observability";
 import { createHash } from "node:crypto";
@@ -31,9 +31,9 @@ import { type AgentToolDefinition } from "@jini-ai/core";
 import { mediaImportAgentToolCatalog } from "../agent-tools.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
-const contributions = {
-  contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
-  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedDerivedToolContributor }) => contribution.domain }),
+const contributions: ToolContributions<Parameters<typeof buildAssistantToolRegistrations>[0], NonNullable<Parameters<typeof buildAssistantToolRegistrations>[1]>> = {
+  contributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
+  derivedContributors: createContributionRegistry({ keyOf: ({ contribution }) => contribution.domain }),
 };
 
 /**
@@ -185,7 +185,7 @@ test("the assistant URL tool sanitizes SVG, hashes stored bytes, and returns an 
   const stored = fixture.blobStore.writes[0]!;
   assert.doesNotMatch(Buffer.from(stored.bytes).toString(), /script|onload|foreignObject|javascript:|alert/);
   assert.equal(sha256Hex(stored.bytes), result.media.sha256);
-  assert.equal(result.media.publicUrl, `/m/${result.media.slug}/original.svg`);
+  assert.equal(result.media.publicUrl, `/m/${result.media.slug}/original.svg?v=${result.media.sha256.slice(0, 12)}`);
   assert.equal((await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id }))?.title, "logo");
 });
 
@@ -329,7 +329,7 @@ test("the returned view is the same shape media_upload_asset/media_generate_asse
   assert.equal(out.media.createdBy, PRINCIPAL_ID, "the view carries the acting principal, like media_upload_asset's");
   assert.equal(out.media.status, "active");
   assert.equal(out.media.version, 1);
-  assert.equal(out.media.publicUrl, "/m/8f3ac91b0e/public.v1/image.webp");
+  assert.equal(out.media.publicUrl, `/m/8f3ac91b0e/public.v1/image.webp?v=${out.media.sha256.slice(0, 12)}`);
   assert.equal(out.media.sourceUrl, SOURCE_URL, "the transcript must record where the bytes actually came from");
 });
 
@@ -345,6 +345,7 @@ test("optional alt/caption/credit and the filename override are threaded onto th
   assert.equal(stored.alt, "A red fox");
   assert.equal(stored.caption, "At dawn");
   assert.equal(stored.credit, "Higgsfield");
+  assert.deepEqual(stored.source.provenance, { kind: 'url', url: SOURCE_URL });
   assert.match(stored.title, /red-fox-snowy-pine-forest-dawn/, `the override must drive the title; got '${stored.title}'`);
 });
 

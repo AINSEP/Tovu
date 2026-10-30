@@ -275,7 +275,7 @@ function handleMustacheStatement(node: HbsNode, depth: number, violations: strin
     // `{{{x}}}` and `{{&x}}` both parse to `escaped: false`, so this one check covers the whole
     // raw-output surface.
     violations.push(
-      `disallowed raw output "{{{${name}}}}" — use "{{${name}}}" (escaped); raw output is permitted only for ${[...ALLOWED_HANDLEBARS_RAW_PATHS].map((p) => `{{{${p}}}}`).join(", ")}`
+      `disallowed raw output "{{{${name}}}}" — use "{{${name}}}" (escaped); raw output is permitted only for ${[...ALLOWED_HANDLEBARS_RAW_PATHS].map((p) => "{{{" + p + "}}}").join(", ")}`
     );
   }
 

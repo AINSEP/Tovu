@@ -51,6 +51,7 @@ test("an unexpected host-connection lookup failure propagates unchanged and take
     customCredentialsHttpClient: new FakeGitHub(),
     loadSourceControlProviders: githubFromSource,
     dbOps,
+    siteBackupSanitize: async () => assert.fail("must not sanitize before resolving the host connection"),
     siteBackupSources: { siteDir, mediaUploadsDir: null, themesDir: path.join(siteDir, "themes"), skillsDir: path.join(siteDir, "skills"), tovuVersion: "0.1.0",
       agentPlugins: resolveAgentPluginLayout({ env: { TOVU_AGENT_PLUGINS_DIR: path.join(siteDir, "agent-plugins") } }) },
     siteBackupFailureLog: () => {},

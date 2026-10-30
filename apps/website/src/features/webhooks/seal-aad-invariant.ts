@@ -97,9 +97,11 @@ function collectTsFiles(dir: string): string[] {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       out.push(...collectTsFiles(full));
-      continue;
+    } else if (/\.tsx?$/.test(entry.name) && !isTestFile(full)) {
+      out.push(full);
+    } else {
+      // Non-source entries are outside the seal invariant.
     }
-    if (/\.tsx?$/.test(entry.name) && !isTestFile(full)) out.push(full);
   }
   return out;
 }

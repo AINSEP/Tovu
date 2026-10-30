@@ -1,3 +1,4 @@
+import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -50,6 +51,7 @@ function makeHarness(options: { allow?: boolean } = {}): Harness {
     mediaRepo,
     assetBlobRepo,
     blobStore,
+    imageCodec: new SharpImageTransformer(),
     authorize: async (request) => {
       checkedPermissions.push(request.permission);
       return options.allow === false ? { allowed: false, reason: "insufficient_permission" as const } : { allowed: true, reason: "matched" as const };
@@ -359,4 +361,22 @@ test("the catalog contributor installs this tool's own builder and risk map unde
   assert.equal(contributor.domain, "media-view");
   assert.equal(contributor.build, buildMediaViewImageRegistrations);
   assert.equal(contributor.risk, mediaViewImageDerivedRisk);
+});
+
+
+test("media view uses the injected codec for oriented dimensions and model bytes", async () => {
+  const harness = makeHarness();
+  const source = await splitColorPng(20, 10);
+  const asset = await seed(harness, { bytes: source, filename: "port.png", contentType: "image/png" });
+  const requests: unknown[] = [];
+  harness.deps.imageCodec = {
+    async inspect() { return { format: "png", width: 20, height: 10, orientation: 6, hasAlpha: false, autoOrient: { width: 10, height: 20 } }; },
+    async encode(input) { requests.push(input); return { bytes: Buffer.from("codec output"), width: 10, height: 20 }; },
+    async encodeTiles() { throw new Error("unexpected tile encode"); },
+  };
+  const output = await call(viewTool(harness), { mediaId: asset.id });
+  assert.equal(imageBlockOf(output).data, Buffer.from("codec output").toString("base64"));
+  assert.deepEqual(metadataOf(output).original, { contentType: "image/png", width: 10, height: 20 });
+  assert.deepEqual(requests, [{ source: Buffer.from(source),
+    autoOrient: true, format: "webp", quality: 80, resize: { width: 1568, height: 1568, fit: "inside", withoutEnlargement: true } }]);
 });

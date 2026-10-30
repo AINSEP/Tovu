@@ -15,7 +15,7 @@
  */
 import type { Expression, SqlBool } from "kysely";
 
-import type { LooseExpressionBuilder } from "./entry-sql.js";
+import type { LooseExpressionBuilder } from "./entry-sql.types.js";
 import type { TrashEntityType } from "@jini-ai/cms/trash";
 import type { TrashEntry, TrashHiddenWithParentSpec, TrashMarkerSpec, TrashRegistry } from "./registry.js";
 

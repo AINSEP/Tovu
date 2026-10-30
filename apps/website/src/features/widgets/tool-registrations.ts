@@ -22,7 +22,7 @@ import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, 
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
 // redacting it into a message-stripped 500.
 import { ToolInputError } from "@jini-ai/core";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-error.js";
 import { toWhereUsedResponse } from "@jini-ai/cms/widgets";
@@ -39,6 +39,8 @@ import type { WidgetAreaEntry, WidgetInstanceEntry, WidgetPlacementNode, WidgetT
 import { createWidgetInstance, trashWidgetInstance, updateWidgetInstance } from "@jini-ai/cms/widgets";
 import { createSystemClock, createRandomUuidGenerator, type JsonObject } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+
+const MUTATES_DURABLE_STATE = "mutates-durable-state";
 
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: widgetsAgentToolCatalog });
@@ -64,22 +66,22 @@ export const widgetsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
   // -> widgetBindingRepo.findByRegion + entryRepo.findById (+ per-placement resolution): reads only.
   ["widgets_get_region", "none"],
   // -> createWidgetInstance (Jini/packages/cms/src/widgets/write-service.ts): createEntry + entry_refs extraction in one tx.
-  ["widgets_create_instance", "mutates-durable-state"],
+  ["widgets_create_instance", MUTATES_DURABLE_STATE],
   // -> updateWidgetInstance (Jini/packages/cms/src/widgets/write-service.ts): updateEntry + entry_refs extraction.
-  ["widgets_update_instance", "mutates-durable-state"],
+  ["widgets_update_instance", MUTATES_DURABLE_STATE],
   // -> trashWidgetInstance (Jini/packages/cms/src/widgets/write-service.ts): moves it to the Trash (restorable). Never a purge:
   //    a permanent delete exists only as the Trash screen's purge.
-  ["widgets_trash_instance", "mutates-durable-state"],
+  ["widgets_trash_instance", MUTATES_DURABLE_STATE],
   // -> bindWidgetArea (Jini/packages/cms/src/widgets/region-area-service.ts): createEntry (maybe) + bindingRepo.upsert.
-  ["widgets_bind_region", "mutates-durable-state"],
+  ["widgets_bind_region", MUTATES_DURABLE_STATE],
   // -> mutateWidgetAreaPlacements (Jini/packages/cms/src/widgets/region-area-service.ts): updateEntry + bindingRepo.upsert.
-  ["widgets_set_region_placements", "mutates-durable-state"],
+  ["widgets_set_region_placements", MUTATES_DURABLE_STATE],
   // -> insertWidgetEmbed (Jini/packages/cms/src/widgets/embed-service.ts): updateEntry (bodyJson) + entry_refs extraction.
-  ["widgets_insert_embed", "mutates-durable-state"],
+  ["widgets_insert_embed", MUTATES_DURABLE_STATE],
   // -> removeWidgetEmbed (Jini/packages/cms/src/widgets/embed-service.ts): updateEntry (bodyJson) + entry_refs extraction.
-  ["widgets_remove_embed", "mutates-durable-state"],
+  ["widgets_remove_embed", MUTATES_DURABLE_STATE],
   // -> reorderWidgetEmbeds (Jini/packages/cms/src/widgets/embed-service.ts): updateEntry (bodyJson) + entry_refs extraction.
-  ["widgets_reorder_embeds", "mutates-durable-state"],
+  ["widgets_reorder_embeds", MUTATES_DURABLE_STATE],
 ]);
 
 /**
@@ -501,6 +503,6 @@ export function buildWidgetsRegistrations(
  * so a later `content-types -> assistant` or `forms -> assistant` edge cannot round-trip back through
  * `widgets` to close a new cycle the way `themes`/`post` did in the prior batch.
  */
-export function contributeWidgetsTools(): ToolContributor {
+export function contributeWidgetsTools(): ToolContributor<WidgetsToolDeps, AssistantSurfaceDeps> {
   return { domain: "widgets", build: buildWidgetsRegistrations, risk: widgetsDerivedRisk };
 }

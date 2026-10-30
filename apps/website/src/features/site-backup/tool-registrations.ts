@@ -13,7 +13,7 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { ToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "@jini-ai/core";
 import { CustomCredentialValidationError } from "../custom-credentials/index.js";
 import {
   PLAN_TOOL_ID,
@@ -24,6 +24,8 @@ import {
   SITE_BACKUP_PUSH_TOOL_ID,
   type SiteBackupToolDeps,
 } from "./backup-service.js";
+
+const MUTATES_DURABLE_STATE = "mutates-durable-state";
 
 // Re-exported for the callers that imported them from here before the service was extracted.
 export { PUSH_WAIT_MS, SITE_BACKUP_PUSH_TOOL_ID, type PushResult, type SiteBackupToolDeps } from "./backup-service.js";
@@ -88,7 +90,7 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "site_import_backup",
     description: "Install a Tovu site from a share URL or uploaded .tovu.zip into a NEW separate site. Use when the user says ‘install the site at this link’. Existing sites are never overwritten. Returns owner setup and opening instructions.",
-    sideEffects: "mutates-durable-state", authorization: { permission: "system.write" },
+    sideEffects: MUTATES_DURABLE_STATE, authorization: { permission: "system.write" },
     inputSchema: { type: "object", additionalProperties: false, oneOf: [{ required: ["url"] }, { required: ["uploadId"] }], properties: { url: { type: "string", description: "Public HTTPS share URL." }, uploadId: { type: "string", description: "ID from the authenticated application/zip upload endpoint; never a filesystem path." }, displayName: { type: "string", maxLength: 200 }, requestId: { type: "string", maxLength: 128, description: "Reuse for a retry of the same import. Omit for a separate import." } } },
   },
   {
@@ -107,14 +109,14 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
     name: SITE_BACKUP_PUSH_TOOL_ID,
     description:
       "Pushes the single-use plan from site_backup_plan immediately in one non-force Git commit. Requires the original permissions and principal binding, and re-checks that the repository is private, the branch is unchanged and the planned files are fresh. Replaces only the backup folder; previous contents remain recoverable in Git history. Returns {pushed:true, commitSha, commitUrl, repository, branch, folder, filesWritten, totalBytes}. A large backup can take longer than one call: then it returns {pushed:false, cancelled:false, inProgress:true, planId, progress:{filesDone, filesTotal, bytesDone, bytesTotal}, message} while the upload keeps running; tell the human how far it is and call site_backup_push again with the SAME planId to keep waiting (it never starts a second upload). Failures return {pushed:false, cancelled:false, code, message}, including expired/missing plans, changed branches or files, public repositories and credential/provider/network errors; a failed upload names the file. Transient network errors, host errors and rate limits are already retried with backoff, so do not retry NETWORK_UNREACHABLE in a loop. Plan again after PLAN_STALE, DIVERGED_BRANCH or plan expiry.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: PUSH_PERMISSION },
     inputSchema: PUSH_SCHEMA,
   },
   {
     name: "site_share_create",
     description: "Export THIS SITE to a portable .tovu.zip share: all pages/posts including drafts, scheduled content and autosaves, media (including object storage), themes, menus, portable plugins and settings. Accounts, sessions, API keys, vault/legacy credentials, chats and operational history are excluded by a fresh-database allowlist. Anyone with the link receives unpublished content; revocation cannot recall downloads. Uses persistent running-server storage or the configured S3-compatible artifact capability. With no public storage it returns a ZIP download and setup instructions, never a localhost share link. Caps: 300 MiB expanded/archive, 2,000 files; unsupported populated plugin tables and secret-bearing content are refused by name. Returns {shareId,url,bytes,sha256,downloadUrl}, or {jobId,phase,progress}; poll using that SAME jobId to resume without creating another export.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: PUSH_PERMISSION },
     inputSchema: { type: "object", additionalProperties: false, properties: { jobId: { type: "string", description: "Only when polling: the jobId returned by this same create operation." } } },
   },
@@ -128,7 +130,7 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "site_share_revoke",
     description: "Revoke THIS SITE's export by shareId. Disables its public token first, deletes the ZIP from private and remote storage, and verifies remote disappearance. Revoked entries remain in site_share_list. Cleanup/purge failures are reported and retrying the same shareId retries deletion. Already downloaded copies cannot be recalled.",
-    sideEffects: "mutates-durable-state",
+    sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: PUSH_PERMISSION },
     inputSchema: { type: "object", additionalProperties: false, required: ["shareId"], properties: { shareId: { type: "string" } } },
   },
@@ -138,7 +140,7 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: siteBackupAgentToolCatalog });
 
 /** This wiring layer's own risk classification, cross-checked against the catalog's `sideEffects`. */
 export const siteBackupDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  ["site_import_backup", "mutates-durable-state"],
+  ["site_import_backup", MUTATES_DURABLE_STATE],
   ["site_import_list", "none"],
   // -> a non-decrypting credential list, one decrypting resolve, four read-only host GETs, a
   // database snapshot held in memory (its restore-point file deleted at once), a disk walk, and an
@@ -146,10 +148,10 @@ export const siteBackupDerivedRisk: DerivedRiskByToolId = new Map<string, AgentT
   [PLAN_TOOL_ID, "none"],
   // -> blobs, trees, a commit and a non-force ref update in a
   // THIRD-PARTY repository — the same classification custom_credential_write_files carries.
-  [SITE_BACKUP_PUSH_TOOL_ID, "mutates-durable-state"],
-  ["site_share_create", "mutates-durable-state"],
+  [SITE_BACKUP_PUSH_TOOL_ID, MUTATES_DURABLE_STATE],
+  ["site_share_create", MUTATES_DURABLE_STATE],
   ["site_share_list", "none"],
-  ["site_share_revoke", "mutates-durable-state"],
+  ["site_share_revoke", MUTATES_DURABLE_STATE],
 ]);
 
 /**
@@ -221,7 +223,7 @@ export function buildSiteBackupRegistrations(deps: SiteBackupToolDeps, _surfaces
 
 /** Contributes the site-backup tools — called once by `server/runtime/composition/
  *  tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`. */
-export function contributeSiteBackupTools(): ToolContributor {
+export function contributeSiteBackupTools(): ToolContributor<SiteBackupToolDeps, AssistantSurfaceDeps> {
   return { domain: DOMAIN, build: buildSiteBackupRegistrations, risk: siteBackupDerivedRisk };
 }
 

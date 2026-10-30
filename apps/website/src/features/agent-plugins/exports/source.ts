@@ -1,12 +1,13 @@
 /** Tovu's public-export catalog over the lifecycle's bundled digest and containment gates. */
 import { readFile } from "node:fs/promises";
-import { parseAgentPluginManifest, type AgentPluginExport, type AgentPluginExportMetadata } from "@jini-ai/agent-plugins/manifest";
+import { parseAgentPluginManifest, readAgentPluginExtension, type AgentPluginExport, type AgentPluginExportMetadata } from "@jini-ai/agent-plugins/manifest";
 import type { TrustedPluginPackage, TovuAgentPluginLifecycle } from "../lifecycle.js";
 
 export const PLUGIN_EXPORT_FILES_PREFIX = "/api/agent-plugin-exports/v1";
 export interface PluginExportPackage extends AgentPluginExportMetadata {
   readonly plugin: TrustedPluginPackage;
   readonly id: string;
+  readonly displayName?: string;
   readonly enabled: boolean;
   readonly exports: Readonly<Record<string, AgentPluginExport>>;
 }
@@ -29,7 +30,9 @@ async function readPackage(required: { lifecycle: TovuAgentPluginLifecycle; plug
     const raw = await required.lifecycle.readTrustedPluginFile(required.plugin, "plugin.json");
     const result = parseAgentPluginManifest({ value: JSON.parse(raw) }, { identityNamespace: "tovu" });
     if (!result.ok || !result.manifest.id) return undefined;
-    return { ...result.manifest, plugin: required.plugin, id: result.manifest.id, enabled: required.enabled, exports: result.manifest.exports ?? {} };
+    const displayName = readAgentPluginExtension({ manifest: result.manifest, namespace: "tovu", read: ({ value }) => value.displayName });
+    return { ...result.manifest, ...(typeof displayName === "string" ? { displayName } : {}),
+      plugin: required.plugin, id: result.manifest.id, enabled: required.enabled, exports: result.manifest.exports ?? {} };
   } catch {
     return undefined;
   }
