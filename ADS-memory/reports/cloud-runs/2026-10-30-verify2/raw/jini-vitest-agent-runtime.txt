@@ -1,0 +1,244 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-runtime
+
+ ✓ src/__tests__/claude-stream.test.ts (188 tests) 109ms
+ ✓ src/agent-protocol/acp/__tests__/session.test.ts (127 tests) 206ms
+ ✓ src/__tests__/json-event-stream.test.ts (152 tests) 149ms
+ ✓ src/providers/__tests__/openai-chat.test.ts (108 tests) 253ms
+ ✓ src/providers/__tests__/anthropic-messages.test.ts (98 tests) 100ms
+ ✓ src/providers/__tests__/google-messages.test.ts (69 tests) 107ms
+ ✓ src/__tests__/executables.test.ts (95 tests) 609ms
+ ✓ src/providers/__tests__/ollama-chat.test.ts (75 tests) 146ms
+ ✓ src/providers/__tests__/tool-turn.test.ts (67 tests) 142ms
+ ✓ src/__tests__/model-discovery-policy.test.ts (72 tests) 190ms
+ ✓ src/agent-protocol/acp/__tests__/session.handlers.unit.test.ts (84 tests) 110ms
+ ✓ src/providers/__tests__/azure-chat.test.ts (38 tests) 140ms
+ ✓ src/__tests__/detection.test.ts (47 tests) 3638ms
+   ✓ detectAgents / detectAgentsStream — full probe pipeline (via the real cursor-agent def) > amr: unscoped remembered models are never relabelled as a live catalog on failure 443ms
+ ✓ src/agent-protocol/core/__tests__/json-line-stream.test.ts (132 tests) 242ms
+ ✓ src/providers/__tests__/model-catalog.test.ts (48 tests) 87ms
+ ✓ src/__tests__/model-discovery-adapters.test.ts (69 tests) 1795ms
+   ✓ default process port (real node child processes) > kills the whole process group when the timeout expires 311ms
+   ✓ default process port (real node child processes) > kills the process group when the probe is cancelled mid-run 468ms
+ ✓ src/__tests__/launch.test.ts (50 tests | 1 skipped) 627ms
+ ✓ src/__tests__/model-discovery.test.ts (65 tests) 115ms
+ ✓ src/providers/__tests__/connection-guard.test.ts (64 tests) 330ms
+ ✓ src/defs/__tests__/codex.test.ts (66 tests) 96ms
+ ✓ src/providers/__tests__/connection-test.test.ts (53 tests) 79ms
+ ✓ src/__tests__/auth.test.ts (65 tests) 45ms
+ ✓ src/agent-protocol/acp/__tests__/models.test.ts (62 tests) 106ms
+stderr | src/agent-protocol/pi-rpc/__tests__/session.test.ts > attachPiRpcSession > image forwarding > skips a nonexistent path (realpathSync throws) rather than failing the run
+[pi-rpc] Image attachment could not be read; skipping it.
+
+stderr | src/agent-protocol/pi-rpc/__tests__/session.test.ts > attachPiRpcSession > image forwarding > skips an image that throws during read (caught, run continues)
+[pi-rpc] Image attachment could not be read; skipping it.
+
+ ✓ src/agent-protocol/pi-rpc/__tests__/session.test.ts (61 tests) 1074ms
+   ✓ attachPiRpcSession > image forwarding > stops forwarding once the total byte budget would be exceeded 692ms
+ ✓ src/defs/__tests__/claude.test.ts (51 tests) 134ms
+ ✓ src/providers/__tests__/strict-tools.test.ts (62 tests) 167ms
+ ✓ src/defs/__tests__/antigravity.test.ts (39 tests) 25ms
+ ✓ src/defs/__tests__/claude-filesystem-policy.test.ts (41 tests) 139ms
+stdout | src/skills/web-clone/scripts/__tests__/asset-harvest.test.mjs > main > falls back to the real fs/console ports when none are injected
+▸ 候选资产 0 个(图片 0 / 字体 0)，开始下载…
+✅ 下载 0 成功 / 0 失败 → /tmp/wc1-Ppcalr/out
+/tmp/wc1-Ppcalr/out/asset-manifest.json
+
+ ✓ src/skills/web-clone/scripts/__tests__/asset-harvest.test.mjs (23 tests) 33ms
+ ✓ src/__tests__/models.test.ts (52 tests) 46ms
+ ✓ src/skills/web-clone/scripts/__tests__/interaction-probe.unit.test.mjs (20 tests) 43ms
+ ✓ src/skills/web-clone/scripts/__tests__/recon-site.unit.test.mjs (10 tests) 24ms
+ ✓ src/__tests__/qoder-stream.test.ts (46 tests) 39ms
+ ✓ src/providers/__tests__/operation-schema.test.ts (51 tests) 61ms
+ ✓ src/skills/chat-motion-overlay/assets/remotion-template/src/components/__tests__/BubbleScene.test.tsx (34 tests) 169ms
+ ✓ src/defs/__tests__/amr.test.ts (54 tests) 4351ms
+   ✓ fetchVelaRemoteModelsWithRetry > recognizes the full set of retriable error message substrings 2804ms
+   ✓ fetchVelaRemoteModelsWithRetry > exhausts all retries and throws the last error when every attempt is retriable 1001ms
+ ✓ src/ai-trace/__tests__/regressions.test.ts (18 tests) 40ms
+ ✓ src/__tests__/claude-code-models.test.ts (28 tests) 119ms
+ ✓ src/agent-protocol/pi-rpc/__tests__/events.test.ts (35 tests) 28ms
+ ✓ src/providers/__tests__/google-schema.test.ts (21 tests) 24ms
+ ✓ src/__tests__/opencode-log.test.ts (43 tests) 71ms
+ ✓ src/ai-trace/__tests__/providers.test.ts (6 tests) 63ms
+ ✓ src/agent-protocol/pi-rpc/__tests__/events.handlers.unit.test.ts (40 tests) 141ms
+ ✓ src/__tests__/model-discovery-config.test.ts (26 tests) 19ms
+ ✓ src/providers/__tests__/pkce.test.ts (24 tests) 50ms
+ ✓ src/__tests__/amr-model-cache.test.ts (15 tests) 38ms
+ ✓ src/providers/__tests__/j5-characterization.test.ts (67 tests) 144ms
+ ✓ src/providers/__tests__/j5-02-characterization.test.ts (75 tests) 202ms
+ ✓ src/providers/__tests__/oauth-callback-server.test.ts (15 tests) 512ms
+stdout | src/skills/web-clone/scripts/__tests__/compare-recon.test.mjs > main > uses the real fs and console when no ports are injected
+/tmp/wc1-compare-27mdQc/R.md
+
+ ✓ src/skills/web-clone/scripts/__tests__/compare-recon.test.mjs (17 tests) 133ms
+ ✓ src/__tests__/prompt-budget.test.ts (32 tests) 124ms
+ ✓ src/defs/__tests__/codebuddy.test.ts (28 tests) 20ms
+stdout | src/skills/web-clone/scripts/__tests__/audit-clone.test.mjs > main > uses the real fs and console when no ports are injected
+/tmp/wc1-audit-5WPRvj/out.md
+
+ ✓ src/skills/web-clone/scripts/__tests__/audit-clone.test.mjs (21 tests) 53ms
+ ✓ src/agent-protocol/acp/__tests__/updates.test.ts (41 tests) 28ms
+ ✓ src/__tests__/anthropic-live-models.test.ts (19 tests) 186ms
+ ✓ src/__tests__/env.test.ts (26 tests) 48ms
+ ✓ src/__tests__/copilot-stream.test.ts (32 tests) 16ms
+ ✓ src/providers/__tests__/oauth-tokens.test.ts (21 tests) 96ms
+ ✓ src/providers/__tests__/aihubmix.test.ts (33 tests) 24ms
+ ✓ src/defs/__tests__/cursor-agent.test.ts (34 tests) 58ms
+ ✓ src/ai-trace/__tests__/ai-trace.test.ts (26 tests) 23ms
+stderr | src/agent-protocol/pi-rpc/__tests__/session.handlers.unit.test.ts > tryReadImagePayload / buildPiImagePayloads > returns null for a nonexistent path rather than throwing
+[pi-rpc] Image attachment could not be read; skipping it.
+
+ ✓ src/agent-protocol/pi-rpc/__tests__/session.handlers.unit.test.ts (30 tests) 440ms
+ ✓ src/skills/web-clone/scripts/__tests__/route-crawl.unit.test.mjs (11 tests) 51ms
+ ✓ src/__tests__/mmd-routes.test.ts (27 tests) 45ms
+stdout | src/skills/web-clone/scripts/__tests__/dna-scaffold.test.mjs > main > uses the real fs and console when no ports are injected
+✅ design-dna 骨架已写入: /tmp/wc1-dna-bsaGM2/d.json
+   下一步: 人工 Analyze 补全 ""，并从 _recon_signals 指派颜色角色。schema → references/design-dna.md
+
+ ✓ src/skills/web-clone/scripts/__tests__/dna-scaffold.test.mjs (13 tests) 27ms
+ ✓ src/__tests__/native-runtime.test.ts (7 tests) 116ms
+ ✓ src/providers/__tests__/sse-decode.test.ts (27 tests) 17ms
+ ✓ src/__tests__/claude-segment-usage.test.ts (28 tests) 29ms
+ ✓ src/agent-protocol/acp/__tests__/rpc.test.ts (35 tests) 29ms
+ ✓ src/agent-protocol/acp/__tests__/text-suppression.test.ts (25 tests) 39ms
+ ✓ src/__tests__/ports.test.ts (12 tests) 105ms
+ ✓ src/skills/web-clone/scripts/__tests__/visual-diff.unit.test.mjs (9 tests) 32ms
+ ✓ src/agent-protocol/acp/__tests__/resume-failure.unit.test.ts (18 tests) 259ms
+ ✓ src/providers/__tests__/tool-turn-images.test.ts (4 tests) 26ms
+ ✓ src/__tests__/terminal-launch.test.ts (14 tests) 16ms
+ ✓ src/defs/__tests__/shared.test.ts (29 tests) 14ms
+ ✓ src/providers/__tests__/elevenlabs-owned-client.test.ts (17 tests) 16ms
+ ✓ src/defs/__tests__/pi.test.ts (16 tests) 25ms
+ ✓ src/skills/web-clone/scripts/__tests__/network-capture.unit.test.mjs (7 tests) 37ms
+ ✓ src/skills/web-clone/scripts/__tests__/mirror-site.unit.test.mjs (8 tests) 23ms
+ ✓ src/__tests__/model-catalog-cache.test.ts (13 tests) 46ms
+ ✓ src/providers/__tests__/elevenlabs.test.ts (10 tests) 19ms
+ ✓ src/defs/__tests__/opencode.test.ts (19 tests) 20ms
+ ✓ src/__tests__/registry.test.ts (16 tests) 20ms
+ ✓ src/__tests__/integration-contracts.test.ts (7 tests) 15ms
+ ✓ src/__tests__/model-discovery-shared.test.ts (32 tests) 67ms
+ ✓ src/skills/web-clone/scripts/__tests__/sourcemap-hunt.unit.test.mjs (9 tests) 15ms
+npm notice
+npm notice New major version of npm available! 11.19.1 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
+ ✓ src/providers/__tests__/oauth-credentials.test.ts (9 tests) 236ms
+ ✓ src/skills/web-clone/scripts/__tests__/od-preview-rewrite.unit.test.mjs (11 tests) 37ms
+ ✓ src/skills/web-clone/scripts/__tests__/lib-wc2.unit.test.mjs (17 tests) 961ms
+   ✓ loadPlaywright > resolves with the real require/env defaults (result depends on the install) 928ms
+ ✓ src/__tests__/diagnostics.test.ts (17 tests) 16ms
+ ✓ src/__tests__/model-discovery-sdk.test.ts (13 tests) 94ms
+ ✓ src/model-registry.test.ts (21 tests) 25ms
+ ✓ src/__tests__/claude-stream.mid-run.test.ts (8 tests) 8ms
+ ✓ src/__tests__/role-marker-guard.test.ts (13 tests) 66ms
+ ✓ src/__tests__/hardwiring-ports.test.ts (5 tests) 26ms
+ ✓ src/defs/__tests__/reasonix.test.ts (9 tests) 243ms
+ ✓ src/agent-protocol/acp/__tests__/json.test.ts (29 tests) 13ms
+ ✓ src/providers/__tests__/oauth-provider.test.ts (10 tests) 40ms
+ ✓ src/defs/__tests__/grok-build.test.ts (16 tests) 15ms
+ ✓ src/__tests__/antigravity-audit.unit.test.ts (9 tests) 13ms
+ ✓ src/defs/__tests__/qoder.test.ts (15 tests) 32ms
+ ✓ src/defs/__tests__/claude-read-only-dirs.test.ts (9 tests) 116ms
+ ✓ src/__tests__/log-file.test.ts (9 tests) 21ms
+ ✓ src/ai-trace/__tests__/sink-policy.unit.test.ts (7 tests) 14ms
+ ✓ tests/loads-without-integrations.test.ts (17 tests) 17607ms
+   ✓ @jini-ai/agent-runtime without its optional integrations peer > imports the root and uses the legacy discovery API and owned native runtime 394ms
+   ✓ @jini-ai/agent-runtime without its optional integrations peer > returns no connection when no usable provider credentials or selection exist 471ms
+   ✓ @jini-ai/agent-runtime without its optional integrations peer > uses explicit provider URLs without integrations ('claude' / '') 597ms
+   ✓ @jini-ai/agent-runtime without its optional integrations peer > uses explicit provider URLs without integrations ('aider' / 'anthropic/claude-test') 414ms
+   ✓ @jini-ai/agent-runtime without its optional integrations peer > uses explicit provider URLs without integrations ('aider' / 'openrouter/test') 533ms
+   ✓ @jini-ai/agent-runtime without its optional integrations peer > uses explicit provider URLs without integrations ('aider' / 'openai/gpt-test') 391ms
+   ✓ @jini-ai/agent-runtime without its optional integrations peer > uses explicit provider URLs without integrations ('qwen' / 'custom') 384ms
+   ✓ @jini-ai/agent-runtime without its optional integrations peer > reports the missing peer only when a default URL is needed ('anthropic/claude-test') 371ms
+   ✓ @jini-ai/agent-runtime without its optional integrations peer > reports the missing peer only when a default URL is needed ('google/gemini-test') 400ms
+   ✓ @jini-ai/agent-runtime without its optional integrations peer > reports the missing peer only when a default URL is needed ('openrouter/test') 392ms
+   ✓ @jini-ai/agent-runtime without its optional integrations peer > reports the missing peer only when a default URL is needed ('openai/gpt-test') 424ms
+ ✓ src/defs/__tests__/aider.test.ts (14 tests) 19ms
+ ✓ src/__tests__/api-convention.test.ts (7 tests) 21ms
+stdout | src/skills/web-clone/scripts/__tests__/init-clone.test.mjs > main > uses the real fs and console when no ports are injected
+/tmp/wc1-init-kFWam4/demo-clone
+
+ ✓ src/skills/web-clone/scripts/__tests__/init-clone.test.mjs (10 tests) 13ms
+ ✓ src/agent-protocol/acp/__tests__/session-params.test.ts (15 tests) 12ms
+ ✓ src/__tests__/afix-runtime-contracts.unit.test.ts (15 tests) 14ms
+ ✓ src/defs/__tests__/native-tool-policy.test.ts (8 tests) 15ms
+ ✓ src/defs/__tests__/copilot.test.ts (11 tests) 13ms
+ ✓ src/__tests__/ensure-capabilities.test.ts (4 tests) 8ms
+ ✓ src/defs/__tests__/claude-chrome-integration.test.ts (8 tests) 10ms
+ ✓ src/defs/__tests__/claude-setting-sources.test.ts (5 tests) 13ms
+ ✓ src/skills/web-clone/scripts/__tests__/script-cli.test.mjs (8 tests) 24ms
+ ✓ src/defs/__tests__/devin.test.ts (6 tests) 8ms
+ ✓ src/providers/__tests__/google-empty-turn.test.ts (6 tests) 22ms
+ ✓ src/__tests__/integration/claude-temp-realpath.integration.test.ts (6 tests) 46ms
+ ✓ src/defs/__tests__/native-capability-isolation.test.ts (24 tests) 14ms
+ ✓ src/defs/__tests__/trae-cli.test.ts (6 tests) 28ms
+ ✓ src/defs/__tests__/amp.test.ts (13 tests) 16ms
+ ✓ src/ai-trace/__tests__/recorder-boundaries.unit.test.ts (4 tests) 24ms
+ ✓ src/providers/__tests__/model-catalog-pagination.test.ts (4 tests) 39ms
+ ✓ src/__tests__/launch-fs-errors-open.test.ts (1 test) 10ms
+ ✓ src/defs/__tests__/kiro.test.ts (5 tests) 10ms
+ ✓ src/defs/__tests__/vibe.test.ts (5 tests) 7ms
+ ✓ src/__tests__/pi-models.test.ts (9 tests) 7ms
+ ✓ src/__tests__/prompt-file.test.ts (6 tests) 73ms
+ ✓ src/__tests__/launch-fs-errors.test.ts (1 test) 9ms
+ ✓ src/providers/__tests__/token-params.test.ts (10 tests) 8ms
+ ✓ src/agent-protocol/acp/__tests__/probe-close.unit.test.ts (2 tests) 10ms
+ ✓ src/__tests__/model-loading-state.test.ts (4 tests) 6ms
+ ✓ src/providers/__tests__/google.test.ts (10 tests) 7ms
+ ✓ src/__tests__/native-tool-compatibility.unit.test.ts (5 tests) 21ms
+ ✓ src/__tests__/index.test.ts (3 tests) 7ms
+ ✓ src/defs/__tests__/filesystem-support-w2g.unit.test.ts (9 tests) 34ms
+ ✓ src/defs/__tests__/qwen.test.ts (8 tests) 9ms
+ ✓ src/agent-protocol/pi-rpc/__tests__/models.test.ts (9 tests) 9ms
+ ✓ src/defs/__tests__/hermes.test.ts (3 tests) 15ms
+ ✓ src/defs/__tests__/droid.test.ts (8 tests) 22ms
+ ✓ src/providers/__tests__/response-text.security.test.ts (10 tests) 35ms
+ ✓ src/__tests__/detection-cache.unit.test.ts (2 tests) 213ms
+ ✓ src/__tests__/registry-dup-id.test.ts (1 test) 12ms
+ ✓ src/__tests__/mcp.test.ts (6 tests) 11ms
+ ✓ src/defs/__tests__/native-capabilities.test.ts (5 tests) 11ms
+ ✓ src/defs/__tests__/crush.test.ts (8 tests) 15ms
+ ✓ src/defs/__tests__/mimo.test.ts (6 tests) 19ms
+ ✓ src/defs/__tests__/auggie.test.ts (4 tests) 5ms
+ ✓ src/defs/__tests__/cline.test.ts (4 tests) 5ms
+ ✓ src/skills/chat-motion-overlay/assets/remotion-template/src/components/__tests__/avatarLibrary.test.tsx (3 tests) 51ms
+ ✓ src/agent-protocol/acp/__tests__/constants.test.ts (6 tests) 18ms
+ ✓ src/defs/__tests__/goose.test.ts (4 tests) 22ms
+ ✓ src/__tests__/metadata.test.ts (8 tests) 8ms
+ ✓ src/__tests__/invocation.test.ts (5 tests) 19ms
+ ✓ src/__tests__/mmd-routes-no-home.test.ts (5 tests) 8ms
+ ✓ src/defs/__tests__/kimi.test.ts (3 tests) 10ms
+ ✓ src/__tests__/claude-cost.test.ts (3 tests) 10ms
+ ✓ src/defs/__tests__/deepseek.test.ts (6 tests) 9ms
+ ✓ src/__tests__/resolution.test.ts (4 tests) 12ms
+ ✓ src/__tests__/paths.test.ts (9 tests) 12ms
+ ✓ src/defs/__tests__/offline-fallback-models.test.ts (13 tests) 16ms
+ ✓ src/defs/__tests__/kilo.test.ts (3 tests) 8ms
+ ✓ src/providers/__tests__/message-attachment-images.test.ts (4 tests) 5ms
+ ✓ src/__tests__/probe-scheduler.unit.test.ts (2 tests) 8ms
+ ✓ src/__tests__/probe-invocation.unit.test.ts (1 test) 11ms
+ ✓ src/agent-protocol/pi-rpc/__tests__/internal.test.ts (8 tests) 5ms
+ ✓ src/agent-protocol/acp/__tests__/model-normalization-w2g.unit.test.ts (2 tests) 4ms
+ ✓ src/providers/__tests__/anthropic-usage-m1.unit.test.ts (1 test) 12ms
+ ✓ src/providers/__tests__/connection-guard-body.security.test.ts (1 test) 17ms
+ ✓ src/ai-trace/__tests__/capture-boundaries.unit.test.ts (2 tests) 24ms
+ ✓ src/providers/__tests__/oauth-retirement.test.ts (2 tests) 7ms
+ ✓ src/providers/__tests__/turn-end-guard.test.ts (3 tests) 6ms
+ ✓ src/providers/__tests__/index.test.ts (1 test) 5ms
+ ✓ src/agent-protocol/acp/__tests__/account-failure.test.ts (3 tests) 14ms
+ ✓ src/__tests__/mmd-routes-null-home.test.ts (1 test) 5ms
+ ✓ src/agent-protocol/__tests__/index.test.ts (1 test) 4ms
+ ✓ src/defs/__tests__/usage-cost-basis.test.ts (1 test) 9ms
+ ✓ src/index.test.ts (1 test) 3ms
+ ✓ src/agent-protocol/acp/__tests__/index.test.ts (1 test) 3ms
+ ✓ src/defs/__tests__/gemini.test.ts (1 test) 4ms
+ ✓ src/__tests__/capabilities.test.ts (1 test) 3ms
+ ✓ src/agent-protocol/pi-rpc/__tests__/index.test.ts (1 test) 2ms
+ ✓ src/agent-protocol/core/__tests__/index.test.ts (1 test) 3ms
+
+ Test Files  185 passed (185)
+      Tests  4296 passed | 1 skipped (4297)
+   Start at  07:50:37
+   Duration  87.83s (transform 10.29s, setup 0ms, collect 43.72s, tests 40.42s, environment 50ms, prepare 22.37s)
+

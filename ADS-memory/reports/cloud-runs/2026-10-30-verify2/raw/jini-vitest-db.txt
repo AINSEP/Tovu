@@ -1,0 +1,76 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/db
+
+ ✓ src/__tests__/tools/transfer-tools-paths.test.ts (31 tests) 37ms
+ ✓ src/__tests__/secrets-vault.repo.contract.test.ts (36 tests) 9203ms
+   ✓ secrets vault contract [pglite] > explicit false stays non-default and omitted/undefined flags auto-default only the first row 6043ms
+   ✓ secrets vault contract [pglite] > mixed batch rollback restores deletes, promotion, JSON patches, defaults and singleton indexes 421ms
+   ✓ secrets vault contract [pglite] > failed batch restores both groups after a provider move has promoted and displaced defaults 323ms
+   ✓ secrets vault contract [pglite] > prepared service records commit through applyBatch inside a host transaction, reopen after a provider move and roll back late conflicts 461ms
+ ✓ src/__tests__/pglite-owner.test.ts (19 tests) 18083ms
+   ✓ owner startup stays alive before the socket exists and releases its reference on failure 472ms
+   ✓ owner lock > starters racing for one data dir (over a dead pid's lock): exactly one becomes owner 5721ms
+   ✓ a running owner > a second owner for the same data dir is refused; another data dir runs side by side 706ms
+   ✓ kill -9 of the owner mid-write: reopen keeps every acked row, no uncommitted row, and takes over the stale lock and socket 4312ms
+ ✓ src/__tests__/sqlite/checked-client.test.ts (23 tests) 32ms
+ ✓ src/__tests__/tools/transfer-tools.test.ts (11 tests) 33ms
+ ✓ src/__tests__/loads-without-driver.test.ts (28 tests) 15614ms
+   ✓ @jini-ai/db in an install with no database driver present > built both fixtures without drivers or an ORM 539ms
+   ✓ @jini-ai/db in an install with no database driver present > documents the vault's optional platform peer and refuses a vault import without it 454ms
+   ✓ @jini-ai/db in an install with no database driver present > ./kernel imports alone, works, and loads only kernel + core 465ms
+   ✓ @jini-ai/db in an install with no database driver present > ./kernel/sqlite imports alone, works, and loads only kernel + kernel/sqlite + core + sqlite 385ms
+   ✓ @jini-ai/db in an install with no database driver present > ./kernel/pglite imports alone, works, and loads only kernel + kernel/pglite + core + pglite 588ms
+   ✓ @jini-ai/db in an install with no database driver present > ./kernel/postgres imports alone, works, and loads only kernel + kernel/postgres + core + postgres 726ms
+   ✓ @jini-ai/db in an install with no database driver present > ./kernel/store-copy imports alone, works, and loads only kernel 425ms
+   ✓ @jini-ai/db in an install with no database driver present > ./migrate imports alone, works, and loads only migrate + kernel + core 508ms
+   ✓ @jini-ai/db in an install with no database driver present > ./secrets-vault imports alone, works, and loads only secrets-vault + kernel 465ms
+ ✓ src/__tests__/kernel.test.ts (27 tests) 11565ms
+   ✓ storage kernel [pglite] > a transaction commits on resolve and rolls back on throw 5873ms
+   ✓ failed PGlite readiness rejects every database operation without running its body 5274ms
+ ✓ src/__tests__/migrate/opt-in-runner.test.ts (14 tests) 115ms
+ ✓ src/pglite/__tests__/owner.ports.test.ts (17 tests) 6809ms
+   ✓ startPgliteOwner through its ports > serves under the default socket dir of the process port's home, and is findable in-process until closed 6199ms
+   ✓ startPgliteOwner through its ports > a socket left group/world-accessible after chmod is refused, and the failed start leaves nothing held 439ms
+ ✓ src/pglite/__tests__/socket-server.edges.test.ts (9 tests) 6678ms
+ ✓ src/__tests__/transfer/snapshot-catalog.test.ts (8 tests) 40ms
+(node:4223) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ src/__tests__/pglite-socket-server.test.ts (9 tests) 9721ms
+   ✓ over the socket a failing extended query gets exactly one ReadyForQuery (1 E Z) 808ms
+   ✓ idle in a transaction past the timeout: that client is cut off with 25P03 and its writes roll back 411ms
+   ✓ runExclusive waits for an open client transaction, and clients wait while it runs 454ms
+   ✓ two clients: transactions do not interleave, a rollback leaks nothing, no lost updates 609ms
+   ✓ a connection past the cap is refused with FATAL 53300 1012ms
+ ✓ src/__tests__/tools/read-tools.test.ts (5 tests) 14ms
+ ✓ src/__tests__/migrate/runner-placement.test.ts (12 tests) 16865ms
+   ✓ the ledger's Postgres schema > holds the ledger in the named schema, created with it, and a rerun reads it from there 5008ms
+   ✓ the ledger's Postgres schema > keeps two histories with the same ledger name apart, one per schema 4685ms
+   ✓ two runs racing on pglite > apply a step another run recorded after this one read the ledger exactly once 3582ms
+   ✓ two runs racing on pglite > a run whose step was recorded concurrently with another checksum fails without applying it 3461ms
+ ✓ src/__tests__/transfer/internal-ddl.test.ts (17 tests) 29ms
+ ✓ src/__tests__/sqlite/inspect.test.ts (19 tests) 254ms
+ ✓ src/transfer/__tests__/copy-engine.characterization.test.ts (27 tests) 45ms
+ ✓ src/__tests__/runner.test.ts (16 tests) 26981ms
+   ✓ runMigrations on pglite > applies pending steps in order, records them, and a rerun applies nothing 5685ms
+   ✓ runMigrations on pglite > a failing step rolls back its own changes, is not recorded, and stops later steps 4061ms
+   ✓ runMigrations on pglite > prepare runs before up and ledger creation, passes context, and is skipped on rerun 3543ms
+   ✓ runMigrations on pglite > a rejecting prepare preserves existing data, creates no ledger, and stops up and later steps 3180ms
+   ✓ runMigrations on pglite > a recorded step whose checksum changed stops the run before anything is applied 4063ms
+   ✓ runMigrations on pglite > a recorded step this runtime does not know stops the run (database from a newer version) 3100ms
+   ✓ runMigrations on pglite > the ledger is the one the consumer names, and is required 3278ms
+ ✓ src/__tests__/recovery/recovery-orchestrator.test.ts (8 tests) 7ms
+ ✓ src/__tests__/ops.test.ts (9 tests) 19776ms
+   ✓ PGlite in process: copyTo restores the whole data dir into a new one; compactAndVerify reads the ledger back 9148ms
+   ✓ PGlite compactAndVerify refuses an empty migration ledger 3292ms
+   ✓ PGlite socket client: copyTo goes through the owner's exclusive window, and is refused without it 6753ms
+ ✓ src/secrets-vault/__tests__/repo.sql.characterization.test.ts (7 tests) 115ms
+ ✓ src/secrets-vault/__tests__/repo.sql.rows.test.ts (10 tests) 5086ms
+   ✓ meta a driver already parsed into an object is used as is, and round-trips through put 5051ms
+ ✓ src/__tests__/sqlite/db-ops.test.ts (12 tests) 99ms
+ ✓ src/__tests__/store-copy.test.ts (3 tests) 16015ms
+   ✓ injected schemas/ledgers select only their tables, preserve ledgers, validate links and reseed ids; borrowed kernels stay open 9189ms
+   ✓ a late fault rolls back copied rows and recreated tables, and a ledger mismatch refuses before copying 6821ms
+ ✓ src/__tests__/typegen-schema-shape.test.ts (5 tests) 13059ms
+   ✓ renderDatabaseTypes maps every supported column type, nullability and generation 5782ms
+   ✓ readSchemaShape on Postgres: columns, indexes, constraints and views of the current schema 3623ms
+   ✓ databaseFile names a SQLite file kernel's main file, and null for in-memory or Postgres 3607ms

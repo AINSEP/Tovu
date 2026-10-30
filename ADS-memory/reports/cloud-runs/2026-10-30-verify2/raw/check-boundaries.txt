@@ -1,0 +1,107 @@
+
+> tovu@0.1.0 check:boundaries
+> depcruise --config .dependency-cruiser.mjs apps/website/src
+
+
+  warn only-composition-constructs-concrete-adapters: apps/website/src/features/permanent-delete/tool-registrations.ts → apps/website/src/platform/db/content-kernel.ts
+  warn only-composition-constructs-concrete-adapters: apps/website/src/features/external-mcp/external-mcp-repo.ts → apps/website/src/platform/db/kernel/dialect.ts
+  warn only-composition-constructs-concrete-adapters: apps/website/src/features/external-mcp/external-mcp-repo.sqlite.ts → apps/website/src/platform/db/content-kernel.ts
+  warn no-deep-imports:platform/mail: apps/website/src/server/routes/types.ts → apps/website/src/platform/mail/sender-domain-verification.ts
+  warn no-deep-imports:platform/mail: apps/website/src/server/routes/types.ts → apps/website/src/platform/mail/purpose-gate-probe.ts
+  warn no-deep-imports:platform/mail: apps/website/src/server/routes/types.ts → apps/website/src/platform/mail/mail-status.ts
+  warn no-deep-imports:platform/mail: apps/website/src/features/agent-plugins/mail-adapter-registry.ts → apps/website/src/platform/mail/purpose-scoped-mailer.ts
+  warn no-deep-imports:features/webhooks: apps/website/src/server/routes/types.ts → apps/website/src/features/webhooks/signing.ts
+  warn no-deep-imports:features/taxonomy: apps/website/src/server/routes/types.ts → apps/website/src/features/taxonomy/trash-term.ts
+  warn no-deep-imports:features/taxonomy: apps/website/src/server/routes/types.ts → apps/website/src/features/taxonomy/repo.sqlite.ts
+  warn no-deep-imports:features/settings: apps/website/src/server/routes/types.ts → apps/website/src/features/settings/tool-registrations.ts
+  warn no-deep-imports:features/settings: apps/website/src/server/routes/types.ts → apps/website/src/features/settings/site-title.ts
+  warn no-deep-imports:features/settings: apps/website/src/server/routes/types.ts → apps/website/src/features/settings/mail-provider.ts
+  warn no-deep-imports:features/navigation: apps/website/src/server/routes/types.ts → apps/website/src/features/navigation/trash-menu.ts
+  warn no-deep-imports:features/entries: apps/website/src/server/routes/types.ts → apps/website/src/features/entries/repo.sqlite.ts
+  warn no-deep-imports:features/entries: apps/website/src/server/routes/types.ts → apps/website/src/features/entries/public-list.ts
+  warn no-deep-imports:features/analytics: apps/website/src/server/routes/types.ts → apps/website/src/features/analytics/forwarding.ts
+  warn no-deep-imports:features/analytics: apps/website/src/server/routes/types.ts → apps/website/src/features/analytics/contracts.ts
+  warn no-deep-imports:contracts/headless: apps/website/src/server/inbound/admin-http/routes/skills/manage.ts → apps/website/src/contracts/headless/assistant-tool-approval-policy.ts
+  warn no-deep-imports:contracts/headless: apps/website/src/features/skills/tool-registrations.ts → apps/website/src/contracts/headless/assistant-tool-approval-policy.ts
+  warn no-deep-imports:contracts/headless: apps/website/src/features/plugin-runtime/capability-tool-registrations.ts → apps/website/src/contracts/headless/assistant-tool-approval-policy.ts
+  warn no-deep-imports:contracts/headless: apps/website/src/features/agent-plugins/tool-registrations.ts → apps/website/src/contracts/headless/assistant-tool-approval-policy.ts
+  warn no-deep-imports:contracts/headless: apps/website/src/features/agent-plugins/memory-tools.ts → apps/website/src/contracts/headless/assistant-tool-approval-policy.ts
+  warn no-deep-imports:contracts/headless: apps/website/src/features/agent-plugins/executable-tools/register.ts → apps/website/src/contracts/headless/assistant-tool-approval-policy.ts
+  warn no-circular: apps/website/src/server/runtime/composition/registered-sites.ts → 
+      apps/website/src/server/runtime/boot/local-owner-signin.ts →
+      apps/website/src/server/runtime/boot/boot-readiness-warnings.ts →
+      apps/website/src/server/runtime/composition/host-signals.ts →
+      apps/website/src/server/runtime/composition/site-paths.ts →
+      apps/website/src/server/routes/types.ts →
+      apps/website/src/server/runtime/composition/local-credential-copy.ts →
+      apps/website/src/server/runtime/composition/registered-sites.ts
+  warn no-circular: apps/website/src/server/runtime/composition/local-credential-copy.ts → 
+      apps/website/src/server/runtime/composition/registered-sites.ts →
+      apps/website/src/server/runtime/boot/boot-readiness-warnings.ts →
+      apps/website/src/server/runtime/composition/host-signals.ts →
+      apps/website/src/server/runtime/composition/site-paths.ts →
+      apps/website/src/server/routes/types.ts →
+      apps/website/src/server/runtime/composition/local-credential-copy.ts
+  warn no-circular: apps/website/src/server/routes/types.ts → 
+      apps/website/src/server/runtime/composition/local-credential-copy.ts →
+      apps/website/src/server/runtime/boot/local-owner-signin.ts →
+      apps/website/src/server/runtime/boot/boot-readiness-warnings.ts →
+      apps/website/src/server/runtime/composition/host-signals.ts →
+      apps/website/src/server/runtime/composition/site-paths.ts →
+      apps/website/src/server/routes/types.ts
+  warn no-circular: apps/website/src/features/api-connections/host.ts → 
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts →
+      apps/website/src/features/agent-plugins/layout.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/connect.ts →
+      apps/website/src/features/api-connections/host.ts
+  warn no-circular: apps/website/src/features/api-connections/hook-http.ts → 
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts →
+      apps/website/src/features/agent-plugins/layout.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/connect.ts →
+      apps/website/src/features/api-connections/host.ts →
+      apps/website/src/features/api-connections/hook-http.ts
+  warn no-circular: apps/website/src/features/api-connections/connect.ts → 
+      apps/website/src/features/api-connections/host.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts →
+      apps/website/src/features/agent-plugins/layout.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/connect.ts
+  warn no-circular: apps/website/src/features/api-connections/byo-client.ts → 
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts →
+      apps/website/src/features/agent-plugins/layout.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/connect.ts →
+      apps/website/src/features/api-connections/host.ts →
+      apps/website/src/features/api-connections/byo-client.ts
+  warn no-circular: apps/website/src/features/agent-plugins/service-ports.ts → 
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts →
+      apps/website/src/features/agent-plugins/layout.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts
+  warn no-circular: apps/website/src/features/agent-plugins/lifecycle.ts → 
+      apps/website/src/features/agent-plugins/supersession.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/connect.ts →
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts
+  warn no-circular: apps/website/src/features/agent-plugins/lifecycle.ts → 
+      apps/website/src/features/agent-plugins/memory.ts →
+      apps/website/src/features/agent-plugins/layout.ts →
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/connect.ts →
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts
+  warn no-circular: apps/website/src/features/agent-plugins/layout.ts → 
+      apps/website/src/features/agent-plugins/service-ports.ts →
+      apps/website/src/features/api-connections/connect.ts →
+      apps/website/src/features/api-connections/contribution.ts →
+      apps/website/src/features/agent-plugins/lifecycle.ts →
+      apps/website/src/features/agent-plugins/layout.ts
+
+x 35 dependency violations (0 errors, 35 warnings). 5650 modules, 37543 dependencies cruised.
+

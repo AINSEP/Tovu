@@ -1,2 +1,6 @@
 jini-typecheck exit=0
 jini-guard exit=0
+jini-test-scripts exit=1
+jini-vitest-agent-runtime exit=0
+jini-vitest-daemon exit=0
+jini-vitest-chat exit=1
