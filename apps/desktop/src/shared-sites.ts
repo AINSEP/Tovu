@@ -187,16 +187,23 @@ export function attachRunningSite({ workspace, dir }: { workspace: SitesWorkspac
   if (!running.port) throw new Error(`Running in ${running.app} (starting). Wait for this site to finish starting.`);
   const origin = `${running.scheme}://localhost:${running.port}`;
   const timers = new Set<ReturnType<typeof setInterval>>();
+  // The guard flags, not clearInterval alone, keep "report once" and "stopped reports nothing": a
+  // tick already queued when the interval is cleared (seen with Node 24.2 timers) must not report.
+  let stopped = false;
   return { external: true as const, pid: running.pid, port: running.port, origin, adminUrl: `${origin}/admin/`,
     workspaceId: "", schemaVersion: 0, bootToken: null,
     async stop() {
+      stopped = true;
       for (const timer of timers) clearInterval(timer);
       timers.clear();
     },
     onExit(listener: (exit: { code: number | null; signal: NodeJS.Signals | null }) => void) {
+      let reported = false;
       const timer = setInterval(() => {
+        if (stopped || reported) return;
         const current = workspace.running({ path: dir }).read({});
         if (current?.token === running.token) return;
+        reported = true;
         clearInterval(timer); timers.delete(timer); listener({ code: null, signal: null });
       }, 2000);
       timer.unref(); timers.add(timer);
