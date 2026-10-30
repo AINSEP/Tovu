@@ -131,7 +131,7 @@ export async function captureDaemonRun(
     onStarted({
       request: { contextRef: JSON.stringify({ principalId: "daemon-test-principal", ...context }), ...options.request },
       run: { id: "daemon-test-run" },
-      lifecycle: withCancelSubscription(options.lifecycle ?? { waitForTerminal: () => new Promise(() => {}) }),
+      lifecycle: withDaemonLifecycle({ lifecycle: options.lifecycle ?? { waitForTerminal: () => new Promise(() => {}) } }),
     });
     return await captured;
   } finally {
@@ -139,15 +139,16 @@ export async function captureDaemonRun(
   }
 }
 
-/** Minimal lifecycle fakes predate onStarted's cancel subscription and its event stream (run
- * telemetry, tool-gap audit); real lifecycles keep their own.
+/** Complete partial lifecycle fakes for cancel subscriptions, telemetry/tool-gap streams and
+ * trusted status emissions (3f93c4618). Real lifecycle methods and explicit test spies stay intact.
  */
-function withCancelSubscription(lifecycle: unknown): unknown {
+export function withDaemonLifecycle({ lifecycle }: { lifecycle: unknown }, _optional = {}): unknown {
   const has = (name: string) => typeof (lifecycle as Record<string, unknown>)[name] === "function";
-  if (has("onCancelRequested") && has("stream")) return lifecycle;
+  if (has("onCancelRequested") && has("stream") && has("emit")) return lifecycle;
   return Object.assign(Object.create(lifecycle as object), {
     ...(has("onCancelRequested") ? {} : { onCancelRequested: () => () => {} }),
     ...(has("stream") ? {} : { stream: async () => {} }),
+    ...(has("emit") ? {} : { emit: async () => {} }),
   });
 }
 

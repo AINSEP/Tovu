@@ -12,6 +12,7 @@ import { buildZipFixture } from "../fixtures/build-zip.js";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { ToolInputError } from "@jini-ai/core";
 import { agentPluginActivations } from "../../activation-effects.js";
+import { bundledAgentPluginsDir } from "../../../../server/runtime/composition/site-paths.js";
 
 const pluginInstallSource = { readRequest: readPluginInstallRequest, readArchive: readPluginInstallArchive };
 const input = { source: { kind: "zip", attachmentRef: "attachment:agent123" } };
@@ -36,6 +37,7 @@ test("agent attachment and local ZIP paths install via the real upload service, 
   const reads: unknown[] = [];
   try {
     const [tool] = buildRegistrations(testSiteLayoutContext({ workspaceId: "workspace-local", authorize: async () => ({ allowed: true, reason: "matched" }), agentPluginLayout: layout,
+      pluginInstallSource, bundledAgentPluginsSourceRoot: bundledAgentPluginsDir(),
       readInstallAttachment: async (required, optional) => { reads.push({ required, optional }); return { ok: true, bytes }; },
     }));
     const result = await tool!.handler(context(), {}) as { installed: boolean; enabled: boolean; warning: string };

@@ -24,6 +24,7 @@ import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tool
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { buildPluginsRegistrations, type PluginsToolDeps } from "../../__tests__/support/plugin-tool-host.js";
 import type { TovuPluginHostDeps } from "../../server/runtime/composition/plugin-host.js";
+import { composePluginProviderFaces } from "../../server/runtime/composition/agent-plugin-service-ports.js";
 // S4 (2026-09-24) fixtures — case (a) below installs a REAL Agent Plugin on disk to prove the
 // 'agent-plugin' family branch, the same way `mcp-ui-tool-calls-route.agent-plugins-uninstall.
 // integration.test.ts` (now retargeted to this same tool) already did for the deleted standalone tool.
@@ -89,6 +90,7 @@ function fakeRouteDeps(options: { allow?: boolean; discovery?: PluginDiscoveryRe
   const clock = createFakeClock({ startIso: NOW });
 
   const deps: PluginsToolDeps & TovuPluginHostDeps = testSiteLayoutContext({ ...siteLayouts.deps,
+    providerFaces: composePluginProviderFaces({ workspaceRoot: () => siteLayouts.deps.agentPluginLayout.forWorkspace(WORKSPACE_ID).root }),
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };

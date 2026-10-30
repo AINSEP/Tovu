@@ -370,6 +370,9 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
   // real body against that real resolver with an empty env, i.e. local mode.
   const { resolveAgentPermissionMode } = await import("#src/contracts/core/agent-permission-mode");
   const { assistantCliPermissions } = await import("#src/assistant/assistant-subagents-policy");
+  const { resolveNativeToolPolicy } = await import("@jini-ai/agent-runtime/native-tool-policy");
+  const { getAgentDef } = await import("@jini-ai/agent-runtime");
+  const nativeCapabilities = assistantCliPermissions({ enabled: false }).capabilities;
   const resolvePermissionMode = new Function("process", "resolveAgentPermissionMode", "resolveHostSignals", permissionFunction.body.getText(daemonSource));
   const mode = resolvePermissionMode({ env }, resolveAgentPermissionMode, () => ({ hosted: false, nativeToolsRestricted: false, labels: [] }));
   assert.equal(mode, "bypass");
@@ -379,9 +382,11 @@ test("daemon dev mode passes bypass in the executor's options bag", async () => 
     prompt: "Review a page", process: { env, cwd: () => "/tmp/dev-run" },
     routeDeps: { siteBinding: { dir: "/tmp/dev-site" } },
     resolvePermissionMode: () => mode,
+    // 3f93c4618 made the runtime's pure policy owner authoritative for launch permission mode.
+    policy: resolveNativeToolPolicy({ def: getAgentDef({ id: "claude" }) ?? {}, policy: { nativeCapabilities } }),
     resolveAssistantDisallowedTools: () => ["Bash"], subagentsEnabled: false, ASSISTANT_SETTING_SOURCES: [],
     // This expression runs outside onStarted; supply the locked launch snapshot it closes over.
-    nativeToolAccess: false, nativeCapabilities: assistantCliPermissions({ enabled: false }).capabilities, parityEnv: undefined, pickedFolder: undefined,
+    nativeToolAccess: false, nativeCapabilities, parityEnv: undefined, pickedFolder: undefined,
     resolveAssistantRunSettings: () => undefined, homedir: () => "/tmp/dev-home", existsSync: () => false,
     model: undefined, reasoning: undefined, attachmentRunFields: {},
     // Chrome/subagent preferences resolve before the run; OFF contributes no options here.

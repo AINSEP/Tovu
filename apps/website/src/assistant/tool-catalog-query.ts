@@ -137,7 +137,8 @@ export function buildToolCatalogQuery(
     },
     describe({ id }) {
       refresh();
-      return snapshot.query.describe({ id }) ?? (id.split(".", 1)[0] === snapshot.family?.id ? snapshot.family : null);
+      // Only the namespace itself gets an overview; an unknown card must remain missing.
+      return snapshot.query.describe({ id }) ?? (snapshot.family && id === snapshot.family.id ? snapshot.family : null);
     },
   };
 }

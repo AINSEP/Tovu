@@ -13,6 +13,8 @@ import { assistantCliPermissions } from "#src/assistant/assistant-subagents-poli
 import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "../run-start-decisions.js";
 import { resolveAssistantRuntimeLaunch } from "../assistant-runtime-guidance.js";
 import { getAgentDef } from "@jini-ai/agent-runtime";
+import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
+import { withDaemonLifecycle } from "./helpers/daemon-source.js";
 
 /**
  * @file Wiring proof for the Defect 1 fix (2026-09-11 chat-lifecycle repair), in the same
@@ -52,7 +54,7 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
   const launches: { runId: string; cwd: string; newSessionId?: string; resumeSessionId?: string; stored: string | null }[] = [];
   const failures: unknown[][] = [];
   const prompts: string[] = [];
-  const lifecycle = { waitForTerminal: () => new Promise(() => {}), stream: () => {}, onCancelRequested: () => () => {} };
+  const lifecycle = withDaemonLifecycle({ lifecycle: { waitForTerminal: () => new Promise(() => {}) } });
   const onStarted = runInNewContext(`${compiled}\nonStarted`, {
     parseRunStartContextRef: (ref: string) => ({ ...contexts.get(ref), principalId: "principal-1", attachmentIds: [], pluginRefIds: [] }),
     assemblePromptWithPluginPrefix: (prompt: string, prefix: string) => prefix ? `${prefix}\n\n${prompt}` : prompt,
@@ -87,7 +89,7 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     process: { env: options.env ?? {}, cwd: () => "/repo" }, resolvePermissionMode: () => "default",
     ASSISTANT_DISALLOWED_TOOLS: [], ASSISTANT_SETTING_SOURCES: [],
     resolveAssistantDisallowedTools: () => [], readAssistantCliPermissions: async () => assistantCliPermissions({ enabled: false }),
-    resolveFullCliAccess, resolveAssistantCliPermissions, assistantCliPermissions,
+    resolveFullCliAccess, resolveAssistantCliPermissions, assistantCliPermissions, resolveNativeToolPolicy,
     resolveHostSignals: () => ({ hosted: false, nativeToolsRestricted: false, labels: [] }),
     resolveAssistantRunSettings: () => undefined, homedir: () => "/isolated", existsSync: () => false,
     console: { error: (...args: unknown[]) => failures.push(args), log() {}, warn() {} },

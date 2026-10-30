@@ -98,7 +98,7 @@ export async function startConfirmingCall(booted, toolId, input) {
   const exchangeId = html.match(/__exchangeId"\s*:\s*"([^"]+)"/)?.[1] ?? '';
   const rows = [...html.matchAll(/<dt>([^<]+)<\/dt><dd>([^<]*)<\/dd>/g)].map((match) => [match[1], match[2]]);
   const answer = (decision) => booted.surfaces.surfaceExchanges.deliver({ exchangeId, principalId: 'owner', params: { decision } }, { toolId });
-  return { pending, rows, answer };
+  return { pending, rows, answer, html };
 }
 
 /**

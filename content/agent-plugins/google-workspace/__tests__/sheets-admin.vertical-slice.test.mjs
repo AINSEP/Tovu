@@ -30,7 +30,9 @@ test('vertical slice: a confirmed sheets_tab_modify rename registers, discloses,
 
   const input = { connectionRef: CONNECTION, spreadsheetId: SPREADSHEET, action: 'rename', sheetId: 7, title: 'Leads 2026' };
   const call = await startConfirmingCall(booted, 'p_google_workspace__sheets_tab_modify', input);
-  assert.deepEqual(call.rows, [['Connection ref', CONNECTION], ['Spreadsheet ID', SPREADSHEET], ['Action', 'rename'], ['Sheet ID', '7'], ['Title', 'Leads 2026'], ['Account', 'alice@example.test'], ['Affects', `spreadsheet ${SPREADSHEET}`], ['Affects', 'rename tab 7']]);
+  // 73ad71a40 keeps account/resources visible and moves the complete input under Details.
+  assert.deepEqual(call.rows, [['Account', 'alice@example.test'], ['Affects', `spreadsheet ${SPREADSHEET}`], ['Affects', 'rename tab 7'], ['Connection ref', CONNECTION], ['Spreadsheet ID', SPREADSHEET], ['Action', 'rename'], ['Sheet ID', '7'], ['Title', 'Leads 2026']]);
+  assert.match(call.html, /<details class="mcpui-detail-disclosure mcpui-technical-details"><summary aria-expanded="false">Details<\/summary>[\s\S]*<dt>Connection ref<\/dt>/);
   assert.equal(batches.length, 0, 'nothing reaches Google before the person answers');
 
   call.answer('confirm');

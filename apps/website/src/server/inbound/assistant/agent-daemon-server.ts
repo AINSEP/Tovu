@@ -1353,30 +1353,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   async function launchAgentRun(
     { sessionBinding, attachmentRunFields }: { sessionBinding: RunSessionBinding; attachmentRunFields: AttachmentRunFields }, _optional = {},
   ): Promise<void> {
-    const isOwner = principal.id === await routeDeps.ownerPrincipalId;
-    const hostSignals = resolveHostSignals({ env: process.env });
-    // No settings read at all for non-owners or hosted runs. Failed reads deny the grant.
-    const settings = resolveFullCliAccess({ isOwner, env: process.env }, { hostSignals })
-      ? await readAssistantCliPermissions({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
-        settingsReady: routeDeps.settingsUiTabsReady, workspaceId: routeDeps.workspaceId, principalId: principal.id }, {})
-      : assistantCliPermissions({ enabled: false });
-    const def = getAgentDef({ id: sessionBinding.agentId });
-    const policy = resolveNativeToolPolicy({ def: def ?? {}, policy: {
-      nativeCapabilities: resolveAssistantCliPermissions({ isOwner, env: process.env, settings }, { hostSignals }).capabilities } });
-    const nativeCapabilities = assistantCliPermissions({ enabled: false, capabilities: policy.nativeCapabilities ?? {} }).capabilities;
+    const { isOwner, def, policy, nativeCapabilities } = await resolveRunNativePolicy({ agentId: sessionBinding.agentId }, {});
     const nativeToolAccess = Object.values(nativeCapabilities).some(Boolean);
-    if (sessionBinding.agentId === 'claude' && process.platform === 'win32' && nativeCapabilities.shell) {
-      console.warn('[agent-daemon] shell is not folder-limited on this platform');
-    }
-    // Subscribe before spawn, independently of any browser watch. Owner fallbacks survive reloads.
-    if (isOwner) {
-      const gaps = createToolGapCollector({ sink: routeDeps.toolAttemptAuditSink,
-        workspaceId: routeDeps.workspaceId, principalId: principal.id, site: routeDeps.siteBinding.dir,
-        chatId: conversationId ?? run.id, runId: run.id, provider: sessionBinding.agentId,
-        redact: text => redactSecretShapes({ text }).text,
-      }, { onError: () => console.error("[tool-gaps] audit write failed") });
-      await runLifecycle.stream({ runId: run.id, onEvent: event => gaps.observe({ event }, {}) });
-    }
+    await observeRunToolGaps({ isOwner, agentId: sessionBinding.agentId }, {});
     // One launch snapshot supplies every dimension; edits affect only subsequent runs.
     const subagentsEnabled = nativeCapabilities.subagents;
     // Fresh per-person runtime preferences; a failed read falls back to the registered defaults.
@@ -1387,19 +1366,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     // Owner 2026-10-27: the folder picked with the composer's folder control is readable, never writable.
     const pickedFolder = getCustomFsRoot(routeDeps.workspaceId, { siteDir: routeDeps.siteBinding.dir });
     const runGuidance = pickedFolder ? { ...runtimeLaunch.guidance, pickedFolder } : runtimeLaunch.guidance;
-    if (def?.externalMcpInjection === 'env-passthrough') {
-      try {
-        await verifyJsonAgentInstall({ agentId: def.id, spec: { command: bridgeInjection.command,
-          args: [...(bridgeInjection.args ?? [])], env: { ...bridgeInjection.env } },
-          ctx: { home: homedir(), platform: process.platform, serverName: 'jini' },
-          readFile: ({ path }) => readFile(path, 'utf8') });
-      } catch (error) {
-        await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: (error as Error).message }, {}); return;
-      }
-    }
-    if (def?.fullCliAccessNote) await runLifecycle.emit({ runId: run.id, input: {
-      event: 'agent', data: { type: 'status', label: 'full_cli_access', detail: def.fullCliAccessNote },
-    } });
+    if (!(await prepareCliLaunch({ def }, {}))) return;
     const executeRun = () => agentExecutor.run({
       runId: run.id,
       agentId: sessionBinding.agentId,
@@ -1445,6 +1412,57 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       () => deleteScope.fresh({ principalId: principal.id, run: executeRun }));
     await assistantRuntimeGuidanceContext.run(runGuidance,
       () => assistantNativeToolsContext.run(nativeToolAccess, runWithCapabilities));
+  }
+
+  /** Read one launch's grants, preserving the runtime-owned full-access policy. O(1) settings reads. */
+  async function resolveRunNativePolicy({ agentId }: { agentId: string }, _optional = {}) {
+    const isOwner = principal.id === await routeDeps.ownerPrincipalId;
+    const hostSignals = resolveHostSignals({ env: process.env });
+    // No settings read at all for non-owners or hosted runs. Failed reads deny the grant.
+    const settings = resolveFullCliAccess({ isOwner, env: process.env }, { hostSignals })
+      ? await readAssistantCliPermissions({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
+        settingsReady: routeDeps.settingsUiTabsReady, workspaceId: routeDeps.workspaceId, principalId: principal.id }, {})
+      : assistantCliPermissions({ enabled: false });
+    const def = getAgentDef({ id: agentId });
+    const policy = resolveNativeToolPolicy({ def: def ?? {}, policy: {
+      nativeCapabilities: resolveAssistantCliPermissions({ isOwner, env: process.env, settings }, { hostSignals }).capabilities } });
+    const nativeCapabilities = assistantCliPermissions({ enabled: false, capabilities: policy.nativeCapabilities ?? {} }).capabilities;
+    if (agentId === 'claude' && process.platform === 'win32' && nativeCapabilities.shell) {
+      console.warn('[agent-daemon] shell is not folder-limited on this platform');
+    }
+    return { isOwner, def, policy, nativeCapabilities };
+  }
+
+  /** Attach the owner's tool-gap audit to this run; subscription errors abort startup. O(1). */
+  async function observeRunToolGaps({ isOwner, agentId }: { isOwner: boolean; agentId: string }, _optional = {}): Promise<void> {
+    // Subscribe before spawn, independently of any browser watch. Owner fallbacks survive reloads.
+    if (isOwner) {
+      const gaps = createToolGapCollector({ sink: routeDeps.toolAttemptAuditSink,
+        workspaceId: routeDeps.workspaceId, principalId: principal.id, site: routeDeps.siteBinding.dir,
+        chatId: conversationId ?? run.id, runId: run.id, provider: agentId,
+        redact: text => redactSecretShapes({ text }).text,
+      }, { onError: () => console.error("[tool-gaps] audit write failed") });
+      await runLifecycle.stream({ runId: run.id, onEvent: event => gaps.observe({ event }, {}) });
+    }
+  }
+
+  /** Validate CLI bridge registration before emitting its access note. A failed preflight terminalizes
+   * the run and returns false; lifecycle emission errors propagate. O(1) registration reads. */
+  async function prepareCliLaunch({ def }: { def: ReturnType<typeof getAgentDef> }, _optional = {}): Promise<boolean> {
+    if (def?.externalMcpInjection === 'env-passthrough') {
+      try {
+        await verifyJsonAgentInstall({ agentId: def.id, spec: { command: bridgeInjection.command,
+          args: [...(bridgeInjection.args ?? [])], env: { ...bridgeInjection.env } },
+          ctx: { home: homedir(), platform: process.platform, serverName: 'jini' },
+          readFile: ({ path }) => readFile(path, 'utf8') });
+      } catch (error) {
+        await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: (error as Error).message }, {}); return false;
+      }
+    }
+    if (def?.fullCliAccessNote) await runLifecycle.emit({ runId: run.id, input: {
+      event: 'agent', data: { type: 'status', label: 'full_cli_access', detail: def.fullCliAccessNote },
+    } });
+    return true;
   }
 };
 
