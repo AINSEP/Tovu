@@ -205,8 +205,20 @@ test("the generated script is syntactically valid JavaScript (constructible, nev
 
 // --- buildEntryLoadScript / parseEntryLoadOutput: static import graph of the packaged entries ----
 
+test("desktop main's source module graph resolves without the test-only TypeScript remapper", () => {
+  const desktopRoot = path.resolve(import.meta.dirname, "..");
+  // Electron loads main.ts with native type stripping. A fresh child must not inherit tsx or the
+  // suite's resolve-ts-ext hook: either would conceal missing .js targets in website source.
+  const loaded = spawnSync(process.execPath, ["-e", buildEntryLoadScript({ resourcesDir: desktopRoot }, { sourceDesktopRoot: desktopRoot })], {
+    cwd: tmpdir(), encoding: "utf8", timeout: 30_000, env: { ...process.env, NODE_OPTIONS: "" },
+  });
+  assert.ifError(loaded.error);
+  assert.equal(loaded.status, 0, `Desktop main import graph failed:\n${loaded.stdout}\n${loaded.stderr}`);
+  assert.deepEqual(parseEntryLoadOutput(loaded.stdout), { ok: true, unresolved: [] });
+});
+
 test("the entry-load script names all five shipped process entries", () => {
-  const script = buildEntryLoadScript("/packaged/Resources");
+  const script = buildEntryLoadScript({ resourcesDir: "/packaged/Resources" });
   assert.ok(script.includes('require(join(asar, "package.json")).main'));
   assert.ok(script.includes('require(join(tovu, "dist", "runtime-manifest.json")).cliEntry'));
   for (const root of ["tovu", "asar"]) {
@@ -233,7 +245,7 @@ test("the entry-load script reports every unresolvable static import without eva
     write(`${root}/node_modules/@jini-ai/mcp/dist/bin/serve.js`, "export {};");
   }
   write("app.asar/bin/mcp-bridge.ts", "export {};");
-  const run = () => spawnSync(process.execPath, ["-e", buildEntryLoadScript(resources)], { cwd: resources, encoding: "utf8", timeout: 5000 });
+  const run = () => spawnSync(process.execPath, ["-e", buildEntryLoadScript({ resourcesDir: resources })], { cwd: resources, encoding: "utf8", timeout: 5000 });
   try {
     write("app.asar/main.mjs", `import { app } from "electron"; import { value } from "present"; export default [app, value];`);
     const failing = run();

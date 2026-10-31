@@ -175,7 +175,7 @@ function checkEntryImports(targets: SmokeTargets, ports: SmokeNativePorts): void
  *  @returns the child's raw stdout. */
 function spawnEntryLoad(targets: SmokeTargets, ports: SmokeNativePorts): string {
   const resourcesDir = path.dirname(path.dirname(targets.nodeModulesDir));
-  const spawned = ports.spawn(targets.executablePath, ["-e", buildEntryLoadScript(resourcesDir)], {
+  const spawned = ports.spawn(targets.executablePath, ["-e", buildEntryLoadScript({ resourcesDir })], {
     env: { ...ports.env, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: "" },
     cwd: path.dirname(targets.executablePath),
     encoding: "utf8",

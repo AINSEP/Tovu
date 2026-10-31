@@ -2,8 +2,9 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { observabilityExportAllowed } from '@jini-ai/diagnostics/observability';
-import { resolveRuntimeMode } from '../../../contracts/core/runtime-mode.js';
-import { resolveCheckoutRoot } from '../../../platform/site-dir/product-root.js';
+// Desktop main loads this source directly; #src resolves to .ts here and .js in compiled builds.
+import { resolveRuntimeMode } from '#src/contracts/core/runtime-mode';
+import { resolveCheckoutRoot } from '#src/platform/site-dir/product-root';
 
 /** Known dev/test launchers remain development even when NODE_ENV is relabelled production. */
 function developmentLaunch({ env }: { env: NodeJS.ProcessEnv }, _options = {}): boolean {

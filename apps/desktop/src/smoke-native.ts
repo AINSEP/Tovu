@@ -202,10 +202,11 @@ export function parseSmokeOutput(stdout: string): SmokeCheckResult {
  * has no electron module. Lazy `import()`s and CommonJS `require`s run only at evaluation, so they
  * are out of scope here (they degrade at the call site, not at launch).
  *
- * @param resourcesDir the packaged resources dir holding `app.asar` and `tovu/`.
+ * @param required.resourcesDir The packaged resources dir holding `app.asar` and `tovu/`.
+ * @param options.sourceDesktopRoot Check the checkout's desktop `main` instead of packaged entries.
  * @complexity O(1) — fixed template; the child's walk is O(m) in modules reachable from the entries.
  */
-export function buildEntryLoadScript(resourcesDir: string): string {
+export function buildEntryLoadScript({ resourcesDir }: { resourcesDir: string }, { sourceDesktopRoot }: { sourceDesktopRoot?: string } = {}): string {
   return `
 (async () => {
   const unresolved = [];
@@ -213,16 +214,19 @@ export function buildEntryLoadScript(resourcesDir: string): string {
     const { registerHooks, createRequire } = require("node:module");
     const { pathToFileURL } = require("node:url");
     const { join, dirname } = require("node:path");
-    const asar = join(${JSON.stringify(resourcesDir)}, "app.asar");
+    const asar = ${JSON.stringify(sourceDesktopRoot ?? null)} ?? join(${JSON.stringify(resourcesDir)}, "app.asar");
     const tovu = join(${JSON.stringify(resourcesDir)}, "tovu");
     const entries = [
       join(asar, require(join(asar, "package.json")).main),
+    ];
+    // A checkout has the same shell graph but no staged payload or packaged bridge entries.
+    if (${sourceDesktopRoot === undefined}) entries.push(
       join(tovu, require(join(tovu, "dist", "runtime-manifest.json")).cliEntry),
       // Match mcp-injection.ts: the exports map exposes the root, not the bin subpath.
       join(dirname(createRequire(join(tovu, "package.json")).resolve("@jini-ai/mcp")), "bin", "serve.js"),
       join(dirname(createRequire(join(asar, "package.json")).resolve("@jini-ai/mcp")), "bin", "serve.js"),
       join(asar, "bin", "mcp-bridge.ts"),
-    ];
+    );
     const loaded = new Set();
     registerHooks({
       resolve(specifier, context, next) {

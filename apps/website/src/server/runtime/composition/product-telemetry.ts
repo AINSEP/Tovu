@@ -11,8 +11,9 @@ import { createNoopProductAnalytics, withProductAnalyticsGuards, type ProductAna
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
 import { redactLocalText } from '#src/platform/server-logs/redact-local-text';
 import { productAdminScreen, projectProductEvent } from '#src/server/runtime/composition/product-events';
-import { resolveTovuObservabilityExport } from './observability-export.js';
-import { processBuildRelease } from './build-release.js';
+// Desktop main loads this source directly; #src resolves to .ts here and .js in compiled builds.
+import { resolveTovuObservabilityExport } from '#src/server/runtime/composition/observability-export';
+import { processBuildRelease } from '#src/server/runtime/composition/build-release';
 
 import type { ProductConsent, ProductTelemetry } from '@tovu/contracts/product-telemetry';
 export type { ProductConsent, ProductTelemetry } from '@tovu/contracts/product-telemetry';

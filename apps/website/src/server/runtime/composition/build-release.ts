@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { resolveProductRoot } from '../../../platform/site-dir/product-root.js';
-import { resolveApiConnectionRuntime, resolveRuntimeMode, type RuntimeMode } from '../../../contracts/core/runtime-mode.js';
+// Desktop main loads this source directly; #src resolves to .ts here and .js in compiled builds.
+import { resolveProductRoot } from '#src/platform/site-dir/product-root';
+import { resolveApiConnectionRuntime, resolveRuntimeMode, type RuntimeMode } from '#src/contracts/core/runtime-mode';
 
 type Read = (file: string, encoding: 'utf8') => string;
 function documentAt({ file, read }: { file: string; read: Read }, _optional = {}): Record<string, unknown> {
