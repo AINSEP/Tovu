@@ -2,7 +2,7 @@ import userEvent from "@testing-library/user-event";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { PickedFoldersButton, folderName } from "../PickedFoldersButton";
+import { PickedFoldersButton, folderName, shortPath } from "../PickedFoldersButton";
 
 /** @file The composer's attached-folders button: count, tooltip, the list a click opens, and × per folder. */
 
@@ -23,14 +23,14 @@ it("shows the count, and its tooltip names every folder the agent reads", () => 
   expect(trigger).toHaveAttribute("aria-expanded", "false");
 });
 
-it("a click opens one row per folder, full path on hover, and × removes that folder", async () => {
+it("a click opens one row per folder showing its full path (also on hover), and × removes that folder", async () => {
   const onRemove = vi.fn();
   const user = userEvent.setup();
   render(<PickedFoldersButton folders={FOLDERS} onRemove={onRemove} />);
   await user.click(screen.getByRole("button", { name: /Agent reads/ }));
   expect(screen.getByRole("menu")).toBeInTheDocument();
-  expect(screen.getByText("Additional Assets")).toHaveAttribute("title", FOLDERS[0]);
-  expect(screen.getByText("Brand Assets")).toHaveAttribute("title", FOLDERS[1]);
+  expect(screen.getByText(FOLDERS[0]!)).toHaveAttribute("title", FOLDERS[0]);
+  expect(screen.getByText(FOLDERS[1]!)).toHaveAttribute("title", FOLDERS[1]);
   await user.click(screen.getByRole("menuitem", { name: "Stop using Brand Assets" }));
   expect(onRemove).toHaveBeenCalledExactlyOnceWith(FOLDERS[1]);
 });
@@ -67,4 +67,21 @@ it("removing the last folder moves focus to the composer input, not <body>", asy
 it("names a folder by its last segment, for either separator and a trailing one", () => {
   expect(folderName("/a/b/Brand")).toBe("Brand");
   expect(folderName("C:\\a\\Brand\\")).toBe("Brand");
+});
+
+it("a row caps a long path at 50 characters, cutting the middle so the folder name stays visible", async () => {
+  const long = "/Users/la/Documents/Clients/Northwind/2026/Campaigns/Spring Launch Assets";
+  const user = userEvent.setup();
+  render(<PickedFoldersButton folders={[long]} onRemove={vi.fn()} />);
+  await user.click(screen.getByRole("button", { name: /Agent reads/ }));
+  const row = screen.getByTitle(long);
+  expect(row.textContent).toHaveLength(50);
+  expect(row.textContent).toMatch(/^\/Users\/la\/.*….*\/Spring Launch Assets$/);
+});
+
+it("shortPath keeps short paths whole and keeps a long folder name's end", () => {
+  expect(shortPath("/a/b/Brand")).toBe("/a/b/Brand");
+  const name = "x".repeat(60);
+  expect(shortPath(`/a/${name}`)).toBe(`…${name.slice(-49)}`);
+  expect(shortPath("C:\\Users\\la\\Desktop\\Projects\\2026\\Clients\\Brand Assets\\")).toMatch(/^C:.*….*Brand Assets\\$/);
 });

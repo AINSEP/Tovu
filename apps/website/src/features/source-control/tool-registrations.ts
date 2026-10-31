@@ -170,11 +170,12 @@ const EXECUTE_COMMIT_SCHEMA = {
   properties: {
     provider: {
       type: "string",
+      title: "Host",
       description:
         "Which source control host to commit to: a providerId source_control_get_capabilities lists with commitSupported: true. Call that first; a host listed with commitSupported: false is refused.",
     },
     owner: { type: "string", description: "Owner or organization login that owns the target repository on the host." },
-    repo: { type: "string", description: "Repository name to commit to." },
+    repo: { type: "string", title: "Repository", description: "Repository name to commit to." },
     branch: {
       type: "string",
       description:

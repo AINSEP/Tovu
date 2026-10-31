@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { useT } from "@jini-ai/chat/react";
 import { Icon, RemixIcon, useDismissOnOutsideOrEscape } from "@jini-ai/ui";
 
@@ -7,7 +7,7 @@ import { Icon, RemixIcon, useDismissOnOutsideOrEscape } from "@jini-ai/ui";
  * read (and write into through the carded `fs_write_files`). One compact control (folder, count,
  * chevron) so the footer stays on one line (owner, 2026-10-30); it replaced a chip per folder that
  * pushed the model picker and send onto a second row. The hover tooltip lists every folder; a click
- * opens a list with × per folder, because tooltips do not exist on touch. Renders nothing at 0.
+ * opens a list of full paths with × per folder, because tooltips do not exist on touch. Renders nothing at 0.
  */
 export interface PickedFoldersButtonProps {
   readonly folders: readonly string[];
@@ -17,6 +17,14 @@ export interface PickedFoldersButtonProps {
 /** Both separators: Windows paths too. A trailing separator still yields the folder's own name. */
 export function folderName(path: string) {
   return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+}
+
+/** A row shows the full path, capped at `max` characters: the middle gives way to "…" so the folder
+ *  name at the end stays readable (a name longer than the cap keeps its end). */
+export function shortPath(path: string, max = 50) {
+  if (path.length <= max) return path;
+  const tail = Math.max(Math.ceil((max - 1) / 2), Math.min(folderName(path).length + 1, max - 1));
+  return `${path.slice(0, max - 1 - tail)}…${path.slice(-tail)}`;
 }
 
 export function PickedFoldersButton({ folders, onRemove }: PickedFoldersButtonProps) {
@@ -50,7 +58,10 @@ export function PickedFoldersButton({ folders, onRemove }: PickedFoldersButtonPr
           {folders.map((path, index) => (
             <div key={path} className="tovu-picked-folders-row">
               <RemixIcon name="folder-line" size={15} />
-              <span className="tovu-picked-folders-name" title={path}>{names[index]}</span>
+              <span className="tovu-picked-folders-name" title={path}>
+                {/* <wbr> after each separator: a wrapped path breaks between folders, not mid-name. */}
+                {shortPath(path).split(/(?<=[\\/])/).map((part, at) => <Fragment key={at}>{part}<wbr /></Fragment>)}
+              </span>
               <button type="button" role="menuitem" className="jini-attachment-remove" onClick={() => remove(path)}
                 title={t("Stop using {name}", { name: names[index] })} aria-label={t("Stop using {name}", { name: names[index] })}>
                 <Icon name="close" size={12} />
