@@ -2,7 +2,6 @@ import type { ComponentProps, ReactNode } from "react";
 import type { ChatPane } from "@jini-ai/chat/react";
 
 import { PushToTalkMicButton } from "../../features/voice-input/PushToTalkMicButton";
-import { VoiceInputPlaceholder } from "../../features/voice-input/VoiceInputPlaceholder";
 import type { UseNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
 import { FolderPathButton } from "./FolderPathButton";
 import { PickedFoldersButton } from "./PickedFoldersButton";
@@ -45,18 +44,18 @@ export function optionalChatPaneProps(input: OptionalChatPanePropsInput) {
 }
 
 /**
- * The composer footer's push-to-talk slot. When voice input is switched off it holds a grayed,
- * disabled mic (`VoiceInputPlaceholder`) — owner, 2026-10-30, reversing 2026-09-13's "omit the slot
- * entirely": the footer keeps its final one-line shape. See the `footerLeadingAccessory` comment in
+ * The composer footer's push-to-talk slot. When voice input is switched off the slot is empty —
+ * owner, 2026-10-30 ~5 PM: "just hide it", reversing the same day's grayed placeholder
+ * (`VoiceInputPlaceholder`, kept for later). See the `footerLeadingAccessory` comment in
  * `AssistantDock.tsx` and `voice-input-config.ts`.
  *
  * @param input.enabled `VOICE_INPUT_ENABLED` at the call site.
  * @param input.onTranscript Where a finished transcript is appended (`useComposerVoiceInput`).
- * @returns The mic button, or the disabled placeholder.
+ * @returns The mic button, or `undefined` (no mic) when voice input is off.
  * @complexity O(1).
  */
 export function voiceFooterAccessory(input: { readonly enabled: boolean; readonly onTranscript: (text: string) => void }) {
-  return input.enabled ? <PushToTalkMicButton onTranscript={input.onTranscript} /> : <VoiceInputPlaceholder />;
+  return input.enabled ? <PushToTalkMicButton onTranscript={input.onTranscript} /> : undefined;
 }
 
 /** Render the attached-folders button only while at least one folder is attached. @complexity O(1). */
