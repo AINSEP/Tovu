@@ -2,6 +2,9 @@
 
 Use this reference when the product should feel lively, memorable, or distinctive without sacrificing usability.
 
+How to animate (timing, easing, kUInetic, micro-interaction recipes) lives in
+`ui-animation.md`.
+
 ## Default Rule
 
 Delight is optional. Clarity, speed, and accessibility are not.
