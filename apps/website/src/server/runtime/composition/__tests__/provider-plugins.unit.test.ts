@@ -164,7 +164,7 @@ test("provider reporter feeds delivery status and diagnostic receipts follow liv
   const providers = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: "tovu", site: SITE,
     consent: () => allowed, consentRevision: () => 0 }, { warn: message => { warnings.push(message); }, info: quiet });
   assert.deepEqual(providers.telemetryStatus({}), [
-    { providerId: "observability-opentelemetry/trace", lastExport: null, lastShutdown: null },
+    { providerId: "observability-opentelemetry/trace", lastExport: null, lastShutdown: null, exportEnabled: false },
     { providerId: "analytics-posthog/events", lastExport: null, lastShutdown: null },
   ]);
   report({ phase: "export", outcome: "failed", host: "collector.test", errorClass: "Error", statusCode: 401 });
@@ -925,4 +925,32 @@ test('active trace IDs follow only the current observability lease and remain op
   const legacyPorts = await bootProviderPlugins({ runtime: legacy.runtime, config: configOf(CONFIGS), serviceName: 'tovu', site: SITE, ...consentAlways }, { warn: quiet, info: quiet });
   try { assert.equal(legacyPorts.tracker.activeTraceIds?.(), undefined); }
   finally { await legacyPorts.dispose({}); }
+});
+
+test('site factories receive the export decision as an option, never a saved setting or an analytics gate', async () => {
+  for (const force of [undefined, '1']) {
+    const options: Record<string, unknown>[] = [];
+    const seen: string[] = [];
+    const { runtime } = fakeRuntime({ installed: ['observability-sentry', 'analytics-posthog'], factories: {
+      'observability-sentry': { contract: 'observability', id: 'sentry', factory: (_input, optional = {}) => {
+        options.push({ ...optional }); return { port: recordingObservability(seen), dispose() {} };
+      } },
+      'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: (_input, optional = {}) => {
+        assert.equal(Object.hasOwn(optional, 'exportEnabled'), false, 'analytics keeps its existing policy');
+        return { port: { capture() {}, identify() {} }, dispose() {} };
+      } },
+    } });
+    const providers = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: 'tovu',
+      site: { ...SITE, environment: 'production' }, ...consentAlways }, {
+      env: { NODE_ENV: 'production', TOVU_RUNTIME_MODE: 'production', FLY_APP_NAME: 'fixture', TOVU_TELEMETRY_FORCE_ENABLE: force }, warn: quiet,
+    });
+    try {
+      assert.equal(options[0]!.exportEnabled, force === '1', 'checkout denial beats production hints');
+      assert.equal(providers.telemetryStatus({}).find(row => row.providerId === 'observability-sentry/sentry')?.exportEnabled, force === '1');
+      providers.tracker.error({ error: Object.assign(new Error('browser failure'), { name: 'AdminBrowserError' }) }, { context: { operation: 'admin.browser.error' } });
+      assert.ok(seen.includes('error:admin.browser.error'), 'local handoff stays active');
+      await providers.reapply({ pluginId: 'observability-sentry' });
+      assert.equal(options.length, 1, 'unchanged settings retain the same guarded lease');
+    } finally { await providers.dispose({}); }
+  }
 });

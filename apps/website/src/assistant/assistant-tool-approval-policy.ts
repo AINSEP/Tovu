@@ -14,7 +14,8 @@ export function approvalClassAsks({ class: actionClass }: { class: string }, _op
 
 /** Behavior-reviewed plugin-add controls: input/disclosure/cancel or installation that stays off.
  * Do not add destructive or publish controls here, including their final confirmation buttons. */
-const DIRECT_PAGE_HANDLES: ReadonlySet<string> = new Set([
+const DIRECT_PAGE_HANDLES: ReadonlySet<string | RegExp> = new Set([
+  /^agent-plugin-row-[a-z0-9-]+-(?:details|inspect)$/,
   'plugins-install-advanced', 'plugins-install-folder', 'plugins-install-folder-upload',
   'plugins-install-zip', 'plugins-install-replace', 'plugins-install-preview',
   'plugins-install-cancel', 'plugins-install-confirm',
@@ -28,7 +29,8 @@ export function directPageAction({ capabilityId, input }: { capabilityId: string
   if (!Object.hasOwn(TOOL_APPROVAL_POLICY, capabilityId)) throw new Error(`${capabilityId} has no approval classification`);
   if (capabilityId !== 'page.click') return TOOL_APPROVAL_POLICY[capabilityId]!.confirmation === 'direct';
   const handle = input && typeof input === 'object' ? (input as Record<string, unknown>).handle : undefined;
-  return typeof handle === 'string' && DIRECT_PAGE_HANDLES.has(handle);
+  return typeof handle === 'string' && [...DIRECT_PAGE_HANDLES].some(reviewed =>
+    typeof reviewed === 'string' ? reviewed === handle : reviewed.test(handle));
 }
 
 export function withExtensionApprovalPolicy(

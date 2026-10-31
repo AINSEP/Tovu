@@ -1139,12 +1139,8 @@ export function isBarePageChoice(post: { kind: "post" | "page"; templateChoice?:
  *  for any OTHER route. A Tovu-owned convention, not a per-theme manifest choice (see
  *  {@link resolveStaticTierPageShellFallback}'s own doc for why that distinction matters).
  *
- *  ORDERED, new name first: `basic`'s 2026-09-03 rename moved this file from `page-shell.html` to
- *  `pages-default.html`, but `basic-2` — the only other installed static theme that ships this file at
- *  all — still ships it under the OLD name. Both entries are tried, in order, so either theme's real
- *  filename resolves; a COMPATIBILITY SHIM, same removal condition as
- *  {@link LEGACY_TEMPLATE_FILENAME_ALIASES}'s own doc (`resolveTemplate`, above): drop `"page-shell"`
- *  once every currently-installed static theme ships `pages-default.html` instead. */
+ *  ORDERED, new name first: bundled themes use `pages-default.html`; installed or imported legacy
+ *  themes may still use `page-shell.html`. Keep this compatibility shim for their stored choices. */
 const STATIC_TIER_PAGE_SHELL_IDS: readonly string[] = ["pages-default", "page-shell"];
 
 /**
@@ -1192,18 +1188,9 @@ const STATIC_TIER_PAGE_SHELL_IDS: readonly string[] = ["pages-default", "page-sh
  * `"index.html"` on the home route, extended to cover every other route a static theme has no
  * dedicated template for.
  *
- * Most static themes do NOT ship this file. Counted 2026-09-02 (before `basic`'s 2026-09-03
- * posts-* / pages-* rename): of the five installed under `sites/tovu-com/themes/static/`, only `basic`
- * and `basic-2` had `render/pages/page-shell.html` — `tailark-dusk`, `tailark-quartz-dark` and
- * `tailark-quartz-libre` do not, and neither do the seed copies
- * `dist/content/themes/static/{fuel,gracious-timing,portfolite}` nor the pre-migration
- * `content/themes/__original-themes__/static/basic`. After the rename, `basic` ships this file as
- * `pages-default.html` and `basic-2` still ships it as `page-shell.html` — both resolve, in that
- * order, via {@link STATIC_TIER_PAGE_SHELL_IDS}. A theme shipping NEITHER name returns `undefined`
- * here, identical to `resolveTemplate`'s own "theme has no such page" contract, and the caller's
- * pre-existing generic `pageShell()` fallback is unchanged for it — which means switching the active
- * theme to any of the three tailark themes still REOPENS the exact bug described above: an
- * untemplated `html` Page renders in Tovu's generic chrome again, at HTTP 200.
+ * Both bundled static themes ship `pages-default.html`. Installed or imported themes can still
+ * use the legacy `page-shell.html`; both resolve in that order. A theme shipping neither name
+ * returns `undefined`, preserving the caller's generic `pageShell()` fallback.
  *
  * That degrade stays deliberate — guessing at some other template is what put `terms-of-service`
  * under a Post-shaped template's chrome, so a miss must remain a no-op rather than a substitution. What it must not

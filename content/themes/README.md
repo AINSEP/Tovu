@@ -1,4 +1,4 @@
-# `src/themes/`
+# `content/themes/`
 
 Built-in themes, discovered once at server boot from this directory (`builtInThemesDir()`, `src/server/deps.ts`). The themes guide (layout, creating a theme, every `data-embed-config` marker, styling, common mistakes) lives at **`development/docs/themes/themes-guide.md`**. Read that before building or editing a theme; this file is just an orientation map.
 
@@ -7,9 +7,9 @@ Built-in themes, discovered once at server boot from this directory (`builtInThe
 Each theme lives one folder deep under one of four tier subfolders (a fifth, `code`, is a declared type value with no implementation — do not build against it):
 
 ```
-static/<id>/        complete HTML/CSS/JS pages, no templating language — 7 themes, everything live today
-declarative/<id>/    JSON block trees, no executable code — 1 theme, reference-only
-templated/<id>/      LiquidJS templates, sandboxed — 1 theme
+static/<id>/        complete HTML/CSS/JS pages, no templating language — 2 themes: tovu-starter, tovu-theme
+declarative/<id>/    JSON block trees, no executable code — no bundled themes; supported, with a minimal test-only fixture
+templated/<id>/      LiquidJS templates, sandboxed — 2 themes: fashion-modern, storefront
 handlebars/<id>/     Handlebars templates, sandboxed — directory exists, currently empty (the render
                      pipeline, security allowlist, and worker isolation are fully implemented and
                      tested; no one has authored a theme here yet)

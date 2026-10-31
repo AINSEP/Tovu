@@ -9,6 +9,7 @@ import { createPluginProviderHost, pluginProviderStartupGuidance, isProviderSett
 
 import type { ProviderConfigSource, ProviderPluginConfig } from "./provider-config-source.js";
 import { bootProductTelemetryFromEnv, type ProductTelemetry, type ProductTelemetryOptions } from './product-telemetry.js';
+import { resolveTovuObservabilityExport } from './observability-export.js';
 import { processBuildRelease } from './build-release.js';
 import { PROVIDER_CONTRACTS } from "./provider-contracts.js";
 export { PROVIDER_CONTRACTS } from "./provider-contracts.js";
@@ -112,7 +113,7 @@ export interface ProviderPluginPorts {
   /** Used only after the public boundary has validated the visitor's consent proof. */
   readonly visitorTracker?: Tracker;
   observabilityEnabled?: () => boolean;
-  telemetryStatus: ReturnType<typeof createTelemetryDeliveryMonitor>["read"];
+  telemetryStatus(required: Record<string, never>): (ReturnType<ReturnType<typeof createTelemetryDeliveryMonitor>["read"]>[number] & { exportEnabled?: boolean })[];
   sendTelemetryTest(required: { error: Error }, optional?: Record<string, never>): Promise<TelemetryTestResult>;
   /** Undefined when neither a trace nor analytics provider is declared; slots can activate live. */
   readonly aiTraceSink: AiTraceSink | undefined;
@@ -295,6 +296,9 @@ function composePorts({ leases, consent, consentRevision, site, warn, product }:
  */
 export async function bootProviderPlugins(required: BootProviderPluginsRequired, optional: BootProviderPluginsOptional = {}): Promise<ProviderPluginPorts> {
   const release = required.release ?? processBuildRelease({});
+  const exportEnabled = resolveTovuObservabilityExport({ env: optional.env });
+  // Factory options are host-owned; analytics and AI tracing retain their existing policies.
+  const exportOptions = (contract: ProviderContract) => contract === 'observability' ? { exportEnabled } : {};
   const warn = optional.warn ?? ((message: string) => console.warn(`[provider-plugins] ${message}`));
   const delivery = createTelemetryDeliveryMonitor({ warn });
   const testProbe = createTelemetryTestProbe({});
@@ -334,6 +338,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
         input: { environment: required.site.environment, ...input, serviceName: required.serviceName, release,
           attribution: attributionFor({ contract: slot.contract, site: required.site }, { release }) } }, {
         factoryOptions: {
+          ...exportOptions(slot.contract),
           reportTelemetry: (report: ProviderTelemetryReport) => delivery.report({ providerId: `${slot.pluginId}/${slot.id}`, report }),
           info: optional.info ?? ((message: string) => console.info(message)),
         },
@@ -415,7 +420,10 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   for (const event of initializations) tracker.capture({ name: event.name, userId: event.userId }, { properties: event.properties });
   initializations.length = 0;
   let disposal: Promise<void> | undefined;
-  return { ...ports, telemetryStatus: delivery.read,
+  return { ...ports,
+    telemetryStatus: () => delivery.read({}).map(status => ({ ...status,
+      ...(slots.some(slot => slot.contract === 'observability' && `${slot.pluginId}/${slot.id}` === status.providerId) ? { exportEnabled } : {}),
+    })),
     observabilityEnabled: () => slots.some(slot => slot.contract === "observability" && slot.lease?.isCurrent({}) === true),
     sendTelemetryTest: ({ error }) => testProbe.send({ tracker: siteTracker ?? ports.tracker, error, userId: `site:${required.site.siteId}` }),
     reapply, appliesAt: ({ pluginId }) => applied.get(pluginId) ?? "now",

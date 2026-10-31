@@ -207,8 +207,8 @@ p { margin: 0; color: var(--muted); }
 /* ---------- scroll reveal ----------
    Deliberately NO default `opacity: 0` here — and none arrives from anywhere else
    either. Reveals are declared per element as `data-kui="fade-up ..."` and driven by
-   the vendored `scripts/vendor/kuinetic.all.min.js` (MIT, see
-   `scripts/vendor/kuinetic-LICENSE.md`), which injects its entire stylesheet itself at
+   the vendored `assets/vendor/kuinetic/kuinetic.all.min.js` (MIT, see
+   `assets/vendor/kuinetic/LICENSE`), which injects its entire stylesheet itself at
    load. So if that script is blocked or fails, no kUInetic CSS exists at all and every
    element renders in its normal, fully visible resting state: the hidden state lives
    only inside an `@keyframes ... from { opacity: 0 }` block, and with no kUInetic loaded

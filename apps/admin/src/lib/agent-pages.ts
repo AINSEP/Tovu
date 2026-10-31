@@ -1,9 +1,11 @@
-import { buildAgentPageMap } from "@jini-ai/admin/core";
+import { buildAgentScreens } from "@jini-ai/admin/core";
+import { resolvePageNavigation, type AgentNavigationScreen, type PageEntityLookup, type PageNavigationInput } from "@jini-ai/agentic";
 import type { DomPageDriverPage } from "@jini-ai/agentic/dom";
 import { ADMIN_PANELS } from "../panels";
 import { currentRoutePath, navigate } from "./router";
 import { ADDONS_PANEL_PATHS } from "./addons-routes";
 import { publishContentRefresh } from "./content-refresh-bus";
+import { lookupAdminNavigationEntity } from "./agent-navigation-entities";
 
 /**
  * @file Which admin pages an agent may navigate to, and the route path that gets there.
@@ -14,7 +16,7 @@ import { publishContentRefresh } from "./content-refresh-bus";
  * navigate the admin anywhere this file does not name.
  *
  * The map itself is derived from `panels.tsx`'s `agentReachable`/`routes[].agentPageId` fields via
- * `@jini-ai/admin/core`'s `buildAgentPageMap` — but unlike that package's own default, Tovu passes
+ * `@jini-ai/admin/core`'s `buildAgentScreens` — but unlike that package's own default, Tovu passes
  * `defaultReachable: true` here, so a panel that leaves `agentReachable` unset is INCLUDED, not
  * excluded. That's a deliberate reversal of the package's fail-safe-by-default stance (see
  * `panels.tsx`'s own file header for the reasoning): navigation alone only lets an agent land on a
@@ -29,25 +31,11 @@ import { publishContentRefresh } from "./content-refresh-bus";
  * page. Keeping a separate agent-facing naming scheme would mean an agent reading
  * `page.find_elements` output could not act on it without a translation table.
  *
- * Detail routes (`/posts/:id`, `/collections/:key/:entryId`, …) are deliberately absent unless a
- * panel names one with a param-free pattern (see `widgets`' `/regions` in `panels.tsx`): most need
- * an id an agent has to look up first, and the tool for that is the content catalog
- * (`content_read.content_post` and friends), not a navigation allowlist that would have to enumerate every
- * row in the database.
+ * Detail routes (`/posts/:id`, `/collections/:key/:entryId`, …) need an id an agent has to
+ * look up first, rather than a navigation allowlist that would have to enumerate every row in
+ * the database. Panels publish entity targets; the authenticated host lookup fills only those
+ * declared templates with real records. Follow-up controls remain separate discover/click actions.
  */
-
-/**
- * Published page id → the **route path** that shows it (base-agnostic; `router.ts` adds `/admin`).
- *
- * Every value corresponds to a real `panels.tsx` entry (or a param-free detail route on one), so it
- * is always a path `App.tsx`'s `parseRoute` resolves to something other than the dashboard —
- * `buildAgentPageMap` can only produce entries from panels that exist. Tovu's Add-ons migration
- * projects those entries to canonical URLs without changing the published IDs.
- */
-export const ADMIN_AGENT_PAGE_PATHS: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(buildAgentPageMap({ panels: ADMIN_PANELS }, { defaultReachable: true }))
-    .map(([id, path]) => [id, ADDONS_PANEL_PATHS[id] ?? path]),
-);
 
 /**
  * `id.split('-')` title-cased — `"widget-regions"` -> `"Widget Regions"`.
@@ -59,32 +47,28 @@ export const ADMIN_AGENT_PAGE_PATHS: Readonly<Record<string, string>> = Object.f
  * the site map to be useful, and the id itself, split and title-cased, is the least-surprising one:
  * it is exactly what a human already reads when `page.navigate`'s refusal message names the id raw.
  */
-function humanizeId(id: string): string {
-  return id.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
-}
-
 /**
  * Panel id → the label an agent should see for it, sourced from `panels.tsx`'s own `nav.label`
  * wherever one exists so the site map never drifts from what the sidebar already calls a section.
- * Falls back to {@link humanizeId} for the handful of panels with no `nav` entry.
+ * Falls back to title-casing the id for the handful of panels with no `nav` entry.
  */
-const PANEL_LABELS: Readonly<Record<string, string>> = Object.fromEntries(
-  ADMIN_PANELS.map((panel) => [panel.id, panel.nav?.label ?? humanizeId(panel.id)]),
-);
-
-/** The label an agent sees for a published page id. `PANEL_LABELS` is keyed by panel id; a
+/** The label an agent sees for a published page id. The sidebar label is keyed by panel id; a
  *  per-route agent page id (`widget-regions`) was never a panel id, so it falls through to
- *  `humanizeId` here too, not just inside `PANEL_LABELS` itself. */
-function labelForPageId(pageId: string): string {
-  return PANEL_LABELS[pageId] ?? humanizeId(pageId);
-}
-
-/** One agent-navigable admin screen: published page id, label, and route path. */
-export interface AdminAgentScreen {
-  readonly id: string;
-  readonly label: string;
-  readonly path: string;
-}
+ *  title-casing the id here too. */
+/** ADMIN_PANELS owns every route and purpose. Tovu permits navigation by default while honoring
+ * explicit opt-outs; actions remain separately published controls. The Add-ons router adapter
+ * supplies canonical paths without changing the stable page IDs. No entity records are enumerated. */
+const SCREENS = buildAgentScreens({ panels: ADMIN_PANELS }, { defaultReachable: true, paths: ADDONS_PANEL_PATHS });
+/**
+ * Published page id → the **route path** that shows it (base-agnostic; `router.ts` adds `/admin`).
+ *
+ * Every value corresponds to a real `panels.tsx` entry (or a param-free detail route on one), so it
+ * is always a path `App.tsx`'s `parseRoute` resolves to something other than the dashboard —
+ * `buildAgentScreens` can only produce entries from panels that exist. Tovu's Add-ons migration
+ * projects those entries to canonical URLs without changing the published IDs.
+ */
+export const ADMIN_AGENT_PAGE_PATHS: Readonly<Record<string, string>> = Object.fromEntries(SCREENS.map(screen => [screen.id, screen.path]));
+export type AdminAgentScreen = AgentNavigationScreen;
 
 /**
  * Every published page id with its label and route path, in {@link ADMIN_AGENT_PAGE_PATHS} order —
@@ -94,10 +78,10 @@ export interface AdminAgentScreen {
  * checked-in copy that `site_describe_capabilities` reports (the server cannot import this browser
  * bundle). `__tests__/admin-screens-manifest.unit.test.ts` fails when the two disagree.
  *
- * @returns One `{id, label, path}` per published page id.
+ * @returns One screen with its route, description and entity metadata per published page id.
  */
-export function listAdminAgentScreens(): readonly AdminAgentScreen[] {
-  return Object.entries(ADMIN_AGENT_PAGE_PATHS).map(([id, path]) => ({ id, label: labelForPageId(id), path }));
+export function listAdminAgentScreens(_required: Record<string, never> = {}, _options = {}): readonly AdminAgentScreen[] {
+  return SCREENS;
 }
 
 /**
@@ -110,24 +94,26 @@ export function listAdminAgentScreens(): readonly AdminAgentScreen[] {
  * reach a state a person could not reach by clicking. It also `pushState`s, so the back button
  * works afterwards.
  *
- * @returns One `{label, navigate}` pair per published page id.
+ * @returns One `{label, navigation, navigate}` entry per published page id.
+ * @complexity O(s) for s screens plus the selected navigation's bounded lookup.
  */
-export function buildAdminAgentPages(): Readonly<Record<string, DomPageDriverPage>> {
-  return Object.fromEntries(
-    Object.entries(ADMIN_AGENT_PAGE_PATHS).map(([pageId, routePath]) => [
-      pageId,
-      {
-        label: labelForPageId(pageId),
-        navigate: () => {
-          // Navigating to the route already displayed is a no-op: `useRouteLocation`'s snapshot
-          // string is unchanged, so nothing remounts and the screen keeps rendering what it
-          // fetched at mount. Every other destination mounts fresh and fetches in its own mount
-          // effect, so this is the only case where an agent asking to SEE a screen would otherwise
-          // be shown a stale one.
-          if (currentRoutePath() === routePath) publishContentRefresh();
-          navigate(routePath);
-        },
-      },
-    ]),
-  );
+export function buildAdminAgentPages(
+  _required: Record<string, never> = {},
+  { lookupEntity = lookupAdminNavigationEntity }: { lookupEntity?: PageEntityLookup } = {},
+): Readonly<Record<string, DomPageDriverPage>> {
+  return Object.fromEntries(SCREENS.map(screen => [screen.id, {
+    label: screen.label,
+    navigation: screen,
+    navigate: async (input: PageNavigationInput) => {
+      const destination = await resolvePageNavigation({ screen, input }, { lookupEntity });
+      // Navigating to the route already displayed is a no-op: `useRouteLocation`'s snapshot
+      // string is unchanged, so nothing remounts and the screen keeps rendering what it
+      // fetched at mount. Every other destination mounts fresh and fetches in its own mount
+      // effect, so this is the only case where an agent asking to SEE a screen would otherwise
+      // be shown a stale one.
+      if (currentRoutePath() === destination.path) publishContentRefresh();
+      navigate(destination.path);
+      return destination;
+    },
+  }]));
 }

@@ -691,7 +691,11 @@ const frontendControl = createFrontendControl({
 for (const registration of withPageNavigateErrorRewrap(withReadOnlyFrontendCapabilities(frontendControl.toolRegistrations))) {
   // Page clicks carry arbitrary UI effects; apply the same reviewed host policy as WebMCP.
   // Every frontend registration needs a classification, including local chat operations.
-  registry.register(applyToolApprovalPolicy({ registration: lostFrontendBindings.wrap(registration), surfaces: { surfaceExchanges } }));
+  // Page actions use the originating tab's AdminPageApprovalDialog. Wrapping them in a
+  // second chat surface would ask twice and AG-UI cannot answer that surface.
+  const bound = lostFrontendBindings.wrap(registration);
+  registry.register(registration.descriptor.id.startsWith("page.") ? bound
+    : applyToolApprovalPolicy({ registration: bound, surfaces: { surfaceExchanges } }));
 }
 // Wrapped, not bare: `@jini-ai/daemon`'s executor keeps its audit records in an in-process `Map`
 // and mints them only AFTER authorization resolves, so an unknown tool id or a throwing

@@ -15,6 +15,7 @@ export function AdminPageApprovalDialog({ locale, approvals }: { locale: string;
       confirmLabel={t({ locale: locale, key: "Confirm" })}
       cancelLabel={t({ locale: locale, key: "Cancel" })}
       agentHandle="webmcp-page-approval"
+      agentMayConfirm={false}
       onConfirm={approval.confirm}
       onCancel={approval.cancel}
     /> : null}

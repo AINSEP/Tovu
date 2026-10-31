@@ -144,6 +144,7 @@ import { registerAppVersionIpc } from "./src/app-version-ipc.ts";
 import { createDesktopResources } from "./src/desktop-resources.ts";
 import { createNoopTracker } from '@jini-ai/diagnostics/observability';
 import { installProcessErrorReporting, installUnhandledRejectionGuard } from '../website/src/server/runtime/boot/process-error-guards.ts';
+import { resolveTovuObservabilityExport } from '../website/src/server/runtime/composition/observability-export.ts';
 import { bootDesktopProductTelemetry, desktopProductLaunch, reportDesktopProcessGone, reportDesktopServerExit } from './src/product-telemetry.ts';
 import { createProductConsentReader, readProductTelemetryPreference, writeProductTelemetryPreference, offerProductTelemetryConsent, productTelemetryMenu } from './src/product-telemetry-preference.ts';
 import { registerProductTelemetryIpc } from './src/product-telemetry-ipc.ts';
@@ -434,6 +435,7 @@ async function initializeDesktopProductTelemetry(): Promise<void> {
   const launch = desktopProductLaunch({ isPackaged: app.isPackaged, resourcesPath: process.resourcesPath,
     preferencePath, version: app.getVersion(), env: process.env });
   desktopProduct = await bootDesktopProductTelemetry({ launch, readConsent, crashReporter,
+    observabilityExportEnabled: resolveTovuObservabilityExport({ env: process.env, packagedDesktop: app.isPackaged }),
     launchMode: process.argv.some(arg => arg === '--squirrel-updated' || arg === '--updated') ? 'update' : 'fresh' });
   // The reporter's rejection listener alone would silence Electron's own rejection warning; the
   // guard keeps every rejection in the main log for the process's whole life (never disposed).
@@ -846,6 +848,7 @@ async function startSiteBackend(siteDir: string, ctx: SiteOpenCtx, options: Site
   const captureBridge = await startDesktopCaptureBridge({ createWindow: options => new BrowserWindow(options), capturePool });
   let server: TovuServerHandle;
   try { server = await startTovuServer({
+    isPackaged: app.isPackaged,
     productTelemetry: desktopProduct.launch,
     repoRoot: PAYLOAD_ROOT,
     siteDir,

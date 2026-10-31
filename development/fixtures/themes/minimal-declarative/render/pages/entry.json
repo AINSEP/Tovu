@@ -1,0 +1,10 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "component",
+      "id": "tovu/entry-content",
+      "props": {}
+    }
+  ]
+}

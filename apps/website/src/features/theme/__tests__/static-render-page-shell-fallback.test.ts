@@ -70,7 +70,7 @@ test("a static-tier html Page resolves the theme's own page-shell.html (legacy n
 });
 
 // 2026-09-03 posts-*/pages-* rename: `basic` renamed `page-shell.html` -> `pages-default.html`;
-// `basic-2` still ships the legacy name. Both must keep resolving, new name preferred.
+// Installed legacy themes may still use the old name. Prefer the new name when both exist.
 test("prefers the new pages-default.html over the legacy page-shell.html when a theme ships both", () => {
   const theme = makeTheme({
     pages: {
@@ -92,7 +92,7 @@ test("a theme shipping only the renamed pages-default.html (the live basic theme
   );
 });
 
-test("falls back to the legacy page-shell.html when the new pages-default.html is absent (basic-2's shape today)", () => {
+test("falls back to the legacy page-shell.html when the new pages-default.html is absent (an installed legacy theme)", () => {
   const theme = makeTheme({ pages: { "page-shell": PAGE_SHELL_HTML } });
   assert.equal(
     resolveStaticTierPageShellFallback({ theme, post: { kind: "page", bodyFormat: "html" } }),

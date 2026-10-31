@@ -33,42 +33,42 @@ function occupy(root: string, id: string, where: "installed" | "catalog" | "both
 
 test("a free id is returned unchanged", () => {
   const root = makeThemesRoot();
-  assert.equal(nextAvailableThemeId({ desiredId: "basic", themesRoot: root, tier: "static" }), "basic");
+  assert.equal(nextAvailableThemeId({ desiredId: "tovu-starter", themesRoot: root, tier: "static" }), "tovu-starter");
 });
 
 test("one collision suffixes -1", () => {
   const root = makeThemesRoot();
-  occupy(root, "basic");
-  assert.equal(nextAvailableThemeId({ desiredId: "basic", themesRoot: root, tier: "static" }), "basic-1");
+  occupy(root, "tovu-starter");
+  assert.equal(nextAvailableThemeId({ desiredId: "tovu-starter", themesRoot: root, tier: "static" }), "tovu-starter-1");
 });
 
 test("several collisions walk up to the first free suffix", () => {
   const root = makeThemesRoot();
-  occupy(root, "basic");
-  occupy(root, "basic-1");
-  occupy(root, "basic-2");
-  occupy(root, "basic-3");
-  assert.equal(nextAvailableThemeId({ desiredId: "basic", themesRoot: root, tier: "static" }), "basic-4");
+  occupy(root, "tovu-starter");
+  occupy(root, "tovu-starter-1");
+  occupy(root, "tovu-starter-2");
+  occupy(root, "tovu-starter-3");
+  assert.equal(nextAvailableThemeId({ desiredId: "tovu-starter", themesRoot: root, tier: "static" }), "tovu-starter-4");
 });
 
 test("an id that already ends in a digit is suffixed, not renumbered", () => {
   const root = makeThemesRoot();
-  occupy(root, "basic9");
-  // Must produce "basic9-1", never "basic10" — the suffix always means "the Nth copy of this exact
+  occupy(root, "tovu-starter9");
+  // Must produce "tovu-starter9-1", never "tovu-starter10" — the suffix always means "the Nth copy of this exact
   // id", so it can never be confused with a digit that was part of the original id.
-  assert.equal(nextAvailableThemeId({ desiredId: "basic9", themesRoot: root, tier: "static" }), "basic9-1");
+  assert.equal(nextAvailableThemeId({ desiredId: "tovu-starter9", themesRoot: root, tier: "static" }), "tovu-starter9-1");
 });
 
 test("a folder that exists ONLY in the catalog still counts as taken", () => {
   // A download writes both sides in lockstep; a folder present in only one (e.g. a prior run left the
   // pair desynced) must still block the id, or the next download could recreate that exact desync.
   const root = makeThemesRoot();
-  occupy(root, "basic", "catalog");
-  assert.equal(nextAvailableThemeId({ desiredId: "basic", themesRoot: root, tier: "static" }), "basic-1");
+  occupy(root, "tovu-starter", "catalog");
+  assert.equal(nextAvailableThemeId({ desiredId: "tovu-starter", themesRoot: root, tier: "static" }), "tovu-starter-1");
 });
 
 test("a folder that exists ONLY in the installed tier still counts as taken", () => {
   const root = makeThemesRoot();
-  occupy(root, "basic", "installed");
-  assert.equal(nextAvailableThemeId({ desiredId: "basic", themesRoot: root, tier: "static" }), "basic-1");
+  occupy(root, "tovu-starter", "installed");
+  assert.equal(nextAvailableThemeId({ desiredId: "tovu-starter", themesRoot: root, tier: "static" }), "tovu-starter-1");
 });

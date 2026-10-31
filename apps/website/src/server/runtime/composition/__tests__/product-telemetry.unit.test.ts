@@ -84,7 +84,7 @@ async function fixture() {
       captureAiGeneration() { assert.fail('product AI content must be absent'); } },
     dispose: async () => { disposed++; },
   };
-  const required = { configPath, preferencePath, processRole: 'server' as const, release: 'tovu-desktop@0.0.0-test' };
+  const required = { observabilityExportEnabled: true, configPath, preferencePath, processRole: 'server' as const, release: 'tovu-desktop@0.0.0-test' };
   const options = { loadProviders: async (input: ProductProviderInput) => { inputs.push(input); return raw; } };
   const prefs = async (record: unknown) => {
     await writeFile(preferencePath, JSON.stringify({ automaticUpdates: true, productTelemetry: record }));
@@ -123,7 +123,7 @@ test('catalog event uses installation identity; unknown and visitor events are d
       { name: 'site_created', userId: INSTALL, properties: {} },
       { name: 'app_started', userId: INSTALL, properties: {} },
     ]);
-    assert.deepEqual(f.inputs, [{ config: CONFIG, release: f.required.release, attribution: { attributes: {
+    assert.deepEqual(f.inputs, [{ config: CONFIG, observabilityExportEnabled: true, release: f.required.release, attribution: { attributes: {
       source: 'desktop', release: f.required.release, environment: 'desktop', 'service.version': f.required.release, 'deployment.environment': 'desktop', os: process.platform, arch: process.arch, process: 'server',
     }, groups: {} } }]);
     assert.deepEqual(product.crashUpload, { submitURL: 'https://crash.example.test/upload', globalExtra: { release: f.required.release } });
@@ -334,7 +334,7 @@ async function standaloneFixture() {
         sdk.providers.register({ contract: ${JSON.stringify(entry.contract.id)}, id: 'fixture', contractVersion: 1,
           factory(input, options = {}) {
             if (input.fail) throw new Error('PRIVATE_INIT_FAILURE');
-            write({ type: 'init', id: ${JSON.stringify(entry.id)}, input });
+            write({ type: 'init', id: ${JSON.stringify(entry.id)}, input, exportEnabled: options.exportEnabled });
             return { port: ${entry.contract.id === 'observability' ? `{
               trackRequest() {}, trackDbQuery() {}, trackOutboundCall() {}, trackAgentRun() {}, trackOperation() {},
               reportError(report) { write({ type: 'error', message: report.error.message }); return true; }
@@ -368,7 +368,7 @@ async function standaloneFixture() {
     return target;
   }, { paths: () => null });
   const signals = async () => (await readFile(logPath, 'utf8')).trim().split('\n').filter(Boolean)
-    .map(line => JSON.parse(line) as { type: string; id?: string; input?: Record<string, unknown>; event?: ProductEvent });
+    .map(line => JSON.parse(line) as { type: string; id?: string; input?: Record<string, unknown>; event?: ProductEvent; exportEnabled?: boolean });
   return { ...f, catalog, catalogPath, packages, entries, resolved, signals,
     loadProviders: (input: ProductProviderInput) => loadProductProviders(input, { resolvePackage }) };
 }
@@ -491,4 +491,39 @@ test('Tovu declares no production vendor plugins; OTLP is development-only and l
   assert.equal(lock.packages[''].devDependencies[otlp], manifest.devDependencies[otlp]);
   assert.equal(lock.packages[`node_modules/${otlp}`].version, '0.6.15');
   assert.equal(lock.packages[`node_modules/${otlp}`].dev, true);
+});
+
+
+test('product factory options carry runtime eligibility only to observability and consent still vetoes export', async () => {
+  for (const enabled of [false, true]) {
+    const f = await standaloneFixture();
+    try {
+      const product = await bootProductTelemetry({ ...f.required, observabilityExportEnabled: enabled }, {
+        loadProviders: f.loadProviders, readConsent: () => ({ ...granted, crashes: false }),
+      });
+      const init = (await f.signals()).filter(signal => signal.type === 'init');
+      assert.equal(init.find(signal => signal.id === 'fake-errors')!.exportEnabled, enabled);
+      assert.equal(init.find(signal => signal.id === 'fake-usage')!.exportEnabled, undefined);
+      assert.equal(product.observability.reportError({ error: new Error('denied by consent'), context: { operation: 'fixture' } }), false);
+      assert.equal((await f.signals()).filter(signal => signal.type === 'error').length, 0);
+      if (!enabled) assert.equal(product.crashUpload, undefined);
+      await product.dispose();
+    } finally { await f.close(); }
+  }
+});
+
+test('child launch environment determines product eligibility before provider loading', async () => {
+  const f = await fixture();
+  try {
+    const base = { TOVU_PRODUCT_TELEMETRY_CONFIG: f.required.configPath, TOVU_PRODUCT_TELEMETRY_PREFS: f.required.preferencePath,
+      TOVU_PACKAGED_DESKTOP: '1', TOVU_RUNTIME_MODE: 'production', FLY_APP_NAME: 'fixture' };
+    for (const role of ['server', 'daemon'] as const) {
+      const product = await bootProductTelemetryFromEnv({ env: base, processRole: role }, f.options);
+      assert.equal(f.inputs.at(-1)!.observabilityExportEnabled, false, 'checkout cannot inherit package permission');
+      await product!.dispose();
+      const debug = await bootProductTelemetryFromEnv({ env: { ...base, TOVU_TELEMETRY_FORCE_ENABLE: '1' }, processRole: role }, f.options);
+      assert.equal(f.inputs.at(-1)!.observabilityExportEnabled, true);
+      await debug!.dispose();
+    }
+  } finally { await f.close(); }
 });

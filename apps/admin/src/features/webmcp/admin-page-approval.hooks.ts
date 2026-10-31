@@ -8,7 +8,7 @@ export function useAdminPageApproval({ approvals = adminPageApprovals }: { appro
   const snapshot = useSyncExternalStore(subscribe, getSnapshot);
   function answer(approved: boolean) {
     if (!snapshot.pending) return;
-    void approvals.respond({ approvalId: snapshot.pending.approvalId, approved }).catch(() => {
+    void approvals.respond({ approvalId: snapshot.pending.approvalId, approved }, { source: "human" }).catch(() => {
       // The store retains the actual failure for the app's alert; no unhandled human-click rejection.
     });
   }

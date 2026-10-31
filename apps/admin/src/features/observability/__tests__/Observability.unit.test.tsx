@@ -200,3 +200,12 @@ it("A7: selecting Tool gaps fetches the owner projection and renders the redacte
     fetch.mockRestore();
   }
 });
+
+
+it("shows a configured provider's disabled export policy instead of an unexplained delivery wait", () => {
+  renderObservability({ status: { enabled: true, serviceName: "tovu", providers: [
+    { providerId: "observability-sentry/sentry", exportEnabled: false, lastExport: null, lastShutdown: null },
+  ] } });
+  expect(screen.getByText("observability-sentry/sentry: Export disabled in this runtime")).toBeInTheDocument();
+  expect(screen.queryByText("No export result yet")).not.toBeInTheDocument();
+});

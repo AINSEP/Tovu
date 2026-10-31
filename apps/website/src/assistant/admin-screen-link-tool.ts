@@ -1,3 +1,5 @@
+import { validatePageLink } from "@jini-ai/agentic";
+import { ADMIN_SCREENS } from "../features/site-inspection/admin-screens.generated.js";
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
 import { buildDomainRegistrations, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
@@ -28,23 +30,12 @@ import { ToolInputError } from "@jini-ai/core";
  * recording so a future reader does not re-propose them without re-reading the reason first:
  *
  * 1. **A hand-typed enum of every admin screen.** `apps/admin/src/panels.tsx`'s `ADMIN_PANELS` is
- *    the single real source of the admin's route table (per that file's own header, replacing three
- *    places that used to drift), and `apps/admin/src/lib/agent-pages.ts` already derives
- *    `ADMIN_AGENT_PAGE_PATHS` from it via `@jini-ai/admin/core`'s `buildAgentPageMap` — but that
- *    derivation runs in the admin SPA's own browser bundle. `apps/website` (this server) has no
- *    runtime or build dependency on `@jini-ai/admin` or on `apps/admin/src` at all — `ADMIN_PANELS`
- *    is a React/TSX array of render thunks that is never shipped to the server, and this dispatch's
- *    scope explicitly excludes editing `apps/admin/src/**` to add one (e.g. a generated manifest
- *    `admin-static.ts` could read alongside the built SPA). A hand-copied mirror of that list INSIDE
- *    this tool's `inputSchema` (a fixed enum) is exactly the "hand-maintained registry mirror" this
- *    codebase has already been burned by once — it would silently go stale the next time a panel is
- *    added, renamed, or removed. So this tool takes `path` as an open string instead, the same choice
- *    `@jini-ai/agentic`'s own `page.navigate` capability already makes for the identical problem (its
- *    `inputSchema` has no enum either — "a published data-agent-page id, as listed by
- *    page.find_elements"). The model already has to know the screen exists — from a sidebar label
- *    seen earlier in the conversation, a URL it was told, or another tool's own description (e.g.
- *    `credential_save with kind api`'s description names "Access Tokens") — and this tool only turns that
- *    knowledge into a well-formed path, not into stale-or-not authority to trust it.
+ *    the single real source of the admin's route table. `apps/admin/src/lib/agent-pages.ts`
+ *    derives the browser map via `@jini-ai/admin/core`'s `buildAgentScreens`; its checked-in
+ *    projection, `features/site-inspection/admin-screens.generated.ts`, lets this server validate
+ *    destinations without importing the React/TSX render thunks. The drift test guards both maps.
+ *    A second hand-maintained enum in this tool would still go stale when a panel changes.
+ *    This tool accepts a string and validates it against that generated map instead.
  *
  * 2. **Driving the human's browser instead of returning a link.** `@jini-ai/agentic`'s
  *    `page.navigate` genuinely exists and is already wired end to end for the SAME agent loop that
@@ -62,9 +53,7 @@ import { ToolInputError } from "@jini-ai/core";
  * ## Why the result is a relative path, not a fabricated absolute URL
  *
  * features/origin's OriginRegistryPort is keyed by workspaceId, but this tool's build signature
- * receives neither a workspace-scoped dependency bag nor a workspaceId (see this file's doc on
- * _routeDeps/_surfaces being unused placeholders,
- * further down) — there is no `deps.originRegistry` to call here at all, unlike `buildRobots`. A
+ * receives neither a workspace-scoped dependency bag nor a workspaceId — there is no `deps.originRegistry` to call here at all, unlike `buildRobots`. A
  * `ToolHandler` (`@jini-ai/core`'s `ToolExecutionContext`) carries no HTTP request either — no `req`,
  * no `Host` header, nothing `server/inbound/public-http/routes/oauth/public-origin.ts`'s
  * `resolvePublicOrigin(req)` could read. So this tool still falls back to a bare relative path by
@@ -91,7 +80,7 @@ import { ToolInputError } from "@jini-ai/core";
  *
  * Architectural role: `src/assistant` composition-layer tool, alongside `ask-choice-tool.ts` and
  * `component-catalog-tool.ts` — general assistant capability, not tied to a content domain. Depends on
- * no domain feature.
+ * only on generated screen metadata, never the browser render thunks.
  */
 
 export const ADMIN_SCREEN_LINK_TOOL_ID = "assistant_admin_screen_link";
@@ -120,7 +109,7 @@ const INPUT_SCHEMA = {
     path: {
       type: "string",
       description:
-        "The admin screen's route segment, exactly as it appears in the sidebar label, the URL bar, or another tool's own description when a human navigates there directly — e.g. 'access-tokens', 'posts', 'media', 'settings'. A leading slash is optional and stripped if present. This tool does NOT verify the segment names a real screen — there is no server-side registry of admin routes to check it against, only the admin app's own client bundle, which this tool cannot reach — so pass a segment you have actually seen named in this conversation, never a guess.",
+        "A published admin screen id or canonical route segment from the admin map, such as agent-plugins or addons/agent-plugins. Unknown destinations are refused.",
     },
     tab: {
       type: "string",
@@ -133,8 +122,10 @@ const INPUT_SCHEMA = {
 export const adminScreenLinkAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: ADMIN_SCREEN_LINK_TOOL_ID,
+    // Index the URL-building action, not navigation/inspection instructions for sibling tools.
+    // FTS already weights "screen" in this id; page.find_elements owns reading the current UI.
     description:
-      "FALLBACK ONLY — call this LAST, after checking whether an in-chat tool already covers what the human actually needs (e.g. credential_save with kind api to save a provider credential, credential_save with kind api and target set to the saved label to rotate one). Reach for this only when no tool exists to perform the action itself and the human must finish it manually in the admin UI. Turns an admin screen's route segment into the path that opens it, so you can hand the human something to open directly instead of a prose breadcrumb like 'go to Admin → Access Tokens → ...'. READ-ONLY: it only builds a path — it never performs the action still waiting on that screen, so pair it with a plain-language description of what to do once the human gets there. It does not verify the segment names a real screen (see the 'path' field's own description). Returns 'path', a site-relative URL (e.g. '/admin/access-tokens') that is ALWAYS present, and — only when this deployment has a configured public origin — an absolute 'url' you should present as the clickable link instead. When 'url' is absent, present 'path' as plain text for the human to open themselves; this chat surface does not render a bare relative path as a clickable link.",
+      "Build a verified link to an admin page for the human to follow. Accepts a published destination and optional tab; returns 'path', a site-relative URL, plus 'url', an absolute address when a public origin is configured. Use only for an explicit link request or when no admin tab is attached. The human follows the link; the tool only formats and validates URLs against the generated route map. Unknown destinations and unsupported query keys are refused.",
     sideEffects: "none",
     authorization: { permission: "admin.assistant.use" },
     inputSchema: INPUT_SCHEMA,
@@ -157,32 +148,16 @@ export interface AdminScreenLinkToolDeps {
 
 const CATALOG_BY_ID = new Map(adminScreenLinkAgentToolCatalog.map((entry) => [entry.name, entry]));
 
-/**
- * Joins an admin screen's route segment (plus an optional tab id) into this app's own relative admin
- * route path — `/admin/<segment>` or `/admin/<segment>?tab=<tab>`.
- *
- * A leading slash on `input.path` is stripped rather than rejected: a model is just as likely to pass
- * 'access-tokens' as '/access-tokens', both naming the same screen, and rejecting the latter would
- * only push that normalization into every caller instead of doing it once here.
- *
- * @throws {ToolInputError} `input.path`, once its leading slashes are stripped, is empty — e.g. a bare
- *   `/` or `///`. `requireString` (`registerAdminScreenLink`'s own caller) already rejects an
- *   empty-or-absent `path` before this runs; this catches the narrower case that only becomes empty
- *   AFTER stripping.
- * @complexity O(n) in the length of `input.path`/`input.tab` — one trim, one strip, one encode.
- * @overallScore 100
- */
-export function buildAdminScreenPath(input: { path: string; tab?: string }): string {
-  const segment = input.path.trim().replace(/^\/+/, "");
-  if (segment.length === 0) {
-    throw new ToolInputError({ message: "'path' must name a screen segment, not just a leading slash" });
+/** Format only destinations present in the generated map; invalid routes/query keys are input
+ * errors rather than links an operator would discover are broken. @complexity O(s + q). */
+export function buildAdminScreenPath(input: { path: string; tab?: string }, _options = {}): string {
+  try {
+    return `${ADMIN_BASE_PATH}${validatePageLink({ screens: ADMIN_SCREENS, path: input.path,
+      ...(input.tab?.trim() ? { query: { tab: input.tab.trim() } } : {}),
+    })}`;
+  } catch (cause) {
+    throw new ToolInputError({ message: `Invalid admin screen path: ${cause instanceof Error ? cause.message : 'unknown destination'}` });
   }
-  if (!/^[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(segment)) {
-    throw new ToolInputError({ message: "'path' must contain only screen segments, without traversal, a query, a fragment, or a URL scheme" });
-  }
-  const tab = input.tab?.trim();
-  const query = tab ? `?tab=${encodeURIComponent(tab)}` : "";
-  return `${ADMIN_BASE_PATH}/${segment}${query}`;
 }
 
 /**

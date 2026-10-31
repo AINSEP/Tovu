@@ -20,7 +20,7 @@
 > - **Milestone 3** — the `render/`-nested v2 folder layout (`render/pages/`, `render/partials/`,
 >   `css/theme.css`, `scripts/`) is real, `apiVersion`-driven, and load-bearing — see §11 — and
 >   `tovu theme migrate` (`26f19bf6`, `migration/migrate-theme.ts`) is a real, wired CLI that has
->   already migrated every built-in static theme plus `basic-declarative` onto it.
+>   already migrated every remaining built-in theme onto it.
 > - **Milestone 4** (`4af12853`) — `code-tier-asset-normalizer.ts` has a real caller:
 >   `tovu theme normalize-build <dir> --primary-stylesheet <file>` (`cli/commands/theme/normalize-build.ts`).
 > - **Milestone 5** — the generated `index.html` portability snapshot (§3) shipped the same day.
@@ -478,9 +478,7 @@ folder every built-in theme uses today, verified directly on disk and in the loa
   nav/footer/pages genuinely will not load from the v1 paths and vice versa.
 - Non-static tiers get the same treatment independently: `loadTemplateSources` (`theme.ts:1026`) picks
   `render/pages` over `templates/` for `templated`/`declarative`/`handlebars` themes the same way.
-- Every built-in static theme (`basic`, `basic-2`, `tailark-dusk`, `tailark-quartz-dark`,
-  `tailark-quartz-libre` — verified on disk, `content/themes/static/*` and
-  `sites/tovu-com/themes/static/*`), plus `declarative/basic-declarative` and both `templated/*` themes,
+- Every bundled theme (`static/tovu-starter`, `static/tovu-theme`, and both `templated/*` themes),
   ships `apiVersion: 2` and a real `render/` folder (`render/pages/`, plus `render/partials/` for the
   static ones) with NO flat `pages/`/root-partial files left behind — confirmed by direct directory
   listing, not inferred from the manifest alone.
@@ -526,7 +524,7 @@ document into an actual gate a real `tovu theme validate --profile publish` run 
 
 Verified: `find content/themes -iname "LICENSE"` returns nothing — no theme ships a `LICENSE` file
 today, structured or otherwise. `NOTICE.md` is the one REAL provenance mechanism in use today
-(free-text prose, present on `basic`/`basic-2`; `fuel`, `gracious-timing`, and `portfolite` also
+(free-text prose, present on the bundled static themes; `fuel`, `gracious-timing`, and `portfolite` also
 shipped one before their 2026-08-31 removal — unconfirmed-license Framer Marketplace derivatives).
 `theme.json`'s real
 `author?: string` field (`theme.ts:111-118`) is parsed and surfaced through the `theme_list`/
@@ -681,7 +679,7 @@ storefront-2/
 ### 17.4 `declarative` tier
 
 ```
-basic-declarative-2/
+minimal-declarative-copy/
   theme.json
   tokens.json
   css/theme.css
@@ -691,7 +689,7 @@ basic-declarative-2/
 ```
 
 ```jsonc
-{ "id": "basic-declarative-2", "tier": "declarative" }
+{ "id": "minimal-declarative-copy", "tier": "declarative" }
 ```
 
 ### 17.5 `code` tier
@@ -734,7 +732,7 @@ for this tier at all (v1 §2.5). Do not build against it.
 2. ~~Write the validator.~~ — **DONE, 2026-08-18 (Milestone 2, `a69632b5`).** `validateThemePackage`,
    wired to `tovu theme validate`. See §16.
 3. ~~Write `tovu theme migrate`~~ — **DONE, 2026-08-18 (Milestone 3, `26f19bf6`).** Not just built but
-   already run: every built-in `static` theme plus `basic-declarative` is migrated, verified on disk.
+   already run: every remaining built-in theme is migrated, verified on disk.
    See §11.
 4. ~~Wire `code-tier-asset-normalizer.ts` into a real pipeline~~ — **DONE, 2026-08-18 (Milestone 4,
    `4af12853`).** `tovu theme normalize-build`, exactly the "standalone CLI a theme author runs after
@@ -805,3 +803,17 @@ prefix ever being fixed, so every citation in that document needs the same menta
 this document's own citations now carry (see §20). Flagged for whoever next touches v1; not corrected
 here since fixing it properly means re-verifying v1's actual line numbers against current `HEAD`, not
 just prepending a string, and that is a separate, larger pass over a much longer document.
+
+## Optional shared body layout for templated themes
+
+A templated theme may ship `render/base.html`, a plain HTML fragment with exactly one
+`<!-- theme-content -->` marker. The theme loader splits it at that marker; the page shell
+places the rendered body between the two parts on every route, including missing-template
+fallbacks. This is not Liquid source and grants no filesystem access to the Liquid sandbox.
+No manifest field is needed. Missing layouts retain the existing output; unreadable layouts
+or zero/multiple content markers invalidate that theme through the normal loader diagnostics.
+
+The bundled templated themes put their single marked kUInetic include here. Each bundled theme
+keeps the complete library in `assets/vendor/kuinetic/`, with LICENSE and exact removal instructions
+in its README. Static themes use their existing footer partials; the marketing theme also keeps
+its early cloak stylesheet/helper in that same library folder.

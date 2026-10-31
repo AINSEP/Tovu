@@ -13,18 +13,18 @@ import { MAX_LISTED_FILES, MAX_WALK_DEPTH, resolveThemeOriginalSource } from "..
 /**
  * @file `duplicateTheme` / `duplicateDiscoveredTheme` — the one runtime "make a new theme" service
  * behind both the `theme_duplicate` tool and the admin Duplicate route. Runs against a scratch themes
- * root holding a COPY of a real stock theme, so "the duplicate loads valid" is checked against a
+ * root holding a COPY of the minimal declarative fixture, so "the duplicate loads valid" is checked against a
  * theme that really renders, not a hand-built stub.
  */
 
 const REPO_THEMES = path.resolve(import.meta.dirname, "../../../../../../content/themes");
 const STOCK_TIER = "declarative";
-const STOCK_ID = "basic-declarative";
+const STOCK_ID = "minimal-declarative";
 
-/** Scratch themes root with one real stock theme copied in, discovered the way the server does. */
+/** Scratch themes root with one minimal declarative fixture copied in, discovered the way the server does. */
 function makeSite(): { root: string; themes: DiscoveredTheme[]; source: DiscoveredTheme } {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-duplicate-theme-"));
-  fs.cpSync(path.join(REPO_THEMES, STOCK_TIER, STOCK_ID), path.join(root, STOCK_TIER, STOCK_ID), { recursive: true });
+  fs.cpSync(path.resolve(REPO_THEMES, "../../development/fixtures/themes/minimal-declarative"), path.join(root, STOCK_TIER, STOCK_ID), { recursive: true });
   const themes = discoverAllBuiltInThemes({ dir: root, source: "built-in" });
   const source = themes.find((t) => t.manifest.id === STOCK_ID);
   assert.ok(source, "fixture stock theme must be discovered");
@@ -170,10 +170,10 @@ test("an unknown source id is refused with the discovered ids listed", () => {
 
 test("a derived id is suffixed past every collision: discovered ids, folders, and the catalog", () => {
   const { root, themes, source } = makeSite();
-  // `basic-declarative` is discovered; `basic-declarative-1` exists only in the catalog.
-  fs.mkdirSync(path.join(root, THEME_CATALOG_DIR, STOCK_TIER, "basic-declarative-1"), { recursive: true });
-  const result = duplicateTheme({ source, themesRoot: root, newName: "Basic Declarative", takenIds: new Set(themes.map((t) => t.manifest.id)) });
-  assert.equal(result.id, "basic-declarative-2");
+  // `minimal-declarative` is discovered; `minimal-declarative-1` exists only in the catalog.
+  fs.mkdirSync(path.join(root, THEME_CATALOG_DIR, STOCK_TIER, "minimal-declarative-1"), { recursive: true });
+  const result = duplicateTheme({ source, themesRoot: root, newName: "Minimal Declarative", takenIds: new Set(themes.map((t) => t.manifest.id)) });
+  assert.equal(result.id, "minimal-declarative-2");
 });
 
 test("an id discovered in ANOTHER tier still counts as taken", () => {

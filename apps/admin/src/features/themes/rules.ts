@@ -175,7 +175,7 @@ export function themeNamesById(themes: ReadonlyArray<{ id: string; name?: string
 }
 
 /**
- * What the owner sees for a theme: its `theme.json` name as authored ("Tovu Theme", "Northbound"),
+ * What the owner sees for a theme: its `theme.json` name as authored ("Tovu Theme", "Tovu Starter"),
  * or the id when the theme has no name.
  *
  * @complexity Time/space: O(1).

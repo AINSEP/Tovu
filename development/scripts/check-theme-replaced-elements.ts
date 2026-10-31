@@ -57,29 +57,13 @@
  * its own product/media components) themes reach the same `renderVideoTag` code path the same way
  * has NOT been verified here, and nobody has audited or triaged their CSS against this specific
  * rule. A quick look while writing this check found neither is clean either way —
- * `declarative/basic-declarative` constrains `img` but not `video`/`iframe`,
  * `templated/fashion-modern` constrains none of the three generally (only scoped selectors like
  * `.product-card__media img`), and `templated/storefront` ships no CSS file at all — but
- * `declarative/basic-declarative`'s own manifest says "Reference only — not wired into any site",
- * and widening this check to declarative/templated would be a NEW audit this task was not asked to
+ * widening this check to declarative/templated would be a NEW audit this task was not asked to
  * perform, layered onto a check whose whole point is to guard an already-audited, already-fixed
  * regression. If those tiers are ever audited, the fix is a one-line change: replace `SCAN_DIR`
  * below with a loop over `ENGINE_SUBFOLDERS` from `theme.ts`, reusing this file's parsing and
  * reporting untouched.
- *
- * ## RED on arrival — deliberate, same posture as `check:architecture`
- *
- * `basic` was fixed; `tailark-dusk`, `tailark-quartz-dark`, and `tailark-quartz-libre` were not —
- * the owner explicitly chose to ship this guard rather than hand-patch all of them in the same
- * session. (`fuel`, `gracious-timing`, and `portfolite` were also unfixed at the time this check
- * was written, but were removed from the repo entirely on 2026-08-31 — unconfirmed-license Framer
- * Marketplace derivatives — so they no longer appear in this check's scan at all.) This check FAILS
- * today, on purpose, and there is no baseline/allowlist file to launder that away (unlike
- * `check-architecture.baseline.json`'s ratchet, there is nothing gradual about "does this element
- * have a max-width rule" — it is binary per theme). "Done" means: each of the three remaining gets
- * `basic`'s `img, video, iframe { max-width: 100%; }` rule (or an equivalent, theme-specific
- * ruleset that satisfies the same containment property), and this check goes green with zero code
- * changes to this file.
  *
  * ## Parsing approach
  *

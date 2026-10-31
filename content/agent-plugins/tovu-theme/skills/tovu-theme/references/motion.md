@@ -6,16 +6,19 @@ appearance; do not add stats just to animate them.
 
 ## Load once
 
-Reuse the theme's vendored `scripts/vendor/kuinetic.all.min.js` and its license. When starting from
+Reuse the theme's complete `assets/vendor/kuinetic/` folder (bundle, LICENSE, README and any cloak assets). When starting from
 scratch, copy them from an installed stock theme such as `tovu-starter`; never fetch a CDN copy.
 Keep one plain synchronous tag at the end of the shared footer used by each page:
 
 ```html
-<script src="/theme-assets/<theme-id>/scripts/vendor/kuinetic.all.min.js"></script>
+<!-- kuinetic: remove these lines to drop the library -->
+<script src="/theme-assets/<theme-id>/assets/vendor/kuinetic/kuinetic.all.min.js"></script>
 ```
 
-Use the new theme's actual id. Each footer variant carries the tag, but a page includes only
-one footer. Remove duplicate page tags and old manual initializers. This is the existing
+Keep removal instructions in the library's README with exact template paths. Removing the folder
+and its marked includes leaves `data-kui` attributes inert. Use the new theme's actual id. Each footer variant carries the tag, but a page includes only
+one footer. The bundled templated themes append the marked script to each `.liquid` page template instead.
+Remove duplicate page tags and old manual initializers. This is the existing
 [v2 contract](theme-v2-contract.md#directory-layout-v2--resolvethemelayout-theme-layoutts).
 The bundle starts itself at `DOMContentLoaded`; do not create a second animator
 (`kUInetic/src/browser/boot.ts:362–369,412–429`).
@@ -52,7 +55,7 @@ immediately; motion must never gate navigation or reading.
 
 ## Visible first, reduced motion always
 
-Leave authored HTML/CSS fully visible. Do not ship a pre-JS cloak, `opacity:0`, hidden visibility
+For new themes, leave authored HTML/CSS fully visible. Do not add a pre-JS cloak, `opacity:0`, hidden visibility
 or a hidden utility class on motion targets. Use the vendored all-in-one runtime's injected CSS;
 do not add a separate stylesheet that hides targets before JavaScript runs. The runtime alone
 applies the initial animation state after it loads. Its reveal keyframes only affect opacity,
@@ -77,3 +80,7 @@ Keep its line height stable. This prevents changing digits from shifting nearby 
 
 Before delivery, check blocked/off JavaScript, reduced motion, first scroll and repeat scroll:
 content stays readable, stats show their real totals, elements run once, and layout stays still.
+
+The existing `tovu-theme` cloak is preserved during library repackaging. Its stylesheet and early
+helper live together under `assets/vendor/kuinetic/`; its README names all marked include blocks.
+Removing or replacing that folder must also remove those head includes.

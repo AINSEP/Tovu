@@ -133,9 +133,9 @@ describe("siteKeyBannerCopy (site-key plan §A.6)", () => {
 
 describe("activeThemeName", () => {
   it("names the active theme by its display name, falling back to the id", () => {
-    const settings = { activeThemeId: "tailark-dusk" };
-    expect(activeThemeName({ settings, availableThemes: [{ id: "tailark-dusk", name: "Northbound" }] })).toBe("Northbound");
-    expect(activeThemeName({ settings, availableThemes: [{ id: "tailark-dusk" }] })).toBe("tailark-dusk");
-    expect(activeThemeName({ settings })).toBe("tailark-dusk");
+    const settings = { activeThemeId: "tovu-starter" };
+    expect(activeThemeName({ settings, availableThemes: [{ id: "tovu-starter", name: "Tovu Starter" }] })).toBe("Tovu Starter");
+    expect(activeThemeName({ settings, availableThemes: [{ id: "tovu-starter" }] })).toBe("tovu-starter");
+    expect(activeThemeName({ settings })).toBe("tovu-starter");
   });
 });

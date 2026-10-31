@@ -40,26 +40,26 @@ test('packaged config is selected from Resources; explicit test path takes prece
     { ...launch, configPath: '/fake/resources/product-telemetry.json' });
   assert.deepEqual(desktopProductLaunch({ isPackaged: false, resourcesPath: '/unused', preferencePath: launch.preferencePath, version: '0.0.0-test', env: { TOVU_PRODUCT_TELEMETRY_CONFIG: '/fake/product.json' } }), launch);
   const f = fixture(); f.raw.active = false; f.consent(on);
-  const product = await bootDesktopProductTelemetry({ launch, readConsent: f.readConsent, crashReporter: f.crashReporter }, { boot: f.boot });
+  const product = await bootDesktopProductTelemetry({ launch, observabilityExportEnabled: true, readConsent: f.readConsent, crashReporter: f.crashReporter }, { boot: f.boot });
   assert.equal(product.launch, undefined); assert.deepEqual(f.starts, []); assert.deepEqual(f.events, []);
 });
 
 test('native reporter starts only with crashes already on at launch; switch-off disables uploads; late enable waits for restart', async () => {
   const f = fixture(); f.consent(on);
-  const product = await bootDesktopProductTelemetry({ launch, readConsent: f.readConsent, crashReporter: f.crashReporter }, { boot: f.boot });
+  const product = await bootDesktopProductTelemetry({ launch, observabilityExportEnabled: true, readConsent: f.readConsent, crashReporter: f.crashReporter }, { boot: f.boot });
   assert.deepEqual(f.starts, [{ ...f.raw.crashUpload, uploadToServer: true, compress: true }]);
   product.consentChanged(off); assert.deepEqual(f.uploads, [false]);
   product.consentChanged(on); assert.deepEqual(f.uploads, [false]); assert.equal(f.starts.length, 1);
   await product.dispose(); assert.equal(f.disposed(), 1);
   const later = fixture();
-  const second = await bootDesktopProductTelemetry({ launch, readConsent: later.readConsent, crashReporter: later.crashReporter }, { boot: later.boot });
+  const second = await bootDesktopProductTelemetry({ launch, observabilityExportEnabled: true, readConsent: later.readConsent, crashReporter: later.crashReporter }, { boot: later.boot });
   later.consent(on); second.consentChanged(on);
   assert.deepEqual(later.starts, []); assert.deepEqual(later.uploads, []);
 });
 
 test('app_started happens once per launch with usage consent, including a first-run grant', async () => {
   const f = fixture();
-  const product = await bootDesktopProductTelemetry({ launch, readConsent: f.readConsent, crashReporter: f.crashReporter, launchMode: 'update' }, { boot: f.boot });
+  const product = await bootDesktopProductTelemetry({ launch, observabilityExportEnabled: true, readConsent: f.readConsent, crashReporter: f.crashReporter, launchMode: 'update' }, { boot: f.boot });
   assert.deepEqual(f.events, []);
   f.consent(on); product.consentChanged(on); product.consentChanged(on);
   assert.deepEqual(f.events, [{ name: 'app_started', userId: 'system', properties: { launchMode: 'update' } }]);
@@ -94,4 +94,27 @@ test('buildServeEnv forwards exactly three product env values only with an activ
     });
     assert.equal(baseEnv.TOVU_PRODUCT_RELEASE, 'FAKE_INHERITED');
   }
+});
+
+test('denied export never starts native reporting even with explicit config, consent and an injected crash capability', async () => {
+  const f = fixture(); f.consent(on);
+  const selected = desktopProductLaunch({ isPackaged: false, resourcesPath: '/unused', preferencePath: launch.preferencePath,
+    version: '0.0.0-test', env: { TOVU_PRODUCT_TELEMETRY_CONFIG: launch.configPath } });
+  const product = await bootDesktopProductTelemetry({ launch: selected, observabilityExportEnabled: false,
+    readConsent: f.readConsent, crashReporter: f.crashReporter }, { boot: f.boot });
+  assert.equal(f.loads(), 1, 'configuration and analytics boot remain available');
+  assert.deepEqual(f.starts, []);
+  product.consentChanged(on);
+  assert.deepEqual(f.starts, []);
+  await product.dispose();
+});
+
+test('packaging fact is cleared before setting it from main, independently of product config', () => {
+  const baseEnv = { TOVU_PACKAGED_DESKTOP: '1' };
+  assert.equal(buildServeEnv({ repoRoot: '/fake', baseEnv }).TOVU_PACKAGED_DESKTOP, undefined);
+  assert.equal(buildServeEnv({ repoRoot: '/fake', baseEnv, isPackaged: false }).TOVU_PACKAGED_DESKTOP, '0');
+  const packaged = buildServeEnv({ repoRoot: '/fake', baseEnv: { TOVU_PACKAGED_DESKTOP: '0' }, isPackaged: true });
+  assert.equal(packaged.TOVU_PACKAGED_DESKTOP, '1');
+  assert.equal(packaged.TOVU_PRODUCT_TELEMETRY_CONFIG, undefined);
+  assert.equal(baseEnv.TOVU_PACKAGED_DESKTOP, '1', 'inherited input remains immutable');
 });

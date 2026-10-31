@@ -702,8 +702,6 @@ test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one ma
   assert.deepEqual(
     themesPayload.themes.map((t) => t.id),
     [
-      "basic-2",
-      "basic-declarative",
       "fashion-modern",
       // No `mui-marketing` here on purpose. That folder was swept in by 39096e15 (the ESM root
       // flip) alongside the ARCH-001 scratch dirs, and its own manifest called it a "Test theme
@@ -713,9 +711,6 @@ test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one ma
       // here: this endpoint reports EVERY discovered theme regardless of validity (see the
       // comment above), so a restored folder WILL appear and fail this exact-match assertion.
       "storefront",
-      "tailark-dusk",
-      "tailark-quartz-dark",
-      "tailark-quartz-libre",
       "tovu-starter",
       "tovu-theme",
     ]

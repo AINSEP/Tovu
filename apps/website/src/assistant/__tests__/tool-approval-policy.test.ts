@@ -259,3 +259,13 @@ test('a failing locale lookup still asks, in English, and never bypasses the gat
   assert.equal((await card.pending).status, 'completed');
   assert.equal(f.calls(), 0);
 });
+
+
+test('published plugin details and inspect disclosures run directly; state-changing handles still ask', () => {
+  for (const action of ['details', 'inspect']) {
+    assert.equal(directPageAction({ capabilityId: 'page.click', input: { handle: `agent-plugin-row-ui-ux-design-${action}` } }), true);
+  }
+  for (const action of ['enabled', 'remove', 'delete-confirm', 'inspect-confirm']) {
+    assert.equal(directPageAction({ capabilityId: 'page.click', input: { handle: `agent-plugin-row-ui-ux-design-${action}` } }), false);
+  }
+});

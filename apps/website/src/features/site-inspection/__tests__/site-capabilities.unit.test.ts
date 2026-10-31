@@ -327,3 +327,15 @@ test("tools section: rows sharing one id stay listed side by side in a stable so
   const result = await buildSiteCapabilities(makeDeps({ tools: rows }), { principalId: PRINCIPAL_ID }, { sections: ["tools"] });
   assert.deepEqual(result.sections.tools?.data?.domains[0]?.tools.map((tool) => tool.id), ["site_a", "site_a", "site_b"]);
 });
+
+test("admin screens expose each panel purpose and its entity/query contract to the assistant", async () => {
+  const { ADMIN_SCREENS: published } = await import("../admin-screens.generated.js");
+  const deps = { ...makeDeps(), listAdminScreens: () => published };
+  const result = await buildSiteCapabilities(deps, { principalId: PRINCIPAL_ID });
+  const screen = result.sections.adminScreens?.data?.screens.find(row => row.id === "agent-plugins");
+  assert.ok(screen);
+  assert.equal(screen.description, "Manage agent plugins: install, view details, turn on/off.");
+  assert.equal(screen.path, "/addons/agent-plugins");
+  assert.deepEqual(screen.entityTargets, [{ type: "agent-plugin", routeTemplate: "/addons/agent-plugins" }]);
+  assert.deepEqual(screen.allowedQueryParams?.tab, ["installed", "downloaded", "add", "marketplace"]);
+});

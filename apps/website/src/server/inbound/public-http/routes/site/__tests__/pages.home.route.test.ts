@@ -47,13 +47,13 @@ test("GET /_more/1/<after>: a batch request for a static home with no see-more l
   assert.equal((await fetch(`${baseUrl}/_more/1/13`)).status, 404);
 });
 
-function basicTwo() {
-  return loadTheme({ themeDir: path.resolve("content/themes/static/basic-2"), id: "basic-2", source: "built-in" });
+function starterTheme() {
+  return loadTheme({ themeDir: path.resolve("content/themes/static/tovu-starter"), id: "tovu-starter", source: "built-in" });
 }
 const titlesIn = (html: string) => [...html.matchAll(/<title>([^<]*)<\/title>/g)].map((match) => match[1]);
 
 async function staticHomeTitles(t: TestContext, siteTitle: () => Promise<string | undefined>) {
-  const theme = basicTwo();
+  const theme = starterTheme();
   const base = createRouteDeps();
   const { baseUrl } = await boot(t, { themes: [theme], postRepo: new InMemoryPostRepo([]), seoDeps: { ...base.seoDeps, siteTitle } });
   const response = await fetch(`${baseUrl}/`);

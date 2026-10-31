@@ -56,7 +56,7 @@ it("returns an answerable approval and shows the same exact action to the human 
   expect(f.driver.click).not.toHaveBeenCalled();
   expect(screen.getByRole("dialog")).toHaveTextContent("Allow the browser agent to perform this admin action?");
   expect(screen.getByRole("dialog")).toHaveTextContent('"post-delete-confirm"');
-  expect(screen.getByRole("button", { name: "Confirm" })).toHaveAttribute("data-agent-element", "webmcp-page-approval-confirm");
+  expect(screen.getByRole("button", { name: "Confirm" })).not.toHaveAttribute("data-agent-element");
   await act(async () => { await f.respond(true); });
   expect(f.driver.click).toHaveBeenCalledExactlyOnceWith({ handle: "post-delete-confirm" });
   expect(screen.queryByRole("dialog")).toBeNull();
@@ -142,4 +142,20 @@ it("retains credential-field and navigation guards after approval, and refuses d
   enabled = false;
   await expect(f.approvals.respond({ approvalId: "approval-1", approved: true })).rejects.toThrow("WebMCP admin access is disabled or closed");
   expect(f.driver.click).not.toHaveBeenCalled();
+});
+
+it('the assistant awaits the same dialog and cannot redeem its own human-only proposal', async () => {
+  const approvals = createAdminPageApprovalStore({}, { createId: () => 'assistant-call' });
+  render(<AdminPageApprovalDialog locale="en" approvals={approvals} />);
+  const controller = new AbortController();
+  let waiting!: ReturnType<typeof approvals.request>;
+  await act(async () => {
+    waiting = approvals.request({ interaction: { capability: PAGE_CAPABILITIES.find(capability => capability.id === 'page.click')!, args: { handle: 'plugin-details' } }, signal: controller.signal });
+  });
+  expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  expect(screen.getByRole('button', { name: 'Confirm' })).not.toHaveAttribute('data-agent-element');
+  await expect(approvals.respond({ approvalId: 'assistant-call', approved: true })).rejects.toThrow('app dialog');
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Confirm' })); });
+  expect(await waiting).toEqual({ confirmed: true });
+  expect(approvals.getSnapshot().pending).toBeNull();
 });

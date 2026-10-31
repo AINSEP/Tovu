@@ -22,7 +22,7 @@ const CODE_REQUEST_VIEW = "code-request";
  *
  * Each page is a Page built in memory and rendered by `serveVirtualPage`, so it wears the active
  * theme exactly like an authored Page. Registered before `GET /:slug`, so these paths win over a
- * theme's own placeholder `signin.html` mock (tovu-theme, basic-2). The markup is inert: every view
+ * theme's own placeholder `signin.html` mock (tovu-theme). The markup is inert: every view
  * starts `hidden` and `http/site/member-auth-script.ts` (injected by `finalizePublicPageHtml` on
  * any page with `data-member-page`) shows one, wires the forms and talks to the member API. Field
  * classes are the themes' own auth hooks (`.field`, `.btn`), with that script's `:where()` fallback.

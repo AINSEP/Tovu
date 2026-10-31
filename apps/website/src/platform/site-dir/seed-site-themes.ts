@@ -20,7 +20,7 @@ import { seedStarterTitle } from "./seed-starter-title.js";
  * Why it copies ONLY {@link SEEDED_STOCK_THEME_IDS} (owner, 2026-10-08)
  * ---------------------------------------------------------------------------
  * It used to copy the whole stock tree (~19MB), so every new site started with every stock theme
- * (basic-2, Meridian, Northbound, the templated demos, ...). The owner wants a new site to hold
+ * (marketing themes, the templated demos, ...). The owner wants a new site to hold
  * only `tovu-starter`. The other stock themes stay in the package; they are just not copied.
  * Discovery of `themesDir` IS the site's theme list (`discoverAllBuiltInThemes`), so a theme left
  * out here does not exist to that site's admin UI. The seeded theme's `__original-themes__/` entry

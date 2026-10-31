@@ -480,7 +480,7 @@ export interface AdminObservabilityStatus {
   enabled: boolean;
   serviceName: string | null;
   canSendTestError?: boolean;
-  providers?: { providerId: string; lastExport: AdminTelemetryDeliveryStatus | null; lastShutdown: AdminTelemetryDeliveryStatus | null }[];
+  providers?: { providerId: string; exportEnabled?: boolean; lastExport: AdminTelemetryDeliveryStatus | null; lastShutdown: AdminTelemetryDeliveryStatus | null }[];
 }
 /** Sanitized delivery DTO from the server; status carries no destination path or credential. */
 export interface AdminTelemetryDeliveryStatus {
