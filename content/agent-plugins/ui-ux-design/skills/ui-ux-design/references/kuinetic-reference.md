@@ -1,7 +1,7 @@
 # kUInetic Reference
 
-> Maintained in AI-Dev-Shop (session `ai-dev-shop-e5`). Downstream copies are synced from
-> here; edit it in AI-Dev-Shop, not in a downstream copy.
+> Maintained in AI-Dev-Shop. Downstream copies are synced from here; edit it in
+> AI-Dev-Shop, not in a downstream copy.
 
 Attribute and effect lookup for kUInetic, the declarative `data-kui` animation library.
 `ui-animation.md` owns when to use it and the motion rules; this file only lists what

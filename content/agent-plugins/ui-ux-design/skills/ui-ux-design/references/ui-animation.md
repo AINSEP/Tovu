@@ -1,7 +1,7 @@
 # UI Animation
 
-> Maintained in AI-Dev-Shop (session `ai-dev-shop-e5`). Downstream copies are synced from
-> here; edit it in AI-Dev-Shop, not in a downstream copy.
+> Maintained in AI-Dev-Shop. Downstream copies are synced from here; edit it in
+> AI-Dev-Shop, not in a downstream copy.
 
 Use this reference when implementing any animation: scroll reveals, text reveals,
 transitions, pinned or scroll-linked sections, or micro-interactions.
