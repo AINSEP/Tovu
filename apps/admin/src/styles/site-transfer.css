@@ -78,3 +78,16 @@
 @media (max-width: 720px) {
   .site-transfer-head > .btn-primary { width: 100%; justify-content: center; }
 }
+
+/* The native popover stays above clipped admin panels; its trigger supplies the anchor. */
+.static-export-split { display: inline-flex; align-items: stretch; }
+.static-export-action { display: inline-flex; align-items: center; gap: var(--space-2); min-block-size: 37px; border-start-end-radius: 0; border-end-end-radius: 0; }
+.static-export-toggle { anchor-name: --static-export-picker; min-inline-size: 37px; border-inline-start: 0; border-start-start-radius: 0; border-end-start-radius: 0; }
+.static-export-popover { position: fixed; position-anchor: --static-export-picker; position-area: block-end span-inline-start; position-try-fallbacks: flip-block, flip-inline; inset: auto; margin: 0; margin-block-start: var(--space-2); padding: 0; border: 0; background: transparent; color: var(--fg); overflow: visible; }
+.static-export-panel.jini-popover { position: static; inline-size: min(20rem, calc(100vi - 2rem)); padding: var(--space-2); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-md); }
+.static-export-theme-list { max-block-size: 240px; overflow-y: auto; overscroll-behavior: contain; }
+.static-export-check { display: flex; align-items: center; gap: var(--space-2); min-block-size: 37px; padding-block: var(--space-2); padding-inline: var(--space-3); cursor: pointer; overflow-wrap: anywhere; }
+.static-export-check input { flex: none; accent-color: var(--accent); }
+.static-export-all { border-block-end: 1px solid var(--border); }
+.static-export-check:focus-within { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r-sm); }
+@media (pointer: coarse) { .static-export-action, .static-export-toggle, .static-export-check { min-block-size: 44px; } }

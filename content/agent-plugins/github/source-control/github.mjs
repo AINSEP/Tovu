@@ -13,6 +13,11 @@ import { createFileWriter, createGitDataClient } from "./write-files.mjs";
  * an installed plugin has none, so everything else comes from the kit core passes in.
  *
  * @typedef {{
+ *   repositoryPaths: {
+ *     normalizeFolder(required: { folder?: unknown }): string,
+ *     prefixPath(required: { folder?: string, path: string }): string,
+ *     contains(required: { folder?: string, path: string }): boolean,
+ *   },
  *   fetch(url: string, init: RequestInit): Promise<Response>,
  *   redirectGuardInit(init: RequestInit): RequestInit,
  *   assertNotRedirected(response: Response, hostName: string): void,
@@ -36,6 +41,7 @@ const OWNER_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
 const REPO_PATTERN = /^[A-Za-z0-9_.-]{1,100}$/;
 
 export default {
+  supportsFolder: true,
   /**
    * GitHub's own owner/repo rules, checked before anything is built or sent. Core applies its
    * generic one-path-segment rule after this.

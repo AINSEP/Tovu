@@ -1,3 +1,5 @@
+import { useInvalidate } from "@jini-ai/ui/fetch-query";
+import { STATIC_EXPORT_OPTIONS_KEY } from "../hooks/use-static-export-selection.hooks";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -67,6 +69,8 @@ describe("site transfer port", () => {
     { name: "createShare poll", run: () => defaultSiteTransferPort.createShare({ jobId: "job-1" }), path: "/site-shares", method: "POST", contentType: undefined, body: JSON.stringify({ jobId: "job-1" }) },
     { name: "revokeShare", run: () => defaultSiteTransferPort.revokeShare({ shareId: "a/b" }), path: "/site-shares/a%2Fb", method: "DELETE", contentType: undefined, body: undefined },
     { name: "listImports", run: () => defaultSiteTransferPort.listImports(), path: "/site-imports", method: "GET", contentType: undefined, body: undefined },
+    { name: "staticExportOptions", run: () => defaultSiteTransferPort.staticExportOptions({}), path: "/site-shares/static/options", method: "GET", contentType: undefined, body: undefined },
+    { name: "startSelectedStaticShare", run: () => defaultSiteTransferPort.createStaticShare({ themeIds: ["poster", "editorial"] }), path: "/site-shares/static", method: "POST", contentType: undefined, body: JSON.stringify({ themeIds: ["poster", "editorial"] }) },
     { name: "createStaticShare", run: () => defaultSiteTransferPort.createStaticShare({}), path: "/site-shares/static", method: "POST", contentType: undefined, body: JSON.stringify({}) },
     { name: "pollStaticShare", run: () => defaultSiteTransferPort.createStaticShare({ jobId: "static-job" }), path: "/site-shares/static", method: "POST", contentType: undefined, body: JSON.stringify({ jobId: "static-job" }) },
     { name: "startImport", run: () => defaultSiteTransferPort.startImport({ url: "https://example.com/s/abc" }), path: "/site-imports", method: "POST", contentType: undefined, body: JSON.stringify({ url: "https://example.com/s/abc" }) },
@@ -90,6 +94,18 @@ describe("site transfer port", () => {
 
   it("the download href is the share's admin zip route", () => {
     expect(defaultSiteTransferPort.shareDownloadHref(share({ shareId: "s 1" }))).toBe("/api/admin/v1/workspaces/workspace-local/site-shares/s%201/download");
+  });
+
+  it.each(["site-static-2026-10-30-1015.zip", "site.tovu.zip"])("downloads with the supplied filename %s", file => {
+    let download: { name: string; href: string; attached: boolean } | undefined;
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      download = { name: this.download, href: this.getAttribute("href")!, attached: document.body.contains(this) };
+    });
+    try {
+      defaultSiteTransferPort.downloadShare({ share: share({ file }) });
+      expect(download).toEqual({ name: file, href: "/api/admin/v1/workspaces/workspace-local/site-shares/share-1/download", attached: true });
+      expect(document.querySelector(`a[download="${file}"]`)).toBeNull();
+    } finally { click.mockRestore(); }
   });
 });
 
@@ -480,4 +496,35 @@ describe("useSiteImport", () => {
     expect(dockRequests).toEqual([true]);
     unsubscribe();
   });
+});
+
+
+it("static selection preserves toggle order and sends IDs only on start", async () => {
+  const themes = [{ themeId: "a", name: "a" }, { themeId: "b", name: "b" }, { themeId: "c", name: "c" }];
+  const port = createFakeSiteTransferPort({ staticExportOptions: async () => ({ activeThemeId: "a", themes }),
+    createStaticShare: vi.fn().mockResolvedValueOnce({ jobId: "static-job", phase: "preparing" }).mockResolvedValueOnce(share()), downloadShare: vi.fn() });
+  const { result } = renderHook(() => useSiteExport({ port, t }), { wrapper });
+  await waitFor(() => expect(result.current.selectedThemeIds).toEqual(["a"]));
+  act(() => { result.current.toggleStaticTheme({ themeId: "a" }); result.current.toggleStaticTheme({ themeId: "c" }); result.current.toggleStaticTheme({ themeId: "b" }); });
+  expect(result.current.selectedThemeIds).toEqual(["c", "b"]);
+  await act(async () => result.current.exportStaticSite());
+  expect(port.createStaticShare).toHaveBeenNthCalledWith(1, { themeIds: ["c", "b"] });
+  expect(port.createStaticShare).toHaveBeenNthCalledWith(2, { jobId: "static-job" });
+});
+
+
+it("roster refresh prunes removed IDs without rechecking the active theme or clearing deliberate choices", async () => {
+  let options = { activeThemeId: "a", themes: [{ themeId: "a", name: "a" }, { themeId: "b", name: "b" }, { themeId: "c", name: "c" }] };
+  const port = createFakeSiteTransferPort({ staticExportOptions: async () => options });
+  const { result } = renderHook(() => ({ controller: useSiteExport({ port, t }), invalidate: useInvalidate() }), { wrapper });
+  await waitFor(() => expect(result.current.controller.selectedThemeIds).toEqual(["a"]));
+  act(() => { result.current.controller.toggleStaticTheme({ themeId: "a" }); result.current.controller.toggleStaticTheme({ themeId: "c" }); result.current.controller.toggleStaticTheme({ themeId: "b" }); });
+  options = { activeThemeId: "a", themes: [{ themeId: "a", name: "a" }, { themeId: "b", name: "b" }] };
+  act(() => result.current.invalidate({ key: [...STATIC_EXPORT_OPTIONS_KEY] }));
+  await waitFor(() => expect(result.current.controller.selectedThemeIds).toEqual(["b"]));
+  act(() => result.current.controller.toggleStaticTheme({ themeId: "b" }));
+  options = { ...options, activeThemeId: "b", themes: [...options.themes, { themeId: "d", name: "d" }] };
+  act(() => result.current.invalidate({ key: [...STATIC_EXPORT_OPTIONS_KEY] }));
+  await waitFor(() => expect(result.current.controller.staticThemes).toHaveLength(3));
+  expect(result.current.controller.selectedThemeIds).toEqual([]);
 });

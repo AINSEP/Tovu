@@ -1516,3 +1516,40 @@ test("exportSite: a paged post listing exports every page as <page>/page/<n>/ind
   assert.match(third, /rel="prev" href="\/blog\/page\/2"/);
   assert.deepEqual(report.routes.failed.filter((r) => r.path.includes("/page/")), []);
 });
+
+test("exportSite: explicit inactive theme owns its manifest, HTML and assets without changing presentation", async t => {
+  const deps = createRouteDeps(), outputDir = makeTmpOutputDir(), themeDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+  t.after(() => rmSync(themeDir, { recursive: true, force: true }));
+  const before = await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId });
+  const inactive: DiscoveredTheme = { ...deps.themes.find(theme => theme.status === "valid")!,
+    manifest: { ...deps.themes[0]!.manifest, id: "inactive-export", name: "Inactive", tier: "static", engine: 1, publishedPages: ["inactive-only"] },
+    dir: themeDir, pages: { index: '<html><body>INACTIVE HOME<img src="/theme-assets/inactive-export/marker.svg"></body></html>', "inactive-only": "<html><body>INACTIVE ONLY</body></html>" },
+    partials: {}, css: "", status: "valid", errors: [] };
+  writeFileSync(path.join(themeDir, "marker.svg"), '<svg xmlns="http://www.w3.org/2000/svg"><text>inactive asset</text></svg>');
+  deps.themes.push(inactive);
+  const report = await exportSite({ routeDeps: deps, outputDir, themeId: "inactive-export", includeThemePreviews: true });
+  assert.match(readFileSync(path.join(outputDir, "index.html"), "utf8"), /INACTIVE HOME/);
+  assert.match(readFileSync(path.join(outputDir, "inactive-only/index.html"), "utf8"), /INACTIVE ONLY/);
+  assert.ok(report.assets.succeeded.some(asset => asset.url === "/theme-assets/inactive-export/marker.svg"));
+  assert.ok(!report.routes.succeeded.some(route => route.path.startsWith("/_themes/")));
+  assert.deepEqual(await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId }), before);
+});
+
+test("exportSite: selected theme binds app and manifest together through the existing transport", async t => {
+  const deps = createRouteDeps(), outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+  const original = deps.themes.find(theme => theme.status === "valid")!;
+  deps.themes.push({ ...original, manifest: { ...original.manifest, id: "isolated-selection", tier: "static", publishedPages: ["selection-only"] }, pages: { index: "<html>home</html>", "selection-only": "<html>selected</html>" } });
+  const before = await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId });
+  const create = t.mock.method(deps, "createSiteApp", () => express());
+  t.mock.method(Server.prototype, "listen", function (this: Server) { queueMicrotask(() => this.emit("listening")); return this; });
+  t.mock.method(Server.prototype, "address", () => ({ address: "127.0.0.1", family: "IPv4", port: 43210 }));
+  t.mock.method(Server.prototype, "close", function (this: Server, callback: () => void) { callback(); return this; });
+  t.mock.method(Server.prototype, "closeAllConnections", () => {});
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => new Response("<html>selected transport</html>", { status: new URL(String(input)).pathname === "/tovu-export-404-check" ? 404 : 200, headers: { "content-type": "text/html" } }));
+  const report = await exportSite({ routeDeps: deps, outputDir, themeId: "isolated-selection", includeThemePreviews: true });
+  assert.deepEqual(create.mock.calls[0]!.arguments, [{ themeId: "isolated-selection" }]);
+  assert.ok(report.routes.succeeded.some(route => route.path === "/selection-only"));
+  assert.deepEqual(await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId }), before);
+});

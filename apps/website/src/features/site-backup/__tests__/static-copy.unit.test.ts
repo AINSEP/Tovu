@@ -8,7 +8,8 @@ import * as yauzl from "yauzl";
 import { JSDOM } from "jsdom";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import type { ExportReport } from "../../site-export/site-exporter.js";
-import { captureStaticSite, isStaticSitePath } from "../static-copy.js";
+import { captureStaticSite, isStaticSitePath, prepareStaticReport } from "../static-copy.js";
+import { staticDownloadLayout } from "../static-download-layout.js";
 import { buildShareZip, buildStaticSiteZip } from "../share-zip.js";
 import { createShareArchiveReader } from "../import-archive-reader.js";
 import { verifySiteImport } from "../import-verifier.js";
@@ -16,9 +17,22 @@ import { createSiteShareBackend } from "../share-backend.js";
 import { SiteShareRegistry } from "../share-registry.js";
 import type { SiteSharePlanContent } from "../plan-store.js";
 import { SHARE_LIMITS } from "../share-policy.js";
+import { renderRedirectStub } from "@jini-ai/devops/static-export";
+import { rewriteExportOriginResponse } from "../../site-export/public-origin-policy.js";
 
 const now = () => new Date("2026-10-30T17:15:00.000Z");
 const context = async () => ({ name: "My Site", slug: "my-site", theme: "Active Theme", timeZone: "America/Los_Angeles" });
+
+test('portable layout accepts rendered files and theme context without fabricated backup metadata', () => {
+  const exported = report('/unused');
+  exported.routes.succeeded[0]!.data = '<form action="/forms/contact/send" method="post"><button>Send</button></form>';
+  const prepared = prepareStaticReport({ report: exported });
+  const files = staticDownloadLayout({ copy: { files: prepared.files, themeId: 'my-summer', siteSlug: 'my-site' } });
+  assert.ok(files.some(file => file.path === 'sites/summer/index.html'));
+  assert.match(files.find(file => file.path === 'Open website.html')!.content.toString(), /sites\/summer\/index.html/);
+  assert.doesNotMatch(files.find(file => file.path === 'sites/summer/index.html')!.content.toString(), /action="\/forms/);
+  assert.match(String(exported.routes.succeeded[0]!.data), /action="\/forms/);
+});
 const schema = { index: 1, tag: "test" };
 function report(outputDir: string): ExportReport {
   return { outputDir, routes: { succeeded: [{ path: "/", kind: "home", outputFile: "index.html", data: "<main>Active theme</main>" }], failed: [] },
@@ -139,7 +153,7 @@ test("static-only ZIP and top folder use the display name with a dated README an
       ], failed: [] } }) } });
   const result = await backend.create({ principalId: "owner", signal: new AbortController().signal, format: "static" }, { waitMs: 60_000 }) as { shareId: string; file: string };
   assert.equal(result.file, "my-site-static-2026-10-30-1015.zip");
-  assert.ok(!("message" in result), "a private static download does not suggest missing public hosting");
+  assert.equal((result as unknown as { message: string }).message, 'Extract the ZIP, then double-click “Open website.html” inside the extracted folder. No local server is needed to view the exported pages. README.txt lists features that need a server.');
   const files = await unpack(await readFile(registry.artifactPath({ shareId: result.shareId })));
   assert.deepEqual([...files.keys()].sort(), ["Open website.html", "README.txt", "sites/my-theme/css/site.css", "sites/my-theme/index.html", "sites/my-theme/js/site.js"].map(file => "my-site-static-2026-10-30-1015/" + file));
 });
@@ -249,11 +263,12 @@ function downloadReport({ outputDir, theme = "zoran-poster", documents = true }:
   ], failed: [] }, assets: { succeeded: assets.map(([url, data]) => ({ url, outputFile: url.slice(1), data: Buffer.from(data) })), failed: [] } };
 }
 
-async function downloadFixture({ theme = "zoran-poster", slug = "zoran-new", documents = true, extraAssets = [], extraHtml = "" }: {
-  theme?: string; slug?: string; documents?: boolean; extraAssets?: ExportReport["assets"]["succeeded"]; extraHtml?: string;
+async function downloadFixture({ theme = "zoran-poster", slug = "zoran-new", documents = true, extraAssets = [], extraHtml = "", configure = () => {} }: {
+  theme?: string; slug?: string; documents?: boolean; extraAssets?: ExportReport["assets"]["succeeded"]; extraHtml?: string; configure?: (report: ExportReport) => void;
 } = {}, _options = {}) {
   const rendered = downloadReport({ outputDir: "unused-render-directory", theme, documents });
   rendered.assets.succeeded.push(...extraAssets);
+  configure(rendered);
   for (const route of rendered.routes.succeeded) {
     if (route.outputFile.endsWith(".html")) route.data = route.data.replace("</body>", extraHtml + "</body>");
   }
@@ -420,17 +435,130 @@ test("download Open website.html has a relative meta refresh and plain link to t
   assert.ok(files.has(downloadFolder + "sites/poster/index.html"));
 });
 
-test("download README replaces only the host instruction with viewing and publishing instructions", async () => {
-  const { files, copy } = await downloadFixture();
+test("a partial download without its home page opens a surviving content page", async () => {
+  const { files } = await downloadFixture({ configure: report => {
+    report.routes.succeeded = report.routes.succeeded.filter(route => route.path !== "/");
+    report.routes.failed.push({ path: "/", kind: "home", reason: "render failed" });
+  } });
+  const launcher = new JSDOM(downloadText({ files, suffix: "/Open website.html" })).window.document;
+  const href = launcher.querySelector("a")!.getAttribute("href")!;
+  assert.equal(href, "sites/poster/about/index.html");
+  assert.ok(files.has(downloadFolder + href), "launcher must open a delivered page after partial failure");
+  assert.match(downloadText({ files, suffix: "/README.txt" }), /Not included: Page \/ could not be rendered\./);
+});
+
+test("download README describes final entries and file-relative links", async () => {
+  const { files } = await downloadFixture();
   const readme = downloadText({ files, suffix: "/README.txt" });
-  assert.ok(readme.includes('To look at it: open "Open website.html".\nTo publish it by hand: upload sites/poster/ and media/ together, keeping them side by side.\n'));
+  assert.ok(readme.includes('To look at it: extract the ZIP, then double-click "Open website.html".\nTo publish it by hand: upload sites/poster/ and media/ together, keeping them side by side.\n'), "README must explain extraction, double-clicking and the delivered hierarchy");
   assert.doesNotMatch(readme, /Open with any static web host \(links start at the site root\)\./);
-  const original = copy.files.find(file => file.path === "README.txt")!.content.toString();
-  assert.equal(readme, original.replace("Open with any static web host (links start at the site root).",
-    'To look at it: open "Open website.html".\nTo publish it by hand: upload sites/poster/ and media/ together, keeping them side by side.'));
+  assert.doesNotMatch(readme, /paths starting at the site root/);
   assert.match(readme, /^Public Studio — static copy\nExported: Friday, October 30, 2026 at 10:15 AM PDT \(2026-10-30T10:15:00-07:00\)\nTheme: zoran-poster\nContains: 5 pages and posts, 4 images, 1 video\./);
   assert.match(readme, /No public domain is set, so sitemap.xml was left out\./);
+  assert.equal(readme, [
+    "Public Studio — static copy",
+    "Exported: Friday, October 30, 2026 at 10:15 AM PDT (2026-10-30T10:15:00-07:00)",
+    "Theme: zoran-poster",
+    "Contains: 5 pages and posts, 4 images, 1 video.",
+    'To look at it: extract the ZIP, then double-click "Open website.html".',
+    "To publish it by hand: upload sites/poster/ and media/ together, keeping them side by side.",
+    "Page, asset, social images and llms.txt links are relative to their containing files; external links keep their URLs.",
+    "No public domain is set, so sitemap.xml was left out.",
+    "The Sitemap line in robots.txt was removed and feed.xml was left out because both need absolute public URLs.",
+    "Canonical and og:url metadata and JSON-LD url/@id values were removed.", "",
+  ].join("\n"));
 });
+
+test("static completion after polling includes opening instructions while pending stays progress-only", async t => {
+  let release!: () => void;
+  const hold = new Promise<void>(resolve => { release = resolve; });
+  const backend = createSiteShareBackend({ registry: new SiteShareRegistry({ directory: await rootFor(t) }), site: "ws", zip: zipFolderFiles,
+    prepare: async () => { throw new Error("no backup"); }, delivery: async () => undefined,
+    staticSite: { context, now, render: async ({ outputDir }) => { await hold; return report(outputDir); } } });
+  const input = { principalId: "owner", signal: new AbortController().signal, format: "static" as const };
+  const pending = await backend.create(input, { waitMs: 1 }) as { jobId: string };
+  assert.ok(pending.jobId);
+  assert.ok(!("message" in pending));
+  release();
+  const complete = await backend.create({ ...input, jobId: pending.jobId }, { waitMs: 60_000 }) as { message: string };
+  assert.match(complete.message, /Extract the ZIP, then double-click “Open website.html”/);
+});
+
+for (const publicOrigin of [undefined, "https://public.example.test"]) {
+  test(`download README counts final files and llms/social links resolve with origin ${publicOrigin}`, async () => {
+    const { files } = await downloadFixture({ extraHtml: '<meta property="og:image" content="/m/portrait/public.v1/image.webp">',
+      extraAssets: [{ url: "/m/unused/original.png", outputFile: "m/unused/original.png", data: Buffer.from("unused") }],
+      configure: rendered => {
+        rendered.publicOrigin = publicOrigin;
+        rendered.routes.succeeded.find(route => route.path === "/llms.txt")!.data = `# Public Studio\n- [About](${publicOrigin ?? ""}/about?from=llms#team): Meet us\n`;
+        rendered.routes.succeeded.push({ path: "/old", kind: "redirect", outputFile: "old/index.html", data: renderRedirectStub({ location: "/about" }) });
+        rendered.routes.failed.push({ path: "/broken", kind: "page", reason: "render failure" });
+      } });
+    const readme = downloadText({ files, suffix: "/README.txt" });
+    assert.match(readme, /Contains: 5 pages and posts, 4 images, 1 video\./);
+    assert.match(readme, /Not included: Page \/broken could not be rendered\./);
+    assert.match(readme, /social images and llms.txt links are relative to their containing files/);
+    assert.doesNotMatch(readme, /paths starting at the site root/);
+    assert.ok(!files.has(downloadFolder + "media/unused.png"));
+    const llmsPath = downloadFolder + "sites/poster/llms.txt";
+    const llms = files.get(llmsPath)!.toString();
+    assert.equal(llms, "# Public Studio\n- [About](about/index.html?from=llms#team): Meet us\n");
+    for (const [source, value] of [[llmsPath, /\]\(([^)]+)\)/.exec(llms)![1]!],
+      [downloadFolder + "sites/poster/index.html", downloadDocument({ files, page: "/" }).querySelector('meta[property="og:image"]')!.getAttribute("content")!]]) {
+      const destination = new URL(value, "https://zip.test/" + source).pathname.slice(1);
+      assert.ok(files.has(destination), `${source} -> ${value} resolves to delivered ${destination}`);
+    }
+    if (publicOrigin) assert.doesNotMatch(readme, /No public domain is set/);
+    else assert.match(readme, /No public domain is set, so sitemap.xml was left out/);
+  });
+}
+
+for (const [rules, expected] of [["", "User-agent: *\nAllow: /\n"], ["User-agent: *\nDisallow: /private\n", "User-agent: *\nDisallow: /private\n"]]) {
+  test(`download robots preserves configured rules or defaults when empty: ${JSON.stringify(rules)}`, async () => {
+    const { files, rendered } = await downloadFixture({ configure: report => { report.routes.succeeded.find(route => route.path === "/robots.txt")!.data = rules; } });
+    assert.equal(downloadText({ files, suffix: "/robots.txt" }), expected);
+    assert.equal(rendered.routes.succeeded.find(route => route.path === "/robots.txt")!.data, rules, "capture/publish bytes stay unchanged");
+  });
+}
+
+for (const publicOrigin of [undefined, "https://public.example.test"]) {
+  for (const sitemapEnabled of [false, true]) {
+    for (const rules of ["", "User-agent: *\nDisallow: /\n"]) {
+      test(`robots origin policy and ZIP packaging: origin=${publicOrigin}, sitemap=${sitemapEnabled}, rules=${!!rules}`, async () => {
+        const body = rules + (sitemapEnabled ? "Sitemap: http://127.0.0.1:3456/sitemap.xml\n" : "");
+        const response = await rewriteExportOriginResponse({ response: new Response(body, { headers: { "content-type": "text/plain" } }),
+          url: "http://127.0.0.1:3456/robots.txt", publicOrigin });
+        const captured = await response.text();
+        const { files } = await downloadFixture({ configure: report => {
+          report.publicOrigin = publicOrigin;
+          report.routes.succeeded.find(route => route.path === "/robots.txt")!.data = captured;
+        } });
+        const robots = downloadText({ files, suffix: "/robots.txt" });
+        assert.equal(robots, captured.trim() ? captured : "User-agent: *\nAllow: /\n");
+        assert.equal(robots.includes("Sitemap:"), !!publicOrigin && sitemapEnabled);
+        if (rules) assert.ok(robots.startsWith(rules), "configured blocking rules are preserved");
+        assert.doesNotMatch(robots, /127\.0\.0\.1/);
+      });
+    }
+  }
+}
+
+for (const [from, destination] of [["our-why", "/about?ref=old#team"], ["old/nested", "/projects/featured?ref=old#work"], ["external", "https://elsewhere.test/path?q=1#there"]]) {
+  test(`download redirect ${from} retains relative refresh and fallback destination`, async () => {
+    const { files } = await downloadFixture({ configure: rendered => rendered.routes.succeeded.push({ path: "/" + from, kind: "redirect", outputFile: `${from}/index.html`, data: renderRedirectStub({ location: destination }) }) });
+    const source = downloadFolder + `sites/poster/${from}/index.html`;
+    const doc = new JSDOM(files.get(source)!.toString()).window.document;
+    const href = doc.querySelector("a")!.getAttribute("href")!;
+    const refresh = doc.querySelector('meta[http-equiv="refresh"]')!.getAttribute("content")!;
+    assert.equal(refresh.replace(/^0;\s*/, "0;"), "0;url=" + href);
+    assert.equal(doc.querySelector("[data-download-page]"), null, "stub contains no destination page body");
+    const target = new URL(href, "https://zip.test/" + source);
+    assert.equal(target.search, new URL(destination, "https://zip.test").search);
+    assert.equal(target.hash, new URL(destination, "https://zip.test").hash);
+    if (destination.startsWith("https:")) assert.equal(target.href, destination);
+    else assert.ok(files.has(target.pathname.slice(1)));
+  });
+}
 
 test("download leaves no theme-assets, m, public.v1 or root-relative page or asset references in any HTML, CSS or manifest", async () => {
   const { files } = await downloadFixture();
@@ -466,4 +594,52 @@ test("download README reports Sign in on each page that links to /signin", async
   for (const [name, bytes] of files) {
     if (name.endsWith(".html")) assert.doesNotMatch(bytes.toString(), /(?:href|src)=["']\/(?!\/)/, name);
   }
+});
+
+test("selected themes share media by URL, keep distinct renditions and scope nested links; one launcher and README", async () => {
+  const first = await downloadFixture({ theme: "zoran-poster", extraHtml: '<img src="/m/portrait/other/image.webp">', extraAssets: [{ url: "/m/portrait/other/image.webp", outputFile: "m/portrait/other/image.webp", data: Buffer.from("different rendition") }] });
+  const second = await downloadFixture({ theme: "zoran-editorial", configure: rendered => { rendered.routes.failed.push({ path: "/editorial-gap", kind: "page", reason: "failure" }); } });
+  for (const activeThemeId of ["zoran-editorial", "not-selected"]) {
+    const files = await unpack(await buildStaticSiteZip({ copy: first.copy, copies: [first.copy, second.copy], activeThemeId, zip: zipFolderFiles }));
+    const names = [...files.keys()];
+    assert.ok(files.has(downloadFolder + "sites/poster/index.html"));
+    assert.ok(files.has(downloadFolder + "sites/editorial/index.html"));
+    assert.equal(names.filter(name => name.endsWith("/media/portrait.webp")).length, 1);
+    assert.equal(files.get(downloadFolder + "media/portrait-2.webp")?.toString(), "different rendition");
+    const nested = files.get(downloadFolder + "sites/editorial/projects/featured/index.html")!.toString();
+    assert.match(nested, /href="..\/..\/about\/index.html"/);
+    assert.match(nested, /src="..\/..\/..\/..\/media\/portrait.webp"/);
+    assert.match(files.get(downloadFolder + "Open website.html")!.toString(), new RegExp(`sites/${activeThemeId === "zoran-editorial" ? "editorial" : "poster"}/index.html`));
+    const readme = files.get(downloadFolder + "README.txt")!.toString();
+    assert.match(readme, /Theme: zoran-poster/);
+    assert.match(readme, /Theme: zoran-editorial\nContains: 5 pages and posts, 4 images, 1 video\./);
+    assert.match(readme, /editorial-gap/);
+    assert.match(readme, /Shared media: 5 files/);
+    assert.equal(names.filter(name => name.endsWith("/README.txt")).length, 1);
+  }
+});
+
+test("combined limits count shared media once and refuse one extra page before encoding", async () => {
+  const { copy } = await downloadFixture();
+  const media = Array.from({ length: 4 }, (_, index) => ({ path: `m/item-${index}/original.webp`, content: Buffer.from("shared") }));
+  const pages = Array.from({ length: 997 }, (_, index) => ({ path: index === 0 ? "index.html" : `p-${index}/index.html`, content: Buffer.from(media.map(file => `<img src="/${file.path}">`).join("")) }));
+  const files = [...pages, ...media];
+  const first = { ...copy, themeId: "zoran-first", files }, second = { ...copy, themeId: "zoran-second", files };
+  let encoded = 0;
+  const zip: typeof zipFolderFiles = async input => { encoded++; assert.equal(input.files.length, 2000); return zipFolderFiles(input); };
+  await buildStaticSiteZip({ copy: first, copies: [first, second], zip });
+  assert.equal(encoded, 1);
+  const extra = { ...second, files: [...files, { path: "extra/index.html", content: Buffer.from("extra") }] };
+  await assert.rejects(buildStaticSiteZip({ copy: first, copies: [first, extra], zip }), { code: "LIMIT_EXCEEDED" });
+  assert.equal(encoded, 1);
+});
+
+test("full roster folder aliases stay identical when only one colliding theme is selected", async () => {
+  const { allocateStaticExportThemes } = await import("../static-export-selection.js");
+  const { copy } = await downloadFixture({ theme: "zoran-poster" });
+  const themes = allocateStaticExportThemes({ themeIds: ["zoran-poster", "poster"], siteSlug: "zoran-site" });
+  const files = await unpack(await buildStaticSiteZip({ copy, themes, zip: zipFolderFiles }));
+  assert.ok(files.has(downloadFolder + "sites/poster-2/index.html"));
+  assert.match(files.get(downloadFolder + "Open website.html")!.toString(), /sites\/poster-2\/index.html/);
+  assert.match(files.get(downloadFolder + "sites/poster-2/about/index.html")!.toString(), /href="..\/index.html"/);
 });

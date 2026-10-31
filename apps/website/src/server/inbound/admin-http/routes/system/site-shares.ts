@@ -3,6 +3,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getPublishTrustContext, publishTrustAuthorizeFor } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
+import { parseStaticExportInput } from "#src/features/site-backup/static-export-selection";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import { SHARE_TOKEN, SHARE_FILE } from "#src/features/site-backup/share-registry";
 import { SHARE_DOWNLOAD_HEADERS, receiveSiteShareArtifact } from "#src/features/site-backup/share-service";
@@ -40,11 +41,15 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
       res.json(await deps.siteShareBackend!.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, ...(jobId ? { jobId } : {}) }));
     } catch (error) { fail(res, error); }
   });
+  app.get(`${root}/static/options`, async (req, res) => {
+    try { if (await gate(req, res)) res.json(await deps.siteShareBackend!.staticOptions({})); }
+    catch (error) { fail(res, error); }
+  });
   app.post(`${root}/static`, async (req, res) => {
     try {
       if (!await gate(req, res)) return;
-      const jobId = readShareJobId({ body: req.body });
-      res.json(await deps.siteShareBackend!.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, format: "static", ...(jobId ? { jobId } : {}) }));
+      const input = parseStaticExportInput({ input: req.body === undefined ? {} : req.body });
+      res.json(await deps.siteShareBackend!.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, format: "static", ...input }));
     } catch (error) { fail(res, error); }
   });
   app.get(`${root}/:shareId/download`, async (req, res) => {

@@ -35,10 +35,13 @@ export interface SiteImport {
   error?: string;
 }
 
+export interface StaticExportOptions { activeThemeId: string; themes: readonly { themeId: string; name: string }[] }
+
 export interface SiteTransferPort {
+  staticExportOptions(required: Record<string, never>, optional?: Record<string, never>): Promise<StaticExportOptions>;
   listShares(): Promise<{ shares: SiteShare[] }>;
   createShare(input: { jobId?: string }): Promise<SiteShareCreateResult>;
-  createStaticShare(input: { jobId?: string }, optional?: Record<string, never>): Promise<SiteShareCreateResult>;
+  createStaticShare(input: { jobId?: string; themeIds?: readonly string[] }, optional?: Record<string, never>): Promise<SiteShareCreateResult>;
   downloadShare(required: { share: SiteShare }, optional?: Record<string, never>): void;
   revokeShare(input: { shareId: string }): Promise<SiteShare>;
   /** Absolute admin URL for a share's zip, so a plain link can download it with the session cookie. */
@@ -53,10 +56,17 @@ export interface SiteTransferPort {
 const SHARES = `/workspaces/${WORKSPACE_ID}/site-shares`;
 const IMPORTS = `/workspaces/${WORKSPACE_ID}/site-imports`;
 
+/** Selection belongs only to the initial POST; subsequent calls resume the captured job. */
+function staticShareInput(input: { jobId?: string; themeIds?: readonly string[] }, _options = {}) {
+  if (input.jobId) return { jobId: input.jobId };
+  return input.themeIds ? { themeIds: input.themeIds } : {};
+}
+
 export const defaultSiteTransferPort: SiteTransferPort = {
   listShares: () => authenticatedAdminRequest({ method: "GET", path: SHARES }),
   createShare: (input) => authenticatedAdminRequest({ method: "POST", path: SHARES, body: input.jobId ? { jobId: input.jobId } : {} }),
-  createStaticShare: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/static`, body: input.jobId ? { jobId: input.jobId } : {} }),
+  staticExportOptions: (_input, _options = {}) => authenticatedAdminRequest({ method: "GET", path: `${SHARES}/static/options` }),
+  createStaticShare: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/static`, body: staticShareInput(input) }),
   downloadShare: ({ share }, _options = {}) => {
     // The same authenticated attachment route the export list's Download zip link uses.
     const anchor = document.createElement("a");
@@ -89,6 +99,7 @@ export function createFakeSiteTransferPort(overrides: Partial<SiteTransferPort> 
   return {
     listShares: () => Promise.resolve({ shares: [] }),
     createShare: unexpected("createShare"),
+    staticExportOptions: async () => ({ activeThemeId: "", themes: [] }),
     createStaticShare: unexpected("createStaticShare"),
     downloadShare: () => { throw new Error("downloadShare was not expected"); },
     revokeShare: unexpected("revokeShare"),

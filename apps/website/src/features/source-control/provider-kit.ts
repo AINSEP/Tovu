@@ -37,6 +37,7 @@ export function createSourceControlProviderKit(
     }),
   }, { fetchRedirectPolicy: "caller" });
   return {
+    repositoryPaths: kit.repositoryPaths,
     fetch: (url, init) => kit.fetch({ url, init }),
     redirectGuardInit: init => kit.redirectGuardInit({ init }),
     assertNotRedirected: (response, hostName) => kit.assertNotRedirected({ response, hostName }),

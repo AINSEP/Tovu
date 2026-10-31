@@ -21,7 +21,7 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  * explicit source-control connections always win. */
 export const sourceControlSavedApiKeyLabels: ReadonlyMap<string, string> = new Map([["github", "github"]]);
 
-/** One file of a site export, repository-relative. */
+/** One file of a site export, relative to the selected folder. The provider prefixes it once. */
 export interface CommitFile {
   readonly path: string;
   readonly data: string | Buffer;
@@ -45,6 +45,7 @@ export type SourceControlCommitResult =
   | { ok: false; code: "repository-not-found" | "no-changes" | "diverged" | "network-unreachable" | "provider-error"; message: string };
 
 export interface CommitSiteInput {
+  readonly folder?: string;
   readonly token: string;
   readonly owner: string;
   readonly repo: string;
@@ -175,7 +176,7 @@ export interface SourceControlProviderOperations {
 
 /** A built provider: the module's operations plus the host facts its plugin declares, and the
  *  module's own owner/repo rules when it has them. */
-export type SourceControlProvider = SourceControlProviderOperations & SourceControlHostFacts & { readonly validateTarget?: RepositoryTargetValidator };
+export type SourceControlProvider = SourceControlProviderOperations & SourceControlHostFacts & { readonly supportsFolder?: boolean; readonly validateTarget?: RepositoryTargetValidator };
 
 /** A transport error, described without leaking it: `refusal` is set (caller-safe text) only when the
  *  egress policy refused the request; `logDetail` is for the server log. */
@@ -186,6 +187,7 @@ export interface DescribedTransportError {
 
 /** What a module may call that is not a Node builtin: a plugin ships no npm dependencies. */
 export interface SourceControlProviderKit {
+  readonly repositoryPaths: import("@jini-ai/devops/source-control").SourceControlProviderKit["repositoryPaths"];
   /** Plain `fetch`, looked up at call time. */
   fetch(url: string, init: RequestInit): Promise<Response>;
   /** A `RequestInit` that never follows a redirect. */
@@ -213,6 +215,7 @@ export type RepositoryTargetValidator = (target: RepositoryTarget) => string | n
 
 /** A provider module's default export. */
 export interface SourceControlProviderModule {
+  readonly supportsFolder?: boolean;
   create(context: { readonly kit: SourceControlProviderKit }): SourceControlProviderOperations;
   /** Optional, needs no kit, so core can refuse a malformed target before building anything or
    *  raising a dialog. Core still applies its own generic one-path-segment rule afterwards. */

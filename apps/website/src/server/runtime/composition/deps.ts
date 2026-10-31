@@ -2725,6 +2725,12 @@ async function composeSiteRouteDeps(
     // `server/app.ts`'s matching field for the identical closure-ordering reasoning (`routeDeps`
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
+    staticSiteContext: async () => {
+      const theme = resolveActiveTheme(routeDeps, await routeDeps.resolveActiveThemeId());
+      return { name: routeDeps.siteDisplayName.read() ?? resolvedSiteBinding.name, slug: resolvedSiteBinding.name,
+        theme: theme && typeof theme === "object" ? theme.manifest.name : "None",
+        themeId: theme && typeof theme === "object" ? theme.manifest.id : "None" };
+    },
   };
   resolveRouteDeps(routeDeps);
 
@@ -2846,13 +2852,12 @@ async function composeSiteRouteDeps(
           staticSite: {
             render: input => routeDeps.exportSiteBound({ ...input, includeThemePreviews: false }),
             now: () => new Date(routeDeps.clock.nowMs()),
+            themes: () => routeDeps.themes.filter(theme => theme.status === "valid").map(theme => ({ themeId: theme.manifest.id, title: theme.manifest.name })),
             context: async () => {
-              const theme = resolveActiveTheme(routeDeps, await routeDeps.resolveActiveThemeId());
+              const context = await routeDeps.staticSiteContext();
               const creationZone = createSiteCreationTimeZone({ dir: resolvedSiteBinding.dir });
               const timeZone = await resolveSiteTimeZone({ settingsRepo, creationTimeZone: { read: () => creationZone.read() ?? Intl.DateTimeFormat().resolvedOptions().timeZone } }, { workspaceId });
-              return { name: routeDeps.siteDisplayName.read() ?? resolvedSiteBinding.name, slug: resolvedSiteBinding.name,
-                theme: theme && typeof theme === "object" ? theme.manifest.name : "None",
-                themeId: theme && typeof theme === "object" ? theme.manifest.id : "None", timeZone };
+              return { ...context, timeZone };
             },
           },
           delivery: selection => resolveShareDelivery({

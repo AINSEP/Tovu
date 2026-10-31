@@ -1691,6 +1691,8 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `process.env` itself.
    */
   sourceControlExportRootDir: string;
+  /** Existing site/theme resolvers, bound for portable static packaging. */
+  staticSiteContext: import("../../features/source-control/commit-site.js").StaticSiteContextFn;
   /**
    * The real export engine pre-bound to this exact `RouteDeps` object, so source-control
    * and static-publish callers provide only `{outputDir; clean?; basePath?}`. Their local
@@ -1707,7 +1709,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `{ ...deps, createSiteApp: fake }` creates a different object while the original closure
    * still reads the original deps. Direct field reads outside the closure are unaffected.
    */
-  exportSiteBound: (options: { outputDir: string; clean?: boolean; basePath?: string; includeThemePreviews?: boolean }) => Promise<ExportReport>;
+  exportSiteBound: (options: { outputDir: string; clean?: boolean; basePath?: string; includeThemePreviews?: boolean; themeId?: string }) => Promise<ExportReport>;
 };
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;

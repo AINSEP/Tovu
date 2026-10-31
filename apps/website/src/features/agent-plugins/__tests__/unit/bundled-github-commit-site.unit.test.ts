@@ -83,6 +83,85 @@ function installMockFetch(steps: MockStep[]): { restore: () => void; callLog: Fe
 const TOKEN = "ghp_fake_token_never_real";
 const ONE_FILE: CommitFile[] = [{ path: "index.html", data: "<html></html>" }];
 
+test('folder commit reads only its local manifest and confines every mutation while preserving edited files', async () => {
+  const sha = 'a'.repeat(40);
+  const manifest = { version: 2, files: [{ path: 'static_sites/old.html', sha }, { path: 'static_sites/edited.html', sha }] };
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, status: 200, json: { default_branch: 'main' } },
+    { match: /\/git\/ref\/heads\/main$/, status: 200, json: { object: { sha: 'parent' } } },
+    { match: /\/git\/commits\/parent$/, status: 200, json: { tree: { sha: 'base' } } },
+    { match: /\/contents\/static_sites\/\.tovu\/managed-files.json\?ref=main$/, status: 200, json: { content: Buffer.from(JSON.stringify(manifest)).toString('base64') } },
+    { match: /\/git\/blobs$/, method: 'POST', status: 201, json: { sha: 'page' } },
+    { match: /\/contents\/static_sites\/old.html\?ref=main$/, status: 200, json: { sha } },
+    { match: /\/contents\/static_sites\/edited.html\?ref=main$/, status: 200, json: { sha: 'b'.repeat(40) } },
+    { match: /\/git\/blobs$/, method: 'POST', status: 201, json: { sha: 'manifest' } },
+    { match: /\/git\/trees$/, method: 'POST', status: 201, json: { sha: 'new-tree' } },
+    { match: /\/git\/commits$/, method: 'POST', status: 201, json: { sha: 'commit' } },
+    { match: /\/git\/refs\/heads\/main$/, method: 'PATCH', status: 200 },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: 'octo', repo: 'demo', folder: 'static_sites//', commitMessage: 'update', files: ONE_FILE });
+    if (!result.ok) assert.fail(result.message);
+    assert.equal(result.filesDeleted, 1);
+    assert.deepEqual(result.divergedPaths, ['static_sites/edited.html']);
+    const tree = JSON.parse(mock.callLog.find(call => call.url.endsWith('/git/trees'))!.body!);
+    assert.equal(tree.base_tree, 'base');
+    assert.deepEqual(tree.tree.map((entry: { path: string }) => entry.path), ['static_sites/index.html', 'static_sites/old.html', 'static_sites/.tovu/managed-files.json']);
+    assert.equal(tree.tree[1].sha, null);
+    const manifestBody = JSON.parse(mock.callLog.filter(call => call.url.endsWith('/git/blobs')).at(-1)!.body!);
+    assert.deepEqual(JSON.parse(Buffer.from(manifestBody.content, 'base64').toString()), { version: 2, files: [{ path: 'static_sites/index.html', sha: 'page' }] });
+    assert.equal(mock.remaining(), 0);
+  } finally { mock.restore(); }
+});
+
+test('folder manifests reject hostile paths before creating any write object', async () => {
+  for (const path of ['index.html', 'static_sites-old/a', 'static_sites/../a', '/static_sites/a', 'static_sites\\a', 'static_sites//a']) {
+    const mock = installMockFetch([
+      { match: /\/repos\/octo\/demo$/, status: 200, json: { default_branch: 'main' } },
+      { match: /\/git\/ref\/heads\/main$/, status: 200, json: { object: { sha: 'parent' } } },
+      { match: /\/git\/commits\/parent$/, status: 200, json: { tree: { sha: 'base' } } },
+      { match: /\/contents\/static_sites\/\.tovu\/managed-files.json/, status: 200, json: { content: Buffer.from(JSON.stringify({ version: 2, files: [{ path, sha: 'a'.repeat(40) }] })).toString('base64') } },
+    ]);
+    try {
+      const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: 'octo', repo: 'demo', folder: 'static_sites', commitMessage: 'update', files: ONE_FILE });
+      assert.equal(result.ok, false, path);
+      assert.equal(mock.callLog.some(call => call.method !== 'GET'), false, path);
+      assert.equal(mock.remaining(), 0);
+    } finally { mock.restore(); }
+  }
+});
+
+test('invalid folders and file paths refuse before any network call', async () => {
+  for (const input of [{ folder: '../escape', files: ONE_FILE }, { folder: 'site', files: [{ path: '../escape', data: 'x' }] }, { folder: 'site', files: [{ path: '.tovu/managed-files.json', data: 'x' }] }]) {
+    const mock = installMockFetch([]);
+    try {
+      const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: 'octo', repo: 'demo', commitMessage: 'update', ...input });
+      assert.equal(result.ok, false);
+      assert.deepEqual(mock.callLog, []);
+    } finally { mock.restore(); }
+  }
+});
+
+test('a missing folder manifest never falls back to root, and an unchanged tree returns NO_CHANGES', async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, status: 200, json: { default_branch: 'main' } },
+    { match: /\/git\/ref\/heads\/main$/, status: 200, json: { object: { sha: 'parent' } } },
+    { match: /\/git\/commits\/parent$/, status: 200, json: { tree: { sha: 'base' } } },
+    { match: /\/contents\/nested\/site\/\.tovu\/managed-files.json/, status: 404 },
+    { match: /\/git\/blobs$/, method: 'POST', status: 201, json: { sha: 'page' } },
+    { match: /\/git\/blobs$/, method: 'POST', status: 201, json: { sha: 'manifest' } },
+    { match: /\/git\/trees$/, method: 'POST', status: 201, json: { sha: 'base' } },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: 'octo', repo: 'demo', folder: 'nested/site', commitMessage: 'update', files: ONE_FILE });
+    assert.deepEqual(result, { ok: false, code: 'no-changes', message: "nothing changed since the branch's last commit" });
+    const tree = JSON.parse(mock.callLog.at(-1)!.body!);
+    assert.equal(tree.base_tree, 'base');
+    assert.deepEqual(tree.tree.map((entry: { path: string }) => entry.path), ['nested/site/index.html', 'nested/site/.tovu/managed-files.json']);
+    assert.equal(mock.remaining(), 0);
+  } finally { mock.restore(); }
+});
+
 // ---------------------------------------------------------------------------
 // Success paths
 // ---------------------------------------------------------------------------

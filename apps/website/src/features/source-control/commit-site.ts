@@ -3,6 +3,9 @@ import path from "node:path";
 
 import type { UUID } from "@jini-ai/core/primitives";
 import { redactSecrets } from "@jini-ai/core";
+import { normalizeRepositoryFolder, prefixRepositoryPath } from "@jini-ai/devops/source-control";
+import { prepareStaticReport } from "../site-backup/static-copy.js";
+import { staticDownloadLayout } from "../site-backup/static-download-layout.js";
 import { CREDENTIAL_MESSAGES } from "../../contracts/core/credential-token.js";
 
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
@@ -32,9 +35,9 @@ import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from
  * may serve a project site from `/<repo>`), a source-control commit is not a hosted site at all — nothing
  * here ever calls `exportSite` with a `basePath`, regardless of provider.
  *
- * Repo root only: this pass commits at the target repository's root, matching every static-publish
- * target's own no-subdirectory assumption (owner decision, 2026-08-16 review — no `path`/subdirectory
- * field exists anywhere in this feature's schemas, and none should be added speculatively).
+ * Destination scope: root by default, or the explicitly selected folder (owner decision,
+ * 2026-10-30 plan-145, superseding the 2026-08-16 root-only constraint). The provider owns prefixing
+ * and folder-local reconciliation; this layer owns active-theme portable packaging.
  *
  * Never throws for an expected outcome: every failure (no credential, invalid target shape, a genuine
  * credential decrypt failure, a failed export, nothing changed, a diverged branch, an unreachable
@@ -83,11 +86,13 @@ const MAX_COMMIT_MESSAGE_LENGTH = 500;
  * @complexity O(1) — a handful of fixed-size regex tests.
  */
 export function validateCommitTarget(
-  input: { owner: string; repo: string; branch?: string; commitMessage: string },
+  input: { owner: string; repo: string; branch?: string; folder?: string; commitMessage: string },
   validateTarget?: RepositoryTargetValidator,
 ): string | null {
   const targetError = repositoryTargetError({ owner: input.owner, repo: input.repo }, validateTarget);
   if (targetError !== null) return targetError;
+  try { normalizeRepositoryFolder({ folder: input.folder }); }
+  catch (error) { return (error as Error).message; }
   if (input.branch !== undefined && !isValidBranchName(input.branch)) return `invalid branch name '${input.branch.slice(0, 60)}'`;
   if (input.commitMessage.trim() === "" || input.commitMessage.length > MAX_COMMIT_MESSAGE_LENGTH) {
     return `commitMessage must be 1-${MAX_COMMIT_MESSAGE_LENGTH} characters`;
@@ -139,6 +144,8 @@ export type SourceControlCommitOutcome =
       ok: true;
       owner: string;
       repo: string;
+      folder: string;
+      entryPath: string;
       branch: string;
       branchCreated: boolean;
       commitSha: string;
@@ -152,6 +159,7 @@ export type SourceControlCommitOutcome =
     };
 
 export interface CommitSiteDeps {
+  readonly supportsFolder?: boolean;
   /** The host committed to: whose saved default credential is resolved, and whose plugin provider
    *  {@link gitAdapter} is. */
   readonly providerId: SourceControlProviderId;
@@ -187,9 +195,14 @@ export interface CommitSiteDeps {
  * never share across features" convention this file already follows for
  * `exportSiteLazily`'s own former copy.
  */
-export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string }) => Promise<ExportReport>;
+export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string; includeThemePreviews?: boolean }) => Promise<ExportReport>;
+
+/** Bound to the existing site/theme resolvers by composition, never inferred from output files. */
+export type StaticSiteContextFn = () => Promise<{ name: string; slug: string; theme: string; themeId: string }>;
 
 export interface CommitSiteInput {
+  readonly folder?: string;
+  readonly staticSiteContext: StaticSiteContextFn;
   readonly workspaceId: UUID;
   /** `RouteDeps.sourceControlExportRootDir`, threaded down rather than the whole `RouteDeps` bag —
    *  see `exportSiteBound`'s own doc immediately below for why. */
@@ -352,7 +365,7 @@ async function exportForCommit({ input, providerId }: { input: CommitSiteInput; 
   const outputDir = commitExportDir({ parent: input.sourceControlExportRootDir, providerId, runId: input.idGen.newId() });
   let report: ExportReport;
   try {
-    report = await input.exportSiteBound({ outputDir, clean: true });
+    report = await input.exportSiteBound({ outputDir, clean: true, includeThemePreviews: false });
   } catch (err) {
     cleanupCommitRunDir(outputDir);
     return { ok: false, code: "EXPORT_FAILED", message: `export failed before committing could start: ${err instanceof Error ? err.message : String(err)}` };
@@ -373,8 +386,16 @@ async function exportForCommit({ input, providerId }: { input: CommitSiteInput; 
     };
   }
 
-  const files: CommitFile[] = [...report.routes.succeeded.map(toCommitFile), ...report.assets.succeeded.map(toCommitFile)];
-  return { ok: true, files };
+  try {
+    const context = await input.staticSiteContext();
+    const rendered = prepareStaticReport({ report });
+    const files = staticDownloadLayout({ copy: { files: rendered.files, publicOrigin: rendered.publicOrigin, siteSlug: context.slug, themeId: context.themeId,
+      metadata: { theme: context.theme, routes: rendered.routes, redirectFiles: rendered.redirectFiles, failed: rendered.failed, skipped: rendered.skipped },
+      readme: { name: context.name } } }).map(file => ({ path: file.path, data: file.content }));
+    return { ok: true, files };
+  } catch {
+    return { ok: false, code: "EXPORT_FAILED", message: "Static site packaging failed before committing could start." };
+  }
 }
 
 export type PreviewCommitExportResult =
@@ -401,7 +422,7 @@ export async function previewCommitExport(input: CommitSiteInput, { providerId =
   const exportResult = await exportForCommit({ input, providerId });
   if (!exportResult.ok) return exportResult;
 
-  const sortedPaths = exportResult.files.map((file) => file.path).sort();
+  const sortedPaths = exportResult.files.map((file) => prefixRepositoryPath({ folder: input.folder, path: file.path })).sort();
   const totalBytes = exportResult.files.reduce((sum, file) => sum + Buffer.byteLength(file.data), 0);
   return { ok: true, fileCount: exportResult.files.length, totalBytes, paths: sortedPaths.slice(0, 50) };
 }
@@ -435,6 +456,9 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
   const configError = validateCommitTarget(input, deps.validateTarget);
   if (configError) return { ok: false, code: "INVALID_CONFIG", message: configError };
 
+  const folder = normalizeRepositoryFolder({ folder: input.folder });
+  if (folder && deps.supportsFolder !== true) return { ok: false, code: "INVALID_CONFIG", message: "This provider does not support folder commits." };
+
   const credentialResult = await resolveCommitCredential({ credentialDeps: deps.credentialDeps, workspaceId: input.workspaceId, providerId: deps.providerId });
   if (!credentialResult.ok) return credentialResult;
 
@@ -455,6 +479,7 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
       token: credentialResult.credential.token,
       owner: input.owner,
       repo: input.repo,
+      folder,
       ...(input.branch !== undefined ? { branch: input.branch } : {}),
       commitMessage: input.commitMessage,
       files: exportResult.files,
@@ -465,6 +490,13 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
     return { ok: false, code: "PROVIDER_ERROR", message: "the source control provider failed while committing" };
   }
 
+  return commitOutcome({ result, input, folder, token: credentialResult.credential.token });
+}
+
+/** Map a provider outcome to the caller contract and redact its message before it leaves the vault boundary.
+ * @complexity O(message bytes + returned path count), no effects.
+ */
+function commitOutcome({ result, input, folder, token }: { result: SourceControlCommitResult; input: CommitSiteInput; folder: string; token: string }, _options = {}): SourceControlCommitOutcome {
   if (!result.ok) {
     const codeByAdapterCode = {
       "repository-not-found": "REPOSITORY_NOT_FOUND",
@@ -477,13 +509,15 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
     const code = Object.hasOwn(codeByAdapterCode, result.code) ? codeByAdapterCode[result.code] : "PROVIDER_ERROR";
     // A host or transport may echo the Authorization value. Use the shared redactor before the
     // provider's explanation crosses the tool boundary, including tokens with no known prefix.
-    return { ok: false, code, message: redactSecrets({ input: result.message }, { exactSecrets: [credentialResult.credential.token] }) };
+    return { ok: false, code, message: redactSecrets({ input: result.message }, { exactSecrets: [token] }) };
   }
 
   return {
     ok: true,
     owner: input.owner,
     repo: input.repo,
+    folder,
+    entryPath: prefixRepositoryPath({ folder, path: "Open website.html" }),
     branch: result.branch,
     branchCreated: result.branchCreated,
     commitSha: result.commitSha,

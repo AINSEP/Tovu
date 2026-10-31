@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { registerAdminSiteShareRoutes } from "../site-shares.js";
 import { registerPublicShareRoutes } from "#src/server/inbound/public-http/routes/site-share";
+import { dispatchJsonRequest } from "#src/server/__tests__/helpers/in-process-http";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
 import { SiteShareRegistry } from "#src/features/site-backup/share-registry";
@@ -20,6 +21,7 @@ test("share routes validate sources and authorize before effects, preserve downl
   let available = true, allowed = true, trusted = false, failure: unknown;
   const record = await createSiteShare({ registry, site: "ws", name: "site", archive: Buffer.from("PK ZIP artifact") });
   const backend = { registry,
+    staticOptions: async () => { calls.push(["options"]); return { activeThemeId: "poster", themes: [{ themeId: "poster", name: "poster" }] }; },
     list: async (input: unknown) => { calls.push(["list", input]); if (failure) throw failure; return []; },
     create: async (input: { principalId: string; jobId?: string; signal: AbortSignal }) => { calls.push(["create", { ...input, signal: input.signal instanceof AbortSignal }]); if (failure) throw failure; return { status: "active" }; },
     revoke: async (input: { shareId: string }) => { calls.push(["revoke", input]); if (failure) throw failure; return { status: "revoked" }; },
@@ -149,4 +151,31 @@ test("share artifact routes admit a connected-computer grant, and every route re
     assert.equal(response.status, 400); assert.deepEqual(await response.json(), sanitized);
   }
   assert.deepEqual(effects, ["get", "list"]);
+});
+
+
+test("static HTTP options and start share exact selection validation and export permission", async () => {
+  const calls: unknown[] = [], permissions: string[] = [];
+  const app = express(); // dispatchJsonRequest enters with the already-parsed body.
+  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
+  registerAdminSiteShareRoutes({ app, deps: { workspaceId: "ws", authorize: async (input: { permission: string }) => { permissions.push(input.permission); return { allowed: true }; }, siteShareBackend: {
+    staticOptions: async () => { calls.push("options"); return { activeThemeId: "poster", themes: [{ themeId: "poster", name: "poster" }] }; },
+    create: async (input: unknown) => { calls.push(input); return { jobId: "started" }; },
+  } } as unknown as RouteDeps });
+  const root = "/api/admin/v1/workspaces/ws/site-shares/static";
+  const post = (input: unknown) => dispatchJsonRequest(app, "POST", root, input);
+  const jobId = randomUUID();
+  for (const input of [[], null, "text", { themeIds: [] }, { themeIds: [1] }, { themeIds: ["a", "a"] }, { themeIds: ["../x"] }, { themeIds: ["a"], jobId }, { extra: true }]) {
+    const response = await post(input); assert.equal(response.status, 400); assert.equal((response.body as { code: string }).code, "INVALID_INPUT");
+  }
+  assert.deepEqual(calls, []);
+  assert.deepEqual((await dispatchJsonRequest(app, "GET", root + "/options")).body, { activeThemeId: "poster", themes: [{ themeId: "poster", name: "poster" }] });
+  assert.equal(calls.pop(), "options");
+  for (const input of [{}, { themeIds: ["editorial", "poster"] }, { jobId }]) {
+    assert.equal((await post(input)).status, 200);
+    const call = calls.pop() as { signal: AbortSignal };
+    assert.deepEqual({ ...call, signal: true }, { principalId: "owner", signal: true, format: "static", ...input });
+  }
+  assert.ok(permissions.every(permission => permission === "site-backup.push"));
+  assert.deepEqual(calls, []);
 });

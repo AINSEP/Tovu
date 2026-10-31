@@ -66,6 +66,7 @@ function fakeDeps(options: { allow?: boolean; gitAdapter?: SourceControlCommitAd
     ...base,
     exportSiteBound: options.exportSiteBound ?? (async ({outputDir}) => ({outputDir, routes: {succeeded: [{path: "/", kind: "home", outputFile: "index.html", data: "<html>export fixture</html>"}], failed: []}, assets: {succeeded: [], failed: []}, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: []})),
     sourceControlExportRootDir: exportDir,
+    staticSiteContext: async () => ({ name: "Demo", slug: "demo", theme: "Fixture", themeId: "fixture" }),
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
@@ -207,7 +208,7 @@ test("source_control_execute_commit's schema carries no token/credential field o
   const entry = sourceControlAgentToolCatalog.find((t) => t.name === "source_control_execute_commit")!;
   const schema = entry.inputSchema as { properties: Record<string, unknown>; additionalProperties?: boolean; required: string[] };
   assert.equal(schema.additionalProperties, false);
-  assert.deepEqual(Object.keys(schema.properties).sort(), ["branch", "commitMessage", "dryRun", "owner", "provider", "repo"]);
+  assert.deepEqual(Object.keys(schema.properties).sort(), ["branch", "commitMessage", "dryRun", "folder", "owner", "provider", "repo"]);
   assert.deepEqual(schema.required.sort(), ["commitMessage", "owner", "provider", "repo"]);
   assert.equal((schema.properties.provider as { type: string; enum?: unknown }).type, "string");
   assert.equal((schema.properties.provider as { enum?: unknown }).enum, undefined);
@@ -224,7 +225,7 @@ test("source_control_get_capabilities reports the hosts the registry provides, w
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "source_control_get_capabilities");
 
-  const result = (await call(capabilities)) as { providers: { providerId: string; label?: string; apiOrigin?: string; maxFileBytes?: number; configured: boolean; commitSupported: boolean; guidance?: string }[] };
+  const result = (await call(capabilities)) as { providers: { providerId: string; label?: string; apiOrigin?: string; maxFileBytes?: number; configured: boolean; commitSupported: boolean; supportsFolder: boolean; guidance?: string }[] };
 
   // Only what the registry provides (the example-git plugin, from source) plus saved hosts: no fixed list.
   assert.deepEqual(result.providers.map((p) => p.providerId), ["example-git"]);
@@ -234,6 +235,7 @@ test("source_control_get_capabilities reports the hosts the registry provides, w
   assert.equal(exampleGit.maxFileBytes, 1024);
   assert.equal(exampleGit.configured, true);
   assert.equal(exampleGit.commitSupported, true);
+  assert.equal(exampleGit.supportsFolder, false);
   assert.equal(exampleGit.guidance, undefined, "configured AND commit-supported has nothing to tell the human");
 });
 
@@ -438,10 +440,15 @@ test("confirm: a successful commit reports committed:true with every field from 
   assert.equal(result.commitSha, "abc123");
   assert.equal(result.filesChanged, 2);
   assert.equal(result.filesDeleted, 3);
-  assert.deepEqual(result, { committed: true, owner: "octo", repo: "demo", branch: "release/2", branchCreated: true, commitSha: "abc123", commitUrl: "https://git.example.test/octo/demo/commit/abc123", filesChanged: 2, filesDeleted: 3, divergedPaths: ["kept-custom.html"] });
-  assert.deepEqual(requests, [{ token: "fixture_fake_token_never_real", owner: "octo", repo: "demo", branch: "release/2", commitMessage: "content update", files: [
-    { path: "index.html", data: "<html>commit canary</html>" }, { path: "image.png", data: Buffer.from([0, 128, 255]) },
-  ] }]);
+  assert.deepEqual(result, { committed: true, owner: "octo", repo: "demo", folder: "", entryPath: "Open website.html", branch: "release/2", branchCreated: true, commitSha: "abc123", commitUrl: "https://git.example.test/octo/demo/commit/abc123", filesChanged: 2, filesDeleted: 3, divergedPaths: ["kept-custom.html"] });
+  const request = requests[0] as { token: string; folder: string; files: { path: string; data: Buffer }[] };
+  assert.equal(requests.length, 1);
+  assert.equal(request.token, "fixture_fake_token_never_real");
+  assert.equal(request.folder, "");
+  assert.equal(request.files.find(file => file.path === "sites/fixture/index.html")!.data.toString(), "<html>commit canary</html>");
+  assert.deepEqual(request.files.find(file => file.path === "sites/fixture/image.png")!.data, Buffer.from([0, 128, 255]));
+  assert.ok(request.files.some(file => file.path === "Open website.html"));
+  assert.ok(request.files.some(file => file.path === "README.txt"));
   assert.equal(surfaceExchanges.size(), 0);
 });
 

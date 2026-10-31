@@ -1,3 +1,4 @@
+import { StaticExportPicker } from "./StaticExportPicker";
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { formatTimestamp, type Translate } from "@jini-ai/ui/panel-kit";
@@ -37,17 +38,7 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
           {controller.exporting ? <span className="site-transfer-spinner" aria-hidden="true" /> : null}
           {controller.exporting ? t("Exporting…") : t("Export Tovu site")}
         </button>
-        <button
-          type="button"
-          className="btn-secondary"
-          disabled={exporting}
-          aria-busy={controller.exportingStatic}
-          onClick={() => void controller.exportStaticSite()}
-          {...agentHandle({ handle: "sites-export-static" }, { role: "button", label: "Export static site as a zip" })}
-        >
-          {controller.exportingStatic ? <span className="site-transfer-spinner" aria-hidden="true" /> : null}
-          {controller.exportingStatic ? t("Exporting…") : t("Export static site")}
-        </button>
+        <StaticExportPicker controller={controller} t={t} />
       </div>
       {controller.exportError ? <div className="notice error" role="alert">{controller.exportError}</div> : null}
       {controller.zipOnly ? (

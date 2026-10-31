@@ -68,6 +68,7 @@ function fakeDeps(options: { gitAdapter: SourceControlCommitAdapter; exportSiteB
     loadSourceControlProviders: async () => exampleRegistry({ probe: false, ids: ["example-git"] }),
     sourceControlExportRootDir: exportRootDir,
     exportSiteBound: options.exportSiteBound,
+    staticSiteContext: async () => ({ name: "Demo", slug: "demo", theme: "Fixture", themeId: "fixture" }),
     gitAdapter: options.gitAdapter,
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };
@@ -99,6 +100,52 @@ function call(registration: ToolRegistration, input: unknown, emitSurface?: Surf
   return registration.handler(ctx);
 }
 
+test('target folder schema, normalized preview paths and capability refusal are wired end to end', async () => {
+  const calls = { count: 0 };
+  let deps = fakeDeps({ gitAdapter: neverCalledGitAdapter(calls), exportSiteBound: fakeExportSiteBound({ outputDir: null }) });
+  const registry = exampleRegistry({ probe: false, ids: ['example-git'] });
+  const loaded = registry.get('example-git')!;
+  deps = { ...deps, loadSourceControlProviders: async () => ({ ...registry, get: () => ({ ...loaded, module: { ...loaded.module, supportsFolder: true } }) }) };
+  const registration = buildExecuteCommitTool(deps);
+  const schema = registration.descriptor.inputSchema as { properties: { folder: { title: string } } };
+  assert.equal(schema.properties.folder.title, 'Target folder');
+  const input = { provider: 'example-git', owner: 'octo', repo: 'site', commitMessage: 'preview', folder: 'nested\\site//', dryRun: true };
+  const preview = await call(registration, input) as Record<string, unknown>;
+  assert.equal(preview.folder, 'nested/site', JSON.stringify(preview));
+  assert.equal(preview.entryPath, 'nested/site/Open website.html');
+  assert.ok((preview.paths as string[]).every(path => path.startsWith('nested/site/')));
+  assert.equal(calls.count, 0);
+  deps = { ...deps, loadSourceControlProviders: async () => registry };
+  const refusal = await call(buildExecuteCommitTool(deps), input) as Record<string, unknown>;
+  assert.equal(refusal.reason, 'folder-unsupported');
+  assert.equal(calls.count, 0);
+});
+
+test('malformed folder inputs are rejected before rendering or provider calls', async () => {
+  const deps = fakeDeps({ gitAdapter: neverCalledGitAdapter({ count: 0 }), exportSiteBound: async () => { assert.fail('malformed folder rendered'); } });
+  for (const folder of [null, 42, {}, [], '../escape', '/site', 'C:\\site']) {
+    await assert.rejects(call(buildExecuteCommitTool(deps), { provider: 'example-git', owner: 'octo', repo: 'site', commitMessage: 'x', folder, dryRun: true }), /folder/i);
+  }
+});
+
+test('a supported folder reaches the provider and is returned with the launcher entry path', async () => {
+  const captured: { folder?: string }[] = [];
+  let deps = fakeDeps({ exportSiteBound: fakeExportSiteBound({ outputDir: null }), gitAdapter: { commit: async input => {
+    captured.push(input);
+    return { ok: true, branch: 'main', branchCreated: false, commitSha: 'sha', commitUrl: 'https://example.test/sha', filesChanged: input.files.length, filesDeleted: 0 };
+  } } });
+  const registry = exampleRegistry({ probe: false, ids: ['example-git'] });
+  const loaded = registry.get('example-git')!;
+  deps = { ...deps, loadSourceControlProviders: async () => ({ ...registry, get: () => ({ ...loaded, module: { ...loaded.module, supportsFolder: true } }) }) };
+  await seedExampleGitCredential(deps);
+  const result = await call(buildExecuteCommitTool(deps), { provider: 'example-git', owner: 'octo', repo: 'site', commitMessage: 'update', folder: 'static_sites/' }) as Record<string, unknown>;
+  assert.equal(result.committed, true, JSON.stringify(result));
+  assert.equal(result.folder, 'static_sites');
+  assert.equal(result.entryPath, 'static_sites/Open website.html');
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0]!.folder, 'static_sites');
+});
+
 test("source_control_execute_commit dryRun:true previews the export without committing, raising no dialog and calling gitAdapter zero times", async () => {
   const gitAdapterCalls = { count: 0 };
   const captured: { outputDir: string | null } = { outputDir: null };
@@ -115,9 +162,11 @@ test("source_control_execute_commit dryRun:true previews the export without comm
 
   assert.equal(result.dryRun, true);
   assert.equal(result.committed, false);
-  assert.equal(result.fileCount, 2);
-  assert.equal(result.totalBytes, 23);
-  assert.deepEqual(result.paths, ["index.html", "style.css"]);
+  assert.equal(result.fileCount, 4);
+  assert.ok(result.totalBytes > 23);
+  assert.ok(result.paths.includes("Open website.html"));
+  assert.ok(result.paths.includes("README.txt"));
+  assert.ok(result.paths.some(path => /^sites\/[^/]+\/index.html$/.test(path)));
   assert.equal(result.credentialConfigured, true);
   assert.equal(gitAdapterCalls.count, 0, "gitAdapter.commit must never be called on a dry run");
   assert.equal(emitted.length, 0, "no confirmation dialog must be emitted on a dry run");

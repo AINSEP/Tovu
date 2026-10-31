@@ -25,6 +25,8 @@ import {
   type SiteBackupToolDeps,
 } from "./backup-service.js";
 
+import { parseStaticExportInput } from "./static-export-selection.js";
+
 const MUTATES_DURABLE_STATE = "mutates-durable-state";
 
 // Re-exported for the callers that imported them from here before the service was extracted.
@@ -122,10 +124,10 @@ export const siteBackupAgentToolCatalog: AgentToolDefinition[] = [
   },
   {
     name: "site_export_static",
-    description: "Export THIS SITE as rendered HTML, CSS, JavaScript and assets through the active theme. Creates a private ZIP download with a date-time filename, Open website.html to view it, README.txt with its time, theme and known gaps, sites/<theme>/ pages and theme assets, and referenced public media in media/. Links are relative to each file so the copy opens from disk. Private Library documents are excluded. No database backup or public upload. Returns {shareId,file,downloadUrl}, or {jobId,phase,progress}; poll with the SAME jobId. Partial renders include their successful pages and disclose gaps. Does not require an already-running public server.",
+    description: "Export THIS SITE as rendered HTML, CSS, JavaScript and assets through selected installed themes (themeIds, in selection order; omit for the active theme). Creates one private ZIP download with a date-time filename; extract the ZIP, then double-click Open website.html to view it. Includes README.txt with its time, theme and known gaps, sites/<theme>/ pages and theme assets, and referenced public media in media/. Links are relative to each file so the copy opens from disk. Private Library documents are excluded. No database backup or public upload. Returns {shareId,file,downloadUrl}, or {jobId,phase,progress}; poll with ONLY the SAME jobId, without themeIds. Partial renders include their successful pages and disclose gaps. Does not require an already-running public server.",
     sideEffects: MUTATES_DURABLE_STATE,
     authorization: { permission: PUSH_PERMISSION },
-    inputSchema: { type: "object", additionalProperties: false, properties: { jobId: { type: "string", description: "Only when polling this static export." } } },
+    inputSchema: { type: "object", additionalProperties: false, properties: { jobId: { type: "string", description: "Only when polling this static export; never combine with themeIds." }, themeIds: { type: "array", minItems: 1, uniqueItems: true, items: { type: "string" }, description: "Ordered installed theme IDs. Start only; defaults to the active theme." } } },
   },
   {
     name: "site_share_list",
@@ -177,7 +179,7 @@ const SITE_BACKUP_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
 type ShareAction = (required: { backend: SiteShareBackend; raw: Record<string, unknown>; ctx: ToolExecutionContext; format?: "static" }) => Promise<unknown>;
 
 const SHARE_ACTIONS: Record<"create" | "static" | "list" | "revoke", ShareAction> = {
-  static: required => SHARE_ACTIONS.create({ ...required, format: "static" }),
+  static: async ({ backend, raw, ctx }) => backend.create({ principalId: ctx.principal.id, signal: ctx.signal, format: "static", ...parseStaticExportInput({ input: raw }) }),
   list: async ({ backend, raw }) => {
     if (Object.keys(raw).length) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "site_share_list takes no fields." });
     return { shares: await backend.list({}) };

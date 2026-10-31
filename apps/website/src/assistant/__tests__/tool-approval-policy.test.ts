@@ -8,9 +8,23 @@ import { applyToolApprovalPolicy, approvalClassFor } from '../tool-approval-poli
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { directPageAction } from '../assistant-tool-approval-policy.js';
+import { sourceControlAgentToolCatalog } from '../../features/source-control/tool-registrations.js';
 
 
 const ctx = (input: unknown = {}): ToolExecutionContext => ({executionId:'exec',principal:{id:'owner'},run:{id:'run'},input,signal:new AbortController().signal});
+
+test('the registered commit schema shows the selected target folder through the shared approval renderer', async () => {
+  const catalog = sourceControlAgentToolCatalog.find(tool => tool.name === 'source_control_execute_commit')!;
+  const toolId = catalog.name;
+  const f = fixture(toolId, {}, { inputSchema: catalog.inputSchema });
+  const card = await cardFor(f, toolId, { folder: 'static_sites' });
+  try {
+    assert.match(card.html, /<dt>Target folder<\/dt><dd>static_sites<\/dd>/);
+  } finally {
+    f.surfaces.surfaceExchanges.deliver({ exchangeId: card.exchangeId, principalId: 'owner', params: { decision: 'cancel' } }, { toolId });
+    await card.pending;
+  }
+});
 function fixture(id: string, options: Parameters<typeof applyToolApprovalPolicy>[1] = {}, descriptor: Partial<ToolRegistration['descriptor']> = {}) {
   let calls = 0; let executed: unknown;
   const registration: ToolRegistration = {descriptor:{id,description:id,inputSchema:{type:'object'},...descriptor},policy:{authorize:()=> 'allow'},handler:async context=>{calls++; executed=context.input; return {changed:true};}};
@@ -105,6 +119,16 @@ test('unsupported approval locales fall back to English for every label', async(
   for(const locale of ['unsupported-locale',''])for(const key of ['Confirm action?','Confirm','Cancel','Tool','Input','Technical name','{action}?','Publish static site','Publish','Unknown catalog title'] as const) {
     assert.equal(approvalText({locale,key}),key);
   }
+});
+
+test('the target folder label is translated in every supported approval locale', async () => {
+  const { APPROVAL_COPY, approvalText } = await import('../../contracts/core/approval-i18n.js');
+  for (const locale of Object.keys(APPROVAL_COPY)) {
+    const label = approvalText({ locale, key: 'Target folder' });
+    assert.ok(label);
+    if (locale !== 'en') assert.notEqual(label, 'Target folder');
+  }
+  assert.equal(approvalText({ locale: 'unknown', key: 'Target folder' }), 'Target folder');
 });
 
 test('page verbs are classified, ordinary install controls are direct, opaque destructive clicks ask',async()=>{
@@ -225,7 +249,7 @@ test('approval uses input-schema titles and descriptions through the shared fiel
   const card = await cardFor(f, toolId, { projectName: 'zoran-new', target: 'vercel', dryRun: false });
   try {
     assert.match(card.html, /<dt>Site name<\/dt><dd>zoran-new<\/dd>/);
-    assert.match(card.html, /<dt>Hosting provider<\/dt><dd>vercel<\/dd>/);
+    assert.match(card.html, /<dt>Target<\/dt><dd>vercel<\/dd>/);
     assert.match(card.html, /<dt>Dry run<\/dt><dd>Off<\/dd>/);
     assert.match(card.html, /View raw/);
   } finally {

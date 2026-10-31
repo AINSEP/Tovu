@@ -341,15 +341,18 @@ test("share tools use the site-bound backend and authorize before every effect",
   const h = harness(t);
   const calls: string[] = [];
   const row = { shareId: "export-id", site: WORKSPACE_ID, file: "site.tovu.zip", bytes: 12, sha256: "a".repeat(64), url: null, status: "active" as const, createdAt: NOW, revokedAt: null, downloadUrl: "/private/download" };
+  const staticRow = { ...row, file: "site-static-2026-10-30-1015.zip" };
   const registrations = buildSiteBackupRegistrations({ ...h.deps, siteShareBackend: {
     registry: {} as import("../share-registry.js").SiteShareRegistry,
-    create: async ({ principalId }) => { calls.push(`create:${principalId}`); return row; },
+    staticOptions: async () => ({ activeThemeId: "a", themes: [] }),
+    create: async ({ principalId, format }) => { calls.push(`create:${principalId}`); return format === "static" ? staticRow : row; },
     list: async () => { calls.push("list"); return [row]; },
     revoke: async ({ shareId }) => { calls.push(`revoke:${shareId}`); return { ...row, status: "revoked" as const }; },
   } }, { surfaceExchanges: h.surfaceExchanges });
   const tools = new Map(registrations.map(r => [r.descriptor.id, r]));
   assert.deepEqual(await call(tools.get("site_share_create")!, {}), row);
-  assert.deepEqual(await call(tools.get("site_export_static")!, {}), row);
+  assert.deepEqual(await call(tools.get("site_export_static")!, {}), staticRow);
+  assert.match(tools.get("site_export_static")!.descriptor.description, /extract the ZIP, then double-click Open website.html/i);
   assert.deepEqual(await call(tools.get("site_share_list")!, {}), { shares: [row] });
   assert.equal((await call(tools.get("site_share_revoke")!, { shareId: row.shareId }) as Result).status, "revoked");
   const before = [...calls];
@@ -1545,6 +1548,11 @@ test("share tool adapters enforce exact input contracts, pass job/principal/sign
   assert.deepEqual(await call(tool("site_share_revoke"), { shareId: "share" }), { status: "revoked" });
   assert.deepEqual(calls, [["create", { principalId: OWNER_PRINCIPAL, signal }], ["create", { principalId: OWNER_PRINCIPAL, signal, jobId }], ["create", { principalId: OWNER_PRINCIPAL, signal, jobId, format: "static" }], ["list", {}], ["revoke", { shareId: "share" }]]);
   calls.length = 0;
+  assert.deepEqual(await call(tool("site_export_static"), { themeIds: ["editorial", "poster"] }, { signal }), { jobId: "pending" });
+  assert.deepEqual(calls.pop(), ["create", { principalId: OWNER_PRINCIPAL, signal, format: "static", themeIds: ["editorial", "poster"] }]);
+  for (const input of [{ themeIds: [] }, { themeIds: ["a", "a"] }, { themeIds: ["a", 1] }, { themeIds: ["../a"] }, { themeIds: ["a"], jobId }, { extra: true }]) {
+    assert.equal((await call(tool("site_export_static"), input) as Result).code, "INVALID_INPUT");
+  }
   for (const [id, input] of [["site_share_list", { extra: true }], ["site_share_revoke", { shareId: "share", extra: true }], ["site_share_create", { extra: true }], ["site_share_create", { jobId: 1 }], ["site_share_create", { jobId: "invalid" }]] as const) {
     assert.equal((await call(tool(id), input) as Result).code, "INVALID_INPUT");
   }

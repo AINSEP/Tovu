@@ -1,3 +1,4 @@
+import { useStaticExportSelection, type StaticExportSelection } from "./use-static-export-selection.hooks";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import type { Translate } from "@jini-ai/ui/panel-kit";
@@ -30,15 +31,15 @@ function isFinishedShare(result: SiteShareCreateResult): result is SiteShare & {
 /** Starts an export and re-posts its job id until a finished share returns, the caller stops
  *  wanting it (`alive()` false, the tab unmounted) or the poll cap is spent.
  *  @returns The last answer: a finished share, or a still-running job. */
-async function createShareUntilDone({ create, alive }: { create: SiteTransferPort["createShare"]; alive: () => boolean }, _options = {}): Promise<SiteShareCreateResult> {
-  let result = await create({});
+async function createShareUntilDone({ create, alive, initial = {} }: { create: SiteTransferPort["createStaticShare"]; alive: () => boolean; initial?: { themeIds?: readonly string[] } }, _options = {}): Promise<SiteShareCreateResult> {
+  let result = await create(initial);
   for (let polls = 0; !isFinishedShare(result) && alive() && polls < MAX_EXPORT_POLLS; polls += 1) {
     result = await create({ jobId: result.jobId });
   }
   return result;
 }
 
-export interface SiteExportController {
+export interface SiteExportController extends StaticExportSelection {
   shares: SiteShare[] | undefined;
   listError: string | null;
   exporting: boolean;
@@ -66,6 +67,7 @@ export function useSiteExport(
   { clipboard = typeof navigator === "undefined" ? undefined : navigator.clipboard }: { clipboard?: Pick<Clipboard, "writeText"> } = {},
 ): SiteExportController {
   const list = useFetchQuery({ key: [...SITE_TRANSFER_KEYS.shares], fetch: () => port.listShares() });
+  const staticSelection = useStaticExportSelection({ port, t });
   const invalidate = useInvalidate();
   const [exportKind, setExportKind] = useState<"backup" | "static" | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -84,13 +86,14 @@ export function useSiteExport(
     if (format === "static") port.downloadShare({ share: result });
   }
 
-  async function exportSite({ format = "backup" }: { format?: "backup" | "static" } = {}, _options = {}) {
+  async function exportSite({ format }: { format: "backup" | "static" }, _options = {}) {
     if (exportKind) return;
+    if (format === "static" && !staticSelection.staticExportReady) return;
     setExportKind(format);
     setExportError(null);
     try {
       const create = format === "static" ? port.createStaticShare.bind(port) : port.createShare.bind(port);
-      const result = await createShareUntilDone({ create, alive: () => alive.current });
+      const result = await createShareUntilDone({ create, alive: () => alive.current, initial: format === "static" ? { themeIds: [...staticSelection.selectedThemeIds] } : {} });
       finishExport({ result, format });
     } catch (failure) {
       if (alive.current) setExportError(describeApiError(failure, t("Export failed.")));
@@ -124,12 +127,13 @@ export function useSiteExport(
   // Static downloads stay private even when a link host is configured; only backups diagnose its absence.
   const newestBackup = shares?.find(share => share.file.endsWith(".tovu.zip"));
   return {
+    ...staticSelection,
     shares,
     listError: list.error ? describeApiError(list.error, t("Couldn't load exports.")) : null,
     exporting: exportKind === "backup",
     exportingStatic: exportKind === "static",
     exportError,
-    exportSite,
+    exportSite: () => exportSite({ format: "backup" }),
     exportStaticSite: () => exportSite({ format: "static" }),
     revokingId,
     revoke,

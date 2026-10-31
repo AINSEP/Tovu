@@ -85,3 +85,11 @@ it.each(Object.keys(SITE_TRANSFER_DICT))("renames the Tovu export action in loca
   expect(t({ locale, key: "Export Tovu site" })).toMatch(/Tovu/);
   expect(t({ locale, key: "Export Tovu site" })).not.toBe("Export Tovu site");
 });
+
+
+it.each(Object.keys(SITE_TRANSFER_DICT))("localizes every picker label in %s", locale => {
+  for (const key of ["Choose sites to export", "Sites to export", "Select all", "Loading sites…", "Couldn't load sites to export.", "No sites available to export."]) {
+    expect(SITE_TRANSFER_DICT[locale]).toHaveProperty(key);
+    expect(t({ locale, key })).not.toBe(key);
+  }
+});

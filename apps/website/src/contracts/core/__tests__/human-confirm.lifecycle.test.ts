@@ -52,6 +52,8 @@ test('the emitted card addresses this exchange and carries distinct confirm, alt
   assert.equal(h.emitted[0].channel, 'mcp-ui');
   const { resource } = h.emitted[0].payload as { resource: { resource: { uri: string; text: string } } };
   assert.equal(resource.resource.uri, 'ui://tovu/fixture-confirm-action/confirmation-42');
+  assert.match(resource.resource.text, /"done":"Response received\."/);
+  assert.doesNotMatch(resource.resource.text, /"done":"Done\."/);
   const plan = /\bvar PLAN = ([^\n]+);/.exec(resource.resource.text);
   assert.ok(plan, 'the HTML sent to the host must contain its button action payloads');
   assert.deepEqual(JSON.parse(plan[1]), {
@@ -179,6 +181,28 @@ test('the default approval handler reports cancellation under executed and never
   h.answer({ decision: 'cancel' });
   assert.deepEqual(await pending, { executed: false, cancelled: true, note: 'The user cancelled. Nothing was changed.' });
   assert.equal(effects, 0);
+});
+
+test('a delivered confirmation leaves execution pending until the real effect completes', async t => {
+  const h = harness(t);
+  let finish!: () => void;
+  const effect = new Promise<void>(resolve => { finish = resolve; });
+  let executions = 0, settled = false;
+  const handler = approvalToolHandler({ surfaces: { surfaceExchanges: h.store },
+    prepare: async () => ({}), describe: () => h.spec,
+    run: async () => { executions++; await effect; return { committed: true }; },
+  });
+  const result = handler(h.ctx, { emitSurface: h.emitSurface });
+  void result.then(() => { settled = true; });
+  await turn();
+  assert.equal(executions, 0);
+  assert.equal(settled, false);
+  assert.deepEqual(h.answer({ decision: 'confirm' }), { ok: true });
+  await turn();
+  assert.equal(executions, 1);
+  assert.equal(settled, false, 'delivery is not execution completion');
+  finish();
+  assert.deepEqual(await result, { committed: true });
 });
 
 test('an approval that does not require asking runs with its prepared value and no card', async (t) => {

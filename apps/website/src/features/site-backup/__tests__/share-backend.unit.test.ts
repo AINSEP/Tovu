@@ -66,3 +66,55 @@ test("a share plan without a database is refused before delivery", async t => {
   await assert.rejects(progressAtDelivery(t, content({ database: null, bufferedFiles: BUFFERED, totalBytes: 3 })),
     { code: "INVALID_ARCHIVE", message: "Invalid v2 share manifest, inventory or schema identity." });
 });
+
+test("static selection snapshots roster, active identity and time, captures sequentially and encodes once across polling", { timeout: 3000 }, async t => {
+  const registry = await registryIn(t);
+  const events: string[] = [], directories: string[] = [];
+  let release!: () => void, started!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const entered = new Promise<void>(resolve => { started = resolve; });
+  let contexts = 0, clocks = 0, rosters = 0, zips = 0;
+  const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => { throw new Error("must not back up DB"); }, delivery: async () => { throw new Error("must not upload"); },
+    zip: async input => { zips++; return zipFolderFiles(input); },
+    staticSite: { now: () => { clocks++; return new Date("2026-10-30T17:15:00Z"); },
+      context: async () => { contexts++; return { name: "Site", slug: "zoran-site", theme: "Poster", themeId: "zoran-poster" }; },
+      themes: () => { rosters++; return [{ themeId: "zoran-poster", title: "Poster" }, { themeId: "zoran-editorial", title: "Editorial" }]; },
+      render: async ({ outputDir, themeId }) => {
+        directories.push(outputDir); events.push(`start:${themeId}`);
+        if (themeId === "zoran-editorial") { started(); await gate; }
+        events.push(`end:${themeId}`);
+        return { outputDir, routes: { succeeded: [{ path: "/", kind: "home", outputFile: "index.html", data: `<main>${themeId}</main>` }], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] };
+      } },
+  });
+  const signal = new AbortController().signal;
+  const selection = ["zoran-editorial", "zoran-poster"];
+  const pending = await backend.create({ principalId: "owner", format: "static", themeIds: selection, signal }, { waitMs: 0 }) as { jobId: string };
+  const observed = await Promise.race([entered.then(() => "entered"), backend.create({ principalId: "owner", format: "static", jobId: pending.jobId, signal }, { waitMs: 1000 }).then(() => "settled")]);
+  assert.equal(observed, "entered");
+  selection.reverse(); // A caller mutating its array must not change this running job.
+  assert.deepEqual(events, ["start:zoran-editorial"]);
+  assert.deepEqual(await backend.create({ principalId: "owner", format: "static", jobId: pending.jobId, signal }, { waitMs: 0 }), { ...pending });
+  release();
+  const result = await backend.create({ principalId: "owner", format: "static", jobId: pending.jobId, signal }, { waitMs: 60_000 }) as { shareId: string };
+  assert.ok(result.shareId);
+  assert.deepEqual(events, ["start:zoran-editorial", "end:zoran-editorial", "start:zoran-poster", "end:zoran-poster"]);
+  assert.deepEqual({ contexts, clocks, rosters, zips }, { contexts: 1, clocks: 1, rosters: 1, zips: 1 });
+  assert.equal(new Set(directories).size, 2);
+  const { existsSync } = await import("node:fs");
+  for (const directory of directories) assert.equal(existsSync(directory), false);
+  assert.deepEqual(await backend.staticOptions({}), { activeThemeId: "zoran-poster", themes: [{ themeId: "zoran-poster", name: "poster" }, { themeId: "zoran-editorial", name: "editorial" }] });
+});
+
+test("static backend refuses unknown selections before rendering and unusable captures without creating a ZIP", async t => {
+  let renders = 0, zips = 0;
+  const backend = createSiteShareBackend({ registry: await registryIn(t), site: "ws", prepare: async () => content(), delivery: async () => undefined,
+    zip: async input => { zips++; return zipFolderFiles(input); },
+    staticSite: { now: () => new Date(), context: async () => ({ name: "Site", slug: "site", theme: "A", themeId: "a" }), themes: () => [{ themeId: "a", title: "A" }, { themeId: "b", title: "B" }],
+      render: async ({ outputDir, themeId }) => { renders++; return { outputDir, routes: { succeeded: themeId === "b" ? [] : [{ path: "/", kind: "home", outputFile: "index.html", data: "<main>A</main>" }], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] }; } },
+  });
+  const start = (themeIds: string[]) => backend.create({ principalId: "owner", format: "static", themeIds, signal: new AbortController().signal }, { waitMs: 60_000 });
+  await assert.rejects(start(["a", "unknown"]), { code: "INVALID_INPUT" });
+  assert.equal(renders, 0);
+  await assert.rejects(start(["a", "b"]), { code: "UNAVAILABLE" });
+  assert.equal(renders, 2); assert.equal(zips, 0);
+});

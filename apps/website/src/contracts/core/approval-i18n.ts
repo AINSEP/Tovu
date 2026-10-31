@@ -24,6 +24,13 @@ export const APPROVAL_COPY = {
   bn: ['কাজটি নিশ্চিত করবেন?', 'নিশ্চিত করুন', 'বাতিল করুন', 'টুল', 'ইনপুট'],
 } as const;
 const KEYS: readonly string[] = ['Confirm action?', 'Confirm', 'Cancel', 'Tool', 'Input'];
+const TARGET_FOLDER_COPY = {
+  en: 'Target folder', es: 'Carpeta de destino', id: 'Folder tujuan', de: 'Zielordner',
+  'zh-CN': '目标文件夹', 'zh-TW': '目標資料夾', 'pt-BR': 'Pasta de destino', ru: 'Целевая папка',
+  fa: 'پوشه مقصد', ar: 'المجلد الهدف', ja: '保存先フォルダー', ko: '대상 폴더', pl: 'Folder docelowy',
+  hu: 'Célmappa', fr: 'Dossier de destination', uk: 'Цільова папка', tr: 'Hedef klasör',
+  th: 'โฟลเดอร์ปลายทาง', it: 'Cartella di destinazione', hi: 'लक्ष्य फ़ोल्डर', ur: 'منزل کا فولڈر', bn: 'গন্তব্য ফোল্ডার',
+} as const satisfies Record<keyof typeof APPROVAL_COPY, string>;
 const ACTION_KEYS: readonly string[] = ['Technical name', '{action}?', 'Publish static site', 'Publish'];
 /** Catalog copy uses exact-key lookup; unknown tool names and schema labels remain verbatim. */
 const ACTION_COPY = {
@@ -54,6 +61,7 @@ const ACTION_COPY = {
 /** Translate approval chrome and registered catalog copy, falling back to English or the key.
  * @complexity O(k) time for bounded copy-key lookup, O(1) space; no effects. */
 export function approvalText({ locale, key }: { locale: string; key: string }, _optional = {}): string {
+  if (key === 'Target folder') return TARGET_FOLDER_COPY[locale as keyof typeof TARGET_FOLDER_COPY] ?? TARGET_FOLDER_COPY.en;
   const copy = APPROVAL_COPY[locale as keyof typeof APPROVAL_COPY] ?? APPROVAL_COPY.en;
   const actionCopy = ACTION_COPY[locale as keyof typeof ACTION_COPY] ?? ACTION_COPY.en;
   return copy[KEYS.indexOf(key)] ?? actionCopy[ACTION_KEYS.indexOf(key)] ?? key;

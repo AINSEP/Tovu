@@ -131,7 +131,7 @@ import {
   set,
   INSTRUCTIONS_NAMESPACE,
 } from "#src/features/settings/index";
-import { discoverAllBuiltInThemes, rescanThemes } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, rescanThemes, resolveActiveTheme } from "#src/features/theme/index";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { createThemeTrashMover } from "#src/features/theme/trash-theme-tool";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
@@ -1650,6 +1650,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // 2026-09-05 (fix-cycle) — plain static reference now; see `runExportSite`'s doc below for why
     // the lazy `require()` this used to carry is gone.
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
+    staticSiteContext: async () => {
+      const theme = resolveActiveTheme(routeDeps, await routeDeps.resolveActiveThemeId());
+      return { name: routeDeps.siteDisplayName.read() ?? siteBinding.name, slug: siteBinding.name,
+        theme: theme && typeof theme === "object" ? theme.manifest.name : "None",
+        themeId: theme && typeof theme === "object" ? theme.manifest.id : "None" };
+    },
   };
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
   routeDeps.pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();

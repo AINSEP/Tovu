@@ -9,6 +9,7 @@ import { requireShareSecretFree, claimSharePath, type PackageFileInventory } fro
 import { readBundledPackageFiles } from "./package-file-inventory.js";
 import type { SiteBackupPushProgress } from "./push-engine.js";
 import type { StaticSiteCopy } from "./static-copy.js";
+import type { StaticExportTheme } from "./static-export-selection.js";
 import { staticDownloadLayout } from "./static-download-layout.js";
 
 type ShareZipEntry = { readonly path: string; readonly content: Buffer };
@@ -122,9 +123,9 @@ function staticCopyOmission({ copy }: { copy?: StaticSiteCopy }, _options = {}):
 }
 
 /** Static-only ZIP uses the same picked-file path/scanning pipeline and Jini encoder, without a backup manifest. */
-export async function buildStaticSiteZip(required: { copy: Exclude<StaticSiteCopy, { reason: string }>; zip: typeof zipFolderFiles }, optional: ShareZipProgressOptions = {}): Promise<Buffer> {
+export async function buildStaticSiteZip(required: { copy: Exclude<StaticSiteCopy, { reason: string }>; copies?: readonly Exclude<StaticSiteCopy, { reason: string }>[]; activeThemeId?: string; themes?: readonly StaticExportTheme[]; zip: typeof zipFolderFiles }, optional: ShareZipProgressOptions = {}): Promise<Buffer> {
   const folder = required.copy.filename.replace(/\.zip$/i, "");
-  const entries = staticDownloadLayout({ copy: required.copy }).map(file => ({ ...file, path: `${folder}/${file.path}` }));
+  const entries = staticDownloadLayout(required).map(file => ({ ...file, path: `${folder}/${file.path}` }));
   checkShareLimits({ files: entries.map(file => ({ path: file.path, bytes: file.content.length })) });
   claimArchivePaths({ entries }, { manifest: false });
   if (optional.progress) Object.assign(optional.progress, { filesTotal: entries.length, bytesTotal: entries.reduce((sum, file) => sum + file.content.length, 0) });

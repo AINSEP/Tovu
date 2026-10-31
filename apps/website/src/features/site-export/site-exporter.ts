@@ -164,8 +164,9 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  * (re-used here via `extends` rather than duplicated — `buildRouteManifest(routeDeps)` below needs
  * exactly that shape) plus the one extra field this file reads directly.
  *
- * `createSiteApp` is NULLARY (`() => RequestListener`, which the Express app satisfies), not
- * `(routeDeps: RouteDeps) => Express` — see that
+ * `createSiteApp` is already bound to its dependencies, not
+ * `(routeDeps: RouteDeps) => Express`. Ordinary exports call it without arguments; selected
+ * captures pass only a request-local `{ themeId }` override. See that
  * field's own doc in `server/routes/types.ts` for why: it is bound to its own `routeDeps` ONCE, at
  * composition-root construction time, the same way `RouteDeps.exportSiteBound` already binds
  * `exportSite` itself.
@@ -470,8 +471,9 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
 /** `unreferencedThemeFiles` needs a theme to diff against — no theme discovered means nothing to report. */
   // Injected via `RouteDeps.createSiteApp` (see the file-header note and that field's own doc in
   // `server/routes/types.ts`) rather than imported from `server/app.ts` — no `require` left here at
-  // all, lazy or otherwise. Nullary as of 2026-08-20 (RouteDeps-narrowing pass 2) — already closed
-  // over its own `routeDeps` at composition-root construction time, so no argument is passed here.
+  // all, lazy or otherwise. Since 2026-08-20 (RouteDeps-narrowing pass 2) it is already closed
+  // over its own `routeDeps` at composition-root construction time. Only a selected capture passes
+  // a request-local theme override; ordinary exports still call it without arguments.
   // LAN-bind plan: this temporary server previously bound every interface (Node's own
   // default) for the length of an export. Its own client below always dials `127.0.0.1` anyway
   // (`baseUrl`), so restricting the bind to `127.0.0.1` costs nothing and closes a brief
@@ -482,7 +484,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
 export interface ExportSiteRouteDeps extends RouteManifestDeps, ExportMediaUrlDeps {
   readonly settingsRepo?: SettingsRepoPort;
   readonly siteTitleReady?: Promise<void>;
-  readonly createSiteApp: () => RequestListener;
+  readonly createSiteApp: (optional?: { themeId?: string }) => RequestListener;
   /** Traces each loopback render/asset fetch as one outbound span (method, host/port, status —
    *  never the route path). `RouteDeps.observability`; the no-op port in hermetic roots. */
   readonly observability: ObservabilityPort;
@@ -506,7 +508,9 @@ export interface ExportSiteOptions {
    * comment.
    */
   basePath?: string;
-  /** Portable static copies render only the active theme; deployment builds retain previews. */
+  /** Request-local theme override for a selected static capture; never activates it. */
+  themeId?: string;
+  /** Portable static copies render one theme; deployment builds retain previews. */
   includeThemePreviews?: boolean;
 }
 
@@ -522,9 +526,9 @@ function listingRoutes({ hrefs, kind }: { hrefs: readonly string[]; kind: string
 }
 
 /** Compose the real CMS manifest/theme/security policy with Jini's export engine. */
-export async function exportSite({ routeDeps, outputDir, clean, basePath, includeThemePreviews }: ExportSiteOptions, _options = {}): Promise<ExportReport> {
+export async function exportSite({ routeDeps, outputDir, clean, basePath, includeThemePreviews, themeId }: ExportSiteOptions, _options = {}): Promise<ExportReport> {
   const tracedFetch = trackFetch({ fetch: (input, init) => fetch(input, init), observability: routeDeps.observability });
-  const { manifest, themeCount } = await buildPreviewExportManifest({ routeDeps }, { includeThemePreviews });
+  const { manifest, themeCount } = await buildPreviewExportManifest({ routeDeps: themeId === undefined ? routeDeps : { ...routeDeps, resolveActiveThemeId: async () => themeId } }, { includeThemePreviews: themeId === undefined ? includeThemePreviews : false });
   const publicOrigin = await exportPublicOrigin({ registry: routeDeps.originRegistry, workspaceId: routeDeps.workspaceId });
   const writer = createNodeArtifactWriter({}, {});
   // Sitemaps require absolute loc values; RSS requires an absolute channel link. With no public
@@ -533,7 +537,7 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
   const report = await runExport({
     outputDir: path.resolve(outputDir),
     manifest: { build: async () => ({ ...manifest, routes: manifest.routes.filter(route => !omitted.includes(route.path)) }) },
-    app: createNodeAppFactory({ createApp: () => routeDeps.createSiteApp() }, {}),
+    app: createNodeAppFactory({ createApp: () => themeId === undefined ? routeDeps.createSiteApp() : routeDeps.createSiteApp({ themeId }) }, {}),
     writer: { ...writer, prepare: async (required, optional) => {
       await writer.prepare(required, optional);
       for (const file of omitted) await rm(path.join(required.outputDir, file.slice(1)), { force: true });

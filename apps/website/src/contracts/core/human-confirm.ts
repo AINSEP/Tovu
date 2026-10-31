@@ -241,6 +241,8 @@ function renderHumanConfirmation(
   return buildConfirmationSurface({
     uri: `ui://tovu/${toolId.replaceAll("_", "-")}/${exchange.id}` as UIResourceUri,
     title: spec.title,
+    // Redemption acknowledges receipt; the held-open tool still owns execution and its outcome.
+    text: { done: "Response received." },
     ...(description ? { description } : {}),
     details: spec.details,
     ...(spec.detailDisclosure ? { detailDisclosure: spec.detailDisclosure } : {}),

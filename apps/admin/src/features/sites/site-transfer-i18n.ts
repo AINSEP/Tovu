@@ -32,4 +32,180 @@ export const SITE_TRANSFER_DICT: Record<string, Record<string, string>> = {
   "zh-TW": { "Export static site": "匯出靜態網站", "Images are exported as web-optimized copies.": "圖片會匯出為針對網頁最佳化的副本。", "Export Site": "匯出網站", "Import Site": "匯入網站", "Makes a .tovu.zip copy of this site that another Tovu can import.": "產生此網站的 .tovu.zip 副本，可由另一個 Tovu 匯入。", "Exporting…": "正在匯出…", "Export Tovu site": "匯出 Tovu 網站", "No link host is set up, so exports are zip downloads only. Set up storage to get a share link.": "尚未設定連結主機，因此匯出只能以 zip 下載。設定儲存空間後即可取得分享連結。", "Loading exports…": "正在載入匯出…", "Exports": "匯出紀錄", "No exports yet.": "尚無匯出。", "Date": "日期", "Size": "大小", "Link": "連結", "Actions": "動作", "Zip only": "僅 zip", "Copied": "已複製", "Copy link": "複製連結", "Download zip": "下載 zip", "Revoking…": "正在撤銷…", "Revoke": "撤銷", "Active": "有效", "Revoked": "已撤銷", "Failed": "失敗", "Bring in a site from a Tovu export or a live website.": "從 Tovu 匯出或線上網站匯入一個網站。", "About importing": "關於匯入", "From a Tovu share link or zip": "從 Tovu 分享連結或 zip", "Makes a new site. This site stays as it is.": "建立一個新網站。此網站維持不變。", "Share link": "分享連結", "or": "或", "Drop a .tovu.zip here, or click to browse": "將 .tovu.zip 拖曳到這裡，或點擊瀏覽", "Up to 300 MB": "最多 300 MB", "Importing…": "正在匯入…", "Import as a new site": "匯入為新網站", "From a live website": "從線上網站", "Imports into this site. To keep this site as it is, make a new site first.": "匯入到此網站。若要讓此網站維持不變，請先建立新網站。", "Website address": "網站網址", "The assistant opens with the request written. Press Send to start.": "助理會開啟並寫好請求。按「傳送」開始。", "Import with the assistant": "用助理匯入", "the new site": "新網站", "{name} is ready.": "{name} 已就緒。", "Start it from All sites to open its admin.": "在「所有網站」中啟動它以開啟其管理後台。", "Checking the archive…": "正在檢查封存檔…", "Choose a password for {name}": "為 {name} 設定密碼", ...translationEntry("The site opens once it has an owner password. Username: admin", "網站設定擁有者密碼後即可開啟。使用者名稱：admin"), "Password": "密碼", "Confirm password": "確認密碼", "Loading imports…": "正在載入匯入…", "Past imports": "過去的匯入", "No imports yet.": "尚無匯入。", "Source": "來源", "Finish setup": "完成設定", "Uploaded zip": "已上傳的 zip", "Checking…": "正在檢查…", "Needs a password": "需要密碼", "Share link or zip": "分享連結或 zip", "Makes a new site from another Tovu site's export. This site stays as it is.": "根據另一個 Tovu 網站的匯出建立新網站。此網站維持不變。", "Live website": "線上網站", "The assistant copies a public website's pages into this site. You read its request first, then press Send.": "助理會把公開網站的頁面複製到此網站。你先閱讀它的請求，再按「傳送」。", "The export is taking too long. Try again later.": "匯出花費太久。請稍後再試。", "Export failed.": "匯出失敗。", "Revoke failed.": "撤銷失敗。", "Couldn't load exports.": "無法載入匯出。", "Choose a .tovu.zip file.": "請選擇 .tovu.zip 檔案。", "This zip is over the 300 MB limit.": "此 zip 超過 300 MB 上限。", "Paste an https:// share link.": "請貼上 https:// 分享連結。", "Import failed. No site was changed.": "匯入失敗。沒有網站被變更。", ...translationEntry("The passwords don't match.", "兩次輸入的密碼不一致。"), "Couldn't create the site.": "無法建立網站。", "Couldn't load imports.": "無法載入匯入。" },
 };
 
+// The picker uses the same feature dictionary and English-key fallback as the transfer tabs.
+const STATIC_EXPORT_PICKER_DICT: Record<string, readonly string[]> = {
+  "ar": [
+    "اختيار المواقع للتصدير",
+    "المواقع المراد تصديرها",
+    "تحديد الكل",
+    "جارٍ تحميل المواقع…",
+    "تعذّر تحميل المواقع للتصدير.",
+    "لا توجد مواقع متاحة للتصدير."
+  ],
+  "bn": [
+    "রপ্তানির জন্য সাইট বেছে নিন",
+    "রপ্তানির সাইট",
+    "সব নির্বাচন করুন",
+    "সাইট লোড হচ্ছে…",
+    "রপ্তানির সাইট লোড করা যায়নি।",
+    "রপ্তানির জন্য কোনো সাইট নেই।"
+  ],
+  "de": [
+    "Websites zum Exportieren auswählen",
+    "Zu exportierende Websites",
+    "Alle auswählen",
+    "Websites werden geladen…",
+    "Websites zum Exportieren konnten nicht geladen werden.",
+    "Keine Websites zum Exportieren verfügbar."
+  ],
+  "es": [
+    "Elegir sitios para exportar",
+    "Sitios para exportar",
+    "Seleccionar todo",
+    "Cargando sitios…",
+    "No se pudieron cargar los sitios para exportar.",
+    "No hay sitios disponibles para exportar."
+  ],
+  "fa": [
+    "انتخاب سایت‌ها برای خروجی",
+    "سایت‌های خروجی",
+    "انتخاب همه",
+    "در حال بارگیری سایت‌ها…",
+    "بارگیری سایت‌ها برای خروجی ممکن نشد.",
+    "سایتی برای خروجی موجود نیست."
+  ],
+  "fr": [
+    "Choisir les sites à exporter",
+    "Sites à exporter",
+    "Tout sélectionner",
+    "Chargement des sites…",
+    "Impossible de charger les sites à exporter.",
+    "Aucun site disponible à exporter."
+  ],
+  "hi": [
+    "निर्यात के लिए साइटें चुनें",
+    "निर्यात की जाने वाली साइटें",
+    "सभी चुनें",
+    "साइटें लोड हो रही हैं…",
+    "निर्यात के लिए साइटें लोड नहीं हो सकीं।",
+    "निर्यात के लिए कोई साइट उपलब्ध नहीं है।"
+  ],
+  "hu": [
+    "Exportálandó webhelyek kiválasztása",
+    "Exportálandó webhelyek",
+    "Összes kijelölése",
+    "Webhelyek betöltése…",
+    "Nem sikerült betölteni az exportálandó webhelyeket.",
+    "Nincs exportálható webhely."
+  ],
+  "id": [
+    "Pilih situs untuk diekspor",
+    "Situs untuk diekspor",
+    "Pilih semua",
+    "Memuat situs…",
+    "Tidak dapat memuat situs untuk diekspor.",
+    "Tidak ada situs yang tersedia untuk diekspor."
+  ],
+  "it": [
+    "Scegli i siti da esportare",
+    "Siti da esportare",
+    "Seleziona tutto",
+    "Caricamento siti…",
+    "Impossibile caricare i siti da esportare.",
+    "Nessun sito disponibile da esportare."
+  ],
+  "ja": [
+    "エクスポートするサイトを選択",
+    "エクスポートするサイト",
+    "すべて選択",
+    "サイトを読み込み中…",
+    "エクスポートするサイトを読み込めませんでした。",
+    "エクスポートできるサイトがありません。"
+  ],
+  "ko": [
+    "내보낼 사이트 선택",
+    "내보낼 사이트",
+    "모두 선택",
+    "사이트 불러오는 중…",
+    "내보낼 사이트를 불러오지 못했습니다.",
+    "내보낼 수 있는 사이트가 없습니다."
+  ],
+  "pl": [
+    "Wybierz witryny do eksportu",
+    "Witryny do eksportu",
+    "Zaznacz wszystko",
+    "Ładowanie witryn…",
+    "Nie udało się wczytać witryn do eksportu.",
+    "Brak witryn dostępnych do eksportu."
+  ],
+  "pt-BR": [
+    "Escolher sites para exportar",
+    "Sites para exportar",
+    "Selecionar tudo",
+    "Carregando sites…",
+    "Não foi possível carregar os sites para exportar.",
+    "Nenhum site disponível para exportar."
+  ],
+  "ru": [
+    "Выбрать сайты для экспорта",
+    "Сайты для экспорта",
+    "Выбрать все",
+    "Загрузка сайтов…",
+    "Не удалось загрузить сайты для экспорта.",
+    "Нет сайтов для экспорта."
+  ],
+  "th": [
+    "เลือกเว็บไซต์ที่จะส่งออก",
+    "เว็บไซต์ที่จะส่งออก",
+    "เลือกทั้งหมด",
+    "กำลังโหลดเว็บไซต์…",
+    "ไม่สามารถโหลดเว็บไซต์ที่จะส่งออกได้",
+    "ไม่มีเว็บไซต์ที่พร้อมส่งออก"
+  ],
+  "tr": [
+    "Dışa aktarılacak siteleri seç",
+    "Dışa aktarılacak siteler",
+    "Tümünü seç",
+    "Siteler yükleniyor…",
+    "Dışa aktarılacak siteler yüklenemedi.",
+    "Dışa aktarılabilecek site yok."
+  ],
+  "uk": [
+    "Вибрати сайти для експорту",
+    "Сайти для експорту",
+    "Вибрати все",
+    "Завантаження сайтів…",
+    "Не вдалося завантажити сайти для експорту.",
+    "Немає сайтів для експорту."
+  ],
+  "ur": [
+    "برآمد کرنے کے لیے سائٹس منتخب کریں",
+    "برآمد کی جانے والی سائٹس",
+    "سب منتخب کریں",
+    "سائٹس لوڈ ہو رہی ہیں…",
+    "برآمد کرنے کے لیے سائٹس لوڈ نہیں ہو سکیں۔",
+    "برآمد کرنے کے لیے کوئی سائٹ دستیاب نہیں۔"
+  ],
+  "zh-CN": [
+    "选择要导出的网站",
+    "要导出的网站",
+    "全选",
+    "正在加载网站…",
+    "无法加载要导出的网站。",
+    "没有可导出的网站。"
+  ],
+  "zh-TW": [
+    "選擇要匯出的網站",
+    "要匯出的網站",
+    "全選",
+    "正在載入網站…",
+    "無法載入要匯出的網站。",
+    "沒有可匯出的網站。"
+  ]
+};
+const STATIC_EXPORT_PICKER_KEYS = ["Choose sites to export", "Sites to export", "Select all", "Loading sites…", "Couldn't load sites to export.", "No sites available to export."];
+for (const [locale, values] of Object.entries(STATIC_EXPORT_PICKER_DICT)) {
+  Object.assign(SITE_TRANSFER_DICT[locale]!, Object.fromEntries(STATIC_EXPORT_PICKER_KEYS.map((key, index) => [key, values[index]!])));
+}
+
 export const t = createDictionaryTranslator({ featureDictionary: SITE_TRANSFER_DICT }, { commonDictionary: COMMON_I18N });
