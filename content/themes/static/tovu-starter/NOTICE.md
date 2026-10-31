@@ -7,8 +7,8 @@ removed. Edit anything.
 
 - **Geist + Geist Mono** — SIL Open Font License 1.1. Licence text vendored at
   `assets/fonts/geist-LICENSE.txt`.
-- **kUInetic 0.1.4** — MIT. Licence text vendored at
-  `scripts/vendor/kuinetic-LICENSE.md`.
+- **kUInetic 0.2.4** — MIT. Licence text vendored at
+  `assets/vendor/kuinetic/LICENSE`.
 - **lightbox.js** — MIT, from kuinetic.com. Credited in its own header comment
   (`scripts/vendor/lightbox.js`).
 
@@ -129,3 +129,8 @@ Updating kUInetic means re-vendoring the file by hand.
 `scripts/vendor/kuinetic.all.js` is replaced by `scripts/vendor/kuinetic.all.min.js`, the same
 kUInetic build's minified dist (494 KB vs 991 KB, ~119 KB vs ~231 KB gzipped). Earlier sections
 that name `kuinetic.all.js` describe the file as it was then.
+
+## 2026-10-30: moved to assets/vendor/kuinetic/, updated to 0.2.4
+
+The current bundle, license and removal guide live together in `assets/vendor/kuinetic/`.
+Earlier sections record the paths and versions used at the time.

@@ -56,10 +56,10 @@ export function rewrapPageNavigateError(err: unknown): unknown {
 
   const [, page, availableScreens] = match;
   return new Error(
-    `"${page}" is not a registered ADMIN SCREEN id (page.navigate moves the operator's admin UI between a ` +
-      `fixed set of screens — it does not open site content). Available screens: ${availableScreens}. ` +
+    `"${page}" is not a registered ADMIN SCREEN id (page.navigate moves the operator's admin UI between ` +
+      `published screens and resolved entity editors). Available screens: ${availableScreens}. ` +
       "Looking for a post or page instead? Use content_post_search / content_read.content_post " +
-      "(or content_duplicate to copy one), not page.navigate."
+      "to resolve its identity, then navigate using the published entity target."
   );
 }
 
@@ -84,9 +84,9 @@ export function withPageNavigateErrorRewrap(registrations: readonly ToolRegistra
     if (registration.descriptor.id !== PAGE_NAVIGATE_TOOL_ID) return registration;
     return {
       ...registration,
-      handler: async (ctx: ToolExecutionContext) => {
+      handler: async (ctx: ToolExecutionContext, options) => {
         try {
-          return await registration.handler(ctx);
+          return await registration.handler(ctx, options);
         } catch (err) {
           throw rewrapPageNavigateError(err);
         }

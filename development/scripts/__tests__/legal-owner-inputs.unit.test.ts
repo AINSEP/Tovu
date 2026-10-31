@@ -48,25 +48,4 @@ test("privacy drops unsettled-hosting claims but keeps the chat transfer fact", 
   assert.ok(html.includes("<p>Site chat messages go to today's provider, Google, a US company, so they leave the UK and EEA (section 11).</p>"));
 });
 
-// 4570fce9d removed the tracked deployed seed DB and site-theme copies. Seed-body parity
-// and the seeded contact form no longer have repository subjects; canonical legal HTML
-// is covered above, and the remaining templates are owned by content/themes/static.
-for (const [theme, terms, privacy] of [
-  ["tailark-quartz-dark", "legal-document.html", "legal-document-two.html"],
-  ["tailark-quartz-libre", "terms.html", "privacy.html"],
-]) {
-  test(`content/themes/static/${theme} legal templates retain the owner's inputs and report destination`, () => {
-    const base = `content/themes/static/${theme}/render/pages`;
-    const termsHtml = read(`${base}/${terms}`);
-    const privacyHtml = read(`${base}/${privacy}`);
-    assert.match(termsHtml, /total liability[^<]*US\$0/);
-    assert.match(termsHtml, /laws of the State of California/);
-    assert.match(termsHtml, /Los Angeles County, California/);
-    assert.match(privacyHtml, /IP addresses on form submissions are deleted after 90 days/);
-    for (const html of [termsHtml, privacyHtml]) {
-      assert.match(html, /tovu\.dev/);
-      assert.match(html, /href="\/contact#send-a-message">Report AI content<\/a>/);
-      assert.doesNotMatch(html, /mailto:|privacy@|legal@|Data Protection Officer at/);
-    }
-  });
-}
+// Bundled themes contain no legal-document templates. Canonical owner inputs remain covered above.

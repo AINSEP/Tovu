@@ -74,11 +74,8 @@ export function templateMarkupUrl(themeId: string, apiVersion: 2 | undefined, te
  *  way `resolveThemeLayout` is. This is the one fact of theirs {@link resolveCanvasTemplateChoice}
  *  actually needs, kept in sync by hand: if the canonical filename(s) ever change, update both.
  *
- *  ORDERED, new name first, same reason and same removal condition as the website-side list: `basic`
- *  ships `pages-default.html` since its 2026-09-03 posts-* / pages-* rename, but `basic-2` — the only
- *  other installed static theme with a page shell at all — still ships the legacy `page-shell.html`.
- *  {@link useThemeCanvasStyling}'s template-markup fetch tries each entry in order (see that
- *  function's own doc) so either theme's real filename is found. */
+ *  ORDERED, new name first: bundled themes use `pages-default.html`; installed or imported legacy
+ *  themes may still use `page-shell.html`. The fetch tries both so those themes keep working. */
 export const STATIC_TIER_PAGE_SHELL_TEMPLATES: readonly string[] = ["pages-default.html", "page-shell.html"];
 
 /**
@@ -229,8 +226,8 @@ function logCanvasStylingSettle(phase: string): void {
  * so an explicit choice never needs this). In that one case, a failed fetch retries the REMAINING
  * ordered candidates before giving up — the browser-side twin of
  * `resolveStaticTierPageShellFallback`'s own ordered-candidate loop
- * (`apps/website/src/features/theme/static-render.ts`), needed because only `basic` ships the new
- * `pages-default.html` name; `basic-2` still ships only the legacy `page-shell.html`.
+ * (`apps/website/src/features/theme/static-render.ts`), preserving installed legacy themes that
+ * still use `page-shell.html` instead of `pages-default.html`.
  *
  * @returns The first candidate's markup that resolves, or `null` once every candidate has rejected —
  *   folded into the SAME "no wrapper" degrade {@link useThemeCanvasStyling} already applies to a

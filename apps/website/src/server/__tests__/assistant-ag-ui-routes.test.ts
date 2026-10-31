@@ -977,3 +977,19 @@ test("spans: an abort before the daemon run existed still ends its span as cance
   const run = await agentRunSpan(exporter);
   assert.equal(run.attributes["agent.run.status"], "canceled");
 });
+
+
+test("AG-UI carries the originating tab binding and authenticated identity", async (t) => {
+  const { baseUrl, cookie } = await bootAgUi(t);
+  const response = await fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
+    method: "POST", headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ messages: [{ role: "user", content: "open it" }], tools: [{ name: "evil", parameters: {} }],
+      forwardedProps: { frontendBindToken: "tab-B-current", principalId: "forged" } }),
+  });
+  await response.text();
+  const call = recorded.find(r => r.method === "POST" && r.url === "/api/runs");
+  assert.ok(call);
+  const context = JSON.parse(JSON.parse(call.body).contextRef);
+  assert.equal(context.frontendBindToken, "tab-B-current");
+  assert.equal(context.principalId, expectedPrincipalId);
+});

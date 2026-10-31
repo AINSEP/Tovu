@@ -10,6 +10,7 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
   en: {
+    "Export disabled in this runtime": "Export disabled in this runtime",
     metric: "metric",
     "Send test error": "Send test error",
     "Sending test error…": "Sending test error…",
@@ -58,6 +59,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "(empty message)": "(empty message)",
   },
   es: {
+    "Export disabled in this runtime": "La exportación está desactivada en este entorno",
     metric: "métrica",
     "Send test error": "Enviar error de prueba",
     "Sending test error…": "Enviando error de prueba…",
@@ -107,6 +109,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Si OpenTelemetry está activado y dónde estará una conexión de proveedor de monitoreo.",
   },
   id: {
+    "Export disabled in this runtime": "Ekspor dinonaktifkan di lingkungan ini",
     "Send test error": "Kirim kesalahan uji",
     "Sending test error…": "Mengirim kesalahan uji…",
     "Failed to send test error": "Gagal mengirim kesalahan uji",
@@ -158,6 +161,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Apakah OpenTelemetry aktif, dan tempat koneksi penyedia pemantauan akan berada.",
   },
   de: {
+    "Export disabled in this runtime": "Export in dieser Umgebung deaktiviert",
     "Send test error": "Testfehler senden",
     "Sending test error…": "Testfehler wird gesendet…",
     "Failed to send test error": "Testfehler konnte nicht gesendet werden",
@@ -209,6 +213,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Ob OpenTelemetry aktiviert ist und wo eine Verbindung zu einem Monitoring-Anbieter eingerichtet wird.",
   },
   "zh-CN": {
+    "Export disabled in this runtime": "此运行环境已禁用导出",
     "Send test error": "发送测试错误",
     "Sending test error…": "正在发送测试错误…",
     "Failed to send test error": "无法发送测试错误",
@@ -260,6 +265,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry 是否已开启，以及监控提供商连接将设置在何处。",
   },
   "zh-TW": {
+    "Export disabled in this runtime": "此執行環境已停用匯出",
     "Send test error": "傳送測試錯誤",
     "Sending test error…": "正在傳送測試錯誤…",
     "Failed to send test error": "無法傳送測試錯誤",
@@ -311,6 +317,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry 是否已開啟，以及監控提供者連線將設定在何處。",
   },
   "pt-BR": {
+    "Export disabled in this runtime": "Exportação desativada neste ambiente",
     "Send test error": "Enviar erro de teste",
     "Sending test error…": "Enviando erro de teste…",
     "Failed to send test error": "Não foi possível enviar o erro de teste",
@@ -362,6 +369,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Se o OpenTelemetry está ativado e onde ficará uma conexão de provedor de monitoramento.",
   },
   ru: {
+    "Export disabled in this runtime": "Экспорт отключён в этой среде",
     "Send test error": "Отправить тестовую ошибку",
     "Sending test error…": "Отправка тестовой ошибки…",
     "Failed to send test error": "Не удалось отправить тестовую ошибку",
@@ -413,6 +421,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Включён ли OpenTelemetry и где будет находиться подключение к поставщику мониторинга.",
   },
   fa: {
+    "Export disabled in this runtime": "ارسال در این محیط غیرفعال است",
     "Send test error": "ارسال خطای آزمایشی",
     "Sending test error…": "در حال ارسال خطای آزمایشی…",
     "Failed to send test error": "ارسال خطای آزمایشی ناموفق بود",
@@ -464,6 +473,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "این‌که OpenTelemetry روشن است یا نه و اتصال ارائه‌دهندهٔ پایش کجا قرار می‌گیرد.",
   },
   ar: {
+    "Export disabled in this runtime": "التصدير معطّل في هذه البيئة",
     "Send test error": "إرسال خطأ تجريبي",
     "Sending test error…": "جارٍ إرسال خطأ تجريبي…",
     "Failed to send test error": "تعذر إرسال الخطأ التجريبي",
@@ -515,6 +525,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "ما إذا كان OpenTelemetry قيد التشغيل ومكان وجود اتصال موفّر المراقبة.",
   },
   ja: {
+    "Export disabled in this runtime": "この環境ではエクスポートは無効です",
     "Send test error": "テストエラーを送信",
     "Sending test error…": "テストエラーを送信中…",
     "Failed to send test error": "テストエラーを送信できませんでした",
@@ -566,6 +577,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry がオンかどうか、および監視プロバイダー接続の場所。",
   },
   ko: {
+    "Export disabled in this runtime": "이 환경에서는 내보내기가 비활성화되어 있습니다",
     "Send test error": "테스트 오류 보내기",
     "Sending test error…": "테스트 오류 보내는 중…",
     "Failed to send test error": "테스트 오류를 보내지 못했습니다",
@@ -617,6 +629,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry가 켜져 있는지와 모니터링 제공업체 연결이 위치할 곳입니다.",
   },
   pl: {
+    "Export disabled in this runtime": "Eksport jest wyłączony w tym środowisku",
     "Send test error": "Wyślij błąd testowy",
     "Sending test error…": "Wysyłanie błędu testowego…",
     "Failed to send test error": "Nie udało się wysłać błędu testowego",
@@ -668,6 +681,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Czy OpenTelemetry jest włączone oraz gdzie będzie znajdować się połączenie z dostawcą monitorowania.",
   },
   hu: {
+    "Export disabled in this runtime": "Az exportálás le van tiltva ebben a környezetben",
     "Send test error": "Teszthiba küldése",
     "Sending test error…": "Teszthiba küldése…",
     "Failed to send test error": "Nem sikerült elküldeni a teszthibát",
@@ -719,6 +733,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Be van-e kapcsolva az OpenTelemetry, és hol lesz a megfigyelési szolgáltatói kapcsolat.",
   },
   fr: {
+    "Export disabled in this runtime": "Export désactivé dans cet environnement",
     "Send test error": "Envoyer une erreur de test",
     "Sending test error…": "Envoi d’une erreur de test…",
     "Failed to send test error": "Échec de l’envoi de l’erreur de test",
@@ -770,6 +785,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Si OpenTelemetry est activé et où se trouvera une connexion de fournisseur de surveillance.",
   },
   uk: {
+    "Export disabled in this runtime": "Експорт вимкнено в цьому середовищі",
     "Send test error": "Надіслати тестову помилку",
     "Sending test error…": "Надсилання тестової помилки…",
     "Failed to send test error": "Не вдалося надіслати тестову помилку",
@@ -821,6 +837,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Чи ввімкнено OpenTelemetry і де буде розташовано підключення до постачальника моніторингу.",
   },
   tr: {
+    "Export disabled in this runtime": "Bu ortamda dışa aktarma devre dışı",
     "Send test error": "Test hatası gönder",
     "Sending test error…": "Test hatası gönderiliyor…",
     "Failed to send test error": "Test hatası gönderilemedi",
@@ -872,6 +889,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry'nin açık olup olmadığı ve izleme sağlayıcısı bağlantısının bulunacağı yer.",
   },
   th: {
+    "Export disabled in this runtime": "ปิดการส่งออกในสภาพแวดล้อมนี้",
     "Send test error": "ส่งข้อผิดพลาดทดสอบ",
     "Sending test error…": "กำลังส่งข้อผิดพลาดทดสอบ…",
     "Failed to send test error": "ส่งข้อผิดพลาดทดสอบไม่สำเร็จ",
@@ -923,6 +941,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "OpenTelemetry เปิดอยู่หรือไม่ และตำแหน่งที่จะมีการเชื่อมต่อผู้ให้บริการตรวจสอบ",
   },
   it: {
+    "Export disabled in this runtime": "Esportazione disabilitata in questo ambiente",
     "Send test error": "Invia errore di prova",
     "Sending test error…": "Invio dell’errore di prova…",
     "Failed to send test error": "Impossibile inviare l’errore di prova",
@@ -974,6 +993,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "Se OpenTelemetry è attivo e dove si troverà una connessione di un provider di monitoraggio.",
   },
   hi: {
+    "Export disabled in this runtime": "इस परिवेश में निर्यात अक्षम है",
     "Send test error": "परीक्षण त्रुटि भेजें",
     "Sending test error…": "परीक्षण त्रुटि भेजी जा रही है…",
     "Failed to send test error": "परीक्षण त्रुटि नहीं भेजी जा सकी",
@@ -1025,6 +1045,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "क्या OpenTelemetry चालू है और निगरानी प्रदाता कनेक्शन कहाँ होगा।",
   },
   ur: {
+    "Export disabled in this runtime": "اس ماحول میں برآمد غیر فعال ہے",
     "Send test error": "آزمائشی خرابی بھیجیں",
     "Sending test error…": "آزمائشی خرابی بھیجی جا رہی ہے…",
     "Failed to send test error": "آزمائشی خرابی نہیں بھیجی جا سکی",
@@ -1076,6 +1097,7 @@ const OBSERVABILITY_DICT: Record<string, Record<string, string>> = {
     "Whether OpenTelemetry is on, and where a monitoring provider connection will live.": "آیا OpenTelemetry آن ہے اور نگرانی فراہم کنندہ کا کنکشن کہاں ہوگا۔",
   },
   bn: {
+    "Export disabled in this runtime": "এই পরিবেশে রপ্তানি নিষ্ক্রিয় করা আছে",
     "Send test error": "পরীক্ষামূলক ত্রুটি পাঠান",
     "Sending test error…": "পরীক্ষামূলক ত্রুটি পাঠানো হচ্ছে…",
     "Failed to send test error": "পরীক্ষামূলক ত্রুটি পাঠানো যায়নি",

@@ -119,7 +119,7 @@ function OverviewPanel({ controller }: { controller: ObservabilityStatusControll
       {status ? <ObservabilityStatusCard status={status} t={t} /> : null}
       {status?.providers?.map(provider => (
         <p className="jini-field-hint" key={provider.providerId}>
-          {provider.providerId}: {provider.lastExport
+          {provider.providerId}: {provider.exportEnabled === false ? t("Export disabled in this runtime") : provider.lastExport
             ? <><span>{t(provider.lastExport.outcome === "ok" ? "Last export succeeded" : "Last export failed")}</span> — <time dateTime={provider.lastExport.at}>{new Date(provider.lastExport.at).toLocaleString()}</time>
               {exportFailureSuffix(provider.lastExport)}</>
             : t("No export result yet")}

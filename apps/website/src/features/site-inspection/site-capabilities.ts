@@ -89,6 +89,10 @@ export interface SiteCapabilityAdminScreen {
   label: string;
   /** Route path inside the admin app (base-agnostic; the app is served under `/admin`). */
   path: string;
+  description?: string;
+  routeTemplates?: readonly string[];
+  allowedQueryParams?: Readonly<Record<string, readonly string[] | null>>;
+  entityTargets?: readonly { readonly type: string; readonly routeTemplate: string }[];
 }
 
 /** The subset of a content-type row this call reads. `ContentTypeRecord` is a structural superset. */
@@ -228,7 +232,13 @@ async function collectTools(deps: SiteCapabilitiesDeps): Promise<CollectedSectio
  * @complexity O(s) in screens.
  */
 async function collectAdminScreens(deps: SiteCapabilitiesDeps): Promise<CollectedSection<SiteCapabilitiesAdminScreens>> {
-  const screens = deps.listAdminScreens().map((screen) => ({ id: screen.id, label: screen.label, path: screen.path }));
+  const screens = deps.listAdminScreens().map((screen) => ({
+    id: screen.id, label: screen.label, path: screen.path,
+    ...(screen.description ? { description: screen.description } : {}),
+    ...(screen.routeTemplates ? { routeTemplates: screen.routeTemplates } : {}),
+    ...(screen.allowedQueryParams ? { allowedQueryParams: screen.allowedQueryParams } : {}),
+    ...(screen.entityTargets ? { entityTargets: screen.entityTargets } : {}),
+  }));
   return { data: { total: screens.length, note: ADMIN_SCREENS_NOTE, screens } };
 }
 

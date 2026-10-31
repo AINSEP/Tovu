@@ -418,7 +418,7 @@ test("createApp(): the new 'fashion-modern' templated theme's own assets now res
   assert.equal(screenshotRes.headers.get("content-type"), "image/jpeg");
 });
 
-test("createApp(): all 4 static themes' real screenshot files still serve byte-for-byte identically (the literal 'all 4 static themes' claim, not just 'basic')", async (t) => {
+test("createApp(): both bundled static themes' real screenshot files serve byte-for-byte identically", async (t) => {
   const server = createServer(createApp());
   server.listen(0);
   t.after(() => server.close());
@@ -431,9 +431,7 @@ test("createApp(): all 4 static themes' real screenshot files still serve byte-f
   // the two extensions (see Themes.tsx's own jpg-then-png fallback doc for why both exist).
   const staticThemeScreenshots: Array<{ id: string; file: string }> = [
     { id: "tovu-theme", file: "index.png" },
-    { id: "tailark-dusk", file: "index.png" },
-    { id: "tailark-quartz-dark", file: "index.jpg" },
-    { id: "tailark-quartz-libre", file: "index.png" },
+    { id: "tovu-starter", file: "index.png" },
   ];
 
   for (const { id, file } of staticThemeScreenshots) {
@@ -446,7 +444,7 @@ test("createApp(): all 4 static themes' real screenshot files still serve byte-f
   }
 });
 
-test("createApp(): 'storefront' (an existing templated theme with no assets on disk) still 404s cleanly rather than crashing now that the templated root is mounted", async (t) => {
+test("createApp(): 'storefront' still returns 404 for an absent screenshot", async (t) => {
   const server = createServer(createApp());
   server.listen(0);
   t.after(() => server.close());
@@ -457,4 +455,29 @@ test("createApp(): 'storefront' (an existing templated theme with no assets on d
 
   const res = await fetch(`${baseUrl}/theme-assets/storefront/screenshots/index.jpg`);
   assert.equal(res.status, 404);
+});
+
+// All four themes use the existing whole-folder asset route, including nested vendor folders.
+test("createApp(): each bundled theme serves its removable animation library from its own folder", async (t) => {
+  const server = createServer(createApp());
+  server.listen(0);
+  t.after(() => server.close());
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  if (address === null || typeof address === "string") throw new Error("expected a real listening address");
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  for (const theme of ["static/tovu-starter", "static/tovu-theme", "templated/fashion-modern", "templated/storefront"]) {
+    const id = path.basename(theme);
+    const files = ["kuinetic.all.min.js", "LICENSE", "README.md"];
+    if (id === "tovu-theme") files.push("kuinetic-cloak.css", "kui-cloak.js");
+    for (const file of files) {
+      const relative = `assets/vendor/kuinetic/${file}`;
+      const onDisk = readFileSync(path.resolve("content/themes", theme, relative));
+      const response = await fetch(`${baseUrl}/theme-assets/${id}/${relative}`);
+      assert.equal(response.status, 200, `${id}/${relative}`);
+      assert.deepEqual(Buffer.from(await response.arrayBuffer()), onDisk);
+      assert.equal(response.headers.get("content-security-policy"), "default-src 'none'; sandbox");
+    }
+    assert.equal((await fetch(`${baseUrl}/theme-assets/${id}/scripts/vendor/kuinetic.all.min.js`)).status, 404);
+  }
 });

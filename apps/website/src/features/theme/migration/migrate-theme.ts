@@ -17,8 +17,7 @@ import { planV2Migration, TOKENS_MODE_FILE_PATTERN, type ThemeMigrationPlan } fr
  * the exact sequencing.
  *
  * Scope: only the `declarative` tier has a migration plan (`theme-migration-plan.ts`) as of this
- * slice — `basic-declarative`, the approved lowest-risk starting theme (Milestone 3 dry-run
- * checkpoint). Other tiers are added incrementally as their own themes are migrated, matching the
+ * slice — the original declarative reference was the lowest-risk Milestone 3 dry-run. Other tiers are added incrementally as their own themes are migrated, matching the
  * "implement by requirement slice" rule — see that module's own header.
  */
 
@@ -55,8 +54,8 @@ const TIER_ENGINE_NAME: Readonly<Partial<Record<ThemeTier, string>>> = {
 
 /** v1's `engine` is a bare number the runtime never branches on (`theme.ts`'s own doc comment: "nothing
  * in the engine branches on it") — schema v2 restructures it into `{ name, version }` (real gap found
- * migrating `storefront`, which ships `engine: 1`; `basic-declarative`, Milestone 3's first real
- * migration, had no `engine` field at all so this path was untested until now). Leaves `raw.engine`
+ * migrating `storefront`, which ships `engine: 1`; the initial declarative dry-run
+ * had no `engine` field at all so this path was untested until now). Leaves `raw.engine`
  * untouched when it is already an object (idempotent re-run) or when the tier has no known engine name
  * (nothing on disk today hits that case) — the v2-strict validator's own `v2-engine-shape`/`v2-engine-name`
  * rules catch anything this doesn't resolve, rather than this function guessing. */

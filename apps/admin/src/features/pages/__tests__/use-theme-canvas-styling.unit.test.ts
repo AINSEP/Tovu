@@ -485,7 +485,7 @@ describe("useThemeCanvasStyling — legacy page-shell candidate fallback (2026-0
     { tagName: "div", attributes: {} },
   ];
 
-  it("retries the legacy page-shell.html candidate when the new pages-default.html 404s (basic-2's shape today)", async () => {
+  it("retries the legacy page-shell.html candidate when the new pages-default.html 404s (an installed legacy theme)", async () => {
     const port = createFakeThemeCanvasPort({
       tokensByUrl: { "/theme-assets/basic/tokens.json": DARK },
       // No entry for `render/pages/pages-default.html` — only the legacy filename is seeded.

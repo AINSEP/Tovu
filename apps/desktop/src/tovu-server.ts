@@ -303,6 +303,9 @@ function buildCliEnv({ baseEnv, siteDir }: { baseEnv?: NodeJS.ProcessEnv; siteDi
   // Desktop launches many sites: a relocation exported for one CLI run must not become shared state.
   const isolated = omitEnvironmentKeys({ env: baseEnv ?? process.env,
     keys: ["TOVU_PLUGINS_DIR", "TOVU_SKILLS_DIR", "TOVU_AGENT_PLUGINS_DIR",
+      // Packaging evidence is supplied afresh by main for serve, never inherited (including
+      // differently-cased Windows copies) by serve or another CLI command.
+      'TOVU_PACKAGED_DESKTOP',
       // Each site gets a fresh native-render capability from its launcher, never an inherited one.
       "JINI_DESKTOP_RENDER_URL", "JINI_DESKTOP_RENDER_TOKEN",
       ...(siteDir ? ["TOVU_SITE_DIR", "TOVU_AGENT_CWD"] : [])],
@@ -341,6 +344,8 @@ interface DesktopCredential {
 
 /** Input to {@link buildServeEnv}. */
 interface BuildServeEnvInput {
+  /** Electron main supplies app.isPackaged independently of product telemetry configuration. */
+  isPackaged?: boolean;
   productTelemetry?: { configPath: string; preferencePath: string; release: string };
   repoRoot: string;
   siteDir?: string;
@@ -446,6 +451,8 @@ interface BuildServeEnvInput {
 function buildServeEnv(input: BuildServeEnvInput, { warn = console.warn }: { warn?: (message: string) => void } = {}): NodeJS.ProcessEnv {
   const repoRoot = input.repoRoot;
   const env = buildCliEnv({ baseEnv: input.baseEnv, siteDir: input.siteDir }, { warn });
+  // buildCliEnv cleared inherited copies; main now supplies the authoritative launch fact.
+  if (input.isPackaged !== undefined) env.TOVU_PACKAGED_DESKTOP = input.isPackaged ? '1' : '0';
   // Only main's successfully booted config authorizes child telemetry; inherited values cannot.
   delete env.TOVU_PRODUCT_TELEMETRY_CONFIG;
   delete env.TOVU_PRODUCT_TELEMETRY_PREFS;
@@ -824,6 +831,7 @@ interface MirrorStreams {
 
 /** Input to {@link startTovuServer}. */
 interface StartTovuServerInput {
+  isPackaged?: boolean;
   productTelemetry?: BuildServeEnvInput['productTelemetry'];
   repoRoot: string;
   siteDir: string;
@@ -919,7 +927,7 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
     ],
   });
 
-  const serveEnv = buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential, adminDevProxyUrl: input.adminDevProxyUrl, nodeToolchainEnv: input.nodeToolchainEnv, productTelemetry: input.productTelemetry });
+  const serveEnv = buildServeEnv({ repoRoot: input.repoRoot, siteDir: input.siteDir, baseEnv: input.baseEnv, desktopCredential: input.desktopCredential, adminDevProxyUrl: input.adminDevProxyUrl, nodeToolchainEnv: input.nodeToolchainEnv, productTelemetry: input.productTelemetry, isPackaged: input.isPackaged });
   // Windows has no SIGTERM to send: Stop closes this stdin pipe instead (see `stopChild`).
   const win32 = (input.platform ?? process.platform) === "win32";
   const child = spawnFn(

@@ -21,7 +21,7 @@ describe("ADMIN_AGENT_PAGE_PATHS", () => {
     expect(ADMIN_AGENT_PAGE_PATHS["admin-ui"]).toBe("/admin-ui");
     const pages = buildAdminAgentPages();
     const screens = listAdminAgentScreens();
-    expect(screens).toContainEqual({ id: "admin-ui", label: "Admin UI", path: "/admin-ui" });
+    expect(screens).toContainEqual(expect.objectContaining({ id: "admin-ui", label: "Admin UI", path: "/admin-ui" }));
     for (const id of ["admin-themes", "admin-appearance", "design-system"]) {
       expect(ADMIN_AGENT_PAGE_PATHS).not.toHaveProperty(id);
       expect(pages).not.toHaveProperty(id);
@@ -91,20 +91,20 @@ describe("buildAdminAgentPages", () => {
     expect(pages["widget-regions"]?.label).toBe("Widget Regions");
   });
 
-  it("calling a page's navigate function calls router.navigate with exactly that page's route path", () => {
+  it("calling a page's navigate function calls router.navigate with exactly that page's route path", async () => {
     window.history.replaceState({}, "", "/admin/unrelated");
     const navigateSpy = vi.spyOn(router, "navigate");
     const [pageId, routePath] = Object.entries(ADMIN_AGENT_PAGE_PATHS)[0]!;
     const pages = buildAdminAgentPages();
 
-    pages[pageId]!.navigate({});
+    await pages[pageId]!.navigate({});
 
     expect(navigateSpy).toHaveBeenCalledTimes(1);
     expect(navigateSpy).toHaveBeenCalledWith(routePath);
     expect(router.currentRoutePath()).toBe(routePath);
   });
 
-  it("each page's navigate function is independent — invoking one does not navigate any other page's route", () => {
+  it("each page's navigate function is independent — invoking one does not navigate any other page's route", async () => {
     window.history.replaceState({}, "", "/admin/unrelated");
     const navigateSpy = vi.spyOn(router, "navigate");
     const entries = Object.entries(ADMIN_AGENT_PAGE_PATHS);
@@ -113,20 +113,20 @@ describe("buildAdminAgentPages", () => {
     const [firstPageId, firstRoutePath] = entries[0]!;
     const pages = buildAdminAgentPages();
 
-    pages[firstPageId]!.navigate({});
+    await pages[firstPageId]!.navigate({});
 
     expect(navigateSpy).not.toHaveBeenCalledWith(secondRoutePath);
     expect(navigateSpy).toHaveBeenCalledExactlyOnceWith(firstRoutePath);
     expect(router.currentRoutePath()).toBe(firstRoutePath);
   });
 
-  it("publishes a content refresh when the agent navigates to the route already displayed", () => {
+  it("publishes a content refresh when the agent navigates to the route already displayed", async () => {
     vi.spyOn(router, "navigate").mockImplementation(() => {});
     vi.spyOn(router, "currentRoutePath").mockReturnValue(ADMIN_AGENT_PAGE_PATHS["posts"]!);
     const seen = vi.fn();
     subscribeToContentRefresh(seen);
 
-    buildAdminAgentPages()["posts"]!.navigate({});
+    await buildAdminAgentPages()["posts"]!.navigate({});
 
     // Same-route navigate remounts nothing (`router.ts`'s `useSyncExternalStore` snapshot is an
     // unchanged string), so without this the agent is shown the list as it was at mount.
@@ -134,13 +134,13 @@ describe("buildAdminAgentPages", () => {
     expect(seen).toHaveBeenCalledWith(null);
   });
 
-  it("does not publish when navigating to a different route, which mounts and fetches on its own", () => {
+  it("does not publish when navigating to a different route, which mounts and fetches on its own", async () => {
     vi.spyOn(router, "navigate").mockImplementation(() => {});
     vi.spyOn(router, "currentRoutePath").mockReturnValue("/some-other-route");
     const seen = vi.fn();
     subscribeToContentRefresh(seen);
 
-    buildAdminAgentPages()["posts"]!.navigate({});
+    await buildAdminAgentPages()["posts"]!.navigate({});
 
     expect(seen).not.toHaveBeenCalled();
   });

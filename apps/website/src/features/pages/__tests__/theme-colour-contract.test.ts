@@ -22,8 +22,8 @@ function sharedThemeTokens(): Set<string> {
   const files = [
     "static/tovu-theme/tokens.json",
     "static/tovu-theme/tokens.light.json",
-    "static/basic-2/tokens.json",
-    "static/basic-2/tokens.light.json",
+    "static/tovu-starter/tokens.json",
+    "static/tovu-starter/tokens.light.json",
   ];
   const sets = files.map((file) => new Set(Object.keys(JSON.parse(fs.readFileSync(THEMES_DIR + file, "utf8")))));
   return new Set([...sets[0]].filter((name) => sets.every((set) => set.has(name))));

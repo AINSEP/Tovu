@@ -1,7 +1,19 @@
+import { createAgUiRunClient } from "@jini-ai/chat/transports/ag-ui";
+import { createFrontendSessionBridge } from "@jini-ai/chat/react";
+import { AdminPageApprovalDialog } from "../../webmcp/AdminPageApprovalDialog";
+import { createAdminPageApprovalStore } from "../../webmcp/admin-page-approval.store";
+import { directPageAction } from "../../../../../website/src/assistant/assistant-tool-approval-policy";
+import type { RunAgentInput } from "@ag-ui/core";
 import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { act } from "@testing-library/react";
+import { PAGE_CAPABILITIES, executePageCapability, type FindElementsResult } from "@jini-ai/agentic";
+import { createDomPageDriver } from "@jini-ai/agentic/dom";
+import { buildAdminAgentPages } from "@/lib/agent-pages";
+import { api } from "@/lib/api";
 
 import { AgentPlugins } from "../AgentPlugins";
 import { useWiredAgentPlugins, type AgentPluginsController, type InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
@@ -629,5 +641,76 @@ describe("AgentPlugins Manage button", () => {
     renderAgentPlugins({ inspectPlugin });
     fireEvent.click(await within(row("Site Compliance")).findByRole("button", { name: /^Manage / }));
     expect(inspectPlugin).toHaveBeenCalledWith({ id: "site-compliance", displayName: "Site Compliance", surfaces: [surface] });
+  });
+});
+
+
+
+/** Exercise the real AG-UI request projection with the owner's two turns. A scripted daemon
+ * chooses tools deterministically; it cannot substitute a prose link for the DOM effects below. */
+async function sendOwnerTurns({ bindToken }: { bindToken: string }) {
+  const packets: RunAgentInput[] = [];
+  const client = createAgUiRunClient({ ports: {
+    endpoint: "/api/admin/v1/assistant/ag-ui-run", runIdPrefix: "test-", mintId: () => crypto.randomUUID(),
+    customEventNames: { usage: "u", status: "s", extensionPrefix: "x." },
+    createAgent: () => ({ abortController: new AbortController(), abortRun() {}, run: input => ({ subscribe: observer => {
+      packets.push(input); observer.complete();
+    } }) }),
+  } });
+  const history = [{ id: "u1", role: "user" as const, content: "can you bring up the agentic plugin for ui ux design?" }];
+  const handlers = { onEvent() {}, onError(error: Error) { throw error; }, onDone() {} };
+  await client.startAgUiRun({ input: { history, conversationId: "owner-conversation", context: { frontendBindToken: bindToken }, signal: new AbortController().signal }, handlers });
+  const second = [...history, { id: "a1", role: "assistant" as const, content: "The plugin is available." }, { id: "u2", role: "user" as const, content: "no can you open it for me?" }];
+  await client.startAgUiRun({ input: { history: second, conversationId: "owner-conversation", context: { frontendBindToken: bindToken }, signal: new AbortController().signal }, handlers });
+  expect(packets).toHaveLength(2);
+  expect(packets[1]!.messages.at(-1)).toMatchObject({ content: "no can you open it for me?" });
+  for (const packet of packets) {
+    expect(packet.forwardedProps).toMatchObject({ frontendBindToken: bindToken });
+  }
+}
+
+describe("assistant admin navigation regression", () => {
+  it('handles "bring up the agentic plugin for ui ux design" then "no can you open it for me" with navigation and a published details click', async () => {
+    const plugin = { ...SITE_COMPLIANCE, pluginId: "ui-ux-design", description: "Design the user interface" };
+    function useController() {
+      const [expandedIds, setExpandedIds] = useState(new Set<string>());
+      return fakeController({ agentPlugins: [plugin], expandedIds,
+        onToggleExpanded: (id: string) => setExpandedIds(new Set([id])),
+      });
+    }
+    const approvals = createAdminPageApprovalStore({});
+    const view = render(<><AgentPlugins tabId="installed" useAgentPluginsHook={useController} /><AdminPageApprovalDialog locale="en" approvals={approvals} /></>);
+    vi.spyOn(api, "listAgentPlugins").mockResolvedValue({ agentPlugins: [plugin] });
+    const driver = createDomPageDriver({ root: view.container, pages: buildAdminAgentPages() });
+    const source = Object.assign(new EventTarget(), { close() {} });
+    const responses: Record<string, unknown>[] = [];
+    const bridge = createFrontendSessionBridge({ baseUrl: "", openStream: () => source as unknown as EventSource,
+      request: async ({ init }) => { responses.push(JSON.parse(init.body as string)); return new Response(JSON.stringify({ settled: true })); },
+    }, { pageDriver: driver, pageApproval: { isDirect: directPageAction,
+      request: ({ capabilityId, input, signal }) => approvals.request({ interaction: { capability: PAGE_CAPABILITIES.find(capability => capability.id === capabilityId)!, args: input }, signal }),
+    } });
+    const emit = (frame: unknown) => source.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(frame) }));
+    emit({ type: "attached", sessionId: "owner-tab", bindToken: "owner-tab-current" });
+    try {
+      await sendOwnerTurns({ bindToken: bridge.bindToken()! });
+      await act(async () => { emit({ type: "invocation", invocationId: "nav", capabilityId: "page.navigate", input: {
+        page: "agent-plugins", entity: { type: "agent-plugin", id: "ui-ux-design" },
+      } }); });
+      await waitFor(() => expect(responses).toContainEqual(expect.objectContaining({ invocationId: "nav", ok: true })));
+      expect(window.location.pathname).toBe("/admin/addons/agent-plugins");
+      expect(window.location.search).toBe("?tab=installed");
+      const found = await executePageCapability({ driver, capabilityId: "page.find_elements", input: { query: "ui-ux-design", withState: true } }) as FindElementsResult;
+      expect(found.pages.find(page => page.id === "agent-plugins")?.navigation?.description).toBe("Manage agent plugins: install, view details, turn on/off.");
+      const details = found.elements.find(element => element.handle.endsWith("-details"));
+      expect(details, "use the handle published by the actual plugin row").toBeDefined();
+      await act(async () => { emit({ type: "invocation", invocationId: "details", capabilityId: "page.click", input: { handle: details!.handle } }); });
+      expect(approvals.getSnapshot().pending).toBeNull();
+      expect(screen.queryByRole("button", { name: "Confirm" })).not.toBeInTheDocument();
+      await waitFor(() => expect(responses).toContainEqual(expect.objectContaining({ invocationId: "details", ok: true, output: expect.objectContaining({ clicked: details!.handle }) })));
+      expect(view.container.querySelector(`[data-agent-element="${details!.handle}"]`)).toHaveAttribute("aria-expanded", "true");
+      const detailsRegion = view.container.querySelector(".agent-plugin-row-detail");
+      expect(detailsRegion).toBeVisible();
+      expect(detailsRegion).toHaveTextContent("Design the user interface");
+    } finally { bridge.close(); }
   });
 });

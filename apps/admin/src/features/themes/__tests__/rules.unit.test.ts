@@ -179,8 +179,8 @@ describe("theme display names", () => {
   });
 
   it("shows the name as authored, and the id when the theme has no name", () => {
-    const names = { "tailark-dusk": "Northbound" };
-    expect(themeDisplayName("tailark-dusk", names)).toBe("Northbound");
+    const names = { "storefront": "Storefront" };
+    expect(themeDisplayName("storefront", names)).toBe("Storefront");
     expect(themeDisplayName("bare", names)).toBe("bare");
   });
 });
@@ -188,22 +188,22 @@ describe("theme display names", () => {
 describe("sortThemesForDisplay", () => {
   const names = {
     "tovu-theme": "Tovu Theme",
-    "tailark-dusk": "Northbound",
+    "storefront": "Storefront",
     onyx: "Onyx",
     meridian: "Meridian",
     kuinetic: "kUInetic Showcase",
-    "basic-2": "Basic-2",
+    "fashion-modern": "Fashion Modern",
   };
 
   it("puts the active theme first, then the rest A-Z by display name, ignoring case", () => {
-    const shown = ["basic-2", "kuinetic", "tailark-dusk", "onyx", "meridian", "tovu-theme"];
+    const shown = ["fashion-modern", "kuinetic", "storefront", "onyx", "meridian", "tovu-theme"];
     expect(sortThemesForDisplay(shown, "tovu-theme", names)).toEqual([
       "tovu-theme",
-      "basic-2",
+      "fashion-modern",
       "kuinetic",
       "meridian",
-      "tailark-dusk",
       "onyx",
+      "storefront",
     ]);
   });
 

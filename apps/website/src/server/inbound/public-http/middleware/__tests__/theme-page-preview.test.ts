@@ -23,7 +23,7 @@ import type { RouteDeps } from "../../../../routes/types.js";
  * gated while the two static routes stay public. The `no-store` header (a cached preview reads as
  * "my save did not work") was unasserted on the partial and templated routes.
  *
- * Themes: the real built-in `basic-2` (static) and `fashion-modern` (templated), plus a scratch
+ * Themes: the real built-in `tovu-starter` (static) and `fashion-modern` (templated), plus a scratch
  * copy of `fashion-modern` with one extra `landing.liquid` template, which has no route shape.
  */
 
@@ -65,7 +65,7 @@ async function expectText(res: Response, status: number, body: string): Promise<
 test("static page route: a real page renders with Cache-Control: no-store, no session needed", async (t) => {
   const { baseUrl } = await bootSite(t);
 
-  const res = await fetch(`${baseUrl}/theme-explore/basic-2/pricing`);
+  const res = await fetch(`${baseUrl}/theme-explore/tovu-starter/index`);
 
   assert.equal(res.status, 200);
   assert.equal(res.headers.get("cache-control"), APP_PREVIEW_CACHE_CONTROL);
@@ -77,7 +77,7 @@ test("static page route: unknown theme, unknown page and a non-static theme are 
   const { baseUrl } = await bootSite(t);
 
   await expectText(await fetch(`${baseUrl}/theme-explore/no-such-theme/index`), 404, "theme 'no-such-theme' was not found");
-  await expectText(await fetch(`${baseUrl}/theme-explore/basic-2/no-such-page`), 404, "page 'no-such-page' was not found in theme 'basic-2'");
+  await expectText(await fetch(`${baseUrl}/theme-explore/tovu-starter/no-such-page`), 404, "page 'no-such-page' was not found in theme 'tovu-starter'");
   await expectText(
     await fetch(`${baseUrl}/theme-explore/fashion-modern/index`),
     422,
@@ -88,12 +88,12 @@ test("static page route: unknown theme, unknown page and a non-static theme are 
 test("partial route: a real partial renders no-store; an unknown partial and a non-static theme are refused", async (t) => {
   const { baseUrl } = await bootSite(t);
 
-  const ok = await fetch(`${baseUrl}/theme-explore/basic-2/partial/nav`);
+  const ok = await fetch(`${baseUrl}/theme-explore/tovu-starter/partial/nav`);
   assert.equal(ok.status, 200);
   assert.equal(ok.headers.get("cache-control"), APP_PREVIEW_CACHE_CONTROL);
   assert.match(await ok.text(), /<html/i, "a partial is wrapped in a host document so it previews standalone");
 
-  await expectText(await fetch(`${baseUrl}/theme-explore/basic-2/partial/no-such-partial`), 404, "partial 'no-such-partial' was not found in theme 'basic-2'");
+  await expectText(await fetch(`${baseUrl}/theme-explore/tovu-starter/partial/no-such-partial`), 404, "partial 'no-such-partial' was not found in theme 'tovu-starter'");
   await expectText(
     await fetch(`${baseUrl}/theme-explore/fashion-modern/partial/nav`),
     422,
@@ -112,7 +112,7 @@ test("templated route: no session → 401, and a session without theme.set → 4
   assert.equal(forbidden.status, 403);
   assert.equal(((await forbidden.json()) as { code: string }).code, "FORBIDDEN");
 
-  assert.equal((await fetch(`${baseUrl}/theme-explore/basic-2/index`)).status, 200);
+  assert.equal((await fetch(`${baseUrl}/theme-explore/tovu-starter/index`)).status, 200);
 });
 
 test("templated route: 'entry' renders as the post route, no-store", async (t) => {
@@ -130,7 +130,7 @@ test("templated route: unknown theme, a static theme, an unknown template and a 
   const get = (p: string) => fetch(`${baseUrl}/theme-explore/${p}`, { headers: { cookie } });
 
   await expectText(await get("no-such-theme/template/home"), 404, "theme 'no-such-theme' was not found");
-  await expectText(await get("basic-2/template/home"), 422, "theme 'basic-2' is a 'static' theme; only templated themes preview this way");
+  await expectText(await get("tovu-starter/template/home"), 422, "theme 'tovu-starter' is a 'static' theme; only templated themes preview this way");
   await expectText(await get("fashion-modern/template/no-such-template"), 404, "template 'no-such-template' was not found in theme 'fashion-modern'");
   await expectText(await get("fm-scratch/template/landing"), 422, "template 'landing' has no recognized route shape and cannot be previewed here");
 });

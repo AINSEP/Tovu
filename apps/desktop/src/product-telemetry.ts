@@ -16,17 +16,17 @@ interface CrashReporter {
 }
 
 /** Electron owns native dumps; an SDK/configuration failure cannot fail the app's boot. O(1). */
-function startNativeReporting({ active, product, readConsent, crashReporter }: {
-  active: boolean; product: ProductTelemetry | undefined; readConsent: () => ProductConsent; crashReporter: CrashReporter;
+function startNativeReporting({ active, product, readConsent, crashReporter, observabilityExportEnabled }: {
+  observabilityExportEnabled: boolean; active: boolean; product: ProductTelemetry | undefined; readConsent: () => ProductConsent; crashReporter: CrashReporter;
 }, { warn }: { warn: (message: string) => void }): boolean {
-  if (!active || !product?.crashUpload || !readConsent().crashes) return false;
+  if (!observabilityExportEnabled || !active || !product?.crashUpload || !readConsent().crashes) return false;
   try {
     crashReporter.start({ ...product.crashUpload, uploadToServer: true, compress: true });
     return true;
   } catch { warn('[product-telemetry] native crash reporting is unavailable'); return false; }
 }
 
-/** Development has no implicit product config; an explicit test path opts into the same flow.
+/** Development has no implicit product config; an explicit path enables boot, not export permission.
  * @returns Paths and release only, or undefined. No reads. @complexity O(n) path length.
  */
 export function desktopProductLaunch({ isPackaged, resourcesPath, preferencePath, version, env }: {
@@ -40,14 +40,14 @@ export function desktopProductLaunch({ isPackaged, resourcesPath, preferencePath
  * Native dumps start only with launch-time consent. Enabling later cannot start collection.
  * @returns A tracker and owned disposal even in dev. @complexity Delegates to shared boot.
  */
-export async function bootDesktopProductTelemetry({ launch, readConsent, crashReporter, launchMode = 'fresh' }: {
-  launch: DesktopProductLaunch | undefined; readConsent: () => ProductConsent; crashReporter: CrashReporter; launchMode?: 'fresh' | 'update';
+export async function bootDesktopProductTelemetry({ launch, readConsent, crashReporter, observabilityExportEnabled = false, launchMode = 'fresh' }: {
+  observabilityExportEnabled?: boolean; launch: DesktopProductLaunch | undefined; readConsent: () => ProductConsent; crashReporter: CrashReporter; launchMode?: 'fresh' | 'update';
 }, { boot = bootProductTelemetry, warn = console.warn }: { boot?: typeof bootProductTelemetry; warn?: (message: string) => void } = {}): Promise<DesktopProductTelemetry> {
   let product: ProductTelemetry | undefined;
-  if (launch) product = await boot({ ...launch, processRole: 'desktop-main' }, { readConsent });
+  if (launch) product = await boot({ ...launch, observabilityExportEnabled, processRole: 'desktop-main' }, { readConsent });
   const active = product?.active === true;
   const tracker = product ? createTracker(product) : createNoopTracker({});
-  const nativeStarted = startNativeReporting({ active, product, readConsent, crashReporter }, { warn });
+  const nativeStarted = startNativeReporting({ active, product, readConsent, crashReporter, observabilityExportEnabled }, { warn });
   let started = false;
   const captureStarted = () => {
     const consent = readConsent();

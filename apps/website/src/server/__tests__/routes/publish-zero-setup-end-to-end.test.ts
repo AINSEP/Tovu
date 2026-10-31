@@ -388,8 +388,8 @@ test("forms and the active theme publish through a publishing grant", async () =
     });
     const presentation = await s.sourceDeps.presentationRepo.findByWorkspaceId({ workspaceId });
     assert.ok(presentation);
-    assert.notEqual(presentation.activeThemeId, "tailark-dusk");
-    await s.sourceDeps.presentationRepo.save({ ...presentation, activeThemeId: "tailark-dusk", updatedAt: now });
+    assert.notEqual(presentation.activeThemeId, "tovu-theme");
+    await s.sourceDeps.presentationRepo.save({ ...presentation, activeThemeId: "tovu-theme", updatedAt: now });
 
     // Both sides hold an active theme and have never synced, so it plans a conflict until ticked.
     const applied = await publishEverything(s, site, [entityKey("active-theme", "site")]);
@@ -401,7 +401,7 @@ test("forms and the active theme publish through a publishing grant", async () =
     });
     assert.equal(form?.name, "Contact", "the form must land on the destination");
     const landed = await s.destinationDeps.presentationRepo.findByWorkspaceId({ workspaceId: s.destinationDeps.workspaceId });
-    assert.equal(landed?.activeThemeId, "tailark-dusk", "the active theme must switch on the destination");
+    assert.equal(landed?.activeThemeId, "tovu-theme", "the active theme must switch on the destination");
   } finally {
     await s.teardown();
   }

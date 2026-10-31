@@ -706,7 +706,7 @@ test.describe("seeded entity pages and editor tabs", () => {
   for (const editor of editors) {
     for (const [index, id] of editor.ids.entries()) {
       test(`${editor.entity} editor: ${id}`, async ({ page, adminSeed }) => {
-        // basic-2 was an owner-site clone, absent on a cold boot. Use the theme a new site ships
+        // Use the theme a new site ships so the preview works on a cold boot.
         // with: tovu-starter since 0fb27e1c2 (tovu-theme, renamed by 85e29beac, is no longer
         // installed on a fresh site). These tests only preview/read its files.
         const url = editor.entity === "theme" ? "/admin/themes/explore?theme=tovu-starter&file=theme.json"

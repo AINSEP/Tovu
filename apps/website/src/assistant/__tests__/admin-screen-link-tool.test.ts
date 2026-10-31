@@ -52,9 +52,10 @@ test("buildAdminScreenPath strips a leading slash the caller supplied", () => {
 });
 
 test("buildAdminScreenPath appends ?tab= for a tabbed screen, URL-encoded", () => {
+  // matchRoute parses URLSearchParams, whose query serialization encodes spaces as '+'.
   assert.equal(
     buildAdminScreenPath({ path: "settings", tab: "external mcp" }),
-    "/admin/settings?tab=external%20mcp",
+    "/admin/settings?tab=external+mcp",
   );
 });
 
@@ -144,12 +145,21 @@ for (const [label, value] of [
   ["a non-http(s) scheme", "ftp://files.example.test"],
 ] as const) {
   test(`an injected TOVU_PUBLIC_URL that is ${label} degrades to the relative path with no url`, async () => {
-    const result = await call(buildHandlerWithEnv({ TOVU_PUBLIC_URL: value }), { path: "posts", tab: "drafts" });
-    assert.deepEqual(result, { path: "/admin/posts?tab=drafts" });
+    const result = await call(buildHandlerWithEnv({ TOVU_PUBLIC_URL: value }), { path: "settings", tab: "general" });
+    assert.deepEqual(result, { path: "/admin/settings?tab=general" });
   });
 }
 
 test("an injected http (not only https) origin is accepted and joined with the path", async () => {
   const result = await call(buildHandlerWithEnv({ TOVU_PUBLIC_URL: " http://local.tovu.test:8080/base " }), { path: "media" });
   assert.deepEqual(result, { path: "/admin/media", url: "http://local.tovu.test:8080/admin/media" });
+});
+
+
+test("the no-tab fallback resolves the actual Agent Plugins route and validates the tab", () => {
+  assert.equal(buildAdminScreenPath({ path: "agent-plugins", tab: "installed" }), "/admin/addons/agent-plugins?tab=installed");
+  assert.equal(buildAdminScreenPath({ path: "addons/agent-plugins", tab: "downloaded" }), "/admin/addons/agent-plugins?tab=downloaded");
+  for (const input of [{ path: "made-up" }, { path: "posts", tab: "drafts" }, { path: "agent-plugins", tab: "ui-ux-design" }]) {
+    assert.throws(() => buildAdminScreenPath(input), ToolInputError);
+  }
 });

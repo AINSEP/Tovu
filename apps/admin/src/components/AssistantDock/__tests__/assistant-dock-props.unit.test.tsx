@@ -2,7 +2,6 @@ import { isValidElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PushToTalkMicButton } from "../../../features/voice-input/PushToTalkMicButton";
-import { VoiceInputPlaceholder } from "../../../features/voice-input/VoiceInputPlaceholder";
 import { composerFooterLeading, optionalChatPaneProps, pickedFoldersAccessory, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";
 import { FolderPathButton } from "../FolderPathButton";
 import { PickedFoldersButton } from "../PickedFoldersButton";
@@ -43,9 +42,8 @@ describe("voiceFooterAccessory", () => {
     expect(isValidElement<{ onTranscript: unknown }>(slot) && slot.props.onTranscript).toBe(onTranscript);
   });
 
-  it("holds the slot with the disabled mic placeholder when voice input is off", () => {
-    const slot = voiceFooterAccessory({ enabled: false, onTranscript: vi.fn() });
-    expect(isValidElement(slot) && slot.type).toBe(VoiceInputPlaceholder);
+  it("shows no mic at all when voice input is off (owner 2026-10-30: hidden, not deleted)", () => {
+    expect(voiceFooterAccessory({ enabled: false, onTranscript: vi.fn() })).toBeUndefined();
   });
 });
 

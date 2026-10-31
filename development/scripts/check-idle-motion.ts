@@ -41,8 +41,6 @@ export const INFINITE_ANIMATION_ALLOWLIST: Record<string, string> = {
   "apps/admin/src/styles/library.css::.library-spinner": "rendered only while a library upload row is uploading",
   "apps/admin/src/styles/site-transfer.css::.site-transfer-spinner": "rendered only while a site import, export or publish is running",
   "apps/admin/src/styles.css::.theme-card.active:hover::before": "only while the pointer is over the active theme card; runs 3 sweeps otherwise",
-  "content/themes/static/basic-2/css/theme.css::.logo-track": "public-site logo marquee; transform-only (compositor), reduced-motion handled",
-  "content/themes/static/tailark-quartz-libre/css/theme.css::.logo-track": "public-site logo marquee; transform-only (compositor), reduced-motion handled",
   "content/themes/static/tovu-starter/css/theme.css::.logo-track": "public-site logo marquee; transform-only (compositor), reduced-motion handled",
   "content/themes/static/tovu-theme/css/theme.css::.logo-track": "public-site logo marquee; transform-only (compositor), reduced-motion handled",
 };

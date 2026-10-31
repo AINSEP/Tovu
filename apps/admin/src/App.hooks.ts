@@ -1,3 +1,5 @@
+import { directPageAction } from "../../website/src/assistant/assistant-tool-approval-policy.js";
+import { PAGE_CAPABILITIES as APPROVAL_PAGE_CAPABILITIES } from "@jini-ai/agentic";
 import { setAdminDraftIdentity } from "./lib/admin-draft-identity";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-ai/chat/react";
@@ -1114,6 +1116,14 @@ export function useAgentPageBridge(
 
     const bridge = createBridge({ baseUrl: "", fetch, openStream }, {
       pageDriver,
+      pageApproval: {
+        isDirect: directPageAction,
+        request: ({ capabilityId, input, signal }) => {
+          const capability = APPROVAL_PAGE_CAPABILITIES.find(entry => entry.id === capabilityId);
+          if (!capability) throw new Error("Unknown page capability");
+          return adminPageApprovals.request({ interaction: { capability, args: input }, signal });
+        },
+      },
       executors,
       onError: logFrontendSessionError,
     });

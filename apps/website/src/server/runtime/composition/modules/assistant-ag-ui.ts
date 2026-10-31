@@ -421,6 +421,7 @@ function handleDaemonFrame(frame: DaemonFrame, ctx: AgUiFrameContext): AgentRunS
 }
 
 interface AgUiRunRequest {
+  frontendBindToken?: string;
   threadId: string;
   runId: string;
   requestId: string;
@@ -444,6 +445,14 @@ function resolveForwardedAgentId(forwardedProps: unknown): string | undefined {
   return resolveNonEmptyString((forwardedProps as { agentId?: unknown }).agentId);
 }
 
+/** Accept a token only, never a surface id or a client-authored tool handler. The daemon's
+ * existing registry rejects stale tokens and binds solely to the originating tab. */
+function resolveForwardedBindToken({ forwardedProps }: { forwardedProps: unknown }, _options = {}): string | undefined {
+  if (typeof forwardedProps !== "object" || forwardedProps === null) return undefined;
+  const token = (forwardedProps as Record<string, unknown>).frontendBindToken;
+  return typeof token === "string" && token.length > 0 && token.length <= 256 ? token : undefined;
+}
+
 /** Validates and normalizes one AG-UI run request body, or `null` when it fails the one hard
  *  requirement: a non-empty `messages` array ending in a user turn. Split out of `handleAgUiRun` so
  *  that function's own body is just the request's control flow, not this parsing. */
@@ -460,6 +469,7 @@ function resolveAgUiRunRequest(body: {
     runId: resolveNonEmptyString(body.runId) ?? randomUUID(),
     requestId: randomUUID(),
     agentId: resolveForwardedAgentId(body.forwardedProps),
+    frontendBindToken: resolveForwardedBindToken({ forwardedProps: body.forwardedProps }),
     secretRedacted: typeof body.forwardedProps === "object" && body.forwardedProps !== null
       && (body.forwardedProps as { secretRedacted?: unknown }).secretRedacted === true,
     messages,
@@ -482,7 +492,9 @@ async function startDaemonRun(
   const startUpstream = await fetchAgentDaemon(req, res, {
     path: "/api/runs",
     method: "POST",
-    body: { contextRef: JSON.stringify({ prompt, userPrompt: run.messages.at(-1)?.content, principalId, ...(run.secretRedacted ? { secretRedacted: true } : {}) }), agentId: run.agentId },
+    body: { contextRef: JSON.stringify({ prompt, userPrompt: run.messages.at(-1)?.content, principalId,
+      ...(run.frontendBindToken ? { frontendBindToken: run.frontendBindToken } : {}),
+      ...(run.secretRedacted ? { secretRedacted: true } : {}) }), agentId: run.agentId },
     observability: daemon.observability,
   });
   if (!startUpstream) return { ok: false }; // fetchAgentDaemon already wrote a 503/502.

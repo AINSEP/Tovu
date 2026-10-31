@@ -74,9 +74,9 @@ There are four theme-content tiers with live implementations, plus a fifth (`cod
 
 | Tier | Format | Executes | Themes shipped today | Directory |
 |---|---|---|---|---|
-| `static` | Complete `.html` documents + CSS + JS, no templating language | Nothing server-side; theme's own client JS runs in the browser | **4** — `basic`, `tailark-dusk`, `tailark-quartz-dark`, `tailark-quartz-libre` (`fuel`, `gracious-timing`, and `portfolite` were removed 2026-08-31 — unconfirmed-license Framer Marketplace derivatives) | `content/themes/static/<id>/` |
-| `declarative` | JSON block tree over a fixed component registry | Nothing — pure data | **1** — `basic-declarative`, explicitly labeled `"Reference only — not wired into any site"` in its own `theme.json` description | `content/themes/declarative/<id>/` |
-| `templated` | LiquidJS templates | Sandboxed template logic, no JS (`eval`/`new Function` never used) | **1** — `storefront` | `content/themes/templated/<id>/` |
+| `static` | Complete `.html` documents + CSS + JS | Theme-owned client JS | **2** — `tovu-starter`, `tovu-theme` | `content/themes/static/<id>/` |
+| `declarative` | JSON block trees over a fixed registry | Pure data | **0 bundled** — supported; see the test-only fixture | `content/themes/declarative/<id>/` |
+| `templated` | LiquidJS templates | Sandboxed template logic, no JS (`eval`/`new Function` never used) | **2** — `fashion-modern`, `storefront` | `content/themes/templated/<id>/` |
 | `handlebars` | Handlebars templates | Sandboxed template logic, same isolation posture as `templated` | **0** | `content/themes/handlebars/` (directory exists, empty) |
 | `code` | (undeclared — would be trusted, signed-plugin JS) | Not built | 0, and no loader path exists | n/a |
 
@@ -90,7 +90,7 @@ Every theme a visitor can currently see is `static`. A static theme is a small m
 
 A JSON block tree (`{"type": "doc", "content": [...]}`) referencing a fixed, core-owned component registry (`COMPONENTS` in `render.ts:614-627`: `tovu/site-header`, `tovu/entry-list`, `tovu/entry-content`, `tovu/site-footer`, `tovu/hero`, `tovu/section`, `tovu/feature-grid`, `tovu/media-placeholder`, `tovu/announcement`, `tovu/nav`, `tovu/cta`, `tovu/footer`). No executable code — the whole appeal (per ADR-010) is that this format can be installed from a stranger with zero code-review risk, and generated/edited by an AI with zero code-execution risk.
 
-In practice this tier has exactly one theme, and its own `theme.json` description says it is a "reference only" port of the `basic` static theme's home/entry pages, "not wired into any site" (`content/themes/declarative/basic-declarative/theme.json`). If you want to see the JSON block-tree format, read that theme's `templates/home.json` and `templates/entry.json` — they're small and legible.
+This tier remains supported without a bundled theme. A minimal JSON block-tree example lives at `development/fixtures/themes/minimal-declarative/render/pages/{home,entry}.json` and is used by declarative duplication and region tests.
 
 ### 2.3 `templated` (LiquidJS) — implemented, one real theme
 
@@ -155,9 +155,6 @@ As of 2026-08-10 this table is down to one field — `modes`, `defaultMode`, and
 | Theme | Shipped but not listed in `pages` | Why |
 |---|---|---|
 | `basic` | `404`, `blog-post` | `pages/404.html` is the themed-404 fallback (`pages.ts` step 7, §1.4); `blog-post.html` is the post-template page (`postTemplate: ["blog-post.html"]`) |
-| `tailark-dusk` | `blog-post` | same post-template reason |
-| `tailark-quartz-dark` | `blog-post` | same post-template reason |
-| `tailark-quartz-libre` | `blog-post` | same post-template reason |
 
 The pattern is consistently applied: all 4 live static themes omit their own `postTemplate` file from `pages`. (Before their 2026-08-31 removal, `portfolite` and `gracious-timing` were the exception — they listed theirs, `blog-post`/`project` respectively, anyway.) There's no rule enforcing either convention, because nothing reads the field either way.
 
@@ -179,7 +176,7 @@ As of 2026-08-10, `modes`/`defaultMode` are parsed and `defaultMode` drives one 
 </script>
 ```
 
-**Same attribute name, different meaning, different tier — worth naming explicitly so it doesn't trip you up reading both render paths in one sitting:** on the `static` tier, `data-theme` on `<html>` is the *color mode* (`"dark"`/`"light"`, this section). On every other tier, `renderSite()` puts `data-theme="<theme.manifest.id>"` on a `<div class="site">` wrapper instead (`render.ts:1134`) — there `data-theme` names the *theme id* (`"storefront"`, `"basic-declarative"`, …), not a color mode. Different element, different tier, no runtime collision in practice — but the shared attribute name is a real trap for anyone skimming both paths at once.
+**Same attribute name, different meaning, different tier — worth naming explicitly so it doesn't trip you up reading both render paths in one sitting:** on the `static` tier, `data-theme` on `<html>` is the *color mode* (`"dark"`/`"light"`, this section). On every other tier, `renderSite()` puts `data-theme="<theme.manifest.id>"` on a `<div class="site">` wrapper instead (`render.ts:1134`) — there `data-theme` names the *theme id* (`"storefront"`, `"minimal-declarative"`, …), not a color mode. Different element, different tier, no runtime collision in practice — but the shared attribute name is a real trap for anyone skimming both paths at once.
 
 ---
 
@@ -332,10 +329,8 @@ The route layer scans every page/partial for a `data-embed-config` marker whose 
 
 | Theme (id / display name) | Nav uses a `{"type":"menu"}` `data-embed-config` marker? |
 |---|---|
-| `basic` / Basic | Yes |
-| `tailark-dusk` / Northbound | Yes |
-| `tailark-quartz-dark` / Onyx | Yes |
-| `tailark-quartz-libre` / Meridian | Yes |
+| `tovu-starter` / Tovu Starter | Yes |
+| `tovu-theme` / Tovu Theme | Yes |
 
 Every live static theme wires the nav embed today. The one theme that didn't — `fuel`/Ember, whose `nav.html` had a plain `<nav class="main-nav">` with four hand-written `<a>` tags and no `data-embed-config` attribute anywhere — was removed from the repo 2026-08-31 (unconfirmed-license Framer Marketplace derivative), taking its gap with it. See §8.3 for what that gap was, kept for historical record since the underlying lesson (a theme *can* hardcode its nav and silently ignore CMS menu edits — this is a per-theme authoring gap, not a platform limitation) still applies to any future theme.
 
@@ -427,7 +422,8 @@ This has nothing to do with which template a post renders through (that's §7.1)
 | `blog-sidebar-template.html` | `posts-sidebar.html` |
 | `page-shell.html` | `pages-default.html` |
 
-The shipped seed theme (`content/themes/static/basic/`), plus `basic-2`, `tailark-dusk`, `tailark-quartz-dark`, `tailark-quartz-libre`, and `__original-themes__`, still ship the pre-convention names as of this writing — confirmed directly against each theme's own `theme.json` `templates` array, not assumed. **Legacy names keep resolving.** `static-render.ts`'s `resolveTemplate` carries a `LEGACY_TEMPLATE_FILENAME_ALIASES` compatibility map (old filename id → new id, consulted only as a fallback after a direct lookup misses) so a stored `templateChoice` naming an old filename keeps resolving correctly, on the renamed theme and on every theme that hasn't renamed. **Stored `template_choice` values are deliberately not backfilled to the new names** — the 27 rows on `sites/tovu-com/content.db` still storing `blog-post.html`/`blog-sidebar-template.html`/`page-shell.html` (observed 2026-09-03) stay as-is by design: rewriting them to the new name would make a row *more* fragile on a future theme switch (a still-unrenamed theme would stop matching a backfilled row), not less. See the ADR for the full reasoning and evidence.
+The bundled static themes use the current `posts-*`/`pages-*` filenames. **Legacy names keep resolving.** `static-render.ts` retains `LEGACY_TEMPLATE_FILENAME_ALIASES` so installed themes and stored template choices continue to work. Stored `template_choice` values are not backfilled during theme removal.
+
 
 ---
 
@@ -576,3 +572,17 @@ This alone is a valid, renderable theme. To add a marketing page, drop another f
 - `ADS-memory/specs/004-declarative-theme-system/` — the original declarative-tier feature/behavior/error/state specs (SPEC-004).
 - `ADS-memory/docs/architecture/tovu-architecture.md` — whole-repo architecture map.
 - `src/features/theme/theme.ts`, `src/features/theme/static-render.ts`, `src/server/http/site/render.ts`, `src/server/routes/site/pages.ts` — the actual source of truth; this guide cites specific lines in all four, but they move, so re-check line numbers against current `HEAD` before trusting them verbatim in a future session.
+
+## Optional shared body layout for templated themes
+
+A templated theme may ship `render/base.html`, a plain HTML fragment with exactly one
+`<!-- theme-content -->` marker. The theme loader splits it at that marker; the page shell
+places the rendered body between the two parts on every route, including missing-template
+fallbacks. This is not Liquid source and grants no filesystem access to the Liquid sandbox.
+No manifest field is needed. Missing layouts retain the existing output; unreadable layouts
+or zero/multiple content markers invalidate that theme through the normal loader diagnostics.
+
+The bundled templated themes put their single marked kUInetic include here. Each bundled theme
+keeps the complete library in `assets/vendor/kuinetic/`, with LICENSE and exact removal instructions
+in its README. Static themes use their existing footer partials; the marketing theme also keeps
+its early cloak stylesheet/helper in that same library folder.

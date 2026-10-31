@@ -1,0 +1,7 @@
+{
+  "apiVersion": 2,
+  "id": "minimal-declarative",
+  "name": "Minimal Declarative",
+  "version": "1.0.0",
+  "tier": "declarative"
+}

@@ -70,7 +70,9 @@ describe("the toolRegistrations registration loop", () => {
   });
 
   test("every registration is still handed to registry.register — the rewrap must not replace registration itself", () => {
-    assert.match(registrationLoopSource, /registry\.register\(applyToolApprovalPolicy\(\{\s*registration:\s*lostFrontendBindings\.wrap\(registration\),\s*surfaces:\s*\{\s*surfaceExchanges\s*\}/);
+    assert.match(registrationLoopSource, /const bound = lostFrontendBindings\.wrap\(registration\)/);
+    assert.match(registrationLoopSource, /registry\.register\(registration\.descriptor\.id\.startsWith\("page\."\) \? bound/);
+    assert.match(registrationLoopSource, /applyToolApprovalPolicy\(\{ registration: bound, surfaces: \{ surfaceExchanges \}/);
   });
 
   test("a run whose bind token was unknown gets the reload message: bind errors are recorded and every tool is wrapped", () => {
@@ -116,7 +118,7 @@ test("the daemon loop registers every frontend tool and preserves navigation suc
   assert.deepEqual(success.output, { navigatedTo: "posts" });
   const failure = await executor.execute({ ...request, input: { page: "pricing" } });
   assert.equal(failure.status, "failed");
-  assert.equal(failure.error, '"pricing" is not a registered ADMIN SCREEN id (page.navigate moves the operator\'s admin UI between a fixed set of screens — it does not open site content). Available screens: posts, settings. Looking for a post or page instead? Use content_post_search / content_read.content_post (or content_duplicate to copy one), not page.navigate.');
+  assert.equal(failure.error, '"pricing" is not a registered ADMIN SCREEN id (page.navigate moves the operator\'s admin UI between published screens and resolved entity editors). Available screens: posts, settings. Looking for a post or page instead? Use content_post_search / content_read.content_post to resolve its identity, then navigate using the published entity target.');
   const sent = await executor.execute({ ...request, toolId: "chat.send_message", input: {} });
   assert.equal(sent.status, "completed");
   assert.deepEqual(sent.output, { sent: true });

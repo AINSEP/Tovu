@@ -83,9 +83,9 @@ export function createLostFrontendBindings(options: { maxRuns?: number } = {}): 
     wrap(registration) {
       return {
         ...registration,
-        handler: async (ctx: ToolExecutionContext) => {
+        handler: async (ctx: ToolExecutionContext, options) => {
           try {
-            return await registration.handler(ctx);
+            return await registration.handler(ctx, options);
           } catch (err) {
             throw rewrapFrontendError(err, lostRuns.has(ctx.run.id)) ?? err;
           }

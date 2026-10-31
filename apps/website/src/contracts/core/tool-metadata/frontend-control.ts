@@ -4,6 +4,7 @@ import type { ToolApprovalPolicy } from './approval-policy.js';
 /** frontend-control registration declarations; shared placement rationale is in ./index.ts. */
 export const toolMetadata = {
   "page.find_elements": {
+    search: { keywords: "read this screen read admin UI page controls inspect current state show me discover buttons find elements open bring up go to navigate" },
     approval: { class: 'read', confirmation: 'direct' },
   },
   "page.highlight": {
@@ -15,6 +16,7 @@ export const toolMetadata = {
   // A click's effect is opaque. Reviewed ordinary install controls are direct; all other
     // clicks retain explicit consent, including every destructive final-dialog button.
   "page.click": {
+    search: { keywords: "click activate open bring up show me inspect published handle admin UI" },
     title: 'Activate the selected control',
     summary: 'This activates the selected control in the admin interface and may make a permanent change.',
     approval: { class: 'delete', confirmation: 'policy', rule: 'page-control' },
@@ -26,6 +28,7 @@ export const toolMetadata = {
     approval: { class: 'edit', confirmation: 'direct' },
   },
   "page.navigate": {
+    search: { keywords: "open bring up show me go to navigate navigation admin UI screen panel page editor take me" },
     approval: { class: 'edit', confirmation: 'direct' },
   },
   "chat.send_message": {

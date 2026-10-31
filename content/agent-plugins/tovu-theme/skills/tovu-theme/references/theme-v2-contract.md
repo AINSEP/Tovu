@@ -24,14 +24,14 @@ Everything else below is convention or optional.
   tokens.light.json        # optional — :root[data-theme="light"] override block
   css/
     theme.css               # the theme's own stylesheet, linked as href="../css/theme.css"
-    vendor/<lib>.css         # convention for a vendored third-party stylesheet, not enforced
   scripts/
     <name>.js
-    vendor/<lib>.js          # convention, e.g. basic's scripts/vendor/kuinetic.all.min.js
+    # theme-owned scripts only; third-party libraries live in assets/vendor/<lib>/
   render/
     pages/*.html             # one file per route; index.html is required
     partials/*.html           # nav/footer/etc. fragments, referenced by theme.json's `slots`
-  assets/                    # images, video, fonts — theme's own, convention not enforced
+  assets/                    # images, video, fonts and self-contained third-party libraries
+    vendor/kuinetic/         # bundle + LICENSE + README + any cloak assets
   icons/                     # favicons/PWA icons — convention
   screenshots/               # theme-picker preview images — convention
   manifest.webmanifest       # PWA manifest — convention
@@ -39,7 +39,7 @@ Everything else below is convention or optional.
 ```
 
 A vendored runtime such as kUInetic is loaded ONCE, from the shared footer partial every page
-includes (`<script src="/theme-assets/<theme-id>/scripts/vendor/kuinetic.all.min.js"></script>` — the
+includes (`<script src="/theme-assets/<theme-id>/assets/vendor/kuinetic/kuinetic.all.min.js"></script>` — the
 absolute form, because partials expand after the page's `../scripts/` rewrite). Never from a CDN
 tag or a `document.write` fallback, and never repeated per page.
 
@@ -111,3 +111,7 @@ only matches a single path segment (`[a-z0-9-]+`, no `/`). Two consequences:
   nowhere to land — there is no nested-path route for a static theme's own pages. This is the
   one case ordinary "keep it relative" porting breaks, and it only shows up in `fetch()`/XHR
   calls and similar JS-driven references, never in an `<a href>` to another top-level page.
+
+For the bundled templated themes, append the marked kUInetic script to each `.liquid` page template.
+See `assets/vendor/kuinetic/README.md` inside each theme for every removal point, including any
+early cloak assets. Keep all third-party support files in that one removable folder.

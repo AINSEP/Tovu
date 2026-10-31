@@ -585,8 +585,8 @@ export function AssistantDock({
           // Owner report, 2026-09-13: the button should not show at all in Workspace chat.
           // `VOICE_INPUT_ENABLED` (`voice-input-config.ts`) is the reversible switch, and flipping
           // that one constant back to `true` restores the live mic exactly as it was. Owner,
-          // 2026-10-30: while it is off the slot holds a grayed, disabled mic ("coming soon")
-          // instead of being omitted, so the one-line footer keeps its final shape.
+          // 2026-10-30: briefly a grayed, disabled mic ("coming soon") held the slot; later that
+          // day the owner said "just hide it", so while it is off no mic shows at all.
           //
           // The folder button (owner 2026-10-27: "a folder icon next to the plus button") rides the same
           // slot, ahead of the mic — see `composerFooterLeading`.

@@ -1,3 +1,4 @@
+import { ADMIN_PANELS } from "../../panels";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -26,7 +27,7 @@ const MANIFEST_PATH = path.resolve(__dirname, "../../../../website/src/features/
 /** Renders the generated server-side module. Only this test writes it. */
 function renderAdminScreensManifest(screens: readonly AdminAgentScreen[]): string {
   const rows = screens
-    .map((screen) => `  { id: ${JSON.stringify(screen.id)}, label: ${JSON.stringify(screen.label)}, path: ${JSON.stringify(screen.path)} },`)
+    .map((screen) => `  ${JSON.stringify(screen)},`)
     .join("\n");
   return `/**
  * @file GENERATED — do not edit by hand. The admin app's agent-navigable screens (id, sidebar label,
@@ -39,7 +40,9 @@ function renderAdminScreensManifest(screens: readonly AdminAgentScreen[]): strin
  *   UPDATE_ADMIN_SCREENS_MANIFEST=1 npx vitest run src/lib/__tests__/admin-screens-manifest.unit.test.ts
  */
 
-export const ADMIN_SCREENS: readonly { readonly id: string; readonly label: string; readonly path: string }[] = [
+import type { AgentNavigationScreen } from "@jini-ai/agentic";
+
+export const ADMIN_SCREENS: readonly AgentNavigationScreen[] = [
 ${rows}
 ];
 `;
@@ -78,4 +81,16 @@ describe("admin-screens.generated.ts (the server-side copy)", () => {
       "apps/website's admin-screens.generated.ts has drifted from ADMIN_PANELS — if the panel change was intentional, regenerate it: cd apps/admin && UPDATE_ADMIN_SCREENS_MANIFEST=1 npx vitest run src/lib/__tests__/admin-screens-manifest.unit.test.ts",
     ).toEqual(expected);
   });
+});
+
+
+it("every admin panel has a one-line plain-language description, including opted-out panels", () => {
+  for (const panel of ADMIN_PANELS) {
+    expect(panel.description?.trim(), `${panel.id} needs a what-you-do-here description`).toBeTruthy();
+    expect(panel.description).not.toMatch(/[\r\n]/);
+  }
+  for (const screen of listAdminAgentScreens()) {
+    expect(screen.description).toBeTruthy();
+    expect(screen.routeTemplates).toContain(screen.path.split("?")[0]);
+  }
 });

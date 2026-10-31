@@ -30,6 +30,7 @@ export function createAdminPageApprovalStore(
       const proposal = transport.propose({ description: interaction, execute, signal });
       return { status: proposal.status, approvalId: proposal.approvalId, capabilityId: proposal.description.capability.id, args: proposal.description.args, responseTool: proposal.responseTool };
     },
+    request: ({ interaction, signal }: { interaction: WebMcpUserInteraction; signal: AbortSignal }, options: { timeoutMs?: number } = {}) => transport.request({ description: interaction, signal }, options),
     // Consume before awaiting: double clicks/replayed tool replies cannot run this write twice.
     respond: transport.respond,
   };

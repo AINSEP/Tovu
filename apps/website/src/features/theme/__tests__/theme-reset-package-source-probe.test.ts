@@ -33,8 +33,8 @@ function makePackageOriginalsRoot(): string {
 }
 
 /** A themes root shaped like a real SITE's live themes tree: `<root>/<tier>/<id>` for the live theme
- *  folder. Deliberately carries no `__original-themes__` anywhere — stands in for the `basic-2`
- *  shape, a site that has never had a stored original for this theme at all (w4 report §0a). */
+ *  folder. Deliberately carries no `__original-themes__` anywhere — models a site that has never
+ *  had a stored original for this theme at all (w4 report §0a). */
 function makeSiteThemesRoot(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-site-themes-"));
 }
@@ -48,11 +48,11 @@ function write(dir: string, relativePath: string, content: string | Buffer): str
 
 test("(a) a package-sourced reset succeeds byte-exact and the live file matches the package original", () => {
   const siteThemesRoot = makeSiteThemesRoot();
-  const themeDir = path.join(siteThemesRoot, "static", "tailark-dusk");
+  const themeDir = path.join(siteThemesRoot, "static", "tovu-theme");
   write(themeDir, "css/site.css", "body{color:red}");
 
   const packageOriginalsRoot = makePackageOriginalsRoot();
-  const originalDir = path.join(packageOriginalsRoot, "static", "tailark-dusk");
+  const originalDir = path.join(packageOriginalsRoot, "static", "tovu-theme");
   const canonicalBytes = Buffer.from("body{color:blue;font-family:sans-serif}");
   write(originalDir, "css/site.css", canonicalBytes);
 
@@ -68,21 +68,20 @@ test("(a) a package-sourced reset succeeds byte-exact and the live file matches 
   assert.ok(fs.readFileSync(path.join(themeDir, "css/site.css")).equals(canonicalBytes));
 });
 
-test("(b) a theme with no site-level original (basic-2 shape) becomes resettable via the package slot", () => {
+test("(b) a theme with no site-level original (no stored original) becomes resettable via the package slot", () => {
   const siteThemesRoot = makeSiteThemesRoot();
-  const themeDir = path.join(siteThemesRoot, "static", "basic-2");
-  write(themeDir, "theme.json", JSON.stringify({ id: "basic-2", tier: "static" }));
+  const themeDir = path.join(siteThemesRoot, "static", "tovu-starter");
+  write(themeDir, "theme.json", JSON.stringify({ id: "tovu-starter", tier: "static" }));
 
   // The whole coverage claim starts here: this site has NEVER had a catalog original for this theme
-  // — no `__original-themes__` anywhere under its themes root at all, matching `basic-2`'s real state
-  // on disk today.
+  // — no `__original-themes__` anywhere under its themes root at all.
   assert.equal(fs.existsSync(path.join(siteThemesRoot, "__original-themes__")), false);
 
   // Confirms today's gap first: resolving against the site's own (absent) catalog answers `null`,
   // exactly as `resetThemeFileToOriginal`'s documented "no file in the catalog at the path" contract
   // (see `theme-file-reset-to-original.test.ts`'s first case).
   const siteOriginalsRoot = path.join(siteThemesRoot, "__original-themes__");
-  const siteOriginalDir = path.join(siteOriginalsRoot, "static", "basic-2");
+  const siteOriginalDir = path.join(siteOriginalsRoot, "static", "tovu-starter");
   assert.equal(
     resetThemeFileToOriginal({
       themeDir,
@@ -98,12 +97,12 @@ test("(b) a theme with no site-level original (basic-2 shape) becomes resettable
   // tree the site has no knowledge of and never wrote into.
   const packageThemesRoot = makePackageOriginalsRoot();
   const packageOriginalsRoot = path.join(packageThemesRoot, THEME_CATALOG_DIR);
-  const packageOriginalDir = path.join(packageOriginalsRoot, "static", "basic-2");
-  const canonicalManifest = Buffer.from(JSON.stringify({ id: "basic-2", tier: "static", version: "0.1.0" }));
+  const packageOriginalDir = path.join(packageOriginalsRoot, "static", "tovu-starter");
+  const canonicalManifest = Buffer.from(JSON.stringify({ id: "tovu-starter", tier: "static", version: "0.1.0" }));
   write(packageOriginalDir, "theme.json", canonicalManifest);
 
   const source = resolveThemeOriginalSource({
-    manifest: { id: "basic-2", tier: "static" },
+    manifest: { id: "tovu-starter", tier: "static" },
     siteThemesRoot,
     packageThemesRoot,
   });

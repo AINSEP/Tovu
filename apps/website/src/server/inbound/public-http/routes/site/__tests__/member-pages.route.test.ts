@@ -19,13 +19,13 @@ import { MEMBER_PAGES, memberPagePost, registerMemberPageRoutes } from "../membe
 
 /**
  * @file Core's member sign-in pages (`member-pages.ts`) served through `serveVirtualPage`
- * (`pages.ts`): real HTTP via `createApp` with the shipped tovu-starter / basic-2 themes, the
+ * (`pages.ts`): real HTTP via `createApp` with the shipped tovu-starter / tovu-theme themes, the
  * header "Sign in" hook (`data-member-nav`, tovu-starter's nav partial) and the member script
  * `finalizePublicPageHtml` injects on live pages but not on static exports.
  */
 
 const starter = loadTheme({ themeDir: path.resolve("content/themes/static/tovu-starter"), id: "tovu-starter", source: "built-in" });
-const basic2 = loadTheme({ themeDir: path.resolve("content/themes/static/basic-2"), id: "basic-2", source: "built-in" });
+const marketing = loadTheme({ themeDir: path.resolve("content/themes/static/tovu-theme"), id: "tovu-theme", source: "built-in" });
 
 const memberToken = "member-page-session";
 const memberCookie = `${MEMBER_SESSION_COOKIE}=${memberToken}`;
@@ -80,7 +80,7 @@ test("login provider slots ship empty and hidden: core names no provider, the sc
   for (const body of [signin, account]) assert.doesNotMatch(body, /google/i);
 });
 
-for (const theme of [starter, basic2]) {
+for (const theme of [starter, marketing]) {
   test(`GET each member page renders in the ${theme.manifest.id} theme with the member script`, async (t) => {
     assert.equal(theme.status, "valid", JSON.stringify(theme.errors));
     const { server, baseUrl } = await startServer({ ...authenticatedDeps(), themes: [theme], postRepo: new InMemoryPostRepo([]) });

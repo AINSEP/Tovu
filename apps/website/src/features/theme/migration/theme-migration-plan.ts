@@ -8,7 +8,7 @@
  * `declarative`/`templated`/`handlebars` share one planner (`planNonStaticTierMigration`) — all three
  * keep the identical v1 shape (an optional root `styles.css`, a `templates/` folder of one extension,
  * an optional flat root `assets/` bag), verified directly against real themes in both tiers before
- * generalizing (`basic-declarative`, `storefront`, `fashion-modern`). `static` has a materially
+ * generalizing (the original declarative reference, `storefront`, `fashion-modern`). `static` has a materially
  * different v1 shape (`pages/`, root partials, `js/`, a much larger `images/` set) and gets its own
  * planner (`planStaticTierMigration`), verified directly against `fuel` before writing it — see that
  * function's own header for what it deliberately does not yet handle (`basic`'s generated `preview/`).
@@ -116,7 +116,7 @@ function planNonStaticRootScan(themeDir: string): string[] {
  * extension (-> `render/pages/`). No partials, no scripts, no per-page asset-path rewriting — neither
  * declarative JSON props nor a templated theme's `render_block`/product-data Liquid syntax carry a
  * relative asset path the way static HTML's `../css/`/`../js/` does. Verified directly against
- * `basic-declarative` and `storefront`'s real files before writing this planner.
+ * the original declarative reference and `storefront`'s real files before writing this planner.
  *
  * @complexity O(f) in the theme root's own (small) entry count.
  */

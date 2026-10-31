@@ -617,8 +617,8 @@ Create no CMS Page rows in this branch.
    Rules 3/5. Apart from the default motion recipe (or the owner's motion preference), preserve
    everything else byte-for-byte — a theme page's job is to be a faithful, working copy.
 6. **Vendor scripts/stylesheets** the pages actually load (survey step 2's usage check) into
-   `scripts/`/`css/` (or a `vendor/` subfolder for a clearly third-party library, matching
-   `basic`'s own `scripts/vendor/kuinetic.all.min.js` precedent) — copy via `fs_read_file`/
+   `scripts/`/`css/` for theme-owned code and `assets/vendor/<library>/` for a third-party
+   library, matching `tovu-starter`'s `assets/vendor/kuinetic/` folder — copy via `fs_read_file`/
    `theme_write_file` for anything under the size/binary limits, flag anything that isn't
    (Rule 5's fetch-path check, and the Assets section). Import local theme images/fonts/icons
    with `theme_import_local_file` in `items` batches; rewrite their references only after checking
@@ -626,7 +626,7 @@ Create no CMS Page rows in this branch.
    'kuinetic' always means the kUInetic library (kuinetic.com); never hand-roll motion or add another animation library.
    **kUInetic** (and any library the theme vendors) loads from the theme's OWN local vendor file,
    exactly once, from the shared partial every page already includes — the stock themes put a
-   single `<script src="/theme-assets/<theme-id>/scripts/vendor/kuinetic.all.min.js"></script>` at the
+   single `<script src="/theme-assets/<theme-id>/assets/vendor/kuinetic/kuinetic.all.min.js"></script>` at the
    end of `render/partials/footer.html` (and each footer variant). Partials expand after the page's
    `../scripts/` rewrite, so a partial uses the absolute `/theme-assets/<theme-id>/` form, the same
    form its logo `<img>` uses (`theme_duplicate` rewrites the id). Never a CDN tag
@@ -634,7 +634,10 @@ Create no CMS Page rows in this branch.
    `window.kuinetic||document.write(...)` fallback, and never a per-page copy of the tag. Keep it a
    plain synchronous tag (no `defer`/`async`): kUInetic defers its own boot to `DOMContentLoaded`,
    so it still arms after the page's own end-of-body scripts. Vendor the library's minified build
-   (`dist/kuinetic.all.min.js`), not the unminified one. Ship the library's LICENSE beside it.
+   (the newest standalone build), not the unminified one. Keep the library's LICENSE, README,
+   cloak CSS and any cloak helper together in that same folder. Mark each include block with
+   `<!-- kuinetic: remove these lines to drop the library -->`; the README must name every
+   template containing a marked include so removal leaves only inert `data-kui` attributes.
 7. **`publishedPages`** (Rule 4): list every converted page id except `index`. Do this as its
    own explicit step, not a thing you remember while writing `theme.json` in step 2 — it's easy
    to write the manifest before the page inventory is final and forget to come back to it.

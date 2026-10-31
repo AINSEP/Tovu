@@ -12,10 +12,7 @@ import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
  * @file Canaries for EVERY static theme's EVERY page on the `data-embed-config` marker spine — the
  * sweep `post-template-render.canary.test.ts` (2026-08-10, commit `26447df`) never ran: that file
  * pins the `basic` theme's post-template path only. This file covers the other static themes
- * (`tailark-dusk`, `tailark-quartz-dark`, `tailark-quartz-libre` as of 2026-08-31 — `fuel`,
- * `gracious-timing`, and `portfolite` were removed from the repo that day, unconfirmed-license
- * Framer Marketplace derivatives) and, within every theme including `basic`, every page under
- * `pages/` — not only the ones used as a post template. `STATIC_THEME_IDS` below discovers the
+ * and every page in each theme, including reusable templates. `STATIC_THEME_IDS` discovers the
  * real theme set from disk, so this list is descriptive, not something to keep in sync by hand.
  *
  * Real theme files on disk, real render pipeline (`renderStaticPage`, `renderHtmlPageBody`), same

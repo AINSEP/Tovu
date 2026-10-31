@@ -636,11 +636,11 @@ test("GET /signup: regression for the 2026-08-31 404 -- the primary nav CTA targ
   );
 });
 
-test("the shipped basic-2 nav CTA reaches its real page after publication and stays unpublished by default", async (t) => {
-  const theme = loadTheme({ themeDir: path.resolve("content/themes/static/basic-2"), id: "basic-2", source: "built-in" });
+test("the shipped tovu-theme nav CTA reaches its real page after publication and stays unpublished by default", async (t) => {
+  const theme = loadTheme({ themeDir: path.resolve("content/themes/static/tovu-theme"), id: "tovu-theme", source: "built-in" });
   assert.equal(theme.status, "valid", JSON.stringify(theme.errors));
-  assert.equal(theme.manifest.publishedPages, undefined, "shipped generic pages require an operator's publication decision");
-  assert.ok(theme.pages.signup, "the shipped CTA must have a real authored destination");
+  assert.deepEqual(theme.manifest.publishedPages, [], "shipped generic pages require an operator's publication decision");
+  assert.ok(theme.pages.download, "the shipped CTA must have a real authored destination");
   const unpublished = await startServer({ themes: [theme], postRepo: new InMemoryPostRepo([]) });
   t.after(() => closeServer(unpublished.server));
   const home = await fetch(unpublished.baseUrl);
@@ -651,17 +651,17 @@ test("the shipped basic-2 nav CTA reaches its real page after publication and st
   assert.ok(cta, "the rendered primary nav CTA must carry its destination");
   const target = new URL(cta[1]!, unpublished.baseUrl);
   assert.equal(target.origin, unpublished.baseUrl);
-  assert.match(target.pathname, /^\/signup(?:\.html)?$/);
-  assert.equal((await fetch(target)).status, 404, "generic signup is off until explicitly published");
+  assert.match(target.pathname, /^\/download(?:\.html)?$/);
+  assert.equal((await fetch(target)).status, 404, "generic download is off until explicitly published");
 
-  const publishedTheme: DiscoveredTheme = { ...theme, manifest: { ...theme.manifest, publishedPages: ["signup"] } };
+  const publishedTheme: DiscoveredTheme = { ...theme, manifest: { ...theme.manifest, publishedPages: ["download"] } };
   const published = await startServer({ themes: [publishedTheme], postRepo: new InMemoryPostRepo([]) });
   t.after(() => closeServer(published.server));
   const response = await fetch(new URL(target.pathname, published.baseUrl));
   assert.equal(response.status, 200, "publishing the shipped CTA destination must make that same URL reachable");
   const html = await response.text();
-  assert.match(html, /Create your account/, "the response must render the signup page");
-  assert.match(html, /<input\b[^>]*type=["']password["'][^>]*id=["']password["']/, "the response must render its real signup form");
+  assert.match(html, /Get the Basic CLI/, "the response must render the authored download page");
+  assert.match(html, /class="platform-row"/, "the response must include the authored platform download links");
 });
 
 // ---------------------------------------------------------------------------

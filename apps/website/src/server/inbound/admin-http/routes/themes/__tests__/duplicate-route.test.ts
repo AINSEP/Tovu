@@ -15,16 +15,16 @@ import type { ContentRouteDeps } from "../../content/deps.js";
 /**
  * @file `POST .../themes/:themeId/duplicate` (`registerAdminThemeDuplicateRoute`) — the Themes
  * screen's Duplicate action over the same `duplicateDiscoveredTheme` service `theme_duplicate`
- * calls. Bare app + stubbed principal, over a scratch themes root holding a copy of a real stock theme.
+ * calls. Bare app + stubbed principal, over a scratch themes root holding a copy of the minimal declarative fixture.
  */
 
 const WORKSPACE_ID = "workspace-local";
 const REPO_THEMES = path.resolve(import.meta.dirname, "../../../../../../../../../content/themes");
-const SOURCE_ID = "basic-declarative";
+const SOURCE_ID = "minimal-declarative";
 
 function buildApp(options: { allowed?: boolean; permissions?: string[] } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-duplicate-route-"));
-  fs.cpSync(path.join(REPO_THEMES, "declarative", SOURCE_ID), path.join(root, "declarative", SOURCE_ID), { recursive: true });
+  fs.cpSync(path.resolve(REPO_THEMES, "../../development/fixtures/themes/minimal-declarative"), path.join(root, "declarative", SOURCE_ID), { recursive: true });
   const themes = discoverAllBuiltInThemes({ dir: root, source: "built-in" });
   const permissions: string[] = options.permissions ?? [];
   const deps = {
@@ -55,13 +55,13 @@ async function post(t: import("node:test").TestContext, app: express.Express, op
 
 test("duplicate: 201 with the copy's identity, the copy is live in deps.themes, and theme.edit was checked", async (t) => {
   const { app, root, themes, permissions } = buildApp();
-  const { status, json } = await post(t, app, { body: { newName: "Basic Declarative copy" } });
+  const { status, json } = await post(t, app, { body: { newName: "Minimal Declarative copy" } });
   assert.equal(status, 201);
-  assert.deepEqual(json.theme, { id: "basic-declarative-copy", name: "Basic Declarative copy", tier: "declarative", status: "valid", errors: [] });
+  assert.deepEqual(json.theme, { id: "minimal-declarative-copy", name: "Minimal Declarative copy", tier: "declarative", status: "valid", errors: [] });
   assert.equal(json.sourceThemeId, SOURCE_ID);
-  assert.deepEqual(json.availableThemeIds, ["basic-declarative", "basic-declarative-copy"]);
-  assert.ok(themes.some((theme) => theme.manifest.id === "basic-declarative-copy"));
-  assert.ok(fs.existsSync(path.join(root, "declarative", "basic-declarative-copy", "theme.json")));
+  assert.deepEqual(json.availableThemeIds, ["minimal-declarative", "minimal-declarative-copy"]);
+  assert.ok(themes.some((theme) => theme.manifest.id === "minimal-declarative-copy"));
+  assert.ok(fs.existsSync(path.join(root, "declarative", "minimal-declarative-copy", "theme.json")));
   assert.deepEqual(permissions, ["theme.edit"]);
 });
 

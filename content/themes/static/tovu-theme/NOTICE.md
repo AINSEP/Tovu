@@ -186,9 +186,7 @@ the (unminified, comment-intact) `dist/kuinetic.all.js` source, not from prose d
 `scripts/reveal.js`, and `scripts/hero-intro.js` were all deleted from this theme, and
 the `<script src="../scripts/vendor/motion.js">` / `reveal.js` / `hero-intro.js` tags
 removed from every template. The theme now loads exactly two scripts plus the vendored
-bundle: `main.js`, `theme-toggle.js`, and `scripts/vendor/kuinetic.all.js`. Motion is
-still used by the `basic-2` and three `tailark-*` themes, which are untouched by this
-change.
+bundle: `main.js`, `theme-toggle.js`, and `scripts/vendor/kuinetic.all.js`.
 
 **The progressive-enhancement guarantee is preserved, and is now structural rather than
 a code convention.** Verified by reading `scripts/vendor/kuinetic.all.js` directly:
@@ -419,3 +417,8 @@ Updating kUInetic means re-vendoring the file by hand.
 `scripts/vendor/kuinetic.all.js` is replaced by `scripts/vendor/kuinetic.all.min.js`, the same
 kUInetic build's minified dist (494 KB vs 991 KB, ~119 KB vs ~231 KB gzipped). Earlier sections
 that name `kuinetic.all.js` describe the file as it was then.
+
+## 2026-10-30: moved to assets/vendor/kuinetic/, updated to 0.2.4
+
+The current bundle, license and removal guide live together in `assets/vendor/kuinetic/`.
+Earlier sections record the paths and versions used at the time.
