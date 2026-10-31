@@ -4,7 +4,7 @@ import { createSite } from "#src/server/runtime/composition/site-dir";
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -34,7 +34,7 @@ for (const port of [53775, 0]) {
       devRestart: { requestRestart: () => assert.fail("occupied target must not restart") },
     });
     assert.deepEqual(result, { ok: false, code: "SITE_ALREADY_RUNNING", error: url
-      ? "Site 'alpha' is open in the Desktop app at https://localhost:53775/admin/ — close it there or open it in Desktop. Switch refused; the current site is still running."
+      ? "That site is open in the Desktop app at https://localhost:53775/admin/ — close it there first or open it there"
       : "Site 'alpha' is starting in Desktop. Wait for it to finish starting. Switch refused; the current site is still running.",
       ...(url ? { url } : {}),
     });
@@ -53,9 +53,32 @@ test("activateSite: saving without a restart still refuses a Desktop target with
   });
   assert.deepEqual(result, {
     ok: false, code: "SITE_ALREADY_RUNNING", url: "http://localhost:53775/admin/",
-    error: "Site 'alpha' is open in the Desktop app at http://localhost:53775/admin/ — close it there or open it in Desktop. Switch refused; the current site is still running.",
+    error: "That site is open in the Desktop app at http://localhost:53775/admin/ — close it there first or open it there",
   });
 });
+
+for (const restartNow of [true, false]) {
+  test(`activateSite: Desktop refusal preserves .env bytes (restartNow: ${restartNow})`, async (t) => {
+    const dir = await mkdtemp(path.join(tmpdir(), "tovu-occupied-site-"));
+    t.after(() => rm(dir, { recursive: true, force: true }));
+    const envFile = path.join(dir, ".env");
+    const original = Buffer.from("# keep this formatting\r\nTOVU_SITE=served\r\nOTHER=keep\r\n");
+    await writeFile(envFile, original);
+    const result = activateSite({ switcherBase: dir, name: "alpha", currentSiteName: "served", restartNow }, {
+      // The list can be stale; the target's fresh lease must prevent even a save-only switch.
+      listSites: () => [{ ...SITE, running: null }],
+      readSiteRunning: ({ dir: target }) => {
+        assert.equal(target, SITE.dir);
+        return { pid: 42, port: 53775, app: "Desktop", scheme: "http", started: "2026-10-26T00:00:00Z", token: "test-lease" };
+      },
+      // Leave the real .env writer wired: a premature write must be visible in the file assertion.
+      devRestart: { requestRestart: () => assert.fail("occupied target must not restart") },
+    });
+    assert.deepEqual(await readFile(envFile), original);
+    assert.deepEqual(result, { ok: false, code: "SITE_ALREADY_RUNNING", url: "http://localhost:53775/admin/",
+      error: "That site is open in the Desktop app at http://localhost:53775/admin/ — close it there first or open it there" });
+  });
+}
 
 test("activateSite: an unreadable running lock fails closed before persistence", () => {
   assert.throws(() => activateSite({ switcherBase: "/repo", name: "alpha" }, {
@@ -241,9 +264,12 @@ test("createSiteForOwner uses the injected real name validator without creating 
 test("activateSite persists through the real writer in the supplied temporary base", async (t) => {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-site-admin-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
-  const result = activateSite({ switcherBase: dir, name: "alpha", restartNow: true }, { listSites: () => [SITE] });
+  await writeFile(path.join(dir, ".env"), "# keep settings\nTOVU_SITE=served\nOTHER=keep\n");
+  const result = activateSite({ switcherBase: dir, name: "alpha", restartNow: true }, {
+    listSites: () => [SITE], readSiteRunning: () => null,
+  });
   assert.deepEqual(result, { ok: true, activeSiteName: "alpha", restartRequired: true, restartInstructions: SITE_SWITCH_RESTART_INSTRUCTIONS, restarting: false });
-  assert.equal(await readFile(path.join(dir, ".env"), "utf8"), "TOVU_SITE=alpha\n");
+  assert.equal(await readFile(path.join(dir, ".env"), "utf8"), "# keep settings\nTOVU_SITE=alpha\nOTHER=keep\n");
   assert.deepEqual(activateSite({ switcherBase: dir, name: "coverage-no-such-site" }), { ok: false, code: "SITE_NOT_FOUND", error: "site 'coverage-no-such-site' was not found" });
 });
 

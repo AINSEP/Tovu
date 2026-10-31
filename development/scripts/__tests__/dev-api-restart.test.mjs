@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { classifyChildExit, createApiRestarter, devRestartRefusal, handleDevRestartRequest, restoreDevSiteSelection, siteEnvForRestart, stopChildGroup } from "../dev.mjs";
@@ -107,11 +109,20 @@ test("an occupied target keeps the old child and restores the persisted choice b
   assert.ok(messages.includes("Site is open in Desktop at https://localhost:53775/admin/."));
 });
 
-test("a refused boot inside a live watcher restores the previous site and its persisted selection", async () => {
+test("a refused boot inside a live watcher restores the previous site and its persisted selection", async (t) => {
+  const repoRoot = mkdtempSync(path.join(tmpdir(), "tovu-switch-rollback-"));
+  t.after(() => rmSync(repoRoot, { recursive: true, force: true }));
+  const envFile = path.join(repoRoot, ".env");
+  writeFileSync(envFile, "# keep settings\nTOVU_SITE=beta\nOTHER=keep\n");
   const { deps, events } = fakeDeps({
+    // The target passed preflight, then lost its boot claim. The watcher itself stays alive.
     waitForReady: async ({ child }) => child.env.TOVU_SITE === "alpha",
-    restoreSite: ({ env }) => events.push(["restore", env.TOVU_SITE]),
+    restoreSite: ({ env }) => {
+      restoreDevSiteSelection({ repoRoot, name: env.TOVU_SITE });
+      events.push(["restore", env.TOVU_SITE]);
+    },
     markRunning: (child) => events.push(["running", child.id]),
+    shutdown: () => assert.fail("a refused target must recover the previous API"),
   });
   const restarter = createApiRestarter(deps);
   restarter.start({ TOVU_SITE: "alpha" });
@@ -123,6 +134,7 @@ test("a refused boot inside a live watcher restores the previous site and its pe
     ["start", 3, { TOVU_SITE: "alpha" }], ["planned", 3], ["running", 3],
   ]);
   assert.equal(restarter.current().env.TOVU_SITE, "alpha");
+  assert.equal(readFileSync(envFile, "utf8"), "# keep settings\nTOVU_SITE=alpha\nOTHER=keep\n");
 });
 
 test("the rollback baseline advances only after a successful boot", async () => {
