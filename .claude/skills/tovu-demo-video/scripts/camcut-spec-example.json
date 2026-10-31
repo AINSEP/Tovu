@@ -1,0 +1,9 @@
+{"out": "final/charts-v2.mp4", "work": "work-v2",
+ "views": {"FULL": [1, 720, 450], "COMPOSER": [2.3, 1250, 805], "CHAT_TOP": [2.3, 1127, 196],
+           "CHART": [1.45, 551, 400], "REPLY": [1.714, 1020, 442]},
+ "segments": [
+  {"src": "take1/take1-raw.webm", "a": 20.4, "b": 27.4, "keys": [[0, "FULL"], [0.6, "COMPOSER"], [6.2, "CHAT_TOP"]]},
+  {"src": "take1/take1-raw.webm", "a": 27.4, "b": 50.8, "speed": 6, "keys": [[0, "CHAT_TOP"]], "join": "cut"},
+  {"src": "take1/take1-raw.webm", "a": 51.16, "b": 64.0, "hold": 1.6, "drop": [[51.94, 51.98]], "join": "fade", "jd": 0.25,
+   "keys": [[0, "CHAT_TOP"], [0.15, "FULL"], [1.9, "CHART", 1.0], [4.6, "REPLY", 1.0], [8.6, "CHART", 1.0], [11.4, "FULL", 1.0]]}
+ ]}
