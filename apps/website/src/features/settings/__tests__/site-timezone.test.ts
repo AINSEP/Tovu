@@ -1,7 +1,7 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSettingsPrincipalLookup } from "../index.js";
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { afterEach, beforeEach } from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo, resolveDefinitionRaw, set, type AuthorizeFn, type SettingsRepoPort } from "@jini-ai/core/settings";
@@ -17,10 +17,17 @@ import {
 /**
  * @file Bug D (2026-10-22): `core.site.timezone`, the zone public pages format post dates in. Only a
  * workspace-layer value counts as the owner's choice; without one the zone detected when the site was
- * created applies, else UTC. An invalid value at either tier never breaks a render.
+ * created applies, else the server's local zone. An invalid value at either tier never breaks a render.
  */
 
 const SYSTEM_PRINCIPAL_ID = "system-settings-migration";
+// Keep the existing UTC-server cases deterministic; the local-fallback suite covers non-UTC hosts.
+let previousTimeZone: string | undefined;
+beforeEach(() => { previousTimeZone = process.env.TZ; process.env.TZ = "UTC"; });
+afterEach(() => {
+  if (previousTimeZone === undefined) delete process.env.TZ;
+  else process.env.TZ = previousTimeZone;
+});
 const clock = { nowIso: () => "2026-10-22T00:00:00.000Z", nowMs: () => Date.parse("2026-10-22T00:00:00.000Z") };
 let idCounter = 0;
 const ids = { newId: () => `site-tz-id-${++idCounter}` };

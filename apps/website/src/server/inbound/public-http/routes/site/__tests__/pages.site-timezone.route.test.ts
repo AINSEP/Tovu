@@ -2,13 +2,17 @@ import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-h
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test, { type TestContext } from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
+import { exportSite } from "#src/features/site-export/index";
 
 /**
  * @file Bug D (2026-10-22): public post dates are the SITE's calendar day (`core.site.timezone`),
@@ -60,7 +64,8 @@ test("a content marker's post header dates the post by the site's calendar day",
   assert.ok(html.includes(LA_TIME), html);
 });
 
-test("the composed app reads core.site.timezone: unset renders UTC, an owner value renders that zone", async (t) => {
+test("the composed app reads core.site.timezone: an owner value overrides the server's UTC zone", async (t) => {
+  useProcessZone(t, "UTC");
   assert.ok((await blogHtml(t, {}, PREVIEWS)).includes(UTC_TIME));
   const deps = createRouteDeps();
   await deps.siteTitleReady;
@@ -70,6 +75,66 @@ test("the composed app reads core.site.timezone: unset renders UTC, an owner val
   });
   const html = await blogHtml(t, { settingsRepo: deps.settingsRepo, siteTimeZone: deps.siteTimeZone! }, PREVIEWS);
   assert.ok(html.includes(LA_TIME), html);
+});
+
+/** Change the actual Intl timezone boundary without mocking the date resolver or renderer. */
+function useProcessZone(t: TestContext, zone: string): void {
+  const previous = process.env.TZ;
+  process.env.TZ = zone;
+  t.after(() => {
+    if (previous === undefined) delete process.env.TZ;
+    else process.env.TZ = previous;
+  });
+}
+
+const OCTOBER_INSTANT = "2026-10-31T03:30:00.000Z";
+const octoberPost = { ...post, publishAt: OCTOBER_INSTANT, updatedAt: OCTOBER_INSTANT };
+const OCTOBER_TIME = `<time datetime="${OCTOBER_INSTANT}">Oct 30, 2026</time>`;
+
+test("an unconfigured Pacific site's content and preview markers show Oct 30 without browser JavaScript", async (t) => {
+  useProcessZone(t, "America/Los_Angeles");
+  for (const marker of [CONTENT, PREVIEWS]) {
+    const html = await blogHtml(t, { postRepo: new InMemoryPostRepo([octoberPost]) }, marker);
+    assert.ok(html.includes(OCTOBER_TIME), html);
+  }
+});
+
+test("an unconfigured Pacific site's page content marker uses the same local date", async (t) => {
+  useProcessZone(t, "America/Los_Angeles");
+  const page = { ...octoberPost, kind: "page" as const };
+  const html = await blogHtml(t, { postRepo: new InMemoryPostRepo([page]) }, CONTENT);
+  assert.ok(html.includes(OCTOBER_TIME), html);
+});
+
+test("an unconfigured Pacific site's Liquid article and listing use the same local date", async (t) => {
+  useProcessZone(t, "America/Los_Angeles");
+  for (const route of ["/", "/late-post"]) {
+    assert.equal(await liquidPageText(t, { postRepo: new InMemoryPostRepo([octoberPost]) }, route),
+      `2026-10-30|2026-10-30|${OCTOBER_INSTANT}`);
+  }
+});
+
+test("static export writes the Pacific date into article and listing HTML with unchanged ISO instants", async (t) => {
+  useProcessZone(t, "America/Los_Angeles");
+  const deps = createRouteDeps();
+  await deps.siteTitleReady;
+  const outputDir = mkdtempSync(path.join(tmpdir(), "tovu-date-export-"));
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+  const staticTheme = theme(CONTENT + PREVIEWS);
+  // The export copies the theme directory, so it must exist; an empty one is enough here.
+  staticTheme.dir = mkdtempSync(path.join(tmpdir(), "tovu-date-theme-"));
+  t.after(() => rmSync(staticTheme.dir, { recursive: true, force: true }));
+  staticTheme.manifest.templates = ["article.html"];
+  staticTheme.pages.article = `<html><body>${CONTENT}</body></html>`;
+  deps.themes = [staticTheme];
+  deps.postRepo = new InMemoryPostRepo([{ ...octoberPost, templateChoice: "article.html" }]);
+  const report = await exportSite({ routeDeps: deps, outputDir, includeThemePreviews: false });
+  for (const routePath of ["/blog", "/late-post"]) {
+    const route = report.routes.succeeded.find(item => item.path === routePath);
+    assert.ok(route, JSON.stringify(report.routes));
+    const html = readFileSync(path.join(outputDir, route.outputFile), "utf8");
+    assert.ok(html.includes(OCTOBER_TIME), html);
+  }
 });
 
 /** A templated (Liquid) theme whose home and post templates print `dateShort` and the `| date:` filter. */
@@ -95,6 +160,7 @@ async function liquidPageText(t: TestContext, overrides: Partial<ReturnType<type
 }
 
 test("a Liquid theme's home list and post page show dateShort and | date: in the site's zone; post.date stays the instant", async (t) => {
+  useProcessZone(t, "UTC"); // "without a zone" now means the server's zone; pin it as the UTC case.
   for (const path of ["/", "/late-post"]) {
     assert.equal(await liquidPageText(t, losAngeles, path), `2026-03-03|2026-03-03|${LATE_EVENING_LA}`, path);
     assert.equal(await liquidPageText(t, {}, path), `2026-03-04|2026-03-04|${LATE_EVENING_LA}`, `${path} without a zone`);

@@ -10,8 +10,8 @@ import { DEFAULT_SITE_TIME_ZONE, normalizeTimeZone, type SiteTimeZonePort } from
  *
  * Tiers, in order (same "only a workspace-layer value is the owner's choice" rule as
  * `core.site.title`): the owner's workspace value; the zone detected when the site was created
- * (`config.json` `timezone`, written by `init-site.ts`); UTC. An invalid value at any tier falls to
- * the next. A WordPress import sets the owner value from the source site's `timezone_string`
+ * (`config.json` `timezone`, written by `init-site.ts`); the server's local zone. An invalid value at
+ * any tier falls to the next. A WordPress import sets the owner value from the source site's `timezone_string`
  * through `settings_set_value` (see the `site-import` skill). Stored post instants never shift.
  *
  * `ownerKind: "core"` and the platform-wide definition are forced by the settings namespace fence for
@@ -43,21 +43,28 @@ export interface SiteCreationTimeZoneSource {
 
 export interface ResolveSiteTimeZoneDeps {
   settingsRepo: SettingsRepoPort;
-  /** Absent (in-memory boots, no site directory) means no creation zone: UTC is the last tier. */
+  /** Absent (in-memory boots, no site directory) means the server's local zone is the last tier. */
   creationTimeZone?: SiteCreationTimeZoneSource;
 }
 
-/** The creation zone when valid, else UTC. */
-function creationOrDefault(deps: ResolveSiteTimeZoneDeps): string {
-  return normalizeTimeZone({ timeZone: deps.creationTimeZone?.read() });
+/** `value` trimmed when `Intl` accepts it (an explicit "UTC" included), else undefined. */
+function validTimeZone(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const zone = normalizeTimeZone({ timeZone: value });
+  // `normalizeTimeZone` returns the trimmed input only for a valid zone; anything else became UTC.
+  return zone === value.trim() ? zone : undefined;
 }
 
-/** A usable owner value: a workspace-layer string `Intl` accepts (an explicit "UTC" included). */
+/** The creation zone when valid, else the server's local zone. */
+function creationOrDefault(deps: ResolveSiteTimeZoneDeps): string {
+  // Legacy sites have no recorded zone. Pin the server's local zone before shared rendering so
+  // article markers, Liquid workers and static exports all use the same calendar day.
+  return validTimeZone(deps.creationTimeZone?.read()) ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+/** A usable owner value: a workspace-layer string `Intl` accepts. */
 function ownerTimeZone(resolved: { sourceLayer: string; value: unknown } | null): string | undefined {
-  if (resolved?.sourceLayer !== "workspace" || typeof resolved.value !== "string") return undefined;
-  const zone = normalizeTimeZone({ timeZone: resolved.value });
-  // `normalizeTimeZone` returns the trimmed input only for a valid zone; anything else became UTC.
-  return zone === resolved.value.trim() ? zone : undefined;
+  return resolved?.sourceLayer === "workspace" ? validTimeZone(resolved.value) : undefined;
 }
 
 /**

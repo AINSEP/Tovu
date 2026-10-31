@@ -25,7 +25,7 @@ export interface ConfigJson {
   port: number | null;
   /**
    * Optional IANA zone detected where the site was created (Bug D); the fallback for the
-   * `core.site.timezone` setting. Absent on sites created before it existed (they render UTC).
+   * `core.site.timezone` setting. Older sites without it use the rendering server's local timezone.
    */
   timezone?: string;
 }

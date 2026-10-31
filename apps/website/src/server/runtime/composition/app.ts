@@ -913,7 +913,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — mirrors `server/deps.ts`'s
   // identical fix: without this, no test exercising the real HTTP path ever ran a dynamic widget
   // type (`menu`/`recent-entries`/`contact-form`) through its actual resolver, only test doubles.
-  // Bug D: no site directory, so no creation zone — an unset `core.site.timezone` renders UTC.
+  // No site directory means no creation zone; an unset `core.site.timezone` uses the server's zone.
   const siteTimeZone = createSiteTimeZonePort({ settingsRepo });
   wireCoreResolvers({
     siteTimeZone,

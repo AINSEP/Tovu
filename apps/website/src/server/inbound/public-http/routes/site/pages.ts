@@ -1174,7 +1174,7 @@ function htmlEmbedHostDeps(deps: Pick<RouteDeps, "workspaceId"> & Partial<Pick<R
 }
 
 /** Bug D follow-up: the site's zone for `renderSite` (`dateShort`, `.entry-meta`, Liquid's `| date:`);
- *  UTC when no zone is wired or set. */
+ *  The host resolves unset site settings to its local zone; an unwired port retains Jini's UTC default. */
 export function resolveSiteTimeZoneForRender(deps: Pick<RouteDeps, "workspaceId"> & Partial<Pick<RouteDeps, "siteTimeZone">>): Promise<string> {
   return resolveSiteTimeZoneSafely({ workspaceId: deps.workspaceId }, siteTimeZoneDep(deps));
 }
