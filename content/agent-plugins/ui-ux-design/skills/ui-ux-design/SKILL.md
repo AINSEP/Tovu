@@ -7,7 +7,7 @@ description: Use when creating frontend design systems, visual direction, compon
 
 # Skill: UI/UX Design
 
-> Upstream: AI-Dev-Shop `skills/ui-ux-design/` (session `ai-dev-shop-e5`). New material is added there and synced here; the animation references (`ui-animation.md`, `kuinetic-reference.md`) came from AI-Dev-Shop commit 6bca971 on 2026-10-30. Edit those upstream, not in this copy.
+> Upstream: AI-Dev-Shop `skills/ui-ux-design/` (session `ai-dev-shop-e5`). New material is added there and synced here; the animation references (`ui-animation.md`, `kuinetic-reference.md`) came from AI-Dev-Shop commit c465895 on 2026-10-30. Edit those upstream, not in this copy.
 
 ## Tovu tool use
 
