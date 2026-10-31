@@ -5,7 +5,7 @@ import { archiveToRuntimePath, editedArchiveWarnings } from "./archive-paths.js"
 import { sha256Hex } from "./import-verifier-inventory.js";
 import { buildManifestInventory, checkArchiveMatchesInventory, parseShareManifest, readListedFiles, refuseArchive, scanArchiveMetadata } from "./import-verifier-inventory.js";
 import { applyShareProjection } from "./import-verifier-projection.js";
-import { readBundledPackageFiles } from "./package-file-inventory.js";
+import { readBundledImportPluginIds, readBundledPackageFiles } from "./package-file-inventory.js";
 import type { PackageFileInventory } from "./share-file-policy.js";
 
 export interface VerifiedSiteImport {
@@ -24,7 +24,7 @@ export interface VerifiedSiteImport {
  * @throws SiteShareRefusal for malformed, unsupported, incomplete or oversized archives.
  * @complexity O(payload bytes + paths²), at most 2,000 paths/300 MiB; buffered archive.
  */
-export async function verifySiteImport(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; sanitize: ShareDatabaseSanitizer; schema: { index: number; tag: string } }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory } = {}): Promise<VerifiedSiteImport> {
+export async function verifySiteImport(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; sanitize: ShareDatabaseSanitizer; schema: { index: number; tag: string } }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string> } = {}): Promise<VerifiedSiteImport> {
   const { archive, reader } = required;
   if (archive.length > SHARE_LIMITS.maxArchiveBytes) refuseArchive("Import exceeds the 300 MiB archive cap.");
   optional.signal?.throwIfAborted();
@@ -32,10 +32,11 @@ export async function verifySiteImport(required: { archive: Buffer; reader: Agen
   const manifest = parseShareManifest({ manifestBytes: scan.manifestBytes, schema: required.schema });
   const inventory = buildManifestInventory({ files: manifest.files });
   checkArchiveMatchesInventory({ inventory, fileAliases: scan.fileAliases, directories: scan.directories });
-  // Package files are verified against THIS build's bundled sources, exactly as on export.
+  // Byte identity still controls execution trust. Scan classification alone tolerates build skew.
   const packageFiles = optional.packageFiles ?? await readBundledPackageFiles();
+  const bundledImportPluginIds = optional.bundledImportPluginIds ?? await readBundledImportPluginIds();
   const modified = new Set<string>();
-  const files = await readListedFiles({ archive, reader, inventory, manifestBytes: scan.manifestBytes, wrapper: scan.wrapper, manifest, modified }, { ...optional, packageFiles });
+  const files = await readListedFiles({ archive, reader, inventory, manifestBytes: scan.manifestBytes, wrapper: scan.wrapper, manifest, modified }, { ...optional, packageFiles, bundledImportPluginIds });
   const trustedPlugins = manifest.plugins.filter(plugin => bundledIdentical({ plugin, files, packageFiles, modified }));
   const projection = await required.sanitize({ snapshot: files.get(SITE_BACKUP_DATABASE_PATH)! }, { signal: optional.signal });
   await applyShareProjection({ files, projection, manifest }, optional);

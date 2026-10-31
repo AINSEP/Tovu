@@ -59,7 +59,9 @@ export function archiveCodeUnit(required: { path: string }, _optional = {}): str
   return /^(skills\/[^/]+|agent-plugins\/[^/]+|plugins\/[^/]+)\//.exec(required.path)?.[1];
 }
 
-/** Retain the existing package scanner's proof: known bundled digest AND exact local file hash.
+/** Map an agent package to the scanner's runtime-shaped root, retaining its source-build digest.
+ * The import caller separately supplies LOCAL bundled ids for cross-build scan classification;
+ * the digest and exact local file hashes still determine execution trust.
  * Only an AGENT package maps into the content-addressed root. A site plugin's archive path is already
  * its runtime path (`plugins/<id>/package/...`), so it keeps the ordinary name rules export applies:
  * mapping it there let import accept `mcp.json` and credential-named files that export refuses. */

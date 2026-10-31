@@ -186,7 +186,7 @@ export function checkArchiveMatchesInventory(required: { inventory: ReadonlyMap<
  * @throws SiteShareRefusal (INVALID_ARCHIVE, SECRET_IN_CONTENT) or the signal's reason.
  * @complexity O(payload bytes), at most 300 MiB buffered.
  */
-export async function readListedFiles(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; inventory: ReadonlyMap<string, InventoryRecord>; manifestBytes: Buffer; wrapper?: string; manifest?: ArchiveManifest; modified?: Set<string> }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory } = {}): Promise<Map<string, Buffer>> {
+export async function readListedFiles(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; inventory: ReadonlyMap<string, InventoryRecord>; manifestBytes: Buffer; wrapper?: string; manifest?: ArchiveManifest; modified?: Set<string> }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string> } = {}): Promise<Map<string, Buffer>> {
   const files = new Map<string, Buffer>();
   let expanded = required.manifestBytes.length;
   for await (const entry of required.reader.entries({ archive: required.archive })) {
@@ -202,7 +202,7 @@ export async function readListedFiles(required: { archive: Buffer; reader: Agent
   return files;
 }
 
-async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyMap<string, InventoryRecord>; remainingBytes: number; manifest?: ArchiveManifest; modified?: Set<string> }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory }): Promise<Buffer> {
+async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyMap<string, InventoryRecord>; remainingBytes: number; manifest?: ArchiveManifest; modified?: Set<string> }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string> }): Promise<Buffer> {
   const { entry } = required;
   const expected = required.inventory.get(entry.entryPath);
   if (!expected) refuseArchive("Unlisted ZIP file.");
@@ -210,7 +210,7 @@ async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyM
   if (!unit && expected.bytes !== entry.declaredSize) refuseArchive("ZIP size mismatch.");
   const content = await readBounded({ entry, maxBytes: Math.min(entry.declaredSize!, required.remainingBytes), signal: optional.signal });
   verifyListedIntegrity({ content, expected, unit, modified: required.modified });
-  if (entry.entryPath !== SITE_BACKUP_DATABASE_PATH) requireShareSecretFree({ path: archiveSecretScanPath({ path: entry.entryPath, plugins: required.manifest?.plugins ?? [] }), bytes: content }, { packageFiles: optional.packageFiles, shownPath: entry.entryPath });
+  if (entry.entryPath !== SITE_BACKUP_DATABASE_PATH) requireShareSecretFree({ path: archiveSecretScanPath({ path: entry.entryPath, plugins: required.manifest?.plugins ?? [] }), bytes: content }, { packageFiles: optional.packageFiles, bundledImportPluginIds: optional.bundledImportPluginIds, shownPath: entry.entryPath });
   return content;
 }
 

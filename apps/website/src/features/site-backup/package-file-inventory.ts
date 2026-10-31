@@ -4,6 +4,7 @@ import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { createBundledSourceArchiveReader, packAgentPluginDirectory } from "../agent-plugins/lifecycle.js";
 import { resolveProductRoot } from "#src/platform/site-dir/index";
+import { listBundledAgentPluginServers } from "../agent-plugins/new-site-agent-plugin-tokens.js";
 import type { PackageFileInventory } from "./share-file-policy.js";
 
 /**
@@ -21,7 +22,7 @@ import type { PackageFileInventory } from "./share-file-policy.js";
  * @complexity O(bundled source bytes): one pack and one hash per file.
  */
 export async function readBundledPackageFiles(_required: Record<string, never> = {}, optional: { sourceRoot?: string } = {}): Promise<PackageFileInventory> {
-  const sourceRoot = optional.sourceRoot ?? process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
+  const sourceRoot = bundledSourceRoot(optional);
   const inventory = new Map<string, ReadonlyMap<string, string>>();
   const folders = await readdir(sourceRoot, { withFileTypes: true }).catch((): Dirent[] => []);
   for (const folder of folders) {
@@ -30,6 +31,20 @@ export async function readBundledPackageFiles(_required: Record<string, never> =
     if (packed) inventory.set(packed.sha256, await packedFileHashes({ bytes: packed.bytes }));
   }
   return inventory;
+}
+
+/** Import scan classification comes from this build's catalog, never the archive's `shipped` flag.
+ * This grants no execution trust: restore seeds local code and quarantines the imported package.
+ * @returns Known bundled ids; an absent/unreadable source root recognises none.
+ * @complexity O(bundled plugin manifests and MCP declarations), via the existing catalog reader.
+ */
+export async function readBundledImportPluginIds(_required: Record<string, never> = {}, optional: { sourceRoot?: string } = {}): Promise<ReadonlySet<string>> {
+  const plugins = await listBundledAgentPluginServers({ bundledSourceRoot: bundledSourceRoot(optional) });
+  return new Set(plugins.map(plugin => plugin.pluginId));
+}
+
+function bundledSourceRoot(optional: { sourceRoot?: string }): string {
+  return optional.sourceRoot ?? process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
 }
 
 /** The packed archive read back with the installer's own reader. O(archive bytes). */

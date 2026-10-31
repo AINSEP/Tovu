@@ -79,7 +79,8 @@ function refuseSuspiciousSharePath(required: { path: string }, { credentialNameA
  * Anyone who can write into the site folder can create a package-SHAPED path, and install records
  * live in that same folder, so the shape, the folder name and the ledger prove nothing; the build's
  * own bundled sources do. An operator-installed package, a superseded digest, an unlisted file under a
- * verified root, or a tampered file all get the ordinary rules. O(bytes).
+ * verified root, or a tampered file all get the ordinary EXPORT rules. Import independently
+ * classifies known bundled ids because another build's package digest can legitimately differ. O(bytes).
  */
 function verifiedPackageFile(required: { path: string; bytes: Uint8Array }, optional: { packageFiles?: PackageFileInventory }): boolean {
   const match = PACKAGE_FILE.exec(required.path);
@@ -88,6 +89,14 @@ function verifiedPackageFile(required: { path: string; bytes: Uint8Array }, opti
   const shipped = optional.packageFiles?.get(match[1]!.toLowerCase());
   const expected = shipped?.get(match[2]!);
   return expected !== undefined && createHash("sha256").update(required.bytes).digest("hex") === expected;
+}
+
+/** Import alone classifies known bundled package roots independently of their source-build digest.
+ * The caller supplies ids from the receiving build; plugin memory and unknown ids stay strict.
+ * @complexity O(path); no I/O or trust/activation changes.
+ */
+function bundledImportPackage(required: { path: string }, optional: { bundledImportPluginIds?: ReadonlySet<string> }): boolean {
+  return PACKAGE_CONTENT_ROOT.test(required.path.toLowerCase()) && optional.bundledImportPluginIds?.has(required.path.split("/")[3]!) === true;
 }
 
 /** True for a spelling some supported recipient filesystem rejects, rewrites or aliases. O(path). */
@@ -113,18 +122,19 @@ export function validateSharePath(required: { path: string }, _optional: Record<
 /** Scan the complete bytes, including binary content; a required file is refused, never damaged. O(bytes).
  * `path` picks the rules; a refusal names `shownPath` when given (the archive path the owner can find,
  * not the synthetic scan path `archiveSecretScanPath` builds). */
-export function requireShareSecretFree(required: { path: string; bytes: Uint8Array }, optional: { packageFiles?: PackageFileInventory; shownPath?: string } = {}): void {
+export function requireShareSecretFree(required: { path: string; bytes: Uint8Array }, optional: { packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string>; shownPath?: string } = {}): void {
   const shownPath = optional.shownPath ?? required.path;
   const text = Buffer.from(required.bytes).toString("latin1");
   // Only code can contain credential references; content/settings retain strict secret detection.
   const codeAware = /\.(?:js|mjs|cjs|ts|tsx|jsx)$/i.test(required.path);
-  // A verified package file is public plugin code, docs and manifests this build ships: its translated
-  // labels ("API token": "Token de API"), doc placeholders (`Authorization: Bearer <API_KEY>`) and test
-  // names (__tests__/credential-card.test.mjs) are not owner secrets, so only provider key formats, PEM
-  // and JWT shapes refuse it. Any other package-shaped file gets every name rule and the full scan. The
-  // scanner does not decode compressed or encoded bytes (credentials.gz), so for those the name refusal
-  // is the guard; a verified one is the build's own bytes, so nothing is hidden in it.
-  const vendorOnly = verifiedPackageFile(required, optional);
+  // Bundled code legitimately contains translated labels ("API token": "Token de API"), JSDoc
+  // types and doc placeholders (`Authorization: Bearer <API_KEY>`). Import classifies package roots
+  // by LOCAL bundled id, independently of source-build digest; export still requires exact local
+  // bytes. Provider keys, PEM and JWT always refuse. This is scan classification, never execution
+  // trust: imported packages stay quarantined and restore seeds this build's own code.
+  const vendorOnly = optional.bundledImportPluginIds === undefined
+    ? verifiedPackageFile(required, optional)
+    : bundledImportPackage(required, optional);
   if (!vendorOnly && PACKAGE_CONTENT_ROOT.test(required.path.toLowerCase())) refuseSuspiciousSharePath(required, { credentialNameAllowed: false, shownPath });
   if (redactSecretShapes({ text }, { codeAware, vendorOnly }).redactions > 0) throw new SiteShareRefusal({ code: "SECRET_IN_CONTENT", message: `Share refused: '${shownPath}' contains credential-shaped content. Remove the secret before sharing.` });
 }
