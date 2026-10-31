@@ -1,7 +1,7 @@
 # UI Animation
 
-> Maintained in AI-Dev-Shop (session `ai-dev-shop-e5`) and synced into Tovu's bundled
-> `ui-ux-design` plugin. Edit it in AI-Dev-Shop, not in Tovu's copy.
+> Maintained in AI-Dev-Shop (session `ai-dev-shop-e5`). Downstream copies are synced from
+> here; edit it in AI-Dev-Shop, not in a downstream copy.
 
 Use this reference when implementing any animation: scroll reveals, text reveals,
 transitions, pinned or scroll-linked sections, or micro-interactions.
