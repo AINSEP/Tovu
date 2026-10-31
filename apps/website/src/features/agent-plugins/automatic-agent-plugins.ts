@@ -25,7 +25,7 @@ export type AskAgentPluginChoice = (required: {
 /** Root-added tool contract; both roots register it before constructing tool search. */
 export const agentPluginGuidanceCatalog = [{
   name: 'load_agent_plugin',
-  description: 'Load one relevant Agent Plugin by pluginId before acting in its domain. Returns full guidance; optional skill selects a declared skill and file reads a supporting file relative to that skill folder (default SKILL.md). Requested files can be read even after guidance is loaded. Only active, trusted plugins allowed for this chat can load. Find ids with search_agent_plugin_local.',
+  description: 'Load guidance when asked to use or apply an Agent Plugin by pluginId before acting in its domain. For viewing its admin screen, use page.navigate with the entity target, then discover and click its details handle. Returns full guidance; optional skill selects a declared skill and file reads a supporting file relative to that skill folder (default SKILL.md). Requested files can be read even after guidance is loaded. Only active, trusted plugins allowed for this chat can load. Find ids with search_agent_plugin_local.',
   sideEffects: 'none', authorization: { permission: 'admin.assistant.use' },
   inputSchema: { type: 'object', additionalProperties: false, required: ['pluginId'], properties: { pluginId: { type: 'string', minLength: 1 }, skill: { type: 'string', minLength: 1 }, file: { type: 'string', minLength: 1 } } },
 }] satisfies AgentToolDefinition[];

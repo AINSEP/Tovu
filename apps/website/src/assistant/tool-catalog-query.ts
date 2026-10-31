@@ -41,6 +41,8 @@ const enricher: SearchEnricher = {
   // Site creation's later paragraphs explain switching/duplication and deployment restrictions.
   // Index its action paragraph too: that surrounding prose dilutes "create a new site" in BM25.
   // Static publish's input/confirmation/result contract likewise diluted "publish the site" to rank 6.
+  // Navigation's observation guidance describes clicks and discovery; rank its opening action
+  // paragraph so that verification prose does not bury requests to open a screen or entity.
   indexedDescription: ({ id, description, metadata }, optional) => indexedDescriptionFor(id,
     indexableDescription({ id, description }), { ...optional, ...(metadata ? { metadata } : {}) }),
   authoredDescription: ({ description }) => stripSearchKeywords(description),
@@ -50,7 +52,7 @@ const enricher: SearchEnricher = {
  * tools above the requested action (e.g. "remove mike's access" lost identity_user_disable). */
 function indexableDescription({ id, description }: { id: string; description: string }, _optional = {}): string {
   const authored = withoutBatchGuidance({ description });
-  const actionParagraphOnly = id === "sites_create_site" || id === "pages_read_html" || id === "deployment_execute_static_publish" || authored.includes(PAGE_HTML_CONTRACT);
+  const actionParagraphOnly = id === "sites_create_site" || id === "pages_read_html" || id === "deployment_execute_static_publish" || id === "page.navigate" || authored.includes(PAGE_HTML_CONTRACT);
   return actionParagraphOnly ? authored.split("\n\n", 1)[0]! : authored;
 }
 const classifier = { classify: ({ id }: { id: string }) => sourceForToolId(id) };

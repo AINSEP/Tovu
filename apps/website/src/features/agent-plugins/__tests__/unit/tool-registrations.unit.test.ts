@@ -15,6 +15,10 @@ import path from "node:path";
 import test, { mock } from "node:test";
 
 import { createToolRegistry, ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
+import { PAGE_CAPABILITIES } from "@jini-ai/agentic";
+import { buildToolCatalogQuery } from "../../../../assistant/tool-catalog-query.js";
+import { SITE_GUIDE_POINTER } from "../../../../assistant/site-guide-pointer.js";
+import { agentPluginGuidanceCatalog } from "../../automatic-agent-plugins.js";
 
 import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mcp-store.memory.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
@@ -169,6 +173,34 @@ function fakeCtx(input: unknown = {}): ToolExecutionContext {
     signal: new AbortController().signal,
   };
 }
+
+test("opening an installed plugin discovers navigation ahead of guidance loaders; applying it retains guidance", async () => {
+  await withAgentPluginsDir(async () => {
+    await installRealPackage(WORKSPACE_A, "ui-ux-design", { "ui-ux-design": UI_UX_DESIGN_SKILL_MD }, "archive-navigation");
+    const sources = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_A }));
+    const loaders = [
+      ...sources.map(source => ({ id: source.id, description: source.description })),
+      ...agentPluginGuidanceCatalog.map(tool => ({ id: tool.name, description: tool.description })),
+    ];
+    const catalog = buildToolCatalogQuery({ list: () => [...PAGE_CAPABILITIES, ...loaders] });
+    for (const query of ["open", "bring up", "show me", "go to", "open the plugin screen", "bring up the plugin screen", "show me the plugin screen", "take me to the plugin screen"]) {
+      const ids = catalog.search({ query }, { limit: 20 }).map(hit => hit.id);
+      const navigate = ids.indexOf("page.navigate");
+      assert.ok(navigate >= 0 && navigate < 3, `${query}: navigation must rank in the top 3: ${ids.join(", ")}`);
+      for (const loader of loaders) {
+        const index = ids.indexOf(loader.id);
+        assert.ok(index < 0 || navigate < index, `${query}: ${ids.join(", ")}`);
+      }
+    }
+    for (const loader of loaders) {
+      // Selection guidance matters even when the entity name itself ranks its loader highly.
+      assert.match(loader.description, /use or apply/i);
+      assert.match(loader.description, /page\.navigate/);
+    }
+    assert.match(SITE_GUIDE_POINTER, /bring up.*page\.navigate/);
+    assert.ok(catalog.search({ query: "apply ui ux design guidance" }).some(hit => hit.id === "agent_plugin_ui_ux_design"));
+  });
+});
 
 test("each installed plugin produces exactly one stable, collision-free tool id with a non-empty description naming every one of its skills", async () => {
   await withAgentPluginsDir(async () => {

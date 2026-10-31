@@ -648,7 +648,7 @@ describe("AgentPlugins Manage button", () => {
 
 /** Exercise the real AG-UI request projection with the owner's two turns. A scripted daemon
  * chooses tools deterministically; it cannot substitute a prose link for the DOM effects below. */
-async function sendOwnerTurns({ bindToken }: { bindToken: string }) {
+async function sendOwnerTurns({ bindToken, afterFirstTurn }: { bindToken: string; afterFirstTurn: () => Promise<void> }) {
   const packets: RunAgentInput[] = [];
   const client = createAgUiRunClient({ ports: {
     endpoint: "/api/admin/v1/assistant/ag-ui-run", runIdPrefix: "test-", mintId: () => crypto.randomUUID(),
@@ -660,7 +660,10 @@ async function sendOwnerTurns({ bindToken }: { bindToken: string }) {
   const history = [{ id: "u1", role: "user" as const, content: "can you bring up the agentic plugin for ui ux design?" }];
   const handlers = { onEvent() {}, onError(error: Error) { throw error; }, onDone() {} };
   await client.startAgUiRun({ input: { history, conversationId: "owner-conversation", context: { frontendBindToken: bindToken }, signal: new AbortController().signal }, handlers });
-  const second = [...history, { id: "a1", role: "assistant" as const, content: "The plugin is available." }, { id: "u2", role: "user" as const, content: "no can you open it for me?" }];
+  // The first request must already navigate and expand details; a repeated request cannot
+  // serve as the trigger that makes an otherwise passive first response look successful.
+  await afterFirstTurn();
+  const second = [...history, { id: "a1", role: "assistant" as const, content: "The plugin details are open." }, { id: "u2", role: "user" as const, content: "no can you open it for me?" }];
   await client.startAgUiRun({ input: { history: second, conversationId: "owner-conversation", context: { frontendBindToken: bindToken }, signal: new AbortController().signal }, handlers });
   expect(packets).toHaveLength(2);
   expect(packets[1]!.messages.at(-1)).toMatchObject({ content: "no can you open it for me?" });
@@ -680,37 +683,58 @@ describe("assistant admin navigation regression", () => {
     }
     const approvals = createAdminPageApprovalStore({});
     const view = render(<><AgentPlugins tabId="installed" useAgentPluginsHook={useController} /><AdminPageApprovalDialog locale="en" approvals={approvals} /></>);
+    const detailsControl = view.container.querySelector('.agent-plugin-row-summary')!;
+    const scroll = vi.fn();
+    detailsControl.scrollIntoView = scroll;
     vi.spyOn(api, "listAgentPlugins").mockResolvedValue({ agentPlugins: [plugin] });
     const driver = createDomPageDriver({ root: view.container, pages: buildAdminAgentPages() });
     const source = Object.assign(new EventTarget(), { close() {} });
     const responses: Record<string, unknown>[] = [];
+    const invocations: { capabilityId: string; input: unknown }[] = [];
     const bridge = createFrontendSessionBridge({ baseUrl: "", openStream: () => source as unknown as EventSource,
       request: async ({ init }) => { responses.push(JSON.parse(init.body as string)); return new Response(JSON.stringify({ settled: true })); },
-    }, { pageDriver: driver, pageApproval: { isDirect: directPageAction,
+    }, { pageDriver: driver, onInvocation: ({ capabilityId, input }) => invocations.push({ capabilityId, input }), pageApproval: { isDirect: directPageAction,
       request: ({ capabilityId, input, signal }) => approvals.request({ interaction: { capability: PAGE_CAPABILITIES.find(capability => capability.id === capabilityId)!, args: input }, signal }),
     } });
     const emit = (frame: unknown) => source.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(frame) }));
     emit({ type: "attached", sessionId: "owner-tab", bindToken: "owner-tab-current" });
     try {
-      await sendOwnerTurns({ bindToken: bridge.bindToken()! });
-      await act(async () => { emit({ type: "invocation", invocationId: "nav", capabilityId: "page.navigate", input: {
-        page: "agent-plugins", entity: { type: "agent-plugin", id: "ui-ux-design" },
-      } }); });
-      await waitFor(() => expect(responses).toContainEqual(expect.objectContaining({ invocationId: "nav", ok: true })));
-      expect(window.location.pathname).toBe("/admin/addons/agent-plugins");
-      expect(window.location.search).toBe("?tab=installed");
-      const found = await executePageCapability({ driver, capabilityId: "page.find_elements", input: { query: "ui-ux-design", withState: true } }) as FindElementsResult;
-      expect(found.pages.find(page => page.id === "agent-plugins")?.navigation?.description).toBe("Manage agent plugins: install, view details, turn on/off.");
-      const details = found.elements.find(element => element.handle.endsWith("-details"));
-      expect(details, "use the handle published by the actual plugin row").toBeDefined();
-      await act(async () => { emit({ type: "invocation", invocationId: "details", capabilityId: "page.click", input: { handle: details!.handle } }); });
-      expect(approvals.getSnapshot().pending).toBeNull();
-      expect(screen.queryByRole("button", { name: "Confirm" })).not.toBeInTheDocument();
-      await waitFor(() => expect(responses).toContainEqual(expect.objectContaining({ invocationId: "details", ok: true, output: expect.objectContaining({ clicked: details!.handle }) })));
-      expect(view.container.querySelector(`[data-agent-element="${details!.handle}"]`)).toHaveAttribute("aria-expanded", "true");
-      const detailsRegion = view.container.querySelector(".agent-plugin-row-detail");
-      expect(detailsRegion).toBeVisible();
-      expect(detailsRegion).toHaveTextContent("Design the user interface");
+      await sendOwnerTurns({ bindToken: bridge.bindToken()!, afterFirstTurn: async () => {
+        await act(async () => { emit({ type: "invocation", invocationId: "nav", capabilityId: "page.navigate", input: {
+          page: "agent-plugins", entity: { type: "agent-plugin", id: "ui-ux-design" },
+        } }); });
+        await waitFor(() => expect(responses).toContainEqual(expect.objectContaining({ invocationId: "nav", ok: true })));
+        expect(responses).toContainEqual(expect.objectContaining({ invocationId: "nav", output: expect.objectContaining({
+          target: expect.objectContaining({ handle: detailsControl.getAttribute("data-agent-element"), state: expect.objectContaining({ expanded: false }) }),
+        }) }));
+        expect(scroll).toHaveBeenCalledTimes(1);
+        expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+        scroll.mockClear();
+        expect(detailsControl).toHaveAttribute("aria-expanded", "false");
+        expect(window.location.pathname).toBe("/admin/addons/agent-plugins");
+        expect(window.location.search).toBe("?tab=installed");
+        const found = await executePageCapability({ driver, capabilityId: "page.find_elements", input: { query: "ui-ux-design", withState: true } }) as FindElementsResult;
+        expect(found.pages.find(page => page.id === "agent-plugins")?.navigation?.description).toBe("Manage agent plugins: install, view details, turn on/off.");
+        const details = found.elements.find(element => element.handle.endsWith("-details"));
+        expect(details, "use the handle published by the actual plugin row").toBeDefined();
+        await act(async () => { emit({ type: "invocation", invocationId: "details", capabilityId: "page.click", input: { handle: details!.handle } }); });
+        expect(approvals.getSnapshot().pending).toBeNull();
+        expect(screen.queryByRole("button", { name: "Confirm" })).not.toBeInTheDocument();
+        await waitFor(() => expect(responses).toContainEqual(expect.objectContaining({ invocationId: "details", ok: true, output: expect.objectContaining({
+          clicked: details!.handle, before: expect.objectContaining({ expanded: false }), after: expect.objectContaining({ expanded: true }), targetChanged: true,
+        }) })));
+        expect(scroll).toHaveBeenCalledTimes(1);
+        expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+        expect(view.container.querySelector(`[data-agent-element="${details!.handle}"]`)).toHaveAttribute("aria-expanded", "true");
+        const detailsRegion = view.container.querySelector(".agent-plugin-row-detail");
+        expect(detailsRegion).toBeVisible();
+        expect(detailsRegion).toHaveTextContent("Design the user interface");
+      } });
+      expect(invocations).toEqual([
+        { capabilityId: "page.navigate", input: { page: "agent-plugins", entity: { type: "agent-plugin", id: "ui-ux-design" } } },
+        { capabilityId: "page.click", input: { handle: detailsControl.getAttribute("data-agent-element") } },
+      ]);
+      expect(detailsControl).toHaveAttribute("aria-expanded", "true");
     } finally { bridge.close(); }
   });
 });
