@@ -118,3 +118,31 @@ test("static backend refuses unknown selections before rendering and unusable ca
   await assert.rejects(start(["a", "b"]), { code: "UNAVAILABLE" });
   assert.equal(renders, 2); assert.equal(zips, 0);
 });
+
+test('theme none offers only Current site and preserves both legacy and picked unstyled exports', async t => {
+  const renders: (string | undefined)[] = [];
+  const entries = new Map<string, string>();
+  const backend = createSiteShareBackend({ registry: await registryIn(t), site: 'ws',
+    prepare: async () => content(), delivery: async () => undefined,
+    zip: async input => {
+      for (const file of input.files) entries.set(file.webkitRelativePath, await file.text());
+      return zipFolderFiles(input);
+    },
+    staticSite: { now: () => new Date('2026-10-30T17:15:00Z'),
+      context: async () => ({ name: 'Site', slug: 'site', theme: 'None', themeId: 'none' }),
+      themes: () => [{ themeId: 'installed', title: 'Installed' }],
+      render: async ({ outputDir, themeId }) => {
+        renders.push(themeId);
+        return { outputDir, routes: { succeeded: [{ path: '/', kind: 'home', outputFile: 'index.html', data: '<main>Unstyled site</main>' }], failed: [] },
+          assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] };
+      } },
+  });
+  assert.deepEqual(await backend.staticOptions({}), { activeThemeId: 'none', themes: [{ themeId: 'none', name: 'Current site' }] });
+  for (const themeIds of [undefined, ['none']]) {
+    const result = await backend.create({ principalId: 'owner', format: 'static', themeIds,
+      signal: new AbortController().signal }, { waitMs: 60_000 }) as { shareId: string };
+    assert.ok(result.shareId);
+  }
+  assert.deepEqual(renders, ['none', 'none']);
+  assert.match([...entries].find(([name]) => name.endsWith('/sites/none/index.html'))![1], /Unstyled site/);
+});

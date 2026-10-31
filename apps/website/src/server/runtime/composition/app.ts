@@ -131,7 +131,7 @@ import {
   set,
   INSTRUCTIONS_NAMESPACE,
 } from "#src/features/settings/index";
-import { discoverAllBuiltInThemes, rescanThemes, resolveActiveTheme } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, rescanThemes, resolveActiveTheme, NO_THEME_ID } from "#src/features/theme/index";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { createThemeTrashMover } from "#src/features/theme/trash-theme-tool";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
@@ -1654,7 +1654,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
       const theme = resolveActiveTheme(routeDeps, await routeDeps.resolveActiveThemeId());
       return { name: routeDeps.siteDisplayName.read() ?? siteBinding.name, slug: siteBinding.name,
         theme: theme && typeof theme === "object" ? theme.manifest.name : "None",
-        themeId: theme && typeof theme === "object" ? theme.manifest.id : "None" };
+        themeId: theme && typeof theme === "object" ? theme.manifest.id : NO_THEME_ID };
     },
   };
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });

@@ -6,6 +6,8 @@ import { redactSecrets } from "@jini-ai/core";
 import { normalizeRepositoryFolder, prefixRepositoryPath } from "@jini-ai/devops/source-control";
 import { prepareStaticReport } from "../site-backup/static-copy.js";
 import { staticDownloadLayout } from "../site-backup/static-download-layout.js";
+import { claimArchivePaths } from "../site-backup/share-zip.js";
+import { SiteShareRefusal } from "../site-backup/share-policy.js";
 import { CREDENTIAL_MESSAGES } from "../../contracts/core/credential-token.js";
 
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
@@ -195,7 +197,7 @@ export interface CommitSiteDeps {
  * never share across features" convention this file already follows for
  * `exportSiteLazily`'s own former copy.
  */
-export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string; includeThemePreviews?: boolean }) => Promise<ExportReport>;
+export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string; includeThemePreviews?: boolean; themeId?: string }) => Promise<ExportReport>;
 
 /** Bound to the existing site/theme resolvers by composition, never inferred from output files. */
 export type StaticSiteContextFn = () => Promise<{ name: string; slug: string; theme: string; themeId: string }>;
@@ -358,14 +360,18 @@ type CommitExportResult = { ok: true; files: CommitFile[] } | { ok: false; code:
 
 /**
  * Runs the fresh, isolated export `commitSiteToSourceControl` commits from, and checks it for
- * failures (both route AND asset failures — see the inline comment below). Split out for the same
+ * failures (both route AND asset failures — see the inline comment below). Snapshots theme identity
+ * before rendering and validates portable destinations before preview or commit. Split out for the same
  * one-guard-per-phase reason as {@link resolveCommitCredential}.
  */
 async function exportForCommit({ input, providerId }: { input: CommitSiteInput; providerId: string }, _options = {}): Promise<CommitExportResult> {
   const outputDir = commitExportDir({ parent: input.sourceControlExportRootDir, providerId, runId: input.idGen.newId() });
   let report: ExportReport;
+  let context: Awaited<ReturnType<StaticSiteContextFn>>;
   try {
-    report = await input.exportSiteBound({ outputDir, clean: true, includeThemePreviews: false });
+    // Pin identity and rendering together before an owner can change the live selection mid-export.
+    context = await input.staticSiteContext();
+    report = await input.exportSiteBound({ outputDir, clean: true, includeThemePreviews: false, themeId: context.themeId });
   } catch (err) {
     cleanupCommitRunDir(outputDir);
     return { ok: false, code: "EXPORT_FAILED", message: `export failed before committing could start: ${err instanceof Error ? err.message : String(err)}` };
@@ -387,13 +393,16 @@ async function exportForCommit({ input, providerId }: { input: CommitSiteInput; 
   }
 
   try {
-    const context = await input.staticSiteContext();
     const rendered = prepareStaticReport({ report });
     const files = staticDownloadLayout({ copy: { files: rendered.files, publicOrigin: rendered.publicOrigin, siteSlug: context.slug, themeId: context.themeId,
       metadata: { theme: context.theme, routes: rendered.routes, redirectFiles: rendered.redirectFiles, failed: rendered.failed, skipped: rendered.skipped },
       readme: { name: context.name } } }).map(file => ({ path: file.path, data: file.content }));
+    claimArchivePaths({ entries: files }, { manifest: false });
     return { ok: true, files };
-  } catch {
+  } catch (error) {
+    if (error instanceof SiteShareRefusal && /collision|aliases/i.test(error.message)) {
+      return { ok: false, code: "EXPORT_FAILED", message: `Static site destination validation failed: ${error.message}` };
+    }
     return { ok: false, code: "EXPORT_FAILED", message: "Static site packaging failed before committing could start." };
   }
 }

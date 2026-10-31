@@ -167,7 +167,7 @@ import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
 import { createSiteAssistantErrorReporter } from "#src/assistant/site/public-errors";
 import { redactSecrets } from "@jini-ai/core";
-import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster, resolveActiveTheme } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster, resolveActiveTheme, NO_THEME_ID } from "#src/features/theme/index";
 import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
@@ -2729,7 +2729,7 @@ async function composeSiteRouteDeps(
       const theme = resolveActiveTheme(routeDeps, await routeDeps.resolveActiveThemeId());
       return { name: routeDeps.siteDisplayName.read() ?? resolvedSiteBinding.name, slug: resolvedSiteBinding.name,
         theme: theme && typeof theme === "object" ? theme.manifest.name : "None",
-        themeId: theme && typeof theme === "object" ? theme.manifest.id : "None" };
+        themeId: theme && typeof theme === "object" ? theme.manifest.id : NO_THEME_ID };
     },
   };
   resolveRouteDeps(routeDeps);

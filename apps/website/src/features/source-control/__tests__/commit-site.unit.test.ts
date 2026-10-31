@@ -667,6 +667,64 @@ test('packaging failures block both the commit adapter and a successful preview'
   assert.deepEqual(await previewCommitExport(input), result);
 });
 
+test('relocated destination collisions fail preview and commit before the provider executes', async () => {
+  const deps = await withExampleGitCredential(testRouteDeps());
+  const input = controlledInput(deps, async ({ outputDir }) => {
+    const report = controlledReport(outputDir);
+    report.assets.succeeded = ['css', 'styles'].map((directory, index) => ({
+      url: `/theme-assets/fixture/${directory}/main.css`, outputFile: `theme-assets/fixture/${directory}/main.css`,
+      data: Buffer.from(`body { color: ${index ? 'blue' : 'red'}; }`),
+    }));
+    report.routes.succeeded[0]!.data = '<link rel="stylesheet" href="/theme-assets/fixture/css/main.css"><link rel="stylesheet" href="/theme-assets/fixture/styles/main.css">';
+    return report;
+  });
+  let providerCalls = 0;
+  const result = await commitSiteToSourceControl({ providerId: 'example-git',
+    credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
+    gitAdapter: { commit: async () => { providerCalls++; return { ok: false, code: 'PROVIDER_ERROR', message: 'must not run' }; } },
+  }, input);
+  assert.equal(providerCalls, 0);
+  assert.equal(result.ok, false);
+  if (result.ok) assert.fail('collision accepted');
+  assert.equal(result.code, 'EXPORT_FAILED');
+  assert.match(result.message, /destination validation failed:.*collision/i);
+  assert.deepEqual(await previewCommitExport(input), result);
+});
+
+test('commit and preview snapshot theme context before rendering and pin the render override', async () => {
+  const deps = await withExampleGitCredential(testRouteDeps());
+  for (const preview of [true, false]) {
+    let activeThemeId = 'demo-summer';
+    const events: string[] = [];
+    let committed: readonly CommitFile[] = [];
+    const input = { ...controlledInput(deps, async options => {
+      events.push(`render:${options.themeId}`);
+      const renderedTheme = options.themeId ?? activeThemeId;
+      activeThemeId = 'demo-winter'; // An owner changes the live theme while this export is rendering.
+      return controlledReport(options.outputDir, renderedTheme);
+    }), staticSiteContext: async () => {
+      events.push(`context:${activeThemeId}`);
+      return { name: 'Demo', slug: 'demo', theme: activeThemeId === 'demo-summer' ? 'Summer' : 'Winter', themeId: activeThemeId };
+    } };
+    const result = preview ? await previewCommitExport(input) : await commitSiteToSourceControl({
+      providerId: 'example-git', credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
+      gitAdapter: { commit: async ({ files }) => { committed = files;
+        return { ok: true, branch: 'main', branchCreated: false, commitSha: 'sha', commitUrl: 'https://example.test/sha', filesChanged: files.length, filesDeleted: 0 };
+      } },
+    }, input);
+    assert.equal(result.ok, true);
+    assert.deepEqual(events, ['context:demo-summer', 'render:demo-summer']);
+    if (preview) {
+      assert.ok('paths' in result && result.paths.includes('sites/summer/index.html'));
+    } else {
+      const files = new Map(committed.map(file => [file.path, Buffer.from(file.data).toString()]));
+      assert.match(files.get('sites/summer/index.html')!, /demo-summer/);
+      assert.match(files.get('README.txt')!, /Summer/);
+      assert.doesNotMatch(files.get('README.txt')!, /Winter/);
+    }
+  }
+});
+
 test('T37: plugin exceptions and unknown error codes become safe PROVIDER_ERROR outcomes', async () => {
   const deps = await withExampleGitCredential(testRouteDeps());
   const adapters: SourceControlCommitAdapter[] = [

@@ -23,8 +23,8 @@ function inMemoryEntries(required: { plan: SiteSharePlanContent }): ShareZipEntr
   return [...(plan.bufferedFiles ?? []), ...(plan.database ? [{ path: SITE_BACKUP_DATABASE_PATH, content: plan.database.bytes }] : [])];
 }
 
-/** Claims the manifest path and every entry path in one archive-wide alias set before any content is read. */
-function claimArchivePaths(required: { entries: readonly { path: string }[] }, optional: { manifest?: boolean } = {}): void {
+/** Claims every entry in one alias set for ZIPs and commits; only backups reserve the manifest path. */
+export function claimArchivePaths(required: { entries: readonly { path: string }[] }, optional: { manifest?: boolean } = {}): void {
   const aliases = new Map<string, string>(), fileAliases = new Set<string>();
   if (optional.manifest !== false) claimSharePath({ path: SITE_BACKUP_MANIFEST_PATH, directory: false, aliases, files: fileAliases });
   for (const file of required.entries) claimSharePath({ path: file.path, directory: false, aliases, files: fileAliases });

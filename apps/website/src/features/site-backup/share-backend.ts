@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
+import { NO_THEME_ID } from "../theme/index.js";
 import type { prepareShareContent } from "./share-preparation.js";
 import type { SiteBackupPushProgress } from "./push-engine.js";
 import { SiteBackupPushJobs, type PushJobKey, type PushJobWait } from "./push-jobs.js";
@@ -8,7 +9,7 @@ import { captureStaticSite, type StaticSitePorts, type StaticSiteCopy } from "./
 import { createSiteShare, isOwnShareFolder, revokeSiteShare, type ShareDelivery } from "./share-service.js";
 import { SiteShareRegistry, type SiteShareRecord } from "./share-registry.js";
 import { allocateStaticExportThemes, parseStaticExportInput, type StaticExportOptions } from "./static-export-selection.js";
-import { SiteShareRefusal } from "./share-policy.js";
+import { checkShareLimits, SiteShareRefusal } from "./share-policy.js";
 
 export interface SiteShareBackend {
   readonly registry: SiteShareRegistry;
@@ -38,16 +39,35 @@ function createOutcome(required: { waited: PushJobWait<ExportedShare>; jobId: st
   return { jobId: required.jobId, phase: waited.progress.filesTotal ? "archive-or-upload" : "preparing", progress: waited.progress };
 }
 
-/** Use the same full-roster allocation for options and the archive, including deselected aliases. */
+/** Use the same full-roster allocation for options and the archive, including deselected aliases.
+ * With the theme off, offer only the current unstyled site.
+ */
 function staticRoster({ ports, context }: { ports: StaticSitePorts; context: Awaited<ReturnType<StaticSitePorts["context"]>> }, _options = {}) {
   const activeThemeId = context.themeId ?? context.theme;
-  const roster = ports.themes?.().map(theme => ({ ...theme })) ?? [{ themeId: activeThemeId, title: context.theme }];
+  const roster = activeThemeId === NO_THEME_ID ? [{ themeId: NO_THEME_ID, title: context.theme }]
+    : ports.themes?.().map(theme => ({ ...theme })) ?? [{ themeId: activeThemeId, title: context.theme }];
   return { activeThemeId, roster, themes: allocateStaticExportThemes({ themeIds: roster.map(theme => theme.themeId), siteSlug: context.slug }) };
+}
+
+/** Release repeated public-media buffers before the next render, using the layout's URL identity.
+ * Mutates job-owned file entries so each capture retains the first media bytes, just as packaging does.
+ * @throws SiteShareRefusal as soon as retained unique files/bytes exceed the existing share caps.
+ * @complexity O(files × retained files) for the existing limit policy, bounded to 2,000 unique files.
+ */
+function retainStaticCapture({ copy, media, sizes }: { copy: Exclude<StaticSiteCopy, { reason: string }>; media: Map<string, Buffer>; sizes: { path: string; bytes: number }[] }, _options = {}): void {
+  for (const file of copy.files) {
+    const shared = file.path.startsWith("m/");
+    const existing = shared ? media.get(file.path) : undefined;
+    if (existing) { file.content = existing; continue; }
+    sizes.push({ path: file.path, bytes: file.content.length });
+    checkShareLimits({ files: sizes });
+    if (shared) media.set(file.path, file.content);
+  }
 }
 
 /** Snapshot selection/active identity/time once; isolate and clean each sequential capture.
  * @throws SiteShareRefusal for unknown selections or any unusable selected capture.
- * @complexity O(selected export bytes + roster sorting); rendering is sequential under the job deadline.
+ * @complexity O(selected export bytes + retained files² + roster sorting); sequential under the job deadline.
  */
 async function captureSelection({ ports, themeIds, signal }: { ports: StaticSitePorts; themeIds?: readonly string[]; signal: AbortSignal }, _options = {}) {
   const context = await ports.context(), instant = ports.now();
@@ -56,11 +76,13 @@ async function captureSelection({ ports, themeIds, signal }: { ports: StaticSite
   const installed = new Map(roster.map(theme => [theme.themeId, theme]));
   if (selected.some(id => !installed.has(id))) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Every selected theme must be installed and valid." });
   const copies: Exclude<StaticSiteCopy, { reason: string }>[] = [];
+  const media = new Map<string, Buffer>(), sizes: { path: string; bytes: number }[] = [];
   for (const themeId of selected) {
     signal.throwIfAborted();
     const theme = installed.get(themeId)!;
     const copy = await captureStaticSite({ ...ports, now: () => instant, context: async () => ({ ...context, themeId, theme: theme.title }) }, { themeId });
     if ("reason" in copy) throw new SiteShareRefusal({ code: "UNAVAILABLE", message: `${themeId}: ${copy.reason}` });
+    retainStaticCapture({ copy, media, sizes });
     copies.push(copy);
   }
   signal.throwIfAborted();
@@ -114,7 +136,7 @@ export function createSiteShareBackend(required: {
     async staticOptions() {
       if (!required.staticSite) throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Static exporter is unavailable in this context." });
       const { activeThemeId, themes } = staticRoster({ ports: required.staticSite, context: await required.staticSite.context() });
-      return { activeThemeId, themes };
+      return { activeThemeId, themes: activeThemeId === NO_THEME_ID ? [{ themeId: NO_THEME_ID, name: "Current site" }] : themes };
     },
     async create(input, options = {}) {
       input.signal.throwIfAborted();
