@@ -956,7 +956,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         featuredImage: { ...FEATURED_IMAGE_SCHEMA, description: `Optional — omit to leave the featured image unchanged. ${FEATURED_IMAGE_SCHEMA.description}` },
         author: { type: ["string", "null"], description: "Optional display credit — omit to keep the stored name; null or an empty string clears it. Does not change ownership or permissions." },
         showAuthor: { type: "boolean", description: "Optional — omit to keep the byline setting; true shows the stored author, false hides it." },
-        template: { type: ["string", "null"], description: "Optional — omit to keep the saved template. Use a filename from content_post_preview.availableTemplates for this post/page; invalid choices return the valid list. Empty string selects no template; null resets the choice to the renderer's default behavior." },
+        template: { type: ["string", "null"], description: "Optional — omit to keep the saved template. Use a filename from content_post_preview.availableTemplates for this post/page; invalid choices return the valid list. A landing page for a different brand or product takes a template without the site header and footer (pages-blank.html in the bundled themes) when the list offers one. Empty string selects no template; null resets the choice to the renderer's default behavior." },
         // OPTIONAL, and it must stay optional: making it required would break every caller that
         // predates it, and the domain guard itself is opt-in (`updatePost` treats an absent basis as
         // "no basis sent" and keeps its original last-write-wins behavior).

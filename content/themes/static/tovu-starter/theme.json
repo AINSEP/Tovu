@@ -18,6 +18,7 @@
     "posts-default.html",
     "posts-sidebar.html",
     "pages-default.html",
+    "pages-blank.html",
     "index",
     "listing-default.html"
   ],
@@ -25,6 +26,7 @@
     "posts-default.html": ["post"],
     "posts-sidebar.html": ["post"],
     "pages-default.html": ["page"],
+    "pages-blank.html": ["page"],
     "index": ["page"],
     "listing-default.html": ["page"]
   },

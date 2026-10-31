@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="/theme-assets/tovu-starter/icons/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="16x16" href="/theme-assets/tovu-starter/icons/favicon-16x16.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="/theme-assets/tovu-starter/icons/favicon-32x32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/theme-assets/tovu-starter/icons/apple-touch-icon.png" />
+<link rel="manifest" href="/theme-assets/tovu-starter/manifest.webmanifest" />
+<meta name="theme-color" content="#020203" />
+<title>{{title}}</title>
+<link rel="stylesheet" href="../css/theme.css" />
+<script src="../scripts/theme-toggle.js"></script>
+</head>
+<body>
+
+<!-- A page with NO site chrome: no shared header, no shared footer (owner, 2026-10-31 — a landing
+     page for a different product or brand built inside this site wore the site's own header and
+     footer). Same head, theme CSS and scripts as pages-default.html; the page supplies everything
+     else. Pick it with template "pages-blank.html". -->
+<main data-visitor-scope data-toolname="starter_content_pages-blank" data-tooldescription="Public page content" data-tool-action="read">
+  <!-- Marker: the body of the page at this URL goes inside this element. -->
+  <div data-embed-config='{"type":"content"}'></div>
+</main>
+
+<script src="../scripts/main.js"></script>
+<script src="../scripts/vendor/lightbox.js"></script>
+<!-- kuinetic: remove these lines to drop the library (pages-default.html gets it from the shared footer partial, which this page has none of) -->
+<script src="/theme-assets/tovu-starter/assets/vendor/kuinetic/kuinetic.all.min.js"></script>
+</body>
+</html>

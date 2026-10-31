@@ -25,6 +25,7 @@
     "posts-default.html",
     "posts-sidebar.html",
     "pages-default.html",
+    "pages-blank.html",
     "index",
     "listing-default.html"
   ],
