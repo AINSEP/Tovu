@@ -74,9 +74,10 @@ test("HTTP and tool selected exports deliver inactive HTML and shared public med
   const { media } = await uploadMedia({ deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
     input: { workspaceId: deps.workspaceId, filename: "export-shared.svg", contentType: "image/svg+xml", bytes: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>'), createdByPrincipal: ownerPrincipalId } });
   const original = deps.themes.find(theme => theme.status === "valid")!;
+  // The seeded Home Page claims "/" through the theme's index.html, which needs a content slot.
   const themes = [activeThemeId, "inactive-picker"].map(id => ({ ...original, dir: directory,
     manifest: { ...original.manifest, id, tier: "static" as const, engine: 1 as const, publishedPages: ["theme-only"] },
-    pages: { index: `<html><body>${id} HOME<img src="/m/${media.slug}/original.svg"></body></html>`, "theme-only": `<html><body>${id} ONLY</body></html>` }, partials: {}, css: "" }));
+    pages: { index: `<html><body>${id} HOME<img src="/m/${media.slug}/original.svg"><div data-embed-config='{"type":"content"}'></div></body></html>`, "theme-only": `<html><body>${id} ONLY</body></html>` }, partials: {}, css: "" }));
   deps.themes = themes;
   let renders = 0;
   deps.siteShareBackend = createSiteShareBackend({ site: deps.workspaceId, registry: new SiteShareRegistry({ directory: path.join(directory, "shares") }), zip: zipFolderFiles,

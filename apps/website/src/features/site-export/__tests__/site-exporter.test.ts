@@ -1,7 +1,7 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { Server } from "node:http";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -1518,13 +1518,20 @@ test("exportSite: a paged post listing exports every page as <page>/page/<n>/ind
 });
 
 test("exportSite: explicit inactive theme owns its manifest, HTML and assets without changing presentation", async t => {
-  const deps = createRouteDeps(), outputDir = makeTmpOutputDir(), themeDir = makeTmpOutputDir();
+  const deps = createRouteDeps(), outputDir = makeTmpOutputDir(), themesRoot = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
-  t.after(() => rmSync(themeDir, { recursive: true, force: true }));
+  t.after(() => rmSync(themesRoot, { recursive: true, force: true }));
+  // /theme-assets/<id>/ serves from the site's theme roots (<themesDir>/static/<id>), never from
+  // DiscoveredTheme.dir, so the theme must live where an installed one would.
+  const themeDir = path.join(themesRoot, "static", "inactive-export");
+  mkdirSync(themeDir, { recursive: true });
+  deps.themesDir = themesRoot;
   const before = await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId });
+  // The seeded Home Page claims "/" with templateChoice "index", so it renders through the theme's
+  // index.html; that template needs a content slot or "/" is "Template not configured", active or not.
   const inactive: DiscoveredTheme = { ...deps.themes.find(theme => theme.status === "valid")!,
     manifest: { ...deps.themes[0]!.manifest, id: "inactive-export", name: "Inactive", tier: "static", engine: 1, publishedPages: ["inactive-only"] },
-    dir: themeDir, pages: { index: '<html><body>INACTIVE HOME<img src="/theme-assets/inactive-export/marker.svg"></body></html>', "inactive-only": "<html><body>INACTIVE ONLY</body></html>" },
+    dir: themeDir, pages: { index: '<html><body>INACTIVE HOME<img src="/theme-assets/inactive-export/marker.svg"><div data-embed-config=\'{"type":"content"}\'></div></body></html>', "inactive-only": "<html><body>INACTIVE ONLY</body></html>" },
     partials: {}, css: "", status: "valid", errors: [] };
   writeFileSync(path.join(themeDir, "marker.svg"), '<svg xmlns="http://www.w3.org/2000/svg"><text>inactive asset</text></svg>');
   deps.themes.push(inactive);
