@@ -157,7 +157,7 @@ describe("createSiteAssistantTransport", () => {
       assert.equal(fetchCalled, false, "fetch must not fire when there is nothing to send");
     });
 
-    it("posts the latest user message with no credentials or auth header", async () => {
+    it("posts the latest message with same-origin credentials and no provider auth header", async () => {
       let capturedUrl: string | undefined;
       let capturedInit: RequestInit | undefined;
       globalThis.fetch = (async (url: string, init: RequestInit) => {
@@ -173,7 +173,7 @@ describe("createSiteAssistantTransport", () => {
       assert.equal(capturedUrl, CHAT_URL);
       assert.equal(capturedInit?.method, "POST");
       assert.equal((capturedInit?.headers as Record<string, string>)["Content-Type"], "application/json");
-      assert.equal(capturedInit && "credentials" in capturedInit, false, "no cookie/session credentials sent");
+      assert.equal(capturedInit?.credentials, "same-origin");
       assert.equal(new Headers(capturedInit?.headers).has("Authorization"), false);
       const body = JSON.parse(capturedInit?.body as string) as { message: string; history: unknown[] };
       assert.equal(body.message, "hello there");
@@ -197,7 +197,6 @@ describe("createSiteAssistantTransport", () => {
       assert.deepEqual(events, [
         { kind: "text", text: "Hi " },
         { kind: "text", text: "there" },
-        { kind: "ext", name: "client_directive", data: { type: "highlight_entry", title: "My Post" } },
       ]);
       assert.equal(doneCount(), 1);
       assert.deepEqual(doneEvents(), events);
@@ -227,7 +226,6 @@ describe("createSiteAssistantTransport", () => {
       assert.deepEqual(errors, []);
       assert.deepEqual(events, [
         { kind: "text", text: "Hi 🌍 café" },
-        { kind: "ext", name: "client_directive", data: { type: "highlight_entry", title: "Café" } },
       ]);
       assert.equal(doneCount(), 1);
       assert.deepEqual(doneEvents(), events);
@@ -267,14 +265,13 @@ describe("createSiteAssistantTransport", () => {
       assert.deepEqual(events, [
         { kind: "text", text: "one" },
         { kind: "text", text: "two" },
-        { kind: "ext", name: "client_directive", data: { type: "highlight_entry", title: "Post" } },
       ]);
       assert.deepEqual(errors, []);
       assert.equal(doneCount(), 1);
       assert.deepEqual(doneEvents(), events);
     });
 
-    it("passes client_directive data through unvalidated, whatever shape it is", async () => {
+    it("drops unknown and retired client directives before transcript events", async () => {
       globalThis.fetch = (async () =>
         streamResponse([sseFrame("client_directive", { anything: [1, 2, 3] }), sseFrame("end", { reason: "stop" })])) as typeof fetch;
 
@@ -282,7 +279,7 @@ describe("createSiteAssistantTransport", () => {
       await transport.startRun(baseInput([userMessage("hi")]), handlers);
       await donePromise;
 
-      assert.deepEqual(events, [{ kind: "ext", name: "client_directive", data: { anything: [1, 2, 3] } }]);
+      assert.deepEqual(events, []);
     });
 
     it("surfaces an error frame via onError without ending the run, then still ends on a later end frame", async () => {
@@ -537,7 +534,7 @@ describe("createSiteAssistantTransport", () => {
       assert.equal(doneCount(), 1);
     });
 
-    it("accepts a page action with no text as a real reply (no error)", async () => {
+    it("a retired page action alone is not a reply", async () => {
       const injected = createSiteAssistantTransport({}, { fetch: (async () => streamResponse([
         sseFrame("client_directive", { type: "navigate", target: { path: "/about", title: "About" }, auto: true }),
         sseFrame("end", { reason: "stop" }),
@@ -545,7 +542,7 @@ describe("createSiteAssistantTransport", () => {
       const { handlers, errors, doneCount, donePromise } = makeHandlers();
       await injected.startRun(baseInput([userMessage("take me to about")]), handlers);
       await donePromise;
-      assert.deepEqual(errors, []);
+      assert.equal(errors.length, 1);
       assert.equal(doneCount(), 1);
     });
 

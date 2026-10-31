@@ -13,12 +13,11 @@ const { createSiteVanillaArgs, mountSiteVanillaChat } = await import('../vanilla
 const PAGE = '<!doctype html><html><body><div id="tovu-site-assistant-root"></div><article><h1 class="entry-title">Example Post</h1></article></body></html>';
 const target = { slug: 'example-post', title: 'Example Post', path: '/example-post' };
 
-test('vanilla adapters: ids, aborts, session persistence and the action queue', t => {
+test('vanilla adapters: ids, aborts, session persistence without a directive executor', t => {
   const { dom, restore } = installDom({ html: PAGE }, { url: 'https://example.test/' });
   t.after(restore);
   const args = createSiteVanillaArgs({ element: dom.window.document.getElementById('tovu-site-assistant-root')! });
   assert.equal(args.document, dom.window.document, 'the page document is the default');
-  assert.equal(args.copy.proposalLabel({ title: 'About' }), 'Go to “About”?');
   assert.match(args.ids(), /^[0-9a-f-]{36}$/);
   assert.notEqual(args.ids(), args.ids());
   assert.ok(args.createAbortController() instanceof AbortController);
@@ -26,33 +25,6 @@ test('vanilla adapters: ids, aborts, session persistence and the action queue', 
   assert.equal(args.session.load().open, true);
   args.session.clear();
   assert.equal(args.session.load().open, false);
-  args.session.enqueue({ action: { type: 'scroll_to', target } });
-  assert.deepEqual(args.session.drain(), { type: 'scroll_to', target });
-  assert.equal(args.session.drain(), null, 'a drained action runs once');
-});
-
-test('vanilla page actions: navigate through the port, scroll or highlight a found target, refuse the rest', t => {
-  const { dom, restore } = installDom({ html: PAGE }, { url: 'https://example.test/' });
-  t.after(restore);
-  const assigned: string[] = [];
-  const args = createSiteVanillaArgs({ element: dom.window.document.getElementById('tovu-site-assistant-root')! },
-    { assign: ({ path }) => void assigned.push(path) });
-  assert.equal(args.pageActions.navigate({ action: { type: 'navigate', auto: true, target: { ...target, path: '//evil.test' } } }), false);
-  assert.equal(args.pageActions.navigate({ action: { type: 'navigate', auto: true, target } }), true);
-  assert.deepEqual(assigned, ['/example-post']);
-
-  const heading = dom.window.document.querySelector('.entry-title')!;
-  let scrolls = 0;
-  heading.scrollIntoView = () => { scrolls += 1; };
-  assert.equal(args.pageActions.execute({ action: { type: 'scroll_to', target: { ...target, path: 'https://evil.test' } } }), false);
-  assert.equal(args.pageActions.execute({ action: { type: 'highlight', target: { ...target, title: 'Missing Post' } } }), false);
-  assert.equal(args.pageActions.execute({ action: { type: 'scroll_to', target } }), true);
-  assert.equal(heading.classList.contains('tovu-site-assistant__highlight'), false);
-  assert.equal(args.pageActions.execute({ action: { type: 'highlight', target } }), true);
-  assert.equal(heading.classList.contains('tovu-site-assistant__highlight'), true);
-  assert.equal(scrolls, 2);
-  args.pageActions.clearHighlight();
-  assert.equal(heading.classList.contains('tovu-site-assistant__highlight'), false);
 });
 
 test('vanilla frames run on the next animation frame and can be cancelled', async t => {
@@ -65,16 +37,6 @@ test('vanilla frames run on the next animation frame and can be cancelled', asyn
   cancel();
   await new Promise(resolve => setTimeout(resolve, 60));
   assert.deepEqual(ran, ['kept']);
-});
-
-test('the default navigation port is the page location', t => {
-  const { dom, restore } = installDom({ html: PAGE }, { url: 'https://example.test/' });
-  t.after(restore);
-  const errors: string[] = [];
-  dom.virtualConsole.on('jsdomError', (error: Error) => errors.push(error.message));
-  const args = createSiteVanillaArgs({ element: dom.window.document.getElementById('tovu-site-assistant-root')! });
-  assert.equal(args.pageActions.navigate({ action: { type: 'navigate', auto: false, target } }), true);
-  assert.ok(errors.some(message => message.includes('navigation')), 'jsdom reports the attempted location.assign');
 });
 
 type Mount = Parameters<typeof mountSiteVanillaChat>[0]['mount'];

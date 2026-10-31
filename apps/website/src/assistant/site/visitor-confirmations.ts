@@ -1,3 +1,4 @@
+import { sameFrontendOwner, type FrontendSessionOwner } from '@jini-ai/daemon';
 /** Visitor-only bridge over Jini's expiring exchanges. Never shares the admin exchange store. */
 import type { SurfaceExchangeStore } from "@jini-ai/core";
 import type { ClientDirective } from "./client-directives.js";
@@ -5,7 +6,7 @@ import type { ClientDirective } from "./client-directives.js";
 export const VISITOR_CONFIRMATION_WAIT_MS = 60_000;
 export type ToolConfirmationDirective = Extract<ClientDirective, { kind: "tool_confirmation" }>;
 export interface VisitorConfirmationRequest {
-  readonly binding: { readonly runId: string; readonly executionId: string; readonly ip: string };
+  readonly binding: { readonly runId: string; readonly executionId: string; readonly ip: string; readonly owner?: FrontendSessionOwner };
   readonly title: string;
   readonly summary: string;
   readonly emit: (directive: ToolConfirmationDirective) => void;
@@ -14,7 +15,7 @@ export interface VisitorConfirmationRequest {
 }
 export interface VisitorConfirmations {
   request(required: VisitorConfirmationRequest, optional?: Record<string, never>): Promise<boolean>;
-  confirm(required: { challengeId: string; allow: boolean }, optional?: Record<string, never>): Promise<boolean>;
+  confirm(required: { challengeId: string; allow: boolean; owner?: FrontendSessionOwner }, optional?: Record<string, never>): Promise<boolean>;
 }
 
 /** The random exchange ID is a single-use bearer delivered only on its owning SSE response.
@@ -23,7 +24,7 @@ export interface VisitorConfirmations {
  * @complexity O(1) routing; at most 20 held site prompts, two per IP and one per turn.
  */
 export function createVisitorConfirmations({ exchanges, nowMs }: { exchanges: SurfaceExchangeStore; nowMs: () => number }, _options = {}): VisitorConfirmations {
-  const pending = new Map<string, { validate: VisitorConfirmationRequest["validate"]; expiresAtMs: number; deliver: (allow: boolean) => boolean }>();
+  const pending = new Map<string, { owner?: FrontendSessionOwner; validate: VisitorConfirmationRequest["validate"]; expiresAtMs: number; deliver: (allow: boolean) => boolean }>();
   const turns = new Set<string>();
   const ipCounts = new Map<string, number>();
 
@@ -43,7 +44,7 @@ export function createVisitorConfirmations({ exchanges, nowMs }: { exchanges: Su
         emit: async ({ payload }) => { emit(payload as unknown as ToolConfirmationDirective); } });
       turns.add(binding.runId);
       ipCounts.set(binding.ip, ipCount + 1);
-      pending.set(exchange.id, { validate: required.validate, expiresAtMs: exchange.expiresAtMs(),
+      pending.set(exchange.id, { owner: binding.owner, validate: required.validate, expiresAtMs: exchange.expiresAtMs(),
         deliver: allow => exchanges.deliver({ exchangeId: exchange.id, principalId: "anonymous-visitor", params: { allow } },
           { toolId: binding.executionId, channel: "visitor-tool-confirmation" }).ok });
       const abandon = () => exchange.close({});
@@ -64,9 +65,10 @@ export function createVisitorConfirmations({ exchanges, nowMs }: { exchanges: Su
         exchange.close({});
       }
     },
-    async confirm({ challengeId, allow }, _optional = {}) {
+    async confirm({ challengeId, allow, owner }, _optional = {}) {
       const held = pending.get(challengeId);
       if (!held) return false;
+      if (held.owner && !sameFrontendOwner({ expected: held.owner, actual: owner })) return false;
       // Claim before any await: simultaneous clicks/replays cannot queue a second answer.
       pending.delete(challengeId);
       let valid = false;

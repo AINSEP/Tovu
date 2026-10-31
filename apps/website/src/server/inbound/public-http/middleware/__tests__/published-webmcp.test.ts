@@ -4,6 +4,24 @@ import express from 'express';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { applyPublishedWebMcp } from '../published-webmcp.js';
 
+test('visitor content lookup is lazy, once per eligible HTML response, and absent for exports', async t => {
+  const app = express();
+  let lookups = 0;
+  applyPublishedWebMcp({ app, readEnabled: async () => false,
+    allowsVisitorPublication: async () => { lookups++; return true; } });
+  app.get('/plain', (_req, res) => res.type('html').send('<html><body>Plain</body></html>'));
+  app.get('/widget', (_req, res) => res.type('html').send('<html><body><div id="tovu-site-assistant-root"></div></body></html>'));
+  const base = await startTestServer(app, t);
+  await (await fetch(`${base}/plain`)).text();
+  assert.equal(lookups, 0);
+  const published = await (await fetch(`${base}/widget`)).text();
+  assert.equal(lookups, 1);
+  assert.match(published, /tovu-visitor-publication/);
+  assert.doesNotMatch(published, /data-tovu-webmcp-script/, 'external WebMCP stays disabled independently of visitor controls');
+  await (await fetch(`${base}/widget`, { headers: { 'x-tovu-static-export': '1' } })).text();
+  assert.equal(lookups, 1);
+});
+
 test('public pages honor the server gate, including native forms, while APIs and admin stay outside it', async (t) => {
   let enabled = true;
   const app = express();

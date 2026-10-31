@@ -1,6 +1,7 @@
 export type { VisitorExecutionPorts } from "./visitor-execution-ports.js";
 import type { VisitorExecutionPorts } from "./visitor-execution-ports.js";
 /** Tovu's anonymous execution adapter. No admin registry, catalog, invoker or plugin port exists. */
+import type { ToolRegistration } from "@jini-ai/core";
 import { createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor, type ToolExecutionResult } from "@jini-ai/daemon";
 import { withToolAttemptAudit, type ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
@@ -15,7 +16,10 @@ export interface VisitorCapabilityContract extends VisitorToolPresentation {
   readonly name: string;
   /** A site grant never adds eligibility: the reviewed contract must explicitly opt in. */
   readonly visitorOfferable: true;
-  readonly execute: (required: { input: unknown }, optional?: Record<string, never>) => Promise<{ readonly result: unknown; readonly directive?: ClientDirective }>;
+  readonly readOnly?: boolean;
+  readonly acceptsInput?: (required: { input: unknown }) => boolean;
+  readonly requiresConfirmation?: (required: { input: unknown }) => boolean;
+  readonly execute: (required: { input: unknown; context?: Parameters<ToolRegistration['handler']>[0] }, optional?: Record<string, never>) => Promise<{ readonly result: unknown; readonly directive?: ClientDirective }>;
 }
 
 /** Uniform visitor-safe refusal keeps denied and unknown capabilities indistinguishable. */
@@ -40,7 +44,8 @@ export interface VisitorExecutor {
  */
 export function createVisitorExecutor({ capabilities }: { capabilities: readonly VisitorCapabilityContract[] }, { ports }: { ports?: VisitorExecutionPorts } = {}): VisitorExecutor {
   const registry = createToolRegistry({});
-  const confirmation = ports ? createVisitorConfirmationGate({ ports, resume: args => executor.resumeConfirmation(args) }) : undefined;
+  const scopedPorts = ports ? { ...ports, requiresConfirmation: ({ toolId, input }: { toolId: string; input: unknown }) => capabilityNeedsApproval({ capabilities, toolId, input }) } : undefined;
+  const confirmation = scopedPorts ? createVisitorConfirmationGate({ ports: scopedPorts, resume: args => executor.resumeConfirmation(args) }) : undefined;
   registerCapabilities({ capabilities, registry, ports, confirmation });
   const executor = createToolExecutor({ registry }, { now: ports?.clock.nowMs.bind(ports.clock), delegate: confirmation?.delegate });
   const runId = ports?.runId ?? "visitor-turn";
@@ -56,9 +61,11 @@ export function createVisitorExecutor({ capabilities }: { capabilities: readonly
     const gated = { ...executor, execute: async (args: Parameters<typeof executor.execute>[0], options: Parameters<typeof executor.execute>[1] = {}): Promise<ToolExecutionResult> => {
       attempts++;
       if (refuseOnly || !registry.has({ toolId: args.toolId }) || (ports && attempts > VISITOR_TOOL_CALLS_PER_TURN)) {
-        return { executionId: ports?.ids.newId() ?? "refused", status: "denied" };
+        return deniedVisitorAttempt({ ports });
       }
-      return executor.execute(args, options);
+      if (!capabilityAcceptsInput({ capabilities, toolId: args.toolId, input: args.input })) return deniedVisitorAttempt({ ports });
+      const required = capabilityNeedsApproval({ capabilities, toolId: args.toolId, input: args.input });
+      return executor.execute(args, { ...options, ...(required ? { requireConfirmation: true as const } : {}) });
     } };
     return ports ? withToolAttemptAudit({
       inner: gated, workspaceId: ports.workspaceId, now: ports.clock.nowIso.bind(ports.clock), newAttemptId: ports.ids.newId.bind(ports.ids),
@@ -91,8 +98,7 @@ export function createVisitorExecutor({ capabilities }: { capabilities: readonly
         // Caller classes are transport-owned. A forged class never reaches a public handler.
         if (isVisitorRefusal({ outcome })) return { kind: "refused" as const, reason: VISITOR_TOOL_REFUSAL };
         if (outcome.status !== "completed") return { kind: "error" as const, error: outcome.error ?? outcome.status };
-        const output = outcome.output as { result: unknown; directive?: ClientDirective };
-        return { kind: "ok" as const, result: output.result, directive: output.directive };
+        return visitorOutput({ output: outcome.output });
       } catch (error) {
         ports?.reportError(error);
         return { kind: "refused" as const, reason: VISITOR_TOOL_REFUSAL };
@@ -112,24 +118,27 @@ function registerCapabilities({ capabilities, registry, ports, confirmation }: {
     if (capability.visitorOfferable !== true) continue;
     const ask = ports?.initialPolicy != null && resolveVisitorToolChoice({ policy: ports.initialPolicy, toolId: capability.name }).mode === "ask";
     registry.register({
-      descriptor: { id: capability.name, readOnly: true, timeoutMs: 10_000, requiresConfirmation: ask },
+      descriptor: { id: capability.name, readOnly: capability.readOnly ?? true, timeoutMs: 10_000, maxOutputBytes: 24_000, requiresConfirmation: ask },
       policy: { authorize: async () => {
-        if (!ports) return "allow";
+        if (!ports) return capability.name.startsWith("page.") ? "deny" : "allow";
         try {
           const policy = await ports.readPolicy();
           if (!policy) return "deny";
           const choice = resolveVisitorToolChoice({ policy, toolId: capability.name });
-          if (!visitorModeAllowed({ mode: choice.mode, ask, hasChannel: Boolean(ports.confirmation && ports.readSnapshot) })) return "deny";
+          const hasChannel = Boolean(ports.confirmation && ports.readSnapshot);
+          if (!visitorModeAllowed({ mode: choice.mode, ask, hasChannel })) return 'deny';
+          if (!confirmationChannelAvailable({ capability, hasChannel })) return 'deny';
           return await ports.budgets.charge({ workspaceId: ports.workspaceId, toolId: capability.name, ip: ports.ip, limits: choice.limits }) ? "allow" : "deny";
         } catch (error) {
           ports.reportError(error);
           return "deny";
         }
       } },
-      handler: async ({ input, signal, executionId }) => {
+      handler: async (context) => {
+        const { input, signal, executionId } = context;
         try {
-          if (ask) await confirmation!.assertApproved({ executionId, input });
-          return await capability.execute({ input });
+          if (ask || capability.requiresConfirmation?.({ input })) await confirmation!.assertApproved({ executionId, input });
+          return await capability.execute({ input, context });
         } catch (error) {
           // Jini returns a message string. Preserve the original stack server-side, while a
           // disconnected caller's aborted work needs no operational error report.
@@ -157,4 +166,25 @@ function visitorModeAdvertised({ policy, toolId, ports }: { policy: VisitorToolP
 /** Decline, expiry and revoked plans share the same non-disclosing visitor result. */
 function isVisitorRefusal({ outcome }: { outcome: ToolExecutionResult }, _options = {}): boolean {
   return ["denied", "cancelled", "confirmation-denied"].includes(outcome.status) || outcome.error === VISITOR_TOOL_REFUSAL;
+}
+
+function capabilityNeedsApproval({ capabilities, toolId, input }: { capabilities: readonly VisitorCapabilityContract[]; toolId: string; input: unknown }): boolean {
+  return Boolean(capabilities.find(capability => capability.name === toolId)?.requiresConfirmation?.({ input }));
+}
+function confirmationChannelAvailable({ capability, hasChannel }: { capability: VisitorCapabilityContract; hasChannel: boolean }): boolean {
+  return !capability.requiresConfirmation?.({ input: undefined }) || hasChannel;
+}
+function visitorOutput({ output }: { output: unknown }): VisitorToolOutcome {
+  if (typeof output === 'string') return { kind: 'ok', result: output };
+  const value = output as { result: unknown; directive?: ClientDirective };
+  return { kind: 'ok', result: value.result, directive: value.directive };
+}
+
+function capabilityAcceptsInput({ capabilities, toolId, input }: { capabilities: readonly VisitorCapabilityContract[]; toolId: string; input: unknown }): boolean {
+  const validate = capabilities.find(capability => capability.name === toolId)?.acceptsInput;
+  return !validate || validate({ input });
+}
+
+function deniedVisitorAttempt({ ports }: { ports?: VisitorExecutionPorts }): ToolExecutionResult {
+  return { executionId: ports?.ids.newId() ?? 'refused', status: 'denied' };
 }

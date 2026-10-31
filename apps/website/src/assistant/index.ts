@@ -42,13 +42,9 @@ export type {
   SiteAssistantCallerClass,
 } from "./site/capability-registry.js";
 
-export { detectsExplicitNavigationIntent } from "./site/client-directives.js";
-// `ClientDirective`/`PageAction`/`ResolvedPublicTarget` are reachable from `SiteCapabilityOutcome`'s
-// `directive` field above, not imported directly anywhere today — kept public because a registry
-// consumer that reads `outcome.directive` needs these names to type it. `resolvePublicTarget` itself
-// (the function) has no external caller — `site/tools.ts` is the only user, inside this module —
-// so it stays un-re-exported.
-export type { ClientDirective, PageAction, ResolvedPublicTarget } from "./site/client-directives.js";
+// Only human confirmation directives remain public. Machine page calls use the isolated
+// frontend session transport and never become chat transcript directives.
+export type { ClientDirective } from "./site/client-directives.js";
 
 export { resolveBoundedHistory } from "./site/history.js";
 export type { SiteAssistantHistoryTurn } from "./site/history.js";

@@ -33,6 +33,21 @@ test('a click posts only ID and literal allow, relative with same-origin mode, n
   assert.equal(await confirmSiteAssistantTool({ challengeId: directive.challengeId, allow: true }, { fetch: async () => { throw new Error('offline'); } }), false);
 });
 
+test('two widget instances supply their own live confirmation credentials', async () => {
+  const seen: string[] = [];
+  const send: typeof fetch = async (_url, options) => {
+    seen.push(new Headers(options?.headers).get('x-frontend-tab')!);
+    return new Response('{}');
+  };
+  let first = 'first';
+  const decide = { challengeId: directive.challengeId, allow: true };
+  await confirmSiteAssistantTool(decide, { fetch: send, headers: () => ({ 'x-frontend-tab': first }) });
+  await confirmSiteAssistantTool(decide, { fetch: send, headers: () => ({ 'x-frontend-tab': 'second' }) });
+  first = 'rotated';
+  await confirmSiteAssistantTool(decide, { fetch: send, headers: () => ({ 'x-frontend-tab': first }) });
+  assert.deepEqual(seen, ['first', 'second', 'rotated']);
+});
+
 test('live challenges stay out of events, completed transcripts and the next provider history', async () => {
   let stream!: ReadableStreamDefaultController<Uint8Array>;
   const response = new Response(new ReadableStream<Uint8Array>({ start(controller) { stream = controller; } }));

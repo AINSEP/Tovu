@@ -21,18 +21,22 @@ export const VISITOR_TOOL_PRESENTATION = {
     displayTitle: "List categories",
     displayDescription: "Lets visitors see your post categories.",
   },
-  navigate_to_entry: {
+  'page.navigate': {
     displayTitle: "Open a post or page",
     displayDescription: "Lets visitors open a post or page.",
   },
-  scroll_to_entry: {
+  'page.scroll_to': {
     displayTitle: "Scroll to a post or page",
     displayDescription: "Lets visitors scroll to a post or page.",
   },
-  highlight_entry: {
+  'page.highlight': {
     displayTitle: "Highlight a post or page",
     displayDescription: "Lets visitors highlight a post or page.",
   },
+  'page.find_elements': { displayTitle: 'Read the public screen', displayDescription: 'Lets visitors read reviewed public regions and controls.' },
+  'page.click': { displayTitle: 'Use public page controls', displayDescription: 'Operates reviewed menus and disclosures. Submitting a form requires confirmation.' },
+  'page.fill': { displayTitle: 'Fill public form fields', displayDescription: 'Fills a reviewed field after visitor confirmation.' },
+  'page.select_option': { displayTitle: 'Choose public form options', displayDescription: 'Changes a reviewed selection after visitor confirmation.' },
   site_guide: {
     displayTitle: "Site guide",
     displayDescription: "Shows visitors what the assistant can do.",

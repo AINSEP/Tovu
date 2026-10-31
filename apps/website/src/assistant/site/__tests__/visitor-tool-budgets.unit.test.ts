@@ -55,3 +55,11 @@ test("independent processes have independent counters; queue recovers after a cl
   assert.equal(await budgets.charge(target), true);
   assert.equal(await fixture().budgets.charge(target), true);
 });
+
+test('renamed page grants keep an already consumed legacy budget', async () => {
+  const clock = { nowMs: () => 0, nowIso: () => new Date(0).toISOString() };
+  const budgets = createVisitorToolBudgets({ clock });
+  const target = { workspaceId: 'site', ip: 'ip', limits: { perIpPerHour: 1, perSitePerDay: 1 } };
+  assert.equal(await budgets.charge({ ...target, toolId: 'navigate_to_entry' }), true);
+  assert.equal(await budgets.charge({ ...target, toolId: 'page.navigate' }), false);
+});

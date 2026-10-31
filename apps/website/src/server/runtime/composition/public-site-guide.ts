@@ -31,8 +31,9 @@ function effectivePublicCard({ availableTools }: { availableTools?: readonly str
   if (availableTools === undefined) return publicCapabilityCard;
   const labels: Readonly<Record<string, string>> = {
     search_published_entries: "Search published entries", get_published_entry: "Read a published entry",
-    list_categories: "List public categories", navigate_to_entry: "Propose navigation to a public entry",
-    scroll_to_entry: "Scroll to a public entry", highlight_entry: "Highlight a public entry",
+    list_categories: 'List public categories', 'page.navigate': 'Open a public page',
+    'page.find_elements': 'Read the published screen', 'page.scroll_to': 'Scroll to public content', 'page.highlight': 'Point to public content',
+    'page.click': 'Operate reviewed page controls', 'page.fill': 'Fill a reviewed field after confirmation', 'page.select_option': 'Change a reviewed selection after confirmation',
   };
   const actions = Object.entries(labels).filter(([id]) => availableTools.includes(id)).map(([, label]) => label);
   // Preserve today's model-facing card byte-for-byte when the default CMS grants all remain.

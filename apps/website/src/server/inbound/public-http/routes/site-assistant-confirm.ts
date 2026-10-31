@@ -1,3 +1,4 @@
+import type { FrontendSessionOwner } from '@jini-ai/daemon';
 /** One human-only reply route. No model tool or admin exchange can reach this visitor store. */
 import type { Express, Request, Response } from "express";
 import { type VisitorConfirmations, VISITOR_TOOL_REFUSAL } from "#src/assistant/visitor-services";
@@ -7,6 +8,7 @@ import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 export const SITE_ASSISTANT_CONFIRM_PATH = "/api/site-assistant/confirm";
 interface ConfirmRoutePorts {
   readonly confirmations: VisitorConfirmations;
+  readonly resolveOwner?: (args: { req: Request }) => Promise<FrontendSessionOwner | null>;
   readonly enabled: () => Promise<boolean>;
   readonly allowsOrigin: (required: { origin: string }) => Promise<boolean>;
   readonly limiter: RateLimiter;
@@ -22,12 +24,10 @@ function confirmationBody({ value }: { value: unknown }, _options = {}): { chall
   return { challengeId: body.challengeId, allow: body.allow };
 }
 
-/** Browser-set same-origin metadata covers aliases and desktop ports; legacy clients use canonical Origin. */
+/** Fetch metadata alone is spoofable; every confirmation must match the trusted public Origin. */
 async function allowsRequestOrigin({ req, ports }: { req: Request; ports: ConfirmRoutePorts }, _options = {}): Promise<boolean> {
   const origin = req.get("origin");
-  const site = req.get("sec-fetch-site");
   if (origin === "null") return false;
-  if (site !== undefined) return site === "same-origin";
   if (!origin) return false;
   return ports.allowsOrigin({ origin });
 }
@@ -43,7 +43,7 @@ async function handle({ req, res, ports }: { req: Request; res: Response; ports:
   const body = confirmationBody({ value: req.body });
   const sameOrigin = await allowsRequestOrigin({ req, ports });
   if (!body || !req.is("application/json") || !sameOrigin) { res.status(400).json({ error: VISITOR_TOOL_REFUSAL }); return; }
-  const accepted = await ports.confirmations.confirm(body);
+  const accepted = await confirmForRequest({ req, ports, body });
   res.status(accepted ? 200 : 400).json(accepted ? { accepted: true } : { error: VISITOR_TOOL_REFUSAL });
 }
 
@@ -55,4 +55,9 @@ export function registerSiteAssistantConfirm({ app, ports }: { app: Express; por
       res.status(400).json({ error: VISITOR_TOOL_REFUSAL });
     });
   });
+}
+
+async function confirmForRequest({ req, ports, body }: { req: Request; ports: ConfirmRoutePorts; body: { challengeId: string; allow: boolean } }): Promise<boolean> {
+  const owner = await ports.resolveOwner?.({ req });
+  return ports.confirmations.confirm({ ...body, ...(owner ? { owner } : {}) });
 }

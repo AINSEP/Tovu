@@ -1,3 +1,4 @@
+import type { FrontendSessionOwner } from '@jini-ai/daemon';
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import type { VisitorToolPolicy } from "../../contracts/site-assistant/visitor-tools.js";
 import type { VisitorToolBudgets } from "./visitor-tool-budgets.js";
@@ -5,6 +6,9 @@ import type { VisitorConfirmations, ToolConfirmationDirective } from "./visitor-
 
 
 export interface VisitorExecutionPorts {
+  readonly owner?: FrontendSessionOwner;
+  readonly publicationRevision?: string;
+  readonly requiresConfirmation?: (required: { toolId: string; input: unknown }) => boolean;
   readonly initialPolicy: VisitorToolPolicy | null;
   /** Re-read at each invocation, including Off changes during a running model turn. */
   readonly readPolicy: () => Promise<VisitorToolPolicy | null>;

@@ -31,7 +31,7 @@ for (const allow of [true, false]) test(`real Jini vanilla widget holds the turn
   t.after(() => { widget.unmount(); globalThis.fetch = realFetch; restore(); });
   await widget.controller.send({ text: 'Search please' });
   await new Promise(resolve => setImmediate(resolve));
-  const strip = element.querySelector<HTMLElement>('.jini-chat-vanilla__proposal')!;
+  const strip = element.querySelector<HTMLElement>('.jini-chat-vanilla__tool-confirmation')!;
   assert.equal(strip.hidden, false);
   assert.equal(strip.textContent, 'Allow search? Search published posts.AllowCancel');
   assert.equal(dom.window.document.activeElement?.textContent, 'Cancel');

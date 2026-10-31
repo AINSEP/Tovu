@@ -1,5 +1,4 @@
 @import "./site-chat-theme.css";
-@import "./page-actions.css";
 
 /**
  * @file Makes the public site chat read as the same product as the admin assistant dock
@@ -593,12 +592,7 @@
   color: var(--ok);
 }
 
-/* ---------------------------------------------------------------------------------------------
- * 9. Navigation proposal bar (SPEC-046 D-1) — the clickable affordance rendered when
- * `navigate_to_entry` resolves to a PROPOSED (non-auto) navigation. Sits below `ChatPane` inside the
- * panel, not inside the message list — `ChatPane` is not forked to render it, see
- * `SiteAssistantWidget.tsx`'s doc for why.
- * --------------------------------------------------------------------------------------------- */
+/* Human confirmation uses the existing panel bar skin; no machine invocation is rendered. */
 
 .tovu-site-assistant__proposal {
   display: flex;

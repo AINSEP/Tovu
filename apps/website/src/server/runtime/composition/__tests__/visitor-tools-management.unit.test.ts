@@ -10,25 +10,19 @@ import type { AssistantSettingsRouteDeps } from "#src/server/inbound/admin-http/
 import { ADMIN_VISITOR_TOOLS_PATH } from "#src/server/inbound/admin-http/routes/assistant/visitor-tools";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";
 
-test("the production catalog is exactly the seven reviewed CMS reads, independent of the admin registry", async () => {
+test("the production catalog is the reviewed CMS reads and seven page capabilities, independent of the admin registry", async () => {
   const catalog = builtinVisitorToolsCatalog({});
-  assert.deepEqual(catalog.map(t => t.id), ["search_published_entries", "get_published_entry", "list_categories", "navigate_to_entry", "scroll_to_entry", "highlight_entry", "site_guide"]);
-  assert.ok(catalog.every(t => t.source === "builtin" && t.effect === "read" && t.availability.available));
-  assert.ok(catalog.every(t => t.title && t.description && t.sourceRevision));
-  assert.deepEqual(catalog.map(({ id, displayTitle, displayDescription }) => [id, displayTitle, displayDescription]), [
-    ["search_published_entries", "Search posts and pages", "Lets visitors find your posts and pages."],
-    ["get_published_entry", "Read a post or page", "Lets visitors read a post or page."],
-    ["list_categories", "List categories", "Lets visitors see your post categories."],
-    ["navigate_to_entry", "Open a post or page", "Lets visitors open a post or page."],
-    ["scroll_to_entry", "Scroll to a post or page", "Lets visitors scroll to a post or page."],
-    ["highlight_entry", "Highlight a post or page", "Lets visitors highlight a post or page."],
-    ["site_guide", "Site guide", "Shows visitors what the assistant can do."],
-  ]);
+  assert.deepEqual(catalog.map(t => t.id), ['page.find_elements', 'page.highlight', 'page.scroll_to', 'page.click', 'page.fill', 'page.select_option', 'page.navigate', 'search_published_entries', 'get_published_entry', 'list_categories', 'site_guide']);
+  const writes = new Set(['page.click', 'page.fill', 'page.select_option', 'page.navigate']);
+  assert.ok(catalog.every(t => t.source === 'builtin' && t.effect === (writes.has(t.id) ? 'write' : 'read') && t.availability.available));
+  assert.ok(catalog.every(t => t.title && t.description && t.sourceRevision && t.displayTitle && t.displayDescription));
+  assert.deepEqual(catalog.find(t => t.id === 'page.navigate')?.displayTitle, 'Open a post or page');
   const f = await visitorSettingsFixture();
   const service = composeVisitorToolsManagement({ workspaceId: ws, settings: f.deps, ready: Promise.resolve() });
   const view = await service.list({ callerPrincipalId: "owner" });
-  assert.equal(view.tools.length, 7);
-  assert.ok(view.tools.every(t => t.mode === "auto"));
+  assert.equal(view.tools.length, 11);
+  assert.equal(view.tools.filter(t => t.mode === 'auto').length, 7);
+  assert.equal(view.tools.filter(t => t.mode === 'off').length, 4);
   const prepared = await service.prepare({ callerPrincipalId: "owner", input: { toolId: "site", expectedRevisionSeq: 0, mode: "off" } });
   assert.equal(prepared.requiresApproval, false);
   const changed = await service.apply({ callerPrincipalId: "owner", prepared });
@@ -47,12 +41,12 @@ test("the existing assistant-settings module mounts both visitor routes over the
   await extractRouteHandler(app, "get", ADMIN_VISITOR_TOOLS_PATH)({ params: { workspaceId: ws } } as unknown as Request, res);
   assert.deepEqual(capture.jsonBody, { data: await service.list({ callerPrincipalId: "owner" }) });
   const tools = (capture.jsonBody as { data: Awaited<ReturnType<typeof service.list>> }).data.tools;
-  assert.equal(tools.length, 7);
+  assert.equal(tools.length, 11);
   assert.deepEqual(tools.find(tool => tool.id === "list_categories"), {
     id: "list_categories", title: "list categories",
     description: "List this site's live taxonomy category names, not content types or tags. An empty list means this site has no categories.",
     displayTitle: "List categories", displayDescription: "Lets visitors see your post categories.",
-    source: "builtin", sourceRevision: "builtin-v1", effect: "read", availability: { available: true },
+    source: "builtin", sourceRevision: "builtin-v2-page", effect: "read", availability: { available: true },
     mode: "auto", limits: { perIpPerHour: 30, perSitePerDay: 1000 },
   });
   assert.equal(typeof extractRouteHandler(app, "put", ADMIN_VISITOR_TOOLS_PATH), "function");

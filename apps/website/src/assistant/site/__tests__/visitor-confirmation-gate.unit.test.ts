@@ -127,9 +127,9 @@ test("confirmation copy projects only declared fields and strips controls, links
 
 for (const [toolId, input, expected] of [
   ["get_published_entry", { slug: "welcome", query: "hidden" }, 'Read a published entry: "welcome"'],
-  ["navigate_to_entry", { slug: "welcome" }, 'Navigate to a published entry: "welcome"'],
-  ["scroll_to_entry", { slug: "welcome" }, 'Scroll to a published entry: "welcome"'],
-  ["highlight_entry", { slug: "welcome" }, 'Highlight a published entry: "welcome"'],
+  ['page.navigate', { page: 'welcome' }, 'Open a published public page.'],
+  ['page.scroll_to', { handle: 'welcome' }, 'Scroll to public content.'],
+  ['page.highlight', { handle: 'welcome' }, 'Highlight public content.'],
   ["site_guide", { operation: "explain", topic: "content" }, 'Read the public site guide: "content"'],
   ["list_categories", { query: "ignored" }, "List published categories."],
   ["search_published_entries", { query: { secret: "ignored" } }, "Search published entries"],

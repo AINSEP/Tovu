@@ -244,96 +244,13 @@ export const scenarios = [
     },
   },
   {
-    name: "poisoned action-queue entry (REQ-2 drain must not throw)",
-    seed: (storage) => storage.setItem(ACTION_QUEUE_STORAGE_KEY, "{also deliberately corrupt"),
-    verify: (storage) => {
-      if (storage.getItem(ACTION_QUEUE_STORAGE_KEY) !== null) {
-        fail("poisoned action-queue entry: drainQueuedAction should have deleted the entry before attempting to parse it");
-      }
-    },
-  },
-  {
-    name: "a real queued action is drained exactly once on mount",
-    seed: (storage) => storage.setItem(ACTION_QUEUE_STORAGE_KEY, JSON.stringify({ kind: "example" })),
-    verify: (storage) => {
-      if (storage.getItem(ACTION_QUEUE_STORAGE_KEY) !== null) {
-        fail("queued action: the entry should have been drained (deleted) by main.tsx's mount-time drainQueuedPageAction call");
-      }
-    },
-  },
-  {
-    // SPEC-046 §4: a `highlight` action targeting the real published-entry heading seeded into every
-    // scenario's page (`PAGE_CONTENT_HTML`) — proves the WIRED path (drain -> validate -> find target
-    // -> scroll -> apply the CSS class), not just `highlight.ts`'s functions in isolation
-    // (`../src/__tests__/highlight.test.ts` already proves those directly).
-    name: "a queued highlight action finds its target and applies the highlight class (SPEC-046 §4)",
-    seed: (storage) =>
-      storage.setItem(
-        ACTION_QUEUE_STORAGE_KEY,
-        JSON.stringify({ type: "highlight", target: { slug: "example-published-post", title: "Example Published Post", path: "/example-published-post" } }),
-      ),
-    verify: (storage, document) => {
-      const heading = document.querySelector(".entry-title");
-      if (!heading) fail("highlight action: the seeded page heading is missing — the scenario fixture itself is broken");
-      if (!heading.classList.contains("tovu-site-assistant__highlight")) {
-        fail("highlight action: the target heading never received the tovu-site-assistant__highlight class");
-      }
-      if ((heading.__tovuScrollIntoViewCalls ?? 0) !== 1) {
-        fail(`highlight action: expected exactly one scrollIntoView call, got ${heading.__tovuScrollIntoViewCalls ?? 0}`);
-      }
-      // Drift guard (SPEC-046 Task 3): this scenario's whole premise is that the seeded
-      // ACTION_QUEUE_STORAGE_KEY entry was actually read and drained by main.tsx's mount-time
-      // drainQueuedPageAction call — the DOM assertions above would still pass "by accident" if a
-      // key-version bump left this script seeding a key the running bundle no longer reads AND some
-      // other stale queued action from a prior scenario happened to resolve instead. Asserting
-      // consumption is what makes that drift fail loudly instead of silently.
-      if (storage.getItem(ACTION_QUEUE_STORAGE_KEY) !== null) {
-        fail("highlight action: the queued entry should have been drained (deleted) by main.tsx's mount-time drainQueuedPageAction call");
-      }
-    },
-  },
-  {
-    // Same target, `scroll_to` instead of `highlight` — must scroll WITHOUT applying the visual
-    // highlight class (the two share target resolution but not the visual treatment; see `tools.ts`'s
-    // own doc on why `scroll_to_entry` and `highlight_entry` are separate capabilities).
-    name: "a queued scroll_to action scrolls to its target without highlighting it",
-    seed: (storage) =>
-      storage.setItem(
-        ACTION_QUEUE_STORAGE_KEY,
-        JSON.stringify({ type: "scroll_to", target: { slug: "example-published-post", title: "Example Published Post", path: "/example-published-post" } }),
-      ),
-    verify: (storage, document) => {
-      const heading = document.querySelector(".entry-title");
-      if ((heading?.__tovuScrollIntoViewCalls ?? 0) !== 1) {
-        fail(`scroll_to action: expected exactly one scrollIntoView call, got ${heading?.__tovuScrollIntoViewCalls ?? 0}`);
-      }
-      // `heading` is non-null here: a missing heading has zero scrollIntoView calls and failed above.
-      if (heading.classList.contains("tovu-site-assistant__highlight")) {
-        fail("scroll_to action: must never apply the highlight class — that is highlight_entry's job, not scroll_to_entry's");
-      }
-      // Drift guard (SPEC-046 Task 3) — see the identical comment on the highlight-action scenario
-      // above for why asserting consumption, not just the DOM effect, is what makes a stale
-      // ACTION_QUEUE_STORAGE_KEY literal fail loudly instead of passing vacuously.
-      if (storage.getItem(ACTION_QUEUE_STORAGE_KEY) !== null) {
-        fail("scroll_to action: the queued entry should have been drained (deleted) by main.tsx's mount-time drainQueuedPageAction call");
-      }
-    },
-  },
-  {
-    // Defensive-only path (`main.tsx#executeDrainedAction`'s own doc): `SiteAssistantWidget.tsx` never
-    // actually enqueues a `navigate` action (there is nothing to "arrive and execute" for a navigation
-    // that already happened), but a queued one must still degrade to a no-op rather than throw or
-    // mis-execute as a scroll/highlight target.
-    name: "a queued navigate action (defensive path) is drained without executing or throwing",
-    seed: (storage) =>
-      storage.setItem(
-        ACTION_QUEUE_STORAGE_KEY,
-        JSON.stringify({ type: "navigate", target: { slug: "example-published-post", title: "Example Published Post", path: "/example-published-post" }, auto: true }),
-      ),
-    verify: (storage, document) => {
-      if (storage.getItem(ACTION_QUEUE_STORAGE_KEY) !== null) fail("navigate action: the entry should still have been drained (deleted)");
-      const heading = document.querySelector(".entry-title");
-      if (heading?.classList.contains("tovu-site-assistant__highlight")) fail("navigate action: must never be executed as a highlight/scroll_to target");
+    name: 'retired action queue never executes',
+    seed: storage => storage.setItem(ACTION_QUEUE_STORAGE_KEY, JSON.stringify({ type: 'highlight', target: { slug: 'example', title: 'Example Published Post', path: '/example' } })),
+    verify: (_storage, document, navigationAttempts) => {
+      const heading = document.querySelector('.entry-title');
+      if (heading?.__tovuScrollIntoViewCalls) fail('retired queue scrolled a target');
+      if (heading?.style.outline || heading?.classList.contains('tovu-site-assistant__highlight')) fail('retired queue highlighted a target');
+      if (navigationAttempts.length) fail('retired queue navigated');
     },
   },
   {

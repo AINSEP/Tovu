@@ -146,3 +146,13 @@ any custom theme a user writes — which contradicts "on the frontend, period."
 - `grep -rn "api/proxy" src apps/admin/src` → 0 hits (Tovu never mounted the proxy).
 - `packages/http-kit/src/model-proxy.ts` — route shape; `packages/server/src/builtin-features.ts:389`
   — Jini's own mount.
+
+## 2026-10-31 — Approved visitor page tools
+
+SPEC-046 v3 freezes the publication, approval, grant migration and terminal-navigation contracts.
+Reuse Jini frontend-control, PAGE_CAPABILITIES, executePageCapability and createDomPageDriver;
+mount a separate scoped visitor instance, never the admin daemon. Tovu owns published CMS target
+resolution, theme publication and the existing visitor executor's policy/budget/audit integration.
+Replace and delete the old page-action executor and queue after both widgets consume the shared
+bridge. Fill/select/submit require one guest/tab/run-bound single-use approval even for Auto.
+The server manifest and live DOM must agree immediately before each read/effect. No new CLI path.

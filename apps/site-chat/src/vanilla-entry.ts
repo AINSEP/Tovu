@@ -1,6 +1,5 @@
 import { mountVanillaChat } from '@jini-ai/chat/vanilla';
 import '@jini-ai/chat/vanilla/style.css';
-import './page-actions.css';
 import './vanilla-theme.css';
 import { mountSiteVanillaChat } from './vanilla-host';
 

@@ -1,15 +1,15 @@
-/** Tovu's directive adapter for the proposal strip already mounted by Jini's vanilla widget. */
+/** Tovu's confirmation adapter for the human-only strip mounted by Jini's vanilla widget. */
 import { confirmSiteAssistantTool, type ToolConfirmation } from './tool-confirmation';
 
 function toolConfirmationStrip({ element }: { element: HTMLElement }, _options = {}) {
-  const strip = element.querySelector<HTMLElement>('.jini-chat-vanilla__proposal');
+  const strip = element.querySelector<HTMLElement>('.jini-chat-vanilla__tool-confirmation');
   const label = strip?.querySelector('span');
   const allow = strip?.querySelector('button');
   if (!strip || !label || !allow) return null;
   return { strip, label, allow };
 }
 
-/** Extend the existing strip, retaining its navigation listener and markup. This adapter owns
+/** Extend the existing strip, using its human-only markup. This adapter owns
  * only the visitor-tool projection: Jini still owns the widget, run, cancellation and navigation.
  * Listeners/timer exist only while a live prompt does; teardown restores the original affordance.
  * @complexity O(1) DOM work per prompt/click; one 60-second UI deadline.
@@ -45,7 +45,7 @@ export function createVanillaToolConfirmation({ element, document }: { element: 
     };
     const click = (event: Event) => {
       if (event.target === allow || event.target === cancel) {
-        // Capture precedes Jini's existing navigation listener. A tool Allow can never navigate.
+        // Capture keeps the human decision from also activating a host chrome handler.
         event.preventDefault();
         event.stopImmediatePropagation();
         decide({ allow: event.target === allow });

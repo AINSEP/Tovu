@@ -50,7 +50,6 @@ import type { PostRecord, PostRepoPort } from "../../features/post/index.js";
 import { listTaxonomiesWithTerms, type TaxonomyListPort, type TermListPort } from "@jini-ai/cms/taxonomy";
 import { htmlToText } from "@jini-ai/platform/web";
 import { readAnonymousPublishedPosts, type AnonymousPublishedPostDeps, type ListPublishedPosts } from "./public-content.js";
-import { resolvePublicTarget, type ClientDirective } from "./client-directives.js";
 
 /**
  * Structural signature matching `features/post/post.ts`'s real `listPublishedPosts` function.
@@ -107,16 +106,7 @@ export interface SiteAssistantToolDeps {
    *  ceiling has nothing to bound there) or `list_categories` (taxonomy enumeration is independent
    *  of the published-post search pool). */
   readonly maxResults?: number;
-  /**
-   * SPEC-046 D-1: whether `navigate_to_entry` may resolve to an auto-executing `navigate` action
-   * (`auto: true`) rather than a clickable proposal (`auto: false`). Computed ONCE by
-   * `site-assistant.ts`, before any tool call runs, from `detectsExplicitNavigationIntent(message)` —
-   * the visitor's own live message, never from anything the model or a tool result produced. This is
-   * what keeps a hijacked model's worst case bounded to "renders a proposal a human must click": the
-   * model cannot raise this flag itself by calling the tool differently, and neither can injected
-   * post content, since both run after this deps object is already built. Defaults to `false`
-   * (propose-only) so a caller that omits it gets the safer behavior, not the more permissive one. */
-  readonly autoNavigateAllowed?: boolean;
+
 }
 
 const DEFAULT_MAX_RESULTS = 20;
@@ -256,54 +246,7 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps, _options =
       return [...new Set(categories)].sort();
     },
 
-    /**
-     * SPEC-046 REQ-4/REQ-6, Tier A (REQ-5). Resolves `input.slug` through `resolvePublicTarget` —
-     * the ONLY place a path gets constructed (see `client-directives.ts`'s file header) — and returns
-     * a `directive` alongside the model-facing `result`. `directive.action.auto` is
-     * `deps.autoNavigateAllowed`, set once per request from the visitor's own message (see that
-     * field's doc): the model chooses WHETHER to call this tool, never whether the resulting action
-     * auto-executes or renders a proposal.
-     */
-    async navigate_to_entry(input: { slug?: unknown }): Promise<{ result: unknown; directive?: ClientDirective }> {
-      const target = await resolvePublicTarget({ deps, slug: input?.slug });
-      if (!target) return { result: { error: "no published entry with that slug — it may be unpublished, trashed, or not exist" } };
 
-      const auto = deps.autoNavigateAllowed === true;
-      return {
-        result: { status: auto ? "navigated" : "proposed", slug: target.slug, title: target.title },
-        directive: { kind: "page_action", action: { type: "navigate", target, auto } },
-      };
-    },
-
-    /**
-     * SPEC-046 REQ-4/REQ-6, Tier A. Same target resolution as `navigate_to_entry`; always executes on
-     * the client immediately (no auto/propose split — scrolling into view carries no navigation risk
-     * to weigh, so there is nothing D-1's gate needs to decide here).
-     */
-    async scroll_to_entry(input: { slug?: unknown }): Promise<{ result: unknown; directive?: ClientDirective }> {
-      const target = await resolvePublicTarget({ deps, slug: input?.slug });
-      if (!target) return { result: { error: "no published entry with that slug — it may be unpublished, trashed, or not exist" } };
-
-      return {
-        result: { status: "scrolled", slug: target.slug, title: target.title },
-        directive: { kind: "page_action", action: { type: "scroll_to", target } },
-      };
-    },
-
-    /**
-     * SPEC-046 REQ-4/REQ-6, Tier A. Same target resolution again; the client applies the visual
-     * highlight treatment (spec §4) on top of the same scroll-into-view behavior `scroll_to_entry`
-     * uses — see `apps/site-chat/src/highlight.ts`.
-     */
-    async highlight_entry(input: { slug?: unknown }): Promise<{ result: unknown; directive?: ClientDirective }> {
-      const target = await resolvePublicTarget({ deps, slug: input?.slug });
-      if (!target) return { result: { error: "no published entry with that slug — it may be unpublished, trashed, or not exist" } };
-
-      return {
-        result: { status: "highlighted", slug: target.slug, title: target.title },
-        directive: { kind: "page_action", action: { type: "highlight", target } },
-      };
-    },
   };
 }
 
@@ -332,44 +275,5 @@ export const SITE_ASSISTANT_TOOL_SCHEMAS = [
     name: "list_categories",
     description: "List this site's live taxonomy category names, not content types or tags. An empty list means this site has no categories.",
     parameters: { type: "object", properties: {} },
-  },
-  {
-    name: "navigate_to_entry",
-    description:
-      "Send the visitor to a published entry's page, addressed by slug. By default this only proposes " +
-      "the page as a clickable link for the visitor to choose — it only navigates automatically when the " +
-      "visitor has explicitly asked to be taken there in their own words. Use this when the visitor asks " +
-      "to go to, see, or read a specific published entry. The client renders the clickable link (or " +
-      "performs the navigation) itself from this call — do not also write a markdown link in your reply; " +
-      "just acknowledge in plain prose.",
-    parameters: {
-      type: "object",
-      properties: { slug: { type: "string", description: "The entry's URL slug." } },
-      required: ["slug"],
-    },
-  },
-  {
-    name: "scroll_to_entry",
-    description:
-      "Scroll the visitor's current page to a published entry's content, addressed by slug, without " +
-      "highlighting it. The client performs the scroll itself from this call — do not also write a " +
-      "markdown link in your reply; just acknowledge in plain prose.",
-    parameters: {
-      type: "object",
-      properties: { slug: { type: "string", description: "The entry's URL slug." } },
-      required: ["slug"],
-    },
-  },
-  {
-    name: "highlight_entry",
-    description:
-      "Scroll to and visually highlight a published entry's content, addressed by slug, so the visitor can " +
-      "easily spot what you are referring to. The client performs the scroll and highlight itself from " +
-      "this call — do not also write a markdown link in your reply; just acknowledge in plain prose.",
-    parameters: {
-      type: "object",
-      properties: { slug: { type: "string", description: "The entry's URL slug." } },
-      required: ["slug"],
-    },
   },
 ] as const;

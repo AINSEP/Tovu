@@ -22,10 +22,10 @@ export function parseToolConfirmation({ value }: { value: unknown }, _options = 
 /** Only UI click handlers call this relative, same-origin route. No automatic retry of approvals.
  * Failure leaves the held execution to refuse/expire. @complexity One bounded HTTP request.
  */
-export async function confirmSiteAssistantTool({ challengeId, allow }: { challengeId: string; allow: boolean }, { fetch: send = globalThis.fetch }: { fetch?: typeof fetch } = {}): Promise<boolean> {
+export async function confirmSiteAssistantTool({ challengeId, allow }: { challengeId: string; allow: boolean }, { fetch: send = globalThis.fetch, headers = () => ({}) }: { fetch?: typeof fetch; headers?: () => Record<string, string> } = {}): Promise<boolean> {
   try {
     const response = await send('/api/site-assistant/confirm', { method: 'POST', mode: 'same-origin', redirect: 'error',
-      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ challengeId, allow }), signal: AbortSignal.timeout(10_000) });
+      headers: { 'Content-Type': 'application/json', ...headers() }, credentials: 'same-origin', body: JSON.stringify({ challengeId, allow }), signal: AbortSignal.timeout(10_000) });
     return response.ok;
   } catch { return false; }
 }

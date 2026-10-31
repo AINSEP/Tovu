@@ -287,8 +287,7 @@ test('visitor provider policy is structurally locked even with owner Full CLI ac
   for (const request of requests) {
     const groups = request.tools as Array<{ functionDeclarations: Array<{ name: string }> }>;
     assert.deepEqual(groups.flatMap(group => group.functionDeclarations.map(tool => tool.name)).sort(), [
-      'get_published_entry', 'highlight_entry', 'list_categories', 'navigate_to_entry',
-      'scroll_to_entry', 'search_published_entries', 'site_guide',
+      'get_published_entry', 'list_categories', 'search_published_entries', 'site_guide',
     ], 'only the reviewed visitor capabilities may reach the provider');
     const tools = JSON.stringify(request.tools);
     for (const name of forbidden) assert.equal(tools.includes(`"${name}"`), false, name);

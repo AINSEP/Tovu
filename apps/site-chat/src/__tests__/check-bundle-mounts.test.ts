@@ -128,41 +128,14 @@ test('the poisoned and wrong-shaped transcript scenarios seed their keys and acc
   }
 });
 
-test('the queue scenarios seed an entry and pass only once it was drained', () => {
-  for (const prefix of ['poisoned action-queue', 'a real queued action', 'a queued navigate']) {
-    const seeded = memoryStorage();
-    scenario(prefix).seed!(seeded);
-    assert.ok(seeded.getItem(ACTION_QUEUE_STORAGE_KEY), `${prefix} seeds the queue key`);
-    verify(prefix, memoryStorage());
-    rejects(() => verify(prefix, memoryStorage({ [ACTION_QUEUE_STORAGE_KEY]: '{}' })), /drain|deleted/);
-  }
-  verify('a queued navigate', memoryStorage(), page({ heading: false }));
-  rejects(() => verify('a queued navigate', memoryStorage(), page({ highlighted: true })), /must never be executed as a highlight/);
-});
-
-test('the highlight scenario needs the heading highlighted, scrolled exactly once, and the queue drained', () => {
-  const prefix = 'a queued highlight';
-  const seeded = memoryStorage();
-  scenario(prefix).seed!(seeded);
-  assert.equal(JSON.parse(seeded.getItem(ACTION_QUEUE_STORAGE_KEY)!).type, 'highlight');
-  verify(prefix, memoryStorage(), page({ highlighted: true, scrolls: 1 }));
-  rejects(() => verify(prefix, memoryStorage(), page({ heading: false })), /seeded page heading is missing/);
-  rejects(() => verify(prefix, memoryStorage(), page({ scrolls: 1 })), /never received the tovu-site-assistant__highlight class/);
-  rejects(() => verify(prefix, memoryStorage(), page({ highlighted: true })), /exactly one scrollIntoView call, got 0/);
-  rejects(() => verify(prefix, memoryStorage(), page({ highlighted: true, scrolls: 2 })), /got 2/);
-  rejects(() => verify(prefix, memoryStorage({ [ACTION_QUEUE_STORAGE_KEY]: '{}' }), page({ highlighted: true, scrolls: 1 })), /should have been drained/);
-});
-
-test('the scroll_to scenario needs one scroll, no highlight, and the queue drained', () => {
-  const prefix = 'a queued scroll_to';
-  const seeded = memoryStorage();
-  scenario(prefix).seed!(seeded);
-  assert.equal(JSON.parse(seeded.getItem(ACTION_QUEUE_STORAGE_KEY)!).type, 'scroll_to');
-  verify(prefix, memoryStorage(), page({ scrolls: 1 }));
-  rejects(() => verify(prefix, memoryStorage(), page({ heading: false })), /got 0/);
-  rejects(() => verify(prefix, memoryStorage(), page({ scrolls: 3 })), /got 3/);
-  rejects(() => verify(prefix, memoryStorage(), page({ scrolls: 1, highlighted: true })), /must never apply the highlight class/);
-  rejects(() => verify(prefix, memoryStorage({ [ACTION_QUEUE_STORAGE_KEY]: '{}' }), page({ scrolls: 1 })), /should have been drained/);
+test('retired queue data cannot scroll, highlight or navigate on mount', () => {
+  const prefix = 'retired action queue';
+  const storage = memoryStorage();
+  scenario(prefix).seed!(storage);
+  verify(prefix, storage, page(), []);
+  rejects(() => verify(prefix, storage, page({ scrolls: 1 }), []), /scrolled/);
+  rejects(() => verify(prefix, storage, page({ highlighted: true }), []), /highlighted/);
+  rejects(() => verify(prefix, storage, page(), ['navigation']), /navigated/);
 });
 
 test('the rehydrated-directive scenario seeds an already-executed navigate and fails on any navigation attempt', () => {
@@ -229,7 +202,7 @@ test('isEntryPoint is true only when the module is the script node was started w
 
 test('a bundle honouring every contract passes every scenario', async () => {
   // A positive control: the smallest bundle that keeps each promise the scenarios check — clear a
-  // bad transcript, drain the queue before parsing it, scroll (and for highlight, mark) the target.
+  // bad transcript and ignore legacy machine effects.
   const honest = `
     const T = ${JSON.stringify(TRANSCRIPT_STORAGE_KEY)}, Q = ${JSON.stringify(ACTION_QUEUE_STORAGE_KEY)};
     const raw = sessionStorage.getItem(T);
@@ -238,15 +211,6 @@ test('a bundle honouring every contract passes every scenario', async () => {
       try { const value = JSON.parse(raw); ok = Array.isArray(value.messages) && value.messages.every((m) => m.id && m.role); } catch {}
       if (!ok) sessionStorage.removeItem(T);
     }
-    const queued = sessionStorage.getItem(Q);
-    sessionStorage.removeItem(Q);
-    let action = null;
-    try { action = JSON.parse(queued); } catch {}
-    const heading = document.querySelector('.entry-title');
-    if (action && (action.type === 'highlight' || action.type === 'scroll_to')) requestAnimationFrame(() => {
-      heading.scrollIntoView({ block: 'center' });
-      if (action.type === 'highlight') heading.classList.add('tovu-site-assistant__highlight');
-    });
     ${MOUNT}`;
   const lines: string[] = [];
   await checkBundleMounts({ bundleSource: honest }, { settleMs: 20, log: (line) => lines.push(line) });

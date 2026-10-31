@@ -1,9 +1,6 @@
 import { createRoot, type Root } from "react-dom/client";
 
-import { isQueuedPageAction } from "./client-directives";
-import { applyHighlight, findTargetElement, scrollToElement } from "./highlight";
 import { installRemixIconOverride } from "./remixicon-override";
-import { drainQueuedPageAction } from "./session-store";
 import { SiteAssistantWidget } from "./SiteAssistantWidget";
 import "./widget.css";
 
@@ -27,32 +24,6 @@ installRemixIconOverride();
  */
 const MOUNT_ID = "tovu-site-assistant-root";
 
-/**
- * SPEC-046 REQ-2/§4: executes a drained `scroll_to`/`highlight` action against the CURRENT page.
- * `navigate` never reaches here in practice — `SiteAssistantWidget.tsx` only ever enqueues the
- * bundled highlight/scroll_to alongside an auto-navigate, never the navigate action itself (there is
- * nothing to "drain and execute" for a navigation; it already happened by the time this page loads).
- * The `navigate` branch below is a defensive no-op, not a real path, kept only so a future caller
- * cannot silently mis-execute a navigate as if it were a scroll/highlight target.
- *
- * Deferred one animation frame past `createRoot(...).render(...)` — the target is server-rendered
- * page content, not anything React owns, so it does not depend on React's own commit, but a paint
- * tick still lets layout/web-font loading settle before `findTargetElement`/`scrollToElement` read
- * element positions, matching `check-bundle-mounts.mjs`'s own note that a real macrotask tick (not a
- * microtask) is what a browser's rendering pipeline actually needs here.
- */
-export function executeDrainedAction(action: ReturnType<typeof drainQueuedPageAction>): void {
-  const queued = { value: action };
-  if (!isQueuedPageAction(queued) || queued.value.type === "navigate") return;
-  const treatment = queued.value;
-  requestAnimationFrame(() => {
-    const element = findTargetElement(treatment.target.title);
-    if (!element) return;
-    scrollToElement(element);
-    if (treatment.type === "highlight") applyHighlight(element);
-  });
-}
-
 /** Mount the widget into the page root (creating one if absent).
  * @returns the React root, so a host (or a test) can unmount it. */
 export function mount(): Root {
@@ -66,15 +37,8 @@ export function mount(): Root {
     el.id = MOUNT_ID;
     document.body.appendChild(el);
   }
-  // SPEC-046 REQ-2: drained exactly once per real mount, before anything else runs — this is the one
-  // call site that makes "drains on mount" true of the actual running bundle, not just of the
-  // `session-store.ts` module in isolation. The action itself is validated (`isQueuedPageAction`) and
-  // executed by `executeDrainedAction` above; a stray or half-written entry from an earlier session
-  // fails `isQueuedPageAction` and is silently dropped rather than acted on.
-  const queuedAction = drainQueuedPageAction();
   const root = createRoot(el);
   root.render(<SiteAssistantWidget />);
-  executeDrainedAction(queuedAction);
   return root;
 }
 

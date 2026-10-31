@@ -19,14 +19,6 @@ test('visitor markdown supports GFM, escapes raw HTML and rejects executable lin
   dom.window.close();
 });
 
-test('page effects accept only server-resolved same-origin absolute paths', () => {
-  const dom = new JSDOM('<div id="root"></div>');
-  const args = createSiteVanillaArgs({ element: dom.window.document.getElementById('root')! }, { document: dom.window.document });
-  for (const path of ['/about', '/posts/example?x=1']) assert.equal(args.pageActions.allows({ action: { type: 'navigate', auto: true, target: { path, title: 'About', slug: 'about' } } }), true);
-  for (const path of ['//evil.test', '/\\evil.test', 'javascript:alert(1)', 'https://evil.test', '/ bad']) assert.equal(args.pageActions.allows({ action: { type: 'navigate', auto: true, target: { path, title: 'About', slug: 'about' } } }), false);
-  dom.window.close();
-});
-
 for (const source of ['https://evil.test/beacon?q=private', '//evil.test/beacon', 'data:image/png;base64,AAAA', 'http://[invalid']) {
   test(`model image ${source} never enters the rendered DOM`, () => {
     const dom = new JSDOM('<div id="root"></div>', { url: 'https://example.test/about' });

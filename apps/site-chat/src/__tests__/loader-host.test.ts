@@ -11,7 +11,7 @@ for (const variant of ['react', 'vanilla']) test(`loader host binds ${variant} a
   startSiteChatLoader({ install: args => { configs.push(args); return { activate: async () => {} }; },
     loadAssets: async ({ scriptUrl, styleUrl }) => { loads.push(scriptUrl, styleUrl); } },
   { document: dom.window.document, location: dom.window.location, events: dom.window as unknown as Window,
-    loadState: () => ({ open: true, messages: [] }), hasQueued: () => false });
+    loadState: () => ({ open: true, messages: [] }) });
   assert.deepEqual(loads, []);
   assert.equal(configs[0].resume, true);
   assert.equal(dom.window.document.getElementById('tovu-site-assistant-root')!.dataset.chatOpen, 'true');
@@ -33,7 +33,7 @@ for (const link of ['/#open-chat', '/?open-chat=1']) test(`explicit deep link ${
   let deepLink = false;
   startSiteChatLoader({ install: args => { deepLink = args.deepLink; return { activate: async () => {} }; }, loadAssets: async () => {} },
     { document: dom.window.document, location: dom.window.location, events: dom.window as unknown as Window,
-      loadState: () => ({ open: false, messages: [] }), hasQueued: () => false });
+      loadState: () => ({ open: false, messages: [] }) });
   assert.equal(deepLink, true);
   assert.equal(dom.window.document.getElementById('tovu-site-assistant-root')!.dataset.chatOpen, 'true');
   dom.window.close();
@@ -44,8 +44,8 @@ for (const variant of ['react', 'vanilla']) test(`${variant}: pending destinatio
   let config: Parameters<Parameters<typeof startSiteChatLoader>[0]['install']>[0] | undefined;
   startSiteChatLoader({ install: args => { config = args; return { activate: async () => {} }; }, loadAssets: async () => {} },
     { document: dom.window.document, location: dom.window.location, events: dom.window as unknown as Window,
-      loadState: () => ({ open: false, messages: [] }), hasQueued: () => true });
-  assert.equal(config!.preload, variant === 'vanilla');
+      loadState: () => ({ open: false, messages: [] }) });
+  assert.equal('preload' in config!, false);
   assert.equal(config!.resume, false);
   assert.equal(dom.window.document.getElementById('tovu-site-assistant-root')!.dataset.chatOpen, undefined);
   dom.window.close();
@@ -67,7 +67,7 @@ for (const queued of [false, true]) test(`React chat with queued=${queued} inser
     },
     loadAssets: args => (finished = loadChatAssets(args)),
   }, { document, location: dom.window.location, events: dom.window as unknown as Window,
-    loadState: () => ({ open: false, messages: [] }), hasQueued: () => queued });
+    loadState: () => ({ open: false, messages: [] }) });
   t.after(() => dispose());
 
   await new Promise(resolve => setImmediate(resolve));
@@ -99,7 +99,7 @@ test('an open-chat anchor activates after loading even when its hash is already 
   let activations = 0;
   startSiteChatLoader({ install: () => ({ activate: async () => { activations++; } }), loadAssets: async () => {} },
     { document: dom.window.document, location: dom.window.location, events: dom.window as unknown as Window,
-      loadState: () => ({ open: false, messages: [] }), hasQueued: () => false });
+      loadState: () => ({ open: false, messages: [] }) });
   const event = new dom.window.MouseEvent('click', { bubbles: true, cancelable: true });
   dom.window.document.querySelector('a')!.dispatchEvent(event);
   assert.equal(activations, 1);
@@ -114,7 +114,7 @@ test('host passes the root as the mount-readiness boundary', async () => {
   let received: HTMLElement | undefined;
   startSiteChatLoader({ install: args => { config = args; return { activate: async () => {} }; }, loadAssets: async ({ mount }) => { received = mount; } },
     { document: dom.window.document, location: dom.window.location, events: dom.window as unknown as Window,
-      loadState: () => ({ open: false, messages: [] }), hasQueued: () => false });
+      loadState: () => ({ open: false, messages: [] }) });
   await config!.load();
   assert.equal(received, dom.window.document.getElementById('tovu-site-assistant-root'));
   dom.window.close();
@@ -126,38 +126,32 @@ for (const markup of ['<button data-jini-chat-loader></button>', '<div id="tovu-
     t.after(() => dom.window.close());
     startSiteChatLoader({ install: () => { assert.fail('must not install'); }, loadAssets: async () => {} }, {
       document: dom.window.document, location: dom.window.location, events: dom.window as unknown as Window,
-      loadState: () => { assert.fail('must not read state'); }, hasQueued: () => { assert.fail('must not inspect queue'); },
+      loadState: () => { assert.fail('must not read state'); },
     });
   });
 }
 
 for (const scenario of [
-  { widget: 'vanilla', compare: 'react', open: false, search: '?open-chat=0', hash: '', expected: 'site-assistant', deep: false, queued: false },
-  { widget: 'react', compare: 'vanilla', open: true, search: '', hash: '', expected: 'site-assistant-vanilla', deep: false, queued: true },
-  { widget: 'unknown', compare: 'invalid', open: false, search: '?open-chat=true', hash: '#other', expected: 'site-assistant', deep: false, queued: false },
-  { widget: 'vanilla', compare: '', open: false, search: '?open-chat=1', hash: '', expected: 'site-assistant-vanilla', deep: true, queued: true },
-  { widget: 'vanilla', compare: '', open: false, search: '', hash: '', expected: 'site-assistant-vanilla', deep: false, queued: true },
-]) test(`loader pins widget precedence and open/queue ordering: ${JSON.stringify(scenario)}`, async t => {
+  { widget: 'vanilla', compare: 'react', open: false, search: '?open-chat=0', hash: '', expected: 'site-assistant', deep: false },
+  { widget: 'react', compare: 'vanilla', open: true, search: '', hash: '', expected: 'site-assistant-vanilla', deep: false },
+  { widget: 'unknown', compare: 'invalid', open: false, search: '?open-chat=true', hash: '#other', expected: 'site-assistant', deep: false },
+  { widget: 'vanilla', compare: '', open: false, search: '?open-chat=1', hash: '', expected: 'site-assistant-vanilla', deep: true },
+  { widget: 'vanilla', compare: '', open: false, search: '', hash: '', expected: 'site-assistant-vanilla', deep: false },
+]) test(`loader pins widget precedence and open intent: ${JSON.stringify(scenario)}`, async t => {
   const dom = new JSDOM(`<div id="tovu-site-assistant-root" data-chat-compare="${scenario.compare}"></div><button data-jini-chat-loader data-widget="${scenario.widget}"></button>`, { url: 'https://example.test/' });
   t.after(() => dom.window.close());
   const root = dom.window.document.getElementById('tovu-site-assistant-root')!;
   let config: Parameters<Parameters<typeof startSiteChatLoader>[0]['install']>[0] | undefined;
-  let queueReads = 0;
   const assets: string[] = [];
   startSiteChatLoader({ install: args => { config = args; return { activate: async () => {} }; },
     loadAssets: async ({ scriptUrl, styleUrl, mount }) => { assets.push(scriptUrl, styleUrl); assert.equal(mount, root); } }, {
     document: dom.window.document, location: scenario, events: dom.window as unknown as Window,
-    loadState: () => ({ open: scenario.open, messages: [] }), hasQueued: () => {
-      queueReads++;
-      assert.equal(root.dataset.chatOpen, scenario.open || scenario.deep ? 'true' : undefined);
-      return true;
-    },
+    loadState: () => ({ open: scenario.open, messages: [] }),
   });
   assert.ok(config);
   assert.equal(config.resume, scenario.open);
   assert.equal(config.deepLink, scenario.deep);
-  assert.equal(config.preload, scenario.queued);
-  assert.equal(queueReads, Number(scenario.queued));
+  assert.equal('preload' in config, false, 'terminal actions never preload a destination widget');
   assert.equal(root.dataset.chatOpen, scenario.open || scenario.deep ? 'true' : undefined);
   assert.equal(config.loadingLabel, 'Loading chat…');
   assert.equal(config.retryLabel, 'Chat could not load. Activate to retry.');
@@ -189,7 +183,7 @@ test('a later hash change to #open-chat activates the loader; any other hash doe
   const listeners = new Map<string, (event: Event) => void>();
   startSiteChatLoader({ install: () => ({ activate: async () => { activations += 1; } }), loadAssets: async () => {} },
     { document: dom.window.document, location, events: { addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener) } as unknown as Window,
-      loadState: () => ({ open: false, messages: [] }), hasQueued: () => false });
+      loadState: () => ({ open: false, messages: [] }) });
   location.hash = '#comments';
   listeners.get('hashchange')!(new dom.window.Event('hashchange'));
   assert.equal(activations, 0);
@@ -207,7 +201,7 @@ test('a focused open still announces itself in a document with no window of its 
   let config: Parameters<Parameters<typeof startSiteChatLoader>[0]['install']>[0] | undefined;
   startSiteChatLoader({ install: args => { config = args; return { activate: async () => {} }; }, loadAssets: async () => {} },
     { document, location: { hash: '', search: '' }, events: { addEventListener: () => {} } as unknown as Window,
-      loadState: () => ({ open: false, messages: [] }), hasQueued: () => false });
+      loadState: () => ({ open: false, messages: [] }) });
   const root = document.getElementById('tovu-site-assistant-root')!;
   const opened: string[] = [];
   root.addEventListener('jini-chat-open', event => opened.push(event.type));

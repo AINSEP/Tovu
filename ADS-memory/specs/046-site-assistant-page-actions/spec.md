@@ -1,6 +1,6 @@
 # SPEC-046 — Client action channel for the site assistant
 
-Status: **DRAFT (v2) — awaiting owner approval**
+Status: **APPROVED (v3 visitor-page amendment, owner 2026-10-31)**
 Author: Coordinator (Review Mode), 2026-08-04
 Builds on: ADR-054 (public visitor assistant), ADR-053 (MCP-UI confirmation redemption),
 SPEC-006 REQ-14 (rate-limit primitive)
@@ -314,3 +314,33 @@ cost of a worse experience, popup-blocker fragility, and two assistant instances
 - **Risks:** REQ-1/REQ-2 are prerequisites, not parallel work. REQ-5's tier rule is the load-bearing
   security decision — collapsing the tiers turns this into a public remote-execution surface.
 - **Suggested next assignee:** Software Architect (ADR for the tier model), then Programmer.
+
+## v3 — Visitor page tools (owner approved 2026-10-31)
+
+This amendment supersedes the page-action directives, title matching, navigation proposals and
+queued cross-page actions above. The client-directive channel retains human confirmation only.
+
+- **VISITOR-PAGE-PUBLICATION:** Jini owns `PAGE_CAPABILITIES`, page execution and the DOM driver.
+  Tovu supplies a server-rendered publication manifest (revision, reviewed handles/action classes,
+  public page/entity IDs). Every read and action intersects it with the live scoped DOM. Unmarked,
+  duplicated, hidden, private, personalized, stale and credential/payment controls are unavailable.
+  Author annotations are `data-toolname`/`data-tooldescription`; authoring handles grant no access.
+  Links use server-resolved navigation; auto-click is limited to reviewed menu/tab/accordion/
+  carousel/media controls. Unmarked themes expose no DOM handles.
+- **VISITOR-PAGE-APPROVAL:** A separate visitor frontend-control instance binds workspace, opaque
+  guest cookie, per-document tab credential and run. Attach/reply/bind/approval require that scope;
+  reconnect rotates tokens, detach/cancel/terminal invalidates pending work. Fill/select/submit
+  always require one expiring single-use confirmation, even on Auto, bound to immutable arguments,
+  target and page/policy revisions; revalidate immediately before effects. Both widgets use the
+  same Jini bridge and existing visitor confirmation lifecycle. Never publish confirmation chrome.
+- **VISITOR-PAGE-MIGRATION:** Replace navigate_to_entry/scroll_to_entry/highlight_entry with
+  page.navigate/page.scroll_to/page.highlight. Preserve explicit Off/Ask, limits and existing quota
+  identities. New DOM capabilities default Off. Disabling page control cannot revive directives.
+- **VISITOR-PAGE-TERMINAL:** Full-document navigation flushes transcript, acknowledges acceptance
+  and ends the turn before location assignment. The next document attaches afresh; no replay queue
+  or automatic continuation. Only published public targets resolve; reserved/admin paths, arbitrary
+  URLs, unsafe query parameters and private redirects are refused on server and widget.
+
+Visitor tools run through the existing executor (four attempts, rate limits, audit and cancellation),
+with no tool rows or arguments in the transcript. The public no-CLI restriction remains in force;
+all separately authorized runtimes use the same delegated adapters. No new dependency or scanner.

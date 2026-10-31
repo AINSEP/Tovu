@@ -1,3 +1,4 @@
+import { agentHandleSegment } from '@jini-ai/agentic';
 import { expandPartials } from "../../contracts/core/expand-partials.js";
 import { safeHref } from "./render-contract.js";
 import { COLLECTION_MARKER_TYPE, FEATURED_IMAGE_MARKER_TYPE, markersOfType, MENU_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, substituteMarkers, withAddedId, withElementKeptIfAttributed, withInnerContent, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
@@ -257,7 +258,9 @@ function menuItemLinkAttrs(item: StaticMenuItem): string {
   const current = item.isCurrent ? ' aria-current="page"' : "";
   const rel = item.attrs?.rel ? ` rel="${escapeHtml(item.attrs.rel)}"` : "";
   const target = item.attrs?.openInNewTab ? ' target="_blank"' : "";
-  return `${current}${rel}${target}`;
+  const identity = `${item.href}:${item.label}`;
+  const name = `menu_${agentHandleSegment({ value: identity })}`;
+  return `${current}${rel}${target} data-toolname="${name}" data-tooldescription="${escapeHtml(item.label)}" data-tool-action="navigate"`;
 }
 
 /**
@@ -267,7 +270,7 @@ function menuItemLinkAttrs(item: StaticMenuItem): string {
  */
 function menuItemBody(item: StaticMenuItem, linkable: boolean): string {
   const inner = menuItemInnerHtml(item);
-  if (!linkable) return `<span class="menu-item-label">${inner}</span>`;
+  if (!linkable) return `<span class="menu-item-label" data-toolname="menu_${agentHandleSegment({ value: item.label })}" data-tooldescription="${escapeHtml(item.label)}" data-tool-action="read">${inner}</span>`;
   return `<a href="${escapeHtml(safeHref(item.href as string))}"${menuItemLinkAttrs(item)}>${inner}</a>`;
 }
 
@@ -291,8 +294,8 @@ function renderMenuItem(item: StaticMenuItem, depth: number, dropdown?: MenuDrop
   }
   const controlsId = dropdown.nextId();
   const body = linkable && item.href !== "#"
-    ? menuItemBody(item, true) + renderMenuToggle({ controlsId, label: item.label })
-    : renderMenuToggle({ controlsId, label: item.label }, { asLabel: true });
+    ? menuItemBody(item, true) + renderVisitorMenuToggle({ controlsId, label: item.label })
+    : renderVisitorMenuToggle({ controlsId, label: item.label }, { asLabel: true });
   return `<li class="${classes}">${body}<ul class="menu-list depth-${depth + 1}" id="${escapeHtml(controlsId)}">${lis}</ul></li>`;
 }
 
@@ -1379,4 +1382,10 @@ export function resolveTemplateBranchChoice(
 
   const pageShell = resolveStaticTierPageShellFallback({ theme, post });
   return pageShell !== undefined ? { kind: "page-shell", templateChoice: pageShell } : { kind: "ineligible" };
+}
+
+/** Theme publication adorns the existing Jini disclosure; it owns all menu state/keyboard behavior. */
+function renderVisitorMenuToggle(required: { controlsId: string; label: string }, optional: { asLabel?: boolean } = {}): string {
+  const attrs = ` data-toolname="${escapeHtml(required.controlsId)}" data-tooldescription="${escapeHtml(required.label)} submenu" data-tool-action="menu"`;
+  return renderMenuToggle(required, optional).replace('<button', `<button${attrs}`);
 }

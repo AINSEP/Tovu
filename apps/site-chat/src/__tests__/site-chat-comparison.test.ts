@@ -83,7 +83,7 @@ test('wcmp: navigating inside the vanilla comparison frame keeps its widget and 
   let load!: () => Promise<void>;
   startSiteChatLoader({ install: args => { load = args.load; return { activate: async () => {} }; }, loadAssets: async args => { assets.push(args.scriptUrl, args.styleUrl); } }, {
     document, location: { hash: '', search: '' }, events: document.defaultView as unknown as Window,
-    loadState: () => ({ open: true, messages: [] }), hasQueued: () => false,
+    loadState: () => ({ open: true, messages: [] }),
   });
   await load();
   assert.deepEqual(assets, ['/site-chat/site-assistant-vanilla.js', '/site-chat/site-assistant-vanilla.css']);

@@ -2,32 +2,10 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import { readSiteChatComparisonVariant } from "./site-chat-comparison";
 
 /**
- * @file SPEC-046 REQ-1/REQ-2 — the single `sessionStorage` module for the public site chat: the
- * transcript, the pane's open/closed state, and the post-navigation action queue.
- *
- * All three used to live in two files (`transcript-storage.ts`, `action-queue.ts`) with two
- * independent key schemes. Collapsed into one module, per the owner's explicit preference not to
- * have storage access "saved across a bunch of files" — two schemes that can drift is exactly the
- * failure mode a second file invites, even though transcript+open-state and the action queue remain
- * two separate keys (see "Two keys, one module" below; REQ-2 requires the queue to survive
- * independently of the transcript). This is a shape change, not a rewrite: every function's
- * behavior, and the tests that prove it, are unchanged from the two-file version.
- *
- * `sessionStorage`, never `localStorage`: per-tab, dies with the tab. That is the correct privacy
- * default for an anonymous visitor on a widget mounted on every page of the site — a transcript must
- * not leak into a LATER, unrelated visit on a shared machine, which is exactly what `localStorage`
- * would do.
- *
- * ## Two keys, one module
- *
- * `TRANSCRIPT_STORAGE_KEY` holds `{ open, messages }` as a single JSON envelope — both fields
- * together so "the corrupt entry" is one well-defined thing (REQ-1's fail-soft rehydrate) instead of
- * two independently-corruptible keys that could disagree. `ACTION_QUEUE_STORAGE_KEY` is a second,
- * separate key: REQ-2 requires it to be queued "beside" the transcript and drained independently on
- * every mount, regardless of transcript state, so folding it into the same envelope would couple two
- * things that fail, clear, and drain on entirely different triggers. Both keys share the
- * `tovu.site-assistant.*.v1` namespace and live in this one file — that is the "one versioned
- * namespace" the consolidation asked for, not a merged key.
+ * @file SPEC-046 v3 — the single storage module for the visitor transcript and pane-open state.
+ * Per-tab session storage dies with the tab, so an unrelated later visitor on a shared machine
+ * cannot inherit this conversation. One envelope keeps fail-soft rehydration atomic.
+ * Navigation is terminal; no queued effects or credentials are persisted here.
  *
  * ## Narrow storage seam, not the DOM `Storage` type
  *
@@ -50,7 +28,6 @@ export interface SessionStore {
 }
 
 export const TRANSCRIPT_STORAGE_KEY = "tovu.site-assistant.transcript.v1";
-const ACTION_QUEUE_STORAGE_KEY = "tovu.site-assistant.action-queue.v1";
 
 /** Oldest-dropped-first message cap. Generous enough for a real visitor conversation; small enough
  *  that nothing here approaches `sessionStorage`'s much larger real-world quota on its own. */
@@ -165,66 +142,6 @@ export function clearPersistedState(storage: SessionStore): void {
 }
 
 /**
- * Queues one action to run after the next navigation. Overwrites any action already queued — this is
- * a single-slot queue, not a FIFO: SPEC-046 §4's first consumers are all triggered by an explicit
- * visitor action ("take me there"), so there is never a legitimate reason for two directives to be
- * in flight for the same visitor at once, and a queue with unbounded depth would just be more
- * unclaimed state to leak across an abandoned navigation.
- *
- * Deliberately `unknown` — SPEC-046 REQ-4 through REQ-8 (the typed `client_directive` payload) are a
- *  separate slice; whatever they eventually queue must be JSON-serializable (it round-trips through
- *  `sessionStorage` via `JSON.stringify`/`JSON.parse`), but no shape beyond that is asserted here. */
-export function enqueueAction(storage: SessionStore, action: unknown): void {
-  try {
-    storage.setItem(ACTION_QUEUE_STORAGE_KEY, JSON.stringify(action));
-  } catch {
-    // Storage full/disabled — the action is simply not queued. Failing to queue must degrade to "the
-    // visitor's own subsequent click/scroll behaves normally," never a broken nav.
-  }
-}
-
-/**
- * Drains at most one queued action. **Deletes the entry from storage before returning it** — not
- * after a caller finishes "executing" it — so that if the page is reloaded mid-execution (or the
- * execution step is never reached at all, e.g. a future consumer throws), the SAME action can never
- * be read again on the next mount. This ordering is REQ-2's entire point: a queued action surviving a
- * reload and re-firing on every subsequent page load is the one failure mode the mechanism exists to
- * prevent.
- *
- * Call exactly once per mount. A corrupt entry (malformed JSON) is treated as nothing queued, not an
- * error — it has already been deleted above by the time the parse is attempted, so this can never
- * leave a poisoned entry behind for a later mount to trip over again.
- *
- * @complexity O(1) — two storage calls and one JSON parse, independent of anything else in the app.
- * @overallScore 100
- */
-export function drainQueuedAction(storage: SessionStore): unknown {
-  let raw: string | null;
-  try {
-    raw = storage.getItem(ACTION_QUEUE_STORAGE_KEY);
-  } catch {
-    return null;
-  }
-  if (raw === null) return null;
-
-  try {
-    storage.removeItem(ACTION_QUEUE_STORAGE_KEY);
-  } catch {
-    // If removal itself fails, this call cannot guarantee the action won't be read again on the next
-    // mount — failing closed (never returning it) is safer than risking a re-fire, since "the action
-    // silently didn't run once" is a much smaller failure than "the action re-runs on every reload."
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    // Already deleted above, so this degrades to "nothing was queued" with no residue left behind.
-    return null;
-  }
-}
-
-/**
  * Caller-facing wrappers, bound to the real `sessionStorage`. `SiteAssistantWidget.tsx` and
  * `main.tsx` call these, never `sessionStorage` itself — this is what makes the guard test in
  * `__tests__/session-store.test.ts` ("no other file in `src` names `sessionStorage`") meaningful
@@ -243,14 +160,6 @@ export function clearSiteAssistantState(): void {
   clearPersistedState(browserStorage);
 }
 
-export function enqueuePageAction(action: unknown): void {
-  enqueueAction(browserStorage, action);
-}
-
-export function drainQueuedPageAction(): unknown {
-  return drainQueuedAction(browserStorage);
-}
-
 // Access the browser getter inside the injectable helpers' existing try blocks: private browsing
 // may throw even when reading sessionStorage itself, before getItem can run.
 const browserStorage: SessionStore = {
@@ -259,15 +168,10 @@ const browserStorage: SessionStore = {
   removeItem: (key) => sessionStorage.removeItem(siteStorageKey({ key })),
 };
 
-/** Same-origin frames share session storage. Keep each comparison transcript/queue apart from
+/** Same-origin frames share session storage. Keep each comparison transcript apart from
  * both its sibling and the visitor's real thread, while retaining this module's caps and guards. */
 export function siteStorageKey({ key }: { key: string }, options: { root?: HTMLElement | null } = {}): string {
   const root = options.root === undefined ? globalThis.document?.getElementById('tovu-site-assistant-root') : options.root;
   const variant = root ? readSiteChatComparisonVariant({ document: root.ownerDocument }) : null;
   return variant === 'react' || variant === 'vanilla' ? `${key}.compare.${variant}` : key;
-}
-
-/** The tiny loader checks pending effects without draining the widget's single-use queue. */
-export function hasQueuedPageAction(_input = {}, _options = {}): boolean {
-  try { return browserStorage.getItem(ACTION_QUEUE_STORAGE_KEY) !== null; } catch { return false; }
 }

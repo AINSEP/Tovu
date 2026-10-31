@@ -1,13 +1,12 @@
+import { createVisitorPageControl } from './visitor-page-control';
 import { micromark } from 'micromark';
 import { gfm, gfmHtml } from 'micromark-extension-gfm';
-import { allowsSitePageAction } from './site-page-actions';
 import { createSiteAssistantTransport } from './site-assistant-transport';
-import { clearSiteAssistantState, drainQueuedPageAction, enqueuePageAction, loadSiteAssistantState, saveSiteAssistantState } from './session-store';
-import { applyHighlight, clearHighlight, findTargetElement, scrollToElement } from './highlight';
-import type { PageAction } from './client-directives';
+import { clearSiteAssistantState, loadSiteAssistantState, saveSiteAssistantState } from './session-store';
 import { installSiteChatComparisonSend } from './site-chat-comparison';
 import { createSiteChatI18n } from './site-chat-i18n';
 import { createVanillaToolConfirmation } from './vanilla-tool-confirmation';
+import { confirmSiteAssistantTool } from './tool-confirmation';
 
 /** Binds the existing product adapters; Jini owns the DOM widget and conversation state. */
 export function createSiteVanillaArgs({ element }: { element: HTMLElement }, options: {
@@ -18,29 +17,17 @@ export function createSiteVanillaArgs({ element }: { element: HTMLElement }, opt
   const document = options.document ?? window.document;
   const assign = options.assign ?? (({ path }: { path: string }) => window.location.assign(path));
   const { t } = createSiteChatI18n({ document });
-  const showConfirmation = createVanillaToolConfirmation({ element, document });
-  return { element, document, transport: createSiteAssistantTransport({}, { onToolConfirmation: showConfirmation }), agentId: 'site-assistant',
+  element.setAttribute('data-agent-private', '');
+  const frontend = createVisitorPageControl({ document, beforeNavigate: ({ messages }) => { const state = loadSiteAssistantState(); saveSiteAssistantState({ ...state, messages: messages ?? state.messages }); } }, { assign });
+  const showConfirmation = createVanillaToolConfirmation({ element, document }, {
+    confirm: input => confirmSiteAssistantTool(input, { headers: frontend.currentHeaders }),
+  });
+  return { element, document, transport: createSiteAssistantTransport({}, { onToolConfirmation: showConfirmation, frontend }), agentId: 'site-assistant',
     suggestions: [t('What can I find on this site?'), t('Show me the latest posts')],
     directiveEventName: 'client_directive', ids: () => crypto.randomUUID(), createAbortController: () => new AbortController(),
     session: {
       load: () => loadSiteAssistantState(), save: ({ state }: { state: ReturnType<typeof loadSiteAssistantState> }) => saveSiteAssistantState(state),
-      clear: () => clearSiteAssistantState(), enqueue: ({ action }: { action: unknown }) => enqueuePageAction(action), drain: () => drainQueuedPageAction(),
-    },
-    pageActions: {
-      allows: allowsSitePageAction,
-      navigate: ({ action }: { action: Extract<PageAction, { type: 'navigate' }> }) => {
-        if (!allowsSitePageAction({ action })) return false;
-        assign({ path: action.target.path }); return true;
-      },
-      execute: ({ action }: { action: Exclude<PageAction, { type: 'navigate' }> }) => {
-        if (!allowsSitePageAction({ action })) return false;
-        const target = findTargetElement(action.target.title);
-        if (!target) return false;
-        scrollToElement(target);
-        if (action.type === 'highlight') applyHighlight(target);
-        return true;
-      },
-      clearHighlight: () => clearHighlight(),
+      clear: () => clearSiteAssistantState(),
     },
     scheduleFrame: ({ callback }: { callback: () => void }) => {
       const handle = requestAnimationFrame(callback); return () => cancelAnimationFrame(handle);
@@ -67,7 +54,7 @@ export function createSiteVanillaArgs({ element }: { element: HTMLElement }, opt
     copy: { title: t('Ask this site'), fabLabel: t('Chat with this site'), placeholder: t("Ask about this site's posts and pages…"),
       greeting: t('Ask about posts, pages or docs on this site.'), suggestionsLabel: t('Example prompts'),
       send: t('Send'), stop: t('Stop run'), close: t('Close chat'), reset: t('New thread'), resetQuestion: t('Discard chat?'), confirm: t('Discard chat'), confirmDraft: t('Discard draft'), keep: t('Cancel'),
-      proposalGo: 'Go there', proposalLabel: ({ title }: { title: string }) => `Go to “${title}”?`, thinking: 'Replying…' },
+      thinking: 'Replying…' },
   };
 }
 

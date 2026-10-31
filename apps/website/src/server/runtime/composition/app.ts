@@ -1,3 +1,4 @@
+import { createVisitorPageTargets } from './visitor-page-targets.js';
 import { notifyExternalMcpRosterChanged } from "../../../assistant/external-mcp-roster-change.js";
 import { composeAgentPluginMcp, composeAgentPluginPreferences, composePluginProviderFaces } from "./agent-plugin-service-ports.js";
 import { sanitizeShareDatabase } from "./site-portability.js";
@@ -312,7 +313,7 @@ import { createIntegrationsModule } from "./modules/integrations.js";
 import { createIntegrationsAdminModule } from "./modules/integrations-admin.js";
 import { createExternalMcpModule } from "./modules/external-mcp.js";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../../features/external-mcp/external-mcp-oauth.js";
-import { resolvePublicAssistantAvailability } from "../../../assistant/index.js";
+import { isPublicAssistantEnabled, resolvePublicAssistantAvailability } from "../../../assistant/index.js";
 import { createMediaModule } from "./modules/media.js";
 import { createTaxonomyModule } from "./modules/taxonomy.js";
 import { createTrashModule } from "./modules/trash.js";
@@ -1895,7 +1896,11 @@ function applyPublicMiddleware(
   // Redirect page aliases before consent/preview middleware can render or set a visitor cookie.
   applyCanonicalSiteHostRedirect({ app, originRegistry: routeDeps.originRegistry, workspaceId: routeDeps.workspaceId, runtimeMode: routeDeps.seoDeps.runtimeMode });
   if (options.themeIdOverride === undefined) applyThemePreviewSwitcher({ app, deps: routeDeps });
-  applyPublishedWebMcp({ app, readEnabled: () => isPublishedWebMcpEnabled(routeDeps, { workspaceId: routeDeps.workspaceId }) });
+  const visitorPageTargets = createVisitorPageTargets({ deps: routeDeps });
+  applyPublishedWebMcp({ app, workspaceId: routeDeps.workspaceId, readEnabled: () => isPublishedWebMcpEnabled(routeDeps, { workspaceId: routeDeps.workspaceId }),
+    allowsVisitorPublication: async ({ path }) => process.env.TOVU_VISITOR_TOOLS_POLICY !== 'off'
+      && await isPublicAssistantEnabled({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective }, { workspaceId: routeDeps.workspaceId })
+      && (await visitorPageTargets.list({})).some(page => page.path === path) });
   // Visitor cookie consent (`site-consent.ts`): after WebMCP so its injected script is gated too,
   // before every public renderer. The region header is trusted only when the operator names it,
   // and only behind an edge that strips visitor-supplied copies.

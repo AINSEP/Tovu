@@ -26,7 +26,7 @@ function fixture() {
   return { deps, ports };
 }
 
-for (const name of ["search_published_entries", "get_published_entry", "list_categories", "navigate_to_entry", "scroll_to_entry", "highlight_entry"]) {
+for (const name of ["search_published_entries", "get_published_entry", "list_categories"]) {
   test(`${name}: managed executor preserves public/draft/trash/membership behavior`, async () => {
     const f = fixture();
     for (const slug of ["public", "draft", "trash", "members", "paid", "private", "tiers", "absent"]) {
@@ -50,7 +50,7 @@ test("site_guide receives only effective capability names, and empty/invalid pol
   const registry = createSiteCapabilityRegistry(f.deps, { visitorExecution: { ...f.ports, initialPolicy: policy, readPolicy: async () => policy },
     siteGuide: { inputSchema: {}, run: async ({ availableTools }) => ({ availableTools }) } });
   const names = registry.schemas.map(schema => schema.name);
-  assert.equal(names.length, 5);
+  assert.deepEqual(names, ["search_published_entries", "get_published_entry", "site_guide"]);
   assert.ok(!names.includes("list_categories"));
   assert.ok(!names.includes("navigate_to_entry"));
   for (const schema of registry.schemas) {

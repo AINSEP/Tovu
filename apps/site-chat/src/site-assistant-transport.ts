@@ -25,7 +25,7 @@
  * Because a native `EventSource` cannot POST, the SSE body is parsed by hand off `fetch`'s
  * `ReadableStream`, matching the exact two-line `event:`/`data:` framing `sse()` writes server-side.
  */
-import { latestUserPromptFromHistory } from "@jini-ai/chat/core";
+import { assistantContentFromEvents, latestUserPromptFromHistory } from "@jini-ai/chat/core";
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 
@@ -87,14 +87,6 @@ interface ChatFrameText {
 interface ChatFrameError {
   readonly message: string;
 }
-/** SPEC-046 REQ-4: the one new SSE event kind. Carried through `@jini-ai/chat/core`'s `AgentEvent`
- *  via its `{ kind: 'ext', name, data }` escape hatch (`events.ts`'s own doc: "a host can carry its
- *  own product-specific event kinds... through the same envelope without this package knowing about
- *  them") — this is exactly that case, so no fork of chat-core's event union was needed. `data` is
- *  passed through unvalidated at THIS layer; `client-directives.ts`'s `isPageActionDirective` is what
- *  actually narrows it before anything acts on it (see `SiteAssistantWidget.tsx`). */
-const CLIENT_DIRECTIVE_EXT_NAME = "client_directive";
-
 /** Parses one complete SSE frame's `event:`/`data:` lines (defaulting `event` to `"message"`). */
 function parseSseFrame(frame: string): { event: string; data: string | null } {
   let event = "message";
@@ -165,6 +157,10 @@ async function pumpServerSentEvents(
 const activeRuns = new Map<string, AbortController>();
 
 export interface SiteAssistantTransportOptions {
+  readonly frontend?: {
+    headers(): Promise<Record<string, string>>;
+    finish(args: { navigation: boolean; messages?: ChatMessage[] }): void;
+  };
   /** Live UI only: challenges never enter events, persisted messages or provider history. */
   readonly onToolConfirmation?: (required: { directive: ToolConfirmation | null }, optional?: Record<string, never>) => void;
   /** Defaults to the global `fetch`, resolved per call. */
@@ -238,11 +234,13 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
       (async () => {
         try {
           armIdleTimer();
+          const frontendHeaders = await options.frontend?.headers() ?? {};
           const response = await fetchChat(CHAT_URL, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            // No credentials, no key: ADR-054 Decision 3 — the visitor never supplies or sees a
-            // provider key, and this route requires no admin session either.
+            headers: { "Content-Type": "application/json", ...frontendHeaders },
+            credentials: "same-origin", mode: "same-origin", redirect: "error",
+            // ADR-054 Decision 3: only visitor cookie/tab credentials travel here. The provider
+            // key stays server-side, and this route requires no admin session.
             body: JSON.stringify({ message, history: boundHistoryForRequest(input.history as ChatMessage[]) }),
             signal: controller.signal,
           });
@@ -265,13 +263,13 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
             } else if (event === "end") {
               // The end reason is server telemetry only; nothing here branches on it.
               finish();
+              options.frontend?.finish({ navigation: (data as { reason?: string }).reason === 'navigation', messages: [
+                ...input.history, { id: input.assistantMessageId ?? runId, role: 'assistant', content: assistantContentFromEvents({ events: collected }), events: collected, runStatus: 'succeeded' },
+              ] });
             } else if (event === "client_directive") {
               if (consumeToolConfirmation({ data, settled, receive: options.onToolConfirmation })) return;
-              const ev: AgentEvent = { kind: "ext", name: CLIENT_DIRECTIVE_EXT_NAME, data };
-              // A page action alone (e.g. "take me there") is a real answer, not an empty reply.
-              replied = true;
-              collected.push(ev);
-              handlers.onEvent(ev);
+              // Retired/unknown machine directives never enter the visitor transcript.
+
             } else {
               // Ignore event kinds outside this transport's protocol.
             }

@@ -11,16 +11,11 @@ import { startSiteChatLoader } from '../loader-host';
 import {
   clearPersistedState,
   clearSiteAssistantState,
-  drainQueuedAction,
-  drainQueuedPageAction,
-  enqueueAction,
-  enqueuePageAction,
   loadPersistedState,
   loadSiteAssistantState,
   saveSiteAssistantState,
   savePersistedState,
   TRANSCRIPT_STORAGE_KEY,
-  hasQueuedPageAction,
 } from "../session-store";
 
 /**
@@ -235,87 +230,6 @@ describe("transcript-storage", () => {
   });
 });
 
-describe("action-queue", () => {
-  it("drains null when nothing was queued", () => {
-    const storage = new FakeStorage();
-    assert.equal(drainQueuedAction(storage), null);
-  });
-
-  it("returns exactly what was enqueued", () => {
-    const storage = new FakeStorage();
-    const action = { kind: "example", value: 42 };
-    enqueueAction(storage, action);
-    assert.deepEqual(drainQueuedAction(storage), action);
-  });
-
-  it("deletes the entry from storage before drainQueuedAction returns — a reload can never re-fire it", () => {
-    const storage = new FakeStorage();
-    enqueueAction(storage, { kind: "example" });
-    assert.notEqual(storage.getItem(ACTION_QUEUE_STORAGE_KEY), null, "sanity: the action was actually queued");
-
-    const first = drainQueuedAction(storage);
-    assert.deepEqual(first, { kind: "example" });
-    assert.equal(storage.getItem(ACTION_QUEUE_STORAGE_KEY), null, "storage must be empty immediately, not after some later step");
-
-    // Simulates the exact failure mode REQ-2 exists to prevent: a reload calls drainQueuedAction
-    // again against the SAME storage. It must come back empty, not re-fire the first action.
-    const second = drainQueuedAction(storage);
-    assert.equal(second, null);
-  });
-
-  it("deletes before the JSON.parse step, so a corrupt entry cannot survive a failed drain", () => {
-    const storage = new FakeStorage();
-    storage.setItem(ACTION_QUEUE_STORAGE_KEY, "{not valid json");
-    const result = drainQueuedAction(storage);
-    assert.equal(result, null);
-    assert.equal(storage.getItem(ACTION_QUEUE_STORAGE_KEY), null, "the corrupt entry must not be left behind for the next mount to trip over again");
-  });
-
-  it("later enqueueAction calls overwrite the pending slot rather than stacking a FIFO", () => {
-    const storage = new FakeStorage();
-    enqueueAction(storage, { kind: "first" });
-    enqueueAction(storage, { kind: "second" });
-    assert.deepEqual(drainQueuedAction(storage), { kind: "second" });
-    assert.equal(drainQueuedAction(storage), null, "only one action was ever pending");
-  });
-
-  it("never throws when the underlying storage throws on every call", () => {
-    const throwing: Storage = {
-      length: 0,
-      clear: () => {},
-      key: () => null,
-      getItem: () => {
-        throw new Error("blocked");
-      },
-      removeItem: () => {
-        throw new Error("blocked");
-      },
-      setItem: () => {
-        throw new Error("blocked");
-      },
-    };
-    assert.doesNotThrow(() => enqueueAction(throwing, { kind: "x" }));
-    assert.doesNotThrow(() => assert.equal(drainQueuedAction(throwing), null));
-  });
-
-  it("fails closed (never returns the action) when removeItem itself throws, rather than risking a re-fire", () => {
-    const data = new Map<string, string>([[ACTION_QUEUE_STORAGE_KEY, JSON.stringify({ kind: "x" })]]);
-    const storage: Storage = {
-      length: 1,
-      clear: () => {},
-      key: () => null,
-      getItem: (key) => (data.has(key) ? (data.get(key) as string) : null),
-      removeItem: () => {
-        throw new Error("removeItem blocked");
-      },
-      setItem: (key, value) => {
-        data.set(key, value);
-      },
-    };
-    assert.equal(drainQueuedAction(storage), null, "cannot guarantee single-shot delivery, so it must not deliver at all");
-  });
-});
-
 /**
  * The five `*SiteAssistantState`/`*PageAction` exports are one-line binders bound to the REAL
  * `sessionStorage` global (see this file's own "storage encapsulation guard" below and the source
@@ -370,26 +284,6 @@ describe("real-sessionStorage-bound wrappers", () => {
     } finally { dispose(); }
   });
 
-  it("checks queued effects without consuming them before the full widget loads", () => {
-    assert.equal(hasQueuedPageAction({}), false);
-    enqueuePageAction({ type: "highlight", target: { path: "/about", title: "About", slug: "about" } });
-    assert.equal(hasQueuedPageAction({}), true);
-    assert.deepEqual(drainQueuedPageAction(), { type: "highlight", target: { path: "/about", title: "About", slug: "about" } });
-    assert.equal(hasQueuedPageAction({}), false);
-  });
-
-  it("keeps the loader usable even when the browser storage getter itself throws", () => {
-    const descriptor = Object.getOwnPropertyDescriptor(globalThis, "sessionStorage");
-    Object.defineProperty(globalThis, "sessionStorage", { configurable: true, get() { throw new Error("Storage blocked"); } });
-    try {
-      assert.deepEqual(loadSiteAssistantState(), { open: false, messages: [] });
-      assert.equal(hasQueuedPageAction({}), false);
-    } finally {
-      if (descriptor) Object.defineProperty(globalThis, "sessionStorage", descriptor);
-      else delete (globalThis as { sessionStorage?: unknown }).sessionStorage;
-    }
-  });
-
   it("loadSiteAssistantState reads through to the real sessionStorage, not a private store", () => {
     const state = { open: true, messages: [message("1", "user", "hi")] };
     sessionStorage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify(state));
@@ -407,18 +301,6 @@ describe("real-sessionStorage-bound wrappers", () => {
     clearSiteAssistantState();
     assert.equal(sessionStorage.getItem(TRANSCRIPT_STORAGE_KEY), null);
   });
-
-  it("enqueuePageAction writes through to the real sessionStorage, not a private store", () => {
-    enqueuePageAction({ kind: "example" });
-    assert.deepEqual(JSON.parse(sessionStorage.getItem(ACTION_QUEUE_STORAGE_KEY) as string), { kind: "example" });
-  });
-
-  it("drainQueuedPageAction reads and clears the real sessionStorage entry", () => {
-    sessionStorage.setItem(ACTION_QUEUE_STORAGE_KEY, JSON.stringify({ kind: "example" }));
-    assert.deepEqual(drainQueuedPageAction(), { kind: "example" });
-    assert.equal(sessionStorage.getItem(ACTION_QUEUE_STORAGE_KEY), null, "single-shot: the real entry must be gone too");
-    assert.equal(drainQueuedPageAction(), null, "draining again finds nothing — proves it read the real global, not a stale fake");
-  });
 });
 
 /**
@@ -427,7 +309,7 @@ describe("real-sessionStorage-bound wrappers", () => {
  * to describe the rule). This is not pedantry: the whole point of collapsing two storage files into
  * one was the owner's explicit preference for a single place that touches `sessionStorage`, with
  * every other caller going through the bound wrappers (`loadSiteAssistantState`,
- * `saveSiteAssistantState`, `clearSiteAssistantState`, `drainQueuedPageAction`, `enqueuePageAction`).
+ * `saveSiteAssistantState`, `clearSiteAssistantState`).
  * A future author adding a second `sessionStorage` reference — even one that "just needs a quick
  * read" — silently recreates the two-key-schemes-that-can-drift problem this consolidation fixed.
  * Do not delete this as pedantic; it is the only thing enforcing that the encapsulation holds.

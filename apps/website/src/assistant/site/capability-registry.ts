@@ -1,3 +1,5 @@
+import { PAGE_CAPABILITIES } from '@jini-ai/agentic';
+import { createVisitorPageCapabilities, type VisitorPageTools } from './visitor-page-tools.js';
 /**
  * @file SPEC-046 REQ-0 — the site assistant's capability registry.
  *
@@ -12,13 +14,9 @@
  * return." Every adapter (today: the SSE route) becomes a thin translator over `invoke()` — it never
  * touches `tools.ts` directly, and it never decides on its own whether a call is allowed.
  *
- * SPEC-046 REQ-4/REQ-6 added three Tier A page-action capabilities (`navigate_to_entry`,
- * `scroll_to_entry`, `highlight_entry`) alongside the original three read-only ones — six entries
- * plus the explicitly injected anonymous guide. All declare `visitorOfferable: true`; T1 checks
- * the anonymous caller class, site policy and budgets through the private visitor executor. A
- * page-action capability is authorized the same way a read-only one is, and its target resolution
- * lives in `tools.ts`/`client-directives.ts`, not here — this file still only decides WHETHER a call
- * reaches a capability, never what that capability does.
+ * SPEC-046 v3 composes the shared page vocabulary only for a scoped visitor frontend.
+ * Published-content reads retain their existing owner; page calls use Jini's registrations through
+ * the same visitor executor, so grants, budgets, confirmation and audit run once.
  *
  * ## Default deny, preserved exactly
  *
@@ -85,12 +83,9 @@ export type SiteCapabilityOutcome =
   | {
       readonly kind: "ok";
       readonly result: unknown;
-      /** SPEC-046 REQ-4: present only for a capability that resolved a client-facing action (the
-       * three page-action tools). `site-assistant.ts` emits this as the `client_directive` SSE
-       * event — a side channel from `result`, which is what the MODEL sees. `result` and `directive`
-       * can therefore differ in content; neither is derived from the other at this layer, so an
-       * adapter cannot accidentally conflate "what the model was told" with "what the client was
-       * told" — the no-tool_use/tool_result privacy property REQ-4 preserves. */
+      /** Human confirmation uses a separate channel from model-facing results. Machine page
+       * invocations travel only through the frontend session, never the transcript: adapters
+       * must not conflate what the model was told with what the visitor may authorize. */
       readonly directive?: ClientDirective;
     }
   /** Unknown capability OR a known capability not granted to `caller` — both share one outcome
@@ -118,9 +113,8 @@ function buildCapabilities({ tools }: { tools: ReturnType<typeof createSiteAssis
       name: "search_published_entries",
       visitorOfferable: true,
       ...VISITOR_TOOL_PRESENTATION.search_published_entries,
-      // Wrapped in `{ result }` — these three read-only tools return the model-facing value
-      // directly, unlike the three page-action tools below, which already return `{ result,
-      // directive? }` themselves (they have a directive to carry; these never do).
+      // Content owners return model-facing values; the registry envelope keeps those separate
+      // from human-only confirmation directives and delegated machine page calls.
       execute: async ({ input }, _options = {}) => ({ result: await tools.search_published_entries(input as { query?: unknown }) }),
     },
     {
@@ -135,24 +129,7 @@ function buildCapabilities({ tools }: { tools: ReturnType<typeof createSiteAssis
       ...VISITOR_TOOL_PRESENTATION.list_categories,
       execute: async (_required, _options = {}) => ({ result: await tools.list_categories({}) }),
     },
-    {
-      name: "navigate_to_entry",
-      visitorOfferable: true,
-      ...VISITOR_TOOL_PRESENTATION.navigate_to_entry,
-      execute: ({ input }, _options = {}) => tools.navigate_to_entry(input as { slug?: unknown }),
-    },
-    {
-      name: "scroll_to_entry",
-      visitorOfferable: true,
-      ...VISITOR_TOOL_PRESENTATION.scroll_to_entry,
-      execute: ({ input }, _options = {}) => tools.scroll_to_entry(input as { slug?: unknown }),
-    },
-    {
-      name: "highlight_entry",
-      visitorOfferable: true,
-      ...VISITOR_TOOL_PRESENTATION.highlight_entry,
-      execute: ({ input }, _options = {}) => tools.highlight_entry(input as { slug?: unknown }),
-    },
+
   ];
   return new Map(entries.map((capability) => [capability.name, capability]));
 }
@@ -175,11 +152,15 @@ export interface SiteCapabilityRegistry {
  * @example createSiteCapabilityRegistry(contentDeps, { siteGuide, visitorExecution });
  */
 export function createSiteCapabilityRegistry(deps: SiteAssistantToolDeps, options: {
-  siteGuide?: PublicSiteGuidePort; visitorExecution?: VisitorExecutionPorts;
+  siteGuide?: PublicSiteGuidePort; visitorExecution?: VisitorExecutionPorts; page?: VisitorPageTools;
 } = {}): SiteCapabilityRegistry {
   const tools = createSiteAssistantTools(deps);
   const capabilities = new Map(buildCapabilities({ tools }));
-  let schemas: SiteCapabilityRegistry["schemas"] = SITE_ASSISTANT_TOOL_SCHEMAS;
+  let schemas: SiteCapabilityRegistry['schemas'] = SITE_ASSISTANT_TOOL_SCHEMAS;
+  if (options.page && options.visitorExecution) {
+    for (const capability of createVisitorPageCapabilities({ deps, page: options.page })) capabilities.set(capability.name, capability);
+    schemas = [...schemas, ...PAGE_CAPABILITIES.map(capability => ({ name: capability.id, description: capability.description, parameters: { ...capability.inputSchema } }))];
+  }
   if (options.siteGuide) {
     const guide = options.siteGuide;
     capabilities.set("site_guide", { name: "site_guide", visitorOfferable: true,

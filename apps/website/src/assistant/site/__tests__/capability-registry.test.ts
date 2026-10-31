@@ -143,29 +143,10 @@ describe("site capability registry", () => {
   });
 
   describe("SPEC-046 REQ-4 — directive passthrough", () => {
-    it("carries a page-action capability's directive on the ok outcome", async () => {
-      const registry = registryOver([row({ slug: "public-post", status: "published", title: "Public Post" })]);
-      const outcome = await registry.invoke({ name: "navigate_to_entry", input: { slug: "public-post" }, caller: "anonymous-visitor" });
-      assert.equal(outcome.kind, "ok");
-      assert.deepEqual((outcome as { directive: unknown }).directive, {
-        kind: "page_action",
-        action: { type: "navigate", target: { slug: "public-post", title: "Public Post", path: "/public-post" }, auto: false },
-      });
-    });
 
     it("a read-only capability's ok outcome never carries a directive", async () => {
       const registry = registryOver([row({ slug: "public-post", status: "published" })]);
       const outcome = await registry.invoke({ name: "search_published_entries", input: {}, caller: "anonymous-visitor" });
-      assert.equal(outcome.kind, "ok");
-      assert.equal((outcome as { directive?: unknown }).directive, undefined);
-    });
-
-    it("a refused target produces no directive, even for a page-action capability", async () => {
-      const registry = registryOver([row({ slug: "secret-draft", status: "draft" })]);
-      const outcome = await registry.invoke({ name: "highlight_entry", input: { slug: "secret-draft" }, caller: "anonymous-visitor" });
-      // Still an "ok" outcome kind at the REGISTRY layer (the capability itself ran without
-      // throwing) — the refusal lives in the tool's own result, matching "leaves input validation to
-      // the capability itself" above. What matters here is that no directive escapes with it.
       assert.equal(outcome.kind, "ok");
       assert.equal((outcome as { directive?: unknown }).directive, undefined);
     });
@@ -186,4 +167,12 @@ describe("site capability registry", () => {
       assert.equal(registry.schemas, SITE_ASSISTANT_TOOL_SCHEMAS);
     });
   });
+});
+
+it('SPEC-046 v3: disabling page control cannot revive retired directive capabilities', async () => {
+  const registry = registryOver([]);
+  for (const name of ['navigate_to_entry', 'scroll_to_entry', 'highlight_entry', 'page.click', 'page.fill']) {
+    assert.equal((await registry.invoke({ name, input: {}, caller: 'anonymous-visitor' })).kind, 'refused');
+    assert.equal(registry.schemas.some(schema => schema.name === name), false);
+  }
 });

@@ -37,7 +37,7 @@ function isSiteRelative(href: string): boolean {
 function renderToolAttrs({ href, toolName, label }: { href: string; toolName: string; label: string }, _options = {}): string {
   const name = toolName.length <= 128 ? toolName : `${toolName.slice(0, 63)}_${createHash("sha256").update(toolName).digest("hex")}`;
   return isSiteRelative(href)
-    ? ` data-toolname="${escapeHtml(name)}" data-tooldescription="${escapeHtml(label)}"` : "";
+    ? ` data-toolname="${escapeHtml(name)}" data-tooldescription="${escapeHtml(label)}" data-tool-action="navigate"` : "";
 }
 
 function renderLabel({ label, attrs }: { label: string; attrs: MenuAttrs }): string {

@@ -19,7 +19,7 @@ async function readCatalog({ deps }: { deps: VisitorToolsServiceDeps }, _options
   if (catalog.length > 128) throw new Error("Visitor catalog exceeds its supported bound.");
   const ids = new Set<string>();
   for (const tool of catalog) {
-    if (tool.id === "site" || !/^[a-z][a-z0-9_]{0,127}$/.test(tool.id) || ids.has(tool.id)) throw new Error("Invalid visitor catalog identity.");
+    if (tool.id === "site" || !/^[a-z][a-z0-9_.]{0,127}$/.test(tool.id) || ids.has(tool.id)) throw new Error("Invalid visitor catalog identity.");
     ids.add(tool.id);
   }
   return structuredClone(catalog);

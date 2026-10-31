@@ -817,3 +817,5 @@ The bundled templated themes put their single marked kUInetic include here. Each
 keeps the complete library in `assets/vendor/kuinetic/`, with LICENSE and exact removal instructions
 in its README. Static themes use their existing footer partials; the marketing theme also keeps
 its early cloak stylesheet/helper in that same library folder.
+
+Visitor page tools: Publish only public regions and reviewed controls; Tovu projects validated annotations into page-tool handles. Unmarked controls are unavailable; forms require visitor confirmation. Use `data-visitor-scope` on a public theme region and `data-toolname`/`data-tooldescription` with a reviewed `data-tool-action` (`read`, `menu`, `tab`, `accordion`, `carousel`, `media`, `fill`, `select`, `submit`, `navigate`). Keep authored `data-agent-element` forbidden: Tovu projects it from the server manifest. Desktop and mobile instances require distinct identities. Never mark member/personalized regions or chat/confirmation chrome.

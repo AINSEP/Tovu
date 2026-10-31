@@ -67,10 +67,18 @@ function collectElements({ content }: { content: string }): { all: Element[]; id
 }
 
 const isActionHost = (element: Element) => element.tagName === 'a' || (element.tagName === 'button' && attr(element, 'type')?.toLowerCase() === 'button');
+const isPagePublicationHost = (element: Element) => {
+  const action = attr(element, 'data-tool-action');
+  if (action === 'read') return ['main', 'section', 'article', 'aside', 'div', 'span', 'nav'].includes(element.tagName);
+  if (action === 'accordion') return element.tagName === 'summary' || isActionHost(element);
+  if (action === 'fill') return ['input', 'textarea'].includes(element.tagName) && !PRIVATE_PARAM_TYPES.has(inputType(element));
+  if (action === 'select') return element.tagName === 'select';
+  return action === 'submit' && element.tagName === 'button' && inputType(element) === 'submit';
+};
 
 function checkPlacement({ element, issue, hasForm, hasAction }: ElementCheck & { hasForm: boolean; hasAction: boolean }): void {
   if (hasForm && element.tagName !== 'form') issue('markup-webmcp-placement', 'toolname/tooldescription/toolautosubmit belong on form elements');
-  if (hasAction && !isActionHost(element)) {
+  if (hasAction && !isActionHost(element) && !isPagePublicationHost(element)) {
     issue('markup-webmcp-placement', 'data-tool* actions require anchors or explicit button[type=button]; native forms own submission');
   }
 }

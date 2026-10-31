@@ -1,3 +1,4 @@
+import { visitorToolBudgetId } from '../../contracts/site-assistant/visitor-tools.js';
 /** Per-process visitor budgets. HTTP-kit owns counting/expiry; this adapter owns Tovu's two scopes. */
 import type { Clock } from "@jini-ai/core/primitives";
 import { createMemoryCounterStore, type CounterStore } from "@jini-ai/http-kit/rate-limit";
@@ -36,9 +37,10 @@ export function createVisitorToolBudgets({ clock }: { clock: Clock }, _options =
 
   /** Only attempts within an IP's allowance may charge the shared site counter. */
   async function consume(target: VisitorToolBudgetTarget, _optional = {}): Promise<boolean> {
-    const key = JSON.stringify([target.workspaceId, target.toolId]);
+    const toolId = visitorToolBudgetId({ toolId: target.toolId });
+    const key = JSON.stringify([target.workspaceId, toolId]);
     const ip = limiterFor({ key: `${key}/ip`, max: target.limits.perIpPerHour, windowSeconds: 3600 });
-    if (!(await ip.check({ key: JSON.stringify([target.workspaceId, target.toolId, target.ip]) })).allowed) return false;
+    if (!(await ip.check({ key: JSON.stringify([target.workspaceId, toolId, target.ip]) })).allowed) return false;
     const site = limiterFor({ key: `${key}/site`, max: target.limits.perSitePerDay, windowSeconds: 86_400 });
     return (await site.check({ key })).allowed;
   }

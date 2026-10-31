@@ -1,36 +1,11 @@
 import type { Page } from "@playwright/test";
 
-/**
- * @file Shared driving helpers for the four `site-assistant-*.spec.ts` files. Not a spec itself —
- * `playwright.site-assistant.config.ts`'s `testMatch` (`/site-assistant-.*\.spec\.ts/`) does not
- * collect this file.
- *
- * ## Why the SSE replay below is evidence, not a shortcut
- *
- * `mockAssistantTurn` intercepts the widget's own `POST /api/site-assistant/chat` in the browser and
- * fulfils it with the exact two-line `event:`/`data:` framing `src/server/modules/site-assistant.ts`'s
- * `sse()` writes. Read on its own that looks like "the test wrote the answer it wanted." It is not,
- * and the reason is a specific, permanent artifact: commit `7de3297` added a route-level integration
- * test that drives the REAL route with only the outbound Gemini call stubbed and asserts the RAW SSE
- * BYTES it writes — event name, JSON envelope, D-1's `auto` flag, and REQ-6's server-resolved
- * `target` (the mocked model call supplies a bare slug and never a path). That test owns the server
- * half of this contract and fails if the wire format drifts.
- *
- * These browser specs own the other half: that the real built bundle, on a real themed page, parses
- * that exact shape off a real `fetch` stream and does the right thing with it. Splitting the stack at
- * the wire — with a byte-level test on each side of the same seam — is what makes both halves
- * verifiable without hanging a nondeterministic, quota-shared, paid model call on every CI run. The
- * one property genuinely lost is "the model chose to call the tool at all," which is not a property
- * of any code in `apps/site-chat`.
- *
- * `site-assistant-limits.spec.ts` deliberately uses none of this: it exercises the real endpoint and
- * the real rate limiter with no interception whatsoever.
- */
+/** Shared prose/transcript driving helpers. Page tools use the scoped frontend-session fixture
+ * in visitor-page-tools.journey.ts; this helper supplies ordinary text turns only. */
 
 const CHAT_ROUTE_GLOB = "**/api/site-assistant/chat";
 
-/** Mirrors `apps/site-chat/src/client-directives.ts`'s `ResolvedPublicTarget`. Every field here is
- *  server-computed in production (REQ-6) — nothing in the browser bundle ever builds a `path`. */
+/** Published fixture data retained for transcript and no-replay assertions. */
 export interface ResolvedTarget {
   readonly slug: string;
   readonly title: string;
@@ -45,25 +20,8 @@ export const ABOUT_TARGET: ResolvedTarget = { slug: "about", title: "What Is Tov
  *  reloading the page it started on. */
 export const THEMES_TARGET: ResolvedTarget = { slug: "how-themes-work", title: "How Themes Work", path: "/how-themes-work" };
 
-export type DirectiveAction =
-  | { readonly type: "navigate"; readonly target: ResolvedTarget; readonly auto: boolean }
-  | { readonly type: "scroll_to"; readonly target: ResolvedTarget }
-  | { readonly type: "highlight"; readonly target: ResolvedTarget };
-
-/**
- * Serializes one assistant turn into the SSE body the route produces: some `text` deltas, zero or
- * more `client_directive` frames, then the `end` frame.
- *
- * Frame order matters and is not arbitrary — `executeTool` writes a `client_directive` the moment a
- * capability resolves one, which in a real turn is BEFORE the model's closing prose. Emitting the
- * directive between text deltas here keeps that ordering rather than tidying it to the end, so a
- * client that only ever coped with trailing directives would fail this the way it would fail live.
- */
-export function sseBody(input: { readonly text: string; readonly directives?: readonly DirectiveAction[] }): string {
+export function sseBody(input: { readonly text: string }): string {
   const frames: string[] = [`event: text\ndata: ${JSON.stringify({ delta: input.text })}\n\n`];
-  for (const action of input.directives ?? []) {
-    frames.push(`event: client_directive\ndata: ${JSON.stringify({ kind: "page_action", action })}\n\n`);
-  }
   frames.push(`event: text\ndata: ${JSON.stringify({ delta: "" })}\n\n`);
   frames.push(`event: end\ndata: ${JSON.stringify({ reason: "stop" })}\n\n`);
   return frames.join("");
@@ -77,7 +35,7 @@ export function sseBody(input: { readonly text: string; readonly directives?: re
  */
 export async function mockAssistantTurn(
   page: Page,
-  input: { readonly text: string; readonly directives?: readonly DirectiveAction[] },
+  input: { readonly text: string },
 ): Promise<void> {
   await page.route(CHAT_ROUTE_GLOB, async (route) => {
     await route.fulfill({
