@@ -107,7 +107,8 @@ function reportFiles({ report }: { report: ExportReport }, _options = {}) {
  */
 export function prepareStaticReport({ report }: { report: ExportReport }, _options = {}): Pick<StaticSiteMetadata, "routes" | "redirectFiles" | "failed" | "skipped"> & { files: { path: string; content: Buffer }[]; publicOrigin?: string } {
   const downloads = downloadableFiles({ files: reportFiles({ report }), publicOrigin: report.publicOrigin,
-    pages: new Map(report.routes.succeeded.map(route => [route.outputFile, route.path])) });
+    // The error document's route is the exporter's internal 404 probe; README names its file instead.
+    pages: new Map(report.routes.succeeded.map(route => [route.outputFile, route.kind === "not-found" ? `/${route.outputFile}` : route.path])) });
   return { files: downloads.files, publicOrigin: report.publicOrigin, routes: report.routes.succeeded.map(route => route.path),
     redirectFiles: report.routes.succeeded.filter(route => route.kind === "redirect").map(route => route.outputFile),
     failed: { routes: report.routes.failed, assets: report.assets.failed },

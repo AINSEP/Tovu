@@ -587,10 +587,12 @@ test("the full Tovu backup has no static_site entries or inventory records from 
 test("download README reports Sign in on each page that links to /signin", async () => {
   const { files } = await downloadFixture({ extraHtml: '<a href="/signin">Sign in</a><a href="/signin">Account</a>' });
   const readme = downloadText({ files, suffix: "/README.txt" });
-  for (const page of ["/", "/about", "/contact", "/case-studies", "/projects/featured", "/not-found"]) {
+  // The error document is named by its file: its route is the exporter's internal 404 probe.
+  for (const page of ["/", "/about", "/contact", "/case-studies", "/projects/featured", "/404.html"]) {
     const line = `Needs a server (does not work in this copy): Sign in on ${page}.`;
     assert.equal(readme.split("\n").filter(text => text === line).length, 1, `one Sign in note for ${page}`);
   }
+  assert.doesNotMatch(readme, /\/not-found/);
   for (const [name, bytes] of files) {
     if (name.endsWith(".html")) assert.doesNotMatch(bytes.toString(), /(?:href|src)=["']\/(?!\/)/, name);
   }
