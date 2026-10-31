@@ -89,5 +89,6 @@
 .static-export-check { display: flex; align-items: center; gap: var(--space-2); min-block-size: 37px; padding-block: var(--space-2); padding-inline: var(--space-3); cursor: pointer; overflow-wrap: anywhere; }
 .static-export-check input { flex: none; accent-color: var(--accent); }
 .static-export-all { border-block-end: 1px solid var(--border); }
-.static-export-check:focus-within { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r-sm); }
+/* Keyboard focus only: a mouse click on a row must not leave a ring behind. */
+.static-export-check:has(input:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: -2px; border-radius: var(--r-sm); }
 @media (pointer: coarse) { .static-export-action, .static-export-toggle, .static-export-check { min-block-size: 44px; } }
