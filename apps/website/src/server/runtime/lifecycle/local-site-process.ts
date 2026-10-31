@@ -9,8 +9,7 @@ import path from "node:path";
 import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import { redactLocalText } from "../../../platform/server-logs/redact-local-text.js";
-import { get as httpGet } from "node:http";
-import { get as httpsGet } from "node:https";
+import { probeLoopbackHttp } from "@jini-ai/platform/net";
 import { allocatePort, readLiveDaemonRegistryRecord } from "@jini-ai/sidecar";
 import { createNodeDaemonProcessAdapter } from "@jini-ai/sidecar/supervisor/node";
 import { listProcessSnapshots, readFlagValue } from "@jini-ai/platform/process";
@@ -99,17 +98,6 @@ export function localSiteChildEnv(
   };
 }
 
-function localResponseOk(url: string, ca?: Buffer): Promise<boolean> {
-  return new Promise((resolve) => {
-    const receive = (res: import("node:http").IncomingMessage) => { res.resume(); resolve(res.statusCode === 200); };
-    const request = url.startsWith("https:")
-      ? httpsGet(url, { ca, servername: "localhost", timeout: 1500 }, receive)
-      : httpGet(url, { timeout: 1500 }, receive);
-    request.once("timeout", () => { request.destroy(); resolve(false); });
-    request.once("error", () => resolve(false));
-  });
-}
-
 /** Bind native effects without starting any child. @complexity O(1) assembly; tree-stop O(processes). */
 export function createLocalSiteProcessPort(
   { switcherBase }: { switcherBase: string }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {},
@@ -190,8 +178,9 @@ export function createLocalSiteProcessPort(
             throw error;
           }
           if (exited) return false;
-          const apiReady = await localResponseOk(`${scheme}://127.0.0.1:${port}/readyz`, tls.credentials?.cert);
-          const adminReady = apiReady && await localResponseOk(`${scheme}://127.0.0.1:${port}/admin/`, tls.credentials?.cert);
+          const probeOptions = { certificate: tls.credentials?.cert, servername: "localhost" };
+          const apiReady = await probeLoopbackHttp({ url: `${scheme}://127.0.0.1:${port}/readyz` }, probeOptions);
+          const adminReady = apiReady && await probeLoopbackHttp({ url: `${scheme}://127.0.0.1:${port}/admin/` }, probeOptions);
           if (!adminReady) diagnostics.record({ message: `pid=${child.pid} readiness failed: readyz=${apiReady}, admin=${apiReady ? adminReady : "not probed"}` });
           return adminReady;
         },
