@@ -479,6 +479,15 @@ function formatSaveSuccessMessage(statusOverride: SaveStatusOverride, saved: Adm
 }
 
 /**
+ * The status line once a version saved outside this editor (the assistant, another tab) is the
+ * stored one. Without it the line kept naming this editor's own last save ("Saved · version 2")
+ * after the assistant had saved versions 3 and 4 (UI check 2026-10-31).
+ */
+function formatOutsideChangeMessage(version: number, t: Translate): string {
+  return interpolate({ template: t("Changed outside the editor · version {version}"), vars: { version } });
+}
+
+/**
  * `save`'s failure copy — same extraction reasoning as {@link formatSaveSuccessMessage} just above.
  * A thrown `Error`'s own message wins; otherwise falls back to a verb-specific default so the
  * operator hears "publish failed" rather than the generic "save failed" when the Publish button is
@@ -966,12 +975,18 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     onLoadLatestFailed: () => setError(t("could not re-read the current version — your changes are still here, try again")),
   });
   useContentRefreshSubscription(POSTS_RESOURCE, externalRefresh.checkForExternalChange);
+  // A newer version waiting on the operator's Load latest / Keep my edits is the stored one now.
+  const pendingExternalVersion = externalRefresh.pendingExternalVersion;
+  useEffect(() => {
+    if (pendingExternalVersion !== null) setMessage(formatOutsideChangeMessage(pendingExternalVersion, t));
+  }, [pendingExternalVersion, t]);
 
   /** {@link externalRefresh}'s apply half: the new row, plus the address bar following a slug the
    *  assistant changed (same replace-navigate and remount guard as `runSave`'s rename). */
   function applyExternalPost(fresh: AdminPost): void {
     applyLoadedPost(fresh, loadedTemplates.current);
     setSaveConflict(null);
+    setMessage(formatOutsideChangeMessage(fresh.version, t));
     if (postId !== fresh.slug && postId !== fresh.id) {
       savedRouteSlug.current = fresh.slug;
       rememberPostEditorRouteRename({ from: postId, to: fresh.slug });

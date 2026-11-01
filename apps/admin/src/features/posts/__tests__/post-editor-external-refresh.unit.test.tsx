@@ -67,6 +67,37 @@ describe("usePostEditor — assistant edits while the editor is open", () => {
     expect(result.current.title).toBe("My unsaved title");
   });
 
+  /** UI check 2026-10-31: the status kept saying "Saved · version 2" after the assistant had saved
+   *  versions 3 and 4 — the editor's own last save, read as the post's current state. */
+  it("the save status follows the assistant's write instead of naming the editor's last save", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("hello-world", { port, navigate: vi.fn(), t: (k: string) => k }));
+    await waitFor(() => expect(result.current.post?.version).toBe(3));
+    act(() => result.current.setTitle("Operator title"));
+    await act(async () => { await result.current.save(); });
+    expect(result.current.message).toBe("Saved · version 4");
+
+    port.simulateConcurrentSave("Assistant Title");
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(result.current.post?.version).toBe(5));
+    expect(result.current.message).toMatch(/version 5/);
+    expect(result.current.message).not.toMatch(/^Saved · version 4$/);
+  });
+
+  it("while an outside version waits on the operator's choice, the status names that version", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("hello-world", { port, navigate: vi.fn(), t: (k: string) => k }));
+    await waitFor(() => expect(result.current.post?.version).toBe(3));
+    act(() => result.current.setTitle("Operator title"));
+    await act(async () => { await result.current.save(); });
+    act(() => result.current.setTitle("More unsaved typing"));
+
+    port.simulateConcurrentSave("Assistant Title");
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(result.current.pendingExternalVersion).toBe(5));
+    expect(result.current.message).toMatch(/version 5/);
+  });
+
   it("Load latest replaces unsaved text with the newest saved post", async () => {
     const port = createFakePostEditorPort({ post: POST });
     const { result } = renderHook(() => usePostEditor("hello-world", { port, navigate: vi.fn(), t: (k: string) => k }));
