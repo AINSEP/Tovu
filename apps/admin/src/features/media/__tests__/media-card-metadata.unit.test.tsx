@@ -25,7 +25,9 @@ describe("legacy media cards", () => {
     const title = await screen.findByRole("button", { name: "Metadata photo.png" });
     const card = title.closest(".media-card")!;
     const line = card.querySelector(".media-card-size")!;
-    expect(line).toHaveTextContent("9.5 MB · Oct 4, 2026");
+    // The date sits alone on the row's right edge; the specs stay left.
+    expect(line.querySelector(".media-card-specs")).toHaveTextContent("9.5 MB");
+    expect(line.querySelector("time")).toHaveTextContent("Oct 4, 2026");
     expect(line.querySelector("time")).toHaveAttribute("datetime", createdAt);
     expect(card.querySelector(".status-active")).toBeInTheDocument();
   });

@@ -990,11 +990,13 @@ function MediaCardMetadata(props: { item: AdminMedia; locale: string; shape: Med
   if (badges) parts.push(<span key="size">{badges.size}</span>);
   if (badges?.duration) parts.push(<span key="duration">{badges.duration}</span>);
   if (metadata.byteSize) parts.push(<span key="bytes">{metadata.byteSize}</span>);
-  if (metadata.uploadDate) parts.push(<time key="date" dateTime={metadata.uploadDateTime}>{metadata.uploadDate}</time>);
-  if (parts.length === 0) return null;
+  // The date sits alone on the right edge of the row (owner design, 2026-11-01), under the menu.
+  const date = metadata.uploadDate ? <time dateTime={metadata.uploadDateTime}>{metadata.uploadDate}</time> : null;
+  if (parts.length === 0 && !date) return null;
   return (
     <p className="media-card-size">
-      {parts.flatMap((part, index) => (index === 0 ? [part] : [" · ", part]))}
+      <span className="media-card-specs">{parts.flatMap((part, index) => (index === 0 ? [part] : [" · ", part]))}</span>
+      {date}
     </p>
   );
 }
