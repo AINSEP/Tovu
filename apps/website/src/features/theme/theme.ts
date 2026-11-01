@@ -16,6 +16,7 @@ import { resolveThemeLayout, ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./them
 export { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
 import { parseTemplateFor } from "./template-applicability.js";
+import { stockThemesDir } from "../../platform/site-dir/product-root.js";
 
 /**
  * @file Declarative theme package format + discovery (SPEC-004, spike slice).
@@ -446,12 +447,11 @@ function loadStaticTierAssets(
     themeDir: string;
     tier: ThemeTier;
     slots?: Record<string, ThemeSlotDescriptor>;
-    templates?: string[];
     apiVersion?: 2;
   },
   _optional: Record<string, never> = {}
 ): StaticTierAssets {
-  const { themeDir, tier, slots, templates, apiVersion } = required;
+  const { themeDir, tier, slots, apiVersion } = required;
   if (tier !== "static") return NO_STATIC_TIER_ASSETS;
 
   const errors: string[] = [];
@@ -474,8 +474,6 @@ function loadStaticTierAssets(
   }
   if (!pages.index) errors.push(`${pagesDirName}/index.html is required`);
 
-  errors.push(...validateTemplateDeclarations({ templates, pages, pagesDirName }));
-
   // Partials (`nav`, `footer`, and anything else the manifest declares) live at the theme root in v1,
   // not under pages/, because a static page embeds them via a `{"type":"partial"}` marker the
   // renderer resolves rather than a template-include directive baked in at author time. v2 moves this
@@ -487,6 +485,54 @@ function loadStaticTierAssets(
   const partials = loadSlotPartials({ partialsDir, slots: slots ?? DEFAULT_THEME_SLOTS });
 
   return { tokensLight, pages, partials, errors };
+}
+
+/**
+ * Read only the matching package original, never the site's potentially old reset copy.
+ * Layout changes and compiled output require an explicit upgrade, not template inheritance.
+ * @returns A validated static original, or undefined without a compatible package source.
+ * @complexity O(b) bytes of one package theme; inheritance is disabled for the nested load.
+ */
+function readBundledTemplateFallback(
+  { manifest, packageThemesDir }: { manifest: ThemeManifest; packageThemesDir: string | null },
+  _options: Record<string, never> = {}
+): DiscoveredTheme | undefined {
+  if (packageThemesDir === null || manifest.tier !== "static" || manifest.build?.source === "compiled") return undefined;
+  // Manifest ids are authored data: never let one select a path outside the package catalog.
+  if (!/^[a-zA-Z0-9_-]+$/.test(manifest.id)) return undefined;
+  const themeDir = join(packageThemesDir, THEME_CATALOG_DIR, manifest.tier, manifest.id);
+  if (!existsSync(join(themeDir, "theme.json"))) return undefined;
+  const bundled = loadTheme({ themeDir, id: manifest.id, source: "built-in" }, { packageThemesDir: null });
+  if (bundled.status !== "valid" || bundled.manifest.tier !== manifest.tier || bundled.manifest.apiVersion !== manifest.apiVersion) return undefined;
+  return bundled;
+}
+
+/**
+ * Add missing declared template sources in memory; local files and metadata always win.
+ * This keeps every newly offered choice resolvable without rewriting the owner's theme or original.
+ * @returns Effective manifest/pages; the parsed site objects are not mutated.
+ * @complexity O(t + p) for t bundled templates and p site pages, excluding HTML byte copies.
+ */
+function inheritBundledTemplates(
+  { manifest, pages, bundled }: { manifest: ThemeManifest; pages: Record<string, string>; bundled?: DiscoveredTheme },
+  _options: Record<string, never> = {}
+): { manifest: ThemeManifest; pages: Record<string, string> } {
+  if (!bundled) return { manifest, pages };
+  const missing = (bundled.manifest.templates ?? []).filter((name) => !Object.hasOwn(pages, name.replace(/\.html$/, "")));
+  if (missing.length === 0) return { manifest, pages };
+  const existing = new Set(manifest.templates ?? []);
+  const added = missing.filter((name) => !existing.has(name));
+  const templateFor = Object.fromEntries(added.flatMap((name) => {
+    const kinds = bundled.manifest.templateFor?.[name];
+    return kinds === undefined ? [] : [[name, kinds]];
+  }));
+  return {
+    manifest: { ...manifest, templates: [...(manifest.templates ?? []), ...added], templateFor: { ...templateFor, ...manifest.templateFor } },
+    pages: { ...Object.fromEntries(missing.map((name) => {
+      const id = name.replace(/\.html$/, "");
+      return [id, bundled.pages[id]!];
+    })), ...pages },
+  };
 }
 
 /**
@@ -821,15 +867,17 @@ function loadThemeCss(themeDir: string, manifest: ThemeManifest): string {
  * Load one theme folder. Returns a DiscoveredTheme with `status: "invalid"` and
  * a populated `errors` list instead of throwing, so one bad theme never breaks
  * discovery (SPEC-004 REQ-10 spirit).
+ * @param optional.packageThemesDir - Stock root; defaults to the product stock tree. Null disables
+ *   template inheritance (used when validating the package original itself).
  */
 export function loadTheme(
   required: { themeDir: string; id: string; source: "built-in" | "site" },
-  _optional: Record<string, never> = {}
+  optional: { packageThemesDir?: string | null } = {}
 ): DiscoveredTheme {
   const { themeDir, id, source } = required;
   const errors: string[] = [];
 
-  const { manifest, errors: manifestErrors } = parseThemeManifest(themeDir, id);
+  const { manifest: siteManifest, errors: manifestErrors } = parseThemeManifest(themeDir, id);
   errors.push(...manifestErrors);
 
   const { tokens, errors: tokenErrors } = loadThemeTokens(themeDir);
@@ -838,14 +886,22 @@ export function loadTheme(
   // The static tier's whole on-disk layout — light tokens, pages/, root partials — loaded in one
   // call rather than as branches threaded through the tier-agnostic loading below. Empty for every
   // other tier, so nothing here needs to re-test which tier this is.
-  const { tokensLight, pages, partials, errors: staticErrors } = loadStaticTierAssets({
+  const { tokensLight, pages: sitePages, partials, errors: staticErrors } = loadStaticTierAssets({
     themeDir,
-    tier: manifest.tier,
-    slots: manifest.slots,
-    templates: manifest.templates,
-    apiVersion: manifest.apiVersion,
+    tier: siteManifest.tier,
+    slots: siteManifest.slots,
+    apiVersion: siteManifest.apiVersion,
   });
   errors.push(...staticErrors);
+  const packageThemesDir = optional.packageThemesDir === undefined ? stockThemesDir() : optional.packageThemesDir;
+  const { manifest, pages } = inheritBundledTemplates({
+    manifest: siteManifest,
+    pages: sitePages,
+    bundled: readBundledTemplateFallback({ manifest: siteManifest, packageThemesDir }),
+  });
+  if (manifest.tier === "static") {
+    errors.push(...validateTemplateDeclarations({ templates: manifest.templates, pages, pagesDirName: resolveThemeLayout(manifest.apiVersion).pagesDir }));
+  }
 
   errors.push(...checkCompiledBuildConformance(manifest, themeDir, pages, partials));
 

@@ -136,3 +136,13 @@ export function resolveAppDistDir(app: string, fromDir: string = import.meta.dir
 export function resolveCheckoutRoot(fromDir: string = import.meta.dirname): string {
   return findAncestor({ fromDir, matches: (dir) => existsSync(path.join(dir, "apps", "website")) }) ?? path.resolve(fromDir);
 }
+
+/**
+ * The shipped stock themes folder (`content/themes`), or `TOVU_STOCK_THEMES_DIR` when set — the
+ * one formula for discovery, `tovu init` seeding and bundled-template inheritance. Lives here
+ * (not in server composition) so site-dir and features can share it without crossing INV-06.
+ * @complexity O(depth) filesystem checks via {@link resolveProductRoot}.
+ */
+export function stockThemesDir(): string {
+  return process.env.TOVU_STOCK_THEMES_DIR ?? path.join(resolveProductRoot(), "content", "themes");
+}

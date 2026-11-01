@@ -14,7 +14,7 @@ import { openSqliteContentConnection } from "../db/sqlite/content-db.js";
 import { writeJsonFileAtomic } from "./atomic-write.js";
 import { seedSiteThemes } from "./seed-site-themes.js";
 import { InitDirNotEmptyError, InternalError, ValidationError } from "./errors.js";
-import { resolveProductRoot } from "./product-root.js";
+import { stockThemesDir } from "./product-root.js";
 import { readTemplate, type ReadTemplateOptional } from "./read-template.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { runtimeSchemaVersion } from "./schema-guard.js";
@@ -58,17 +58,6 @@ import { resolveNewSiteAdminPassword } from "./new-site-owner.js";
  */
 const SUBDIRS = ["uploads", "plugins", "overrides"] as const;
 const MAX_NAME_LENGTH = 200;
-
-/**
- * Mirrors `server/runtime/composition/deps.ts`'s `builtInThemesDir()` formula exactly — same env
- * var, same `resolveProductRoot()` primitive — without importing that module. `deps.ts` lives
- * behind this domain's own CLI/Express-agnostic boundary (INV-06, the `site-dir-no-server-express-
- * or-cli-imports` dependency-cruiser rule); importing it here would both break that boundary and
- * drag the entire server composition graph into `tovu init`.
- */
-function stockThemesDir(): string {
-  return process.env.TOVU_STOCK_THEMES_DIR ?? path.join(resolveProductRoot(), "content", "themes");
-}
 
 export interface InitSiteRequired {
   deps: InitSiteDeps;
