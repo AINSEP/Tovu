@@ -1,7 +1,7 @@
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { readBackstopMetadata } from "./backstop-service.js";
 import type { BackstopInverse, BackstopAuditRecord } from "./backstop-audit.js";
-import { contentHash } from "./content-hash.js";
+import { CONTENT_HASH_VERSION, contentHash } from "./content-hash.js";
 import { createHash } from "node:crypto";
 
 import { type Clock as ClockPort, type IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
@@ -427,10 +427,10 @@ async function applyOneRow(
       entityType: row.entityType,
       entityId: row.entityId,
     });
-    // No recorded baseline: fall back to the seed version, exactly as `planEntity` did (D1). A
-    // real baseline still always wins — the seed is never a second vote once one exists.
+    // Missing or obsolete history falls back to the current seed, exactly as the planner does.
+    // An old hash generation cannot authorize an overwrite or veto a current seed match.
     // S-F4: then the handler's own seed (`handler.seedHash`), exactly as `planEntity` falls back.
-    const agreedHash = baseline
+    const agreedHash = baseline?.hashVersion === CONTENT_HASH_VERSION
       ? baseline.hashAtLastSync
       : ((await ctx.getSeedHash({ entityType: row.entityType, entityId: row.entityId })) ??
         (await handler.seedHash?.(entity.id)) ??

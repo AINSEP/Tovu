@@ -38,12 +38,9 @@ import type {
  * own doc for why "no baseline" no longer means "conflict, always" once a seed hash is wired.
  *
  * `refused` is deliberately NOT a `PublishContentOutcomeKind` — it is a WHOLE-RUN state (see
- * {@link PublishContentReport.refused}), because both of its triggers (`bundle.hashVersion` mismatch, or
- * ANY entity's recorded baseline being on a different `hashVersion`) mean this instance cannot trust
- * its own hash comparisons for the run at all. Producing a partial per-entity report anyway would
- * read like "here is what would happen", when the true answer is "this comparison is not safe to
- * make" — plan §5 risk #10's own reasoning for why a version mismatch must refuse, not silently
- * degrade into an all-conflicts report an operator might force through unread.
+ * {@link PublishContentReport.refused}) for incompatible incoming bundles. Stored baselines from
+ * another hash generation are instead unknown history: current source/destination hashes can
+ * still be compared, but an obsolete hash must never authorize an automatic overwrite.
  *
  * The critical asymmetry the table encodes, restated because it is the one a competent implementer
  * is most likely to get backwards: **no baseline is a `conflict`, never a free pass to `created`.**
@@ -56,10 +53,8 @@ import type {
  *
  * ## Two-pass structure
  *
- * Pass 1 prefetches every entity's baseline and refuses the WHOLE run the instant any baseline was
- * recorded by a different `CONTENT_HASH_VERSION` generation — before a single per-entity outcome is
- * computed, so a stale-version baseline on entity #47 of 200 can never leave 46 "valid-looking" rows
- * sitting in the report next to it (the adversarial aggregate case this module's own tests pin).
+ * Pass 1 prefetches every entity's baseline, treating a different `CONTENT_HASH_VERSION`
+ * generation as missing history so upgrades can re-baseline through the usual safe outcomes.
  * Pass 2 classifies every entity into exactly one outcome, walking types in `dependsOn`-derived
  * apply order (see `buildPublishContentCatalog`) so a caller applying `rows` in this exact
  * sequence (Task 8) always writes a prerequisite before its dependent.
@@ -260,9 +255,8 @@ export function packedEntityLabel(entity: PackedEntity): string | null {
 }
 
 /**
- * Classifies exactly one entity — the per-row half of {@link planImport}'s pass 2. Never called for
- * an entity whose baseline already failed the {@link CONTENT_HASH_VERSION} check (pass 1 refuses the
- * whole run before this function is ever reached in that case).
+ * Classifies exactly one entity — the per-row half of {@link planImport}'s pass 2.
+ * Pass 1 supplies only current-generation baselines, or null for unknown history.
  *
  * Precondition checks (required blobs, then `handler.precheck`) run UNCONDITIONALLY, before any
  * hash comparison — deliberately not skipped for an entity that would otherwise turn out
@@ -486,7 +480,10 @@ export async function planImport(bundle: PublishContentBundle, deps: PlanImportD
   if (bundle.hashVersion !== CONTENT_HASH_VERSION) {
     return {
       refused: true,
-      refusalReason: `bundle content-hash version ${bundle.hashVersion} does not match this instance's ${CONTENT_HASH_VERSION} — upgrade the older instance before syncing`,
+      refusalReason: `bundle content-hash version ${bundle.hashVersion} does not match this instance's ${CONTENT_HASH_VERSION} — ` +
+        (bundle.hashVersion < CONTENT_HASH_VERSION
+          ? "upgrade the exporting instance and re-export before syncing"
+          : "upgrade this importing instance before syncing"),
       applyOrder: [],
       rows: [],
     };
@@ -499,9 +496,7 @@ export async function planImport(bundle: PublishContentBundle, deps: PlanImportD
   const schemaRefusal = checkBundleSchemas({ bundle, handlerByType });
   if (schemaRefusal) return schemaRefusal;
 
-  const baselines = await prefetchBaselines({ bundle, deps });
-  if (!(baselines instanceof Map)) return baselines;
-  const baselineByKey = baselines;
+  const baselineByKey = await prefetchBaselines({ bundle, deps });
 
   // Pass 2 — classify every entity, walking types in dependsOn-derived apply order. Types present in
   // the bundle with no registered handler are appended after, in first-seen order (plan §3 rule 4
@@ -555,23 +550,13 @@ function checkBundleSchemas({ bundle, handlerByType }: {
   return null;
 }
 
-/** Reads all baselines before classification, refusing stale hash generations. @complexity O(n) reads. */
-async function prefetchBaselines({ bundle, deps }: { bundle: PublishContentBundle; deps: PlanImportDeps }, _options = {}): Promise<Map<string, BaselineRecord | null> | PublishContentReport> {
-  // Pass 1 — prefetch baselines, refuse the whole run on the first hash-version mismatch found.
+/** Reads current-generation baselines; obsolete hashes are unknown history. @complexity O(n) reads. */
+async function prefetchBaselines({ bundle, deps }: { bundle: PublishContentBundle; deps: PlanImportDeps }, _options = {}): Promise<Map<string, BaselineRecord | null>> {
+  // A hash upgrade invalidates history, not current content. Reuse the no-baseline safety rules.
   const baselineByKey = new Map<string, BaselineRecord | null>();
   for (const entity of bundle.entities) {
     const baseline = await deps.getBaseline({ entityType: entity.entityType, entityId: entity.id });
-    if (baseline && baseline.hashVersion !== CONTENT_HASH_VERSION) {
-      return {
-        refused: true,
-        refusalReason:
-          `baseline for ${entity.entityType} '${entity.id}' was recorded with content-hash version ${baseline.hashVersion}, ` +
-          `but this instance is on version ${CONTENT_HASH_VERSION} — upgrade the older instance before syncing`,
-        applyOrder: [],
-        rows: [],
-      };
-    }
-    baselineByKey.set(entityKey(entity.entityType, entity.id), baseline);
+    baselineByKey.set(entityKey(entity.entityType, entity.id), baseline?.hashVersion === CONTENT_HASH_VERSION ? baseline : null);
   }
 
   return baselineByKey;

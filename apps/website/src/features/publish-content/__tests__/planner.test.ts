@@ -826,7 +826,7 @@ test("refused: bundle.hashVersion mismatch refuses the WHOLE run — no rows, no
   assertUnchanged(destination, before, "refused (bundle version)");
 });
 
-test("refused (adversarial, aggregate): ONE stale baseline hashVersion among several entities refuses the WHOLE run, not just that entity", async () => {
+test("one unknown baseline generation does not refuse matching content or unrelated entities", async () => {
   const destination = new Map<string, FakeDestinationRow>([
     ["w1", { version: 1, hash: "h1" }],
     ["w2", { version: 1, hash: "h2" }],
@@ -843,10 +843,9 @@ test("refused (adversarial, aggregate): ONE stale baseline hashVersion among sev
   const entities = ["w1", "w2", "w3"].map((id) => makeEntity({ entityType: "widget", id, contentHash: `h${id.slice(1)}` }));
   const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities }, makeDeps({ baselines }));
 
-  assert.equal(report.refused, true);
-  assert.deepEqual(report.rows, [], "no partial rows for w1/w3 even though their own baselines were fine");
-  assert.match(report.refusalReason ?? "", /widget 'w2'/);
-  assertUnchanged(destination, before, "refused (aggregate, one poisoned baseline)");
+  assert.equal(report.refused, false);
+  assert.deepEqual(report.rows.map(row => row.outcome), ["unchanged", "unchanged", "unchanged"]);
+  assertUnchanged(destination, before, "unknown baseline generation");
 });
 
 test("blocked: an entity type present in the bundle with NO registered handler on this instance", async () => {
