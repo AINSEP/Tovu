@@ -172,8 +172,9 @@ export function createProgram(): Command {
     .option("--workspace <id>", "workspace id to export (default: the oldest workspace, if the install has more than one)")
     .option("--clean", "remove the output directory's existing contents first, if any")
     .option("--base-path <path>", 'rewrite root-relative links/assets for a subpath deploy (e.g. "/my-repo" for a host that serves a project site under a subpath) — omit for an apex-domain deploy')
-    .action(async (dir: string, options: { out?: string; workspace?: string; clean?: boolean; basePath?: string }) => {
-      await runExportCommand({ dir, out: options.out, workspaceId: options.workspace, clean: options.clean, basePath: options.basePath });
+    .option("--public-url <https-url>", "public HTTPS destination for absolute sitemap, feed and canonical URLs (omit when unknown)")
+    .action(async (dir: string, options: { out?: string; workspace?: string; clean?: boolean; basePath?: string; publicUrl?: string }) => {
+      await runExportCommand({ dir, out: options.out, workspaceId: options.workspace, clean: options.clean, basePath: options.basePath, publicUrl: options.publicUrl });
     });
 
   // Namespaced command group (2026-08-18, Milestone 2 of the theme v2 build) — a sibling `theme

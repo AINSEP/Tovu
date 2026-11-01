@@ -293,8 +293,9 @@ for (const enabled of [false, true]) test(`a different build carries the plugin'
   const [installed] = await lifecycle.listInstalledPlugins(workspaceRoot);
   assert.equal(fs.readFileSync(path.join(installed!.packageRoot, "server.mjs"), "utf8"), "export const value = 2;");
   assert.equal(fs.readFileSync(path.join(dir, ".import-quarantine/agent-plugins/demo/package/server.mjs"), "utf8"), "export const value = 1;");
+  // Notices must follow the activation actually restored, even though source code stays quarantined.
   assert.deepEqual(stagedImportWarnings({ root: stage }), [
-    "Agent plugin 'demo' isn't code this Tovu recognises. It was imported and kept switched off.",
+    ...(enabled ? [] : ["Agent plugin 'demo' isn't code this Tovu recognises. It was imported and kept switched off."]),
     "Skill 'notes' isn't code this Tovu recognises. It was imported and kept switched off.",
   ]);
 });

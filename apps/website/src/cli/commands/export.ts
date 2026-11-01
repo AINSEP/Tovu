@@ -36,6 +36,8 @@ export interface RunExportCommandInput {
   /** Passed straight through to `exportSite`'s own option of the same name — see that option's doc
    *  (`site-exporter.ts`) for exactly what gets rewritten and what a base path must look like. */
   basePath?: string;
+  /** The export engine applies the same public-origin policy as admin static exports. */
+  publicUrl?: string;
 }
 
 /**
@@ -103,7 +105,7 @@ export interface RunExportCommandOptional {
 }
 
 /**
- * Run `tovu export <dir> [--out] [--workspace] [--clean] [--base-path]`: validate/migrate/stamp the
+ * Run `tovu export <dir> [--out] [--workspace] [--clean] [--base-path] [--public-url]`: validate/migrate/stamp the
  * install dir exactly like `serve` does, then export its public site to a folder of static files.
  *
  * @throws whatever `bootSiteDir` throws (`SiteDirInvalidError`, `SiteNewerThanRuntimeError`,
@@ -165,7 +167,7 @@ export async function runExportCommand(input: RunExportCommandInput, optional: R
       );
     }
 
-    const report = await (optional.exportSite ?? exportSite)({ routeDeps, outputDir, clean: input.clean ?? false, basePath: input.basePath });
+    const report = await (optional.exportSite ?? exportSite)({ routeDeps, outputDir, clean: input.clean ?? false, basePath: input.basePath, publicUrl: input.publicUrl });
     printExportReport(report);
     if (report.routes.failed.length > 0) {
       throw new ExportIncompleteError(

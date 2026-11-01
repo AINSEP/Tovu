@@ -57,6 +57,30 @@ function mkTempParent(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-export-"));
 }
 
+test("tovu export --public-url writes absolute discovery and SEO; omitting it keeps the copy domainless", t => {
+  const parent = mkTempParent();
+  t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
+  const installDir = path.join(parent, "site"), outDir = path.join(parent, "out");
+  const init = runCli(["init", installDir, "--with-sample-content"]);
+  assert.equal(init.status, 0, init.stderr);
+  const publicUrl = "https://export.example/docs/";
+  const exported = runCli(["export", installDir, "--out", outDir, "--public-url", publicUrl]);
+  assert.equal(exported.status, 0, exported.stderr);
+  for (const [file, tag] of [["sitemap.xml", "loc"], ["feed.xml", "link"]]) {
+    const xml = fs.readFileSync(path.join(outDir, file!), "utf8");
+    const urls = [...xml.matchAll(new RegExp(`<${tag}[^>]*>([^<]+)</${tag}>`, "g"))].map(match => match[1]!);
+    assert.ok(urls.length > 0, xml);
+    assert.ok(urls.every(url => url.startsWith(publicUrl)), xml);
+  }
+  assert.match(fs.readFileSync(path.join(outDir, "index.html"), "utf8"), /rel="canonical" href="https:\/\/export\.example\/docs\/"/);
+  // Reusing the output folder must also remove discovery files from the preceding public export.
+  const domainless = runCli(["export", installDir, "--out", outDir]);
+  assert.equal(domainless.status, 0, domainless.stderr);
+  assert.equal(fs.existsSync(path.join(outDir, "sitemap.xml")), false);
+  assert.equal(fs.existsSync(path.join(outDir, "feed.xml")), false);
+  assert.doesNotMatch(fs.readFileSync(path.join(outDir, "index.html"), "utf8"), /rel="canonical"/);
+});
+
 test("tovu export <dir> --out <out>: exits 0, prints an honest route/asset summary, and writes a real static file tree", (t) => {
   const parent = mkTempParent();
   t.after(() => fs.rmSync(parent, { recursive: true, force: true }));

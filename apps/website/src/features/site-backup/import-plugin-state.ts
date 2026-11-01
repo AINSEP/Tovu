@@ -33,11 +33,17 @@ export async function restoreImportedPluginState(required: { root: string; dir: 
   const workspace = layout.forWorkspace(workspaceId);
   const installed = await lifecycle.listInstalledPlugins(workspace.root);
   const trusted = new Set(required.state.trustedPlugins.map(plugin => plugin.id));
+  const enabledUnits = new Set<string>();
   for (const plugin of required.state.plugins.filter(plugin => plugin.kind === "agent")) {
     const edited = required.state.modified.includes("agent-plugins/" + plugin.id);
     const enabled = importedActivation({ plugin, installed, trusted, edited });
     await lifecycle.setAgentPluginActivation({ workspaceRoot: workspace.root, pluginId: plugin.id, enabled, actor: "system:import" });
+    if (enabled) enabledUnits.add("agent-plugins/" + plugin.id);
   }
+  // Cross-build choices can enable local code after staging classified the source as unrecognised.
+  // Completion notices must reflect the activation we wrote, while source bytes stay quarantined.
+  const keptOff = (required.state.keptOff ?? []).filter(unit => !enabledUnits.has(unit));
+  fs.writeFileSync(path.join(required.root, ".archive-state.json"), JSON.stringify({ ...required.state, keptOff }), { mode: 0o600 });
   return placeImportedMemory({ root: required.root, dir: required.dir, files: required.files, workspace, pluginIds: new Set(installed.map(plugin => plugin.pluginId)) });
 }
 
