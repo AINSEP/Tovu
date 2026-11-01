@@ -633,7 +633,7 @@ export function mediaUploadAccept(tab: MediaContentTabId): string {
 }
 
 /** Grid card sizes (owner, 2026-11-01), relative to the original card width: Small 1/3, Medium 2/3,
- *  Large = unchanged (default), Extra large 1.5x. The choice only moves the grid's column minimum (CSS). */
+ *  Large = unchanged, Extra large 1.5x. Medium is the default. The choice only moves the grid's column minimum (CSS). */
 export const MEDIA_GRID_SIZES = [
   { id: "small", label: "Small" },
   { id: "medium", label: "Medium" },
@@ -643,9 +643,9 @@ export const MEDIA_GRID_SIZES = [
 export type MediaGridSize = (typeof MEDIA_GRID_SIZES)[number]["id"];
 export const MEDIA_GRID_SIZE_STORAGE_KEY = "tovu.admin.media.cardSize";
 
-/** A stored value back to a size id; anything unknown is the default, Large (today's layout). */
+/** A stored value back to a size id; anything unknown is the default, Medium (2/3 of today's width; owner, 2026-11-01). */
 export function parseMediaGridSize(value: string | null): MediaGridSize {
-  return MEDIA_GRID_SIZES.some((size) => size.id === value) ? (value as MediaGridSize) : "large";
+  return MEDIA_GRID_SIZES.some((size) => size.id === value) ? (value as MediaGridSize) : "medium";
 }
 
 /** Landscape shapes (owner design, 2026-11-01) fill the grid preview edge to edge: within this

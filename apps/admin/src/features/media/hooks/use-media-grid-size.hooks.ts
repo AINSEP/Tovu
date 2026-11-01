@@ -5,7 +5,7 @@ import { MEDIA_GRID_SIZE_STORAGE_KEY, parseMediaGridSize, type MediaGridSize } f
  *  unavailable (private mode, blocked): the choice then just lasts for the visit. */
 export function useMediaGridSize(): [MediaGridSize, (size: MediaGridSize) => void] {
   const [size, setSizeState] = useState<MediaGridSize>(() => {
-    try { return parseMediaGridSize(window.localStorage.getItem(MEDIA_GRID_SIZE_STORAGE_KEY)); } catch { return "large"; }
+    try { return parseMediaGridSize(window.localStorage.getItem(MEDIA_GRID_SIZE_STORAGE_KEY)); } catch { return "medium"; }
   });
   const setSize = useCallback((next: MediaGridSize) => {
     setSizeState(next);

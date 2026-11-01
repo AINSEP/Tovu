@@ -114,7 +114,7 @@ describe("media toolbar: tab-aware upload icon button and the Size select", () =
     window.history.pushState({}, "", "/admin/media");
     render(<FetchQueryProvider><Media tabId="images" /></FetchQueryProvider>);
     const upload = await screen.findByRole("button", { name: "Upload image" });
-    expect(upload).toHaveAttribute("title", "Upload image");
+    expect(upload).toHaveAttribute("aria-label", "Upload image");
     expect(upload.textContent).toBe("");
     await user.click(upload);
     expect(screen.getByLabelText("File to upload").getAttribute("accept")).not.toMatch(/video/);
@@ -125,20 +125,20 @@ describe("media toolbar: tab-aware upload icon button and the Size select", () =
     const { unmount } = render(<FetchQueryProvider><Media tabId="videos" /></FetchQueryProvider>);
     await user.click(await screen.findByRole("button", { name: "Upload video" }));
     expect(screen.getByLabelText("File to upload").getAttribute("accept")).toBe("video/mp4,video/webm");
-    expect(screen.getByRole("button", { name: "Import from URL" })).toHaveAttribute("title", "Import from URL");
+    expect(screen.getByRole("button", { name: "Import from URL" })).toHaveAttribute("aria-label", "Import from URL");
     unmount();
     render(<FetchQueryProvider><Media /></FetchQueryProvider>);
     expect(await screen.findByRole("button", { name: "Upload image or video" })).toBeInTheDocument();
   });
 
-  it("the Size select defaults to Large, resizes the grid and is remembered", async () => {
+  it("the Size select defaults to Medium, resizes the grid and is remembered", async () => {
     const user = userEvent.setup();
     const { unmount } = render(<FetchQueryProvider><Media /></FetchQueryProvider>);
     const select = await screen.findByLabelText("Size");
     const grid = () => document.querySelector(".media-grid") as HTMLElement;
     await waitFor(() => expect(grid()).not.toBeNull());
-    expect(select).toHaveValue("large");
-    expect(grid().dataset.size).toBe("large");
+    expect(select).toHaveValue("medium");
+    expect(grid().dataset.size).toBe("medium");
     await user.selectOptions(select, "small");
     expect(grid().dataset.size).toBe("small");
     expect(window.localStorage.getItem("tovu.admin.media.cardSize")).toBe("small");
@@ -152,5 +152,24 @@ describe("media toolbar: tab-aware upload icon button and the Size select", () =
     expect(css).toMatch(/\.media-grid\[data-size="small"\]\s*{\s*--media-card-min:\s*\d+px/);
     expect(css).toMatch(/\.media-grid\[data-size="xl"\]\s*{\s*--media-card-min:\s*\d+px/);
     expect(css).toMatch(/--media-card-min:\s*280px/);
+  });
+
+  it("the icon buttons show a real tooltip bubble on hover and on keyboard focus (a bare title does not show reliably)", async () => {
+    const user = userEvent.setup();
+    render(<FetchQueryProvider><Media tabId="videos" /></FetchQueryProvider>);
+    const upload = await screen.findByRole("button", { name: "Upload video" });
+    const bubble = () => document.querySelector(".info-tip-bubble");
+    expect(bubble()).toBeNull();
+    await user.hover(upload);
+    await waitFor(() => expect(bubble()).toHaveTextContent("Upload video"));
+    await user.unhover(upload);
+    await waitFor(() => expect(bubble()).toBeNull());
+    await user.hover(screen.getByRole("button", { name: "Import from URL" }));
+    await waitFor(() => expect(bubble()).toHaveTextContent("Import from URL"));
+    await user.unhover(screen.getByRole("button", { name: "Import from URL" }));
+    await waitFor(() => expect(bubble()).toBeNull());
+    await user.tab(); // focus moves through the page; reach the upload button by keyboard
+    upload.focus();
+    await waitFor(() => expect(bubble()).toHaveTextContent("Upload video"));
   });
 });

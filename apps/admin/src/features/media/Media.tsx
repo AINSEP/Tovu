@@ -29,6 +29,7 @@ import {
 } from "./rules";
 import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
 import { useMediaGridSize } from "./hooks/use-media-grid-size.hooks";
+import { DockHeaderTip } from "@/components/AssistantDock/DockHeaderTip";
 import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useMediaCardDetails } from "./hooks/use-media-card-details.hooks";
 import { useWiredEditMediaPanel, type EditMediaPanelController } from "./hooks/use-edit-media-panel.hooks";
@@ -837,10 +838,13 @@ function MediaToolbar({
 
   return (
     <>
-      <button type="button" className="media-icon-btn" title={uploadLabel} aria-label={uploadLabel} onClick={openUpload}
-        {...agentHandle({ handle: "media-upload-open" }, { role: "button", label: "Open the Upload dialog" })}>
-        <UploadIcon />
-      </button>
+      {/* The admin's tooltip bubble (not a bare `title`, which does not show reliably), also on focus. */}
+      <DockHeaderTip label={uploadLabel}>
+        <button type="button" className="media-icon-btn" aria-label={uploadLabel} onClick={openUpload}
+          {...agentHandle({ handle: "media-upload-open" }, { role: "button", label: "Open the Upload dialog" })}>
+          <UploadIcon />
+        </button>
+      </DockHeaderTip>
       <Dialog open={uploadOpen} title={uploadLabel} pending={uploading} onClose={closeUpload}
         className="settings-dialog jini-domain-dialog media-upload-dialog">
         <form
