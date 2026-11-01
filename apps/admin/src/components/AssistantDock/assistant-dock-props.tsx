@@ -75,22 +75,33 @@ export function pickedFoldersAccessory(
  * @param input.folderPicker `useNativeFolderPicker`'s result.
  * @param input.voice `voiceFooterAccessory`'s result.
  * @param input.pickedFolder The rendered `PickedFoldersButton`, if any.
- * @param options.desktop Whether this is the desktop app (`isDesktopAdmin`); a browser tab's folder
- *   button says where the dialog opened.
  * @complexity O(1).
  */
-export function composerFooterLeading(
-  input: { readonly folderPicker: UseNativeFolderPicker; readonly voice: ReactNode | undefined; readonly pickedFolder?: ReactNode },
-  { desktop = isDesktopAdmin({}) }: { readonly desktop?: boolean } = {},
-) {
+export function composerFooterLeading(input: { readonly folderPicker: UseNativeFolderPicker; readonly voice: ReactNode | undefined; readonly pickedFolder?: ReactNode }) {
   if (!input.folderPicker.available && !input.pickedFolder) return input.voice;
   return (
     <>
-      {input.folderPicker.available && <FolderPathButton picking={input.folderPicker.picking} onPick={input.folderPicker.pickFolder} remote={!desktop} />}
+      {input.folderPicker.available && <FolderPathButton picking={input.folderPicker.picking} onPick={input.folderPicker.pickFolder} />}
       {input.pickedFolder}
       {input.voice}
     </>
   );
+}
+
+/**
+ * Whether the dock says "Folder window opened on the computer running Tovu" (owner bug 11-01): from a
+ * browser tab the folder dialog opens on that computer, which may not be in front of the owner; the
+ * desktop app's dialog opens in front of its own window. Shown only while the dialog is open.
+ *
+ * @param input.picking `useNativeFolderPicker`'s `picking`.
+ * @param options.desktop Whether this is the desktop app (`isDesktopAdmin`).
+ * @complexity O(1).
+ */
+export function folderWindowOpenElsewhere(
+  { picking }: { readonly picking: boolean },
+  { desktop = isDesktopAdmin({}) }: { readonly desktop?: boolean } = {},
+) {
+  return picking && !desktop;
 }
 
 /**

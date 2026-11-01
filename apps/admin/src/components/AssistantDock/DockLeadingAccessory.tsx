@@ -1,3 +1,6 @@
+import { useT } from "@jini-ai/chat/react";
+import { Icon } from "@jini-ai/ui";
+
 import { FolderDropNotice, type FolderDropNoticeProps } from "./FolderDropNotice";
 import { SelectedAgentPluginTray, type SelectedAgentPluginTrayProps } from "./SelectedAgentPluginTray";
 
@@ -10,6 +13,8 @@ export interface DockLeadingAccessoryProps {
   readonly folderDrop: { readonly notice: FolderDropNoticeProps["notice"]; readonly dismiss: () => void; readonly retry: () => void };
   /** Whether the composer's folder button is showing, so the paste hint can point at it. */
   readonly canPickFolder?: boolean;
+  /** A browser tab's folder dialog is open on the computer running Tovu (`folderWindowOpenElsewhere`). */
+  readonly folderWindowOpenElsewhere?: boolean;
   /** The pinned Agent Plugin chips and their remove action. */
   readonly pluginChips: SelectedAgentPluginTrayProps["chips"];
   readonly onRemovePlugin: SelectedAgentPluginTrayProps["onRemove"];
@@ -36,7 +41,7 @@ export interface DockLeadingAccessoryProps {
  * @returns A fragment of the parts that currently apply; each tray renders nothing when empty.
  * @complexity O(n) in the number of chips.
  */
-export function DockLeadingAccessory({ note, warning, folderDrop, canPickFolder = false, pluginChips, onRemovePlugin, skills, skillOnlySend }: DockLeadingAccessoryProps) {
+export function DockLeadingAccessory({ note, warning, folderDrop, canPickFolder = false, folderWindowOpenElsewhere = false, pluginChips, onRemovePlugin, skills, skillOnlySend }: DockLeadingAccessoryProps) {
   return (
     <>
       {note && <p className="assistant-agent-auth-warning" role="status">{note}</p>}
@@ -45,9 +50,23 @@ export function DockLeadingAccessory({ note, warning, folderDrop, canPickFolder 
       {warning ? (
         <p className="assistant-agent-auth-warning" role="status" aria-live="polite">{warning}</p>
       ) : null}
+      {/* In this in-flow row, not beside the footer's folder button: floated there it covered the
+          text area (owner bug 11-01). Cleared when a folder is picked or the dialog is cancelled. */}
+      {folderWindowOpenElsewhere ? <FolderWindowNote /> : null}
       <FolderDropNotice notice={folderDrop.notice} onDismiss={folderDrop.dismiss} onRetry={folderDrop.retry} canPickFolder={canPickFolder} />
       <SelectedAgentPluginTray chips={pluginChips} onRemove={onRemovePlugin} />
       <SelectedAgentPluginTray chips={skills.chips} onRemove={skills.removeSkill} onSendSkills={skillOnlySend.canSendSkills ? skillOnlySend.sendSkills : undefined} />
     </>
+  );
+}
+
+/** The one-line "Folder window opened on the computer running Tovu" status, styled like the folder-drop notices. */
+function FolderWindowNote() {
+  const t = useT();
+  return (
+    <div className="tovu-folder-drop-notice tovu-folder-window-note" role="status">
+      <span className="tovu-folder-drop-notice__icon" aria-hidden="true"><Icon name="folder" size={14} /></span>
+      <span className="tovu-folder-drop-notice__label">{t("Folder window opened on the computer running Tovu")}</span>
+    </div>
   );
 }

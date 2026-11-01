@@ -2,7 +2,7 @@ import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
 import { ConfirmDialog, useConfirmRequest } from "@jini-ai/admin/react";
 import { DockHeader } from "./DockHeader";
 import { DockLeadingAccessory } from "./DockLeadingAccessory";
-import { composerFooterLeading, optionalChatPaneProps, pickedFoldersAccessory, voiceFooterAccessory } from "./assistant-dock-props";
+import { composerFooterLeading, folderWindowOpenElsewhere, optionalChatPaneProps, pickedFoldersAccessory, voiceFooterAccessory } from "./assistant-dock-props";
 import { useNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
 import { usePickedFolder } from "../../features/fs-files/hooks/use-picked-folder.hooks";
 import { dockSettingsMenuSections } from "./dock-header-rules";
@@ -611,6 +611,7 @@ export function AssistantDock({
         // why it is a fragment (no DOM node of its own).
         leadingAccessory={
           <DockLeadingAccessory note={executionPolicy.note} warning={selectedAgentAuth.warning} folderDrop={folderDrop} canPickFolder={folderPicker.available}
+            folderWindowOpenElsewhere={folderWindowOpenElsewhere({ picking: folderPicker.picking })}
             pluginChips={selectedPluginChips} onRemovePlugin={removePluginRef} skills={selectedSkills} skillOnlySend={skillOnlySend} />
         }
         // Populated by `ChatPane` itself on mount; `PushToTalkMicButton`'s transcript is written

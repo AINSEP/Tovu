@@ -34,6 +34,13 @@ describe("DockLeadingAccessory", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  // Owner bug 11-01 (ui-look-4): from a browser tab the folder dialog opens on the computer running
+  // Tovu. The note says so in this in-flow row above the input, so it never covers what is typed.
+  it("says where the folder window opened while it is open in a browser tab", () => {
+    render(<DockLeadingAccessory {...accessoryProps({ folderWindowOpenElsewhere: true })} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Folder window opened on the computer running Tovu");
+  });
+
   it("shows the execution policy's note as a status line", () => {
     render(<DockLeadingAccessory {...accessoryProps({ note: "Local CLI is not available on this site." })} />);
     expect(screen.getByRole("status")).toHaveTextContent("Local CLI is not available on this site.");

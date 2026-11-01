@@ -1,8 +1,9 @@
+import { render, screen } from "@testing-library/react";
 import { isValidElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PushToTalkMicButton } from "../../../features/voice-input/PushToTalkMicButton";
-import { composerFooterLeading, optionalChatPaneProps, pickedFoldersAccessory, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";
+import { composerFooterLeading, folderWindowOpenElsewhere, optionalChatPaneProps, pickedFoldersAccessory, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";
 import { FolderPathButton } from "../FolderPathButton";
 import { PickedFoldersButton } from "../PickedFoldersButton";
 
@@ -89,14 +90,17 @@ describe("composerFooterLeading", () => {
     expect(voice).toBe(mic);
   });
 
-  it("marks the folder button remote in a browser tab and local in the desktop app", () => {
-    const remoteOf = (desktop: boolean) => {
-      const slot = composerFooterLeading({ folderPicker: picker, voice: mic }, { desktop });
-      const [button] = (isValidElement<{ children: unknown[] }>(slot) ? slot.props.children : []) as [unknown];
-      return isValidElement<{ remote?: boolean }>(button) ? button.props.remote : undefined;
-    };
-    expect(remoteOf(false)).toBe(true);
-    expect(remoteOf(true)).toBe(false);
+  // Owner bug 11-01 (ui-look-4): the note floated over the composer's text area from the footer row.
+  // The footer only carries the button now; the note is DockLeadingAccessory's in-flow row.
+  it("puts no folder-window note in the footer row, even while a browser tab's dialog is open", () => {
+    render(<>{composerFooterLeading({ folderPicker: { ...picker, picking: true }, voice: mic })}</>);
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("says the folder window opened elsewhere only in a browser tab while the dialog is open", () => {
+    expect(folderWindowOpenElsewhere({ picking: true }, { desktop: false })).toBe(true);
+    expect(folderWindowOpenElsewhere({ picking: true }, { desktop: true })).toBe(false);
+    expect(folderWindowOpenElsewhere({ picking: false }, { desktop: false })).toBe(false);
   });
 
   it("puts the attached-folders button after the folder button, before the mic, even with no folder dialog here", () => {
