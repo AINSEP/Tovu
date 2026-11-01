@@ -76,11 +76,12 @@ export function resolveSiteRoot(optional: ResolveSiteRootOptional = {}): string 
   // Resolve the same name through the shared home/catalog after a move instead of bypassing it.
 
   const workspace = createSitesWorkspace({}, optional);
+  const isInitialized = ({ path: dir }: { path: string }) => fs.existsSync(path.join(dir, "config.json")) && fs.existsSync(path.join(dir, ".site-meta.json"));
   return selectWorkspaceDirectory({ home: workspace.home({}), roots: workspace.roots({}), entries: workspace.registry({}).list({}), selected: env.TOVU_SITE ?? DEFAULT_SITE_NAME,
     fallback: path.resolve(cwd, "sites", DEFAULT_SITE_NAME),
     listDirectories: noDirectoryScan,
-    isInitialized: ({ path: dir }) => fs.existsSync(path.join(dir, "config.json")) && fs.existsSync(path.join(dir, ".site-meta.json")),
-  });
+    isInitialized,
+  }, { isAvailable: isInitialized });
 }
 
 /** `selectWorkspaceDirectory` scans roots only when nothing is selected; {@link resolveSiteRoot}

@@ -27,7 +27,7 @@ export function devSitesHome({ repoRoot }, { env = process.env, homeDir = os.hom
       catch (error) { if (error.code === "ENOENT") return []; throw error; }
     },
     isInitialized,
-  });
+  }, { isAvailable: isInitialized });
   // Refuse before the API child can create logs/DB parents or seed themes at a stale default.
   if (!isInitialized({ path: dir })) throw new Error(`Site folder is unavailable: ${dir}. No development server was started.`);
   const warning = workspace.config({}).warning;
