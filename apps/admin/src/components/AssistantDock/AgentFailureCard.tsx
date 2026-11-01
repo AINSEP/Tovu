@@ -1,7 +1,8 @@
-import type { ExtEventRenderProps } from "@jini-ai/chat/react";
+import { useT, type ExtEventRenderProps } from "@jini-ai/chat/react";
 import { useAgentFailureCard } from "./AgentFailureCard.hooks";
 
 export function AgentFailureCard(props: ExtEventRenderProps) {
+  const t = useT();
   const failure = useAgentFailureCard(props, {});
   if (!failure) return null;
   return (
@@ -10,7 +11,7 @@ export function AgentFailureCard(props: ExtEventRenderProps) {
       {failure.hint ? <p>{failure.hint}</p> : null}
       {failure.switchAgent ? <button type="button" onClick={failure.switchAgent}>{failure.switchLabel}</button> : null}
       <details>
-        <summary>Show details</summary>
+        <summary>{t("Show details")}</summary>
         <pre>{failure.details}</pre>
       </details>
     </div>

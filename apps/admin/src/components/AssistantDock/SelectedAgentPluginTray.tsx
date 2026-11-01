@@ -1,4 +1,5 @@
 import { Icon } from "@jini-ai/ui";
+import { useT } from "@jini-ai/chat/react";
 
 /**
  * @file Renders the composer's pinned-Agent-Plugin chips — the visible, removable effect of
@@ -49,6 +50,7 @@ export interface SelectedAgentPluginTrayProps {
  * @overallScore 100
  */
 export function SelectedAgentPluginTray({ chips, onRemove, onSendSkills }: SelectedAgentPluginTrayProps) {
+  const t = useT();
   // Same "empty tray renders nothing" convention `AttachmentTray` itself uses — an empty
   // `.jini-attachment-tray` is `display: none` in the package's own stylesheet regardless, but
   // returning `null` here also skips the wrapping `.jini-composer-leading` padding Jini's
@@ -73,14 +75,14 @@ export function SelectedAgentPluginTray({ chips, onRemove, onSendSkills }: Selec
             type="button"
             className="jini-attachment-remove"
             onClick={() => onRemove(chip.pluginRefId)}
-            title={`Remove ${chip.label}`}
-            aria-label={`Remove ${chip.label}`}
+            title={t("Remove {name}", { name: chip.label })}
+            aria-label={t("Remove {name}", { name: chip.label })}
           >
             <Icon name="close" size={12} />
           </button>
         </div>
       ))}
-      {onSendSkills && <button type="button" className="jini-attachment-chip" onClick={onSendSkills}>Send selected skills</button>}
+      {onSendSkills && <button type="button" className="jini-attachment-chip" onClick={onSendSkills}>{t("Send selected skills")}</button>}
     </div>
   );
 }

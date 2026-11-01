@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useRef, useState } from "react";
 import type { ChatMessage, ChatTransport } from "@jini-ai/chat/core";
-import type { ChatPaneAgentSelection, ChatPaneRuntimeAccess } from "@jini-ai/chat/react";
+import { useT, type ChatPaneAgentSelection, type ChatPaneRuntimeAccess } from "@jini-ai/chat/react";
 import { extractAgentFailure, matchAgentFailureHint, projectAgentFailureMessage, redactAgentFailure,
   suggestedFailureAgent, withAgentFailureSurface, type AgentFailure, type FailureAgent } from "./agent-failure";
 import { localFailureHints } from "./agent-failure-hints";
@@ -54,13 +54,15 @@ function failureData(value: unknown): AgentFailure | null {
 export function useAgentFailureCard({ events, runStreaming, runSucceeded }: {
   events: readonly unknown[]; runStreaming: boolean; runSucceeded: boolean;
 }, _optional = {}) {
+  const t = useT();
   const { agents, switchAgent } = useContext(FailureSurfaceContext);
   const failure = failureData(events[events.length - 1]);
   if (runStreaming || runSucceeded || !failure) return null;
   const declaredHints = agents.find(agent => agent.id === failure.agentId)?.failureHints ?? [];
   const hint = matchAgentFailureHint({ failure, hints: [...declaredHints, ...localFailureHints({ agentId: failure.agentId }, {})] }, {});
   const alternative = suggestedFailureAgent({ hint, agents }, {});
-  return { ...failure, hint: hint ? redactAgentFailure({ text: hint.hint }, {}) : undefined,
-    switchLabel: alternative ? `Switch to ${redactAgentFailure({ text: alternative.name }, {})}` : undefined,
+  // Translate known guidance before redaction; runtime diagnostics remain verbatim and redacted.
+  return { ...failure, hint: hint ? redactAgentFailure({ text: t(hint.hint) }, {}) : undefined,
+    switchLabel: alternative ? t("Switch to {name}", { name: redactAgentFailure({ text: alternative.name }, {}) }) : undefined,
     switchAgent: alternative ? () => switchAgent(alternative.id) : undefined };
 }
