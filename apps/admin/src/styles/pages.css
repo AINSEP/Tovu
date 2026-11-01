@@ -206,6 +206,12 @@
 }
 .page-preview-host .page-preview-stage > .page-preview-fab:hover,
 .page-preview-host .page-preview-stage > .page-preview-fab:focus-visible { color: var(--fg); background: var(--surface-2); }
+/* Collapsed, the stage generates no box (2026-11-01). The "Cookie banner hidden in preview" note sits
+   between the row and the stage, so placing the control against the stage put it on the note:
+   ~22px under the row on desktop, over the note's text at 375px. Without the stage box the control
+   resolves against the surface (desktop `bottom` above) and, on phones, its `order: -1` puts it ahead
+   of the note, so both placements start right under the row again. Expanded keeps the stage box. */
+.page-preview-host .page-preview-stage { display: contents; }
 /* The control sits over the row without being in it, so the row keeps its width free: a draft's
    wider Draft/Publish/Save/Delete group stops short of it instead of running underneath. */
 .page > .editor-action-row:has(~ .page-preview-host) { padding-right: calc(40px + var(--space-2)); }
