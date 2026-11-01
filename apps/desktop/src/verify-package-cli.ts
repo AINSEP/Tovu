@@ -95,7 +95,7 @@ function findResourcesDirs(fs: VerifyPackageFs, desktopRoot: string): string[] {
  * @returns the chosen path, or `undefined` when no candidate exists.
  * @complexity O(n) in bundles found under `release/`.
  */
-function resolveAsarPath(fs: VerifyPackageFs, argv: readonly string[], desktopRoot: string): string | undefined {
+export function resolveAsarPath({ fs, argv, desktopRoot }: { fs: VerifyPackageFs; argv: readonly string[]; desktopRoot: string }, _options = {}): string | undefined {
   const flagAt = argv.indexOf("--asar");
   const explicit = flagAt === -1 ? undefined : argv[flagAt + 1];
   if (explicit) return path.resolve(explicit);
@@ -145,7 +145,7 @@ function npmFailure(ports: VerifyPackagePorts, asarPath: string, desktopRoot: st
  * @complexity O(n) in archive entries plus bundles under `release/`.
  */
 export function runVerifyPackage({ argv, desktopRoot }: { argv: readonly string[]; desktopRoot: string }, ports: VerifyPackagePorts): 0 | 1 {
-  const asarPath = resolveAsarPath(ports.fs, argv, desktopRoot);
+  const asarPath = resolveAsarPath({ fs: ports.fs, argv, desktopRoot });
   if (asarPath === undefined) {
     ports.stderr.write(`verify-package: no app.asar found under ${path.join(desktopRoot, "release")} (checked *.app bundles and win-unpacked) — did electron-builder run?\n`);
     return 1;

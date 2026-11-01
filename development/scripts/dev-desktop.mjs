@@ -82,6 +82,7 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { createCommandInvocation } from "@jini-ai/platform/command";
 
 import { pickFreePort } from "./free-port.mjs";
 import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
@@ -93,6 +94,8 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 const DESKTOP_DIR = path.join(REPO_ROOT, "apps/desktop");
 const RENDERER_ENTRY = path.join(DESKTOP_DIR, "dist/renderer/index.html");
 const ADMIN_DIST_INDEX = path.join(REPO_ROOT, "apps/admin/dist/index.html");
+// Windows npm is a cmd shim; Jini owns its shell invocation and argument escaping.
+const NPM_COMMAND = process.platform === "win32" ? "npm.cmd" : "npm";
 
 // Before anything below reads `process.env` (including the `env: process.env` passthrough in `start()`)
 // — see this file's header comment and `load-repo-root-env.mjs` for why.
@@ -143,7 +146,8 @@ const ADMIN_PROBE_TIMEOUT_MS = 1_500;
 /** Runs an npm script in `apps/desktop` to completion before anything else starts. */
 function runToCompletion(label, npmScript) {
   console.log(`tovu desktop: ${label}…`);
-  const result = spawnSync("npm", ["run", npmScript], { cwd: DESKTOP_DIR, stdio: "inherit" });
+  const { command, args, ...commandOptions } = createCommandInvocation({ command: NPM_COMMAND, args: ["run", npmScript] });
+  const result = spawnSync(command, args, { ...commandOptions, cwd: DESKTOP_DIR, stdio: "inherit" });
   if (result.status !== 0) {
     console.error(
       `\ntovu desktop: ${label} failed (exit ${result.status ?? result.signal}) — not launching Electron.\n`
@@ -232,8 +236,8 @@ function isFlagEnabled(raw) {
  *
  * Pure so the argv → spawn-args mapping is directly testable without spawning anything. `--` is
  * npm's own pass-through separator: everything after it reaches the underlying `electron .` script
- * verbatim, and because {@link start} spawns `npm` without a shell, each element of `extraArgs`
- * arrives as its own argv entry — never re-quoted or re-split — so a flag containing `=`
+ * verbatim. Jini escapes the Windows npm.cmd shim; on POSIX each element of `extraArgs`
+ * arrives directly as its own argv entry, so a flag containing `=`
  * (`--remote-debugging-port=9222`) and several flags together both survive intact. With no extra
  * args this returns exactly the two-element argv used before this function existed, so the common
  * case (`npm run desktop` alone) is byte-for-byte unchanged.
@@ -438,7 +442,9 @@ function reportFatalExit({ name, code, signal }, _options = {}) {
  *     a dev convenience died is the worse outcome. A non-fatal child's `onExit` owns the recovery.
  */
 function start(name, args, { cwd = DESKTOP_DIR, fatal = true, env, onExit } = {}) {
-  const child = spawn("npm", args, {
+  const { command, args: commandArgs, ...commandOptions } = createCommandInvocation({ command: NPM_COMMAND, args });
+  const child = spawn(command, commandArgs, {
+    ...commandOptions,
     cwd,
     stdio: "inherit",
     detached: true, // own process group — required for killGroup to reap grandchildren

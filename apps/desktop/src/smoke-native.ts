@@ -199,7 +199,9 @@ export function parseSmokeOutput(stdout: string): SmokeCheckResult {
  * upward `node_modules` walk always finds the package. Nothing is evaluated: a resolve hook records
  * each failure and stubs it so the walk continues, and a first import that throws aborts
  * evaluation before any module body runs. `electron` is stubbed because `ELECTRON_RUN_AS_NODE`
- * has no electron module. Lazy `import()`s and CommonJS `require`s run only at evaluation, so they
+ * has no electron module; the stub exposes the shell's Electron imports so it cannot mask a real
+ * link failure. Only the deliberate stop sentinel is accepted; all load/link errors fail.
+ * Lazy `import()`s and CommonJS `require`s run only at evaluation, so they
  * are out of scope here (they degrade at the call site, not at launch).
  *
  * @param required.resourcesDir The packaged resources dir holding `app.asar` and `tovu/`.
@@ -240,14 +242,18 @@ export function buildEntryLoadScript({ resourcesDir }: { resourcesDir: string },
       load(url, context, next) {
         if (url.startsWith("file:")) loaded.add(url);
         if (!url.startsWith("smoke:")) return next(url, context);
-        return { format: "module", source: url === "smoke:stop" ? "throw new Error('smoke:stop')" : "", shortCircuit: true };
+        const source = url === "smoke:stop" ? "throw Symbol.for('tovu.smoke.stop')"
+          : url === "smoke:electron" ? "export const app = undefined, BrowserWindow = undefined, dialog = undefined, shell = undefined, Menu = undefined, ipcMain = undefined, net = undefined, session = undefined, screen = undefined, crashReporter = undefined, webContents = undefined; export default undefined;" : "";
+        return { format: "module", source, shortCircuit: true };
       },
     });
     for (const entry of entries) {
       const before = loaded.size;
-      // Always rejects (the stop sentinel, or a stub's missing named export); only resolution counts.
+      // Linking must finish before the sentinel aborts evaluation. Any other rejection is a defect.
       const root = 'import "smoke:stop"; import ' + JSON.stringify(pathToFileURL(entry).href) + ";";
-      await import("data:text/javascript," + encodeURIComponent(root)).catch(() => {});
+      await import("data:text/javascript," + encodeURIComponent(root)).catch(error => {
+        if (error !== Symbol.for("tovu.smoke.stop")) unresolved.push(entry + ": " + String((error && error.message) || error));
+      });
       if (loaded.size === before) unresolved.push(entry + ": nothing loaded");
     }
   } catch (error) {

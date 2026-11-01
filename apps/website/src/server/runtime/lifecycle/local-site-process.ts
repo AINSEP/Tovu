@@ -83,8 +83,12 @@ export function localSiteChildEnv(
     warn(`tovu local sites: dropped inherited ${isolated.omitted.join(", ")}; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.`);
   }
   const env: NodeJS.ProcessEnv = {};
-  for (const key of ["PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "TEMP", "TMP", "SystemRoot", "WINDIR", "COMSPEC", "PATHEXT", "LANG", "LC_ALL"]) {
-    if (isolated.env[key] !== undefined) env[key] = isolated.env[key];
+  const windows = process.platform === "win32";
+  const allowed = new Set(["PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "TEMP", "TMP", "SystemRoot", "WINDIR", "COMSPEC", "PATHEXT", "LANG", "LC_ALL"]
+    .map(key => windows ? key.toUpperCase() : key));
+  // Windows names are case-insensitive; retain the parent's spelling without broadening the policy.
+  for (const [key, value] of Object.entries(isolated.env)) {
+    if (value !== undefined && allowed.has(windows ? key.toUpperCase() : key)) env[key] = value;
   }
   return { ...env, NODE_ENV: "development", PORT: String(port), TOVU_HOST: "127.0.0.1",
     TOVU_SITE: name, TOVU_SITE_DIR: siteDir, TOVU_AGENT_CWD: siteDir,

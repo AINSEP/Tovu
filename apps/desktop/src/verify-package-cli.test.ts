@@ -7,13 +7,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createPackageWithOptions, getRawHeader } from "@electron/asar";
 
-import { runVerifyPackage } from "./verify-package-cli.ts";
+import { runVerifyPackage, resolveAsarPath } from "./verify-package-cli.ts";
 import type { VerifyPackageDirent, VerifyPackageFs, VerifyPackagePorts } from "./verify-package-cli.ts";
 import type { AsarVerification } from "./asar-verify.ts";
 
@@ -179,4 +179,81 @@ test("scripts/verify-package.ts exits 1 and names the file when a real asar carr
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
+});
+
+test("archive closure and byte verification select the same newest archive", () => {
+  const fs = releaseTree({ macMtime: 5, winMtime: 9 });
+  assert.equal(resolveAsarPath({ fs, argv: [], desktopRoot: ROOT }), winAsar);
+  assert.equal(resolveAsarPath({ fs, argv: ['--asar', '/chosen/app.asar'], desktopRoot: ROOT }), '/chosen/app.asar');
+});
+
+/** A real desktop-shaped archive and real verification scripts; only their data/install tree is a fixture. */
+function closureArchiveFixture(scratch: string) {
+  const desktop = path.join(scratch, 'desktop');
+  const tree = path.join(scratch, 'tree');
+  const resources = path.join(scratch, 'Resources');
+  function write(file: string, value: unknown): void {
+    const target = path.join(scratch, file);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, typeof value === 'string' ? value : JSON.stringify(value));
+  }
+  for (const file of ['scripts/verify-package.ts', 'scripts/verify-staged-closure.ts', 'src/asar-verify.ts', 'src/verify-package-cli.ts']) {
+    mkdirSync(path.dirname(path.join(desktop, file)), { recursive: true });
+    copyFileSync(path.join(DESKTOP_ROOT, file), path.join(desktop, file));
+  }
+  symlinkSync(path.join(DESKTOP_ROOT, 'node_modules'), path.join(desktop, 'node_modules'), 'junction');
+  write('desktop/package.json', { type: 'module' });
+  write('desktop/main.ts', "import '@jini-ai/daemon';");
+  write('tree/main.ts', "import '@jini-ai/daemon';");
+  for (const file of ['src/check.ts', 'bin/check.js', 'dist/check.js']) {
+    write(`desktop/${file}`, 'export const ok = true;');
+    write(`tree/${file}`, 'export const ok = true;');
+  }
+  write('tree/package.json', { name: 'shell', type: 'module' });
+  write('tree/node_modules/@jini-ai/daemon/package.json', { name: '@jini-ai/daemon', type: 'module', exports: './dist/index.js' });
+  write('tree/node_modules/@jini-ai/daemon/dist/index.js', "import { createRequire } from 'node:module'; export const parse = () => createRequire(import.meta.url)('smol-toml');");
+  write('Resources/tovu/package.json', { name: 'payload', type: 'module' });
+  write('Resources/tovu/dist/server.js', 'export const ok = true;');
+  write('Resources/npm/bin/npx-cli.js', '// npm sentinel');
+  write('Resources/npm/node_modules/@npmcli/arborist/package.json', {});
+  mkdirSync(path.join(resources, 'website'), { recursive: true });
+  // Builds are forbidden in this dispatch. Exercise the actual Jini source, while the separate
+  // installed-peer test continues to fail visibly until those new exports are built/published.
+  const jini = pathToFileURL(path.join(realpathSync(path.join(DESKTOP_ROOT, 'node_modules/@jini-ai/devops')), 'src/packaging/electron/'));
+  const hook = path.join(scratch, 'source-hooks.mjs');
+  writeFileSync(hook, `import { registerHooks } from 'node:module';
+    registerHooks({ resolve(specifier, context, next) {
+      if (specifier === '@jini-ai/devops/packaging/electron') return next(${JSON.stringify(new URL('entry.ts', jini).href)}, context);
+      if (specifier === '@jini-ai/devops/packaging/electron/typescript') return next(${JSON.stringify(new URL('typescript.ts', jini).href)}, context);
+      try { return next(specifier, context); }
+      catch (error) {
+        if (error.code !== 'ERR_MODULE_NOT_FOUND' || !specifier.startsWith('.') || !specifier.endsWith('.js')) throw error;
+        return next(specifier.slice(0, -3) + '.ts', context);
+      }
+    } });`);
+  const run = (archive: string) => spawnSync(process.execPath, [path.join(desktop, 'scripts/verify-package.ts'), '--asar', archive], {
+    cwd: desktop, encoding: 'utf8', timeout: 30_000,
+    env: { ...process.env, NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import ${pathToFileURL(hook).href}` },
+  });
+  return { tree, resources, write, run };
+}
+
+test('verify-package audits the real archive: missing smol-toml fails, a complete archive passes', async () => {
+  const scratch = mkdtempSync(path.join(os.tmpdir(), 'verify-package-closure-'));
+  try {
+    const fixture = closureArchiveFixture(scratch);
+    const missingArchive = path.join(fixture.resources, 'missing.asar');
+    await packArchive(fixture.tree, missingArchive);
+    const missing = fixture.run(missingArchive);
+    assert.equal(missing.status, 1, missing.stderr);
+    assert.match(missing.stdout, /OK — every file byte-identical to source/, missing.stderr);
+    assert.match(missing.stderr, /staged-closure: .*smol-toml/);
+    fixture.write('tree/node_modules/smol-toml/package.json', { name: 'smol-toml', main: 'index.cjs' });
+    fixture.write('tree/node_modules/smol-toml/index.cjs', 'exports.parse = () => ({});');
+    const completeArchive = path.join(fixture.resources, 'complete.asar');
+    await packArchive(fixture.tree, completeArchive);
+    const complete = fixture.run(completeArchive);
+    assert.equal(complete.status, 0, complete.stderr);
+    assert.match(complete.stdout, /staged-closure: checked .*0 missing runtime imports/);
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
 });

@@ -98,6 +98,29 @@ test("devsignin: managed children inherit only a safely admitted local owner cap
   }
 });
 
+for (const platform of ["win32", "linux", "darwin"]) {
+  test(`local child OS allowlist respects ${platform} environment casing`, (t) => {
+    const descriptor = Object.getOwnPropertyDescriptor(process, "platform")!;
+    Object.defineProperty(process, "platform", { value: platform });
+    t.after(() => Object.defineProperty(process, "platform", descriptor));
+    const parent = { Path: "C:\\Tools", ComSpec: "C:\\Windows\\cmd.exe", SYSTEMROOT: "C:\\Windows",
+      windir: "C:\\Windows", Temp: "C:\\Temp", PATH: "/bin", HOME: "/home/operator",
+      OpenAi_Api_Key: "secret", node_options: "--require owner-hook", tovu_plugins_dir: "/owner/plugins" };
+    const before = { ...parent };
+    const warnings: string[] = [];
+    const env = localSiteChildEnv({ parent, siteDir: "/repo/sites/alpha", name: "alpha",
+      port: 3101, daemonPort: 3102, repoRoot: "/repo", buildRoot: "/tmp/build" }, { warn: message => warnings.push(message) });
+    for (const key of ["Path", "ComSpec", "SYSTEMROOT", "windir", "Temp"] as const) {
+      assert.equal(env[key], platform === "win32" ? parent[key] : undefined, key);
+    }
+    assert.equal(env.PATH, "/bin");
+    assert.equal(env.HOME, "/home/operator");
+    for (const key of ["OpenAi_Api_Key", "node_options", "tovu_plugins_dir"]) assert.equal(env[key], undefined, key);
+    assert.equal(warnings.length, platform === "win32" ? 1 : 0);
+    assert.deepEqual(parent, before, "isolation must not mutate the owner's environment");
+  });
+}
+
 
 test("native fatal evidence redacts home paths and runtime-built vendor tokens before taking a tail", (t) => {
   const siteDir = mkdtempSync(path.join(os.tmpdir(), "native-redaction-"));

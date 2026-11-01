@@ -217,6 +217,44 @@ test("desktop main's source module graph resolves without the test-only TypeScri
   assert.deepEqual(parseEntryLoadOutput(loaded.stdout), { ok: true, unresolved: [] });
 });
 
+for (const fixture of [
+  { name: "missing named export", dependency: "export const available = 1;", diagnostic: /does not provide an export named 'missing'/ },
+  { name: "invalid syntax", dependency: "export const missing = ;", diagnostic: /Unexpected token/ },
+  { name: "unsupported file extension", dependency: null, diagnostic: /Unknown file extension/ },
+]) {
+  test(`entry-load check fails and reports ${fixture.name}`, (t) => {
+    const root = mkdtempSync(path.join(tmpdir(), "smoke-link-error-"));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const marker = path.join(root, "evaluated");
+    writeFileSync(path.join(root, "package.json"), JSON.stringify({ type: "module", main: "main.mjs" }));
+    const dependency = fixture.dependency === null ? "dependency.unknown" : "dependency.mjs";
+    writeFileSync(path.join(root, dependency), fixture.dependency ?? "export const missing = 1;");
+    writeFileSync(path.join(root, "main.mjs"), `import { missing } from './${dependency}';
+      import { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(marker)}, String(missing));`);
+    const run = () => {
+      const child = spawnSync(process.execPath, ["-e", buildEntryLoadScript({ resourcesDir: root }, { sourceDesktopRoot: root })], {
+        cwd: tmpdir(), encoding: "utf8", timeout: 5_000, env: { ...process.env, NODE_OPTIONS: "" },
+      });
+      assert.ifError(child.error);
+      return { child, result: parseEntryLoadOutput(child.stdout) };
+    };
+    const broken = run();
+    assert.equal(broken.child.status, 1, broken.child.stdout + broken.child.stderr);
+    assert.equal(broken.result.ok, false);
+    assert.match(broken.result.unresolved.join("\n"), fixture.diagnostic);
+    assert.match(broken.result.unresolved.join("\n"), /main\.mjs/);
+    assert.equal(existsSync(marker), false, "checking must never execute an entry body");
+    writeFileSync(path.join(root, "dependency.mjs"), "export const missing = 1;");
+    writeFileSync(path.join(root, "main.mjs"), `import { missing } from './dependency.mjs';
+      import { app } from 'electron'; import { writeFileSync } from 'node:fs';
+      writeFileSync(${JSON.stringify(marker)}, String(missing) + app);`);
+    const repaired = run();
+    assert.equal(repaired.child.status, 0, repaired.child.stdout + repaired.child.stderr);
+    assert.deepEqual(repaired.result, { ok: true, unresolved: [] });
+    assert.equal(existsSync(marker), false, "the deliberate stop must still prevent evaluation");
+  });
+}
+
 test("the entry-load script names all five shipped process entries", () => {
   const script = buildEntryLoadScript({ resourcesDir: "/packaged/Resources" });
   assert.ok(script.includes('require(join(asar, "package.json")).main'));

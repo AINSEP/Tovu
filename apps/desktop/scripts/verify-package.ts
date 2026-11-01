@@ -25,12 +25,13 @@
  * Exit codes: 0 = every file under VERIFIED_PREFIXES is byte-identical to source.
  *             1 = a mismatch was found, or no app.asar could be located.
  */
+import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { VERIFIED_PREFIXES, bundledNpmFailures, formatMismatchReport, isEmptyVerification, verifyAsarAgainstSource } from "../src/asar-verify.ts";
-import { runVerifyPackage } from "../src/verify-package-cli.ts";
+import { runVerifyPackage, resolveAsarPath } from "../src/verify-package-cli.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -39,3 +40,10 @@ process.exitCode = runVerifyPackage({ argv: process.argv.slice(2), desktopRoot: 
   verify: verifyAsarAgainstSource, isEmptyVerification, formatMismatchReport, bundledNpmFailures,
   prefixes: VERIFIED_PREFIXES, stdout: process.stdout, stderr: process.stderr,
 });
+
+// Verify the actual archive after electron-builder filtering, not just its pre-package mirror.
+if (process.exitCode === 0) {
+  const archive = resolveAsarPath({ fs: { existsSync, readdirSync, statSync }, argv: process.argv.slice(2), desktopRoot: DESKTOP_ROOT });
+  const result = spawnSync(process.execPath, ['--experimental-import-meta-resolve', path.join(DESKTOP_ROOT, 'scripts/verify-staged-closure.ts'), '--asar', archive!], { stdio: 'inherit', timeout: 120_000 });
+  process.exitCode = result.status ?? 1;
+}
