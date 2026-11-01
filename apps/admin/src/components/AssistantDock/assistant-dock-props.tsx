@@ -4,7 +4,6 @@ import type { ChatPane } from "@jini-ai/chat/react";
 import { PushToTalkMicButton } from "../../features/voice-input/PushToTalkMicButton";
 import type { UseNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
 import { FolderPathButton } from "./FolderPathButton";
-import { PickedFoldersButton } from "./PickedFoldersButton";
 import { isDesktopAdmin } from "../../features/settings/ai-agent-presentation";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 
@@ -59,30 +58,20 @@ export function voiceFooterAccessory(input: { readonly enabled: boolean; readonl
   return input.enabled ? <PushToTalkMicButton onTranscript={input.onTranscript} /> : undefined;
 }
 
-/** Render the attached-folders button only while at least one folder is attached. @complexity O(1). */
-export function pickedFoldersAccessory(
-  { folders, onRemove }: { readonly folders: readonly string[]; readonly onRemove: (path: string) => void }, _options = {},
-) {
-  return folders.length > 0 ? <PickedFoldersButton folders={folders} onRemove={onRemove} /> : undefined;
-}
-
 /**
  * Everything in the composer footer's `footerLeadingAccessory` slot, right after "+": the folder
- * button (only once the server confirmed it can open a folder dialog here), the attached-folders
- * button (`PickedFoldersButton`, while a folder is attached), then the mic. `undefined`
+ * button (only once the server confirmed it can open a folder dialog here), then the mic. `undefined`
  * when none shows, so the slot is omitted rather than rendered empty.
  *
  * @param input.folderPicker `useNativeFolderPicker`'s result.
  * @param input.voice `voiceFooterAccessory`'s result.
- * @param input.pickedFolder The rendered `PickedFoldersButton`, if any.
  * @complexity O(1).
  */
-export function composerFooterLeading(input: { readonly folderPicker: UseNativeFolderPicker; readonly voice: ReactNode | undefined; readonly pickedFolder?: ReactNode }) {
-  if (!input.folderPicker.available && !input.pickedFolder) return input.voice;
+export function composerFooterLeading(input: { readonly folderPicker: UseNativeFolderPicker; readonly voice: ReactNode | undefined }) {
+  if (!input.folderPicker.available) return input.voice;
   return (
     <>
-      {input.folderPicker.available && <FolderPathButton picking={input.folderPicker.picking} onPick={input.folderPicker.pickFolder} />}
-      {input.pickedFolder}
+      <FolderPathButton picking={input.folderPicker.picking} onPick={input.folderPicker.pickFolder} />
       {input.voice}
     </>
   );

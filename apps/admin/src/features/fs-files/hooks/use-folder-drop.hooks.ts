@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import type { ChatPaneComposerHandle } from "@jini-ai/chat/react";
-import { formatDroppedFolderPaths, useFolderPathDropCapture } from "@jini-ai/ui";
+import { folderPathsFromDataTransfer } from "@jini-ai/ui";
 
 import { api, ApiError } from "../../../lib/api";
 import { getFolderDropPort, type FolderDropPort } from "../folder-drop-port";
@@ -9,27 +9,24 @@ import { useSerialWrites, useSettlementGeneration } from "@jini-ai/ui/panel-kit"
 
 /**
  * @file SPEC-053: wires a dropped folder in the admin chat composer (`AssistantDock`) to (a) the
- * composer's existing text-insertion seam and (b) the `fs-files` `custom` root, so the very next
- * `fs_list_files(root:"custom")` call resolves to the dropped folder with no separate manual step
- * (REQ-02). Mirrors `use-composer-voice-input.hooks.ts`'s "component logic belongs in hooks" split:
+ * message's folder chips (owner 11-01: picked/dropped folders are chips, never message text or
+ * uploads) and (b) the `fs-files` `custom` root, so the very next `fs_list_files(root:"custom")`
+ * call resolves to the dropped folder with no separate manual step (REQ-02). Mirrors
+ * `use-composer-voice-input.hooks.ts`'s "component logic belongs in hooks" split:
  * `AssistantDock.tsx` only renders whatever this returns.
  *
- * **Text insertion always happens; the custom-root set is best-effort on top of it** (`ui.spec.md`
- * §4: "a failed custom-root set must never roll back or block the path text already inserted").
- * `handleDropCapture` is `@jini-ai/ui`'s `useFolderPathDropCapture`, which inserts the path
- * synchronously and only then calls back into the (async) custom-root call, so REQ-01's
- * already-shipped behavior (folder drop -> path, not attachments) can never regress because of
- * anything this hook's network call does.
+ * **Staging always happens; the custom-root set is best-effort on top of it** (`ui.spec.md` §4: a
+ * failed custom-root set must never roll back or block the folder already staged). Paths come from
+ * `@jini-ai/ui`'s `folderPathsFromDataTransfer` in the capture phase, before the bubble-phase
+ * uploader can expand a directory into per-file attachments.
  *
  * **Multiple folders in one drop event.** `feature.spec.md`/`behavior.spec.md` only ever describe
  * SEQUENTIAL drops for the "last write wins" custom-root rule (§1.2) — dropping two folders at once
- * in a single `DragEvent` is not named. Composer text is `@jini-ai/ui`'s `formatDroppedFolderPaths`,
- * the same format the desktop chat inserts: every recovered folder path, space-joined, in drop
- * order. For the SINGLE `custom` root value (INV-02: at most one at a time), this
- * applies the same "most recent wins" rule one level down and uses the LAST folder in that same drop
- * — a judgment call, not a spec requirement, made because no other rule in the approved spec package
- * covers this case and "last" is the only choice consistent with §1.2's own tie-break for the
- * sequential case.
+ * in a single `DragEvent` is not named. Every recovered folder is staged, in drop order. For the
+ * SINGLE `custom` root value (INV-02: at most one at a time), this applies the same "most recent
+ * wins" rule one level down and uses the LAST folder in that same drop — a judgment call, not a spec
+ * requirement, made because no other rule in the approved spec package covers this case and "last"
+ * is the only choice consistent with §1.2's own tie-break for the sequential case.
  *
  * **"Last folder wins" now holds across OVERLAPPING drops, not just sequential ones.** Each drop's
  * `applyCustomRoot` call used to run its own independent read-then-write, so a slow read or a slow
@@ -78,11 +75,11 @@ export interface UseFolderDrop {
    *  files). A drop with no folder falls through to the ordinary attachment-upload path. A folder
    *  whose path cannot be read (a plain browser tab has no `window.tovuFiles`) is still swallowed —
    *  a folder drop never becomes an upload — and sets the `path-unavailable` notice. Its identity never
-   *  changes for the hook's lifetime (`useFolderPathDropCapture`), so `useFolderDropBridge`
+   *  changes for the hook's lifetime (the raw-drop path recovery), so `useFolderDropBridge`
    *  publishes it once per mount. */
   readonly handleDropCapture: (event: DragEvent<HTMLElement>) => void;
   /** Handles a folder path that arrived without a drop (the composer's folder button) exactly as a
-   *  desktop folder drop: the path is inserted as text in the drop's own format, then becomes the
+   *  desktop folder drop: stage the exact path as a folder reference, then set the
    *  `custom` root with the same confirmation/error notice. */
   readonly insertFolderPath: (path: string) => void;
   /** Shows the `path-unavailable` notice (paste the path instead), replacing any other notice. */
@@ -112,10 +109,9 @@ const DEFAULT_AUTO_DISMISS_MS = 4000;
 /**
  * The real port lookup, used when no `getPort` seam is passed. Reads `window.tovuFiles`.
  *
- * **Evaluated at render, not at drop.** `useFolderPathDropCapture` takes the port as a value and its
- * handler uses whatever the latest committed render passed. Before the switch to `@jini-ai/ui` this
- * was read inside the drop handler. Both reads see the same value, because `window.tovuFiles` does
- * not change during a page's life: `apps/desktop/src/speech/preload-speech.cts` calls
+ * **Evaluated at render, not at drop.** `handleDropCapture` reads the latest committed render's
+ * port through a ref. Both reads see the same value, because `window.tovuFiles` does not change
+ * during a page's life: `apps/desktop/src/speech/preload-speech.cts` calls
  * `contextBridge.exposeInMainWorld` synchronously at preload time, and Electron runs a window's
  * preload before any of the page's own scripts. So the bridge already exists (or is permanently
  * absent) when this bundle first renders. Going between `/admin` and the public site is a full
@@ -162,7 +158,7 @@ function dropHasFolder(dataTransfer: DataTransfer): boolean {
  * Owns the folder-drop notice state and the composer/custom-root side effects a drop triggers.
  *
  * @complexity Time: O(n) in the number of dragged items per drop (via `@jini-ai/ui`'s
- *   `captureFolderPathDrop`); space: O(1) beyond that same per-drop array.
+ *   `folderPathsFromDataTransfer`); space: O(n) in recovered paths.
  */
 export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps = {}): UseFolderDrop {
   const getPort = deps.getPort ?? defaultGetPort;
@@ -238,20 +234,9 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
     [getCustomRoot, setCustomRoot, scheduleAutoDismiss, settlement, writes],
   );
 
-  // Set synchronously by `onFolderPaths` inside `capturePaths`, so `handleDropCapture` can tell a
-  // drop whose path was inserted from a folder drop whose path could not be read.
-  const pathsInserted = useRef(false);
-  const capturePaths = useFolderPathDropCapture({
-    // See `defaultGetPort`'s doc for why reading the port at render is safe.
-    port: getPort(),
-    composer: input.composerHandle,
-    onFolderPaths: (paths) => {
-      pathsInserted.current = true;
-      // Called only for a swallowed drop, so `paths` is never empty. See this module's own doc
-      // ("Multiple folders in one drop event") for why the LAST path becomes the custom root.
-      void applyCustomRoot(paths[paths.length - 1] as string);
-    },
-  });
+  // Read at render and dereference on drop so the capture handler stays stable across rerenders.
+  const portRef = useRef(getPort());
+  portRef.current = getPort();
 
   const showPathHint = useCallback(() => {
     if (dismissTimer.current !== null) clearTimeout(dismissTimer.current);
@@ -259,19 +244,22 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
   }, []);
 
   const handleDropCapture = useCallback((event: DragEvent<HTMLElement>) => {
-    pathsInserted.current = false;
-    capturePaths(event);
-    if (pathsInserted.current || !dropHasFolder(event.dataTransfer)) return;
-    // No path to insert, but a folder must never fall through to the uploader, which expands it into
-    // per-file attachments (owner 2026-10-27: "You can attach at most 10 files to one message").
+    if (!dropHasFolder(event.dataTransfer)) return;
+    // A folder must never fall through to the uploader, which expands it into per-file attachments
+    // (owner 2026-10-27: "You can attach at most 10 files to one message"), even with no path to stage.
     event.preventDefault();
     event.stopPropagation();
-    showPathHint();
-  }, [capturePaths, showPathHint]);
+    const port = portRef.current;
+    const paths = port ? folderPathsFromDataTransfer(event.dataTransfer, port) : [];
+    if (paths.length === 0) { showPathHint(); return; }
+    input.composerHandle.current?.addFolders({ folders: paths });
+    // See this module's own doc ("Multiple folders in one drop event") for why the LAST path wins.
+    void applyCustomRoot(paths[paths.length - 1]!);
+  }, [input.composerHandle, applyCustomRoot, showPathHint]);
 
   const { composerHandle } = input;
   const insertFolderPath = useCallback((path: string) => {
-    composerHandle.current?.insertText(formatDroppedFolderPaths([path]));
+    composerHandle.current?.addFolders({ folders: [path] });
     void applyCustomRoot(path);
   }, [composerHandle, applyCustomRoot]);
 

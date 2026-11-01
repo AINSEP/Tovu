@@ -82,3 +82,14 @@ it.each(CHAT_LOCALES)("%s translates the folder-window note a browser tab shows"
   const key = "Folder window opened on the computer running Tovu";
   expect(createChatI18nAdapter(locale).t(key)).not.toBe(key);
 });
+
+it.each(CHAT_LOCALES)("%s translates folder chips and preserves exact path/count interpolation", locale => {
+  const t = createChatI18nAdapter(locale).t;
+  expect(t('Choose a folder')).not.toBe('Choose a folder');
+  for (const key of ['Folders ({count})', 'Copy folder path: {path}', 'Remove folder: {path}']) {
+    const path = String.raw`C:\A B`;
+    const text = t(key, { count: 3, path });
+    expect(text).not.toBe(key.replace('{count}', '3').replace('{path}', path));
+    expect(text).toContain(key.includes('{path}') ? path : '3');
+  }
+});

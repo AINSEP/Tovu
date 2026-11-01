@@ -3,9 +3,8 @@ import { isValidElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { PushToTalkMicButton } from "../../../features/voice-input/PushToTalkMicButton";
-import { composerFooterLeading, folderWindowOpenElsewhere, optionalChatPaneProps, pickedFoldersAccessory, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";
+import { composerFooterLeading, folderWindowOpenElsewhere, optionalChatPaneProps, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";
 import { FolderPathButton } from "../FolderPathButton";
-import { PickedFoldersButton } from "../PickedFoldersButton";
 
 /**
  * @file The pure prop builders `AssistantDock.tsx` hands to `ChatPane` and its header, on every
@@ -62,16 +61,6 @@ describe("renameActiveConversation", () => {
   });
 });
 
-describe("pickedFoldersAccessory", () => {
-  it("renders the attached-folders button only while a folder is attached", () => {
-    const onRemove = vi.fn();
-    const slot = pickedFoldersAccessory({ folders: ["/a/Brand"], onRemove }, {});
-    expect(isValidElement(slot) && slot.type).toBe(PickedFoldersButton);
-    expect(isValidElement<{ folders: unknown; onRemove: unknown }>(slot) && [slot.props.folders, slot.props.onRemove]).toEqual([["/a/Brand"], onRemove]);
-    expect(pickedFoldersAccessory({ folders: [], onRemove }, {})).toBeUndefined();
-  });
-});
-
 describe("composerFooterLeading", () => {
   const picker = { available: true, picking: false, pickFolder: vi.fn() };
   const mic = <span>mic</span>;
@@ -84,7 +73,7 @@ describe("composerFooterLeading", () => {
   it("puts the folder button first, right after +, wired to the picker, then the mic", () => {
     const slot = composerFooterLeading({ folderPicker: { ...picker, picking: true }, voice: mic });
     const children = isValidElement<{ children: unknown[] }>(slot) ? slot.props.children : [];
-    const [button, , voice] = children as [unknown, unknown, unknown];
+    const [button, voice] = children as [unknown, unknown];
     expect(isValidElement(button) && button.type).toBe(FolderPathButton);
     expect(isValidElement<{ picking: boolean; onPick: unknown }>(button) && [button.props.picking, button.props.onPick]).toEqual([true, picker.pickFolder]);
     expect(voice).toBe(mic);
@@ -101,13 +90,5 @@ describe("composerFooterLeading", () => {
     expect(folderWindowOpenElsewhere({ picking: true }, { desktop: false })).toBe(true);
     expect(folderWindowOpenElsewhere({ picking: true }, { desktop: true })).toBe(false);
     expect(folderWindowOpenElsewhere({ picking: false }, { desktop: false })).toBe(false);
-  });
-
-  it("puts the attached-folders button after the folder button, before the mic, even with no folder dialog here", () => {
-    const chip = <span>chip</span>;
-    const children = (slot: unknown) => (isValidElement<{ children: unknown[] }>(slot) ? slot.props.children : []);
-    const [button, placed, voice] = children(composerFooterLeading({ folderPicker: picker, voice: mic, pickedFolder: chip })) as [unknown, unknown, unknown];
-    expect([isValidElement(button) && button.type, placed, voice]).toEqual([FolderPathButton, chip, mic]);
-    expect(children(composerFooterLeading({ folderPicker: { ...picker, available: false }, voice: mic, pickedFolder: chip }))).toEqual([false, chip, mic]);
   });
 });

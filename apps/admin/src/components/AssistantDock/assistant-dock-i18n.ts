@@ -1004,6 +1004,11 @@ export const t = (locale: string, key: string): string => translateDockCopy({ lo
  */
 const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   es: {
+    "Choose a folder": "Elegir una carpeta",
+    "Folders ({count})": "Carpetas ({count})",
+    "Copy folder path: {path}": "Copiar ruta de carpeta: {path}",
+    "Remove folder: {path}": "Quitar carpeta: {path}",
+
     "Remove {name}": "Quitar {name}",
     "Send selected skills": "Enviar habilidades seleccionadas",
     "Show details": "Mostrar detalles",
@@ -1053,6 +1058,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Razonamiento",
   },
   id: {
+    "Choose a folder": "Pilih folder",
+    "Folders ({count})": "Folder ({count})",
+    "Copy folder path: {path}": "Salin jalur folder: {path}",
+    "Remove folder: {path}": "Hapus folder: {path}",
+
     "Remove {name}": "Hapus {name}",
     "Send selected skills": "Kirim keterampilan yang dipilih",
     "Show details": "Tampilkan detail",
@@ -1102,6 +1112,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Penalaran",
   },
   de: {
+    "Choose a folder": "Ordner auswählen",
+    "Folders ({count})": "Ordner ({count})",
+    "Copy folder path: {path}": "Ordnerpfad kopieren: {path}",
+    "Remove folder: {path}": "Ordner entfernen: {path}",
+
     "Remove {name}": "{name} entfernen",
     "Send selected skills": "Ausgewählte Fähigkeiten senden",
     "Show details": "Details anzeigen",
@@ -1151,6 +1166,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Denkprozess",
   },
   "zh-CN": {
+    "Choose a folder": "选择文件夹",
+    "Folders ({count})": "文件夹（{count}）",
+    "Copy folder path: {path}": "复制文件夹路径：{path}",
+    "Remove folder: {path}": "移除文件夹：{path}",
+
     "Remove {name}": "移除{name}",
     "Send selected skills": "发送所选技能",
     "Show details": "显示详情",
@@ -1200,6 +1220,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "思考过程",
   },
   "zh-TW": {
+    "Choose a folder": "選擇資料夾",
+    "Folders ({count})": "資料夾（{count}）",
+    "Copy folder path: {path}": "複製資料夾路徑：{path}",
+    "Remove folder: {path}": "移除資料夾：{path}",
+
     "Remove {name}": "移除{name}",
     "Send selected skills": "傳送所選技能",
     "Show details": "顯示詳細資訊",
@@ -1249,6 +1274,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "思考過程",
   },
   "pt-BR": {
+    "Choose a folder": "Escolher uma pasta",
+    "Folders ({count})": "Pastas ({count})",
+    "Copy folder path: {path}": "Copiar caminho da pasta: {path}",
+    "Remove folder: {path}": "Remover pasta: {path}",
+
     "Remove {name}": "Remover {name}",
     "Send selected skills": "Enviar habilidades selecionadas",
     "Show details": "Mostrar detalhes",
@@ -1298,6 +1328,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Raciocínio",
   },
   ru: {
+    "Choose a folder": "Выбрать папку",
+    "Folders ({count})": "Папки ({count})",
+    "Copy folder path: {path}": "Копировать путь папки: {path}",
+    "Remove folder: {path}": "Убрать папку: {path}",
+
     "Remove {name}": "Удалить {name}",
     "Send selected skills": "Отправить выбранные навыки",
     "Show details": "Показать подробности",
@@ -1347,6 +1382,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Рассуждения",
   },
   fa: {
+    "Choose a folder": "انتخاب پوشه",
+    "Folders ({count})": "پوشه‌ها ({count})",
+    "Copy folder path: {path}": "کپی مسیر پوشه: {path}",
+    "Remove folder: {path}": "حذف پوشه: {path}",
+
     "Remove {name}": "حذف {name}",
     "Send selected skills": "ارسال مهارت‌های انتخاب‌شده",
     "Show details": "نمایش جزئیات",
@@ -1396,6 +1436,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "استدلال",
   },
   ar: {
+    "Choose a folder": "اختيار مجلد",
+    "Folders ({count})": "المجلدات ({count})",
+    "Copy folder path: {path}": "نسخ مسار المجلد: {path}",
+    "Remove folder: {path}": "إزالة المجلد: {path}",
+
     "Remove {name}": "إزالة {name}",
     "Send selected skills": "إرسال المهارات المحددة",
     "Show details": "عرض التفاصيل",
@@ -1445,6 +1490,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "التفكير",
   },
   ja: {
+    "Choose a folder": "フォルダーを選択",
+    "Folders ({count})": "フォルダー（{count}）",
+    "Copy folder path: {path}": "フォルダーのパスをコピー: {path}",
+    "Remove folder: {path}": "フォルダーを削除: {path}",
+
     "Remove {name}": "{name}を削除",
     "Send selected skills": "選択したスキルを送信",
     "Show details": "詳細を表示",
@@ -1494,6 +1544,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "思考",
   },
   ko: {
+    "Choose a folder": "폴더 선택",
+    "Folders ({count})": "폴더 ({count})",
+    "Copy folder path: {path}": "폴더 경로 복사: {path}",
+    "Remove folder: {path}": "폴더 제거: {path}",
+
     "Remove {name}": "{name} 제거",
     "Send selected skills": "선택한 스킬 보내기",
     "Show details": "세부 정보 표시",
@@ -1543,6 +1598,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "사고 과정",
   },
   pl: {
+    "Choose a folder": "Wybierz folder",
+    "Folders ({count})": "Foldery ({count})",
+    "Copy folder path: {path}": "Kopiuj ścieżkę folderu: {path}",
+    "Remove folder: {path}": "Usuń folder: {path}",
+
     "Remove {name}": "Usuń {name}",
     "Send selected skills": "Wyślij wybrane umiejętności",
     "Show details": "Pokaż szczegóły",
@@ -1592,6 +1652,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Rozumowanie",
   },
   hu: {
+    "Choose a folder": "Mappa kiválasztása",
+    "Folders ({count})": "Mappák ({count})",
+    "Copy folder path: {path}": "Mappa elérési útjának másolása: {path}",
+    "Remove folder: {path}": "Mappa eltávolítása: {path}",
+
     "Remove {name}": "{name} eltávolítása",
     "Send selected skills": "Kijelölt készségek küldése",
     "Show details": "Részletek megjelenítése",
@@ -1641,6 +1706,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Gondolkodás",
   },
   fr: {
+    "Choose a folder": "Choisir un dossier",
+    "Folders ({count})": "Dossiers ({count})",
+    "Copy folder path: {path}": "Copier le chemin du dossier : {path}",
+    "Remove folder: {path}": "Retirer le dossier : {path}",
+
     "Remove {name}": "Retirer {name}",
     "Send selected skills": "Envoyer les compétences sélectionnées",
     "Show details": "Afficher les détails",
@@ -1690,6 +1760,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Réflexion",
   },
   uk: {
+    "Choose a folder": "Вибрати теку",
+    "Folders ({count})": "Теки ({count})",
+    "Copy folder path: {path}": "Копіювати шлях теки: {path}",
+    "Remove folder: {path}": "Прибрати теку: {path}",
+
     "Remove {name}": "Видалити {name}",
     "Send selected skills": "Надіслати вибрані навички",
     "Show details": "Показати подробиці",
@@ -1739,6 +1814,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Міркування",
   },
   tr: {
+    "Choose a folder": "Klasör seç",
+    "Folders ({count})": "Klasörler ({count})",
+    "Copy folder path: {path}": "Klasör yolunu kopyala: {path}",
+    "Remove folder: {path}": "Klasörü kaldır: {path}",
+
     "Remove {name}": "{name} öğesini kaldır",
     "Send selected skills": "Seçili becerileri gönder",
     "Show details": "Ayrıntıları göster",
@@ -1788,6 +1868,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Düşünme",
   },
   th: {
+    "Choose a folder": "เลือกโฟลเดอร์",
+    "Folders ({count})": "โฟลเดอร์ ({count})",
+    "Copy folder path: {path}": "คัดลอกพาธโฟลเดอร์: {path}",
+    "Remove folder: {path}": "นำโฟลเดอร์ออก: {path}",
+
     "Remove {name}": "นำ {name} ออก",
     "Send selected skills": "ส่งทักษะที่เลือก",
     "Show details": "แสดงรายละเอียด",
@@ -1837,6 +1922,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "การคิด",
   },
   it: {
+    "Choose a folder": "Scegli una cartella",
+    "Folders ({count})": "Cartelle ({count})",
+    "Copy folder path: {path}": "Copia percorso cartella: {path}",
+    "Remove folder: {path}": "Rimuovi cartella: {path}",
+
     "Remove {name}": "Rimuovi {name}",
     "Send selected skills": "Invia le competenze selezionate",
     "Show details": "Mostra dettagli",
@@ -1886,6 +1976,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "Ragionamento",
   },
   hi: {
+    "Choose a folder": "फ़ोल्डर चुनें",
+    "Folders ({count})": "फ़ोल्डर ({count})",
+    "Copy folder path: {path}": "फ़ोल्डर का पथ कॉपी करें: {path}",
+    "Remove folder: {path}": "फ़ोल्डर हटाएँ: {path}",
+
     "Remove {name}": "{name} हटाएँ",
     "Send selected skills": "चुने गए कौशल भेजें",
     "Show details": "विवरण दिखाएँ",
@@ -1935,6 +2030,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "सोच",
   },
   ur: {
+    "Choose a folder": "فولڈر منتخب کریں",
+    "Folders ({count})": "فولڈرز ({count})",
+    "Copy folder path: {path}": "فولڈر کا راستہ کاپی کریں: {path}",
+    "Remove folder: {path}": "فولڈر ہٹائیں: {path}",
+
     "Remove {name}": "{name} ہٹائیں",
     "Send selected skills": "منتخب مہارتیں بھیجیں",
     "Show details": "تفصیلات دکھائیں",
@@ -1984,6 +2084,11 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     Thinking: "سوچ",
   },
   bn: {
+    "Choose a folder": "ফোল্ডার বেছে নিন",
+    "Folders ({count})": "ফোল্ডার ({count})",
+    "Copy folder path: {path}": "ফোল্ডারের পাথ কপি করুন: {path}",
+    "Remove folder: {path}": "ফোল্ডার সরান: {path}",
+
     "Remove {name}": "{name} সরান",
     "Send selected skills": "নির্বাচিত দক্ষতা পাঠান",
     "Show details": "বিস্তারিত দেখান",

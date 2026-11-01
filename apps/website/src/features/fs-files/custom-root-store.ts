@@ -214,15 +214,7 @@ export function setCustomFsRoot(workspaceId: string, path: string | null, option
     writePersistedPaths(filePath, store);
     return;
   }
-  if (!isAbsolute(path)) {
-    throw new CustomFsRootError(`'${path}' is not an absolute path`);
-  }
-  if (!existsSync(path)) {
-    throw new CustomFsRootError(`'${path}' does not exist`);
-  }
-  if (!statSync(path).isDirectory()) {
-    throw new CustomFsRootError(`'${path}' is not a directory`);
-  }
+  assertExistingAbsoluteDirectory({ path }, {});
 
   store[workspaceId] = realpathSync(path);
   writePersistedPaths(filePath, store);
@@ -239,5 +231,18 @@ export function resetCustomFsRootForTests(optional: Required<CustomFsRootStoreOp
     writePersistedPaths(persistenceFilePath(optional), {});
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+  }
+}
+
+/** Validate a directory reference without canonicalizing the user's path or changing the custom root. */
+export function assertExistingAbsoluteDirectory({ path }: { path: string }, _options = {}): void {
+  if (!isAbsolute(path)) {
+    throw new CustomFsRootError(`'${path}' is not an absolute path`);
+  }
+  if (!existsSync(path)) {
+    throw new CustomFsRootError(`'${path}' does not exist`);
+  }
+  if (!statSync(path).isDirectory()) {
+    throw new CustomFsRootError(`'${path}' is not a directory`);
   }
 }

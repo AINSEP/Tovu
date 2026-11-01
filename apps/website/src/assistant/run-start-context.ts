@@ -7,7 +7,7 @@ import { guardUserText, redactUserText } from "@jini-ai/chat/core";
  * script binds a real server port. This pure helper is safe to import and test without Express,
  * an AttachmentStore or an AgentExecutor.
  */
-import { readRunPageContext, type RunPageContext } from "./run-page-context.js";
+import { readPickedFolders, withPickedFoldersBlock, readRunPageContext, type RunPageContext } from "./run-page-context.js";
 
 /** Requires `value` to be a non-empty string, or throws naming `label` — the shared shape
  *  `prompt`/`principalId` both need (a malformed value means the run cannot proceed at all).
@@ -68,7 +68,7 @@ function readRecoveryContext(
  * @throws If `contextRef` is not valid JSON, or decodes without a non-empty string `prompt` or
  *   `principalId`.
  * @complexity O(n + m) in `attachmentIds` and `pluginRefIds` length combined, plus redaction cost
- *   across the supplied prompt/context text; no I/O.
+ *   across the supplied prompt/context text; validates at most 10 directory references.
  * @overallScore 100/100
  */
 export function parseRunStartContextRef(contextRef: string): {
@@ -89,6 +89,7 @@ export function parseRunStartContextRef(contextRef: string): {
 } {
   const parsed = JSON.parse(contextRef) as {
     prompt?: unknown;
+    folders?: unknown;
     coldStartContext?: unknown;
     principalId?: unknown;
     attachmentIds?: unknown;
@@ -110,7 +111,9 @@ export function parseRunStartContextRef(contextRef: string): {
   // Always sanitize complete context, but a new redaction in OLD history must not add a paste
   // notice. The same options cover resume tails, stateless CLIs and cold native sessions.
   const guardOptions = { modelNote: currentRedacted ? CREDENTIAL_PASTE_MODEL_NOTE : "", secretRedacted: currentRedacted };
-  const prompt = guardUserText({ text: rawPrompt }, guardOptions);
+  const folders = readPickedFolders({ value: parsed.folders }, {});
+  // Folder references bypass user-text redaction only after directory validation.
+  const prompt = withPickedFoldersBlock({ text: guardUserText({ text: rawPrompt }, guardOptions), folders });
   const principalId = requireNonEmptyContextField(parsed.principalId, "principalId");
   const coldStartContext = readOptionalContextString(parsed.coldStartContext);
   const attachmentIds = readContextStringArray(parsed.attachmentIds);
@@ -131,7 +134,7 @@ export function parseRunStartContextRef(contextRef: string): {
   const pageContext = readRunPageContext(parsed.pageContext);
   return {
     prompt,
-    ...(coldStartContext === undefined ? {} : { coldStartContext: guardUserText({ text: coldStartContext.slice(-500_000) }, guardOptions) }),
+    ...(coldStartContext === undefined ? {} : { coldStartContext: withPickedFoldersBlock({ text: guardUserText({ text: coldStartContext.slice(-500_000) }, guardOptions), folders }) }),
     principalId,
     attachmentIds,
     pluginRefIds,

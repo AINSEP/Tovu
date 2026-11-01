@@ -3,7 +3,7 @@ import { RemixIcon } from "@jini-ai/ui";
 
 /**
  * @file The composer's folder button, rendered right after "+" through `footerLeadingAccessory`. It
- * opens the OS folder dialog on this machine and inserts the chosen path (`useNativeFolderPicker`).
+ * opens the OS folder dialog on this machine and stages the chosen folder (`useNativeFolderPicker`).
  * Reuses `.jini-composer-attach`, as Jini's own working-directory button does, so its size, hover and
  * focus match "+" exactly instead of approximating them.
  */
@@ -14,7 +14,7 @@ export interface FolderPathButtonProps {
 
 export function FolderPathButton({ picking, onPick }: FolderPathButtonProps) {
   const t = useT();
-  const label = t("Insert a folder path");
+  const label = t("Choose a folder");
   return (
     <button type="button" className="jini-composer-attach tovu-composer-folder-path" onClick={onPick} disabled={picking}
       title={label} aria-label={label}>

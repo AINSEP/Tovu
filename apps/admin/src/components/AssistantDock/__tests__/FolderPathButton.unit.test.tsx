@@ -14,8 +14,8 @@ describe("FolderPathButton", () => {
   it("is a labelled button styled exactly like the composer's + and opens the picker", async () => {
     const onPick = vi.fn();
     render(<FolderPathButton picking={false} onPick={onPick} />);
-    const button = screen.getByRole("button", { name: "Insert a folder path" });
-    expect(button).toHaveAttribute("title", "Insert a folder path");
+    const button = screen.getByRole("button", { name: "Choose a folder" });
+    expect(button).toHaveAttribute("title", "Choose a folder");
     expect(button).toHaveAttribute("type", "button");
     expect(button).toHaveClass("jini-composer-attach");
     await userEvent.setup().click(button);
@@ -24,6 +24,6 @@ describe("FolderPathButton", () => {
 
   it("is disabled while the dialog is open", () => {
     render(<FolderPathButton picking onPick={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "Insert a folder path" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Choose a folder" })).toBeDisabled();
   });
 });

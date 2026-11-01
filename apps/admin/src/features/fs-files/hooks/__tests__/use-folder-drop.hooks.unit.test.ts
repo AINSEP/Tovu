@@ -30,8 +30,7 @@ async function flushMicrotasks(): Promise<void> {
 
 /**
  * @file SPEC-053 core logic — behavior.spec.md §1.2 (custom-root "last write wins" + replacement
- * wording), feature.spec.md AC-01/AC-02/AC-04/AC-05/AC-09, ui.spec.md §4 (text insertion always
- * happens; a failed custom-root set never blocks or rolls it back).
+ * wording), feature.spec.md AC-01/AC-02/AC-04/AC-05/AC-09, owner 11-01: folder chips replace text insertion; a failed custom-root set keeps the chips.
  */
 
 /** A minimal `DragEvent` stand-in — only `dataTransfer`/`preventDefault`/`stopPropagation` are ever
@@ -85,7 +84,7 @@ function looseFileDataTransfer(): DataTransfer {
 }
 
 function fakeComposerHandle(): { current: ChatPaneComposerHandle | null } {
-  return { current: { insertText: vi.fn() } as unknown as ChatPaneComposerHandle };
+  return { current: { insertText: vi.fn(), addFolders: vi.fn() } as unknown as ChatPaneComposerHandle };
 }
 
 describe("useFolderDrop", () => {
@@ -195,7 +194,8 @@ describe("useFolderDrop", () => {
 
     await act(async () => result.current.handleDropCapture(fakeDropEvent(dataTransfer)));
 
-    expect(composerHandle.current?.insertText).toHaveBeenCalledExactlyOnceWith("/Users/x/site");
+    expect(composerHandle.current?.addFolders).toHaveBeenCalledExactlyOnceWith({ folders: ["/Users/x/site"] });
+    expect(composerHandle.current?.insertText).not.toHaveBeenCalled();
     expect(setCustomRoot).toHaveBeenCalledExactlyOnceWith("/Users/x/site");
   });
 
@@ -238,7 +238,8 @@ describe("useFolderDrop", () => {
 
     expect(event.preventDefault).toHaveBeenCalled();
     expect(event.stopPropagation).toHaveBeenCalled();
-    expect(composerHandle.current?.insertText).toHaveBeenCalledWith("/Users/x/my-site");
+    expect(composerHandle.current?.addFolders).toHaveBeenCalledWith({ folders: ["/Users/x/my-site"] });
+    expect(composerHandle.current?.insertText).not.toHaveBeenCalled();
     expect(setCustomRoot).toHaveBeenCalledWith("/Users/x/my-site");
     expect(result.current.notice).toEqual({
       kind: "confirmation",
@@ -400,7 +401,8 @@ describe("useFolderDrop", () => {
       result.current.handleDropCapture(fakeDropEvent(dataTransfer));
     });
 
-    expect(composerHandle.current?.insertText).toHaveBeenCalledWith("/Users/x/gone");
+    expect(composerHandle.current?.addFolders).toHaveBeenCalledWith({ folders: ["/Users/x/gone"] });
+    expect(composerHandle.current?.insertText).not.toHaveBeenCalled();
     expect(result.current.notice).toEqual({ kind: "error", path: "/Users/x/gone", reason: "does-not-exist" });
   });
 
@@ -433,7 +435,8 @@ describe("useFolderDrop", () => {
     await act(async () => result.current.handleDropCapture(fakeDropEvent(dataTransfer)));
 
     expect(result.current.notice).toEqual({ kind: "error", path: "/Users/x/a-file", reason: "not-a-directory" });
-    expect(composerHandle.current?.insertText).toHaveBeenCalledWith("/Users/x/a-file");
+    expect(composerHandle.current?.addFolders).toHaveBeenCalledWith({ folders: ["/Users/x/a-file"] });
+    expect(composerHandle.current?.insertText).not.toHaveBeenCalled();
   });
 
   it("does not infer a validation reason from the message of an unrelated API error", async () => {
@@ -464,7 +467,7 @@ describe("useFolderDrop", () => {
     expect(result.current.notice).toEqual({ kind: "error", path: "/Users/x/site", reason: "endpoint-unreachable" });
   });
 
-  it("uses the LAST folder in a single multi-folder drop as the custom root, but joins all paths into the composer text", async () => {
+  it("uses the LAST folder in a single multi-folder drop as the custom root, and stages every folder without editing text", async () => {
     const composerHandle = fakeComposerHandle();
     const { dataTransfer, port } = folderDataTransfer(["/Users/x/one", "/Users/x/two"]);
     const setCustomRoot = vi.fn().mockResolvedValue({ path: "/Users/x/two" });
@@ -476,7 +479,8 @@ describe("useFolderDrop", () => {
       result.current.handleDropCapture(fakeDropEvent(dataTransfer));
     });
 
-    expect(composerHandle.current?.insertText).toHaveBeenCalledWith("/Users/x/one /Users/x/two");
+    expect(composerHandle.current?.addFolders).toHaveBeenCalledWith({ folders: ["/Users/x/one", "/Users/x/two"] });
+    expect(composerHandle.current?.insertText).not.toHaveBeenCalled();
     expect(setCustomRoot).toHaveBeenCalledWith("/Users/x/two");
   });
 
@@ -747,7 +751,7 @@ describe("useFolderDrop — last drop wins across overlapping drops", () => {
 
 
 describe("useFolderDrop — real ChatPane composer", () => {
-  it.each([false, true])("keeps dropped paths in the editable draft when the root write fails=%s", async (fails) => {
+  it.each([false, true])("keeps dropped folder chips without editing text when the root write fails=%s", async (fails) => {
     const composerHandle = createRef<ChatPaneComposerHandle>();
     const { dataTransfer, port } = folderDataTransfer(["/Users/x/one", "/Users/x/two"]);
     const transport: ChatTransport = {
@@ -769,21 +773,23 @@ describe("useFolderDrop — real ChatPane composer", () => {
 
     await act(async () => result.current.handleDropCapture(fakeDropEvent(dataTransfer)));
 
-    expect(screen.getByRole("textbox")).toHaveValue("Inspect /Users/x/one /Users/x/two");
+    expect(screen.getByRole("textbox")).toHaveValue("Inspect");
+    expect(screen.getByRole("button", { name: "Folders (2)" })).toBeInTheDocument();
     expect(setCustomRoot).toHaveBeenCalledWith("/Users/x/two");
     expect(result.current.notice?.kind).toBe(fails ? "error" : "confirmation");
   });
 });
 
 describe("useFolderDrop — a path from the composer's folder button", () => {
-  it("inserts the picked path exactly like a desktop folder drop and points the custom root at it", async () => {
+  it("stages the picked path exactly like a desktop folder drop and points the custom root at it", async () => {
     const composerHandle = fakeComposerHandle();
     const setCustomRoot = vi.fn().mockResolvedValue({ path: "/Users/x/My Site" });
     const { result } = renderHook(() =>
       useFolderDrop({ composerHandle }, { getPort: () => null, setCustomRoot, getCustomRoot: vi.fn().mockResolvedValue({ path: null }) }),
     );
     act(() => result.current.insertFolderPath("/Users/x/My Site"));
-    expect(composerHandle.current?.insertText).toHaveBeenCalledExactlyOnceWith("/Users/x/My Site");
+    expect(composerHandle.current?.addFolders).toHaveBeenCalledExactlyOnceWith({ folders: ["/Users/x/My Site"] });
+    expect(composerHandle.current?.insertText).not.toHaveBeenCalled();
     await waitFor(() => expect(result.current.notice).toMatchObject({ kind: "confirmation", path: "/Users/x/My Site" }));
     expect(setCustomRoot).toHaveBeenCalledWith("/Users/x/My Site");
   });

@@ -1,3 +1,4 @@
+import { readPickedFolders } from "#src/assistant/run-page-context";
 /**
  * @file Durable chat history for the admin assistant — `GET/POST/PATCH/DELETE /api/assistant/chats`.
  *
@@ -220,6 +221,8 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
           res.status(400).json({ error: "'content' must be a string", code: "VALIDATION_ERROR" });
           return;
         }
+        try { readPickedFolders({ value: body.folders }, {}); }
+        catch { res.status(400).json({ error: "Invalid picked folders", code: "VALIDATION_ERROR" }); return; }
         const sent = body as unknown as ChatMessage;
         const message: ChatMessage = redactUserMessage({ message: {
           ...sent,

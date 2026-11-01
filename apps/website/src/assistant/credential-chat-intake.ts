@@ -1,3 +1,4 @@
+import { readPickedFolders } from "./run-page-context.js";
 import { redactUserText } from "@jini-ai/chat/core";
 
 /** Parse Tovu's durable envelope without echoing malformed input. @complexity O(contextRef length). */
@@ -16,6 +17,12 @@ function parseAdminRunEnvelope({ contextRef }: { contextRef: string }, _options 
  */
 export function redactAdminRunContextRef({ contextRef }: { contextRef: string }, _optional = {}): string {
   const safe = parseAdminRunEnvelope({ contextRef }, {});
+  // Validate before durable acceptance; preserve the supplied spelling for chips and model data.
+  readPickedFolders({ value: safe.folders }, {});
+  const userMessage = safe.userMessage;
+  if (userMessage && typeof userMessage === "object") {
+    readPickedFolders({ value: (userMessage as { folders?: unknown }).folders }, {});
+  }
   // Stateless CLI prompts include history; userPrompt identifies what the human sent THIS turn.
   const currentText = typeof safe.userPrompt === "string" ? safe.userPrompt : safe.prompt;
   const currentRedacted = typeof currentText === "string" && redactUserText({ text: currentText }, {}).secretRedacted;

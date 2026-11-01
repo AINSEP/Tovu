@@ -79,7 +79,7 @@ import {
   type ByokToolSurfaceDeps,
 } from "#src/assistant/index";
 import { formatCustomInstructionsOverlay, resolveCustomInstructions } from "#src/assistant/custom-instructions";
-import { readRunPageContext, withPageContextBlock } from "#src/assistant/run-page-context";
+import { readPickedFolders, readRunPageContext, withPageContextBlock } from "#src/assistant/run-page-context";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origin-allowlist";
@@ -402,7 +402,7 @@ async function resolveTurnInputsOrRespond(
   credentialPort: ExecutionCredentialPort,
   routeDeps: RouteDeps,
 ): Promise<ByokTurnInputs | null> {
-  const body = (req.body ?? {}) as { messages?: unknown; byok?: RequestSuppliedByokConfig; pageContext?: unknown; attachmentIds?: unknown };
+  const body = (req.body ?? {}) as { messages?: unknown; byok?: RequestSuppliedByokConfig; pageContext?: unknown; attachmentIds?: unknown; folders?: unknown };
   const history = resolveMessages(body.messages);
   if (history.length === 0 || history[history.length - 1]?.role !== "user") {
     res.status(400).json({ error: "'messages' must end with a non-empty user message", code: "VALIDATION_ERROR" });
@@ -410,7 +410,10 @@ async function resolveTurnInputsOrRespond(
   }
   // The admin screen block, same as a Local CLI run's (`run-page-context.ts`): degrade-only, so a
   // malformed `pageContext` means "the turn does not know the screen", never a rejected request.
-  const messages = [...withPageContextBlock({ messages: history, pageContext: readRunPageContext(body.pageContext) })];
+  let folders: string[];
+  try { folders = readPickedFolders({ value: body.folders }, {}); }
+  catch { res.status(400).json({ error: "Invalid picked folders", code: "VALIDATION_ERROR" }); return null; }
+  const messages = [...withPageContextBlock({ messages: history, pageContext: readRunPageContext(body.pageContext), folders })];
 
   const authed = getAuthedPrincipal(res);
   const credential = await credentialPort.resolve({

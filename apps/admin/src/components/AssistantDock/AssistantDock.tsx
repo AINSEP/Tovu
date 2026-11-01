@@ -2,9 +2,8 @@ import { onAdminSecretRedacted } from "@/lib/credential-card-guidance";
 import { ConfirmDialog, useConfirmRequest } from "@jini-ai/admin/react";
 import { DockHeader } from "./DockHeader";
 import { DockLeadingAccessory } from "./DockLeadingAccessory";
-import { composerFooterLeading, folderWindowOpenElsewhere, optionalChatPaneProps, pickedFoldersAccessory, voiceFooterAccessory } from "./assistant-dock-props";
+import { composerFooterLeading, folderWindowOpenElsewhere, optionalChatPaneProps, voiceFooterAccessory } from "./assistant-dock-props";
 import { useNativeFolderPicker } from "../../features/fs-files/hooks/use-native-folder-picker.hooks";
-import { usePickedFolder } from "../../features/fs-files/hooks/use-picked-folder.hooks";
 import { dockSettingsMenuSections } from "./dock-header-rules";
 import { chatPaneDisplayProps } from "./chat-display-preferences";
 import { useChatDisplayPreferences } from "./chat-display-preferences.adapter";
@@ -126,9 +125,6 @@ function selectedDockAgent({ mode, agents, agentId }: {
   return mode === "local-cli" ? agents?.find((agent) => agent.id === agentId) : undefined;
 }
 
-function confirmedFolderPath({ notice }: { notice: ReturnType<typeof useFolderDropBridge>["notice"] }, _options = {}) {
-  return notice?.kind === "confirmation" ? notice.path : null;
-}
 
 /**
  * @file The global assistant dock (ADR-049) — every admin page gets the same chat pane on the
@@ -438,7 +434,6 @@ export function AssistantDock({
   // The composer's folder button: a picked path is handled exactly like a desktop folder drop; a
   // dialog that fails to open hides the button and falls back to the paste hint.
   const folderPicker = useNativeFolderPicker({ onPicked: folderDrop.insertFolderPath, onFailed: folderDrop.showPathHint });
-  const pickedFolder = usePickedFolder({ confirmedPath: confirmedFolderPath({ notice: folderDrop.notice }) });
 
   const handleMessagesChange = useMessagesChangeHandler({ chats });
   const runContext = useRunContext({
@@ -590,7 +585,7 @@ export function AssistantDock({
           //
           // The folder button (owner 2026-10-27: "a folder icon next to the plus button") rides the same
           // slot, ahead of the mic — see `composerFooterLeading`.
-          footerLeadingAccessory: composerFooterLeading({ folderPicker, pickedFolder: pickedFoldersAccessory({ folders: pickedFolder.folders, onRemove: pickedFolder.remove }, {}),
+          footerLeadingAccessory: composerFooterLeading({ folderPicker,
             voice: voiceFooterAccessory({ enabled: VOICE_INPUT_ENABLED, onTranscript: voiceInput.insertTranscript }) }),
         }}
         // Renders the pinned-plugin chip tray above the composer's textarea. NOT passed inside
