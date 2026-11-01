@@ -58,6 +58,9 @@ following the chat rows as they append; 1.6–1.8x on the result; smoothstep mov
 ## 5. Before saying "done"
 - `scripts/contact-sheet.sh final.mp4` and LOOK at every frame next to the reference's sheet:
   text readable in most frames, every story beat present, no site name, no error toasts.
+  Other sites' names (desktop Sites grid, app tabs, client previews) can't be collapsed away: blur them with a
+  segment's `"blur": [[x, y, w, h, sigma], ...]` boxes in the camcut spec (raw-take px, applied before the camera,
+  so they follow every zoom). Example: demo-reel-2026-10-30/desktop/spec.json.
 - ffprobe the duration. Report the product flaws that are on camera (red failed rows, wrong brand,
   missing in-chat image) instead of hiding them.
 - Upload finished clips to tovu-dev Media (Media → Upload image → file input → alt

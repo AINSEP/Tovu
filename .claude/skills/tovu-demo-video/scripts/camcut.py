@@ -6,7 +6,8 @@ spec = {"out": "final/x-v2.mp4", "work": "work-v2",
         "views": {"FULL": [1, 720, 450], "COMPOSER": [2.3, 1250, 805], ...},   # zoom, centre x, centre y (1440x900 px)
         "segments": [{"src": "take1/take1-raw.webm", "a": 20.4, "b": 27.4, "speed": 1, "hold": 0,
                       "keys": [[0, "FULL"], [0.5, "COMPOSER", 0.9], ...],      # [local out t, view, ramp s (default 0.9)]
-                      "join": "fade" | "wiperight" | "cut", "jd": 0.25}]}    # how this segment joins the PREVIOUS one
+                      "join": "fade" | "wiperight" | "cut", "jd": 0.25,       # how this segment joins the PREVIOUS one
+                      "blur": [[x, y, w, h, sigma?], ...]}]}                  # raw-px boxes blurred before the camera
 Each segment: trim -> speed -> 30 fps -> optional clone hold -> 2x lanczos upscale -> zoompan (smoothstep ramps,
 crop clamped inside the frame) -> 1440x900. Segments render one at a time, then one pass joins them.
 """
@@ -28,13 +29,26 @@ def comp(keys, i):
         e += f"+({d})*{p}*{p}*(3-2*{p})"
     return e
 
+def blur_filter(boxes):
+    """Gaussian-blur raw-frame boxes [x, y, w, h(, sigma)] before the camera move, so the blur follows every
+    zoom/pan exactly (e.g. other sites' names in a grid). Runs on the trimmed raw frames."""
+    if not boxes: return ""
+    n = len(boxes); g = f",split={n + 1}[bb]" + "".join(f"[bc{k}]" for k in range(n)) + ";"
+    cur = "bb"
+    for k, b in enumerate(boxes):
+        x, y, w, h = b[:4]; sig = b[4] if len(b) > 4 else 7
+        g += f"[bc{k}]crop={w}:{h}:{x}:{y},gblur=sigma={sig}:steps=3[bg{k}];"
+        g += f"[{cur}][bg{k}]overlay={x}:{y}" + (f"[bo{k}];" if k < n - 1 else "")
+        cur = f"bo{k}"
+    return g
+
 def seg_filter(s):
     z = comp(s["keys"], 0); cx = comp(s["keys"], 1); cy = comp(s["keys"], 2)
     hold = f",tpad=stop_mode=clone:stop_duration={s['hold']}" if s.get("hold") else ""
     x = f"clip(2*({cx})-iw/zoom/2,0,iw-iw/zoom)"; y = f"clip(2*({cy})-ih/zoom/2,0,ih-ih/zoom)"
     # "drop": raw [t0, t1] ranges whose frames are removed (fps then repeats the previous frame), e.g. a render flash.
     drop = "".join(f",select='not(between(t,{d0},{d1}))'" for d0, d1 in s.get("drop", []))
-    return (f"trim={s['a']}:{s['b']}{drop},setpts=(PTS-STARTPTS)/{s.get('speed', 1)},fps={FPS}{hold},"
+    return (f"trim={s['a']}:{s['b']}{drop}{blur_filter(s.get('blur', []))},setpts=(PTS-STARTPTS)/{s.get('speed', 1)},fps={FPS}{hold},"
             f"scale={2*W}:{2*H}:flags=lanczos,zoompan=z='{z}':x='{x}':y='{y}':d=1:s={W}x{H}:fps={FPS},"
             f"setsar=1,format=yuv420p")
 
