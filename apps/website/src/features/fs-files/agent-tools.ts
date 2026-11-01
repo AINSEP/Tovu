@@ -121,6 +121,10 @@ const LIST_FILES_SCHEMA = {
       ...RELATIVE_PATH_PROPERTY,
       description: "Optional subdirectory within the root to list, e.g. 'site-compliance'. Omit to list from the root itself.",
     },
+    depth: { type: "integer", minimum: 1, maximum: 12, description: "Levels to list, default 1 (immediate files and directories). Overrides recursive. Directories at the depth boundary end in '/'." },
+    recursive: { type: "boolean", description: "Explicit recursive listing, up to depth 12. Results are still paged; default false." },
+    limit: { type: "integer", minimum: 1, maximum: 100, description: "Maximum entries per page, default 100. The 8KB output budget may return fewer entries." },
+    cursor: { type: "string", pattern: "^(0|[1-9][0-9]*)$", description: "Use the previous nextCursor with the same root/path/depth/recursive. Restart if the directory changes." },
   },
 } as const;
 
@@ -168,7 +172,7 @@ export function getFsFilesAgentToolCatalog(): AgentToolDefinition[] {
     {
       name: FS_LIST_FILES_TOOL_ID,
       description:
-        "Lists every regular file under one allowed directory root (or a subdirectory of it), as paths relative to what you asked to list. Read-only. Use this to discover what a plugin/theme/skill actually ships — e.g. a plugin's own bundled 'references/*.template.*' files — before reading one with fs_read_file, rather than guessing filenames. An empty result means the root (or subdirectory) does not exist yet, not an error. The result carries a 'truncated' flag: when it is true the listing hit an internal size bound and is PARTIAL, so a filename's absence proves nothing — narrow the search with 'path' instead of concluding the file is missing. Anything under a 'secrets' folder, and any filename matching a denied pattern (databases, .env files, private keys/certs), is silently excluded from every listing, even inside an allowed root. 'node_modules', '.git', and build output are also excluded from listings, but only for readability — they are not off-limits to fs_read_file.",
+        "Lists immediate files and directories under one allowed root or path, relative to the requested directory; directories end in '/'. Read-only. Defaults to depth 1, at most 100 entries and an 8KB output budget. Use path to browse a directory, depth to expand, or recursive:true for a recursive listing (up to depth 12), always with paging. Partial results carry truncated:true and a 'truncated: N more entries' message; send nextCursor as cursor with the same root/path/depth/recursive to continue. If the traversal budget is reached the remainder is unknown: narrow path to inspect unscanned directories. A filename absent from a partial or shallow listing is not evidence that it is missing or empty. An empty complete result means no visible entries, or the requested directory does not exist yet. Secrets folders, denied filenames (databases, .env, private keys/certs), symlinks, node_modules, .git and dist are excluded. Use this to discover shipped files before fs_read_file rather than guessing filenames.",
       sideEffects: "none",
       authorization: { permission: FS_FILES_READ_PERMISSION },
       inputSchema: LIST_FILES_SCHEMA,

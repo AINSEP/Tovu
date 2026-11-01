@@ -7,7 +7,9 @@ import { resolve } from "node:path";
 import {
   createGuardedFileReader,
   createNodeGuardedReaderFilesystem,
-  type GuardedFileReader,
+  type PagedGuardedFileReader,
+  type GuardedListingOptions,
+  type GuardedListingResult,
   type GuardedReaderFilesystem,
 } from "@jini-ai/platform/fs/guarded-reader";
 export { FsFilePathError } from "@jini-ai/platform/fs/guarded-reader";
@@ -155,7 +157,7 @@ export const FS_FILES_DENYLIST = {
 function createReader(
   { rootPath }: { rootPath: string },
   { filesystem = createNodeGuardedReaderFilesystem({}) }: { filesystem?: GuardedReaderFilesystem } = {}
-): GuardedFileReader {
+): PagedGuardedFileReader {
   return createGuardedFileReader({
     rootPath, denyRules: FS_FILES_DENYLIST, limits: READER_LIMITS, filesystem,
   }, { excludedListingDirs: EXCLUDED_LISTING_DIR_NAMES });
@@ -181,19 +183,18 @@ export function resolveFsFilePath(
   return createReader({ rootPath }, optional).resolve({ relativePath });
 }
 
-export interface ListFsFilesResult {
-  readonly files: string[];
-  readonly truncated: boolean;
-}
+export type ListFsFilesResult = GuardedListingResult;
 
-/** Lists bounded, sorted paths relative to the requested directory; skips symlinks and secrets.
- * @complexity Bounded by 20,000 entries, 2,000 results, and depth 12; filesystem reads are synchronous.
+/** Lists sorted paths relative to the requested directory, skipping symlinks and secrets.
+ * Page controls opt into an 8KB output budget; omitted controls preserve internal recursive callers.
+ * @complexity Bounded by 20,000 probes and depth 12; filesystem reads are synchronous.
  */
 export function listFsFiles(
-  { rootPath, relativePath }: { rootPath: string; relativePath?: string },
+  { rootPath, ...listing }: { rootPath: string } & GuardedListingOptions,
   optional: { filesystem?: GuardedReaderFilesystem } = {}
 ): ListFsFilesResult {
-  return createReader({ rootPath }, optional).list({}, { relativePath });
+  // Any page control opts into the reader's default 8KB output budget.
+  return createReader({ rootPath }, optional).list({}, listing);
 }
 
 export interface ReadFsFileResult {

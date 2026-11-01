@@ -6,7 +6,7 @@ export const toolMetadata = {
   // Folder-content questions must discover filesystem tools (SPEC-053).
   "fs_list_files": {
     search: {
-      keywords: "folder directory local computer machine desktop dropped path browse inside contents list files explore",
+      keywords: "folder directory local computer machine desktop dropped path browse inside contents list files explore shallow recursive depth cursor pagination",
       queries: [
         "What's in this folder on my computer?",
         "Can you look inside the folder I just dropped into the chat?",

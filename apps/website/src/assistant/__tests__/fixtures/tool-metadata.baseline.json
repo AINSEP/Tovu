@@ -180,7 +180,7 @@
     "theme_list_files": "theme files templates stylesheets css list design",
     "theme_list": "theme themes design appearance skin installed",
     "theme_rescan": "rescan themes refresh themes new theme folder not showing reload themes",
-    "fs_list_files": "folder directory local computer machine desktop dropped path browse inside contents list files explore",
+    "fs_list_files": "folder directory local computer machine desktop dropped path browse inside contents list files explore shallow recursive depth cursor pagination",
     "fs_read_file": "folder directory local computer machine desktop dropped path open view read show file contents text",
     "fs_write_files": "folder directory local computer machine desktop picked write save create edit change update files",
     "theme_reset_file": "theme file reset restore revert original undo pristine default discard changes modified changed header footer template",

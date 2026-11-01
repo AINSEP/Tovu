@@ -89,6 +89,8 @@ test("fs_read_file's schema requires both root and path; fs_list_files requires 
   assert.deepEqual(listSchema.required, ["root"]);
   assert.equal(readSchema.additionalProperties, false);
   assert.equal(listSchema.additionalProperties, false);
+  const properties = listSchema.properties as Record<string, unknown>;
+  assert.deepEqual(Object.keys(properties).sort(), ["cursor", "depth", "limit", "path", "recursive", "root"]);
 });
 
 // ---------------------------------------------------------------------------
@@ -131,12 +133,12 @@ for (const toolId of [FS_LIST_FILES_TOOL_ID, FS_READ_FILE_TOOL_ID]) {
 // 3. Handler dispatch — real reads through fs-files.ts.
 // ---------------------------------------------------------------------------
 
-test("fs_list_files lists a real fixture file through the injected resolveRoots seam", async () => {
+test("fs_list_files explicitly recurses to a real fixture file through the injected resolveRoots seam", async () => {
   const deps = toolDeps();
   const registrations = buildFsFilesRegistrations(deps);
   const handler = handlerFor(registrations, FS_LIST_FILES_TOOL_ID);
 
-  const result = (await handler(toolContext({ root: "site", path: "agent-plugins" }, FS_LIST_FILES_TOOL_ID))) as {
+  const result = (await handler(toolContext({ root: "site", path: "agent-plugins", recursive: true }, FS_LIST_FILES_TOOL_ID))) as {
     files: string[];
     truncated: boolean;
   };
@@ -282,16 +284,68 @@ test("the denylist still fires inside the 'custom' root — an .env file is refu
   );
 });
 
-test("fs_list_files forwards truncation for a directory exceeding the file cap", async () => {
+test("fs_list_files pages a directory exceeding the former 2000-file cap", async () => {
   const { roots } = makeFixtureRoots();
   const dir = path.join(roots.site, "capped");
   fs.mkdirSync(dir);
   try {
     for (let i = 0; i < 2001; i++) fs.writeFileSync(path.join(dir, `${i}.txt`), "fixture");
     const deps = toolDeps({ siteBinding: { dir: roots.site }, resolveRoots: () => roots });
-    const result = await handlerFor(buildFsFilesRegistrations(deps), FS_LIST_FILES_TOOL_ID)(toolContext({ root: "site", path: "capped" }, FS_LIST_FILES_TOOL_ID)) as { files: string[]; truncated: boolean };
-    assert.equal(result.files.length, 2000);
+    const handler = handlerFor(buildFsFilesRegistrations(deps), FS_LIST_FILES_TOOL_ID);
+    const result = await handler(toolContext({ root: "site", path: "capped" }, FS_LIST_FILES_TOOL_ID)) as { files: string[]; truncated: boolean; remaining: number; nextCursor: string };
+    assert.equal(result.files.length, 100);
     assert.equal(result.truncated, true);
+    assert.equal(result.remaining, 1901);
+    assert.equal(result.nextCursor, "100");
+    const last = await handler(toolContext({ root: "site", path: "capped", cursor: "2000" }, FS_LIST_FILES_TOOL_ID)) as { files: string[]; truncated: boolean };
+    assert.deepEqual(last.files, ["999.txt"]);
+    assert.equal(last.truncated, false);
+  } finally {
+    fs.rmSync(path.dirname(roots.site), { recursive: true, force: true });
+  }
+});
+
+test("fs_list_files bounds crowded root output and pages every entry without losing files", async () => {
+  const { roots } = makeFixtureRoots();
+  fs.rmSync(path.join(roots.site, "agent-plugins"), { recursive: true });
+  try {
+    for (let i = 0; i < 237; i++) fs.writeFileSync(path.join(roots.site, `${String(i).padStart(3, "0")}-${"x".repeat(180)}.txt`), "fixture");
+    const handler = handlerFor(buildFsFilesRegistrations(toolDeps({ siteBinding: { dir: roots.site }, resolveRoots: () => roots })), FS_LIST_FILES_TOOL_ID);
+    type Listing = { files: string[]; truncated: boolean; remaining?: number; nextCursor?: string; message?: string };
+    let page = await handler(toolContext({ root: "site" }, FS_LIST_FILES_TOOL_ID)) as Listing;
+    assert.ok(Buffer.byteLength(JSON.stringify(page)) < 12000, "tool output must stay below 12KB even with long paths");
+    assert.equal(page.truncated, true);
+    assert.equal(page.remaining, 237 - page.files.length);
+    assert.match(page.message ?? "", /truncated: \d+ more entries.*path.*depth.*cursor/i);
+    const files = [...page.files];
+    while (page.nextCursor !== undefined) {
+      page = await handler(toolContext({ root: "site", cursor: page.nextCursor }, FS_LIST_FILES_TOOL_ID)) as Listing;
+      assert.ok(Buffer.byteLength(JSON.stringify(page)) < 12000);
+      files.push(...page.files);
+      assert.ok(files.length <= 237, "pagination must advance");
+    }
+    assert.equal(page.truncated, false);
+    assert.equal(files.length, 237);
+    assert.equal(new Set(files).size, 237);
+  } finally {
+    fs.rmSync(path.dirname(roots.site), { recursive: true, force: true });
+  }
+});
+
+test("fs_list_files defaults to navigable directories and preserves a small folder's response", async () => {
+  const { roots } = makeFixtureRoots();
+  try {
+    const handler = handlerFor(buildFsFilesRegistrations(toolDeps({ siteBinding: { dir: roots.site }, resolveRoots: () => roots })), FS_LIST_FILES_TOOL_ID);
+    const root = await handler(toolContext({ root: "site" }, FS_LIST_FILES_TOOL_ID)) as { files: string[] };
+    assert.deepEqual(root.files, ["agent-plugins/"]);
+    const small = await handler(toolContext({ root: "site", path: "agent-plugins/site-compliance/references" }, FS_LIST_FILES_TOOL_ID));
+    assert.deepEqual(small, { root: "site", path: "agent-plugins/site-compliance/references", files: ["checklist.template.md"], truncated: false });
+    const recursive = await handler(toolContext({ root: "site", recursive: true }, FS_LIST_FILES_TOOL_ID)) as { files: string[] };
+    assert.deepEqual(recursive.files, ["agent-plugins/site-compliance/references/checklist.template.md"]);
+    const depth = await handler(toolContext({ root: "site", depth: 2 }, FS_LIST_FILES_TOOL_ID)) as { files: string[] };
+    assert.deepEqual(depth.files, ["agent-plugins/site-compliance/"]);
+    const override = await handler(toolContext({ root: "site", recursive: true, depth: 1 }, FS_LIST_FILES_TOOL_ID)) as { files: string[] };
+    assert.deepEqual(override.files, ["agent-plugins/"]);
   } finally {
     fs.rmSync(path.dirname(roots.site), { recursive: true, force: true });
   }

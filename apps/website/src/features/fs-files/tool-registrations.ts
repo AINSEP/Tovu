@@ -1,6 +1,6 @@
 import { basename } from "node:path";
 import { toolMetadata } from '../../contracts/core/tool-metadata/fs-files.js';
-import { ToolInputError, buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission, type AuthorizeFn } from "@jini-ai/cms/core";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -161,8 +161,14 @@ export function buildFsFilesRegistrations(
         // `truncated` is forwarded rather than dropped: `listFsFiles` stops at its own bounds, and a
         // caller handed only a short array cannot tell a small directory from a cut-off listing —
         // which is exactly the wrong thing for a model about to conclude "that file does not exist".
-        const { files, truncated } = listFsFiles(fileRequest);
-        return { root, path: relativePath ?? "", files, truncated };
+        const recursive = optionalBoolean({ input, key: "recursive" });
+        const depth = optionalNumber({ input, key: "depth" }) ?? (recursive ? 12 : 1);
+        const limit = optionalNumber({ input, key: "limit" }) ?? 100;
+        const cursor = optionalString({ input, key: "cursor" });
+        if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+          throw new ToolInputError({ message: "limit must be an integer between 1 and 100" });
+        const listing = listFsFiles({ ...fileRequest, depth, limit, ...(cursor === undefined ? {} : { cursor }) });
+        return { root, path: relativePath ?? "", ...listing };
       } });
     },
 
