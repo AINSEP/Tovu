@@ -17,6 +17,8 @@ import {
   sortMediaByOrder,
   MEDIA_ORDER_OPTIONS,
   resolveLightboxItem,
+  mediaFillsPreview,
+  type MediaShape,
   mediaShapeBadges,
   type MediaOrderBy,
 } from "./rules";
@@ -156,18 +158,6 @@ function PlayIcon() {
     <svg className="media-card-play" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
       <path d="M6 3.5v11l9-5.5-9-5.5z" />
     </svg>
-  );
-}
-
-/** A grid card's shape badges ("9:16 · 1080×1920", "0:54", "Long image") once the asset has loaded. */
-function MediaCardBadges({ badges, t }: { badges: ReturnType<typeof mediaShapeBadges> | null; t: (key: string) => string }) {
-  if (!badges) return null;
-  return (
-    <span className="media-card-badges">
-      {badges.isLong ? <span className="media-card-badge">{t("Long image")}</span> : null}
-      <span className="media-card-badge">{badges.size}</span>
-      {badges.duration ? <span className="media-card-badge">{badges.duration}</span> : null}
-    </span>
   );
 }
 
@@ -312,11 +302,19 @@ function MediaCardStage({ preview, title, onExpand, agentExpandHandle, editButto
   const badges = shape ? mediaShapeBadges(shape) : null;
   // A `<video>` without `controls` is not interactive content, so (like an `<img>`) it may sit
   // inside the expand button: clicking the still frame opens the lightbox for both kinds.
+  const fill = shape ? mediaFillsPreview(shape) : false;
+  const fit = fill ? " media-card-media--fill" : "";
   const media = stage === "video" ? (
-    <video className="media-card-media" src={src} preload="metadata" muted playsInline aria-label={altText} onError={handleVideoError} onLoadedMetadata={handleVideoMetadata} />
+    <video className={`media-card-media${fit}`} src={src} preload="metadata" muted playsInline aria-label={altText} onError={handleVideoError} onLoadedMetadata={handleVideoMetadata} />
   ) : (
-    <img className={badges?.isLong ? "media-card-media media-card-media--long" : "media-card-media"} src={src} alt={altText} loading="lazy" onError={handleImageError} onLoad={handleImageLoad} />
+    <img className={badges?.isLong ? "media-card-media media-card-media--long" : `media-card-media${fit}`} src={src} alt={altText} loading="lazy" onError={handleImageError} onLoad={handleImageLoad} />
   );
+  // A tall or very wide image stays whole (never cropped), so its spare space gets a soft blurred
+  // copy of the same picture instead of flat gray. Videos keep the card background: a second
+  // decoding <video> per tile is not worth a blur.
+  const backdrop = stage === "image" && shape && !fill && !badges?.isLong ? (
+    <img className="media-card-backdrop" src={src} alt="" aria-hidden="true" loading="lazy" />
+  ) : null;
 
   // The picture itself sits INSIDE the expand button (an `<img>` is legal button content), so a
   // click anywhere on it opens the lightbox and Enter/Space work on the button.
@@ -329,10 +327,10 @@ function MediaCardStage({ preview, title, onExpand, agentExpandHandle, editButto
         onClick={onExpand}
         {...expandHandle}
       >
+        {backdrop}
         {media}
         {stage === "video" ? <PlayIcon /> : <ExpandIcon />}
       </button>
-      <MediaCardBadges badges={badges} t={t} />
       {editButton}
     </>
   );
@@ -980,14 +978,85 @@ export interface MediaProps {
   itemId?: string | null;
 }
 
-function MediaCardMetadata(props: { item: AdminMedia; locale: string }) {
+/** Row 2 of a card's info section: one muted line "1440×900 · 0:38 · 4.4 MB · Oct 31, 2026"
+ *  (owner design, 2026-11-01 — the shape and length used to be badges on the picture). Parts that
+ *  do not apply are left out, so an image has no length and an unloaded one no size yet. Each part
+ *  stays its own element so a part can be found by its text. */
+function MediaCardMetadata(props: { item: AdminMedia; locale: string; shape: MediaShape | null; t: (key: string) => string }) {
   const metadata = useMediaCardMetadata({ item: props.item }, { locale: props.locale });
-  return metadata.hasMetadata ? (
+  const badges = props.shape ? mediaShapeBadges(props.shape) : null;
+  const parts: ReactNode[] = [];
+  if (badges?.isLong) parts.push(<span key="long">{props.t("Long image")}</span>);
+  if (badges) parts.push(<span key="size">{badges.size}</span>);
+  if (badges?.duration) parts.push(<span key="duration">{badges.duration}</span>);
+  if (metadata.byteSize) parts.push(<span key="bytes">{metadata.byteSize}</span>);
+  if (metadata.uploadDate) parts.push(<time key="date" dateTime={metadata.uploadDateTime}>{metadata.uploadDate}</time>);
+  if (parts.length === 0) return null;
+  return (
     <p className="media-card-size">
-      <span>{metadata.byteSize}</span>{metadata.metadataSeparator}
-      {metadata.uploadDate ? <time dateTime={metadata.uploadDateTime}>{metadata.uploadDate}</time> : null}
+      {parts.flatMap((part, index) => (index === 0 ? [part] : [" · ", part]))}
     </p>
-  ) : null;
+  );
+}
+
+interface MediaCardMenuProps {
+  editingId: string | null;
+  locale: string;
+  rowSavingId: string | null;
+  isPhone: boolean;
+  onOpenDetails: (item: AdminMedia) => void;
+  onToggleEdit: (item: AdminMedia) => void;
+  onTrash: (item: AdminMedia) => void;
+  onRestore: (item: AdminMedia) => void;
+  onRequestPurge: (item: AdminMedia | null) => void;
+}
+
+/**
+ * One grid card. It owns the preview controller (and passes it down to `MediaPreview`) because the
+ * loaded shape feeds two places: how the picture fits, and the "1440×900 · 0:38" part of the card's
+ * second info row (owner design, 2026-11-01 — they were badges on the picture).
+ */
+function MediaCard({ item, handle, onExpand, menu, t }: {
+  item: AdminMedia; handle: string | undefined; onExpand: () => void; menu: MediaCardMenuProps; t: (key: string) => string;
+}) {
+  const preview = useWiredMediaPreview(item, t);
+  return (
+    <div className="media-card">
+      <div className="media-card-preview">
+        <MediaPreview
+          item={item}
+          onExpand={onExpand}
+          agentExpandHandle={`${handle}-expand`}
+          edit={{ onEdit: () => menu.onToggleEdit(item), agentHandle: `${handle}-edit` }}
+          useMediaPreviewHook={() => preview}
+          t={t}
+        />
+      </div>
+      <div className="media-card-body">
+        <div className="media-card-meta">
+          <MediaCardTitle item={item} isPhone={menu.isPhone} onOpenDetails={menu.onOpenDetails} t={t} />
+          <span className={`status status-${item.status}`}><ServerLabel value={item.status} /></span>
+          {/* Restore stays one visible click on the Trash tab; the irreversible delete stays in the menu. */}
+          {item.status === "trashed" ? (
+            <button
+              type="button"
+              className="btn-secondary media-card-restore"
+              disabled={menu.rowSavingId === item.id}
+              aria-label={`${t("Restore")}: ${item.title}`}
+              onClick={() => menu.onRestore(item)}
+              {...agentHandle({ handle: `${handle}-restore` }, { role: "button", label: "Restore this trashed asset to the library" })}
+            >{t("Restore")}</button>
+          ) : null}
+          <RowMenu
+            triggerLabel={t('Actions for "{title}"').replace("{title}", item.title)}
+            agentHandle={`${handle}-menu`}
+            items={mediaRowMenuItems(item, menu.editingId, { onToggleEdit: menu.onToggleEdit, onTrash: menu.onTrash, onRequestPurge: menu.onRequestPurge }, menu.locale)}
+          />
+        </div>
+        <MediaCardMetadata item={item} locale={menu.locale} shape={preview.shape} t={t} />
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -1043,40 +1112,14 @@ function MediaGridOrEmpty({
   return (
     <div className="media-grid">
       {visibleMedia.map((item, index) => (
-        <div className="media-card" key={item.id}>
-          <div className="media-card-preview">
-            <MediaPreview
-              item={item}
-              onExpand={() => onExpand(index)}
-              agentExpandHandle={`${mediaExpandHandles[index]}-expand`}
-              edit={{ onEdit: () => onToggleEdit(item), agentHandle: `${mediaExpandHandles[index]}-edit` }}
-              t={t}
-            />
-          </div>
-          <div className="media-card-body">
-            <MediaCardTitle item={item} isPhone={isPhone} onOpenDetails={openDetails} t={t} />
-            <div className="media-card-meta">
-              <span className={`status status-${item.status}`}><ServerLabel value={item.status} /></span>
-              {/* Restore stays one visible click on the Trash tab; the irreversible delete stays in the menu. */}
-              {item.status === "trashed" ? (
-                <button
-                  type="button"
-                  className="btn-secondary media-card-restore"
-                  disabled={rowSavingId === item.id}
-                  aria-label={`${t("Restore")}: ${item.title}`}
-                  onClick={() => onRestore(item)}
-                  {...agentHandle({ handle: `${mediaExpandHandles[index]}-restore` }, { role: "button", label: "Restore this trashed asset to the library" })}
-                >{t("Restore")}</button>
-              ) : null}
-              <RowMenu
-                triggerLabel={t('Actions for "{title}"').replace("{title}", item.title)}
-                agentHandle={`${mediaExpandHandles[index]}-menu`}
-                items={mediaRowMenuItems(item, editingId, { onToggleEdit, onTrash, onRequestPurge }, locale)}
-              />
-            </div>
-            <MediaCardMetadata item={item} locale={locale} />
-          </div>
-        </div>
+        <MediaCard
+          key={item.id}
+          item={item}
+          handle={mediaExpandHandles[index]}
+          onExpand={() => onExpand(index)}
+          menu={{ editingId, locale, rowSavingId, isPhone, onOpenDetails: openDetails, onToggleEdit, onTrash, onRestore, onRequestPurge }}
+          t={t}
+        />
       ))}
     </div>
   );

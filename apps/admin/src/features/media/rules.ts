@@ -616,6 +616,19 @@ export function mediaShapeBadges(shape: MediaShape): { size: string; duration: s
   };
 }
 
+/** Landscape shapes (owner design, 2026-11-01) fill the grid preview edge to edge: within this
+ *  width:height range `cover` trims at most ~20% of one side of the 16:10 box, so the usual
+ *  screen recording or photo shows no gray bands. Anything outside it (a 9:16 video, a tall
+ *  wordmark, a wide banner) stays whole and fitted, the 10-29 "never crop" rule. */
+const FILL_RATIO_MIN = 1.25;
+const FILL_RATIO_MAX = 2;
+
+/** Whether a loaded asset's shape suits edge-to-edge fill of the card preview. */
+export function mediaFillsPreview(shape: MediaShape): boolean {
+  const ratio = shape.width / shape.height;
+  return ratio >= FILL_RATIO_MIN && ratio <= FILL_RATIO_MAX;
+}
+
 /** Resolves `media.find((m) => m.id === editingId)`, or `null` — the item whose `EditMediaPanel`
  *  is expanded, resolved once here rather than in the view. */
 export function findEditingItem(media: AdminMedia[] | null, editingId: string | null): AdminMedia | null {

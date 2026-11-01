@@ -77,4 +77,31 @@ describe("media grid tiles fit the asset instead of cropping it", () => {
     expect(rule(".media-card-media")).toMatch(/object-fit:\s*contain/);
     expect(rule(".media-grid")).toMatch(/grid-template-columns:[^;]*1fr\)/);
   });
+
+  it("a landscape image fills the preview edge to edge; a tall one stays whole over a blurred copy", async () => {
+    render(<FetchQueryProvider><Media /></FetchQueryProvider>);
+    const card = await cardFor("Poster.png");
+    const img = card.querySelector(".media-card-preview img") as HTMLImageElement;
+
+    setSize(img, { naturalWidth: 1440, naturalHeight: 900 });
+    fireEvent.load(img);
+    expect(img.classList.contains("media-card-media--fill")).toBe(true);
+    expect(card.querySelector(".media-card-backdrop")).toBeNull();
+
+    setSize(img, { naturalWidth: 900, naturalHeight: 1440 });
+    fireEvent.load(img);
+    await waitFor(() => expect(img.classList.contains("media-card-media--fill")).toBe(false));
+    expect(card.querySelector(".media-card-backdrop")).not.toBeNull();
+  });
+
+  it("the shape and length sit in the info section's second row, not on the picture", async () => {
+    render(<FetchQueryProvider><Media /></FetchQueryProvider>);
+    const card = await cardFor("Poster.png");
+    const img = card.querySelector(".media-card-preview img") as HTMLImageElement;
+    setSize(img, { naturalWidth: 1440, naturalHeight: 900 });
+    fireEvent.load(img);
+    const size = await within(card).findByText("1440×900");
+    expect(size.closest(".media-card-body")).not.toBeNull();
+    expect(card.querySelector(".media-card-preview")!.contains(size)).toBe(false);
+  });
 });
