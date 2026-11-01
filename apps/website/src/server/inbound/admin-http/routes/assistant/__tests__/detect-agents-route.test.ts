@@ -190,7 +190,8 @@ test("an injected detector seeds its first snapshot from the composition invento
   t.after(() => rm(binDir, { recursive: true, force: true }));
   await writeFile(join(binDir, "codex"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
   const assistantAgentInventory = createAssistantAgentInventory({
-    runtime: createNativeAgentRuntime({ env: { PATH: binDir, HOME: binDir } }),
+    // PATH alone still permits system/toolchain bins; the runtime's home override confines discovery to fixtures.
+    runtime: createNativeAgentRuntime({ env: { PATH: binDir, HOME: binDir, AGENT_RUNTIME_HOME: binDir } }),
     detector: async () => agents,
   });
   t.after(() => assistantAgentInventory.dispose({}));
@@ -203,7 +204,7 @@ test("an injected detector seeds its first snapshot from the composition invento
   const codex = data.find(agent => agent.id === "codex");
   assert.deepEqual(codex && { installed: codex.installed, path: codex.path, discoveryPending: codex.discoveryPending },
     { installed: true, path: join(binDir, "codex"), discoveryPending: true });
-  assert.equal(data.find(agent => agent.id === "claude")?.installed, false, "only binaries on the injected runtime's PATH count");
+  assert.equal(data.find(agent => agent.id === "claude")?.installed, false, "host binaries outside the injected fixture roots must not count");
   await new Promise<void>(resolve => setImmediate(resolve));
   await new Promise<void>(resolve => setImmediate(resolve));
 });

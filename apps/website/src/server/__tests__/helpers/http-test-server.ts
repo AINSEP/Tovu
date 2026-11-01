@@ -39,7 +39,9 @@ export async function startTestServer(
   t: import("node:test").TestContext
 ): Promise<string> {
   const server = createServer(app);
-  server.listen(0);
+  // Bind the same address the returned URL names. A wildcard listener lets another process hold this
+  // port on 127.0.0.1 (macOS), and requests then reach that process instead of this app.
+  server.listen(0, "127.0.0.1");
   await once(server, "listening");
   // A still-open SSE or keep-alive socket would make close() wait forever and keep the file alive.
   t.after(() => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }));
