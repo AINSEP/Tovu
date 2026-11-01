@@ -1670,7 +1670,10 @@ async function composeSiteRouteDeps(
   // already built (a prior session's disclosed-but-unwired infra work — see each class's own file
   // header) but never constructed by any composition root until now. `SqliteRestorePointsRepo`
   // shares the same sidecar journal db/siteId as `databaseLedgerRepo` above.
-  const restorePointsRepo = new SqliteRestorePointsRepo({ db: databaseJournalDb, siteId: workspaceId });
+  const publishContentRunRepo = new SqlitePublishContentRunRepo(kernel);
+  const restorePointsRepo = new SqliteRestorePointsRepo({ db: databaseJournalDb, siteId: workspaceId,
+    protectedRestorePointIds: () => publishContentRunRepo.inFlightRestorePointIds({ workspaceId }),
+  });
   const { dbOps } = storeBound;
   // ADR-041 §3 (this dispatch) — reuses the SAME already-open store `dbOps` above is bound to,
   // rather than opening a second connection to the same `content.db` file.
@@ -2010,7 +2013,6 @@ async function composeSiteRouteDeps(
   const mediaContentTypeStore = new SqliteMediaContentTypeStore(kernel);
   const publishContentBundleRepo = new SqlitePublishContentBundleRepo(kernel);
   const publishContentBaselineRepo = new SqlitePublishContentBaselineRepo(kernel);
-  const publishContentRunRepo = new SqlitePublishContentRunRepo(kernel);
   // `publish-files-plan-2026-09-24.md` §3 — ONE process-lifetime instance, same "hoisted, never
   // rebuilt per request" convention as every repo above. See `routes/types.ts`'s `fileBlobIndex` doc.
   const publishContentFileBlobIndex = createFileBlobIndex();

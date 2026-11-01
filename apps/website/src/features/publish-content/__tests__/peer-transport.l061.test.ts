@@ -8,6 +8,24 @@ import type { PublishContentExportEnvelope } from "../export-bundle.js";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "../artifact-format.js";
 
 const credential: ResolvedPeerCredential = { id: "peer", label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote", apiKey: ["fixture", "credential"].join("-") };
+
+test("peer failures preserve the live error id and safe typed disk refusal", async () => {
+  const errorId = "b206dadf-1111-4444-8888-123456789abc";
+  const message = "The server's disk is almost full (12 MB free, needs 62 MB) — free space or grow the disk.";
+  for (const [status, body, expected] of [
+    [500, { code: "INTERNAL_ERROR", error: "SECRET SQL", errorId }, `error id ${errorId}`],
+    [507, { code: "INSUFFICIENT_STORAGE", error: message, errorId }, message],
+  ] as const) {
+    const deps = client({ reply: () => response({ status, bodyText: JSON.stringify(body) }) });
+    await assert.rejects(callPeer(deps, { method: "POST", path: "/route" }), error => {
+      assert.ok(error instanceof PublishContentPeerTransportError);
+      assert.ok(error.message.includes(expected));
+      assert.ok(error.message.includes(errorId));
+      assert.ok(!error.message.includes("SECRET SQL"));
+      return true;
+    });
+  }
+});
 function client({ reply }: { reply: (request: HttpRequest) => HttpResponse }, _options = {}) {
   const calls: HttpRequest[] = [];
   const httpClient: HttpClientPort = { send: async (request) => { calls.push(request); return reply(request); } };

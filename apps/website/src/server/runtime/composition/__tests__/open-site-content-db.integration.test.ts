@@ -76,21 +76,23 @@ test("openSiteContentDb on a fresh path creates, migrates, seeds once and writes
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test("openSiteContentDb copies an existing unadopted file to ops/ first and keeps only the newest copy", async () => {
+test("openSiteContentDb copies an existing unadopted file to ops/ first and keeps only the newest five copies", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-open-site-content-db-backup-"));
   const dbPath = path.join(dir, "content.db");
   closeSqliteConnection(openLegacyContentDb({ filePath: dbPath })); // explicit frozen chain, no ledger: a site before R1h
   const ops = path.join(dir, "ops");
   fs.mkdirSync(ops);
-  const older = `${MIGRATION_BACKUP_PREFIX}2000-01-01T00-00-00-000Z.db`;
-  for (const name of [older, `${older}-wal`, `${older}-shm`, "database-journal.db"]) fs.writeFileSync(path.join(ops, name), "");
+  const older = [1, 2, 3, 4, 5].map((day) => `${MIGRATION_BACKUP_PREFIX}2000-01-0${day}T00-00-00-000Z.db`);
+  const oldest = older[0]!;
+  for (const name of [...older, `${oldest}-wal`, `${oldest}-shm`, "database-journal.db"]) fs.writeFileSync(path.join(ops, name), "");
 
   closeSqliteConnection(await openSiteContentDb(dbPath));
   const copies = fs.readdirSync(ops).filter((name) => name.startsWith(MIGRATION_BACKUP_PREFIX));
-  assert.equal(copies.length, 1, `one copy left, got ${copies.join(", ")}`);
-  assert.notEqual(copies[0], older);
+  assert.equal(copies.length, 5, `five copies left, got ${copies.join(", ")}`);
+  assert.ok(!copies.some((name) => name.startsWith(oldest)), "the oldest copy and its -wal/-shm are removed");
   assert.ok(fs.existsSync(path.join(ops, "database-journal.db")), "nothing else in ops/ is touched");
-  const copy = new Database(path.join(ops, copies[0]), { readonly: true });
+  const newest = copies.find((name) => !older.includes(name))!;
+  const copy = new Database(path.join(ops, newest), { readonly: true });
   try {
     assert.deepEqual(copy.prepare(`SELECT count(*) AS n FROM sqlite_master WHERE name = 'tovu_migrations'`).get(), { n: 0 }, "the file as it was");
   } finally {

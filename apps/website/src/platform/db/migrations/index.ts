@@ -127,7 +127,11 @@ export function migrateProjectDatabase(kernel: StorageKernel<unknown>): Promise<
 }
 
 /** Brings a content database (any dialect) to head. See `runner.ts`. */
-export function migrateContentDatabase(kernel: StorageKernel<unknown>, optional: { backupPath?: string } = {}): Promise<MigrationReport> {
+export function migrateContentDatabase(kernel: StorageKernel<unknown>, optional: {
+  backupPath?: string;
+  onBackupError?: (input: { error: unknown; backupPath: string }) => void;
+  onBackupComplete?: (input: { backupPath: string }) => Promise<void>;
+} = {}): Promise<MigrationReport> {
   return runMigrations(kernel, CONTENT_MIGRATIONS, { ...optional, ledgerTable: LEDGER_TABLE });
 }
 

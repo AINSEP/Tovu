@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import type { NativeSqliteDatabase } from "../kernel/drivers/sqlite.js";
 import type { SqliteSyncOpener } from "@jini-ai/db/sqlite";
+import { DatabaseDiskSpaceError, pruneDatabaseCopies } from "@jini-ai/db/sqlite";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
@@ -89,8 +90,9 @@ export const MIGRATION_BACKUP_PREFIX = "pre-migrations-";
 /**
  * Brings an open content.db to head through the migration runner (ADR-066). When the file already
  * holds a database and a step is pending (no ledger yet, or it is behind), the runner first copies
- * it to `<dir>/ops/pre-migrations-<timestamp>.db`; once that run succeeds, older copies are removed
- * (the last one per site is kept). Nothing pending: nothing is written.
+ * it to `<dir>/ops/pre-migrations-<timestamp>.db`; after a successful copy, older copies are removed
+ * (the newest five per site are kept). Nothing pending: nothing is written. Low disk space warns
+ * and skips only the backup: a production boot must still be able to apply its pending migrations.
  *
  * @param filePath - the file `db` was opened on (`:memory:`: no copy).
  * @throws LegacyHistoryError when the file's drizzle history cannot be matched to the frozen chain;
@@ -98,8 +100,15 @@ export const MIGRATION_BACKUP_PREFIX = "pre-migrations-";
  */
 export async function migrateSqliteContentFile(db: ContentDb, filePath: string): Promise<MigrationReport> {
   const backupPath = filePath === ":memory:" ? undefined : migrationBackupPath(filePath);
-  const report = await migrateContentDatabase(sqliteKernel<unknown>(db), { backupPath });
-  if (backupPath !== undefined && fs.existsSync(backupPath)) removeOlderMigrationBackups(backupPath);
+  const report = await migrateContentDatabase(sqliteKernel<unknown>(db), { backupPath, onBackupError: ({ error, backupPath: failed }) => {
+    if (!isDiskFull(error)) throw error;
+    // A half-written copy only holds the space that ran out; the boot continues without it.
+    fs.rmSync(failed, { force: true });
+    console.warn(`[migrations] Skipping pre-migration backup: ${error instanceof Error ? error.message : String(error)}`);
+  }, onBackupComplete: async ({ backupPath: written }) => {
+    // Recovery-window cleanup cannot turn a successful copy into a production boot refusal.
+    await removeOlderMigrationBackups(written).catch(() => console.warn("[migrations] Could not prune older pre-migration backups."));
+  } });
   if (report.applied.length > 0) {
     console.log(`[migrations] ${filePath}: applied ${report.applied.join(", ")}`);
     for (const note of report.notes) console.log(`[migrations]   ${note}`);
@@ -107,19 +116,27 @@ export async function migrateSqliteContentFile(db: ContentDb, filePath: string):
   return report;
 }
 
+/** The preflight refusal, or SQLite running out of space mid-copy (the 11-01 prod error). */
+function isDiskFull(error: unknown): boolean {
+  return error instanceof DatabaseDiskSpaceError || (typeof error === "object" && error !== null && "code" in error && error.code === "SQLITE_FULL");
+}
+
 function migrationBackupPath(filePath: string): string {
   const opsDir = path.join(path.dirname(path.resolve(filePath)), "ops");
   return path.join(opsDir, `${MIGRATION_BACKUP_PREFIX}${new Date().toISOString().replace(/[:.]/g, "-")}.db`);
 }
 
-/** Keeps `kept` and removes every earlier-named copy beside it, with any `-wal`/`-shm` a reader left (ISO stamps sort by time). */
-function removeOlderMigrationBackups(kept: string): void {
+/** Only the exact filenames this writer owns enter the shared retention policy (ISO stamps give the
+ * order); a removed copy takes any `-wal`/`-shm` a reader left beside it. Foreign files are left alone.
+ * @complexity O(n log n) in files beside the new copy. */
+async function removeOlderMigrationBackups(kept: string): Promise<void> {
   const dir = path.dirname(kept);
-  const keptName = path.basename(kept);
-  for (const name of fs.readdirSync(dir)) {
-    const copy = name.replace(/-(?:wal|shm)$/, "");
-    if (copy.startsWith(MIGRATION_BACKUP_PREFIX) && copy.endsWith(".db") && copy < keptName) fs.rmSync(path.join(dir, name), { force: true });
-  }
+  const copies = fs.readdirSync(dir, { withFileTypes: true })
+    .filter(entry => entry.isFile() && /^pre-migrations-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.db$/.test(entry.name))
+    .map(entry => ({ filePath: path.join(dir, entry.name), createdAt: Date.parse(entry.name.slice(MIGRATION_BACKUP_PREFIX.length, -3).replace(/T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/, "T$1:$2:$3.$4Z")) }));
+  await pruneDatabaseCopies({ copies, justWritten: kept }, {
+    remove: async ({ filePath }) => { for (const file of [filePath, `${filePath}-wal`, `${filePath}-shm`]) fs.rmSync(file, { force: true }); },
+  });
 }
 
 /**

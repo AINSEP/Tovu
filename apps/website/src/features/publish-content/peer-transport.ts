@@ -143,7 +143,7 @@ function peerCauseCode({ cause }: { cause: unknown }, _options: Record<string, n
   return typeof cause === "object" && cause !== null && "code" in cause ? cause.code : undefined;
 }
 
-const PEER_REFUSAL_REASONS = new Map<string, string>([
+const PEER_REFUSAL_REASONS = new Map<unknown, string>([
   ["WORKSPACE_NOT_FOUND", "The destination workspace was not found; check the peer's workspace setting."],
   ["PAYLOAD_TOO_LARGE", "The transfer exceeds the peer's size limit; publish a smaller selection."],
   ["PLAN_STALE", "The destination changed since the plan was checked; check what would change again."],
@@ -153,20 +153,28 @@ const PEER_REFUSAL_REASONS = new Map<string, string>([
   ["BUNDLE_NOT_FOUND", "The staged bundle was not found on the peer; send the selection again."],
 ]);
 
-/** Translate only known peer codes/statuses into local operator guidance, never upstream prose.
+/** Keep a live incident id alongside safe typed guidance; never echo unknown server errors.
  * Legacy workspace refusals have no code, so only their exact fixed sentinel is recognised.
  * @complexity O(body bytes), one JSON parse and constant-time map lookups. */
 function peerRefusalReason({ status, bodyText }: { status: number; bodyText: string }, _options = {}): string | undefined {
+  let reason = status === 413 ? PEER_REFUSAL_REASONS.get("PAYLOAD_TOO_LARGE") : undefined;
+  if (status === 409) reason = "The peer reported a conflict; check what would change again before retrying.";
   try {
     const body: unknown = JSON.parse(bodyText);
-    const reason = peerBodyRefusalReason({ status, body });
-    if (reason) return reason;
+    reason = peerBodyRefusalReason({ status, body }) ?? reason;
+    const errorId = peerIncidentId({ body });
+    return [reason, errorId].filter(Boolean).join(" ") || undefined;
   } catch {
     // Proxies may return HTML or an empty body; the HTTP status still provides safe guidance.
   }
-  if (status === 413) return PEER_REFUSAL_REASONS.get("PAYLOAD_TOO_LARGE");
-  if (status === 409) return "The peer reported a conflict; check what would change again before retrying.";
-  return undefined;
+  return reason;
+}
+
+/** UUIDs are the incident envelope contract; do not turn an arbitrary peer field into prose. */
+function peerIncidentId({ body }: { body: unknown }, _options = {}): string | undefined {
+  if (typeof body !== "object" || body === null || !("errorId" in body)) return undefined;
+  if (typeof body.errorId !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(body.errorId)) return undefined;
+  return `(error id ${body.errorId})`;
 }
 
 /** Prefer a recognised code to the exact legacy sentinel; upstream prose is never returned. */
@@ -175,7 +183,9 @@ function peerBodyRefusalReason(
   _options: Record<string, never> = {}
 ): string | undefined {
   if (typeof body !== "object" || body === null) return undefined;
-  if ("code" in body && typeof body.code === "string") {
+  const storageReason = peerStorageRefusalReason({ body });
+  if (storageReason) return storageReason;
+  if ("code" in body) {
     const reason = PEER_REFUSAL_REASONS.get(body.code);
     if (reason) return reason;
   }
@@ -183,6 +193,13 @@ function peerBodyRefusalReason(
     return PEER_REFUSAL_REASONS.get("WORKSPACE_NOT_FOUND");
   }
   return undefined;
+}
+
+/** The disk refusal's closed grammar carries operator detail without accepting arbitrary peer prose. */
+function peerStorageRefusalReason({ body }: { body: object }, _options = {}): string | undefined {
+  if (!("code" in body) || body.code !== "INSUFFICIENT_STORAGE") return undefined;
+  if (!("error" in body) || typeof body.error !== "string") return undefined;
+  return /^The server's disk is almost full \(\d+ MB free, needs \d+ MB\) — free space or grow the disk\.$/.test(body.error) ? body.error : undefined;
 }
 
 /** Per-request timeout for a peer call. A bundle POST is the slow one; 60 s is generous for an API

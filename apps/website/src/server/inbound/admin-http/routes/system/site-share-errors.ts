@@ -3,6 +3,7 @@ import type { Response } from "express";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
 
 interface FailureOptions {
   operation?: string;
@@ -14,6 +15,11 @@ interface FailureOptions {
 
 export interface AdminFailurePorts { tracker?: Pick<Tracker, "error"> }
 
+/** Preserve an exception's stack while redacting before either diagnostic sink receives it. */
+function adminDiagnostic({ error }: { error: unknown }, _options = {}): string {
+  return redactSecretShapes({ text: error instanceof Error ? error.stack ?? error.message : String(error) }).text;
+}
+
 /** The shared admin failure lifecycle: redact before either sink, then correlate a safe reply.
  * Ports stay request-scoped; no global tracker is retained. Expected refusals belong to callers.
  * @complexity One shared redaction pass plus O(1) log/report/envelope work.
@@ -23,11 +29,13 @@ export function adminFailureResponse(
   { operation = "admin-route", code = "INTERNAL_ERROR", message = "internal error" }: FailureOptions = {},
 ): { status: number; body: { error: string; code: string; errorId: string } } {
   const errorId = randomUUID();
-  const diagnostic = redactSecretShapes({ text: error instanceof Error ? error.stack ?? error.message : String(error) }).text;
+  const diagnostic = adminDiagnostic({ error });
   // Never hand raw backend/provider errors to a log sink: they may contain saved credentials.
   // Diagnostic sinks are independent: either may fail, but neither may suppress the HTTP reply.
   try { console.error(`[${operation}]`, { errorId, diagnostic }); } catch { /* The tracker still gets the incident. */ }
   try { tracker?.error({ error: new Error(diagnostic) }, { context: { operation, attributes: { errorId } } }); } catch { /* The local log still carries the ID. */ }
+  // The backup owner supplies this closed, human-safe refusal. Preserve it for every admin route.
+  if (error instanceof DatabaseDiskSpaceError) return { status: error.status, body: { code: error.code, errorId, error: error.message } };
   return { status: 500, body: { code, errorId, error: `${message} (error ${errorId})` } };
 }
 

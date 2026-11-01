@@ -1,4 +1,7 @@
 import type { Updateable } from "kysely";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { pruneDatabaseCopies } from "@jini-ai/db/sqlite";
 
 import type { LedgerReadPort, LedgerRow } from "#src/features/database/timeline";
 import type { BootLedgerPort, MigrationRunsRepoPort } from "#src/features/database/boot/reconcile-interrupted-migration";
@@ -280,8 +283,8 @@ export class SqliteMigrationRunsRepo implements MigrationRunsRepoPort {
  * `CreateRestorePointRepoPort`, plus the database-side persistence helper `db-ops`'s
  * `captureRestorePoint()` result needs to become a durable row. */
 export class SqliteRestorePointsRepo implements CreateRestorePointRepoPort {
-  private readonly deps: { db: DatabaseJournalDb; siteId: string };
-  constructor(deps: { db: DatabaseJournalDb; siteId: string }) {
+  private readonly deps: { db: DatabaseJournalDb; siteId: string; protectedRestorePointIds?: () => Promise<ReadonlySet<string>> };
+  constructor(deps: { db: DatabaseJournalDb; siteId: string; protectedRestorePointIds?: () => Promise<ReadonlySet<string>> }) {
     this.deps = deps;
   }
 
@@ -318,6 +321,32 @@ export class SqliteRestorePointsRepo implements CreateRestorePointRepoPort {
         })
         .execute()
     );
+    if (!row.artifactRef) return;
+    try {
+      await this.pruneCopies({ justWritten: row.artifactRef });
+    } catch {
+      // The copy and its row are saved; cleanup must not turn the operation that needed them into an error.
+      console.warn("[restore-points] Could not prune older restore points.");
+    }
+  }
+
+  /** Row/file deletion stays in this repository; generic policy never learns Tovu's schema.
+   * @complexity O(n log n) restore rows, plus two bounded-shape reference queries and one delete per expired row. */
+  private async pruneCopies({ justWritten }: { justWritten: string }): Promise<void> {
+    const rows = (await this.list()).filter(row => /^restore-point-[A-Za-z0-9_-]+-wm\d+-\d+\.db$/.test(path.basename(row.artifactRef)));
+    // In-flight publishes and unfinished migrations may still roll back to their copy.
+    const protectedIds = new Set(await this.deps.protectedRestorePointIds?.());
+    const migrations = await this.deps.db.run(db => db.selectFrom("migration_runs").select("restore_point_id")
+      .where("site_id", "=", this.deps.siteId).where("status", "not in", [...MIGRATION_RUN_TERMINAL_STATUSES]).execute());
+    for (const row of migrations) if (row.restore_point_id) protectedIds.add(row.restore_point_id);
+    await pruneDatabaseCopies({ justWritten, copies: rows.map(row => ({ filePath: row.artifactRef, createdAt: Date.parse(row.createdAt) })) }, {
+      protectedPaths: new Set(rows.filter(row => protectedIds.has(row.id)).map(row => row.artifactRef)),
+      remove: async ({ filePath }) => {
+        // An unlink refusal leaves its row visible and retryable; never report a retained file as gone.
+        await fs.rm(filePath, { force: true });
+        await this.deps.db.run(db => db.deleteFrom("restore_points").where("site_id", "=", this.deps.siteId).where("artifact_ref", "=", filePath).execute());
+      },
+    });
   }
 
   /** AC-11 (recovery) — `(site_id, idempotency_key)` single-row lookup. */

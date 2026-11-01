@@ -35,6 +35,16 @@ function toRecord(row: Selectable<PublishContentRunsTable>): PublishContentRunRe
 export class SqlPublishContentRunRepo implements PublishContentRunRepoPort {
   constructor(protected readonly kernel: ContentKernel) {}
 
+  /** Restore points of runs still in flight (planned/applying): retention must not delete the copy
+   * a running import may still roll back to. Finished runs are NOT protected: every import records
+   * its restore point, so protecting them all would keep every copy forever (the 11-01 full disk).
+   * @complexity O(n) in-flight runs for one workspace, one query. */
+  async inFlightRestorePointIds({ workspaceId }: { workspaceId: string }, _options = {}): Promise<ReadonlySet<string>> {
+    const rows = await this.kernel.run(db => db.selectFrom("publish_content_runs").select("restore_point_id")
+      .where("workspace_id", "=", workspaceId).where("phase", "in", ["planned", "applying"]).where("restore_point_id", "is not", null).execute());
+    return new Set(rows.map(row => row.restore_point_id!));
+  }
+
   async save(record: PublishContentRunRecord): Promise<void> {
     const progress = {
       phase: record.phase,

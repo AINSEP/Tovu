@@ -16,12 +16,13 @@ import { pluginHookFailedBody } from "#src/server/inbound/admin-http/http/plugin
 /** The status and JSON body an import route sends for a thrown error. */
 export interface ImportErrorResponse {
   status: number;
-  body: { error: string; code: string; pluginId?: string };
+  body: { error: string; code: string; pluginId?: string; errorId?: string };
 }
 
 /**
  * Maps a gateway/import error to its HTTP status and stable `code`, keeping a recognised error's own
- * message. Anything unrecognised is a 500 `INTERNAL_ERROR` with fixed text: its message can quote a
+ * message. Disk-budget refusals delegate to the shared admin handler (507). Anything unrecognised
+ * is a 500 `INTERNAL_ERROR` with fixed text: its message can quote a
  * path, SQL or a credential (the same reason a plugin refusal's is redacted, `pluginHookFailedBody`),
  * so the full error goes to the server log instead.
  *
