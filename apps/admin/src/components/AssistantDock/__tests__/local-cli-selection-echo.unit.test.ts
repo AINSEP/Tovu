@@ -4,7 +4,7 @@ import { isSelectionNormalizationEcho } from "../local-cli-selection-echo";
 // ChatPane normalizes to concrete model IDs; aliases and the retired Gemini CLI are excluded.
 const agents = [
   { id: "claude", name: "Claude Code", models: [{ id: "claude-sonnet-4-5", label: "Sonnet" }, { id: "claude-opus-4-5", label: "Opus" }] },
-  { id: "copilot", name: "Copilot", models: [{ id: "claude-sonnet-4-5", label: "Sonnet" }] },
+  { id: "qoder", name: "Qoder", models: [{ id: "claude-sonnet-4-5", label: "Sonnet" }] },
   { id: "aider", name: "Aider", available: false },
 ];
 
@@ -22,7 +22,7 @@ describe("isSelectionNormalizationEcho", () => {
   });
 
   it("is false for another available agent with the same default model", () => {
-    expect(isSelectionNormalizationEcho({ current: { agentId: "claude" }, incoming: { agentId: "copilot", model: "claude-sonnet-4-5" }, agents })).toBe(false);
+    expect(isSelectionNormalizationEcho({ current: { agentId: "claude" }, incoming: { agentId: "qoder", model: "claude-sonnet-4-5" }, agents })).toBe(false);
   });
 
   it("is false for a reasoning pick with the same agent and model", () => {
