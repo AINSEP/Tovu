@@ -1,4 +1,5 @@
 import type { ByokConfig, ExecutionConfig, SourceFieldSpec, SourceFieldValues } from "@jini-ai/ui";
+import { ACCENT_SWATCH_PRESETS } from "@jini-ai/ui/core";
 
 import { buildAgentListHandles } from "@jini-ai/agentic";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
@@ -468,24 +469,18 @@ export function externalMcpNeedsSignIn(
 }
 
 /**
- * Plain colour names for Admin UI > Appearance's accent presets — Jini's `ACCENT_SWATCHES` plus
- * Tovu gold. They are each swatch's accessible name (a screen reader used to hear "#7c3aed"); the
- * hex stays in the swatch's tooltip. Keys are lower-case hex. Translated in `settings-i18n.ts`.
+ * Plain colour names for Admin UI > Appearance's accent presets — each swatch's accessible name (a
+ * screen reader used to hear "#7c3aed"); the hex stays in the swatch's tooltip. Keys are lower-case
+ * hex. Reuse Jini's English name keys; `settings-i18n.ts` supplies the host's 21-locale translations.
+ * Gold belongs to Tovu's extra preset. Derive this lookup once rather than scanning on each render.
  */
 export const ACCENT_SWATCH_NAMES: Readonly<Record<string, string>> = {
-  "#363636": "Charcoal",
-  "#c96442": "Clay",
-  "#7c3aed": "Violet",
-  "#059669": "Green",
-  "#dc2626": "Red",
-  "#d97706": "Amber",
-  "#0891b2": "Teal",
-  "#db2777": "Pink",
+  ...Object.fromEntries(ACCENT_SWATCH_PRESETS.map(({ color, nameKey }) => [color.toLowerCase(), nameKey])),
   "#ffba3e": "Gold",
 };
 
-/** A preset's English colour name, or the colour itself for a hex this table doesn't know (a new
- *  upstream preset still gets a usable, if technical, name). @complexity O(1). */
+/** A preset's English name key, or its hex for a colour this table doesn't know (a new upstream
+ *  preset or a custom colour still gets a usable, if technical, name). @complexity O(1). */
 export function accentSwatchName(color: string): string {
   return ACCENT_SWATCH_NAMES[color.toLowerCase()] ?? color;
 }
