@@ -11,6 +11,7 @@ import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { createSiteAssistantModule } from "../runtime/composition/modules/site-assistant.js";
 import { setPublicAssistantSettings, setSiteAssistantCredential } from "../../assistant/index.js";
 import { set as setLegacySetting } from "@jini-ai/core/settings";
+import { createToolNameMap } from "@jini-ai/core";
 import { startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-provider-server.js";
 import type { RouteDeps } from "../routes/types.js";
@@ -470,7 +471,9 @@ test("POST /api/site-assistant/chat answers a body over the public 128 KB limit 
 
 /** Real page.navigate calls must resolve published IDs through the publication and anonymous
  * membership owners before any frontend effect. A trashed row still has status=published;
- * the missing/draft cases must receive the same safe model-facing failure. */
+ * the missing/draft cases must receive the same safe model-facing failure. The model sees and calls
+ * the tool by its provider-safe wire name (dots are not legal in Gemini function names), so the
+ * stub calls it by the name the shared core mapping assigns to `page.navigate`. */
 test("POST /api/site-assistant/chat never emits a client_directive for a trashed-but-published, unpublished, or nonexistent page ID (SPEC-046 Task 2 AC5)", async (t) => {
   const frontendAbort = new AbortController(); t.after(() => frontendAbort.abort());
   const deps = createRouteDeps();
@@ -518,10 +521,13 @@ test("POST /api/site-assistant/chat never emits a client_directive for a trashed
   });
   // "nonexistent-slug-xyz" is never saved at all — the third refusal case (slug simply not found).
 
+  const navigate = createToolNameMap({ toolIds: ["page.navigate"] }).wireNameFor({ toolId: "page.navigate" })!;
   let continuationRequestBody: Record<string, unknown> | null = null;
   const baseUrl = await bootGeminiStub(t, deps, (callCount, requestBody) => {
     if (callCount === 1) {
-      assert.match(JSON.stringify(requestBody), /page\.navigate/, 'the real page capability must be offered');
+      const declared = (requestBody as { tools?: Array<{ functionDeclarations?: Array<{ name: string }> }> }).tools
+        ?.flatMap(tool => tool.functionDeclarations ?? []).map(({ name }) => name) ?? [];
+      assert.equal(declared.filter(name => name === navigate).length, 1, `the real page capability must be offered as ${navigate}; declared: ${declared.join(", ")}`);
       // One model turn, three simultaneous tool calls — Gemini's function-calling API legally
       // returns multiple `functionCall` parts in one candidate's `content.parts`.
       return sseBody(
@@ -531,9 +537,9 @@ test("POST /api/site-assistant/chat never emits a client_directive for a trashed
               content: {
                 role: "model",
                 parts: [
-                  { functionCall: { name: "page.navigate", args: { page: "p-trashed" }, id: "call_0" } },
-                  { functionCall: { name: "page.navigate", args: { page: "p-draft" }, id: "call_1" } },
-                  { functionCall: { name: "page.navigate", args: { page: "nonexistent-id" }, id: "call_2" } },
+                  { functionCall: { name: navigate, args: { page: "p-trashed" }, id: "call_0" } },
+                  { functionCall: { name: navigate, args: { page: "p-draft" }, id: "call_1" } },
+                  { functionCall: { name: navigate, args: { page: "nonexistent-id" }, id: "call_2" } },
                 ],
               },
               index: 0,
@@ -548,11 +554,22 @@ test("POST /api/site-assistant/chat never emits a client_directive for a trashed
     return sseBody(textCandidate("None of those are available.", "STOP"));
   });
 
-  const frontendHeaders = await scopedVisitorHeaders({ baseUrl, workspaceId: deps.workspaceId, signal: frontendAbort.signal, capability: 'page.navigate' });
-  const res = await fetch(`${baseUrl}/api/site-assistant/chat`, { method: 'POST',
-    headers: { 'content-type': 'application/json', ...frontendHeaders }, body: JSON.stringify({ message: 'Open those three entries for me' }) });
+  // The visitor's tab is where a navigation would land. Any command frame reaching it is the
+  // violation itself; abort the turn at once so a regression fails fast instead of waiting on a tab
+  // that never answers.
+  const chatAbort = new AbortController(); t.after(() => chatAbort.abort());
+  const tabCommands: string[] = [];
+  const frontendHeaders = await scopedVisitorHeaders({ baseUrl, workspaceId: deps.workspaceId, signal: frontendAbort.signal, capability: 'page.navigate',
+    onFrame: frame => { if (/^data:/m.test(frame)) { tabCommands.push(frame); chatAbort.abort(); } } });
+  const noTabCommand = (error: unknown): never => {
+    assert.deepEqual(tabCommands, [], 'no trashed, draft or unknown page may reach the visitor tab as a command');
+    throw error;
+  };
+  const res = await fetch(`${baseUrl}/api/site-assistant/chat`, { method: 'POST', signal: chatAbort.signal,
+    headers: { 'content-type': 'application/json', ...frontendHeaders }, body: JSON.stringify({ message: 'Open those three entries for me' }) }).catch(noTabCommand);
   assert.equal(res.status, 200);
-  const raw = await res.text();
+  const raw = await res.text().catch(noTabCommand);
+  assert.deepEqual(tabCommands, [], 'no trashed, draft or unknown page may reach the visitor tab as a command');
 
   assert.ok(
     !raw.includes("event: client_directive"),
@@ -565,7 +582,7 @@ test("POST /api/site-assistant/chat never emits a client_directive for a trashed
   const responses = contents.flatMap(turn => turn.parts ?? []).flatMap(part => part.functionResponse ? [part.functionResponse] : []);
   assert.equal(responses.length, 3);
   assert.deepEqual(responses.map(({ id, name, response }) => ({ id, name, isError: response.isError })),
-    ['call_0', 'call_1', 'call_2'].map(id => ({ id, name: 'page.navigate', isError: true })));
+    ['call_0', 'call_1', 'call_2'].map(id => ({ id, name: navigate, isError: true })));
   for (const { response } of responses) {
     assert.equal(typeof response.content, 'string');
     assert.doesNotMatch(response.content, /trashed-but-published|still-a-draft|nonexistent-id|path|navigateTo/);
@@ -619,8 +636,11 @@ test("site assistant cancels a pending upstream stream when the visitor disconne
   // Normal completion is exercised by the streamed-text control in this same file.
 });
 
-/** Real public attach protocol; a read confirmation carries the same scope as page controls. */
-async function scopedVisitorHeaders({ baseUrl, workspaceId, signal, capability = 'page.find_elements' }: { baseUrl: string; workspaceId: string; signal: AbortSignal; capability?: string }): Promise<Record<string, string>> {
+/** Real public attach protocol; a read confirmation carries the same scope as page controls.
+ * `onFrame` receives every later chunk of the tab's stream (the commands a browser would act on). */
+async function scopedVisitorHeaders({ baseUrl, workspaceId, signal, capability = 'page.find_elements', onFrame }: {
+  baseUrl: string; workspaceId: string; signal: AbortSignal; capability?: string; onFrame?: (frame: string) => void;
+}): Promise<Record<string, string>> {
   const html = publishVisitorPage({ workspaceId, html: '<html><body><div id="tovu-site-assistant-root"></div></body></html>' });
   const revision = JSON.parse(html.match(/id="tovu-visitor-publication">(.*?)<\/script>/s)![1]!).revision;
   const origin = { origin: baseUrl, 'sec-fetch-site': 'same-origin' };
@@ -631,7 +651,15 @@ async function scopedVisitorHeaders({ baseUrl, workspaceId, signal, capability =
   const headers = { ...origin, cookie, 'x-frontend-tab': tabCredential, 'x-visitor-publication': revision };
   const stream = await fetch(`${baseUrl}/api/site-assistant/frontend-sessions/stream?capability=${encodeURIComponent(capability)}`, { headers, signal });
   assert.equal(stream.status, 200);
-  const first = await stream.body!.getReader().read();
+  const reader = stream.body!.getReader();
+  const first = await reader.read();
   const event = JSON.parse(new TextDecoder().decode(first.value).match(/data: (.+)/)![1]!);
+  if (onFrame) void (async () => {
+    for (;;) {
+      const next = await reader.read().catch(() => ({ done: true as const, value: undefined }));
+      if (next.done) return;
+      onFrame(new TextDecoder().decode(next.value));
+    }
+  })();
   return { ...headers, 'x-frontend-bind-token': event.bindToken };
 }

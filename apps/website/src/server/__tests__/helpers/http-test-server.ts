@@ -41,7 +41,8 @@ export async function startTestServer(
   const server = createServer(app);
   server.listen(0);
   await once(server, "listening");
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  // A still-open SSE or keep-alive socket would make close() wait forever and keep the file alive.
+  t.after(() => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }));
 
   const address = server.address() as AddressInfo;
   return `http://127.0.0.1:${address.port}`;

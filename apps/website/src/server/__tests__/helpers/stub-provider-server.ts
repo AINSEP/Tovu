@@ -45,6 +45,15 @@ export interface StubProviderRequest {
  * the raw {@link StubProviderRequest} line. The third argument is additive: every caller written
  * before it existed simply declares two parameters and is unaffected.
  *
+ * Every request is answered. If `respond` throws (typically an `assert` the caller placed inside
+ * it), the stub replies 500 and the test fails with that original error from an `after` hook
+ * registered at throw time. Before this, the throw escaped the request handler unanswered: the
+ * route under test sat on the open upstream socket until `pinnedFetch`'s 300 s idle timeout, the
+ * test hit its own timeout with no useful message, and the open sockets kept the whole file from
+ * exiting. The error hook is registered late on purpose: node:test skips every `after` hook that
+ * follows a throwing one, so rejecting from this server's own close hook would leave the route's
+ * test server (registered later) open and hang the file again.
+ *
  * @complexity O(1) per request — one buffered read of the request body, one scripted reply.
  */
 export async function startStubProviderServer(
@@ -52,25 +61,31 @@ export async function startStubProviderServer(
   respond: (callCount: number, requestBody: Record<string, unknown>, request: StubProviderRequest) => StubProviderReply,
 ): Promise<string> {
   let callCount = 0;
+  let respondFailed = false;
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = [];
     req.on("data", (chunk: Buffer) => chunks.push(chunk));
     req.on("end", () => {
       callCount += 1;
-      const raw = Buffer.concat(chunks).toString("utf8");
-      const requestBody = raw.length > 0 ? (JSON.parse(raw) as Record<string, unknown>) : {};
-      const reply = respond(callCount, requestBody, {
-        method: req.method ?? "",
-        url: req.url ?? "",
-        headers: req.headers,
-      });
+      let reply: StubProviderReply;
+      try {
+        const raw = Buffer.concat(chunks).toString("utf8");
+        const requestBody = raw.length > 0 ? (JSON.parse(raw) as Record<string, unknown>) : {};
+        reply = respond(callCount, requestBody, { method: req.method ?? "", url: req.url ?? "", headers: req.headers });
+      } catch (error) {
+        // Also logged now: when the test body then fails on the 500, node:test reports that failure, not this one.
+        console.error("stub provider respond() threw:", error);
+        if (!respondFailed) t.after(() => { throw error; });
+        respondFailed = true;
+        reply = { status: 500, body: JSON.stringify({ error: { message: "stub provider respond() threw" } }) };
+      }
       res.writeHead(reply.status, { "content-type": "text/event-stream" });
       res.end(reply.body);
     });
   });
   server.listen(0);
   await once(server, "listening");
-  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  t.after(() => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }));
 
   const address = server.address() as AddressInfo;
   return `http://127.0.0.1:${address.port}`;
