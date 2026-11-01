@@ -1,6 +1,7 @@
 import type { Request, RequestHandler, Response } from "express";
 import type { SiteShareBackend } from "#src/features/site-backup/share-backend";
-import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import type { Tracker } from "@jini-ai/diagnostics/observability";
+import { sendSiteShareFailure } from "./site-share-errors.js";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
 import { getPublishTrustContext } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { isSameOriginAdminWrite } from "#src/features/agent-plugins/admin-surfaces/same-origin";
@@ -29,7 +30,7 @@ export async function requireSavedKeysOwnerSession(required: { req: Request; res
  * owner and CSRF checks. Every outcome, including denial, remains non-cacheable.
  * @example app.post(`${root}/:shareId/password`, createSiteSharePasswordHandler({ deps }));
  */
-export function createSiteSharePasswordHandler(required: { deps: SavedKeysOwnerDeps & { siteShareBackend?: Pick<SiteShareBackend, "revealPassword"> } }, _optional: Record<string, never> = {}): RequestHandler {
+export function createSiteSharePasswordHandler(required: { deps: SavedKeysOwnerDeps & { siteShareBackend?: Pick<SiteShareBackend, "revealPassword">; tracker?: Pick<Tracker, "error"> } }, _optional: Record<string, never> = {}): RequestHandler {
   return async (req, res) => {
     try {
       if (!await requireSavedKeysOwnerSession({ req, res, deps: required.deps })) return;
@@ -37,10 +38,7 @@ export function createSiteSharePasswordHandler(required: { deps: SavedKeysOwnerD
       if (!backend) { res.status(503).json({ code: "UNAVAILABLE", message: "Saved keys are unavailable." }); return; }
       res.json(await backend.revealPassword({ principalId: getAuthedPrincipal(res).id, shareId: String(req.params.shareId) }));
     } catch (error) {
-      const code = error instanceof SiteShareRefusal ? error.code : "SHARE_FAILED";
-      const status = code === "NOT_FOUND" ? 404 : code === "FORBIDDEN" ? 403 : 400;
-      // Backend/provider errors can contain secrets. Return only the fixed public diagnosis.
-      res.status(status).json({ code, message: "Export password is unavailable for this site." });
+      sendSiteShareFailure({ res, error, tracker: required.deps.tracker }, { password: true });
     }
   };
 }

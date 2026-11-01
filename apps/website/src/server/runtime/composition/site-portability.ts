@@ -6,6 +6,7 @@ import { FIRST_PARTY_DATA_MODULES } from "./data-modules.js";
 import { restoreStagedImport as restoreWithLayout } from "#src/features/site-backup/import-restore";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import Database from "better-sqlite3";
+import { inMemoryReadableBytes } from "@jini-ai/db/transfer";
 import { homedir } from "node:os";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import type { StorageKernel } from "@jini-ai/db/kernel";
@@ -89,7 +90,8 @@ export function composeSiteSavedKeys(required: SavedKeysComposition, optional: S
   return createSiteSavedKeys({ ...required,
     trustedDefinitions: async () => [...await required.settingsRepo.listActiveDefinitions({ workspaceId: null }), ...await required.settingsRepo.listActiveDefinitions({ workspaceId: required.workspaceId })],
     openSnapshot: async ({ snapshot, workspaceId }) => {
-      const db = new Database(snapshot, { readonly: true });
+      // Complete snapshots retain the live site's WAL header; SQLite cannot deserialize that in memory.
+      const db = new Database(inMemoryReadableBytes({ bytes: snapshot }), { readonly: true });
       const kernel = sqliteKernel<ContentDatabase>(db);
       try {
         const store = await createSavedKeysStore({ ...required, workspaceId, kernel });

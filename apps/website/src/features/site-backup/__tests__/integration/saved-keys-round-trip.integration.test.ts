@@ -3,6 +3,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import express from "express";
+import { IncomingMessage, ServerResponse } from "node:http";
+import { PassThrough } from "node:stream";
+import type { Socket } from "node:net";
+import type { RouteDeps } from "../../../../server/routes/types.js";
+import { registerAdminSiteShareRoutes } from "../../../../server/inbound/admin-http/routes/system/site-shares.js";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { contentKernel } from "../../../../platform/db/content-kernel.js";
@@ -28,21 +34,51 @@ import { verifySiteImport } from "../../import-verifier.js";
 import { rebuildImportDatabase } from "../../../../server/runtime/composition/site-portability.js";
 import { runtimeSchemaVersion } from "../../../../platform/site-dir/schema-guard.js";
 
+/** Real admin handlers over an in-process stream; no listening socket is needed. */
+async function shareRequest(app: express.Express, endpoint: string, body: unknown) {
+  const socket = new PassThrough(), req = new IncomingMessage(socket as unknown as Socket);
+  req.method = "POST"; req.url = endpoint;
+  req.headers = { host: "localhost", origin: "http://localhost", "sec-fetch-site": "same-origin" };
+  Object.assign(req, { body }); req.push(null);
+  const res = new ServerResponse(req); res.assignSocket(socket as unknown as Socket);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await new Promise<any>((resolve, reject) => {
+      timer = setTimeout(() => reject(new Error("share request timeout")), 60000);
+      const chunks: Buffer[] = []; socket.on("data", chunk => chunks.push(Buffer.from(chunk)));
+      res.on("finish", () => {
+        try {
+          const wire = Buffer.concat(chunks).toString();
+          assert.equal(res.statusCode, 200, wire);
+          resolve(JSON.parse(wire.slice(wire.indexOf("\r\n\r\n") + 4)));
+        } catch (error) { reject(error); }
+      });
+      app(req, res);
+    });
+  } finally { clearTimeout(timer); socket.destroy(); }
+}
+
 for (const placement of ["inSite", "appData"] as const) for (const scenario of ["off", "correct", "wrong", "missing"] as const) {
   test(`real saved keys ${scenario} round trip (${placement})`, { timeout: 120000 }, async t => {
     const h = await importFixture(t, placement), workspaceId = "ws";
+    // Production sites use WAL. A memory-only source hides deserialization failures on export.
+    const sourcePath = path.join(h.root, "source.db");
+    fs.writeFileSync(sourcePath, h.db.$client.serialize());
+    const sourceDb = openContentDb({ filePath: sourcePath });
+    t.after(() => closeSqliteConnection(sourceDb));
+    assert.equal(sourceDb.$client.pragma("journal_mode", { simple: true }), "wal");
     const bearer = "roundTripCredentialValue987654321";
-    h.db.$client.prepare("UPDATE posts SET body_json=? WHERE id='post-0'").run(JSON.stringify({ text: "Authorization: Bearer " + bearer }));
+    sourceDb.$client.prepare("UPDATE posts SET body_json=? WHERE id='post-0'").run(JSON.stringify({ text: "Authorization: Bearer " + bearer }));
     const keyring = new FixedSiteKeyKeyring("11".repeat(32)), sealer = new AesGcmSecretSealer(keyring);
-    const source = await createSavedKeysStore({ kernel: contentKernel(h.db), workspaceId, keyring, sealer });
+    const source = await createSavedKeysStore({ kernel: contentKernel(sourceDb), workspaceId, keyring, sealer });
     const put = async (store: typeof source, id: string, label: string, token: string) => store.vault.put({ workspaceId: store.workspaceId, id,
       kind: "vendor", ownerKey: "tovu", principalId: null, binding: null, provider: "hosting", label, isDefault: false, expectedRevision: null,
       meta: { credentialType: "vendor", worksFor: ["hosting"] }, payload: { token } });
     const sourceToken = "ghp_" + "s".repeat(36), projectToken = "ghp_" + "p".repeat(36);
     await put(source, "site-key", "Hosting", sourceToken);
     const settingSecret = "current-site-setting-secret";
-    h.db.$client.prepare("INSERT INTO setting_definitions(setting_id,version,namespace,key,owner_kind,schema_json,default_json,scopes,secret,status,created_at,updated_at) VALUES ('saved-secret',1,'core.archive-fixture','secret','core',?,'null',2,1,'active',?,?)").run('{"type":"string"}', "2026-10-31T00:00:00Z", "2026-10-31T00:00:00Z");
-    h.db.$client.prepare("INSERT INTO setting_values_workspace(setting_id,workspace_id,value_json,state,def_version,seq,updated_by,updated_at) VALUES ('saved-secret','ws',?,'set',1,1,'owner',?)").run(JSON.stringify(settingSecret), "2026-10-31T00:00:00Z");
+    sourceDb.$client.prepare("INSERT INTO setting_definitions(setting_id,version,namespace,key,owner_kind,schema_json,default_json,scopes,secret,status,created_at,updated_at) VALUES ('saved-secret',1,'core.archive-fixture','secret','core',?,'null',2,1,'active',?,?)").run('{"type":"string"}', "2026-10-31T00:00:00Z", "2026-10-31T00:00:00Z");
+    sourceDb.$client.prepare("INSERT INTO setting_values_workspace(setting_id,workspace_id,value_json,state,def_version,seq,updated_by,updated_at) VALUES ('saved-secret','ws',?,'set',1,1,'owner',?)").run(JSON.stringify(settingSecret), "2026-10-31T00:00:00Z");
     const project = await openProjectStore({ sitesHome: h.workspace.home({}), home: h.root }); t.after(() => project.close({}));
     const projectKernel = openSqliteFileKernel<ContentDatabase>(project.dbPath); t.after(() => projectKernel.close());
     const projectKeys = await createSavedKeysStore({ kernel: projectKernel, ...project.vault });
@@ -61,13 +97,21 @@ for (const placement of ["inSite", "appData"] as const) for (const scenario of [
         sources: { siteDir: sourceDir, mediaUploadsDir: null, themesDir: path.join(sourceDir, "themes"), skillsDir: path.join(sourceDir, "skills"), agentPlugins: resolveAgentPluginLayout({ siteDir: sourceDir }, { env: {} }), tovuVersion: "test" },
         imageTransformer: { transform: async () => assert.fail("not raster") }, blobStore: { get: async () => MEDIA, sizeOf: async () => MEDIA.length },
         dbOps: { getCapabilities: async () => ({ restorePoint: { kind: "file-snapshot", costClass: "cheap" } }), captureRestorePoint: async () => {
-          const artifactRef = path.join(h.root, "snapshot.db"); fs.writeFileSync(artifactRef, h.db.$client.serialize()); return { artifactRef, watermarkAtCapture: 1 };
+          const artifactRef = path.join(h.root, "snapshot.db"); fs.writeFileSync(artifactRef, sourceDb.$client.serialize()); return { artifactRef, watermarkAtCapture: 1 };
         }, restoreFromArtifact: async () => assert.fail("must not restore source") },
       }, { signal: input.signal }),
     });
-    const exported = await backend.create({ principalId: "owner", signal: new AbortController().signal, includeSavedKeys: scenario !== "off" }, { waitMs: 60000 }) as any;
+    const app = express();
+    app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; res.locals.authCredentialKind = "session"; next(); });
+    registerAdminSiteShareRoutes({ app, deps: { workspaceId, ownerPrincipalId: "owner", siteShareBackend: backend, authorize: async () => ({ allowed: true }) } as unknown as RouteDeps });
+    const endpoint = `/api/admin/v1/workspaces/${workspaceId}/site-shares`;
+    let exported = await shareRequest(app, endpoint, { includeSavedKeys: scenario !== "off" });
+    while (exported.jobId) exported = await shareRequest(app, endpoint, { jobId: exported.jobId });
+    assert.equal(exported.hasEncryptedKeys === true, scenario !== "off");
+    assert.match(exported.shareId, /^[0-9a-f-]{36}$/);
+    assert.equal(exported.downloadUrl, `/api/admin/v1/workspaces/ws/site-shares/${exported.shareId}/download`);
     assert.match(exported.notices.join(), /posts\.body_json.*post-0/);
-    const password = scenario === "off" ? undefined : (await backend.revealPassword({ principalId: "owner", shareId: exported.shareId })).password;
+    const password = scenario === "off" ? undefined : (await shareRequest(app, `${endpoint}/${exported.shareId}/password`, {})).password;
     const archive = fs.readFileSync(shares.artifactPath(exported));
     const files = new Map<string, Buffer>();
     for await (const e of reader.entries({ archive })) if (e.kind === "file") {

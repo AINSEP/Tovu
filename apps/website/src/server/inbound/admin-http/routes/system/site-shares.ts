@@ -1,4 +1,5 @@
 import { createSiteSharePasswordHandler, requireSavedKeysOwnerSession } from "./site-share-password.js";
+import { sendSiteShareFailure } from "./site-share-errors.js";
 import express, { type Express, type Request, type Response } from "express";
 import type { RouteDeps } from "#src/server/routes/types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -43,7 +44,7 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
     if (!deps.siteShareBackend) { res.status(503).json({ code: "UNAVAILABLE", message: "Site sharing requires a site folder and private artifact storage." }); return false; }
     return true;
   };
-  const fail = (res: Response, error: unknown) => res.status(error instanceof SiteShareRefusal && error.code === "NOT_FOUND" ? 404 : error instanceof SiteShareRefusal && error.code === "FORBIDDEN" ? 403 : 400).json({ code: error instanceof SiteShareRefusal ? error.code : "SHARE_FAILED", message: error instanceof SiteShareRefusal ? error.message : "Share operation failed. Check storage configuration and retry." });
+  const fail = (res: Response, error: unknown) => sendSiteShareFailure({ res, error, tracker: deps.tracker });
   app.get(root, async (req, res) => {
     try { if (await gate(req, res)) res.json({ shares: await deps.siteShareBackend!.list({}) }); }
     catch (error) { fail(res, error); }
