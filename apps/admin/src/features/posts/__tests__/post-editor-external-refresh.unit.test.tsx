@@ -43,7 +43,7 @@ describe("usePostEditor — assistant edits while the editor is open", () => {
     await waitFor(() => expect(result.current.post?.version).toBe(4));
     expect(result.current.title).toBe("Assistant Title");
     expect(result.current.slug).toBe("assistant-title");
-    expect(result.current.editor.getText()).toContain("Rewritten by the assistant.");
+    expect(result.current.editor?.getText()).toContain("Rewritten by the assistant.");
     expect(result.current.dirty).toBe(false);
     expect(navigate).toHaveBeenCalledWith("/posts/assistant-title", { replace: true });
     // Same record: the panel keeps its key, so the editor is not remounted by the URL change.

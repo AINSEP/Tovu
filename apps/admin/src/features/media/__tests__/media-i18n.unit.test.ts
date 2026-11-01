@@ -78,7 +78,7 @@ describe("Media copy reaches the active locale", () => {
       });
       fireEvent.click(await screen.findByRole("button", { name: translate("Upload image or video") }));
       fireEvent.change(screen.getByLabelText(translate("File to upload")), { target: { files: [new File(["broken"], "broken.png", { type: "image/png" })] } });
-      fireEvent.click(screen.getByRole("button", { name: translate("Upload"), exact: true }));
+      fireEvent.click(screen.getByRole("button", { name: translate("Upload") }));
       // jsdom's DOMException follows describeApiError's existing non-Error fallback contract.
       expect(await screen.findByRole("alert")).toHaveTextContent(readFailure ? copy.upload : copy.read);
       expect(upload).not.toHaveBeenCalled();
@@ -89,7 +89,7 @@ describe("Media copy reaches the active locale", () => {
       vi.spyOn(port, "uploadMedia").mockRejectedValueOnce(new Error("Storage quota reached"));
       fireEvent.click(await screen.findByRole("button", { name: translate("Upload image or video") }));
       fireEvent.change(screen.getByLabelText(translate("File to upload")), { target: { files: [new File(["pixel"], "photo.png", { type: "image/png" })] } });
-      fireEvent.click(screen.getByRole("button", { name: translate("Upload"), exact: true }));
+      fireEvent.click(screen.getByRole("button", { name: translate("Upload") }));
       expect(await screen.findByRole("alert")).toHaveTextContent("Storage quota reached");
     });
   }

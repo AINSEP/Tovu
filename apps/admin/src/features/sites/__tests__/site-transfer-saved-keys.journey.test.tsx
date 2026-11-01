@@ -16,7 +16,7 @@ const share = { shareId: "share-1", file: "site.tovu.zip", bytes: 1024, url: nul
 const pending = { importId: "import-1", source: { uploadId: "upload-1" }, newSiteName: "copy", state: "needs-owner", hasEncryptedKeys: true, createdAt: "2026-10-31T12:00:00Z" };
 type Call = { path: string; method: string; body?: string; credentials?: RequestCredentials };
 
-function service({ owner = true, seededOwner = owner, carriesKeys = true, revealFails = false } = {}) {
+function service({ owner = true, seededOwner = owner, carriesKeys = true, revealFails = false }: { owner?: boolean; seededOwner?: boolean; carriesKeys?: boolean; revealFails?: boolean } = {}) {
   const calls: Call[] = [];
   let exported = false;
   let polled = false;

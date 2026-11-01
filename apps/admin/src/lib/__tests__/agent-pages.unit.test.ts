@@ -58,7 +58,7 @@ describe("ADMIN_AGENT_PAGE_PATHS", () => {
 
   it("still honors an explicit agentReachable: false under the flipped default", () => {
     // Keep the package's opt-out contract pinned independently of which live panels use it.
-    const map = buildAgentPageMap({ panels: [{ id: "opted-out", render: () => null, agentReachable: false }] }, { defaultReachable: true });
+    const map = buildAgentPageMap({ panels: [{ id: "opted-out", description: "Opted-out fixture panel.", render: () => null, agentReachable: false }] }, { defaultReachable: true });
 
     expect(map["opted-out"]).toBeUndefined();
   });

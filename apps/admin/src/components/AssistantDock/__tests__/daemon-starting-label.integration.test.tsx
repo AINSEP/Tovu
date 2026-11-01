@@ -46,7 +46,7 @@ function mountDock({ locale = "en", attached = true } = {}, _options = {}) {
     bridgeAccess: { subscribe: vi.fn(() => vi.fn()), respondSuccess: vi.fn(), respondError: vi.fn() },
   };
   const panes: PaneProps[] = [];
-  function PaneRecorder(props: PaneProps) { panes.push(props); return null; }
+  function PaneRecorder(props: PaneProps) { panes.push(props); return <></>; }
   const config = { ...DEFAULT_EXECUTION_CONFIG, mode: "local-cli" as const };
   const execution = {
     executionConfig: config, executionConfigRef: { current: config },

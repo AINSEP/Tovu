@@ -11,7 +11,7 @@ import { OverflowAwareMcpUiSurfaceCard } from "../../OverflowAwareMcpUiSurfaceCa
 vi.mock("@jini-ai/ui/mcp-ui", async original => ({
   ...await original<typeof import("@jini-ai/ui/mcp-ui")>(),
   McpUiHost: ({ onToolCall, title }: McpUiHostProps) => <section aria-label={title}>
-    <button onClick={() => void onToolCall?.({ name: "deployment_execute_static_publish", arguments: { decision: "confirm" } }).catch(() => {})}>Commit</button>
+    <button onClick={() => void Promise.resolve(onToolCall?.({ name: "deployment_execute_static_publish", arguments: { decision: "confirm" } })).catch(() => {})}>Commit</button>
     <button onClick={() => void onToolCall?.({ name: "deployment_execute_static_publish", arguments: { decision: "cancel" } })}>Decline</button>
   </section>,
 }));
