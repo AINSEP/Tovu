@@ -737,7 +737,7 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     const note = "Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.";
     const { ctrl, rerender } = renderEditor({ view: "preview", t: (key: string) => `T:${key}` });
     expect(screen.getAllByText(`T:${note}`)).toHaveLength(1);
-    expect(screen.getByText(`T:${note}`)).toHaveClass("field-hint");
+    expect(screen.getByText(`T:${note}`)).toHaveClass("field-hint", "editor-preview-note");
     ctrl.view = "html";
     rerender(<PageEditor slug="pg1" usePageEditorHook={() => ctrl} />);
     expect(screen.queryByText(`T:${note}`)).toBeNull();

@@ -1905,7 +1905,7 @@ function PostPreview({
     <>
       <div className="editor-shell post-editor-pane">
         {/* Keep the note inside the pane: its negative top margin would cover a preceding sibling. */}
-        <p className="field-hint">{t("Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.")}</p>
+        <p className="field-hint editor-preview-note">{t("Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.")}</p>
         <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth} expanded={expanded}>
           <PostPreviewFrame
             canShowLiveSite={canShowLiveSite}

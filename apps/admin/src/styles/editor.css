@@ -86,6 +86,12 @@
  * the card's border, radius and clipping, so the frame's own are dropped here to avoid a double edge. */
 .post-editor-pane > .page-preview-frame { border: 0; border-radius: 0; }
 
+/* The preview's "Cookie banner hidden…" note (`PostEditor.tsx`/`PageEditor.tsx`). Posts keep it inside
+ * the bordered pane, so it gets the pane's inner padding and a rule above the frame, as a caption
+ * strip; Pages put it above a frame that draws its own border, so it only needs the gap below. */
+.post-editor-pane > .editor-preview-note { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+.page-preview-surface > .editor-preview-note { margin-bottom: var(--space-2); }
+
 /* Preview fullscreen, Level 1 (2026-09-15 — `ADS-memory/.local-artifacts/handoffs/
    2026-09-15-preview-fullscreen-PLAN.md`). `position: absolute; inset: 0` against `.admin-main-col`
    (`styles.css` — see that rule's own comment for why its `position: relative` lives there, not

@@ -1269,7 +1269,7 @@ function PagePreview({
   return (
     <div className={expanded ? "page-preview-expanded" : "page-preview-host"}>
       <div className="page-preview-surface">
-        <p className="field-hint">{t("Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.")}</p>
+        <p className="field-hint editor-preview-note">{t("Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.")}</p>
         <div className="page-preview-stage">
           {/* Collapsed vs. expanded frame/scaler heights: see `devicePreviewFrameStyles`. */}
           <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth} expanded={expanded}>
