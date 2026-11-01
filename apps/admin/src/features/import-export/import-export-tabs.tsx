@@ -19,13 +19,6 @@ export function resolveImportExportTabId(tabId: string | null | undefined): Impo
   return resolveActiveTabId({ tabId: tabId, validIds: IMPORT_EXPORT_TAB_IDS, defaultId: "export" });
 }
 
-/**
- * Export / Import carry the sidebar's "Soon" tag (owner, 2026-10-18, on Sites: "greyed out for both
- * but you can still go to them and try it"); the move keeps it. Tagged tabs stay enabled; the grey
- * label comes from `.import-export-page` in `styles.css`. Set to `false` to drop both tags.
- */
-export const SITE_TRANSFER_TABS_SOON = true;
-
 /** Other — three dots, the plain "more" mark: the remaining ways out (static HTML, Git backup).
  *  Same 24px grid, 1.5 stroke and `aria-hidden` as `sites-visuals.tsx`, so it sits with the Export
  *  and Import glyphs; without it Other was the one icon-less row in an admin of icon-led tab bars. */
@@ -47,24 +40,20 @@ export function resolveImportExportTabs(
   { t }: { t: Translate },
   _options: Record<string, never> = {},
 ): TabBarTab[] {
-  const soonTag = SITE_TRANSFER_TABS_SOON ? t("Soon") : undefined;
-  const soonSuffix = SITE_TRANSFER_TABS_SOON ? " (coming soon)" : "";
   return [
     {
       id: "export",
       label: t("Export"),
       icon: <ExportSiteIcon />,
-      tag: soonTag,
       handle: "import-export-tab-export",
-      handleLabel: "Switch to the Export tab — make a .tovu.zip of this site and manage its share links" + soonSuffix,
+      handleLabel: "Switch to the Export tab — make a .tovu.zip of this site and manage its share links",
     },
     {
       id: "import",
       label: t("Import"),
       icon: <ImportSiteIcon />,
-      tag: soonTag,
       handle: "import-export-tab-import",
-      handleLabel: "Switch to the Import tab — import a share link, a .tovu.zip or a live website" + soonSuffix,
+      handleLabel: "Switch to the Import tab — import a share link, a .tovu.zip or a live website",
     },
     {
       id: "other",

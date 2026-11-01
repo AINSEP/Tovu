@@ -72,7 +72,7 @@ describe("Import & Export tabs (owner, 2026-10-25, option A)", () => {
     expect(screen.getByRole("tab", { name: /Export/ }).getAttribute("aria-selected")).toBe("true");
   });
 
-  it("tags Export and Import SOON, greyed by the page scope, and every tab navigates", () => {
+  it("shows Export and Import without a Soon tag (both work), and every tab navigates", () => {
     renderPanel("other");
     expect(document.querySelector(".page.import-export-page")).toBeTruthy();
     for (const [name, search] of [[/Export/, "?tab=export"], [/Import/, "?tab=import"], [/Other/, "?tab=other"]] as const) {
@@ -83,9 +83,10 @@ describe("Import & Export tabs (owner, 2026-10-25, option A)", () => {
       expect(window.location.search).toBe(search);
     }
     const tabs = resolveImportExportTabs({ t: (key) => key });
+    expect(tabs.every((tab) => !tab.handleLabel?.includes("coming soon"))).toBe(true);
     expect(tabs.map((tab) => [tab.id, tab.label, tab.tag, tab.handle])).toEqual([
-      ["export", "Export", "Soon", "import-export-tab-export"],
-      ["import", "Import", "Soon", "import-export-tab-import"],
+      ["export", "Export", undefined, "import-export-tab-export"],
+      ["import", "Import", undefined, "import-export-tab-import"],
       ["other", "Other", undefined, "import-export-tab-other"],
     ]);
   });
@@ -131,7 +132,8 @@ it("renders through the translator it is given", () => {
 it("carries every key in every locale", () => {
   const keys = Object.keys(IMPORT_EXPORT_DICT.es);
   for (const [locale, entries] of Object.entries(IMPORT_EXPORT_DICT)) expect(Object.keys(entries), locale).toEqual(keys);
-  expect(keys).toEqual(expect.arrayContaining(["Export", "Import", "Other", "Soon"]));
+  expect(keys).toEqual(expect.arrayContaining(["Export", "Import", "Other"]));
+  expect(keys).not.toContain("Soon");
   expect(t({ locale: "fr", key: "Open" })).toBe("Ouvrir");
   expect(t({ locale: "fr", key: "Other" })).toBe("Autres");
 });
