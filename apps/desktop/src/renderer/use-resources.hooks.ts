@@ -25,7 +25,8 @@ const browserPorts: ResourcesPorts = {
 /** A visibility change invalidates a pending reading; retry it before the next normal cadence. */
 function pollDelay({ currentVisibility, snapshot }: { currentVisibility: boolean; snapshot: ResourcesSnapshot | null }, _options = {}) {
   if (!currentVisibility) return 0;
-  return snapshot?.pollIntervalMs ?? 60_000;
+  // A failed IPC read has no main-process cadence; retry promptly instead of waiting a minute.
+  return snapshot?.pollIntervalMs ?? 5_000;
 }
 
 /**

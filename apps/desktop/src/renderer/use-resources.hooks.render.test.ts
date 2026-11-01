@@ -4,6 +4,7 @@ import { act } from 'react';
 import { renderHook, settle } from './dom-hook-harness.js';
 import { useResources, type ResourcesPorts } from './use-resources.hooks.js';
 import type { ResourcesRequest, ResourcesSnapshot } from '../contracts/resources.js';
+import { createDesktopResources } from '../desktop-resources.ts';
 
 const metrics = { rssBytes: 1_500_000_000, cpuPercent: null, memoryWarning: false, cpuWarning: false };
 const snapshot = (pollIntervalMs = 60_000): ResourcesSnapshot => ({
@@ -72,7 +73,7 @@ test('a panel change waits for an outstanding badge read and discards its result
   assert.equal([...f.timers.values()][0]!.delay, 5_000);
 });
 
-test('starts hidden without a read; failures withdraw stale data and retry at badge cadence', async (t) => {
+test('starts hidden without a read; IPC failures withdraw stale data and retry promptly', async (t) => {
   const f = fixture(); f.visibility(true);
   const hook = renderHook(t, () => useResources({ panelOpen: true }, { ports: f.ports }));
   await settle(); assert.equal(f.requests.length, 0);
@@ -80,7 +81,31 @@ test('starts hidden without a read; failures withdraw stale data and retry at ba
   f.setRead(async () => { throw new Error('fixture failure'); });
   f.tick(); await settle();
   assert.equal(hook.current(), null);
-  assert.equal([...f.timers.values()][0]!.delay, 60_000);
+  assert.equal([...f.timers.values()][0]!.delay, 5_000);
+});
+
+test('launch badge recovers from two initial sampler failures within ten seconds', async (t) => {
+  const f = fixture();
+  let at = 0, attempts = 0;
+  const monitor = createDesktopResources({ desktopPid: 1, platform: 'darwin', now: () => at,
+    totalMem: () => 8_000_000_000, openSites: () => [], listUsage: async () => {
+      if (++attempts <= 2) throw new Error('transient launch failure');
+      return [{ pid: 1, ppid: 0, rssBytes: 123_000_000, cpuSeconds: 0, name: 'Tovu' }];
+    } });
+  f.setRead(request => monitor.get(request));
+  const hook = renderHook(t, () => useResources({ panelOpen: false }, { ports: f.ports }));
+  await settle();
+  assert.equal(attempts, 1, 'launch requests its first reading immediately');
+  for (let retry = 0; retry < 2; retry++) {
+    const delay = [...f.timers.values()][0]!.delay;
+    assert.ok(delay <= 5_000, `an unavailable badge must retry promptly, got ${delay}ms`);
+    at += delay;
+    f.tick(); await settle();
+  }
+  assert.equal(attempts, 3, 'the main cache must also permit each recovery attempt');
+  assert.equal(hook.current()!.total.rssBytes, 123_000_000);
+  assert.ok(at <= 10_000);
+  assert.equal([...f.timers.values()][0]!.delay, 60_000, 'successful readings resume the cheap badge cadence');
 });
 
 test('a missing resource preload remains unavailable and creates no timer', async (t) => {

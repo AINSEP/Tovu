@@ -205,6 +205,27 @@ test('S2 sampler rejection returns unavailable without native error text and can
   assert.equal((await monitor.get({ panelOpen: true })).status, 'available');
 });
 
+test('collapsed launch failures use the bounded panel retry cadence, then restore the normal cache', async () => {
+  for (const platform of ['darwin', 'win32'] as const) {
+    const f = fixture({ platform });
+    const retryMs = platform === 'win32' ? 10_000 : 5_000;
+    f.rows([]);
+    const unavailable = await f.monitor.get({ panelOpen: false });
+    assert.equal(unavailable.status, 'unavailable');
+    assert.equal(unavailable.pollIntervalMs, retryMs);
+    f.advance(retryMs - 1);
+    await f.monitor.get({ panelOpen: false });
+    assert.equal(f.reads(), 1, 'eager callers cannot make failure recovery busy-poll');
+    f.advance(1); f.rows([usage(1, 0)]);
+    const recovered = await f.monitor.get({ panelOpen: false });
+    assert.equal(f.reads(), 2);
+    assert.equal(recovered.total.rssBytes, 100);
+    assert.equal(recovered.pollIntervalMs, 60_000);
+    f.advance(59_999); await f.monitor.get({ panelOpen: false });
+    assert.equal(f.reads(), 2, 'successful badge readings keep the original cheap cache');
+  }
+});
+
 test('the usage probe (ps; PowerShell on Windows) never counts itself, so the total CPU is measured', async () => {
   for (const [platform, probe] of [['darwin', 'ps'], ['win32', 'powershell.exe']] as const) {
     const f = fixture({ platform });

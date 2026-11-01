@@ -147,12 +147,14 @@ export function createDesktopResources(ports: DesktopResourcesPorts, _options = 
     async get({ panelOpen }: ResourcesRequest, _getOptions = {}): Promise<ResourcesSnapshot> {
       const panelIntervalMs = ports.platform === 'win32' ? 10_000 : 5_000;
       const pollIntervalMs = panelOpen ? panelIntervalMs : 60_000;
-      if (!inFlight && (!cached || ports.now() - lastAttempt >= pollIntervalMs)) {
+      // A launch-time failure must not strand the badge on a minute-long cached failure.
+      const retryIntervalMs = cached?.status === 'unavailable' ? panelIntervalMs : pollIntervalMs;
+      if (!inFlight && (!cached || ports.now() - lastAttempt >= retryIntervalMs)) {
         lastAttempt = ports.now();
         inFlight = sample({ pollIntervalMs }).finally(() => { inFlight = undefined; });
       }
       const snapshot = inFlight ? await inFlight : cached!;
-      return { ...snapshot, pollIntervalMs };
+      return { ...snapshot, pollIntervalMs: snapshot.status === 'unavailable' ? panelIntervalMs : pollIntervalMs };
     },
   };
 }
