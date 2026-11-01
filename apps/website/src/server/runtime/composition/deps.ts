@@ -2821,11 +2821,12 @@ async function composeSiteRouteDeps(
   });
   provideMediaCredentials(composePublishCredentialSource({ workspaceId, executionMode: routeDeps.publishExecutionMode,
     dbDeps: { repo: routeDeps.vendorCredentialSetRepo, sealer: siteAssistantSecretSealer, loadDeployTargets: routeDeps.loadDeployTargets } }));
+  // Shared by share capture/reveal and import restore; both nested configurators read this one port.
+  const savedKeys = composeSiteSavedKeys({ workspaceId, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, settingsRepo,
+    siteDir: resolvedSiteBinding.dir, projectVault, projectTransaction: projectStore?.transaction });
   configureSiteSharing({}, {});
 
   function configureSiteSharing(_required: Record<string, never>, _options = {}): void {
-    const savedKeys = composeSiteSavedKeys({ workspaceId, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, settingsRepo,
-      siteDir: resolvedSiteBinding.dir, projectVault, projectTransaction: projectStore?.transaction });
     if (routeDeps.siteBackupSources) {
       try {
         const contentRoots = [resolvedThemesDir, resolvedUploadsDir, agentPluginLayout.root, skillLayout.root, join(resolvedSiteBinding.dir, "plugins"), join(resolvedSiteBinding.dir, "overrides")];

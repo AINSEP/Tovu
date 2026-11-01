@@ -44,6 +44,9 @@ export interface ThemeToolDeps {
   packageThemesDir?: string;
 }
 
+/** The roster slice file moves and reloads read; Explore's content-route deps carry no active-theme reader. */
+export type ThemeRosterDeps = Pick<ThemeToolDeps, "themes" | "themesDir">;
+
 /** Raised when `themeId` names no discovered theme. Its own class so the handler layer can decorate
  * it with the published schema — a wrong id is a shape problem a different input fixes. */
 export class ThemeNotFoundError extends Error {
@@ -182,7 +185,7 @@ export function assertThemeFileWritable(theme: DiscoveredTheme, relativePath: st
  * page view). Returns the reloaded theme so the caller can report its `status`/`errors` in the same
  * turn.
  */
-export function reloadThemeInPlace(routeDeps: ThemeToolDeps, theme: DiscoveredTheme, themeId: string): DiscoveredTheme {
+export function reloadThemeInPlace(routeDeps: ThemeRosterDeps, theme: DiscoveredTheme, themeId: string): DiscoveredTheme {
   const reloaded = loadTheme({ themeDir: theme.dir, id: themeId, source: theme.source });
   const index = routeDeps.themes.findIndex((t) => t.manifest.id === themeId);
   if (index >= 0) routeDeps.themes[index] = reloaded;
@@ -204,7 +207,7 @@ export function reloadThemeInPlace(routeDeps: ThemeToolDeps, theme: DiscoveredTh
  * @example trashThemeFile({ deps, theme, relativePath: "pages/about.html" });
  */
 export function trashThemeFile(
-  { deps, theme, relativePath }: { deps: ThemeToolDeps; theme: DiscoveredTheme; relativePath: string },
+  { deps, theme, relativePath }: { deps: ThemeRosterDeps; theme: DiscoveredTheme; relativePath: string },
   _options: Record<string, never> = {},
 ): { trashedPath: string; reloaded: DiscoveredTheme } {
   const themeId = theme.manifest.id;

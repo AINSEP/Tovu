@@ -1,5 +1,5 @@
 import { ADMIN_PANELS } from "../../panels";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -80,6 +80,9 @@ describe("admin-screens.generated.ts (the server-side copy)", () => {
       ADMIN_SCREENS,
       "apps/website's admin-screens.generated.ts has drifted from ADMIN_PANELS — if the panel change was intentional, regenerate it: cd apps/admin && UPDATE_ADMIN_SCREENS_MANIFEST=1 npx vitest run src/lib/__tests__/admin-screens-manifest.unit.test.ts",
     ).toEqual(expected);
+    // Values alone miss hand edits that type-strip at runtime (a duplicated `import type` broke tsc
+    // on main 2026-11-01 while this guard stayed green), so the checked-in text must be the render.
+    expect(readFileSync(MANIFEST_PATH, "utf8"), "admin-screens.generated.ts was edited by hand — regenerate it (see above)").toBe(renderAdminScreensManifest(expected));
   });
 });
 

@@ -11,8 +11,6 @@
 
 import type { AgentNavigationScreen } from "@jini-ai/agentic";
 
-import type { AgentNavigationScreen } from "@jini-ai/agentic";
-
 export const ADMIN_SCREENS: readonly AgentNavigationScreen[] = [
   {"id":"dashboard","label":"Overview","description":"Review site status, recent activity and useful next steps.","path":"/","routeTemplates":["/"],"allowedQueryParams":{},"entityTargets":[]},
   {"id":"sites","label":"Sites","description":"Manage sites and switch between connected workspaces.","path":"/sites","routeTemplates":["/sites"],"allowedQueryParams":{"tab":null},"entityTargets":[]},

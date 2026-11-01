@@ -13,6 +13,8 @@ export interface StaticDownloadCopy {
   siteSlug?: string;
   themeId?: string;
   publicOrigin?: string;
+  /** Serving prefix the export was rendered under; stripped before ZIP file lookup. */
+  basePath?: string;
   metadata?: Omit<StaticSiteMetadata, "exportedAt"> & { exportedAt?: string };
   readme?: { name: string; words?: string };
 }
