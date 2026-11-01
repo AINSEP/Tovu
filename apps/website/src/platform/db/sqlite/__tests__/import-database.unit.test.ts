@@ -20,8 +20,27 @@ const plenty = async () => ({ bavail: 1024 * 1024, bsize: 4096 });
 test("the isolated worker's redacted diagnostic reaches server stderr without entering the public refusal", async () => {
   const { stdout, stderr } = await promisify(execFile)(process.execPath, ["--import", "tsx", fileURLToPath(new URL("./import-database-logging.fixture.ts", import.meta.url))]);
   assert.match(stderr, /Portable schema diagnostic \[REDACTED\]/);
+  assert.match(stderr, /\[site-share\] Cannot build portable plugin schema/);
+  assert.match(stderr, /SQLITE_ERROR \/private\/site\/content.db token=\[REDACTED/);
+  assert.doesNotMatch(stderr + stdout, /sk-proj-a{64}/);
   assert.equal(stdout.trim(), "Import database refused: Cannot build portable plugin schema.");
   assert.doesNotMatch(stdout, /diagnostic/);
+});
+
+test("an uncaught import worker error is redacted before reaching server logs", async () => {
+  const { stdout, stderr } = await promisify(execFile)(process.execPath, ["--import", "tsx", fileURLToPath(new URL("./import-database-logging.fixture.ts", import.meta.url)), "crash"]);
+  assert.match(stderr, /Archive failure \[REDACTED/);
+  assert.doesNotMatch(stderr + stdout, /sk-proj-a{64}/);
+  assert.equal(stdout.trim(), "Import database has unsupported schema, invalid references or unsafe data.");
+});
+
+test("worker stderr sanitizes complete lines across writes and flushes a bounded final line", async () => {
+  const { stderr } = await promisify(execFile)(process.execPath, ["--import", "tsx", fileURLToPath(new URL("./import-database-logging.fixture.ts", import.meta.url)), "warning"]);
+  assert.match(stderr, /Warning: \[REDACTED/);
+  // Any key prefix counts: a control-joined key clipped at 120 characters must not leak its head.
+  assert.doesNotMatch(stderr, /sk-proj-a|[\u202e\u0000]/);
+  const final = stderr.trimEnd().split("\n").at(-1)!;
+  assert.equal(final, "Archive " + "!".repeat(111) + "…");
 });
 
 /** A forked helper stand-in: runs `behave` with the disposable root, then reports `exit`. */

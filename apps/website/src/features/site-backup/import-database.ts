@@ -3,10 +3,14 @@ import { mkdtemp, writeFile, readFile, rm, statfs } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { SHARE_LIMITS, SHARE_VERSION_MISMATCH_MESSAGE, IMPORT_SCHEMA_MISMATCH_EXIT_CODE, IMPORT_REFUSAL_EXIT_CODE, SiteShareRefusal, type ShareDatabaseProjection } from "#src/features/site-backup/share-policy";
+import { createInterface } from "node:readline";
+import type { Readable } from "node:stream";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { SHARE_LIMITS, SHARE_VERSION_MISMATCH_MESSAGE, IMPORT_SCHEMA_MISMATCH_EXIT_CODE, IMPORT_REFUSAL_EXIT_CODE, SiteShareRefusal, archiveRefusalName, type ShareDatabaseProjection } from "#src/features/site-backup/share-policy";
 
 /** The slice of a forked helper this module drives: its failure/exit events and a kill switch. */
 export interface ImportWorkerChild {
+  readonly stderr?: Readable | null;
   once(event: "error", listener: (error: Error) => void): unknown;
   once(event: "close", listener: (code: number | null) => void): unknown;
   kill(signal: NodeJS.Signals): unknown;
@@ -59,13 +63,21 @@ export async function rebuildImportDatabase(required: { snapshot: Buffer; module
       const child = fork(helper, [root], {
         execArgv,
         // Trusted code logs redacted diagnostics to stderr; keep them in server logs,
-        // independently of the fixed public refusal written to refusal.txt.
-        stdio: ["ignore", "ignore", "inherit", "ipc"],
+        // independently of the fixed public refusal written to refusal.txt. Crashes and
+        // native warnings bypass worker logging, so the parent sanitizes every line.
+        stdio: ["ignore", "ignore", "pipe", "ipc"],
         // No inherited deployment credentials, startup injection or archived executable input.
         env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, TMPDIR: root, TMP: root, TEMP: root,
           HOME: root, USERPROFILE: root, TOVU_DESKTOP_USER_DATA_DIR: path.join(root, "profile"),
           XDG_DATA_HOME: path.join(root, "data"), XDG_CONFIG_HOME: path.join(root, "config"), APPDATA: path.join(root, "appdata"),
         },
+      });
+      if (child.stderr) createInterface({ input: child.stderr, crlfDelay: Infinity }).on("line", line => {
+        // Redact the raw line (stripping a tab can break a shape like "Bearer\t<token>"), then
+        // the control-free form (stripping can join key fragments), and only then truncate:
+        // clipping a credential first could hide its recognizable shape and leak its head.
+        const visible = redactSecretShapes({ text: line }).text.replace(/[\p{Cc}\p{Cf}]/gu, "");
+        console.error(archiveRefusalName({ name: redactSecretShapes({ text: visible }).text }));
       });
       let reason: unknown;
       const abort = () => { reason = new SiteShareRefusal({ code: "CANCELLED", message: "Import database verification was cancelled." }); child.kill("SIGKILL"); };

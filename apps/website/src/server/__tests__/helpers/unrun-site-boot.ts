@@ -100,21 +100,27 @@ export async function bootSite(t: TestContext, dialect: SiteDialect, optional: {
     themesDir: path.join(siteDir, "themes"),
     siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
   });
-  t.after(async () => {
-    await drainBootReadiness(deps).catch(() => undefined);
-    await Promise.all(appBootWork);
-    await closeSiteDirBoot(boot, composed).catch(() => undefined);
-    if (savedSocketEnv === undefined) delete process.env[PG_SOCKET_ENV];
-    else process.env[PG_SOCKET_ENV] = savedSocketEnv;
-    fs.rmSync(parent, { recursive: true, force: true });
-    fs.rmSync(socketDir, { recursive: true, force: true });
-  });
-  await drainBootReadiness(deps);
-
-  optional.configureDeps?.(deps);
-
-  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps, { onBootWork: (work) => appBootWork.push(work) }), t);
-  return { deps, baseUrl, cookie, ws: `/api/admin/v1/workspaces/${deps.workspaceId}`, siteDir };
+  try {
+    await drainBootReadiness(deps);
+    optional.configureDeps?.(deps);
+    const { baseUrl, cookie } = await bootAuthenticated(createApp(deps, { onBootWork: (work) => appBootWork.push(work) }), t);
+    return { deps, baseUrl, cookie, ws: `/api/admin/v1/workspaces/${deps.workspaceId}`, siteDir };
+  } finally {
+    // Register after HTTP teardown, even if login fails: node:test skips hooks after one throws.
+    t.after(async () => {
+      try {
+        await drainBootReadiness(deps).catch(() => undefined);
+        await Promise.all(appBootWork);
+      } finally {
+        // A rejected boot pass must still close the store and restore process-global fixtures.
+        await closeSiteDirBoot(boot, composed).catch(() => undefined);
+        if (savedSocketEnv === undefined) delete process.env[PG_SOCKET_ENV];
+        else process.env[PG_SOCKET_ENV] = savedSocketEnv;
+        try { fs.rmSync(parent, { recursive: true, force: true }); }
+        finally { fs.rmSync(socketDir, { recursive: true, force: true }); }
+      }
+    });
+  }
 }
 
 /** One JSON request with the session cookie; `body` omitted sends no content-type. */
