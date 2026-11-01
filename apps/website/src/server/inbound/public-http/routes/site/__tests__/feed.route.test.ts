@@ -48,24 +48,26 @@ function post(overrides: Partial<PostRecord>): PostRecord {
   } as unknown as PostRecord;
 }
 
-async function fetchFeed(t: test.TestContext, posts: PostRecord[]): Promise<{ res: Response; body: string }> {
+async function fetchFeed(t: test.TestContext, posts: PostRecord[]): Promise<{ res: Response; body: string; baseUrl: string }> {
   const app = await buildFeedOnlyApp({ postRepo: new InMemoryPostRepo(posts) });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/feed.xml`);
-  return { res, body: await res.text() };
+  return { res, body: await res.text(), baseUrl };
 }
 
 test("GET /feed.xml: RSS 2.0 with the sitemap's cache header, an absolute item link, date and excerpt", async (t) => {
-  const { res, body } = await fetchFeed(t, [post({})]);
+  const { res, body, baseUrl } = await fetchFeed(t, [post({})]);
+  // 315c5ab12: live feed URLs use the request's serving origin, not the seeded localhost:3000.
+  const origin = baseUrl.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
   assert.equal(res.status, 200);
   assert.match(res.headers.get("content-type") ?? "", /^application\/rss\+xml/);
   assert.equal(res.headers.get("cache-control"), "public, max-age=60, stale-while-revalidate=300");
   assert.match(body, /^<\?xml version="1\.0" encoding="UTF-8"\?>\n<rss version="2\.0" xmlns:atom="http:\/\/www\.w3\.org\/2005\/Atom">/);
-  assert.match(body, /<atom:link href="http:\/\/localhost:3000\/feed\.xml" rel="self" type="application\/rss\+xml"\/>/);
-  assert.match(body, /<channel>\n {4}<title>Field &amp; Notes<\/title>\n {4}<link>http:\/\/localhost:3000\/<\/link>/);
+  assert.ok(body.includes(`<atom:link href="${baseUrl}/feed.xml" rel="self" type="application/rss+xml"/>`), "self link uses the serving origin");
+  assert.match(body, new RegExp(`<channel>\\n {4}<title>Field &amp; Notes</title>\\n {4}<link>${origin}/</link>`));
   assert.match(
     body,
-    /<item>\n {6}<title>A post<\/title>\n {6}<link>http:\/\/localhost:3000\/a-post<\/link>\n {6}<guid isPermaLink="true">http:\/\/localhost:3000\/a-post<\/guid>\n {6}<pubDate>Tue, 01 Sep 2026 10:00:00 GMT<\/pubDate>\n {6}<description>First paragraph text\.<\/description>\n {4}<\/item>/
+    new RegExp(`<item>\\n {6}<title>A post</title>\\n {6}<link>${origin}/a-post</link>\\n {6}<guid isPermaLink="true">${origin}/a-post</guid>\\n {6}<pubDate>Tue, 01 Sep 2026 10:00:00 GMT</pubDate>\\n {6}<description>First paragraph text\\.</description>\\n {4}</item>`)
   );
 });
 

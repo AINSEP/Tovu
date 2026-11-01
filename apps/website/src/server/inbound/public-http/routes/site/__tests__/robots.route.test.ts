@@ -2,6 +2,7 @@ import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-h
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
 import assert from "node:assert/strict";
+import http from "node:http";
 import test from "node:test";
 
 import express from "express";
@@ -34,7 +35,22 @@ import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } 
  * seeded workspace, so the two tests below that use it now assert the ABSOLUTE `Sitemap:` line —
  * this is the real, deliberate behavior change this fix ships, not test drift. The dedicated
  * no-verified-origin test further down proves the disclosed relative-path fallback is unchanged.
+ *
+ * 315c5ab12: live robots.txt uses the request's serving origin (`seoForRequest`), so a normal request
+ * advertises the test server's own origin. The stored/verified-origin fallback (and its relative-path
+ * degradation) now applies only when the Host cannot form a URL, so those two tests send a malformed Host.
  */
+
+/** GET with a Host header `fetch` refuses to send; a port above 65535 cannot form a URL. */
+function getWithMalformedHost(baseUrl: string, pathname: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const request = http.get(new URL(pathname, baseUrl), { headers: { host: "bad.example:99999" } }, (res) => {
+      let body = "";
+      res.setEncoding("utf8").on("data", (chunk: string) => { body += chunk; }).on("end", () => resolve(body));
+    });
+    request.on("error", reject);
+  });
+}
 
 test("GET /robots.txt: a rule with only `allow` and a rule with only `disallow` each emit just their one directive, and the sitemap is still advertised", async (t) => {
   const deps: ReturnType<typeof createRouteDeps> = createRouteDeps();
@@ -58,7 +74,7 @@ test("GET /robots.txt: a rule with only `allow` and a rule with only `disallow` 
   const body = await res.text();
   assert.equal(
     body,
-    "User-agent: *\nAllow: /\n\nUser-agent: Googlebot\nDisallow: /private\n\nSitemap: http://localhost:3000/sitemap.xml\n"
+    `User-agent: *\nAllow: /\n\nUser-agent: Googlebot\nDisallow: /private\n\nSitemap: ${baseUrl}/sitemap.xml\n`
   );
 });
 
@@ -104,16 +120,16 @@ class NoOriginRegistry implements OriginRegistryPort {
   }
 }
 
-test("GET /robots.txt: with NO verified origin registered, the Sitemap URL degrades to the bare relative path (disclosed fallback, 2026-09-04 fix)", async (t) => {
+test("GET /robots.txt: with NO verified origin and a Host that cannot form a URL, the Sitemap URL degrades to the bare relative path (disclosed fallback, 2026-09-04 fix)", async (t) => {
   const app = buildRobotsOnlyApp({ originRegistry: new NoOriginRegistry() });
   const baseUrl = await startTestServer(app, t);
 
-  const res = await fetch(`${baseUrl}/robots.txt`);
-  assert.equal(res.status, 200);
-  assert.match(await res.text(), /^Sitemap: \/sitemap\.xml\n$/m);
+  assert.match(await getWithMalformedHost(baseUrl, "/robots.txt"), /^Sitemap: \/sitemap\.xml\n$/m);
+  // A well-formed request still advertises its own serving origin, never the registry state.
+  assert.ok((await (await fetch(`${baseUrl}/robots.txt`)).text()).split("\n").includes(`Sitemap: ${baseUrl}/sitemap.xml`));
 });
 
-test("GET /robots.txt: with a verified origin, the Sitemap URL is absolute (2026-09-04 fix)", async (t) => {
+test("GET /robots.txt: with a verified origin and a Host that cannot form a URL, the Sitemap URL falls back to that absolute origin (2026-09-04 fix)", async (t) => {
   const verifiedOrigin: VerifiedOrigin = {
     scheme: "https",
     host: "example.test",
@@ -135,9 +151,11 @@ test("GET /robots.txt: with a verified origin, the Sitemap URL is absolute (2026
   });
   const baseUrl = await startTestServer(app, t);
 
+  assert.match(await getWithMalformedHost(baseUrl, "/robots.txt"), /^Sitemap: https:\/\/example\.test\/sitemap\.xml\n$/m);
+  // The verified origin is only the fallback: a normal request uses its serving origin.
   const res = await fetch(`${baseUrl}/robots.txt`);
   assert.equal(res.status, 200);
-  assert.match(await res.text(), /^Sitemap: https:\/\/example\.test\/sitemap\.xml\n$/m);
+  assert.ok((await res.text()).split("\n").includes(`Sitemap: ${baseUrl}/sitemap.xml`));
 });
 
 test("GET /robots.txt: a settings-read failure is caught and reported as a plain-text 500, not an uncaught rejection", async (t) => {
