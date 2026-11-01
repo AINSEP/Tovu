@@ -14,7 +14,7 @@ async function fixture({ t }: { t: TestContext }, { overrides = {}, principal = 
     async start(input) { calls.push(["start", input]); return STATE; },
     async stop(input) { calls.push(["stop", input]); return STATE; },
     async withStoppedSite({ name, task }) { calls.push(["stopped", name]); return task(); },
-    list: () => [], shutdown: async () => {}, killNow() {},
+    list: () => [], shutdown: async () => {}, killNow() {}, resume: async () => {},
   };
   const deps: LocalSitesRouteDeps = {
     workspaceId: "ws", siteBinding: { name: "owner", dir: "/repo/sites/owner", dirOverridden: false, switcherCompatible: true },

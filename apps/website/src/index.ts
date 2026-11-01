@@ -1,7 +1,7 @@
 import { reportSitesSyncWarning } from "./platform/site-dir/sites-home.js";
 import { pinDefaultSiteRoot } from "./platform/site-dir/index.js";
 import { claimSiteRunning } from "./platform/site-dir/site-running.js";
-import { shutdownLocalSiteHosts } from "./server/runtime/lifecycle/local-site-host.js";
+import { resumeLocalSitesForHost, shutdownLocalSiteHosts } from "./server/runtime/lifecycle/local-site-host.js";
 import { createServer as createHttpServer } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
 import { resolve as resolvePath } from "node:path";
@@ -347,6 +347,9 @@ async function main(): Promise<void> {
   function onListening() {
     const store = useMemory ? "in-memory" : `sqlite (${defaultContentDbPath()})`;
     console.log(`tovu server running on ${devScheme}://localhost:${port} — store: ${store}`);
+    // Watch restarts keep dev.mjs's session; boot must not wait for a Sites request to recover.
+    const cancelSiteResume = resumeLocalSitesForHost({ binding: deps.siteBinding });
+    server.once("close", cancelSiteResume);
 
     // Cold registration retains readiness before spawn: listening says nothing about whether the
     // boot-time seeders have settled, and spawning the daemon early raced them (duplicate identity

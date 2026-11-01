@@ -1,5 +1,5 @@
 /** Serving-host ownership: one supervisor per binding, not one per HTTP request or route import. */
-import { createLocalSiteSupervisor, type LocalSiteSupervisorPort } from "#src/platform/site-dir/index";
+import { createLocalSiteIntentStore, createLocalSiteSupervisor, type LocalSiteSupervisorPort } from "#src/platform/site-dir/index";
 import { switcherBaseForBinding, type SiteBinding, isSiteSwitcherEnabled } from "#src/platform/site-dir/index";
 import { resolveCheckoutRoot } from "#src/platform/site-dir/product-root";
 import { resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
@@ -19,7 +19,9 @@ export function localSiteSupervisorForHost({ binding }: { binding: SiteBinding }
     process.env.JINI_AGENT_DAEMON_URL ? new URL(process.env.JINI_AGENT_DAEMON_URL).port : undefined]
     .filter((value) => value !== undefined).map(Number);
   const supervisor = createLocalSiteSupervisor({ processPort: createLocalSiteProcessPort({ switcherBase: base }), servingName: binding.name, scheme: tls.active ? "https" : "http" },
-    { maxConcurrent: Number(process.env.TOVU_LOCAL_SITE_LIMIT ?? 3), excludedPorts });
+    { maxConcurrent: Number(process.env.TOVU_LOCAL_SITE_LIMIT ?? 3), excludedPorts,
+      ...(process.env.TOVU_DEV_SUPERVISOR_PID ? { devSession: process.env.TOVU_DEV_SUPERVISOR_PID,
+        intentPort: createLocalSiteIntentStore({ servingSiteDir: binding.dir }) } : {}) });
   // Run before daemon/store exit handlers can call process.exit; the adapter signals synchronously.
   const shutdown = () => { void supervisor.shutdown().catch(() => {}); };
   const killNow = () => supervisor.killNow();
@@ -31,6 +33,24 @@ export function localSiteSupervisorForHost({ binding }: { binding: SiteBinding }
   };
   hosts.set(binding.dir, { supervisor, detach });
   return supervisor;
+}
+
+/** Called after the API listens: assemble eagerly, then let the old host's tree release its lease.
+ * Outside the dev.mjs session this does nothing, including no host assembly or filesystem access.
+ * Returns a cancellation for listener closure. @complexity O(1) scheduling; supervisor owns recovery.
+ */
+export function resumeLocalSitesForHost(
+  { binding }: { binding: SiteBinding },
+  { env = process.env, forHost = localSiteSupervisorForHost }: { env?: NodeJS.ProcessEnv; forHost?: typeof localSiteSupervisorForHost } = {},
+): () => void {
+  if (!env.TOVU_DEV_SUPERVISOR_PID) return () => {};
+  const supervisor = forHost({ binding });
+  if (!supervisor) return () => {};
+  const timer = setTimeout(() => {
+    void supervisor.resume().catch(error => console.error("Local site resume failed:", error));
+  }, 2000);
+  timer.unref();
+  return () => clearTimeout(timer);
 }
 
 /** Listener closure is terminal for its children even when the host process stays alive. A shut

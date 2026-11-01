@@ -2,6 +2,7 @@
  * Capacity and folder mutations share one lane so concurrent requests cannot trash a starting site.
  */
 import { SITE_NAME_PATTERN } from "./site-registry.js";
+import type { LocalSiteIntentPort } from "./local-site-intent.js";
 
 export type LocalSiteStatus = "starting" | "running" | "stopped" | "crashed";
 export interface LocalSiteState {
@@ -43,6 +44,8 @@ export interface LocalSiteSupervisorPort {
   withStoppedSite<T>(required: { name: string; task: () => Promise<T> }, optional?: Record<string, never>): Promise<T>;
   shutdown(): Promise<void>;
   killNow(): void;
+  /** One same-dev-session recovery pass; the host calls this after its boot delay. */
+  resume(): Promise<void>;
 }
 interface Entry { state: LocalSiteState; child?: LocalSiteProcess; cancel?: () => void; probes: number; misses: number }
 
@@ -54,12 +57,14 @@ export function assertLocalSiteName({ name }: { name: string }, _optional = {}):
 /** Create a host-owned lifecycle with a bounded scan and DI effects. @complexity O(s) per list/cap. */
 export function createLocalSiteSupervisor(
   { processPort, servingName, scheme }: { processPort: LocalSiteProcessPort; servingName: string; scheme: "http" | "https" },
-  { maxConcurrent = 3, excludedPorts = [], readyAttempts = 240 }: { maxConcurrent?: number; excludedPorts?: readonly number[]; readyAttempts?: number } = {},
+  { maxConcurrent = 3, excludedPorts = [], readyAttempts = 240, devSession, intentPort = { read: () => undefined, write: () => {} } }:
+  { maxConcurrent?: number; excludedPorts?: readonly number[]; readyAttempts?: number; devSession?: string; intentPort?: LocalSiteIntentPort } = {},
 ): LocalSiteSupervisorPort {
   if (!Number.isInteger(maxConcurrent) || maxConcurrent < 1 || maxConcurrent > 20) throw new LocalSiteError("INVALID_SITE_LIMIT");
   const entries = new Map<string, Entry>();
   const reserved = new Set([3000, 5173, 4319, ...excludedPorts]);
   let closed = false;
+  let resumed = false;
   let lane: Promise<unknown> = Promise.resolve();
   function serial<T>(task: () => Promise<T>): Promise<T> {
     const next = lane.then(task);
@@ -71,7 +76,11 @@ export function createLocalSiteSupervisor(
     if (name === servingName) throw new LocalSiteError("SITE_SERVING");
     if (closed) throw new LocalSiteError("SITE_HOST_STOPPING");
   }
-  async function allocate(): Promise<number> {
+  async function allocate(preferred?: number): Promise<number> {
+    if (preferred !== undefined && !reserved.has(preferred) && await processPort.isPortFree({ port: preferred })) {
+      reserved.add(preferred);
+      return preferred;
+    }
     for (let port = 3101; port < 4101; port++) {
       if (reserved.has(port) || !(await processPort.isPortFree({ port }))) continue;
       reserved.add(port);
@@ -90,6 +99,8 @@ export function createLocalSiteSupervisor(
     entry.state = { ...entry.state, status, pid: null, port: null, daemonPort: null, adminUrl: null };
   }
   function crash(entry: Entry) {
+    if (closed) return;
+    updateIntent({ name: entry.state.name });
     entry.state.status = "crashed";
     entry.cancel?.();
     const child = entry.child;
@@ -110,16 +121,22 @@ export function createLocalSiteSupervisor(
   function scheduleProbe(entry: Entry) {
     entry.cancel = processPort.schedule({ run: () => { void probe(entry); }, delayMs: entry.state.status === "starting" ? 500 : 5000 });
   }
-  async function start(name: string): Promise<LocalSiteState> {
+  async function start(name: string, preferred?: number): Promise<LocalSiteState> {
     checkName(name);
     const current = currentState(name);
     if (current) return current;
-    if ([...entries.values()].filter((entry) => entry.child || entry.state.status === "starting").length >= maxConcurrent) throw new LocalSiteError("SITE_LIMIT");
+    if ([...entries.values()].filter((entry) => entry.child || entry.state.status === "starting").length >= maxConcurrent) {
+      // Admission failures also withdraw a pending request, before there is an Entry to reap.
+      updateIntent({ name });
+      throw new LocalSiteError("SITE_LIMIT");
+    }
     const entry: Entry = { state: { name, status: "starting", pid: null, port: null, daemonPort: null, adminUrl: null }, probes: 0, misses: 0 };
     entries.set(name, entry);
     try {
-      return await launch(entry);
+      return await launch(entry, preferred);
     } catch (error) {
+      // A watch restart is host teardown, not a failed user start: retain even mid-spawn intent.
+      if (!closed) updateIntent({ name });
       await reap(entry, "crashed");
       const foreign = processPort.existing?.({ name });
       if (foreign) return foreign;
@@ -136,10 +153,11 @@ export function createLocalSiteSupervisor(
     if (previous.state.status === "crashed") throw new LocalSiteError("SITE_STOP_FAILED");
     return { ...previous.state };
   }
-  async function launch(entry: Entry): Promise<LocalSiteState> {
+  async function launch(entry: Entry, preferred?: number): Promise<LocalSiteState> {
     const { name } = entry.state;
-    const port = await allocate();
+    const port = await allocate(preferred);
     entry.state.port = port;
+    updateIntent({ name, port });
     const daemonPort = await allocate();
     entry.state.daemonPort = daemonPort;
     if (closed) throw new LocalSiteError("SITE_HOST_STOPPING");
@@ -152,11 +170,46 @@ export function createLocalSiteSupervisor(
     scheduleProbe(entry);
     return { ...entry.state };
   }
+  /** Synchronous snapshot updates cannot interleave; no dev session means no reads or writes.
+   * @complexity O(s) time/space per update, for the persisted sites.
+   */
+  function updateIntent({ name, port }: { name: string; port?: number }) {
+    if (!devSession) return;
+    const stored = intentPort.read();
+    const sites = stored?.session === devSession ? { ...stored.sites } : {};
+    if (port === undefined) delete sites[name];
+    else sites[name] = { port };
+    intentPort.write({ intent: { session: devSession, sites } });
+  }
+  /** Give the old tree/lease five seconds to disappear before trying a different free port.
+   * @complexity O(1): at most 11 probes and ten 500 ms waits.
+   */
+  async function preferredPort(name: string, port: number): Promise<number | undefined> {
+    for (let attempt = 0; attempt <= 10; attempt++) {
+      if (closed || reserved.has(port)) return undefined;
+      if (!processPort.existing?.({ name }) && await processPort.isPortFree({ port })) return port;
+      if (attempt < 10) await new Promise<void>(resolve => { processPort.schedule({ run: resolve, delayMs: 500 }); });
+    }
+    return undefined;
+  }
+  /** Recheck intent inside the lane so an explicit Stop wins over a queued recovery.
+   * @complexity O(s + p), persisted snapshot plus the existing bounded port scan.
+   */
+  async function resumeSite(name: string) {
+    if (closed || entries.get(name)?.child) return;
+    const stored = intentPort.read();
+    const site = stored && stored.session === devSession ? stored.sites[name] : undefined;
+    if (!site) return;
+    try { await start(name, await preferredPort(name, site.port)); }
+    catch { if (!closed) updateIntent({ name }); } // Failed recovery is withdrawn, never retried on the next save.
+  }
   const supervisor: LocalSiteSupervisorPort = {
     start: ({ name }) => serial(() => start(name)),
     stop: ({ name }) => serial(async () => {
       checkName(name);
       const entry = entries.get(name);
+      // Withdraw the request even if the old host still owns the tree and cannot be signalled here.
+      updateIntent({ name });
       if (!entry?.child && processPort.existing?.({ name })) throw new LocalSiteError("SITE_RUNNING_ELSEWHERE");
       if (!entry) return { name, status: "stopped", pid: null, port: null, daemonPort: null, adminUrl: null };
       // Withdraw exit observation before signalling, so a deliberate stop never becomes a crash.
@@ -176,6 +229,13 @@ export function createLocalSiteSupervisor(
       return task();
     }),
     killNow() { closed = true; for (const entry of entries.values()) { entry.cancel?.(); entry.state.status = "stopped"; entry.child?.killNow(); } },
+    async resume() {
+      if (resumed || closed || !devSession) return;
+      resumed = true;
+      const stored = intentPort.read();
+      if (stored?.session !== devSession) return;
+      for (const name of Object.keys(stored.sites)) await serial(() => resumeSite(name));
+    },
     shutdown() {
       supervisor.killNow();
       return serial(async () => {

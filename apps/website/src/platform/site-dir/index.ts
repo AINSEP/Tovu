@@ -118,6 +118,8 @@ export {
   type LocalSiteProcessPort,
   type LocalSiteProcess,
 } from "./local-site-supervisor.js";
+// Serving-host boot binds this site's dev-session persistence through the public site-dir door.
+export { createLocalSiteIntentStore } from "./local-site-intent.js";
 export {
   trashSite,
   restoreSite,
