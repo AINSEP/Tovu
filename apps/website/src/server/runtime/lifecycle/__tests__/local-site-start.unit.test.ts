@@ -34,6 +34,8 @@ for (const outcome of ["ready", "exit", "supplied", "delayed-lock"] as const) {
     });
     t.after(() => local.dispose!());
     const launched = await local.launch({ name: "slow", port: 3101, daemonPort: 3102 });
+    assert.match(path.basename(runtimeDir), new RegExp(`^tovu-local-sites-${process.pid}-[A-Za-z0-9]{6}$`),
+      "a runtime records its host owner before any child can use the bundle");
     const root = path.join(runtimeDir, "admin-build");
     fs.mkdirSync(root);
     if (outcome !== "delayed-lock") fs.writeFileSync(path.join(root, "build.lock"), "builder");

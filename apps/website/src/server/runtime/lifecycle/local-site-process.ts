@@ -146,7 +146,8 @@ export function createLocalSiteProcessPort(
       // Realpath containment is checked by the directory owner before either boot or Trash.
       // The validated registry owns arbitrary adopted paths; Trash separately requires containment.
       readSiteDir({ dir: siteDir });
-      buildRoot ??= mkdtempSync(path.join(os.tmpdir(), "tovu-local-sites-"));
+      // Encode ownership atomically with creation so a restart can reclaim only dead hosts' builds.
+      buildRoot ??= mkdtempSync(path.join(os.tmpdir(), `tovu-local-sites-${process.pid}-`));
       const childEnv = localSiteChildEnv({ parent: env, name, siteDir, port, daemonPort, repoRoot, buildRoot });
       childEnv.TOVU_API_URL = `${scheme}://localhost:${port}`;
       // Match packaged journeys: a supplied production admin bundle can be shared without rebuilding.

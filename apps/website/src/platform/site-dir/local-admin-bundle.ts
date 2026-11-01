@@ -1,10 +1,82 @@
 import { spawn } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { redactLocalText } from "../server-logs/redact-local-text.js";
 import { createRedactedOutputSink } from "../server-logs/console-tee.js";
 import { withFileLock } from "@jini-ai/platform/fs";
+import { isProcessAlive } from "@jini-ai/platform/process";
+
+const LOCAL_ADMIN_RUNTIME = /^tovu-local-sites-([1-9]\d*)-[A-Za-z0-9]{6}$/;
+
+/** A PID must positively prove death; invalid IDs and permission errors preserve the tree.
+ * @complexity O(1), one native liveness probe.
+ */
+function hasDeadLocalAdminOwner({ name }: { name: string }, _optional = {}): boolean {
+  const owner = LOCAL_ADMIN_RUNTIME.exec(name);
+  if (!owner) return false;
+  const pid = Number(owner[1]);
+  return Number.isSafeInteger(pid) && !isProcessAlive(pid);
+}
+
+/** Inspect without following a link; only absence is safe to treat as missing. @complexity O(1). */
+async function localBuildInfo({ filePath }: { filePath: string }, _optional = {}) {
+  try { return await lstat(filePath); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+/** Reclaim a dead host's tree while respecting any surviving builder's Jini lock.
+ * Symlinked directories/locks are preserved; recursive rm unlinks nested links without traversal.
+ * @throws On unexpected filesystem errors; the caller reports them and continues preparation.
+ * @complexity O(files in the stale build) removal, O(tree depth) filesystem traversal space.
+ */
+async function reclaimLocalAdminBuild({ dir }: { dir: string }, _optional = {}): Promise<void> {
+  const original = await localBuildInfo({ filePath: dir });
+  if (!original?.isDirectory()) return;
+  const buildDir = path.join(dir, "admin-build");
+  const buildInfo = await localBuildInfo({ filePath: buildDir });
+  if (buildInfo && !buildInfo.isDirectory()) return;
+  const remove = async () => {
+    const current = await localBuildInfo({ filePath: dir });
+    // Another cleaner or replacement must not turn a stale decision into removal of a new tree.
+    if (current?.isDirectory() && current.ino === original.ino && current.dev === original.dev) {
+      await rm(dir, { recursive: true, force: true });
+    }
+  };
+  if (!buildInfo) { await remove(); return; }
+  const lockPath = path.join(buildDir, "build.lock");
+  const lockInfo = await localBuildInfo({ filePath: lockPath });
+  if (lockInfo && !lockInfo.isFile()) return;
+  // No age-based eviction: a live child may still be finishing after its host died.
+  await withFileLock({ lockPath, run: remove }, { timeoutMs: 100, pollMs: 1, staleMs: Infinity });
+}
+
+/** Sweep only this temp root's PID-owned local-admin runtimes; never the active directory.
+ * Legacy names without ownership evidence are retained because their host could still be alive.
+ * Cleanup is best effort (e.g. Windows can refuse removal of files still open elsewhere).
+ * @complexity O(siblings + files removed) time, O(siblings + traversal depth) space.
+ */
+async function cleanupLocalAdminBuilds(
+  { runtimeDir, tempRoot }: { runtimeDir: string; tempRoot: string }, _optional = {},
+): Promise<void> {
+  const active = path.resolve(runtimeDir);
+  const parent = path.resolve(tempRoot);
+  if (path.dirname(active) !== parent || !LOCAL_ADMIN_RUNTIME.test(path.basename(active))) return;
+  if (!(await localBuildInfo({ filePath: parent }))?.isDirectory()) return;
+  if (!(await localBuildInfo({ filePath: active }))?.isDirectory()) return;
+  const stale = (await readdir(parent, { withFileTypes: true })).filter(entry =>
+    entry.isDirectory() && entry.name !== path.basename(active) && hasDeadLocalAdminOwner({ name: entry.name }));
+  for (const entry of stale) {
+    await reclaimLocalAdminBuild({ dir: path.join(parent, entry.name) }).catch(error => {
+      if (error instanceof Error && error.name === "FileLockTimeoutError") return;
+      console.warn(redactLocalText({ text: `tovu local sites: could not reclaim an unused admin build: ${String(error)}` }));
+    });
+  }
+}
 
 type AdminBuild = (required: { repoRoot: string; output: string; env: NodeJS.ProcessEnv }) => Promise<void>;
 const ADMIN_BUILD_BACKSTOP_MS = 900_000;
@@ -53,12 +125,15 @@ export function buildAdmin({ repoRoot, output, env }: Parameters<AdminBuild>[0],
  */
 export async function journeyAdminBundle(
   { runtimeDir, repoRoot }: { runtimeDir: string; repoRoot: string },
-  { env: launchEnv = process.env, build = buildAdmin, lock = withFileLock }: {
-    env?: NodeJS.ProcessEnv; build?: AdminBuild; lock?: typeof withFileLock;
+  { env: launchEnv = process.env, build = buildAdmin, lock = withFileLock, tempRoot = os.tmpdir() }: {
+    env?: NodeJS.ProcessEnv; build?: AdminBuild; lock?: typeof withFileLock; tempRoot?: string;
   } = {},
 ): Promise<string> {
   const root = path.join(runtimeDir, "admin-build");
   const output = path.join(root, "dist");
+  await cleanupLocalAdminBuilds({ runtimeDir, tempRoot }).catch(error => {
+    console.warn(redactLocalText({ text: `tovu local sites: could not inspect unused admin builds: ${String(error)}` }));
+  });
   await mkdir(root, { recursive: true });
   // The builder bounds inactivity; a contender must not impose a shorter total-work deadline.
   return lock({ lockPath: path.join(root, "build.lock"), run: async () => {

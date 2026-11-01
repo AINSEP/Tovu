@@ -9,6 +9,90 @@ import type { spawn } from "node:child_process";
 import { buildAdmin, journeyAdminBundle, waitForLocalAdminBuild } from "../../local-admin-bundle.js";
 import { runLocalSiteChild } from "../../local-site-child.js";
 import { withFileLock } from "@jini-ai/platform/fs";
+import { isProcessAlive } from "@jini-ai/platform/process";
+
+test("local bundle preparation reclaims dead owners while preserving live builds, foreign folders and symlinks", async (t) => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "admin cleanup with spaces-"));
+  t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
+  const deadPid = 2_147_483_647;
+  assert.equal(isProcessAlive(deadPid), false, "fixture PID must be dead");
+  const folder = (name: string) => {
+    const dir = path.join(tempRoot, name);
+    fs.mkdirSync(path.join(dir, "admin-build", "dist"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "admin-build", "dist", "admin.js"), name);
+    return dir;
+  };
+  // The current-folder guard must stand on its own, even if its recorded PID is unavailable.
+  const runtimeDir = folder(`tovu-local-sites-${deadPid}-Active`);
+  const stale = folder(`tovu-local-sites-${deadPid}-Stale1`);
+  const live = folder(`tovu-local-sites-${process.pid}-Live01`);
+  const foreign = folder("someone-elses-build");
+  const lookalike = folder(`tovu-local-sites-${deadPid}-not-a-random-suffix`);
+  const legacy = folder("tovu-local-sites-Old001");
+  fs.writeFileSync(path.join(legacy, "admin-build", "ready"), "ready");
+  const building = folder(`tovu-local-sites-${deadPid}-Build1`);
+  fs.writeFileSync(path.join(building, "admin-build", "build.lock"), `${process.pid}:builder`);
+  const modernBuilder = folder(`tovu-local-sites-${deadPid}-Build2`);
+  fs.writeFileSync(path.join(modernBuilder, "admin-build", "build.lock"), JSON.stringify({
+    pid: process.pid, hostname: os.hostname(), token: "live", acquiredAt: new Date().toISOString(),
+  }));
+  const uncertain = folder(`tovu-local-sites-${deadPid}-Build3`);
+  fs.writeFileSync(path.join(uncertain, "admin-build", "build.lock"), "unreadable owner");
+  fs.writeFileSync(path.join(stale, "admin-build", "build.lock"), `${deadPid}:old-builder`);
+  const linked = path.join(tempRoot, `tovu-local-sites-${deadPid}-Link01`);
+  fs.symlinkSync(foreign, linked, "junction");
+  const linkedBuild = path.join(tempRoot, `tovu-local-sites-${deadPid}-Link02`);
+  fs.mkdirSync(linkedBuild);
+  fs.symlinkSync(path.join(foreign, "admin-build"), path.join(linkedBuild, "admin-build"), "junction");
+  const linkedLock = folder(`tovu-local-sites-${deadPid}-Link03`);
+  fs.symlinkSync(foreign, path.join(linkedLock, "admin-build", "build.lock"), "junction");
+  // Recursive removal must unlink nested links without traversing their targets, including Windows junctions.
+  fs.symlinkSync(foreign, path.join(stale, "admin-build", "dist", "linked"), "junction");
+  const incomplete = path.join(tempRoot, `tovu-local-sites-${deadPid}-Empty1`);
+  fs.mkdirSync(incomplete);
+  const fakeBuild = async ({ output }: { output: string }) => {
+    assert.equal(fs.existsSync(stale), false, "the next local build must reclaim a dead owner's bundle");
+    fs.mkdirSync(output, { recursive: true });
+    fs.writeFileSync(path.join(output, "admin.js"), "current build");
+  };
+  const output = await journeyAdminBundle({ runtimeDir, repoRoot: "/repo" }, { build: fakeBuild, tempRoot });
+  assert.equal(fs.readFileSync(path.join(output, "admin.js"), "utf8"), "current build");
+  assert.equal(fs.existsSync(incomplete), false, "interrupted runtime creation is reclaimed too");
+  for (const kept of [runtimeDir, live, foreign, lookalike, legacy, building, modernBuilder, uncertain, linked, linkedBuild, linkedLock]) {
+    assert.equal(fs.existsSync(kept), true, `${path.basename(kept)} must survive`);
+  }
+  assert.equal(fs.lstatSync(linked).isSymbolicLink(), true);
+  assert.equal(fs.readFileSync(path.join(foreign, "admin-build", "dist", "admin.js"), "utf8"), "someone-elses-build");
+  // Repeated preparation must preserve both the ready bundle and all protected siblings.
+  await journeyAdminBundle({ runtimeDir, repoRoot: "/repo" }, { build: async () => assert.fail("ready bundle rebuilt"), tempRoot });
+});
+
+for (const boundary of ["outside temp root", "linked temp root", "linked active runtime"] as const) {
+  test(`local bundle cleanup preserves trees behind an unsafe boundary: ${boundary}`, async (t) => {
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "admin cleanup boundary-"));
+    t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
+    const realRoot = path.join(scratch, "real temp root");
+    fs.mkdirSync(realRoot);
+    const stale = path.join(realRoot, "tovu-local-sites-2147483647-Stale1");
+    fs.mkdirSync(stale);
+    let tempRoot = realRoot;
+    let runtimeDir = path.join(realRoot, "tovu-local-sites-2147483647-Active");
+    if (boundary === "outside temp root") tempRoot = scratch;
+    if (boundary === "linked temp root") {
+      tempRoot = path.join(scratch, "linked temp root");
+      fs.symlinkSync(realRoot, tempRoot, "junction");
+      runtimeDir = path.join(tempRoot, path.basename(runtimeDir));
+    }
+    if (boundary === "linked active runtime") fs.symlinkSync(stale, runtimeDir, "junction");
+    else fs.mkdirSync(runtimeDir);
+    const output = await journeyAdminBundle({ runtimeDir, repoRoot: "/repo" }, { tempRoot, build: async ({ output }) => {
+      fs.mkdirSync(output, { recursive: true });
+      fs.writeFileSync(path.join(output, "admin.js"), "built");
+    } });
+    assert.equal(fs.existsSync(stale), true, "cleanup cannot cross an unverified temp/runtime boundary");
+    assert.equal(fs.readFileSync(path.join(output, "admin.js"), "utf8"), "built");
+  });
+}
 
 test("journey and local boot share one origin-neutral production bundle with failed-build recovery", async (t) => {
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "admin-bundle-"));
