@@ -305,7 +305,8 @@ export function ThemePagesTab({
 }): ReactNode {
   const [detailPageId, setDetailPageId] = useState<string | null>(null);
 
-  if (error && !pages) return <div className="notice error">{error}</div>;
+  // Localize controller fallback keys at the view boundary; unknown server details pass through.
+  if (error && !pages) return <div className="notice error">{t(error)}</div>;
   // `activeThemeId` is gated together with `pages` rather than separately: both land from the same
   // chained load, so this second condition is unreachable in practice — it exists to make a row
   // with page data but no theme id UNREPRESENTABLE in the markup below, since that state could only
@@ -322,7 +323,7 @@ export function ThemePagesTab({
 
   return (
     <>
-      {error ? <div className="notice error">{error}</div> : null}
+      {error ? <div className="notice error">{t(error)}</div> : null}
       <DataTable
         rows={pages}
         rowKey={(row) => row.pageId}
@@ -378,7 +379,7 @@ export function ThemePagesTab({
             header: t("More"),
             cell: (row, index) => (
               <RowMenu
-                triggerLabel={`Actions for "${row.pageId}"`}
+                triggerLabel={t('Actions for "{title}"').replace("{title}", row.pageId)}
                 agentHandle={`${rowHandles[index]}-menu`}
                 items={themePageRowMenuItems(
                   row,

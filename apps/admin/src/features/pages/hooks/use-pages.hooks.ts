@@ -30,15 +30,14 @@ import type { PagesPort } from "./pages-port.hooks";
  * `port`/`navigate` are injected — see `pages-port.hooks.ts` — rather than reaching `lib/api`/
  * `lib/router` directly, so a test can describe load/create/publish-toggle/delete outcomes against
  * `createFakePagesPort` instead of stubbing global `fetch`. `useWiredPages` below is the
- * zero-argument pair `Pages.tsx` actually mounts. This hook's OWN error strings stay hardcoded
- * English, unlike `use-collections.hooks.ts`'s locale-aware fallbacks — but `t`/`locale` are still
- * injected (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from that
- * hook, not its own `useAdminLocale()`/dictionary import, same shape `use-post-editor.hooks.ts`
- * established) purely so `Pages.tsx` has somewhere to source the UI copy it renders. `locale`
- * itself is also exposed, not just `t`: `Pages.tsx` passes the raw string on to
- * `pageRowMenuItems` (`../rules.ts`), which keeps its own independent `PAGES_DICT[locale]?.[key]
- * ?? key` closure unchanged — same "row-menu builder is a different, out-of-scope thing" precedent
- * `use-post-editor.hooks.ts`'s own header cites for `postRowMenuItems`.
+ * zero-argument pair `Pages.tsx` actually mounts. `t`/`locale` are injected (2026-08-11, standing
+ * i18n rule — a component with a hook gets a BOUND `t` from that hook, not its own
+ * `useAdminLocale()`/dictionary import, same shape `use-post-editor.hooks.ts` established); the
+ * bound `t` translates both the view's copy and this hook's fallback errors, while specific server
+ * Error messages keep their detail. `locale` itself is also exposed, not just `t`: `Pages.tsx`
+ * passes the raw string on to `pageRowMenuItems` (`../rules.ts`), which keeps its own independent
+ * `PAGES_DICT[locale]?.[key] ?? key` closure unchanged — same "row-menu builder is a different,
+ * out-of-scope thing" precedent `use-post-editor.hooks.ts`'s own header cites for `postRowMenuItems`.
  */
 
 export interface PagesController {
@@ -105,8 +104,8 @@ export function usePages(deps: PagesDependencies): PagesController {
   const key = useMemo(() => ["pages", "list"] as const, []);
   const fetchList = useCallback(async () => {
     try { return (await port.listPages()).posts.map(entry => entry.post); }
-    catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load pages"); }
-  }, [port]);
+    catch (error) { throw new Error(error instanceof Error ? error.message : t("failed to load pages")); }
+  }, [port, t]);
   // Mount reads and content-refresh invalidations can overlap. The shared cache revokes the
   // older request's ownership before starting the newer read, so a late success or failure
   // cannot replace the latest list. Background reads retain the rendered table.
@@ -148,7 +147,7 @@ export function usePages(deps: PagesDependencies): PagesController {
       // navigation already uses for an existing page (readable-slugs S6a).
       navigate(pageAdminPath(post));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to create page");
+      setError(e instanceof Error ? e.message : t("failed to create page"));
       setCreating(false);
     }
   }
@@ -189,8 +188,7 @@ export function usePages(deps: PagesDependencies): PagesController {
       ) }) as Awaited<ReturnType<typeof port.updatePost>>;
       setPages((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
     } catch (e) {
-      const action = nextStatus === "published" ? "publish" : "unpublish";
-      setError(e instanceof Error ? e.message : `failed to ${action} page`);
+      setError(e instanceof Error ? e.message : t(nextStatus === "published" ? "failed to publish page" : "failed to unpublish page"));
     } finally {
       // Only clear THIS row's lock — `rowSavingId` is shared with `removePage`'s delete-in-flight
       // lock (2026-09-20, S4b hardening; mirrors `use-posts.hooks.ts`'s identical fix). An
@@ -230,7 +228,7 @@ export function usePages(deps: PagesDependencies): PagesController {
       await write.mutate({ input: () => port.deletePage(page.id) });
       setPages((prev) => (prev ? prev.filter((p) => p.id !== page.id) : prev));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to delete page");
+      setError(e instanceof Error ? e.message : t("failed to delete page"));
     } finally {
       // Symmetric guard to `togglePagePublish`'s — see its comment. Keeps this correct regardless of
       // which of the two in-flight actions settles first.
@@ -264,6 +262,6 @@ export function usePages(deps: PagesDependencies): PagesController {
  */
 export function useWiredPages(): PagesController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate({ locale: locale, key: key });
+  const t = useCallback((key: string): string => translate({ locale, key }), [locale]);
   return usePages({ port: defaultPagesPort, navigate: defaultNavigate, t, locale });
 }
