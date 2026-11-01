@@ -1,7 +1,9 @@
 import { captureMediaUploaded } from "../media/analytics.js";
+import { withChatPreview } from "../media/chat-preview.js";
+import type { ImageCodecPort } from "@jini-ai/cms/media";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/media-generation.js';
-import { type ToolFailureDiagnostic, issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
+import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnostics";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
 import {
@@ -75,6 +77,8 @@ import { buildMediaGenerationAgentToolCatalog, IMAGE_MODEL_IDS, imageModelIdsFro
 
 export interface MediaGenerationToolDeps {
   tracker?: Tracker;
+  /** Optional best-effort inline preview, using the same codec as media imports. */
+  imageCodec?: ImageCodecPort;
   authorize: AuthorizeFn;
   /** Host-bound guard applies equally to vendor requests and provider-returned asset downloads. */
   mediaGenerationHttpClient: HttpClientPort;
@@ -333,7 +337,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
   const imageModelIds = registry === undefined ? IMAGE_MODEL_IDS : imageModelIdsFrom({ catalog: registry });
   const CATALOG_BY_ID = indexCatalogById({ catalog: buildMediaGenerationAgentToolCatalog({ imageModelIds }) });
   const handlers: Record<string, ToolHandler> = {
-    media_generate_asset: async (ctx): Promise<{ media: GeneratedMediaView } | { generated: false; message: string; credentialSetup: ToolFailureDiagnostic }> => {
+    media_generate_asset: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
       const prompt = requireString({ input: input, key: "prompt" });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "media.upload" }, { entityType: "media" });
@@ -389,7 +393,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
           captureMediaUploaded({ tracker: routeDeps.tracker, actorId: ctx.principal.id, byteLength: generated.bytes.byteLength, kind: "image", source: "assistant" });
 
           const urls = await resolveMediaPublicUrls(routeDeps, [media]);
-          return {
+          const result: { media: GeneratedMediaView } = {
             media: {
               id: media.id,
               createdBy: media.createdBy ?? null,
@@ -405,6 +409,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
               placeholder: generated.usedStubFallback,
             },
           };
+          return withChatPreview({ routeDeps, bytes: generated.bytes, contentType: sniffed, result });
         }
         });
     },

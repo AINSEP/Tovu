@@ -1,4 +1,5 @@
 import { COLLECTION_MARKER_TYPE, EMBED_MARKER_TARGET_KEYS } from "@jini-ai/cms/widgets/markers";
+import { PAGE_EMBED_ORIGINS } from "./page-embed-origins.js";
 
 /** Tovu Page HTML authoring contract shared by tool catalogs, search and the starter skeleton. */
 /** The `data-agent-element` handle for each region a starter Page ships with. */
@@ -114,8 +115,8 @@ export const PAGE_HTML_CONTRACT =
   // The owner paste path stores authorized page HTML unchanged. A blanket script ban here made
   // the assistant refuse working vendor snippets; keep the exception confined to vetted embeds.
   "- EXTERNAL RESOURCES: only for an owner-requested Calendly embed, allow an HTTPS <script src> " +
-  "with the exact origin https://assets.calendly.com (normally /assets/external/widget.js), alongside " +
-  "its calendly-inline-widget div and the owner's https://calendly.com booking URL. Other external script origins are forbidden; " +
+  `with the exact origin ${PAGE_EMBED_ORIGINS.script} (normally /assets/external/widget.js), alongside ` +
+  `its calendly-inline-widget div and the owner's ${PAGE_EMBED_ORIGINS.frame} booking URL. Other external script origins are forbidden; ` +
   "lookalike hosts, subdomains, credentials, non-default ports and HTTP are not allowed. Do not ask the owner " +
   "to paste this supported embed by hand: use pages_write_html or pages_write_region. " +
   "No remote stylesheets, remote fonts or hotlinked images. Use the site's own uploaded media or inline SVG.\n" +

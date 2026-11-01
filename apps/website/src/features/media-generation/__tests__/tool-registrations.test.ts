@@ -193,6 +193,19 @@ test("generated assets stamp the acting principal independently of the model and
   assert.deepEqual(fixture.captures.map(([event]) => event), [{ name: "media_uploaded", userId: PRINCIPAL_ID }]);
 });
 
+test("a failed chat preview never loses the generated media result or its placeholder flag", async () => {
+  const fixture = fakeRouteDeps();
+  await seedOpenAiCredential(fixture);
+  const deps = { ...fixture.deps, imageCodec: {
+    inspect: async () => { throw new Error("unexpected inspect"); },
+    encode: async () => { throw new Error("cannot encode preview"); },
+    encodeTiles: async () => [],
+  } };
+  const result = await wired("media_generate_asset", deps).handler(executionContext({ prompt: "saved image" })) as { media: { id: string; placeholder: boolean } };
+  assert.equal(result.media.placeholder, false);
+  assert.ok(await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id }));
+});
+
 function catalogEntry(toolId: string): AgentToolDefinition {
   const entry = mediaGenerationAgentToolCatalog.find((tool) => tool.name === toolId);
   assert.ok(entry, `catalog has no entry for '${toolId}'`);

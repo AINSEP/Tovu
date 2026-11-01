@@ -1,4 +1,5 @@
 import { captureMediaUploaded } from "../media/analytics.js";
+import { withChatPreview } from "../media/chat-preview.js";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/media-import.js';
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
@@ -89,10 +90,6 @@ export interface MediaImportToolDeps {
   /** Makes the chat preview ({@link withChatPreview}). Absent: imports return plain JSON, no preview. */
   imageCodec?: ImageCodecPort;
 }
-
-/** Long edge of the chat preview. Small on purpose: the model sees the block too, so it is a
- *  glance (a few KB), not a second copy; the full file is one click away through `href`. */
-export const IMPORT_PREVIEW_MAX_EDGE_PX = 320;
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: mediaImportAgentToolCatalog });
 
@@ -250,35 +247,6 @@ export async function persistImportedMedia(required: { routeDeps: MediaImportToo
   };
 }
 
-/**
- * Adds a small WebP preview to a single import's result so the admin chat shows the saved picture
- * inline, titled and linked to its file — the same `{content: [text, image]}` envelope
- * `media_view_image` returns, so every agent CLI and BYOK path already carries it. The text block
- * is the unchanged `{ media }` JSON. Best effort: no codec, a video or SVG, or any encode error
- * returns the plain result; the import itself already succeeded.
- * Batch items drop the image (`@jini-ai/core` batch wrapper), so batches stay plain JSON.
- * @complexity O(pixels) for one decode and one small encode.
- */
-async function withChatPreview(
-  { routeDeps, bytes, contentType, result }: { routeDeps: MediaImportToolDeps; bytes: Uint8Array; contentType: string; result: { media: ImportedMediaView } },
-  _optional: Record<string, never> = {},
-): Promise<unknown> {
-  // Raster only, like media_view_image: these are the unsanitized source bytes, so an SVG never
-  // reaches the rasterizer here, and a video has no still to show.
-  if (!routeDeps.imageCodec || !contentType.startsWith("image/") || contentType === "image/svg+xml") return result;
-  try {
-    const preview = await routeDeps.imageCodec.encode({ source: bytes, autoOrient: true, format: "webp", quality: 70,
-      resize: { width: IMPORT_PREVIEW_MAX_EDGE_PX, height: IMPORT_PREVIEW_MAX_EDGE_PX, fit: "inside", withoutEnlargement: true } });
-    const { title, publicUrl } = result.media;
-    return { content: [
-      { type: "text", text: JSON.stringify(result) },
-      { type: "image", mimeType: "image/webp", data: Buffer.from(preview.bytes).toString("base64"), title, ...(publicUrl ? { href: publicUrl } : {}) },
-    ] };
-  } catch {
-    return result;
-  }
-}
-
 /** Read replacement bytes through the existing root containment, secret exclusions and bounded read.
  * @throws FsFilePathError or MediaImportValidationError for unsafe paths or unsupported bytes.
  * @complexity O(b) time/space for b file bytes, bounded by the host upload ceiling. */
@@ -337,7 +305,8 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
           const saved = await replaceMediaFile({ deps: routeDeps, media, ...source, principalId: ctx.principal.id }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
           if (!saved) throw new MediaImportValidationError({ message: "Media changed while replacing its file. Read the current item and retry; nothing was replaced." });
           const urls = await resolveMediaPublicUrls(routeDeps, [saved]);
-          return { media: { id: saved.id, slug: saved.slug, version: saved.version, sha256: saved.source.sha256, publicUrl: urls.get(saved.id) ?? null } };
+          const result = { media: { id: saved.id, slug: saved.slug, title: saved.title, version: saved.version, sha256: saved.source.sha256, publicUrl: urls.get(saved.id) ?? null } };
+          return withChatPreview({ routeDeps, bytes: source.bytes, contentType: source.contentType, result });
         },
       });
     },

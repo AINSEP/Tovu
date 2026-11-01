@@ -7,6 +7,8 @@
  * Change a value here and both follow; never copy these values anywhere else.
  */
 
+import { PAGE_EMBED_ORIGINS } from "./page-embed-origins.js";
+
 export type SecurityHeaderSet = Readonly<Record<string, string>>;
 
 /** Shipped theme resource data, shared by live headers and static exports. */
@@ -30,10 +32,10 @@ export function createPublicPageSecurityHeaderSet({ resources }: { resources: Pu
     "default-src 'self'",
     "img-src 'self' data: https:",
     "media-src 'self' https:",
-    `script-src 'self' 'unsafe-inline' ${origins(resources.scripts)}`.trimEnd(),
+    `script-src 'self' 'unsafe-inline' ${origins([...resources.scripts, PAGE_EMBED_ORIGINS.script])}`,
     `style-src 'self' 'unsafe-inline' ${origins(resources.styles)}`.trimEnd(),
     `font-src 'self' data: ${origins(resources.fonts)}`.trimEnd(),
-    "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com",
+    `frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com ${PAGE_EMBED_ORIGINS.frame}`,
     "connect-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",

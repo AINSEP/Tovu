@@ -1,4 +1,6 @@
 import { captureMediaUploaded } from "./analytics.js";
+import { withChatPreview } from "./chat-preview.js";
+import type { ImageCodecPort } from "@jini-ai/cms/media";
 export { contributeMediaDuplicateHandlers } from "./duplicate-asset.js";
 export type { MediaPublicUrlDeps } from "./contracts.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/media.js';
@@ -11,7 +13,7 @@ import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { requireInputRecord, requireString, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
-import { assertAllowedSniffedContentType, getLatestTransformDefinition, mediaPublicPath, mediaUrlKey } from "./index.js";
+import { assertAllowedSniffedContentType, getLatestTransformDefinition, mediaPublicPath, mediaUrlKey, sniffContentType } from "./index.js";
 import type { MediaPublicUrlDeps, RemoveMediaFn } from "./contracts.js";
 import { TOVU_MAX_UPLOAD_BYTES } from "../../contracts/core/upload-limits.js";
 
@@ -215,7 +217,7 @@ function buildMediaTrashHandler(
  * constant, not a per-request value.
  */
 export function buildMediaRegistrationsForTovu(
-  routeDeps: MediaToolDeps & MediaPublicUrlDeps & MediaTrashToolDeps,
+  routeDeps: MediaToolDeps & MediaPublicUrlDeps & MediaTrashToolDeps & { imageCodec?: ImageCodecPort },
   surfaces: AssistantSurfaceDeps
 ): ToolRegistration[] {
   // Jini binds creation attribution to each invocation's authenticated principal, so parallel
@@ -228,6 +230,16 @@ export function buildMediaRegistrationsForTovu(
   });
 
   return withToolMetadata({ registrations, metadata: toolMetadata }).map((registration) => {
+    if (registration.descriptor.id === "media_upload_asset") {
+      return { ...registration, handler: async (ctx, optional = {}) => {
+        const result = await registration.handler(ctx, optional) as { media: { title: string; publicUrl: string | null } };
+        if (!routeDeps.imageCodec) return result;
+        // Reuse the successful upload's bytes; attachment promotion delegates to this same handler.
+        const input = requireInputRecord({ input: ctx.input });
+        const bytes = Buffer.from(requireString({ input, key: "dataBase64" }), "base64");
+        return withChatPreview({ routeDeps, bytes, contentType: sniffContentType({ bytes }), result });
+      } };
+    }
     if (registration.descriptor.id === MEDIA_TRASH_TOOL_ID) {
       return { ...registration, handler: buildMediaTrashHandler(routeDeps, registration.handler) };
     }
@@ -243,7 +255,7 @@ export function buildMediaRegistrationsForTovu(
  * replaced it — see this file's own header above for why the earlier attempt closed a cycle and why
  * this retry does not.
  */
-export function contributeMediaTools(): ToolContributor<MediaToolDeps & MediaPublicUrlDeps & MediaTrashToolDeps, AssistantSurfaceDeps> {
+export function contributeMediaTools(): ToolContributor<MediaToolDeps & MediaPublicUrlDeps & MediaTrashToolDeps & { imageCodec?: ImageCodecPort }, AssistantSurfaceDeps> {
   return { domain: "media", build: buildMediaRegistrationsForTovu, risk: mediaDerivedRisk };
 }
 
