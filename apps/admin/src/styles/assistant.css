@@ -177,8 +177,9 @@
   gap: 0;
   justify-content: center;
   font-size: 0;
-  background: #fff;
-  color: #6b7280;
+  /* Chat theme tokens, not #fff/#6b7280: fixed colours left it white on the dark dock (owner bug 11-01). */
+  background: var(--jini-chat-panel);
+  color: var(--jini-chat-muted);
 }
 .jini-chat-pane .jini-message-list__jump-btn svg { width: 16px; height: 16px; }
 
