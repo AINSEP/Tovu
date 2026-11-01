@@ -282,6 +282,18 @@
   /* Title takes the row beside Back; the slug drops to its own full row below. */
   .content-editor-header .content-editor-title { flex: 1 1 0; max-width: none; font-size: 1.3rem; }
   .content-editor-header > .editor-slug { margin-left: 0; flex: 1 1 100%; justify-content: flex-start; }
+  /* The settings gear stays on the action row (owner bug 11-01): a draft's Draft + Publish + Save +
+     Delete + gear needed ~372px of a 351px row at 375px, so the gear fell to a row of its own. The
+     group now takes the row's free width and wraps INSIDE itself on very narrow panes (or beside
+     the Preview control), its buttons and the row gap are tighter (fits from ~360px), and the gear
+     sits on the group's LAST line — the line the collapsed Preview control (rules below) is pulled
+     up onto. The Saved / error message takes its own line ABOVE the buttons rather than splitting
+     the group from the gear; below them it would push the row's last line away from that control. */
+  .page > .editor-action-row.content-action-row { column-gap: var(--space-2); }
+  .content-action-row > .content-action-group { flex: 1 1 0; flex-wrap: wrap; row-gap: 5px; }
+  .content-action-group > button { padding-inline: 9px; }
+  .content-action-row > .post-settings-trigger { align-self: flex-end; }
+  .content-action-row > .save-ok, .content-action-row > .save-error { order: -1; flex-basis: 100%; }
   /* The shared phone rule stretches the template group across the row and its select with it;
      here the select keeps its own width and the group stays right-aligned. */
   .content-editor-page .page-editor-toolbar .page-editor-toolbar-end { width: auto; justify-content: flex-start; }
