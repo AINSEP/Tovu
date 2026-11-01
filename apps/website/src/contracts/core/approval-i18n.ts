@@ -31,6 +31,54 @@ const TARGET_FOLDER_COPY = {
   hu: 'Célmappa', fr: 'Dossier de destination', uk: 'Цільова папка', tr: 'Hedef klasör',
   th: 'โฟลเดอร์ปลายทาง', it: 'Cartella di destinazione', hi: 'लक्ष्य फ़ोल्डर', ur: 'منزل کا فولڈر', bn: 'গন্তব্য ফোল্ডার',
 } as const satisfies Record<keyof typeof APPROVAL_COPY, string>;
+const HOST_COPY = {
+  en: 'Host', es: 'Servidor', id: 'Penyedia hos', de: 'Server',
+  'zh-CN': '托管平台', 'zh-TW': '託管平台', 'pt-BR': 'Servidor', ru: 'Хостинг',
+  fa: 'میزبان', ar: 'المضيف', ja: 'ホスト', ko: '호스트',
+  pl: 'Serwer', hu: 'Kiszolgáló', fr: 'Hébergeur', uk: 'Хостинг',
+  tr: 'Sunucu', th: 'โฮสต์', it: 'Server', hi: 'होस्ट',
+  ur: 'میزبان', bn: 'হোস্ট',
+} as const satisfies Record<keyof typeof APPROVAL_COPY, string>;
+const REPOSITORY_COPY = {
+  en: 'Repository', es: 'Repositorio', id: 'Repositori', de: 'Codearchiv',
+  'zh-CN': '代码仓库', 'zh-TW': '程式碼儲存庫', 'pt-BR': 'Repositório', ru: 'Репозиторий',
+  fa: 'مخزن', ar: 'المستودع', ja: 'リポジトリ', ko: '저장소',
+  pl: 'Repozytorium', hu: 'Tároló', fr: 'Dépôt', uk: 'Репозиторій',
+  tr: 'Depo', th: 'ที่เก็บโค้ด', it: 'Archivio', hi: 'रिपॉज़िटरी',
+  ur: 'ریپوزٹری', bn: 'রিপোজিটরি',
+} as const satisfies Record<keyof typeof APPROVAL_COPY, string>;
+const PROJECT_NAME_COPY = {
+  en: 'Project name', es: 'Nombre del proyecto', id: 'Nama proyek', de: 'Projektname',
+  'zh-CN': '项目名称', 'zh-TW': '專案名稱', 'pt-BR': 'Nome do projeto', ru: 'Название проекта',
+  fa: 'نام پروژه', ar: 'اسم المشروع', ja: 'プロジェクト名', ko: '프로젝트 이름',
+  pl: 'Nazwa projektu', hu: 'Projekt neve', fr: 'Nom du projet', uk: 'Назва проєкту',
+  tr: 'Proje adı', th: 'ชื่อโครงการ', it: 'Nome del progetto', hi: 'परियोजना का नाम',
+  ur: 'منصوبے کا نام', bn: 'প্রকল্পের নাম',
+} as const satisfies Record<keyof typeof APPROVAL_COPY, string>;
+const SAVED_CONNECTION_COPY = {
+  en: 'Saved connection', es: 'Conexión guardada', id: 'Koneksi tersimpan', de: 'Gespeicherte Verbindung',
+  'zh-CN': '已保存的连接', 'zh-TW': '已儲存的連線', 'pt-BR': 'Conexão salva', ru: 'Сохранённое подключение',
+  fa: 'اتصال ذخیره\u200cشده', ar: 'الاتصال المحفوظ', ja: '保存済みの接続', ko: '저장된 연결',
+  pl: 'Zapisane połączenie', hu: 'Mentett kapcsolat', fr: 'Connexion enregistrée', uk: 'Збережене підключення',
+  tr: 'Kayıtlı bağlantı', th: 'การเชื่อมต่อที่บันทึกไว้', it: 'Connessione salvata', hi: 'सहेजा गया कनेक्शन',
+  ur: 'محفوظ کردہ کنکشن', bn: 'সংরক্ষিত সংযোগ',
+} as const satisfies Record<keyof typeof APPROVAL_COPY, string>;
+const HOSTING_PROVIDER_COPY = {
+  en: 'Hosting provider', es: 'Proveedor de alojamiento', id: 'Penyedia hosting', de: 'Hosting-Anbieter',
+  'zh-CN': '托管服务商', 'zh-TW': '託管服務供應商', 'pt-BR': 'Provedor de hospedagem', ru: 'Хостинг-провайдер',
+  fa: 'ارائه\u200cدهنده میزبانی', ar: 'مزود الاستضافة', ja: 'ホスティングプロバイダー', ko: '호스팅 제공업체',
+  pl: 'Dostawca hostingu', hu: 'Tárhelyszolgáltató', fr: 'Fournisseur d’hébergement', uk: 'Хостинг-провайдер',
+  tr: 'Barındırma sağlayıcısı', th: 'ผู้ให้บริการโฮสติ้ง', it: 'Fornitore di hosting', hi: 'होस्टिंग प्रदाता',
+  ur: 'ہوسٹنگ فراہم کنندہ', bn: 'হোস্টিং প্রদানকারী',
+} as const satisfies Record<keyof typeof APPROVAL_COPY, string>;
+const SCHEMA_TITLE_COPY: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  'Target folder': TARGET_FOLDER_COPY,
+  Host: HOST_COPY,
+  Repository: REPOSITORY_COPY,
+  'Project name': PROJECT_NAME_COPY,
+  'Saved connection': SAVED_CONNECTION_COPY,
+  'Hosting provider': HOSTING_PROVIDER_COPY,
+};
 const ACTION_KEYS: readonly string[] = ['Technical name', '{action}?', 'Publish static site', 'Publish'];
 /** Catalog copy uses exact-key lookup; unknown tool names and schema labels remain verbatim. */
 const ACTION_COPY = {
@@ -61,7 +109,8 @@ const ACTION_COPY = {
 /** Translate approval chrome and registered catalog copy, falling back to English or the key.
  * @complexity O(k) time for bounded copy-key lookup, O(1) space; no effects. */
 export function approvalText({ locale, key }: { locale: string; key: string }, _optional = {}): string {
-  if (key === 'Target folder') return TARGET_FOLDER_COPY[locale as keyof typeof TARGET_FOLDER_COPY] ?? TARGET_FOLDER_COPY.en;
+  const schemaCopy = Object.hasOwn(SCHEMA_TITLE_COPY, key) ? SCHEMA_TITLE_COPY[key] : undefined;
+  if (schemaCopy) return schemaCopy[locale] ?? schemaCopy.en!;
   const copy = APPROVAL_COPY[locale as keyof typeof APPROVAL_COPY] ?? APPROVAL_COPY.en;
   const actionCopy = ACTION_COPY[locale as keyof typeof ACTION_COPY] ?? ACTION_COPY.en;
   return copy[KEYS.indexOf(key)] ?? actionCopy[ACTION_KEYS.indexOf(key)] ?? key;

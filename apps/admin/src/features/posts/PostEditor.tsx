@@ -26,6 +26,7 @@ import { usePostPreviewIframeEscape, usePostSettingsDialog, useToolbarOverflow }
 import { TemplateSourceModal } from "../../components/TemplateSource/TemplateSourceModal";
 import { ViewTemplateButton } from "../../components/TemplateSource/ViewTemplateButton";
 import { TermPicker } from "../taxonomy/TermPicker";
+import { PageExternalChangeBanner } from "../pages/PageEditor";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../pages/rules";
 import { ContentAnalysisCard } from "../content-analysis/ContentAnalysisCard";
 import { PostCoverImage } from "./PostCoverImage";
@@ -1412,20 +1413,20 @@ export interface PostEditorProps {
 }
 
 /**
- * The three "something happened to your work" notices, grouped into one component so their three
+ * The four "something happened to your work" notices, grouped into one component so their four
  * independent render decisions are scored in this scope instead of accumulating onto `PostEditor`'s
  * — the same extraction `PostEditorHeader`/`PostEditorActions` above already document, and the
  * reason this exists at all: adding the stale-basis notice put `PostEditor` at a complexity of 10
  * against this repo's ceiling of 9.
  *
- * Deliberately NOT merged into a single "pick the most important one" banner. All three can be true
+ * Deliberately NOT merged into a single "pick the most important one" banner. All four can be true
  * at once and each reports a different fact with a different remedy — see `PostAutosaveStaleBanner`'s
  * own doc for the distinction. Suppressing one because another is showing would put the operator
  * back to guessing which of their edits actually survived.
  *
  * Order is deliberate: recovery (work from a previous session, an explicit choice to make) first,
  * then the stale-basis notice (a condition still true right now), then the rejected save (the most
- * recent thing the operator personally did). Nothing here can touch the working copy.
+ * recent thing the operator personally did), then the outside change awaiting a choice.
  */
 function PostEditorNotices({
   recoverableDraft,
@@ -1436,6 +1437,9 @@ function PostEditorNotices({
   saveConflict,
   saveOverwritingConflict,
   dismissSaveConflict,
+  pendingExternalVersion,
+  loadExternalChange,
+  dismissExternalChange,
   t,
 }: {
   recoverableDraft: StandingDraftAutosaveSnapshot | null;
@@ -1446,6 +1450,9 @@ function PostEditorNotices({
   saveConflict: PostSaveConflict | null;
   saveOverwritingConflict: () => Promise<void>;
   dismissSaveConflict: () => void;
+  pendingExternalVersion: number | null;
+  loadExternalChange: () => Promise<void>;
+  dismissExternalChange: () => void;
   t: Translate;
 }) {
   return (
@@ -1467,6 +1474,9 @@ function PostEditorNotices({
           onDismiss={dismissSaveConflict}
           t={t}
         />
+      ) : null}
+      {pendingExternalVersion != null ? (
+        <PageExternalChangeBanner onLoadLatest={() => void loadExternalChange()} onKeepEdits={dismissExternalChange} t={t} />
       ) : null}
     </>
   );
@@ -1538,6 +1548,9 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     saveOverwritingConflict,
     dismissSaveConflict,
     autosaveStaleBasis,
+    pendingExternalVersion,
+    loadExternalChange,
+    dismissExternalChange,
   } = usePostEditorHook(postId);
   // Above the early returns below: `use*` has to be called unconditionally for the rules-of-hooks
   // lint even though this one holds no state of its own.
@@ -1574,6 +1587,9 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         saveConflict={saveConflict}
         saveOverwritingConflict={saveOverwritingConflict}
         dismissSaveConflict={dismissSaveConflict}
+        pendingExternalVersion={pendingExternalVersion}
+        loadExternalChange={loadExternalChange}
+        dismissExternalChange={dismissExternalChange}
         t={t}
       />
       {/* Edit/Preview toolbar (2026-08-11, owner: "Let's have a preview button... a tab that shows

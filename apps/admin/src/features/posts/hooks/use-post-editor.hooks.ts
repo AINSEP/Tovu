@@ -30,6 +30,8 @@ import { rememberPostEditorRouteRename } from "../post-editor-route-key";
 import { editorTemplateOptions } from "@/lib/editor-template-options.rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useAgentScreenEntry } from "@/hooks/use-agent-screen-context.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { useExternalEntryRefresh } from "@/hooks/use-external-entry-refresh.hooks";
 import {
   useStandingDraftAutosave,
   type StandingDraftAutosaveSnapshot,
@@ -47,8 +49,10 @@ import {
   withTitleNode,
   type PostSaveConflict,
   resolvePostPreviewBranches,
+  POSTS_RESOURCE,
 } from "../rules";
 import { t as translate } from "../posts-i18n";
+import { t as translatePageEditor } from "../../pages/page-editor-i18n";
 import { defaultPostEditorPort } from "./post-editor-dependencies.hooks";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 import { usePostEditorUi, type PostEditorUiController } from "./use-post-editor-ui.hooks";
@@ -328,6 +332,10 @@ export interface PostEditorController extends PostEditorUiController {
    * and the mounted editor) is not touched on this path, by this hook or by the shared one.
    */
   autosaveStaleBasis: StandingDraftStaleBasis | null;
+  /** The shared refresh controller owns the pending revision and both explicit resolutions. */
+  pendingExternalVersion: number | null;
+  loadExternalChange: () => Promise<void>;
+  dismissExternalChange: () => void;
 }
 
 /** {@link usePostEditor}'s injected second parameter — see this file's header for the conversion this belongs to. */
@@ -800,6 +808,43 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     },
   });
 
+  // The active theme's templates as of the last load — `applyExternalPost` re-applies a row the
+  // assistant changed without re-fetching presentation settings, which an entry write never touches.
+  const loadedTemplates = useRef<string[]>([]);
+  /** Seeds every editable field, the TipTap doc and the dirty baseline from one server row — shared
+   *  by the load effect and an external (assistant) write landing while the editor is clean. */
+  function applyLoadedPost(post: AdminPost, activeThemeTemplates: string[]): void {
+    const form = loadedPostForm({ post, activeThemeTemplates });
+    setPost(post);
+    setTitle(post.title);
+    setStoredSlug(post.slug);
+    setSlugEdited(false);
+    setStatus(post.status);
+    setTemplateChoice(form.templateChoice);
+    setOverridesThemePage(form.overridesThemePage);
+    setPublishAtInput(isoToLocalDateTimeInput(post.publishAt));
+    setFeaturedMediaId(form.featuredMediaId);
+    setAuthor(form.author);
+    setShowAuthor(form.showAuthor);
+    setHideCoverImageInBody(form.hideCoverImageInBody);
+    // `withTitleNode` (post-title-in-document feature, 2026-08-11) is the back-compat seam:
+    // every post saved before this feature has a `bodyJson` with no `title` node, which the
+    // editor's own custom `doc` schema (`content: "title block+"`) would otherwise reject on
+    // load. Already-migrated posts pass through unchanged; anything else gets a title node
+    // synthesized from this SAME `post.title` just set above, so `original.title` (below) and
+    // the doc's own title node agree from the first render — no false-dirty on an untouched,
+    // freshly-opened pre-migration post.
+    editor.commands.setContent(withTitleNode(post.bodyJson, post.title) as never);
+    // Captured via `editor.getJSON()` right after `setContent`, not `post.bodyJson` as
+    // loaded — both sides of the later dirty comparison are then produced by the exact same
+    // serialization, so a schema-normalization difference between the server's stored JSON
+    // and TipTap's own round-trip can never register as a false "unsaved change" on a
+    // freshly-opened, untouched post. `original.templateChoice` uses the SAME defaulted value
+    // (not the raw, possibly-null `post.templateChoice`) so simply opening an unset post never
+    // shows as dirty on its own — only an actual further change does.
+    setOriginal(postFormSnapshot({ fields: form, bodyJson: editor.getJSON() }));
+  }
+
   useEffect(() => {
     if (postId === savedRouteSlug.current) return;
     setPost(null);
@@ -821,35 +866,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         setActiveThemeApiVersion(theme.activeThemeApiVersion);
         // The template default and the tri-state `overridesThemePage` normalization live in
         // `loadedPostForm` (`post-editor-state.rules.ts`), with their own reasoning.
-        const form = loadedPostForm({ post, activeThemeTemplates });
-        setPost(post);
-        setTitle(post.title);
-        setStoredSlug(post.slug);
-        setSlugEdited(false);
-        setStatus(post.status);
-        setTemplateChoice(form.templateChoice);
-        setOverridesThemePage(form.overridesThemePage);
-        setPublishAtInput(isoToLocalDateTimeInput(post.publishAt));
-        setFeaturedMediaId(form.featuredMediaId);
-        setAuthor(form.author);
-        setShowAuthor(form.showAuthor);
-        setHideCoverImageInBody(form.hideCoverImageInBody);
-        // `withTitleNode` (post-title-in-document feature, 2026-08-11) is the back-compat seam:
-        // every post saved before this feature has a `bodyJson` with no `title` node, which the
-        // editor's own custom `doc` schema (`content: "title block+"`) would otherwise reject on
-        // load. Already-migrated posts pass through unchanged; anything else gets a title node
-        // synthesized from this SAME `post.title` just set above, so `original.title` (below) and
-        // the doc's own title node agree from the first render — no false-dirty on an untouched,
-        // freshly-opened pre-migration post.
-        editor.commands.setContent(withTitleNode(post.bodyJson, post.title) as never);
-        // Captured via `editor.getJSON()` right after `setContent`, not `post.bodyJson` as
-        // loaded — both sides of the later dirty comparison are then produced by the exact same
-        // serialization, so a schema-normalization difference between the server's stored JSON
-        // and TipTap's own round-trip can never register as a false "unsaved change" on a
-        // freshly-opened, untouched post. `original.templateChoice` uses the SAME defaulted value
-        // (not the raw, possibly-null `post.templateChoice`) so simply opening an unset post never
-        // shows as dirty on its own — only an actual further change does.
-        setOriginal(postFormSnapshot({ fields: form, bodyJson: editor.getJSON() }));
+        loadedTemplates.current = activeThemeTemplates;
+        applyLoadedPost(post, activeThemeTemplates);
         // readable-slugs S6a: an old id-based bookmark quietly catches up to the slug URL, same
         // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule `use-widget-instance-editor.hooks.ts`
         // and `use-page-editor.hooks.ts` already apply. No root-slug exception here — unlike Pages,
@@ -931,6 +949,35 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // `beforeunload` listener for a value nothing reads for that purpose — see `computeContentDirty`
   // above for the comparison itself.
   const contentDirty = computeContentDirty({ title, slug, status, bodyJson, overridesThemePage, author, showAuthor }, original);
+
+  // Assistant edits (todos.md:367, 09-24): `content_post_update` and friends publish on the content
+  // bus when a tool result or run lands (`AssistantDock.hooks.tsx`), and this editor never re-read
+  // its row, so it kept showing — and would have saved over — the old text, with the old slug in
+  // the address bar. Same clean/dirty/saving rule the Pages editor applies
+  // (`use-external-entry-refresh.hooks.ts`): a clean editor takes the new row; a dirty one is left alone.
+  const externalRefresh = useExternalEntryRefresh<AdminPost>({
+    loaded: post,
+    fetchLatest: (id) => port.getPost(id).then((loaded) => loaded.post),
+    isDirty: () => isDirty,
+    isSaving: () => saving,
+    applyLatest: applyExternalPost,
+    discardStandingDraft: autosave.clearStandingDraft,
+    supersedeStandingDraftBasis: autosave.supersedeBasis,
+    onLoadLatestFailed: () => setError(t("could not re-read the current version — your changes are still here, try again")),
+  });
+  useContentRefreshSubscription(POSTS_RESOURCE, externalRefresh.checkForExternalChange);
+
+  /** {@link externalRefresh}'s apply half: the new row, plus the address bar following a slug the
+   *  assistant changed (same replace-navigate and remount guard as `runSave`'s rename). */
+  function applyExternalPost(fresh: AdminPost): void {
+    applyLoadedPost(fresh, loadedTemplates.current);
+    setSaveConflict(null);
+    if (postId !== fresh.slug && postId !== fresh.id) {
+      savedRouteSlug.current = fresh.slug;
+      rememberPostEditorRouteRename({ from: postId, to: fresh.slug });
+      navigate(`/posts/${fresh.slug}`, { replace: true });
+    }
+  }
 
   // Standing-draft autosave scheduling — fires a debounced write whenever the working copy actually
   // differs from what's saved. Deliberately does NOT clear the draft when `contentDirty` goes back
@@ -1256,6 +1303,9 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     restoreRecoveredDraft,
     discardRecoveredDraft,
     autosaveStaleBasis: autosave.staleBasis,
+    pendingExternalVersion: externalRefresh.pendingExternalVersion,
+    loadExternalChange: externalRefresh.loadExternalChange,
+    dismissExternalChange: externalRefresh.dismissExternalChange,
   };
 }
 
@@ -1270,6 +1320,10 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
  */
 export function useWiredPostEditor(postId: string): PostEditorController {
   const locale = useAdminLocale();
-  const t = (key: string): string => translate({ locale: locale, key: key });
+  // The reused Pages notice and its load-error copy keep their existing translation owner.
+  const t = (key: string): string => {
+    const text = translate({ locale, key });
+    return text === key ? translatePageEditor(locale, key) : text;
+  };
   return usePostEditor(postId, { port: defaultPostEditorPort, navigate: realNavigate, t });
 }

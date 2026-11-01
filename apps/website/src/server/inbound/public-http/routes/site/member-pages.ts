@@ -34,8 +34,21 @@ function field(input: { id: string; label: string; name: string; type: string; a
   const tipId = `${input.id}-tip`;
   const label = `<label for="${input.id}">${input.label}</label>`;
   const head = input.tip ? `<span class="member-label-row">${label}${tipButton(tipId)}</span>${tipText(tipId, input.tip)}` : label;
-  return `<div class="field member-field">${head}<input id="${input.id}" name="${input.name}" type="${input.type}" ` +
-    `autocomplete="${input.autocomplete}"${input.extra ?? ""}></div>`;
+  const control = `<input id="${input.id}" name="${input.name}" type="${input.type}" ` +
+    `autocomplete="${input.autocomplete}"${input.type === "password" ? ' spellcheck="false"' : ""}${input.extra ?? ""}>`;
+  const body = input.type === "password" ? `<span class="member-password">${control}${passwordToggle(input)}</span>` : control;
+  return `<div class="field member-field">${head}${body}</div>`;
+}
+
+/** Public-page counterpart of SecretInput: the changing name carries state, outside the label.
+ * The member script toggles the native input; no secret is serialized into this markup.
+ * @complexity O(n) in the rendered id and label lengths. */
+function passwordToggle({ id, label }: { id: string; label: string }, _optional = {}): string {
+  return `<button type="button" class="member-password-toggle" aria-controls="${id}" aria-label="Show ${label}" ` +
+    `data-member-password-toggle data-show-label="Show ${label}" data-hide-label="Hide ${label}">` +
+    '<svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>' +
+    '<path class="member-password-slash" d="M2 2l20 20" hidden/></svg></button>';
 }
 
 function tipButton(id: string): string {

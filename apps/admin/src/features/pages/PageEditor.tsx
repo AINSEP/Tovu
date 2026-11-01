@@ -474,7 +474,7 @@ function PageAutosaveStaleBanner({ staleBasis, t }: { staleBasis: StandingDraftS
  * Save. "Load latest" mirrors that banner's "Save anyway" in shape (an explicit, named action) but
  * opposite in effect — it discards the operator's edits rather than the other write.
  */
-function PageExternalChangeBanner({ onLoadLatest, onKeepEdits, t }: { onLoadLatest: () => void; onKeepEdits: () => void; t: Translate }) {
+export function PageExternalChangeBanner({ onLoadLatest, onKeepEdits, t }: { onLoadLatest: () => void; onKeepEdits: () => void; t: Translate }) {
   return (
     <div
       className="notice warning"

@@ -1041,6 +1041,9 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     // Stale basis (2026-09-06). `null` is "autosave is healthy", so the notice never renders in the
     // pre-existing tests here — its own suite below overrides it.
     autosaveStaleBasis: null,
+    pendingExternalVersion: null,
+    loadExternalChange: vi.fn(),
+    dismissExternalChange: vi.fn(),
     // Optimistic concurrency (2026-09-06) — same reasoning as the autosave three just above:
     // `saveConflict: null` is "no conflict", so `PostVersionConflictBanner` never renders here.
     saveConflict: null,
@@ -1792,5 +1795,23 @@ describe("title keys, save errors and an unset template (injected controller)", 
   it("shows the empty choice in the template picker while no template is set", () => {
     renderPostEditor({ availableTemplates: ["blog-post.html"], templateChoice: null });
     expect(templateSelect()).toHaveValue("");
+  });
+});
+
+
+describe("external-change notice", () => {
+  it("stays hidden without a pending outside revision", () => {
+    renderPostEditor({ pendingExternalVersion: null });
+    expect(screen.queryByText(/changed outside the editor/i)).not.toBeInTheDocument();
+  });
+
+  it("translates the shared notice and wires both choices", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ pendingExternalVersion: 4, t: (key) => `T:${key}` });
+    expect(screen.getByText(/^T:Changed outside the editor/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /load latest/i }));
+    expect(ctrl.loadExternalChange).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole("button", { name: /keep my edits/i }));
+    expect(ctrl.dismissExternalChange).toHaveBeenCalledTimes(1);
   });
 });

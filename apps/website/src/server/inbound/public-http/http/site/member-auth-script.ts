@@ -30,6 +30,11 @@ export const MEMBER_AUTH_STYLE =
   ":where(.member-field){display:flex;flex-direction:column;gap:6px;margin:0 0 16px;}" +
   ":where(.member-field label){font-weight:600;font-size:0.9rem;}" +
   ":where(.member-field input){font:inherit;padding:8px 10px;border:1px solid var(--border,#d1d5db);border-radius:6px;background:var(--bg,#fff);color:inherit;max-width:100%;box-sizing:border-box;}" +
+  ":where(.member-password){position:relative;display:flex;}" +
+  ".member-password input{width:100%;padding-inline-end:44px;}" +
+  ":where(.member-password-toggle){position:absolute;inset-inline-end:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;width:44px;border:0;background:transparent;color:inherit;cursor:pointer;}" +
+  ".member-password-toggle svg [hidden]{display:none;}" +
+  ".member-password-toggle:focus-visible{outline:2px solid currentColor;outline-offset:-4px;border-radius:6px;}" +
   ":where(.member-label-row){display:flex;align-items:center;gap:8px;}" +
   ":where(.member-actions){display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:4px;}" +
   ":where(.member-auth .member-submit){padding:8px 16px;border:1px solid transparent;border-radius:6px;background:var(--fg,#111827);color:var(--bg,#fff);font:inherit;font-weight:600;cursor:pointer;}" +
@@ -321,6 +326,16 @@ export const MEMBER_AUTH_SCRIPT = String.raw`(function (base) {
   });
   all("[data-member-sign-out]", page).forEach(function (button) {
     button.addEventListener("click", function () { signOut(button); });
+  });
+  // Native buttons keep keyboard activation and cannot submit the member form.
+  all("[data-member-password-toggle]", page).forEach(function (button) {
+    var input = doc.getElementById(button.getAttribute("aria-controls"));
+    button.addEventListener("click", function () {
+      var reveal = input.type === "password";
+      input.type = reveal ? "text" : "password";
+      button.setAttribute("aria-label", button.getAttribute(reveal ? "data-hide-label" : "data-show-label"));
+      button.querySelector(".member-password-slash").toggleAttribute("hidden", !reveal);
+    });
   });
   all(".member-tip", page).forEach(function (tip) {
     var text = doc.getElementById(tip.getAttribute("aria-controls"));

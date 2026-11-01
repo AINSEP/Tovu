@@ -175,10 +175,10 @@ test("password sign-in: 401 and 429 messages, and the button is disabled while i
   page.fill("member-signin-password", "pw");
   page.submit("password");
   const form = page.doc.querySelector("form[data-member-form=password]")!;
-  assert.equal(form.querySelector("button")!.disabled, true);
+  assert.equal(form.querySelector<HTMLButtonElement>("button[type=submit]")!.disabled, true);
   assert.equal(form.getAttribute("aria-busy"), "true");
   await settle();
-  assert.equal(form.querySelector("button")!.disabled, false);
+  assert.equal(form.querySelector<HTMLButtonElement>("button[type=submit]")!.disabled, false);
   assert.equal(page.error("password"), "Wrong email or password.");
   replies["POST /password/sign-in"] = { status: 429, body: { code: "RATE_LIMIT_EXCEEDED" }, retryAfter: "120" };
   page.submit("password");
@@ -380,4 +380,36 @@ test("/account: an Unlink refused for an old session asks for a fresh code sign-
   assert.match(page.doc.querySelector("[data-member-identities] [data-member-error]")!.textContent!, /sign in again with an emailed code, then unlink/);
   assert.equal(page.doc.querySelector<HTMLElement>("[data-member-identities] [data-member-reauth]")!.hidden, false);
   assert.deepEqual(rows(page), ["Google connectedUnlink"], "still connected");
+});
+
+
+test("member passwords have accessible reveal toggles that never submit or change the value", async () => {
+  for (const path of ["/signin", "/reset-password", "/account"]) {
+    const page = boot({ url: `https://site.example${path}#reset=token`,
+      replies: { "GET /me": { status: 200, body: { member: { id: "m1", email: "member@example.test" } } } } });
+    try {
+      await settle();
+      const fields = [...page.doc.querySelectorAll<HTMLInputElement>('input[type="password"]')];
+      assert.ok(fields.length > 0);
+      for (const field of fields) {
+        field.value = "my secret";
+        const label = page.doc.querySelector(`label[for="${field.id}"]`)!.textContent;
+        const toggle = page.doc.querySelector<HTMLButtonElement>(`button[aria-controls="${field.id}"]`);
+        assert.ok(toggle, `${field.id} needs a reveal toggle`);
+        assert.equal(toggle.type, "button");
+        assert.equal(toggle.getAttribute("aria-label"), `Show ${label}`);
+        assert.equal(field.getAttribute("spellcheck"), "false");
+        assert.ok(toggle.querySelector('svg[aria-hidden="true"]'), "eye is decorative");
+        toggle.click();
+        assert.equal(field.type, "text");
+        assert.equal(toggle.getAttribute("aria-label"), `Hide ${label}`);
+        assert.equal(field.value, "my secret");
+        toggle.click();
+        assert.equal(field.type, "password");
+        assert.equal(toggle.getAttribute("aria-label"), `Show ${label}`);
+        assert.equal(field.value, "my secret");
+      }
+      assert.equal(page.calls.filter((call) => call.method === "POST").length, 0);
+    } finally { page.window.close(); }
+  }
 });
