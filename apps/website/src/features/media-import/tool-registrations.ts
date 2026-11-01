@@ -29,7 +29,7 @@ import type { FsRootId } from "../fs-files/layout.js";
 import { LOCAL_FILE_IMPORT_RECOVERY, mediaImportAgentToolCatalog } from "./agent-tools.js";
 import { buildImportFilename, MediaImportValidationError } from "@jini-ai/cms/media/import";
 import { fetchImage, validateImageBytes } from "./fetch-image.js";
-import { replaceMediaFile, MediaValidationError, type MediaFileReplacementRepoPort } from "@jini-ai/cms/media";
+import { replaceMediaFile, MediaValidationError, type ImageCodecPort, type MediaFileReplacementRepoPort } from "@jini-ai/cms/media";
 import { refuseUnexpectedKeys } from "../../contracts/core/human-confirm.js";
 
 /**
@@ -86,7 +86,13 @@ export interface MediaImportToolDeps {
   resolveRoots?: () => Record<FsRootId, string | undefined>;
   /** Test-only smaller binary cap. Clamped to the host ceiling; not a tool input. */
   mediaImportLocalMaxBytes?: number;
+  /** Makes the chat preview ({@link withChatPreview}). Absent: imports return plain JSON, no preview. */
+  imageCodec?: ImageCodecPort;
 }
+
+/** Long edge of the chat preview. Small on purpose: the model sees the block too, so it is a
+ *  glance (a few KB), not a second copy; the full file is one click away through `href`. */
+export const IMPORT_PREVIEW_MAX_EDGE_PX = 320;
 
 const CATALOG_BY_ID = indexCatalogById({ catalog: mediaImportAgentToolCatalog });
 
@@ -244,6 +250,35 @@ export async function persistImportedMedia(required: { routeDeps: MediaImportToo
   };
 }
 
+/**
+ * Adds a small WebP preview to a single import's result so the admin chat shows the saved picture
+ * inline, titled and linked to its file — the same `{content: [text, image]}` envelope
+ * `media_view_image` returns, so every agent CLI and BYOK path already carries it. The text block
+ * is the unchanged `{ media }` JSON. Best effort: no codec, a video or SVG, or any encode error
+ * returns the plain result; the import itself already succeeded.
+ * Batch items drop the image (`@jini-ai/core` batch wrapper), so batches stay plain JSON.
+ * @complexity O(pixels) for one decode and one small encode.
+ */
+async function withChatPreview(
+  { routeDeps, bytes, contentType, result }: { routeDeps: MediaImportToolDeps; bytes: Uint8Array; contentType: string; result: { media: ImportedMediaView } },
+  _optional: Record<string, never> = {},
+): Promise<unknown> {
+  // Raster only, like media_view_image: these are the unsanitized source bytes, so an SVG never
+  // reaches the rasterizer here, and a video has no still to show.
+  if (!routeDeps.imageCodec || !contentType.startsWith("image/") || contentType === "image/svg+xml") return result;
+  try {
+    const preview = await routeDeps.imageCodec.encode({ source: bytes, autoOrient: true, format: "webp", quality: 70,
+      resize: { width: IMPORT_PREVIEW_MAX_EDGE_PX, height: IMPORT_PREVIEW_MAX_EDGE_PX, fit: "inside", withoutEnlargement: true } });
+    const { title, publicUrl } = result.media;
+    return { content: [
+      { type: "text", text: JSON.stringify(result) },
+      { type: "image", mimeType: "image/webp", data: Buffer.from(preview.bytes).toString("base64"), title, ...(publicUrl ? { href: publicUrl } : {}) },
+    ] };
+  } catch {
+    return result;
+  }
+}
+
 /** Read replacement bytes through the existing root containment, secret exclusions and bounded read.
  * @throws FsFilePathError or MediaImportValidationError for unsafe paths or unsupported bytes.
  * @complexity O(b) time/space for b file bytes, bounded by the host upload ceiling. */
@@ -306,7 +341,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
         },
       });
     },
-    media_import_local_file: async (ctx): Promise<{ media: ImportedMediaView }> => {
+    media_import_local_file: async (ctx): Promise<unknown> => {
       const input = requireInputRecord({ input: ctx.input });
       const root = requireString({ input, key: "root" });
       const relativePath = requireString({ input, key: "path" });
@@ -329,7 +364,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
           // uploadMedia derives its title by stripping the final extension. A synthetic suffix lets
           // an explicit editorial title keep its punctuation and spaces; this is never a disk path.
           const filename = title === undefined ? relativePath.split(/[\\/]/).at(-1)! : `${title}.imported`;
-          return persistImportedMedia({
+          const result = await persistImportedMedia({
             routeDeps, actorId: ctx.principal.id,
             input: {
               workspaceId: routeDeps.workspaceId, bytes, filename, contentType,
@@ -339,11 +374,12 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
             },
             sourceUrl: "",
           });
+          return withChatPreview({ routeDeps, bytes, contentType, result });
         },
       });
     },
 
-    media_import_from_url: async (ctx): Promise<{ media: ImportedMediaView }> => {
+    media_import_from_url: async (ctx): Promise<unknown> => {
       const input = requireInputRecord({ input: ctx.input });
       const url = requireString({ input, key: "url" });
       await requireToolPermission({
@@ -362,7 +398,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
           withCallerSafeEgressRefusal(logEgressRefusal, async () => {
             const fetched = await fetchImage({ deps: { httpClient: routeDeps.mediaImportHttpClient, plainHttpTestOrigins: routeDeps.outboundTestOrigins }, url });
 
-            return persistImportedMedia({
+            const result = await persistImportedMedia({
               routeDeps, actorId: ctx.principal.id,
               input: {
                 workspaceId: routeDeps.workspaceId,
@@ -377,6 +413,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
               },
               sourceUrl: fetched.url.href,
             });
+            return withChatPreview({ routeDeps, bytes: fetched.bytes, contentType: fetched.contentType, result });
           })
       });
     },

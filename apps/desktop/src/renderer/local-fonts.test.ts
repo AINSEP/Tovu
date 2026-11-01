@@ -18,7 +18,7 @@ test('all three typefaces are bundled variable fonts with their OFL licenses', (
   }
 });
 test('renderer CSP permits only local font and stylesheet origins', () => {
-  assert.match(html, /style-src 'self';/);
+  assert.match(html, /style-src 'self'( 'sha256-[A-Za-z0-9+/=]+')?;/);
   assert.match(html, /font-src 'self';/);
   assert.match(html, /script-src 'self';/);
 });

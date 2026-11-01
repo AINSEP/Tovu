@@ -100,11 +100,12 @@ function bindMediaSource({ node, resolve }: { node: Element; resolve: (slug: str
     return false;
   }
   // A data-media-slug denotes library source ownership; authored alt still overrides the fallback.
-  const metadata = new Set(['src', 'srcset', 'width', 'height', 'alt']);
-  const authoredAlt = node.attrs.find(attr => attr.name === 'alt');
+  // A video's library poster travels too (else the player shows a blank box until played), and an
+  // authored poster overrides it the same way alt does.
+  const metadata = new Set(['src', 'srcset', 'width', 'height', 'alt', 'poster']);
+  const authored = node.attrs.filter(attr => attr.name === 'alt' || attr.name === 'poster');
   node.attrs = node.attrs.filter(attr => !metadata.has(attr.name));
-  node.attrs.push(...canonical.attrs.filter(attr => metadata.has(attr.name) && !(attr.name === 'alt' && authoredAlt)));
-  if (authoredAlt) node.attrs.push(authoredAlt);
+  node.attrs.push(...canonical.attrs.filter(attr => metadata.has(attr.name) && !authored.some(own => own.name === attr.name)), ...authored);
   return true;
 }
 

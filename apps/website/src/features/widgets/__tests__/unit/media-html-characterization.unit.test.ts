@@ -23,6 +23,15 @@ test('raw media caches successful and missing resolutions and keeps authored alt
   assert.deepEqual(issues, ['missing']);
 });
 
+test('a library video keeps its poster in Raw HTML, so the player shows a preview frame before playback; an authored poster still wins', () => {
+  const renderMedia = () => '<video src="/m/grv/original.mp4" controls poster="/m/grv-poster/public.v1/image.webp">Recap</video>';
+  const media = { grv: { slug: 'grv' } };
+  const html = '<video data-media-slug="grv" controls playsinline preload="metadata"></video><video data-media-slug="grv" poster="/m/own/public.v1/image.webp"></video>';
+  assert.equal(renderMediaRawHtml({ html, media, renderMedia }),
+    '<video data-media-slug="grv" controls="" playsinline="" preload="metadata" src="/m/grv/original.mp4" poster="/m/grv-poster/public.v1/image.webp"></video>' +
+    '<video data-media-slug="grv" src="/m/grv/original.mp4" poster="/m/own/public.v1/image.webp"></video>');
+});
+
 test('raw media rejects mismatches, unsupported markers, inherited slugs and renderer output without media', (t) => {
   const warnings = t.mock.method(console, 'warn', () => {});
   const issues: string[] = [];

@@ -11,7 +11,11 @@
       the app — nothing may load from a remote origin, so there is no CDN or registry that can
       swap code under this bridge on a release this repo never reviewed.
     -->
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self'; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none';" />
+    <!--
+      The one style hash below is Electron's own `<webview>` shadow-root `<style>` (`:host { display: flex; }`),
+      admitted by exact content so it stops logging a CSP violation; every other inline style stays blocked.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self'; style-src 'self' 'sha256-XNfYdUW7S7AWSxlvq47SGsGIxvvzKwvUGdsFQQ/zXf4='; font-src 'self'; object-src 'none'; base-uri 'none';" />
   </head>
   <body>
     <div id="root"></div>

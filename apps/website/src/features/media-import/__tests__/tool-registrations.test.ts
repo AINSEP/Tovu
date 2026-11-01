@@ -5,6 +5,8 @@ import type { ToolContributions } from "@jini-ai/core";
 import assert from "node:assert/strict";
 import { createNoopTracker, type Tracker } from "@jini-ai/diagnostics/observability";
 import { createHash } from "node:crypto";
+import sharp from "sharp";
+import { SharpImageTransformer } from "@jini-ai/cms/media/node";
 import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
@@ -187,6 +189,33 @@ test("the assistant URL tool sanitizes SVG, hashes stored bytes, and returns an 
   assert.equal(sha256Hex(stored.bytes), result.media.sha256);
   assert.equal(result.media.publicUrl, `/m/${result.media.slug}/original.svg?v=${result.media.sha256.slice(0, 12)}`);
   assert.equal((await fixture.mediaRepo.findById({ workspaceId: WORKSPACE_ID, id: result.media.id }))?.title, "logo");
+});
+
+test("with the image codec wired, a URL import also returns a small titled WebP preview linked to the file, so the chat shows it inline", async () => {
+  const fixture = fakeRouteDeps();
+  await seedPublicTransform(fixture.transformDefinitionRepo);
+  const deps = { ...fixture.deps, imageCodec: new SharpImageTransformer() } as RegistryDepsWithoutLimiter;
+  const out = await wired("media_import_from_url", deps).handler(executionContext({ url: SOURCE_URL })) as { content: Array<Record<string, string>> };
+
+  assert.equal(out.content.length, 2);
+  const [text, image] = out.content;
+  assert.equal(text!.type, "text");
+  const { media } = JSON.parse(text!.text!) as ImportResult;
+  assert.equal(media.sha256, sha256Hex(REAL_PNG), "the model still gets the same media JSON as before");
+  assert.deepEqual({ type: image!.type, mimeType: image!.mimeType, title: image!.title, href: image!.href },
+    { type: "image", mimeType: "image/webp", title: media.title, href: media.publicUrl });
+  const preview = await sharp(Buffer.from(image!.data!, "base64")).metadata();
+  assert.equal(preview.format, "webp");
+  assert.ok(Math.max(preview.width!, preview.height!) <= 320, "a small preview, not the full image");
+});
+
+test("a preview the codec cannot make never fails the import: the plain media result comes back", async () => {
+  const fixture = fakeRouteDeps();
+  const failing = { inspect: async () => { throw new Error("x"); }, encode: async () => { throw new Error("cannot decode"); }, encodeTiles: async () => [] };
+  const deps = { ...fixture.deps, imageCodec: failing } as unknown as RegistryDepsWithoutLimiter;
+  const out = await wired("media_import_from_url", deps).handler(executionContext({ url: SOURCE_URL })) as ImportResult;
+  assert.equal(out.media.sha256, sha256Hex(REAL_PNG));
+  assert.equal(fixture.blobStore.writes.length, 1);
 });
 
 test("both model-facing import descriptions advertise sanitized SVG and need no confirmation", () => {
