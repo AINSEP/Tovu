@@ -341,7 +341,9 @@ describe("preview fallback chain", () => {
     expect(img).toHaveAttribute("alt", "Trashed Clip");
   });
 
-  it("swaps to <video> (same src, controls, no autoplay) when the image probe fails", async () => {
+  // why: a grid card's video has no `controls` since the 2026-10-29 grid design (a still frame that
+  // opens the lightbox, where it plays); `media-grid-fit.unit.test.tsx` covers that card shape.
+  it("swaps to <video> (same src, no controls in the card, no autoplay) when the image probe fails", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     const { container } = renderScreen();
 
@@ -353,7 +355,7 @@ describe("preview fallback chain", () => {
       const video = card.querySelector("video");
       expect(video).toBeInTheDocument();
       expect(video).toHaveAttribute("src", api.mediaOriginalUrl("media-1"));
-      expect(video).toHaveAttribute("controls");
+      expect(video).not.toHaveAttribute("controls");
       expect(video).not.toHaveAttribute("autoplay");
       expect(card.querySelector("img")).not.toBeInTheDocument();
     });

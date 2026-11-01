@@ -42,6 +42,20 @@ describe("Login", () => {
     expect(screen.getByLabelText("Password")).toHaveAttribute("autocomplete", "current-password");
   });
 
+  // Owner 2026-10-25 (todos.md:153): the sign-in password needs the shared show/hide eye.
+  it("the password field has the shared eye toggle, and it reveals and re-hides the typed password", async () => {
+    const user = userEvent.setup();
+    render(<Login onLogin={vi.fn()} useLoginHook={stubHook({ password: "secret" })} />);
+    const input = screen.getByLabelText("Password");
+    const eye = screen.getByRole("button", { name: "Show Password" });
+    expect(eye).toHaveAttribute("type", "button");
+
+    await user.click(eye);
+    expect(input).toHaveAttribute("type", "text");
+    await user.click(screen.getByRole("button", { name: "Hide Password" }));
+    expect(input).toHaveAttribute("type", "password");
+  });
+
   it("calls the hook's setUsername/setPassword as the operator types", async () => {
     const user = userEvent.setup();
     const setUsername = vi.fn();

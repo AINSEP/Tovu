@@ -1711,13 +1711,38 @@ const MEDIA_TRASH_STRINGS: Record<string, Record<string, string>> = {
   bn: { "Trash is empty.": "ট্র্যাশ খালি।", "Media you trash appears here.": "আপনি যে মিডিয়া ট্র্যাশে পাঠান তা এখানে দেখা যায়।", Restore: "পুনরুদ্ধার করুন", "failed to restore": "পুনরুদ্ধার করা যায়নি" },
 };
 
+/** Grid card badge for an image taller than about 1:3 (owner design, 2026-10-29). */
+const MEDIA_SHAPE_STRINGS: Record<string, Record<string, string>> = {
+  es: { "Long image": "Imagen larga" },
+  id: { "Long image": "Gambar panjang" },
+  de: { "Long image": "Langes Bild" },
+  "zh-CN": { "Long image": "长图" },
+  "zh-TW": { "Long image": "長圖" },
+  "pt-BR": { "Long image": "Imagem longa" },
+  ru: { "Long image": "Длинное изображение" },
+  fa: { "Long image": "تصویر بلند" },
+  ar: { "Long image": "صورة طويلة" },
+  ja: { "Long image": "縦長の画像" },
+  ko: { "Long image": "긴 이미지" },
+  pl: { "Long image": "Długi obraz" },
+  hu: { "Long image": "Hosszú kép" },
+  fr: { "Long image": "Image longue" },
+  uk: { "Long image": "Довге зображення" },
+  tr: { "Long image": "Uzun görsel" },
+  th: { "Long image": "รูปภาพยาว" },
+  it: { "Long image": "Immagine lunga" },
+  hi: { "Long image": "लंबी छवि" },
+  ur: { "Long image": "لمبی تصویر" },
+  bn: { "Long image": "লম্বা ছবি" },
+};
+
 export const MEDIA_DICT: Record<string, Record<string, string>> = Object.fromEntries(
   Object.entries(MEDIA_TRANSLATIONS).map(([locale, entries]) => [
     locale,
     // Spreading a missing locale's `undefined` contributes nothing, so a locale absent from one of
     // these add-on tables still merges cleanly — no `?? {}` fallback is needed (every current locale
     // is present in every one, which left those fallbacks with no reachable branch).
-    { ...entries, ...MEDIA_AUDIT_STRINGS[locale], ...MEDIA_IMPORT_STRINGS[locale], ...MEDIA_PROVENANCE_STRINGS[locale], ...MEDIA_DIALOG_STRINGS[locale], ...MEDIA_TRASH_STRINGS[locale] },
+    { ...entries, ...MEDIA_AUDIT_STRINGS[locale], ...MEDIA_IMPORT_STRINGS[locale], ...MEDIA_PROVENANCE_STRINGS[locale], ...MEDIA_DIALOG_STRINGS[locale], ...MEDIA_TRASH_STRINGS[locale], ...MEDIA_SHAPE_STRINGS[locale] },
   ]),
 );
 

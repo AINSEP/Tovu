@@ -17,6 +17,7 @@ import {
   sortMediaByOrder,
   MEDIA_ORDER_OPTIONS,
   resolveLightboxItem,
+  mediaShapeBadges,
   type MediaOrderBy,
 } from "./rules";
 import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
@@ -148,6 +149,27 @@ function ExpandIcon() {
   );
 }
 
+/** "Play" cue on a video card's still frame — the card no longer carries the player itself. */
+function PlayIcon() {
+  return (
+    <svg className="media-card-play" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
+      <path d="M6 3.5v11l9-5.5-9-5.5z" />
+    </svg>
+  );
+}
+
+/** A grid card's shape badges ("9:16 · 1080×1920", "0:54", "Long image") once the asset has loaded. */
+function MediaCardBadges({ badges, t }: { badges: ReturnType<typeof mediaShapeBadges> | null; t: (key: string) => string }) {
+  if (!badges) return null;
+  return (
+    <span className="media-card-badges">
+      {badges.isLong ? <span className="media-card-badge">{t("Long image")}</span> : null}
+      <span className="media-card-badge">{badges.size}</span>
+      {badges.duration ? <span className="media-card-badge">{badges.duration}</span> : null}
+    </span>
+  );
+}
+
 interface MediaPreviewProps {
   item: AdminMedia;
   onExpand?: () => void;
@@ -183,8 +205,12 @@ interface MediaPreviewProps {
 
 /** (2026-09-30, owner ask) For the `"image"` stage the expand button now fills the whole preview
  * (`media-card-expand-fill`, wrapping the `<img>`) so clicking the picture opens
- * the lightbox; the corner glyph stays inside it as the visual cue. The `"video"` stage keeps the
- * small corner button so the native controls remain clickable (see the paragraph below).
+ * the lightbox; the corner glyph stays inside it as the visual cue.
+ *
+ * (2026-10-29 owner design) A grid card's `"video"` stage is now a still frame (`<video>` with no
+ * `controls`) inside the same whole-preview button, with a play cue; it plays in the lightbox at its
+ * real shape. The paragraph below about `<video controls>` now applies only to the lightbox, which
+ * passes no `onExpand` and so never wraps its player in a button.
  *
  * Resolves whether an asset previews as an image, a video, or neither — see this file's header
  * comment for why this is a client-side fallback chain rather than a server content-type read.
@@ -202,7 +228,8 @@ interface MediaPreviewProps {
  * than the exact same placeholder, just bigger. */
 function MediaPreview(props: MediaPreviewProps) {
   const { useMediaPreviewHook = useWiredMediaPreview, t } = props;
-  const { stage, src, altText, handleImageError, handleVideoError } = useMediaPreviewHook(props.item, t);
+  const preview = useMediaPreviewHook(props.item, t);
+  const { stage, src, altText, handleImageError, handleVideoError } = preview;
 
   // Computed ahead of the stage branches (unlike `expandButton` below, which the `"unsupported"`
   // branch never needed) — editing an asset's metadata is meaningful regardless of whether its
@@ -238,52 +265,73 @@ function MediaPreview(props: MediaPreviewProps) {
     );
   }
 
-  const expandHandle = props.agentExpandHandle
-    ? agentHandle({ handle: props.agentExpandHandle }, { role: "button", label: "Open this asset larger in the lightbox" })
-    : {};
-  const expandLabel = `View "${props.item.title}" larger`;
-
-  if (stage === "video") {
+  // The lightbox's own reuse (no `onExpand`) is where a video plays, at its real shape, with
+  // native controls. A grid card (owner design, 2026-10-29) shows a fitted still frame with a play
+  // cue instead: the card-sized player cropped vertical videos to their middle third and crowded
+  // its controls under the corner buttons.
+  if (!props.onExpand) {
     return (
       <>
-        <video
-          className="media-card-media"
-          src={src}
-          controls
-          preload="metadata"
-          aria-label={altText}
-          onError={handleVideoError}
-        />
+        {stage === "video" ? (
+          <video className="media-card-media" src={src} controls preload="metadata" aria-label={altText} onError={handleVideoError} />
+        ) : (
+          <img className="media-card-media" src={src} alt={altText} loading="lazy" onError={handleImageError} />
+        )}
         {editButton}
-        {props.onExpand ? (
-          <button type="button" className="media-card-expand" aria-label={expandLabel} onClick={props.onExpand} {...expandHandle}>
-            <ExpandIcon />
-          </button>
-        ) : null}
       </>
     );
   }
 
-  const image = <img className="media-card-media" src={src} alt={altText} loading="lazy" onError={handleImageError} />;
+  return (
+    <MediaCardStage
+      preview={preview}
+      title={props.item.title}
+      onExpand={props.onExpand}
+      agentExpandHandle={props.agentExpandHandle}
+      editButton={editButton}
+      t={t}
+    />
+  );
+}
 
-  // Image stage: the picture itself sits INSIDE the expand button (an `<img>` is legal button
-  // content), so a click anywhere on it opens the lightbox and Enter/Space work on the button.
+/** A grid card's preview stage: the fitted asset inside the whole-preview open-larger button, its
+ *  kind cue (play or expand) and its shape badges. Split from `MediaPreview` for complexity. */
+function MediaCardStage({ preview, title, onExpand, agentExpandHandle, editButton, t }: {
+  preview: ReturnType<typeof useWiredMediaPreview>;
+  title: string;
+  onExpand: () => void;
+  agentExpandHandle?: string;
+  editButton: ReactNode;
+  t: (key: string) => string;
+}) {
+  const { stage, src, altText, handleImageError, handleVideoError, shape, handleImageLoad, handleVideoMetadata } = preview;
+  const expandHandle = agentExpandHandle
+    ? agentHandle({ handle: agentExpandHandle }, { role: "button", label: "Open this asset larger in the lightbox" })
+    : {};
+  const badges = shape ? mediaShapeBadges(shape) : null;
+  // A `<video>` without `controls` is not interactive content, so (like an `<img>`) it may sit
+  // inside the expand button: clicking the still frame opens the lightbox for both kinds.
+  const media = stage === "video" ? (
+    <video className="media-card-media" src={src} preload="metadata" muted playsInline aria-label={altText} onError={handleVideoError} onLoadedMetadata={handleVideoMetadata} />
+  ) : (
+    <img className={badges?.isLong ? "media-card-media media-card-media--long" : "media-card-media"} src={src} alt={altText} loading="lazy" onError={handleImageError} onLoad={handleImageLoad} />
+  );
+
+  // The picture itself sits INSIDE the expand button (an `<img>` is legal button content), so a
+  // click anywhere on it opens the lightbox and Enter/Space work on the button.
   return (
     <>
-      {props.onExpand ? (
-        <button
-          type="button"
-          className="media-card-expand media-card-expand-fill"
-          aria-label={expandLabel}
-          onClick={props.onExpand}
-          {...expandHandle}
-        >
-          {image}
-          <ExpandIcon />
-        </button>
-      ) : (
-        image
-      )}
+      <button
+        type="button"
+        className="media-card-expand media-card-expand-fill"
+        aria-label={`View "${title}" larger`}
+        onClick={onExpand}
+        {...expandHandle}
+      >
+        {media}
+        {stage === "video" ? <PlayIcon /> : <ExpandIcon />}
+      </button>
+      <MediaCardBadges badges={badges} t={t} />
       {editButton}
     </>
   );

@@ -587,6 +587,35 @@ export function mediaAltText(item: AdminMedia, untitledAsset: string): string {
   return item.alt || item.title || untitledAsset;
 }
 
+/** An asset's real pixel shape, read off the loaded `<img>`/`<video>` (the row's `width`/`height`
+ *  are the public-render override, not the file's size). `duration` is seconds, video only. */
+export interface MediaShape {
+  width: number;
+  height: number;
+  duration?: number;
+}
+
+/** Ratios worth naming on a card badge; anything else shows its pixel size alone, since a reduced
+ *  fraction like 683:384 tells the operator nothing. */
+const NAMED_RATIOS: readonly [number, number][] = [[1, 1], [4, 3], [3, 4], [3, 2], [2, 3], [16, 9], [9, 16], [4, 5], [21, 9]];
+
+/** Taller than about 1:3 (owner design, 2026-10-29): screenshots and long posters show their top
+ *  part fitted to the width, with a "Long image" badge, instead of a sliver in the middle. */
+export const LONG_MEDIA_HEIGHT_RATIO = 3;
+
+/** The card badges for a loaded asset: "9:16 · 1080×1920", a m:ss duration, and whether it is long. */
+export function mediaShapeBadges(shape: MediaShape): { size: string; duration: string | null; isLong: boolean } {
+  const pixels = `${shape.width}×${shape.height}`;
+  const ratio = shape.width / shape.height;
+  const named = NAMED_RATIOS.find(([w, h]) => Math.abs(w / h - ratio) / ratio < 0.02);
+  const seconds = Math.round(shape.duration ?? Number.NaN);
+  return {
+    size: named ? `${named[0]}:${named[1]} · ${pixels}` : pixels,
+    duration: Number.isFinite(seconds) ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}` : null,
+    isLong: shape.duration === undefined && shape.height / shape.width > LONG_MEDIA_HEIGHT_RATIO,
+  };
+}
+
 /** Resolves `media.find((m) => m.id === editingId)`, or `null` — the item whose `EditMediaPanel`
  *  is expanded, resolved once here rather than in the view. */
 export function findEditingItem(media: AdminMedia[] | null, editingId: string | null): AdminMedia | null {

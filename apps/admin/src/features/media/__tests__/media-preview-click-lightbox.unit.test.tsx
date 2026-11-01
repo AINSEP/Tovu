@@ -46,7 +46,10 @@ describe("media preview click opens lightbox", () => {
     expect(within(dialog).getByRole("heading", { name: "Alpha" })).toBeInTheDocument();
   });
 
-  it("video cards: clicking the video does not open the lightbox; the corner button still does", async () => {
+  // why: until 2026-10-29 a card's video carried native controls, so a click on it had to stay
+  // with the player. The owner's grid design made the card a still frame (no controls) that opens
+  // the lightbox, where the video plays at its real shape.
+  it("video cards: the still frame (no controls) opens the lightbox, which plays it with controls", async () => {
     const user = userEvent.setup();
     render(<FetchQueryProvider><Media /></FetchQueryProvider>);
     // why: the card title is now the file name with its extension, split by MiddleTruncate into head/tail spans; its full name is the InfoTip trigger's accessible name.
@@ -57,13 +60,14 @@ describe("media preview click opens lightbox", () => {
       expect(v).not.toBeNull();
       return v as HTMLElement;
     });
-    expect(video.closest("button")).toBeNull();
+    expect(video.hasAttribute("controls")).toBe(false);
+    expect(video.closest("button")).toBe(within(card).getByRole("button", { name: /view "beta" larger/i }));
 
     await user.click(video);
-    expect(document.querySelector("dialog.media-lightbox")!.querySelector("h2")).toBeNull();
-
-    await user.click(within(card).getByRole("button", { name: /view "beta" larger/i }));
     const dialog = document.querySelector("dialog.media-lightbox") as HTMLElement;
     expect(within(dialog).getByRole("heading", { name: "Beta" })).toBeInTheDocument();
+    // The lightbox runs the same image-then-video fallback; its player keeps native controls.
+    fireEvent.error(dialog.querySelector("img")!);
+    await waitFor(() => expect(dialog.querySelector("video")).toHaveAttribute("controls"));
   });
 });

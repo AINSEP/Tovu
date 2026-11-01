@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, type SyntheticEvent } from "react";
 
 import type { AdminMedia } from "@/lib/api";
-import { mediaAltText } from "../rules";
+import { mediaAltText, type MediaShape } from "../rules";
 import { defaultMediaPort } from "./media-dependencies.hooks";
 import type { MediaPort } from "./media-port.hooks";
 
@@ -40,6 +40,13 @@ export interface MediaPreviewController {
   handleImageError: () => void;
   /** Wired to the `<video>`'s `onError` — advances the fallback chain to the placeholder. */
   handleVideoError: () => void;
+  /** The loaded asset's real size (and a video's duration), `null` until the bytes load — feeds
+   *  the grid card's size/duration badges and its long-image fit. */
+  shape: MediaShape | null;
+  /** Wired to the `<img>`'s `onLoad`. */
+  handleImageLoad: (event: SyntheticEvent<HTMLImageElement>) => void;
+  /** Wired to the `<video>`'s `onLoadedMetadata`. */
+  handleVideoMetadata: (event: SyntheticEvent<HTMLVideoElement>) => void;
 }
 
 /** What {@link useMediaPreview} needs from the outside world — just the one URL builder, unlike
@@ -60,6 +67,7 @@ export function useMediaPreview(
   t: (key: string) => string = (key) => key,
 ): MediaPreviewController {
   const [stage, setStage] = useState<PreviewStage>("image");
+  const [shape, setShape] = useState<MediaShape | null>(null);
   const src = port.mediaOriginalUrl(item.id);
   const altText = mediaAltText(item, t("Untitled asset"));
 
@@ -69,8 +77,16 @@ export function useMediaPreview(
   function handleVideoError() {
     setStage("unsupported");
   }
+  function handleImageLoad(event: SyntheticEvent<HTMLImageElement>) {
+    const { naturalWidth, naturalHeight } = event.currentTarget;
+    if (naturalWidth && naturalHeight) setShape({ width: naturalWidth, height: naturalHeight });
+  }
+  function handleVideoMetadata(event: SyntheticEvent<HTMLVideoElement>) {
+    const { videoWidth, videoHeight, duration } = event.currentTarget;
+    if (videoWidth && videoHeight) setShape({ width: videoWidth, height: videoHeight, duration });
+  }
 
-  return { stage, src, altText, handleImageError, handleVideoError };
+  return { stage, src, altText, handleImageError, handleVideoError, shape, handleImageLoad, handleVideoMetadata };
 }
 
 /**

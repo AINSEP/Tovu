@@ -1364,6 +1364,8 @@ export function useThemeExplore(
         // open file keeps its text loaded (see `loadedFileAfterRename`), so the editor never renders
         // unloaded and no re-read discards unsaved edits.
         const renamed = nextFiles.find((f) => f.path === r.path);
+        // The open file's old `?page=`/`?file=` would name nothing on a reload or a copied link.
+        if (renamed && openFileRef.current.selected === sourcePath) writeThemeExploreSelectionToUrl(renamed);
         setSelected((current) => renamedPath(current, sourcePath, r.path));
         setLoadedFile((current) => loadedFileAfterRename(current, { themeId, from: sourcePath, to: r.path, renamed }));
         setPendingSelection(null);
@@ -1533,7 +1535,12 @@ export function useThemeExplore(
       if (refetched.ok) setDetail(refetched.detail);
       else setError(refetched.message);
       setFiles(next.files);
-      setSelected((current) => (current === path ? defaultSelectedPath(next.files, next.detail?.apiVersion) : current));
+      // Deleting the open file falls back to the default one; the address bar follows it, the same
+      // way the external-removal path in `refreshModifiedState` already does.
+      const fallbackPath = defaultSelectedPath(next.files, next.detail?.apiVersion);
+      const fallback = openFileRef.current.selected === path ? next.files.find((f) => f.path === fallbackPath) : undefined;
+      if (fallback) writeThemeExploreSelectionToUrl(fallback);
+      setSelected((current) => (current === path ? fallbackPath : current));
     } catch (e) {
       setError(e instanceof Error ? e.message : tRef.current("failed to delete file"));
     } finally {
