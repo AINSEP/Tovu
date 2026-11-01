@@ -1,12 +1,13 @@
 import { spawn } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { redactLocalText } from "../server-logs/redact-local-text.js";
 import { createRedactedOutputSink } from "../server-logs/console-tee.js";
 import { withFileLock } from "@jini-ai/platform/fs";
 
 type AdminBuild = (required: { repoRoot: string; output: string; env: NodeJS.ProcessEnv }) => Promise<void>;
-/** Runs Vite with bounded, redacted child diagnostics; rejects spawn, timeout and nonzero exit.
+/** Runs Vite with bounded, redacted child diagnostics; rejects spawn, inactivity and nonzero exit.
  * @complexity O(n) output framing time, with bounded line storage in each sink.
  */
 export function buildAdmin({ repoRoot, output, env }: Parameters<AdminBuild>[0],
@@ -20,9 +21,27 @@ export function buildAdmin({ repoRoot, output, env }: Parameters<AdminBuild>[0],
       redact: text => redactLocalText({ text }) }));
     child.stderr?.pipe(createRedactedOutputSink({ sink: stderr,
       redact: text => redactLocalText({ text }) }));
-    const timer = setTimeout(() => { child.kill("SIGKILL"); reject(new Error("Journey admin build did not finish")); }, 120_000);
-    child.once("error", () => { clearTimeout(timer); reject(new Error("Journey admin build failed to spawn")); });
-    child.once("close", (code, signal) => { clearTimeout(timer); if (code === 0) resolve(); else reject(new Error(`Journey admin build failed (code ${code ?? "none"}, signal ${signal ?? "none"})`)); });
+    const stop = (reason: string) => () => {
+      cleanup();
+      reject(new Error(`Journey admin build did not finish: ${reason}`));
+      child.kill("SIGKILL");
+    };
+    const idle = stop("no output for 120000 ms");
+    let timer = setTimeout(idle, 120_000);
+    // Loaded machines can take minutes while Vite still progresses. Bound silence, not total work —
+    // except a generous backstop, since lock waiters and readiness now wait on this build unbounded.
+    const backstop = setTimeout(stop("still running after 900000 ms"), 900_000);
+    const progress = () => { clearTimeout(timer); timer = setTimeout(idle, 120_000); };
+    const cleanup = () => {
+      clearTimeout(timer);
+      clearTimeout(backstop);
+      child.stdout?.removeListener("data", progress);
+      child.stderr?.removeListener("data", progress);
+    };
+    child.stdout?.on("data", progress);
+    child.stderr?.on("data", progress);
+    child.once("error", () => { cleanup(); reject(new Error("Journey admin build failed to spawn")); });
+    child.once("close", (code, signal) => { cleanup(); if (code === 0) resolve(); else reject(new Error(`Journey admin build failed (code ${code ?? "none"}, signal ${signal ?? "none"})`)); });
   });
 }
 
@@ -33,12 +52,15 @@ export function buildAdmin({ repoRoot, output, env }: Parameters<AdminBuild>[0],
  */
 export async function journeyAdminBundle(
   { runtimeDir, repoRoot }: { runtimeDir: string; repoRoot: string },
-  { env: launchEnv = process.env, build = buildAdmin }: { env?: NodeJS.ProcessEnv; build?: AdminBuild } = {},
+  { env: launchEnv = process.env, build = buildAdmin, lock = withFileLock }: {
+    env?: NodeJS.ProcessEnv; build?: AdminBuild; lock?: typeof withFileLock;
+  } = {},
 ): Promise<string> {
   const root = path.join(runtimeDir, "admin-build");
   const output = path.join(root, "dist");
   await mkdir(root, { recursive: true });
-  return withFileLock({ lockPath: path.join(root, "build.lock"), run: async () => {
+  // The builder bounds inactivity; a contender must not impose a shorter total-work deadline.
+  return lock({ lockPath: path.join(root, "build.lock"), run: async () => {
     if (await readFile(path.join(root, "ready"), "utf8").catch(() => "")) return output;
     const env: NodeJS.ProcessEnv = { ...launchEnv, NODE_ENV: "production" };
     // A shared bundle must resolve public links against its serving origin, not the API port of
@@ -52,5 +74,20 @@ export async function journeyAdminBundle(
       throw error;
     }
     return output;
-  } }, { timeoutMs: 125_000, staleMs: Infinity });
+  } }, { timeoutMs: Infinity, staleMs: Infinity });
+}
+
+/** Wait for the shared Vite build before spending HTTP readiness attempts. The builder owns the
+ * inactivity watchdog; child exit also ends this wait. No wait for hosts supplying a built bundle.
+ * @param required Shared runtime directory and child liveness port.
+ * @param optional Polling delay port; no server or process is launched here.
+ * @returns Once no unfinished build holds the lock, or the child has exited.
+ * @complexity O(p) filesystem checks for p polls, O(1) storage.
+ */
+export async function waitForLocalAdminBuild(
+  { runtimeDir, exited }: { runtimeDir: string; exited: () => boolean },
+  { sleep = () => new Promise<void>(resolve => setTimeout(resolve, 500)) }: { sleep?: () => Promise<void> } = {},
+): Promise<void> {
+  const root = path.join(runtimeDir, "admin-build");
+  while (!exited() && existsSync(path.join(root, "build.lock")) && !existsSync(path.join(root, "ready"))) await sleep();
 }

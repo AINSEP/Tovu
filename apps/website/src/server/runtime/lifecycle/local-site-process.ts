@@ -11,7 +11,7 @@ import os from "node:os";
 import { redactLocalText } from "../../../platform/server-logs/redact-local-text.js";
 import { probeLoopbackHttp } from "@jini-ai/platform/net";
 import { allocatePort, readLiveDaemonRegistryRecord } from "@jini-ai/sidecar";
-import { createNodeDaemonProcessAdapter } from "@jini-ai/sidecar/supervisor/node";
+import { createNodeDaemonProcessAdapter, type NodeDaemonProcessOptions } from "@jini-ai/sidecar/supervisor/node";
 import { listProcessSnapshots, readFlagValue } from "@jini-ai/platform/process";
 import { omitEnvironmentKeys } from "@jini-ai/platform/child-environment";
 import type { SpawnedDaemonProcess } from "@jini-ai/sidecar/supervisor";
@@ -23,6 +23,7 @@ import { resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
 import { resolveLocalOwnerSignIn } from "../boot/local-owner-signin.js";
 import { createLogBuffer, createRotatingLogFileSink } from "#src/platform/server-logs/index";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { waitForLocalAdminBuild } from "../../../platform/site-dir/local-admin-bundle.js";
 
 /** Bind site-child diagnostics to a separate parent-owned file; the child owns server.log.
  * Reuses the existing redactor, bounded buffer and synchronous rotating sink. Native fatal errors
@@ -104,7 +105,10 @@ export function localSiteChildEnv(
 
 /** Bind native effects without starting any child. @complexity O(1) assembly; tree-stop O(processes). */
 export function createLocalSiteProcessPort(
-  { switcherBase }: { switcherBase: string }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {},
+  { switcherBase }: { switcherBase: string },
+  { env = process.env, processOptions, probeHttp = probeLoopbackHttp }: {
+    env?: NodeJS.ProcessEnv; processOptions?: NodeDaemonProcessOptions; probeHttp?: typeof probeLoopbackHttp;
+  } = {},
 ): LocalSiteProcessPort {
   const repoRoot = resolveCheckoutRoot();
   const tls = resolveDevTls(resolveDevTlsCertPaths(repoRoot), { env });
@@ -152,7 +156,7 @@ export function createLocalSiteProcessPort(
       const compiledEntry = fileURLToPath(new URL("../../../platform/site-dir/local-site-child.js", import.meta.url));
       const diagnostics = localSiteProcessLog({ name, siteDir });
       const adapter = createNodeDaemonProcessAdapter({ command: process.execPath,
-        args: compiled ? [compiledEntry] : ["--import", "tsx", entry], cwd: repoRoot, env: childEnv, registry }, { stderr: diagnostics.stderr });
+        args: compiled ? [compiledEntry] : ["--import", "tsx", entry], cwd: repoRoot, env: childEnv, registry }, { ...processOptions, stderr: diagnostics.stderr });
       const child = adapter.spawnDaemonProcess();
       diagnostics.observe({ child });
       if (child.pid === undefined) throw new LocalSiteError("SITE_START_FAILED");
@@ -176,6 +180,8 @@ export function createLocalSiteProcessPort(
         pid: child.pid,
         onExit({ listener }) { listeners.add(listener); if (exited) listener(); },
         async ready() {
+          if (!childEnv.TOVU_ADMIN_DIST) await waitForLocalAdminBuild({ runtimeDir: buildRoot!, exited: () => exited });
+          if (exited) return false;
           try { await discoverDaemon(); }
           catch (error) {
             diagnostics.record({ level: "error", message: `pid=${child.pid} readiness discovery failed: ${format(error)}` });
@@ -183,8 +189,8 @@ export function createLocalSiteProcessPort(
           }
           if (exited) return false;
           const probeOptions = { certificate: tls.credentials?.cert, servername: "localhost" };
-          const apiReady = await probeLoopbackHttp({ url: `${scheme}://127.0.0.1:${port}/readyz` }, probeOptions);
-          const adminReady = apiReady && await probeLoopbackHttp({ url: `${scheme}://127.0.0.1:${port}/admin/` }, probeOptions);
+          const apiReady = await probeHttp({ url: `${scheme}://127.0.0.1:${port}/readyz` }, probeOptions);
+          const adminReady = apiReady && await probeHttp({ url: `${scheme}://127.0.0.1:${port}/admin/` }, probeOptions);
           if (!adminReady) diagnostics.record({ message: `pid=${child.pid} readiness failed: readyz=${apiReady}, admin=${apiReady ? adminReady : "not probed"}` });
           return adminReady;
         },
