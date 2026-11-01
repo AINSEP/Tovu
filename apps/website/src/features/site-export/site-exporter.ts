@@ -529,6 +529,13 @@ function listingRoutes({ hrefs, kind }: { hrefs: readonly string[]; kind: string
   return hrefs.filter((href) => href.startsWith("/") && !href.startsWith("//")).map((href) => ({ path: href, kind, label: href }));
 }
 
+/** Keep precedence visible to result consumers and the CLI through the existing warning field:
+ * a public URL owns the output prefix, so an explicit base path beside it is reported as ignored. */
+function ignoredBasePathNotice({ publicUrl, basePath, warning }: Pick<ExportSiteOptions, "publicUrl" | "basePath"> & { warning: string | undefined }) {
+  if (publicUrl === undefined || basePath === undefined) return {};
+  return { basePathRewriteWarning: ["--base-path was ignored because --public-url decides the path.", warning].filter(Boolean).join(" ") };
+}
+
 /** Validate the destination through Jini's origin owner; scope every rewrite to this copy.
  * No registration or mutation of the live site's origin. A destination overrides its old public URL.
  * @complexity One bounded registry read plus O(URL bytes); invalid destinations throw before export.
@@ -590,7 +597,8 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
   }, { ...(clean !== undefined ? { clean } : {}), ...(outputBasePath !== undefined ? { basePath: outputBasePath } : {}) });
   // Jini's reference scan diagnoses retained broken links; it does not remove them. A dropped
   // reference must be backed by an actual removal. Download-only removals are recorded by static-copy.
-  const result = { ...report, outputDir, droppedReferences: [], ...(publicOrigin ? { publicOrigin } : {}) };
+  const result = { ...report, outputDir, droppedReferences: [], ...(publicOrigin ? { publicOrigin } : {}),
+    ...ignoredBasePathNotice({ publicUrl, basePath, warning: report.basePathRewriteWarning }) };
   if (themeCount === 1) return result;
   const themePreview = themePreviewExportSize({ report, themeCount });
   console.info(`[export] Theme previews: ${themeCount} themes, ${themePreview.additionalPages} additional pages, ${themePreview.sizeMultiplier.toFixed(2)}x export bytes (${themePreview.htmlSizeMultiplier.toFixed(2)}x HTML); shared assets are deduplicated.`);
