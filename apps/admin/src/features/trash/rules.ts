@@ -42,16 +42,15 @@ export const TRASH_RESOURCE = "trash";
 /**
  * The line the screen must show, per design §4.2, and NOT behind a disclosure.
  *
- * Updated 2026-09-21: the registry now covers every deletable kind except Collection entries and
- * Theme files (T1/T5/T6/T7 land the rest of this wave's registry entries and admin delete buttons),
- * so the sentence no longer enumerates covered sections — it names the two real exceptions instead.
- * A user who deletes something and does not find it here, and is told nothing, would otherwise
- * conclude it is unrecoverable; naming the exceptions is cheaper than that mistake.
+ * Collection entries are not retained here; theme files are restorable from each theme's own
+ * trash through the assistant. A user who deletes something and does not find it here, and is told
+ * nothing, would otherwise conclude it is unrecoverable; naming both destinations is cheaper than
+ * that mistake.
  * Owner update (2026-10-07): the title InfoTip now carries this explanation instead of a second
  * subtitle; the original always-visible requirement above is superseded, but the exceptions remain.
  */
 export function coverageLine(locale: string): string {
-  return t({ locale: locale, key: "Collection entries and theme files don't go to Trash." });
+  return t({ locale: locale, key: "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them." });
 }
 
 /** A human label for a row's kind. Unknown kinds print as themselves rather than being hidden —
@@ -60,6 +59,7 @@ export function entityTypeLabel(locale: string, entityType: string): string {
   const known: Record<string, string> = {
     "email-template": "Email template",
     post: "Post",
+    page: "Page",
     comment: "Comment",
     media: "Media",
     redirect: "Redirect",

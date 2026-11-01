@@ -38,12 +38,12 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * learn that in the same turn, because the live site has already started serving the fallback body
  * for that theme.
  */
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { requestThemePreviewRefresh, validatePreviewPath } from "./preview-refresh.js";
 import { syncThemeRoster } from "./theme-roster-sync.js";
 import { NO_THEME_ID } from "./active-theme.js";
 import { describeHardcodedLinkList } from "./hardcoded-link-lists.js";
-import { statSync } from "node:fs";
+import { rmdirSync, statSync } from "node:fs";
 import { ToolInputError } from "@jini-ai/core";
 import { buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
@@ -350,6 +350,32 @@ type ThemeReadSelection =
   | { mode: "full" }
   | { mode: "window"; startLine: number; lineCount: number }
   | { mode: "find"; find: string; context: number; startLine: number; lineCount?: number };
+
+/**
+ * Prune empty ancestors of a successfully restored theme file, keeping the theme's .trash root.
+ * @param required - Theme directory and the validated trash path just moved by renameThemeFile.
+ * @param _options - Reserved operation settings.
+ * @returns Nothing; nonempty directories stop cleanup, other filesystem errors propagate.
+ * @complexity O(d) filesystem operations and path space for d ancestor levels.
+ */
+function pruneRestoredThemeTrash(
+  { themeDir, trashedPath }: { themeDir: string; trashedPath: string },
+  _options: Record<string, never> = {},
+): void {
+  const trashRoot = resolve(themeDir, ".trash");
+  let directory = dirname(resolve(themeDir, trashedPath));
+  while (directory !== trashRoot) {
+    try {
+      // Nonrecursive removal preserves other trashed files, including concurrent additions.
+      rmdirSync(directory);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "ENOTEMPTY" || code === "EEXIST") return;
+      if (code !== "ENOENT") throw error;
+    }
+    directory = dirname(directory);
+  }
+}
 
 /** Clamp oversized integer context at the gate, preserving invalid values for normal validation.
  * @returns Unchanged input or a copy with a per-item normalization note; performs no I/O.
@@ -935,6 +961,7 @@ export function buildThemesRegistrations(
         }
 
         renameThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath: trashedPath, destPath: restoreTo });
+        pruneRestoredThemeTrash({ themeDir: theme.dir, trashedPath });
         const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
 
         return {

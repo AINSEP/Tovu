@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
@@ -213,6 +214,98 @@ test("theme_list_files hides trashed paths by default, and shows them with inclu
 // ---------------------------------------------------------------------------
 // theme_restore_trashed_file
 // ---------------------------------------------------------------------------
+
+test("restoring a nested file removes empty ancestors through its batch but keeps .trash and other batches", async (t) => {
+  const { deps, themesDir } = fakeRouteDeps();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const themeDir = path.join(themesDir, "plain");
+  const relativePath = "render/pages/about.html";
+  fs.mkdirSync(path.dirname(path.join(themeDir, relativePath)), { recursive: true });
+  fs.writeFileSync(path.join(themeDir, "theme.json"), JSON.stringify({ ...JSON.parse(STATIC_MANIFEST), apiVersion: 2 }));
+  fs.copyFileSync(path.join(themeDir, "pages/index.html"), path.join(themeDir, "render/pages/index.html"));
+  fs.writeFileSync(path.join(themeDir, relativePath), "<p>About us</p>");
+  deps.themes.splice(0, deps.themes.length, ...discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }));
+  const other = await trashFile(deps, { themeId: "plain", path: "styles.css" }) as { trashedPath: string };
+  const trashed = await trashFile(deps, { themeId: "plain", path: relativePath }) as { trashedPath: string };
+
+  await wired(deps, "theme_restore_trashed_file").handler(executionContext({ themeId: "plain", trashedPath: trashed.trashedPath }));
+
+  assert.equal(fs.readFileSync(path.join(themeDir, relativePath), "utf8"), "<p>About us</p>");
+  const batch = trashed.trashedPath.split("/").slice(0, 2).join("/");
+  assert.equal(existsInTheme(themesDir, batch), false, "empty batch and nested ancestors must be removed");
+  assert.equal(existsInTheme(themesDir, other.trashedPath), true, "other trash batches must survive");
+  await wired(deps, "theme_restore_trashed_file").handler(executionContext({ themeId: "plain", trashedPath: other.trashedPath }));
+  assert.deepEqual(fs.readdirSync(path.join(themeDir, ".trash")), [], ".trash itself must survive the last restore");
+  assert.equal(fs.existsSync(path.join(themeDir, "theme.json")), true);
+});
+
+test("restore prunes only empty parents and preserves other files in the same batch", async (t) => {
+  const { deps, themesDir } = fakeRouteDeps();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const trashed = await trashFile(deps, { themeId: "plain", path: "styles.css" }) as { trashedPath: string };
+  const sibling = path.join(themesDir, "plain", path.dirname(trashed.trashedPath), "keep.css");
+  fs.writeFileSync(sibling, "body{color:red}");
+
+  await wired(deps, "theme_restore_trashed_file").handler(executionContext({ themeId: "plain", trashedPath: trashed.trashedPath, restoreTo: "restored.css" }));
+
+  assert.equal(fs.readFileSync(sibling, "utf8"), "body{color:red}");
+  assert.equal(fs.readFileSync(path.join(themesDir, "plain", "restored.css"), "utf8"), "body{margin:0}");
+});
+
+test("restore tolerates a parent already removed by another restore", async (t) => {
+  const { deps, themesDir } = fakeRouteDeps();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const trashed = await trashFile(deps, { themeId: "plain", path: "styles.css" }) as { trashedPath: string };
+  const removeDirectory = fs.rmdirSync;
+  const removal = t.mock.method(fs, "rmdirSync", (directory: fs.PathLike) => {
+    removeDirectory(directory);
+    throw Object.assign(new Error("already removed"), { code: "ENOENT" });
+  });
+  // Keep the builtin's named ESM import wired to this filesystem fault injection.
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+
+  const restored = await wired(deps, "theme_restore_trashed_file").handler(executionContext({ themeId: "plain", trashedPath: trashed.trashedPath })) as { path: string };
+
+  assert.equal(restored.path, "styles.css");
+  assert.equal(removal.mock.callCount(), 1);
+  assert.equal(fs.readFileSync(path.join(themesDir, "plain", "styles.css"), "utf8"), "body{margin:0}");
+  assert.deepEqual(fs.readdirSync(path.join(themesDir, "plain", ".trash")), []);
+});
+
+test("restore preserves an occupied batch when the filesystem reports EEXIST", async (t) => {
+  const { deps, themesDir } = fakeRouteDeps();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const trashed = await trashFile(deps, { themeId: "plain", path: "styles.css" }) as { trashedPath: string };
+  const sibling = path.join(themesDir, "plain", path.dirname(trashed.trashedPath), "keep.css");
+  fs.writeFileSync(sibling, "keep");
+  const removal = t.mock.method(fs, "rmdirSync", () => { throw Object.assign(new Error("occupied"), { code: "EEXIST" }); });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+
+  await wired(deps, "theme_restore_trashed_file").handler(executionContext({ themeId: "plain", trashedPath: trashed.trashedPath }));
+
+  assert.equal(fs.readFileSync(sibling, "utf8"), "keep");
+  assert.equal(removal.mock.callCount(), 1);
+  assert.equal(fs.readFileSync(path.join(themesDir, "plain", "styles.css"), "utf8"), "body{margin:0}");
+});
+
+test("restore reports unexpected parent cleanup errors instead of swallowing them", async (t) => {
+  const { deps, themesDir } = fakeRouteDeps();
+  t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+  const trashed = await trashFile(deps, { themeId: "plain", path: "styles.css" }) as { trashedPath: string };
+  const removal = t.mock.method(fs, "rmdirSync", () => { throw Object.assign(new Error("cleanup denied"), { code: "EACCES" }); });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+
+  await assert.rejects(
+    () => wired(deps, "theme_restore_trashed_file").handler(executionContext({ themeId: "plain", trashedPath: trashed.trashedPath })),
+    /cleanup denied/,
+  );
+  assert.equal(removal.mock.callCount(), 1);
+  assert.equal(fs.readFileSync(path.join(themesDir, "plain", "styles.css"), "utf8"), "body{margin:0}");
+  assert.equal(existsInTheme(themesDir, trashed.trashedPath), false, "the restored bytes must survive a cleanup failure");
+});
 
 test("theme_restore_trashed_file restores a trashed file to its original path by default", async () => {
   const { deps, themesDir } = fakeRouteDeps();

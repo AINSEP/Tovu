@@ -137,10 +137,10 @@ describe("Trash screen", () => {
     expect(descriptions).toHaveLength(1);
     expect(descriptions[0]).toHaveTextContent("Deleted items are kept for 60 days.");
     const info = within(screen.getByRole("heading", { level: 1 })).getByLabelText(
-      "Collection entries and theme files don't go to Trash.",
+      "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.",
     );
     expect(info).toHaveAttribute("data-agent-element", "trash-coverage-info");
-    expect(screen.queryByText("Collection entries and theme files don't go to Trash.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.")).not.toBeInTheDocument();
     expect(screen.getByText("The Trash is empty.")).toBeInTheDocument();
   });
 
@@ -148,20 +148,20 @@ describe("Trash screen", () => {
     const user = userEvent.setup();
     render(<Trash useTrashHook={() => controller({ items: [] })} />);
 
-    await user.click(screen.getByLabelText("Collection entries and theme files don't go to Trash."));
-    expect(screen.getByText("Collection entries and theme files don't go to Trash.")).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them."));
+    expect(screen.getByText("Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.")).toBeInTheDocument();
   });
 
   it("opens the exceptions with Tab and closes with Escape while keeping icon focus", async () => {
     const user = userEvent.setup();
     render(<Trash useTrashHook={() => controller({ items: [] })} />);
-    const info = screen.getByLabelText("Collection entries and theme files don't go to Trash.");
+    const info = screen.getByLabelText("Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.");
 
     await user.tab();
     expect(document.activeElement).toBe(info);
-    expect(screen.getByText("Collection entries and theme files don't go to Trash.")).toBeInTheDocument();
+    expect(screen.getByText("Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.")).toBeInTheDocument();
     await user.keyboard("{Escape}");
-    expect(screen.queryByText("Collection entries and theme files don't go to Trash.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.")).not.toBeInTheDocument();
     expect(document.activeElement).toBe(info);
   });
 
@@ -170,8 +170,8 @@ describe("Trash screen", () => {
     render(<Trash useTrashHook={() => controller({ locale: "es", items: [] })} />);
 
     expect(screen.getByText("Los elementos eliminados se conservan durante 60 días.")).toBeInTheDocument();
-    await user.click(screen.getByLabelText("Las entradas de colecciones y los archivos de temas no van a la papelera."));
-    expect(screen.getByText("Las entradas de colecciones y los archivos de temas no van a la papelera.")).toBeInTheDocument();
+    await user.click(screen.getByLabelText("Las entradas de colecciones no se guardan en la papelera. Los archivos de temas eliminados van a la papelera del propio tema; pide al asistente que los restaure."));
+    expect(screen.getByText("Las entradas de colecciones no se guardan en la papelera. Los archivos de temas eliminados van a la papelera del propio tema; pide al asistente que los restaure.")).toBeInTheDocument();
   });
 
   it("renders a row with its kind, actor and days remaining", () => {
@@ -184,6 +184,14 @@ describe("Trash screen", () => {
     expect(screen.getByText("jdoe")).toBeTruthy();
     expect(screen.queryByText("principal-1")).toBeNull();
     expect(screen.getByText("41")).toBeTruthy();
+  });
+
+  it.each([["en", "Page"], ["es", "Página"]])("labels a trashed page row in %s", (locale, label) => {
+    render(<Trash useTrashHook={() => controller({ locale, items: [item({ entityType: "page", title: "About us" })] })} />);
+
+    const row = screen.getByRole("row", { name: /About us/ });
+    expect(within(row).getByRole("cell", { name: label })).toBeInTheDocument();
+    expect(within(row).queryByRole("cell", { name: "Post" })).not.toBeInTheDocument();
   });
 
   it("labels a plugin row as shared across all workspaces on the site", () => {

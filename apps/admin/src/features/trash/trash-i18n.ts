@@ -60,9 +60,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "Cargando…",
     "Deleted items are kept for 60 days.":
       "Los elementos eliminados se conservan durante 60 días.",
-    "Collection entries and theme files don't go to Trash.":
-      "Las entradas de colecciones y los archivos de temas no van a la papelera.",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "Las entradas de colecciones no se guardan en la papelera. Los archivos de temas eliminados van a la papelera del propio tema; pide al asistente que los restaure.",
     Post: "Entrada",
+    Page: "Página",
     Comment: "Comentario",
     Media: "Multimedia",
     Redirect: "Redirección",
@@ -116,9 +117,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "Memuat…",
     "Deleted items are kept for 60 days.":
       "Item yang dihapus disimpan selama 60 hari.",
-    "Collection entries and theme files don't go to Trash.":
-      "Entri Koleksi dan file Tema tidak masuk ke Sampah.",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "Entri koleksi tidak disimpan di Sampah. File tema yang dihapus masuk ke sampah tema itu sendiri — minta asisten untuk memulihkannya.",
     Post: "Pos",
+    Page: "Halaman",
     Comment: "Komentar",
     Media: "Media",
     Redirect: "Pengalihan",
@@ -172,9 +174,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "Wird geladen…",
     "Deleted items are kept for 60 days.":
       "Gelöschte Elemente werden 60 Tage aufbewahrt.",
-    "Collection entries and theme files don't go to Trash.":
-      "Sammlungseinträge und Theme-Dateien landen nicht im Papierkorb.",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "Sammlungseinträge werden nicht im Papierkorb aufbewahrt. Gelöschte Theme-Dateien landen im eigenen Papierkorb des Themes — bitte den Assistenten, sie wiederherzustellen.",
     Post: "Beitrag",
+    Page: "Seite",
     Comment: "Kommentar",
     Media: "Medien",
     Redirect: "Weiterleitung",
@@ -228,9 +231,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "加载中…",
     "Deleted items are kept for 60 days.":
       "已删除的项目保留60天。",
-    "Collection entries and theme files don't go to Trash.":
-      "集合条目和主题文件不会进入回收站。",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "集合条目不会保留在回收站中。删除的主题文件会进入主题自己的回收站，请让助手恢复它们。",
     Post: "文章",
+    Page: "页面",
     Comment: "评论",
     Media: "媒体",
     Redirect: "重定向",
@@ -284,9 +288,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "載入中…",
     "Deleted items are kept for 60 days.":
       "已刪除的項目保留60天。",
-    "Collection entries and theme files don't go to Trash.":
-      "集合項目和佈景主題檔案不會進入垃圾桶。",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "集合項目不會保留在垃圾桶中。刪除的佈景主題檔案會進入該主題自己的垃圾桶，請讓助理還原。",
     Post: "文章",
+    Page: "頁面",
     Comment: "留言",
     Media: "媒體",
     Redirect: "重新導向",
@@ -340,9 +345,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "Carregando…",
     "Deleted items are kept for 60 days.":
       "Os itens excluídos são mantidos por 60 dias.",
-    "Collection entries and theme files don't go to Trash.":
-      "Entradas de coleções e arquivos de temas não vão para a lixeira.",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "As entradas de coleções não são mantidas na Lixeira. Os arquivos de tema excluídos vão para a lixeira do próprio tema — peça ao assistente para restaurá-los.",
     Post: "Publicação",
+    Page: "Página",
     Comment: "Comentário",
     Media: "Mídia",
     Redirect: "Redirecionamento",
@@ -396,9 +402,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "Загрузка…",
     "Deleted items are kept for 60 days.":
       "Удалённые элементы хранятся 60 дней.",
-    "Collection entries and theme files don't go to Trash.":
-      "Записи коллекций и файлы тем не попадают в корзину.",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "Записи коллекций не сохраняются в Корзине. Удалённые файлы темы попадают в собственную корзину темы — попросите ассистента восстановить их.",
     Post: "Запись",
+    Page: "Страница",
     Comment: "Комментарий",
     Media: "Медиа",
     Redirect: "Редирект",
@@ -452,9 +459,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "در حال بارگذاری…",
     "Deleted items are kept for 60 days.":
       "موارد حذف‌شده به مدت ۶۰ روز نگه داشته می‌شوند.",
-    "Collection entries and theme files don't go to Trash.":
-      "ورودی‌های مجموعه و فایل‌های پوسته به سطل زباله نمی‌روند.",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "مدخل‌های مجموعه در سطل زباله نگه‌داری نمی‌شوند. فایل‌های حذف‌شدهٔ پوسته به سطل زبالهٔ خود پوسته می‌روند — از دستیار بخواهید آن‌ها را بازیابی کند.",
     Post: "نوشته",
+    Page: "صفحه",
     Comment: "نظر",
     Media: "رسانه",
     Redirect: "تغییر مسیر",
@@ -508,14 +516,15 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "جارٍ التحميل…",
     "Deleted items are kept for 60 days.":
       "تُحفظ العناصر المحذوفة لمدة 60 يومًا.",
-    "Collection entries and theme files don't go to Trash.":
-      "إدخالات المجموعات وملفات القوالب لا تنتقل إلى سلة المهملات.",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "لا تُحفظ عناصر المجموعات في سلة المهملات. تنتقل ملفات القالب المحذوفة إلى سلة مهملات القالب نفسه — اطلب من المساعد استعادتها.",
     // "Widgets" deliberately does not reuse `admin-nav-i18n.ts`'s own choice ("العناصر", literally
     // "the elements") — that word is also the natural translation of this same sentence's
     // "Collection entries" ("عناصر المجموعات"), and placing both back to back would read as the same
     // noun twice for two different concepts. "الودجت" (the transliterated loanword) is used instead;
     // see this file's own header note and the handoff.
     Post: "مقالة",
+    Page: "صفحة",
     Comment: "التعليق",
     Media: "الوسائط",
     Redirect: "إعادة توجيه",
@@ -569,9 +578,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "読み込み中…",
     "Deleted items are kept for 60 days.":
       "削除された項目は60日間保持されます。",
-    "Collection entries and theme files don't go to Trash.":
-      "コレクションのエントリとテーマファイルはゴミ箱に入りません。",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "コレクションの項目はゴミ箱に保存されません。削除したテーマファイルはテーマ専用のゴミ箱に移動します。復元はアシスタントに依頼してください。",
     Post: "投稿",
+    Page: "ページ",
     Comment: "コメント",
     Media: "メディア",
     Redirect: "リダイレクト",
@@ -625,9 +635,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "로딩 중…",
     "Deleted items are kept for 60 days.":
       "삭제된 항목은 60일 동안 보관됩니다.",
-    "Collection entries and theme files don't go to Trash.":
-      "컬렉션 항목과 테마 파일은 휴지통으로 이동하지 않습니다.",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "컬렉션 항목은 휴지통에 보관되지 않습니다. 삭제한 테마 파일은 해당 테마의 휴지통으로 이동합니다. 복원하려면 어시스턴트에게 요청하세요.",
     Post: "게시물",
+    Page: "페이지",
     Comment: "댓글",
     Media: "미디어",
     Redirect: "리디렉션",
@@ -681,9 +692,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "Wczytywanie…",
     "Deleted items are kept for 60 days.":
       "Usunięte elementy są przechowywane przez 60 dni.",
-    "Collection entries and theme files don't go to Trash.":
-      "Wpisy kolekcji i pliki motywów nie trafiają do kosza.",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "Wpisy kolekcji nie są przechowywane w Koszu. Usunięte pliki motywu trafiają do kosza danego motywu — poproś asystenta o ich przywrócenie.",
     Post: "Wpis",
+    Page: "Strona",
     Comment: "Komentarz",
     Media: "Multimedia",
     Redirect: "Przekierowanie",
@@ -737,9 +749,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "Betöltés…",
     "Deleted items are kept for 60 days.":
       "A törölt elemeket 60 napig őrizzük meg.",
-    "Collection entries and theme files don't go to Trash.":
-      "A gyűjteménybejegyzések és a témafájlok nem kerülnek a kukába.",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "A gyűjtemények bejegyzései nem kerülnek a Kukába. A törölt témafájlok a téma saját kukájába kerülnek — kérd meg az asszisztenst a visszaállításukra.",
     Post: "Bejegyzés",
+    Page: "Oldal",
     Comment: "Hozzászólás",
     Media: "Média",
     Redirect: "Átirányítás",
@@ -793,9 +806,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "Chargement…",
     "Deleted items are kept for 60 days.":
       "Les éléments supprimés sont conservés pendant 60 jours.",
-    "Collection entries and theme files don't go to Trash.":
-      "Les entrées de collections et les fichiers de thèmes ne vont pas dans la corbeille.",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "Les entrées de collection ne sont pas conservées dans la corbeille. Les fichiers de thème supprimés vont dans la corbeille du thème — demandez à l’assistant de les restaurer.",
     Post: "Article",
+    Page: "Page",
     Comment: "Commentaire",
     Media: "Médias",
     Redirect: "Redirection",
@@ -849,9 +863,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "Завантаження…",
     "Deleted items are kept for 60 days.":
       "Видалені елементи зберігаються 60 днів.",
-    "Collection entries and theme files don't go to Trash.":
-      "Записи колекцій і файли тем не потрапляють до кошика.",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "Записи колекцій не зберігаються в Кошику. Видалені файли теми потрапляють до власного кошика теми — попросіть асистента відновити їх.",
     Post: "Запис",
+    Page: "Сторінка",
     Comment: "Коментар",
     Media: "Медіа",
     Redirect: "Редірект",
@@ -905,9 +920,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "Yükleniyor…",
     "Deleted items are kept for 60 days.":
       "Silinen öğeler 60 gün saklanır.",
-    "Collection entries and theme files don't go to Trash.":
-      "Koleksiyon kayıtları ve tema dosyaları Çöp Kutusuna gitmez.",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "Koleksiyon kayıtları Çöp Kutusu’nda saklanmaz. Silinen tema dosyaları temanın kendi çöp kutusuna gider — geri yüklemek için asistandan yardım isteyin.",
     Post: "Yazı",
+    Page: "Sayfa",
     Comment: "Yorum",
     Media: "Medya",
     Redirect: "Yönlendirme",
@@ -961,9 +977,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "กำลังโหลด…",
     "Deleted items are kept for 60 days.":
       "รายการที่ลบจะถูกเก็บไว้เป็นเวลา 60 วัน",
-    "Collection entries and theme files don't go to Trash.":
-      "รายการในคอลเลกชันและไฟล์ธีมจะไม่ไปที่ถังขยะ",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "รายการในคอลเลกชันจะไม่ถูกเก็บไว้ในถังขยะ ไฟล์ธีมที่ลบจะไปอยู่ในถังขยะของธีมนั้น — ขอให้ผู้ช่วยกู้คืนไฟล์ได้",
     Post: "โพสต์",
+    Page: "หน้า",
     Comment: "ความคิดเห็น",
     Media: "สื่อ",
     Redirect: "การเปลี่ยนเส้นทาง",
@@ -1017,9 +1034,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "Caricamento…",
     "Deleted items are kept for 60 days.":
       "Gli elementi eliminati vengono conservati per 60 giorni.",
-    "Collection entries and theme files don't go to Trash.":
-      "Le voci delle raccolte e i file dei temi non vanno nel cestino.",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "Le voci delle raccolte non vengono conservate nel Cestino. I file del tema eliminati vanno nel cestino del tema stesso — chiedi all’assistente di ripristinarli.",
     Post: "Articolo",
+    Page: "Pagina",
     Comment: "Commento",
     Media: "Contenuti multimediali",
     Redirect: "Reindirizzamento",
@@ -1073,9 +1091,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "लोड हो रहा है…",
     "Deleted items are kept for 60 days.":
       "हटाए गए आइटम 60 दिनों तक रखे जाते हैं।",
-    "Collection entries and theme files don't go to Trash.":
-      "संग्रह की प्रविष्टियाँ और थीम फ़ाइलें ट्रैश में नहीं जातीं।",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "कलेक्शन की प्रविष्टियाँ ट्रैश में नहीं रखी जातीं। हटाई गई थीम फ़ाइलें थीम के अपने ट्रैश में जाती हैं — उन्हें बहाल करने के लिए असिस्टेंट से कहें।",
     Post: "पोस्ट",
+    Page: "पेज",
     Comment: "टिप्पणी",
     Media: "मीडिया",
     Redirect: "रीडायरेक्ट",
@@ -1129,9 +1148,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "لوڈ ہو رہا ہے…",
     "Deleted items are kept for 60 days.":
       "حذف شدہ آئٹمز 60 دن تک رکھے جاتے ہیں۔",
-    "Collection entries and theme files don't go to Trash.":
-      "کلیکشن کی اندراجات اور تھیم فائلیں کوڑے دان میں نہیں جاتیں۔",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "کلیکشن کے اندراجات کوڑے دان میں محفوظ نہیں رہتے۔ حذف شدہ تھیم فائلیں تھیم کے اپنے کوڑے دان میں جاتی ہیں — انہیں بحال کرنے کے لیے اسسٹنٹ سے کہیں۔",
     Post: "پوسٹ",
+    Page: "صفحہ",
     Comment: "تبصرہ",
     Media: "میڈیا",
     Redirect: "ری ڈائریکٹ",
@@ -1185,9 +1205,10 @@ export const TRASH_DICT: Record<string, Record<string, string>> = {
     "Loading…": "লোড হচ্ছে…",
     "Deleted items are kept for 60 days.":
       "মুছে ফেলা আইটেম 60 দিন রাখা হয়।",
-    "Collection entries and theme files don't go to Trash.":
-      "সংগ্রহের এন্ট্রি ও থিম ফাইল ট্র্যাশে যায় না।",
+    "Collection entries aren't kept in Trash. Deleted theme files go to the theme's own trash — ask the assistant to restore them.":
+      "কালেকশনের এন্ট্রিগুলো ট্র্যাশে রাখা হয় না। মুছে ফেলা থিম ফাইলগুলো থিমের নিজস্ব ট্র্যাশে যায় — সেগুলো পুনরুদ্ধার করতে সহকারীকে বলুন।",
     Post: "পোস্ট",
+    Page: "পেজ",
     Comment: "মন্তব্য",
     Media: "মিডিয়া",
     Redirect: "রিডাইরেক্ট",

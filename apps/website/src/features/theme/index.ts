@@ -145,7 +145,6 @@ export {
 // genuinely public, backing an admin route, no single-caller boot-sequence caveat like site-dir's.
 export {
   copyThemeFile,
-  deleteThemeFile,
   isGeneratedThemePath,
   listThemeFiles,
   MAX_THEME_FILE_BYTES,

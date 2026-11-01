@@ -3,6 +3,16 @@ import type { AdminTrashItem } from "@/lib/api";
 import { actorLabel, entityTypeLabel, itemSubtitle, describePurgeReport, toggleSelection } from "../rules";
 import { ApiError, REQUEST_TIMEOUT_CODE } from "@/lib/api";
 import { describeTrashLoadError } from "../rules";
+import { buildTrashRegistry } from "../../../../../website/src/features/trash/registry";
+import { TRASH_PERMISSION_BY_ENTITY_TYPE } from "../../../../../website/src/features/trash/permissions";
+
+it("labels every server Trash kind and the page display kind, including new registry entries", () => {
+  // Pages currently use canonical "post" on the server; also guard the requested "page" label.
+  const kinds = new Set([...buildTrashRegistry().keys(), ...TRASH_PERMISSION_BY_ENTITY_TYPE.keys(), "page"]);
+  for (const kind of kinds) {
+    expect(entityTypeLabel("en", kind), `missing human label for ${kind}`).not.toBe(kind);
+  }
+});
 
 it("localizes a settled Trash timeout with a refresh action", () => {
   const error = new ApiError("the API timed out", 0, REQUEST_TIMEOUT_CODE, {});

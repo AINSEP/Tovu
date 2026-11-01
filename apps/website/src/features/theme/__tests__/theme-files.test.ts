@@ -6,7 +6,6 @@ import test from "node:test";
 
 import {
   copyThemeFile,
-  deleteThemeFile,
   isGeneratedThemePath,
   isRecognizedThemeRoot,
   isSourceDirGeneratedConflict,
@@ -19,6 +18,14 @@ import {
   ThemePathError,
   writeThemeFile,
 } from "../theme-files.js";
+
+test("theme file APIs expose reversible moves without the unused hard-delete capability", async () => {
+  const files = await import("../theme-files.js");
+  const feature = await import("../index.js");
+  assert.equal("deleteThemeFile" in files, false);
+  assert.equal("deleteThemeFile" in feature, false);
+  assert.equal(typeof files.renameThemeFile, "function");
+});
 
 test("an oversized existing file refuses reads and ordinary replacement, but permits an explicit replacement", (t) => {
   const { root, themeDir } = makeThemesRoot();
@@ -447,49 +454,6 @@ test("copyThemeFile refuses to silently overwrite an existing destination", () =
 });
 
 // ---------------------------------------------------------------------------
-// deleteThemeFile — the third mutation `theme-files.ts` exposes over an existing file (alongside
-// copy/rename), added 2026-08-29 for the Explore screen's per-file ⋮ menu Delete item. Eligibility
-// (required files, generated trees, `IDENTITY_LOCKED_GROUPS`) is decided one layer up, in
-// `explore.ts`'s `validateFileIdentityChange` — this function only enforces containment, same as
-// every other write here.
-// ---------------------------------------------------------------------------
-
-test("deleteThemeFile removes an existing file from disk", () => {
-  const { root, themeDir } = makeThemesRoot();
-  const target = path.join(themeDir, "templates", "home.json");
-  assert.equal(fs.existsSync(target), true, "sanity: the fixture file exists before deleting it");
-
-  deleteThemeFile({ themeDir, themesRoot: root, relativePath: "templates/home.json" });
-
-  assert.equal(fs.existsSync(target), false);
-});
-
-test("deleting a file that does not exist is refused, not a silent no-op", () => {
-  const { root, themeDir } = makeThemesRoot();
-  assert.throws(
-    () => deleteThemeFile({ themeDir, themesRoot: root, relativePath: "templates/nope.json" }),
-    /does not exist/
-  );
-});
-
-test("deleting a directory through this path is refused, not attempted", () => {
-  const { root, themeDir } = makeThemesRoot();
-  assert.throws(
-    () => deleteThemeFile({ themeDir, themesRoot: root, relativePath: "templates" }),
-    /not a regular file/
-  );
-  assert.equal(fs.existsSync(path.join(themeDir, "templates")), true, "the refused delete must leave the directory in place");
-});
-
-test("deleteThemeFile reuses resolveThemeFilePath's containment — a traversal escape is refused the same way every other write here is", () => {
-  const { root, themeDir } = makeThemesRoot();
-  assert.throws(
-    () => deleteThemeFile({ themeDir, themesRoot: root, relativePath: "../../../../etc/passwd" }),
-    /resolves outside the theme folder/
-  );
-});
-
-// ---------------------------------------------------------------------------
 // Circular-symlink ELOOP conversion — the same class of bug `readThemeFile` was fixed for
 // (statOrThemePathError, see its own doc), swept across the file's other bare `statSync` call sites.
 // ---------------------------------------------------------------------------
@@ -510,21 +474,6 @@ test("writeThemeFile raises ThemePathError (never a raw ELOOP) for a CIRCULAR sy
       () => writeThemeFile({ themeDir, themesRoot: root, relativePath: "a", content: "x" }),
       ThemePathError
     );
-  } finally {
-    fs.unlinkSync(a);
-    fs.unlinkSync(b);
-  }
-});
-
-test("deleteThemeFile raises ThemePathError (never a raw ELOOP) for a CIRCULAR symlink (a -> b -> a) as the delete target", () => {
-  const { root, themeDir } = makeThemesRoot();
-  const a = path.join(themeDir, "a");
-  const b = path.join(themeDir, "b");
-  fs.symlinkSync(b, a);
-  fs.symlinkSync(a, b);
-
-  try {
-    assert.throws(() => deleteThemeFile({ themeDir, themesRoot: root, relativePath: "a" }), ThemePathError);
   } finally {
     fs.unlinkSync(a);
     fs.unlinkSync(b);

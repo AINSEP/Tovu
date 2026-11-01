@@ -1052,39 +1052,6 @@ export function renameThemeFile(
 }
 
 /**
- * Delete one file inside a theme's folder.
- *
- * Callers are expected to have already decided this delete is SAFE to perform — required-file,
- * generated-tree, and identity-lock checks live one layer up ({@link resolveThemeFileWriteScope}, and
- * `explore.ts`'s own `validateFileIdentityChange`, shared with {@link renameThemeFile}'s own route).
- * This function only enforces the one thing every write in this file enforces: containment. There is
- * no recovery path if a caller got that wrong — this repo keeps no theme-file revision history, so a
- * deleted file is gone until it is re-authored, or (for a file with a catalog original) reset from
- * there before it was deleted, which is no longer possible once the path itself does not exist.
- *
- * @throws {ThemePathError} On containment failure, a missing target, or a target that is not a
- * regular file — deleting a directory through this path is refused, not attempted.
- * @complexity O(1) — a single `rmSync`.
- * @overallScore 100/100
- */
-export function deleteThemeFile(
-  required: { themeDir: string; themesRoot: string; relativePath: string },
-  _optional: Record<string, never> = {}
-): void {
-  const target = resolveThemeFilePath(required);
-  // statOrThemePathError, NEVER a bare statSync — same circular-symlink ELOOP escape `readThemeFile`
-  // and `writeThemeFile` were fixed for (see statOrThemePathError's own doc): `resolveThemeFilePath`
-  // does not resolve a `target` that is ITSELF a self-referential symlink, so this is the first call
-  // that can observe the cycle. Still follows a symlink pointing at a real file inside the theme — the
-  // delete then removes that symlink's own directory entry via `rmSync` below, same as deleting any
-  // other existing target.
-  const stat = statOrThemePathError(target, required.relativePath);
-  if (!stat) throw new ThemePathError(`file '${required.relativePath}' does not exist in this theme`);
-  if (!stat.isFile()) throw new ThemePathError(`path '${required.relativePath}' is not a regular file`);
-  rmSync(target);
-}
-
-/**
  * Whether one path resolves to a BUILT theme's generated tree — read-only from every per-file surface
  * — or to a location that stays editable (ADR-020 §5, `ThemeBuildInfo`'s own doc: "a built theme's
  * source keeps per-file reset and AI-authorability; only its generated tree loses granularity").
