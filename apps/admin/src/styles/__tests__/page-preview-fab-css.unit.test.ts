@@ -17,3 +17,12 @@ it("collapsed, the stage generates no box, so the control is placed against the 
   const topLevel = CSS.replace(/@media[^{]*\{(?:[^{}]*\{[^}]*\})*[^{}]*\}/g, "");
   expect(topLevel).toMatch(/\.page-preview-host\s+\.page-preview-stage\s*\{[^}]*display:\s*contents/);
 });
+
+it("phones: the collapsed control is pulled up by its real 44px tap height, so it lines up with Save", () => {
+  // Bug 11-01: the pull assumed a 40px control, but the phone tap floor (`styles.css`, 44px
+  // min-height on every admin button) makes it 44px, so it sat 4px below Save and pushed the note
+  // 4px down. The pull and the hand-back must use the same 44px.
+  const phone = CSS.match(/@media \(max-width: 640px\)\s*\{([\s\S]*?)\n\}/)?.[1] ?? "";
+  const rule = phone.match(/\.page-preview-host\s+\.page-preview-stage\s*>\s*\.page-preview-fab\s*\{([^}]*)\}/)?.[1] ?? "";
+  expect(rule).toMatch(/margin:\s*calc\(-44px - 15px\) 0 15px/);
+});

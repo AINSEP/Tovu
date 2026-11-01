@@ -231,12 +231,14 @@
   /* Collapsed: on the Save/Delete row's right end, like wider screens. The row is sticky on phones
      (`styles.css`), and an absolutely placed control scrolled away from it, drifting up over the
      stuck row. So the control is sticky too, at the row's own offset plus its 6px padding, and is
-     pulled up into the row by its 40px tap height plus 15px (that padding plus the 9px row-to-frame
-     gap), which it hands back below so the frame does not move. `z-index: 7` clears the row's 6,
-     whose background would otherwise cover it. */
+     pulled up into the row by its 44px tap height plus 15px (that padding plus the 9px row-to-frame
+     gap), which it hands back below so the frame does not move. 44px, not 40px (2026-11-01): the
+     phone tap floor in `styles.css` gives every admin button a 44px min-height, so a 40px pull left
+     the control 4px below Save and the note 4px low. `z-index: 7` clears the row's 6, whose
+     background would otherwise cover it. */
   .page-preview-host .page-preview-stage > .page-preview-fab {
     position: sticky; inset: auto; top: calc(6px - var(--space-4)); z-index: 7;
-    margin: calc(-40px - 15px) 0 15px;
+    margin: calc(-44px - 15px) 0 15px;
   }
 }
 
