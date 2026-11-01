@@ -560,7 +560,8 @@ function PageEditorNotices({
           t={t}
         />
       ) : null}
-      {autosaveStaleBasis ? <PageAutosaveStaleBanner staleBasis={autosaveStaleBasis} t={t} /> : null}
+      {/* Waits while the outside-change notice is up: one moved version, one banner — see `PostEditorNotices`. */}
+      {autosaveStaleBasis && pendingExternalVersion === null ? <PageAutosaveStaleBanner staleBasis={autosaveStaleBasis} t={t} /> : null}
       {saveConflict ? (
         <PageVersionConflictBanner saveConflict={saveConflict} onSaveAnyway={onSaveAnyway} onDismiss={onDismissConflict} t={t} />
       ) : null}

@@ -1766,6 +1766,16 @@ describe("standing-draft autosave stale-basis notice", () => {
     expect(region).not.toBeNull();
     expect(region!.querySelectorAll("button")).toHaveLength(0);
   });
+
+  /** UI check 2026-10-31: an assistant save while the operator had unsaved edits stacked this
+   *  notice on top of "Changed outside the editor" — one event, two banners. The outside-change
+   *  banner names the same moved version and carries the remedy, so it shows alone; this one
+   *  returns if the operator keeps their edits and autosaving is still paused. */
+  it("yields to the outside-change notice, which reports the same moved version with its choices", () => {
+    renderPostEditor({ autosaveStaleBasis: STALE, pendingExternalVersion: 4 });
+    expect(document.querySelector('[data-agent-element="post-autosave-stale"]')).toBeNull();
+    expect(screen.getByText(/changed outside the editor/i)).toBeInTheDocument();
+  });
 });
 
 describe("Content analysis", () => {

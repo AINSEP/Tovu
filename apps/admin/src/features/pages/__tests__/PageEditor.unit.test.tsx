@@ -400,6 +400,13 @@ describe("standing-draft autosave stale-basis notice", () => {
     expect(region).not.toBeNull();
     expect(region!.querySelectorAll("button")).toHaveLength(0);
   });
+
+  /** Same single-banner rule as the Posts editor: the outside-change notice reports the moved version with its choices. */
+  it("yields to the outside-change notice, which reports the same moved version with its choices", () => {
+    const { container } = renderEditor({ autosaveStaleBasis: STALE, pendingExternalVersion: 4 });
+    expect(container.querySelector('[data-agent-element="page-autosave-stale"]')).toBeNull();
+    expect(screen.getByText(/changed outside the editor/i)).toBeInTheDocument();
+  });
 });
 
 /**
