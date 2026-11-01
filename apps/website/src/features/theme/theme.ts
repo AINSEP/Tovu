@@ -74,6 +74,9 @@ export interface DiscoveredTheme {
    * templating language for a renderer to fill in.
    */
   pages: Record<string, string>;
+  /** Theme-relative source paths inherited by the loader, for read-only source views.
+   * Only declared, compatible bundled templates enter this map; physical site files win. */
+  inheritedTemplateSources?: Readonly<Record<string, string>>;
   /**
    * Partial id → raw HTML source (static tier only): `nav`, `footer`, and any
    * `footer-*` variant (e.g. `footer-minimal`) found at the theme root. A static
@@ -516,10 +519,10 @@ function readBundledTemplateFallback(
 function inheritBundledTemplates(
   { manifest, pages, bundled }: { manifest: ThemeManifest; pages: Record<string, string>; bundled?: DiscoveredTheme },
   _options: Record<string, never> = {}
-): { manifest: ThemeManifest; pages: Record<string, string> } {
-  if (!bundled) return { manifest, pages };
+): { manifest: ThemeManifest; pages: Record<string, string>; inheritedTemplateSources: Record<string, string> } {
+  if (!bundled) return { manifest, pages, inheritedTemplateSources: {} };
   const missing = (bundled.manifest.templates ?? []).filter((name) => !Object.hasOwn(pages, name.replace(/\.html$/, "")));
-  if (missing.length === 0) return { manifest, pages };
+  if (missing.length === 0) return { manifest, pages, inheritedTemplateSources: {} };
   const existing = new Set(manifest.templates ?? []);
   const added = missing.filter((name) => !existing.has(name));
   const templateFor = Object.fromEntries(added.flatMap((name) => {
@@ -527,6 +530,9 @@ function inheritBundledTemplates(
     return kinds === undefined ? [] : [[name, kinds]];
   }));
   return {
+    inheritedTemplateSources: Object.fromEntries(missing.map((name) => [
+      `${resolveThemeLayout(manifest.apiVersion).pagesDir}/${name}`, bundled.pages[name.replace(/\.html$/, "")]!,
+    ])),
     manifest: { ...manifest, templates: [...(manifest.templates ?? []), ...added], templateFor: { ...templateFor, ...manifest.templateFor } },
     pages: { ...Object.fromEntries(missing.map((name) => {
       const id = name.replace(/\.html$/, "");
@@ -894,7 +900,7 @@ export function loadTheme(
   });
   errors.push(...staticErrors);
   const packageThemesDir = optional.packageThemesDir === undefined ? stockThemesDir() : optional.packageThemesDir;
-  const { manifest, pages } = inheritBundledTemplates({
+  const { manifest, pages, inheritedTemplateSources } = inheritBundledTemplates({
     manifest: siteManifest,
     pages: sitePages,
     bundled: readBundledTemplateFallback({ manifest: siteManifest, packageThemesDir }),
@@ -923,6 +929,7 @@ export function loadTheme(
     liquidTemplates,
     handlebarsTemplates,
     pages,
+    inheritedTemplateSources,
     partials,
     css,
     source,

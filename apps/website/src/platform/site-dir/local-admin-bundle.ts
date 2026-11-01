@@ -7,6 +7,7 @@ import { createRedactedOutputSink } from "../server-logs/console-tee.js";
 import { withFileLock } from "@jini-ai/platform/fs";
 
 type AdminBuild = (required: { repoRoot: string; output: string; env: NodeJS.ProcessEnv }) => Promise<void>;
+const ADMIN_BUILD_BACKSTOP_MS = 900_000;
 /** Runs Vite with bounded, redacted child diagnostics; rejects spawn, inactivity and nonzero exit.
  * @complexity O(n) output framing time, with bounded line storage in each sink.
  */
@@ -29,8 +30,8 @@ export function buildAdmin({ repoRoot, output, env }: Parameters<AdminBuild>[0],
     const idle = stop("no output for 120000 ms");
     let timer = setTimeout(idle, 120_000);
     // Loaded machines can take minutes while Vite still progresses. Bound silence, not total work —
-    // except a generous backstop, since lock waiters and readiness now wait on this build unbounded.
-    const backstop = setTimeout(stop("still running after 900000 ms"), 900_000);
+    // except a generous backstop shared with readiness, while lock waiters follow the builder.
+    const backstop = setTimeout(stop(`still running after ${ADMIN_BUILD_BACKSTOP_MS} ms`), ADMIN_BUILD_BACKSTOP_MS);
     const progress = () => { clearTimeout(timer); timer = setTimeout(idle, 120_000); };
     const cleanup = () => {
       clearTimeout(timer);
@@ -79,15 +80,25 @@ export async function journeyAdminBundle(
 
 /** Wait for the shared Vite build before spending HTTP readiness attempts. The builder owns the
  * inactivity watchdog; child exit also ends this wait. No wait for hosts supplying a built bundle.
+ * The shared backstop also bounds child startup before a builder can create its lock.
  * @param required Shared runtime directory and child liveness port.
- * @param optional Polling delay port; no server or process is launched here.
- * @returns Once no unfinished build holds the lock, or the child has exited.
+ * @param optional Polling delay and monotonic clock ports; no process is launched here.
+ * @returns Once the bundle is ready or the child has exited.
+ * @throws When preparation exceeds the build backstop.
  * @complexity O(p) filesystem checks for p polls, O(1) storage.
  */
 export async function waitForLocalAdminBuild(
   { runtimeDir, exited }: { runtimeDir: string; exited: () => boolean },
-  { sleep = () => new Promise<void>(resolve => setTimeout(resolve, 500)) }: { sleep?: () => Promise<void> } = {},
+  { sleep = () => new Promise<void>(resolve => setTimeout(resolve, 500)), monotonicMs = () => performance.now() }:
+  { sleep?: () => Promise<void>; monotonicMs?: () => number } = {},
 ): Promise<void> {
   const root = path.join(runtimeDir, "admin-build");
-  while (!exited() && existsSync(path.join(root, "build.lock")) && !existsSync(path.join(root, "ready"))) await sleep();
+  const started = monotonicMs();
+  // Lock absence can mean the child has not started yet; only completion proves readiness.
+  while (!exited() && !existsSync(path.join(root, "ready"))) {
+    if (monotonicMs() - started >= ADMIN_BUILD_BACKSTOP_MS) {
+      throw new Error(`Journey admin preparation did not finish after ${ADMIN_BUILD_BACKSTOP_MS} ms`);
+    }
+    await sleep();
+  }
 }

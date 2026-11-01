@@ -2383,6 +2383,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // screenshots are reachable (see theme-static-assets.ts's own header for why declarative/handlebars
   // are not listed here yet, and why templates/*.liquid source being servable is deliberate).
   registerThemeStaticAssets(app, {
+    themes: routeDeps.themes,
     isAuthenticatedPreviewRevision,
     // Site-relative for the same reason as `themesStaticDir` just above — this is the mount that
     // serves the live site's own theme css/js, so a package-relative root here is precisely the bug

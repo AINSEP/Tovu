@@ -45,6 +45,8 @@ export interface ThemeExploreFileEntry {
   group: ThemeFileGroup;
   readable: boolean;
   editable: boolean;
+  /** The source comes from the bundled theme, rather than a writable site file. */
+  inherited?: boolean;
   resettable: boolean;
   /** Whether the file's bytes differ from its catalog original; `null` exactly when `resettable` is
    *  false. See `use-theme-explore.hooks.ts`'s `ThemeExploreFile.modified` for the full contract.

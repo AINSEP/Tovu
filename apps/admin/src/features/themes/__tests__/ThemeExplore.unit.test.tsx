@@ -604,6 +604,16 @@ describe("reset to original", () => {
  * script's NAME/EXISTENCE (rename/delete) is still locked even though its content is not.
  */
 describe("read-only groups (other)", () => {
+  it("explains that a bundled inherited template is read-only and shows its source without Save", () => {
+    const file = { ...FILES[2], inherited: true, editable: false, resettable: false, modified: null };
+    renderExplore({ files: [file], selected: file.path, view: "html", source: "<h1>Bundled</h1>" });
+    expect(screen.getByText(/inherited from the bundled theme.*read-only/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Theme file source (read-only)")).toHaveValue("<h1>Bundled</h1>");
+    expect(screen.getByLabelText("Theme file source (read-only)")).toHaveAttribute("readonly");
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /more actions/i })).not.toBeInTheDocument();
+  });
+
   it("shows an 'other'-group file (e.g. NOTICE.md) in a read-only viewer, with a generic reason", () => {
     render(
       <ThemeExplore

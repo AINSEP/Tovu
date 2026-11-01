@@ -219,7 +219,9 @@ function ThemeExploreHtmlPane({
     // why.
     return (
       <>
-        <div className="notice">{t(readOnlyReason())}</div>
+        <div className="notice">{t(file?.inherited
+          ? "This template is inherited from the bundled theme and is read-only."
+          : readOnlyReason())}</div>
         <textarea
           className="page-html-source"
           value={source}
@@ -363,14 +365,15 @@ function ThemeExploreFileRow({
           className={isSelected ? "is-active" : undefined}
           aria-current={isSelected ? "true" : undefined}
           onClick={() => select(file.path)}
-          onDoubleClick={() => startRename(file.path)}
+          onDoubleClick={file.inherited ? undefined : () => startRename(file.path)}
           title={file.path}
         >
           {file.label}
         </button>
       )}
       <ThemeExploreModifiedMarker file={file} t={t} />
-      {/* Copy is unconditional — see the hook's own `copyFile` doc comment for why duplicating bytes
+      {/* Inherited sources have no physical site file for any of these actions.
+          Copy is unconditional for physical files — see the hook's own `copyFile` doc comment for why duplicating bytes
           carries none of the risk editing does. Rename and Delete are always offered too: a LOCKED
           file (pages/index.html, theme.json, tokens.json, or any script/`other`-group file — see
           `IDENTITY_LOCKED_GROUPS`) still shows both items, but selecting one surfaces the refusal as
@@ -381,7 +384,7 @@ function ThemeExploreFileRow({
           confirmation dialog rather than acting immediately (2026-08-29 ask) — see `ThemeExplore`'s
           own delete `ConfirmDialog` for why that pause, unlike Rename's, is unconditional whenever
           the file IS eligible: deleting is the one operation here with no undo at all. */}
-      <RowMenu
+      {!file.inherited && <RowMenu
         triggerLabel={t("More actions for {file}").replace("{file}", file.label)}
         agentHandle={`${agentBase}-menu`}
         items={[
@@ -402,7 +405,7 @@ function ThemeExploreFileRow({
             onSelect: () => openDeleteConfirm(file.path),
           },
         ]}
-      />
+      />}
     </li>
   );
 }

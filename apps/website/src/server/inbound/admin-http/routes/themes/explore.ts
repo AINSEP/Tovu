@@ -449,6 +449,7 @@ function describeThemeFile(
   modified: boolean | null;
   published: boolean | null;
   collidingContent: ThemeFileContentCollision | null;
+  inherited?: boolean;
 } {
   const group = fileGroup(relativePath, options.apiVersion);
   const pageId = group === "page" ? pageIdForPagePath(relativePath) : null;
@@ -548,6 +549,12 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
             contentBySlug,
           })
         );
+      // The loader owns inheritance. Virtual sources must be listed so View Template's Explore
+      // link can select them, but they cannot masquerade as editable physical site files.
+      for (const path of Object.keys(theme.inheritedTemplateSources ?? {})) {
+        files.push({ path, group: "page", readable: true, editable: false, resettable: false,
+          modified: null, published: null, collidingContent: null, inherited: true });
+      }
 
       res.json({
         id: theme.manifest.id,
@@ -580,6 +587,11 @@ export const registerAdminThemeFileGetRoute: ContentRouteRegistrar = (app, deps)
       if (!theme) return;
 
       const path = String((req.query as Record<string, unknown>).path ?? "");
+      const inherited = theme.inheritedTemplateSources ?? {};
+      if (Object.hasOwn(inherited, path)) {
+        res.json({ path, content: inherited[path], inherited: true, editable: false });
+        return;
+      }
       const content = readThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path });
       res.json({ path, content });
     } catch (err) {
@@ -660,6 +672,10 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
         return;
       }
       const { path, content } = parsedBody;
+      if (Object.hasOwn(theme.inheritedTemplateSources ?? {}, path)) {
+        res.status(403).json({ error: `'${path}' is inherited from the bundled theme and is read-only`, code: "READ_ONLY_FILE" });
+        return;
+      }
 
       // ADR-020 §5: a built theme's generated tree is editor-read-only, checked BEFORE the
       // group-based `isThemeFileWritable` gate below — this is a lifecycle-class refusal (nothing

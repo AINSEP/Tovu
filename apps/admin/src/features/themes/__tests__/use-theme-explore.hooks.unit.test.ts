@@ -45,6 +45,18 @@ afterEach(() => {
 });
 
 describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => {
+  it("preserves inherited read-only metadata while loading bundled source", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "render/pages/future.html", group: "page", readable: true, editable: false,
+        resettable: false, inherited: true }],
+      contents: { "render/pages/future.html": "<h1>Bundled</h1>" },
+    });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (key) => key }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Bundled</h1>"));
+    expect(result.current.files[0]).toMatchObject({ inherited: true, editable: false, resettable: false });
+    expect(result.current.sourceLoaded).toBe(true);
+  });
+
   it("loads detail/files from the injected port and never touches the real api client", async () => {
     const getDetailSpy = vi.spyOn(api, "getThemeDetail");
     const port = createFakeThemeExplorePort({

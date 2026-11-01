@@ -7,6 +7,7 @@ import { resolvePathWithin } from "#src/contracts/core/index";
 
 import { resolveThemeDirs } from "./theme-asset-dirs.js";
 import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";
+import type { DiscoveredTheme } from "#src/features/theme/index";
 
 /** Whether an authenticated admin previewed `revision` (supplied by `theme-preview-refresh.ts`). */
 type IsAuthenticatedPreviewRevision = (required: { revision: string }, optional: {}) => boolean;
@@ -67,7 +68,7 @@ type IsAuthenticatedPreviewRevision = (required: { revision: string }, optional:
  */
 export function registerThemeStaticAssets(
   app: Express,
-  required: { themeRoots: readonly string[]; serveStatic?: typeof express.static; isAuthenticatedPreviewRevision?: IsAuthenticatedPreviewRevision },
+  required: { themeRoots: readonly string[]; themes?: readonly DiscoveredTheme[]; serveStatic?: typeof express.static; isAuthenticatedPreviewRevision?: IsAuthenticatedPreviewRevision },
 ): void {
   const serveStatic = required.serveStatic ?? express.static;
   const roots = required.themeRoots.map((dir) => path.resolve(dir));
@@ -83,7 +84,10 @@ export function registerThemeStaticAssets(
         return;
       }
       if (preview) res.set("Cache-Control", "no-store");
-      const nextDir = (): void => serveFrom(index + 1);
+      const nextDir = (): void => {
+        if (sendInheritedTemplate({ themes: required.themes ?? [], themeDir, url: req.url, method: req.method, res })) return;
+        serveFrom(index + 1);
+      };
       const revision = preview
         ? trustedPreviewRevision(
           { requestedRevision, localsRevision: res.locals?.themePreviewRevision },
@@ -97,6 +101,25 @@ export function registerThemeStaticAssets(
     };
     serveFrom(0);
   });
+}
+
+/** Serve only sources the loader actually inherited, after physical files have had precedence.
+ * This shares the renderer's inheritance decision without exposing the entire package catalog.
+ * @returns Whether an inherited template answered the request; malformed paths fall through.
+ * @complexity O(t + u + b), for t loaded themes, u URL length and b response bytes; no disk reads.
+ */
+function sendInheritedTemplate(
+  { themes, themeDir, url, method, res }: { themes: readonly DiscoveredTheme[]; themeDir: string; url: string; method: string; res: Response },
+  _options: Record<string, never> = {},
+): boolean {
+  if (method !== "GET" && method !== "HEAD") return false;
+  let relativePath: string;
+  try { relativePath = decodeURIComponent(url.split("?")[0]).replace(/^\/+/, ""); }
+  catch { return false; }
+  const sources = themes.find(theme => theme.dir === themeDir)?.inheritedTemplateSources ?? {};
+  if (!Object.hasOwn(sources, relativePath)) return false;
+  res.type("html").send(sources[relativePath]);
+  return true;
 }
 
 /**

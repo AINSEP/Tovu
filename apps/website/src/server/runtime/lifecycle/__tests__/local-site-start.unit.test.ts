@@ -9,7 +9,7 @@ import { PassThrough } from "node:stream";
 import test from "node:test";
 import { createLocalSiteProcessPort } from "../local-site-process.js";
 
-for (const outcome of ["ready", "exit", "supplied"] as const) {
+for (const outcome of ["ready", "exit", "supplied", "delayed-lock"] as const) {
   test(`site start keeps bundle preparation outside the HTTP readiness budget: ${outcome}`, async (t) => {
     t.mock.timers.enable({ apis: ["setTimeout"] });
     const switcherBase = fs.mkdtempSync(path.join(os.tmpdir(), "site-start-"));
@@ -36,11 +36,17 @@ for (const outcome of ["ready", "exit", "supplied"] as const) {
     const launched = await local.launch({ name: "slow", port: 3101, daemonPort: 3102 });
     const root = path.join(runtimeDir, "admin-build");
     fs.mkdirSync(root);
-    fs.writeFileSync(path.join(root, "build.lock"), "builder");
+    if (outcome !== "delayed-lock") fs.writeFileSync(path.join(root, "build.lock"), "builder");
     let settled = false;
     const readiness = launched.ready().then(ready => { settled = true; return ready; });
     // Let real filesystem promises settle between fake timer ticks. No process or socket is opened.
     const flush = () => new Promise<void>(resolve => setImmediate(resolve));
+    if (outcome === "delayed-lock") {
+      for (let elapsed = 0; elapsed < 5000; elapsed += 500) { t.mock.timers.tick(500); await flush(); }
+      assert.equal(probes, 0, "ready() must wait when child startup has not created build.lock yet");
+      assert.equal(settled, false);
+      fs.writeFileSync(path.join(root, "build.lock"), "builder");
+    }
     for (let elapsed = 0; elapsed < 150_000; elapsed += 500) { t.mock.timers.tick(500); await flush(); }
     if (outcome === "supplied") {
       assert.equal(await readiness, true);
@@ -49,10 +55,10 @@ for (const outcome of ["ready", "exit", "supplied"] as const) {
     }
     assert.equal(settled, false, "an in-progress build must not return false and spend a readiness attempt");
     assert.equal(probes, 0);
-    if (outcome === "ready") fs.writeFileSync(path.join(root, "ready"), "ready");
+    if (outcome !== "exit") fs.writeFileSync(path.join(root, "ready"), "ready");
     else child.emit("exit", 1, null);
     t.mock.timers.tick(500);
-    assert.equal(await readiness, outcome === "ready");
-    assert.equal(probes, outcome === "ready" ? 2 : 0);
+    assert.equal(await readiness, outcome !== "exit");
+    assert.equal(probes, outcome !== "exit" ? 2 : 0);
   });
 }

@@ -67,6 +67,8 @@ export interface ThemeExploreFile {
    *  to also keep them viewable without a bigger change than the ask called for — splitting the two
    *  concepts is what unblocks that. */
   editable: boolean;
+  /** Inherited bundled template source; the loader supplies it read-only. */
+  inherited?: boolean;
   /** False for files the author added, which have no original to restore from. */
   resettable: boolean;
   /**
@@ -725,6 +727,7 @@ function mapDetailFiles(entries: ThemeExploreFileEntry[]): ThemeExploreFile[] {
     kind: f.group,
     readable: f.readable,
     editable: f.editable,
+    inherited: f.inherited,
     resettable: f.resettable,
     // Same absent/undefined normalization as `published` just below, same reason.
     modified: f.modified ?? null,

@@ -3042,6 +3042,7 @@ export const api = {
         /** Whether the file can be saved (PUT/reset). False for binaries AND for read-only groups
          *  (`script`, `other`) even though those stay `readable`. */
         editable: boolean;
+        inherited?: boolean;
         resettable: boolean;
         /** Whether the live file's bytes differ from its catalog original — `null` exactly when
          *  `resettable` is false (no original to compare against). Optional so an older cached client

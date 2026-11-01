@@ -173,11 +173,18 @@ test("a build that keeps printing but never exits still fails at the 15-minute b
   child.stdout.end(); child.stderr.end();
 });
 
-test("bundle preparation delays readiness only while an unfinished builder holds the lock", async (t) => {
+test("bundle preparation waits for completion even before the builder holds the lock", async (t) => {
   const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "admin-readiness-"));
   t.after(() => fs.rmSync(runtimeDir, { recursive: true, force: true }));
   const root = path.join(runtimeDir, "admin-build");
-  await waitForLocalAdminBuild({ runtimeDir, exited: () => false }, { sleep: async () => assert.fail("no build") });
+  let startupPolls = 0;
+  await waitForLocalAdminBuild({ runtimeDir, exited: () => false }, { sleep: async () => {
+    startupPolls++;
+    fs.mkdirSync(root, { recursive: true });
+    fs.writeFileSync(path.join(root, "ready"), "ready");
+  } });
+  assert.equal(startupPolls, 1, "no lock yet does not mean the child finished preparation");
+  fs.rmSync(root, { recursive: true });
   fs.mkdirSync(root);
   fs.writeFileSync(path.join(root, "build.lock"), "builder");
   let polls = 0;
@@ -188,7 +195,19 @@ test("bundle preparation delays readiness only while an unfinished builder holds
   fs.rmSync(path.join(root, "ready"));
   await waitForLocalAdminBuild({ runtimeDir, exited: () => true }, { sleep: async () => assert.fail("child exited") });
   fs.rmSync(path.join(root, "build.lock"));
-  await waitForLocalAdminBuild({ runtimeDir, exited: () => false }, { sleep: async () => assert.fail("build ended") });
+  fs.writeFileSync(path.join(root, "ready"), "ready");
+  await waitForLocalAdminBuild({ runtimeDir, exited: () => false }, { sleep: async () => assert.fail("build finished") });
+});
+
+test("preparation that never starts or finishes is bounded by the build backstop", async (t) => {
+  const runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), "admin-startup-backstop-"));
+  t.after(() => fs.rmSync(runtimeDir, { recursive: true, force: true }));
+  let elapsed = 0;
+  await assert.rejects(waitForLocalAdminBuild({ runtimeDir, exited: () => false }, {
+    monotonicMs: () => elapsed,
+    sleep: async () => { elapsed += 300_000; },
+  }), /900000 ms/);
+  assert.equal(elapsed, 900_000);
 });
 
 test("another starting site waits past 125 seconds and reuses the active builder's result", async (t) => {

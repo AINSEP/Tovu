@@ -98,6 +98,24 @@
     });
   }
 
+
+  // Clones are separate targets. The server publishes their identities from the source menu.
+  function publishMobile(source, target, submenu) {
+    var attribute = submenu ? 'data-visitor-submenu-handle' : 'data-visitor-mobile-handle';
+    var handle = source.getAttribute(attribute);
+    target.removeAttribute('data-agent-element');
+    target.removeAttribute('data-toolname');
+    if (!handle) return;
+    target.setAttribute('data-agent-element', handle);
+    var label = source.getAttribute('data-tooldescription') || source.textContent.trim();
+    if (submenu) label += ' submenu';
+    target.setAttribute('data-toolname', handle);
+    target.setAttribute('data-tooldescription', label);
+    target.setAttribute('data-tool-action', submenu ? 'menu' : 'navigate');
+    target.setAttribute('data-agent-label', label);
+    target.setAttribute('data-agent-role', submenu ? 'button' : 'link');
+  }
+
   var mnavUid = 0;
   var CHEVRON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
 
@@ -122,6 +140,7 @@
 
     if (!item.children.length) {
       var leaf = item.label.cloneNode(true);
+      publishMobile(item.label, leaf, false);
       leaf.className = isLink ? 'mnav-link' : 'mnav-link mnav-inert';
       row.appendChild(leaf);
       return li;
@@ -135,10 +154,12 @@
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'mnav-disclose';
+    publishMobile(item.label, btn, true);
     btn.setAttribute('aria-controls', sub.id);
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (isLink) {
       var link = item.label.cloneNode(true);
+      publishMobile(item.label, link, false);
       link.className = 'mnav-link';
       row.appendChild(link);
       btn.setAttribute('aria-label', name + ' submenu');

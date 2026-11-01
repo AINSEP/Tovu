@@ -25,7 +25,7 @@
 <!-- Marker: shared header (render/partials/nav.html) replaces this line. "current":"blog" highlights the fallback nav link with data-nav-id="blog". -->
 <div data-embed-config='{"type":"partial","id":"nav","current":"blog"}'></div>
 
-<main>
+<main data-visitor-scope data-toolname="starter_content_posts-default" data-tooldescription="Public page content" data-tool-action="read">
   <!-- Deliberately no `threshold:` token, and there must never be one again. kUInetic hands
        `threshold:` straight to IntersectionObserver, where it is a fraction of THIS element's OWN
        area, not of the viewport — so anything taller than `viewport / threshold` can never reach it.
