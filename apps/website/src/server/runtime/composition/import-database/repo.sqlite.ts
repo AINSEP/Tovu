@@ -9,14 +9,68 @@ import path from "node:path";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { sqliteKernel, closeSqliteConnection, openNativeSqlite, openSqliteFileKernel, sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";
 import { listColumns } from "#src/platform/db/kernel/dialect";
-import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects } from "#src/platform/db/kernel/sqlite-only";
+import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, type SqliteSchemaObject } from "#src/platform/db/kernel/sqlite-only";
 import type { StorageKernel } from "#src/platform/db/kernel/port";
-import { sanitizeShareDatabase, prepareSharePluginTables } from "#src/features/site-backup/share-database/repo.sqlite";
-import { SHARE_TABLES, IMPORT_SCHEMA_MISMATCH_EXIT_CODE, SHARE_VERSION_MISMATCH_MESSAGE, SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { sanitizeShareDatabase, prepareSharePluginTables, refuseUnknownShareTables } from "#src/features/site-backup/share-database/repo.sqlite";
+import { SHARE_TABLES, IMPORT_SCHEMA_MISMATCH_EXIT_CODE, IMPORT_REFUSAL_EXIT_CODE, SHARE_VERSION_MISMATCH_MESSAGE, SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import { readTemplate } from "#src/platform/site-dir/index";
 import { computeBlobStorageKey } from "#src/features/media/index";
 
 type ImportKernel = StorageKernel<Record<string, Record<string, unknown>>>;
+
+/** Refuse an unsafe schema object by identity, never echoing its executable SQL.
+ * Pure except for throwing INVALID_DATABASE; O(object-name bytes).
+ */
+function refuseSchemaObject(required: { object: SqliteSchemaObject }, _options = {}): never {
+  const { object } = required;
+  throw new SiteShareRefusal({ code: "INVALID_DATABASE", message: `Unsupported schema ${object.type} ${JSON.stringify(object.name)}.` });
+}
+
+/** Ordinary column differences can be version drift. Hidden/generated columns
+ * and changed DDL with identical column metadata retain their unsafe-schema refusal.
+ * Reads metadata only; O(columns) time/space, bounded by the worker's byte/deadline caps.
+ */
+async function requireOrdinaryColumnChange(required: { source: ImportKernel; target: ImportKernel; object: SqliteSchemaObject }, _options = {}): Promise<void> {
+  const actual = await required.source.query<{ hidden: number }>(sql`SELECT * FROM pragma_table_xinfo(${required.object.name})`);
+  const expected = await required.target.query(sql`SELECT * FROM pragma_table_xinfo(${required.object.name})`);
+  if (actual.some(column => column.hidden !== 0) || JSON.stringify(actual) === JSON.stringify(expected)) refuseSchemaObject(required);
+}
+
+/** One schema object: identical passes; an undeclared ordinary table (and its indices) is left
+ * to the table-policy owner; anything else untrusted refuses by name; a changed table may only
+ * be ordinary column drift. Reads metadata only; throws typed refusals.
+ */
+async function requireTrustedObject(required: { source: ImportKernel; target: ImportKernel; object: SqliteSchemaObject; trusted: SqliteSchemaObject | undefined; ordinaryUndeclared: ReadonlySet<string> }, _options = {}): Promise<void> {
+  const { object, trusted } = required;
+  if (JSON.stringify(object) === JSON.stringify(trusted)) return;
+  // Undeclared ordinary tables and their indices belong to the existing table-policy
+  // owner below, which names the populated table rather than its first sorted index.
+  if (!trusted && required.ordinaryUndeclared.has(object.tbl_name)) return;
+  if (!trusted || object.type !== "table") refuseSchemaObject({ object });
+  await requireOrdinaryColumnChange(required);
+}
+
+/** Check non-version refusals before mapping ordinary table drift to version advice.
+ * No source DDL is executed or accepted. Reads metadata and delegates bounded row-existence
+ * checks to the existing table-policy owner; throws typed refusals.
+ * O(schema objects + changed-table columns) time/space, plus one existence query per
+ * undeclared table, under the worker's input/deadline caps.
+ */
+async function requireTrustedSchemaObjects(required: { source: ImportKernel; target: ImportKernel; actual: SqliteSchemaObject[]; expected: SqliteSchemaObject[] }, _options = {}): Promise<void> {
+  const key = (object: SqliteSchemaObject) => `${object.type}/${object.name}`;
+  const actual = new Map(required.actual.map(object => [key(object), object]));
+  const expected = new Map(required.expected.map(object => [key(object), object]));
+  const undeclaredTables = required.actual.filter(object => object.type === "table" && !expected.has(key(object)));
+  const ordinaryUndeclared = new Set(undeclaredTables.filter(table => /^CREATE TABLE\b/i.test(table.sql ?? "")).map(table => table.name));
+  for (const object of required.actual) await requireTrustedObject({ ...required, object, trusted: expected.get(key(object)), ordinaryUndeclared });
+  await refuseUnknownShareTables({ source: required.source, trusted: new Set(required.expected.filter(object => object.type === "table").map(object => object.name)) });
+  if (undeclaredTables.length) refuseSchemaObject({ object: undeclaredTables[0]! });
+  // An index/trigger missing with its whole table is table drift; a missing object on a
+  // surviving table is an independent unsafe-schema refusal and must win over version advice.
+  const missing = required.expected.find(object => object.type !== "table" && actual.has(`table/${object.tbl_name}`) && !actual.has(key(object)));
+  if (missing) refuseSchemaObject({ object: missing });
+  if (JSON.stringify(required.actual) !== JSON.stringify(required.expected)) throw new SiteShareRefusal({ code: "SCHEMA_VERSION_MISMATCH", message: SHARE_VERSION_MISMATCH_MESSAGE });
+}
 
 /** These portable relationships are application-owned rather than SQLite FKs. Identity actor
  * strings are intentionally excluded: the share policy omits source accounts, not attribution.
@@ -57,7 +111,7 @@ async function run(required: { root: string }, _options: Record<string, never> =
     const expected = await sqliteSchemaObjects({ kernel: sqliteKernel(trusted) });
     // No archived SQL is executed or relaxed: every table, index and trigger must match
     // this build. Historical ADD COLUMN schema variants are not part of the v2 contract.
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new SiteShareRefusal({ code: "UNSUPPORTED_SCHEMA", message: SHARE_VERSION_MISMATCH_MESSAGE });
+    await requireTrustedSchemaObjects({ source: sourceKernel, target: sqliteKernel(trusted), actual, expected });
     if ((await sourceKernel.query(sql`SELECT id FROM workspaces LIMIT 2`)).length !== 1) throw new Error("Import requires one workspace");
     // Source FKs may reference private rows omitted by projection; validate rebuilt FKs below.
     if (verifySqliteIntegrity({ db: source, quick: true }).issues.some(issue => issue.kind === "integrity")) throw new Error("Invalid SQLite integrity");
@@ -108,5 +162,11 @@ async function run(required: { root: string }, _options: Record<string, never> =
   await writeFile(path.join(required.root, "documents.json"), JSON.stringify(projection.documents!), { flag: "wx", mode: 0o600 });
 }
 
-// Only a typed schema refusal crosses as a distinct exit code; raw SQLite details stay private.
-run({ root: process.argv[2]! }).then(() => process.exit(0), error => process.exit(error instanceof SiteShareRefusal && error.code === "UNSUPPORTED_SCHEMA" ? IMPORT_SCHEMA_MISMATCH_EXIT_CODE : 1));
+// The helper writes only application-owned refusal text. Raw SQLite errors and source SQL
+// stay private; version advice has its own exit code rather than swallowing every schema error.
+run({ root: process.argv[2]! }).then(() => process.exit(0), async error => {
+  if (!(error instanceof SiteShareRefusal)) process.exit(1);
+  if (error.code === "SCHEMA_VERSION_MISMATCH") process.exit(IMPORT_SCHEMA_MISMATCH_EXIT_CODE);
+  await writeFile(path.join(process.argv[2]!, "refusal.txt"), error.message, { flag: "wx", mode: 0o600 });
+  process.exit(IMPORT_REFUSAL_EXIT_CODE);
+});

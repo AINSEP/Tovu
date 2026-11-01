@@ -3,7 +3,7 @@ import { mkdtemp, writeFile, readFile, rm, statfs } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { SHARE_LIMITS, SHARE_VERSION_MISMATCH_MESSAGE, IMPORT_SCHEMA_MISMATCH_EXIT_CODE, SiteShareRefusal, type ShareDatabaseProjection } from "#src/features/site-backup/share-policy";
+import { SHARE_LIMITS, SHARE_VERSION_MISMATCH_MESSAGE, IMPORT_SCHEMA_MISMATCH_EXIT_CODE, IMPORT_REFUSAL_EXIT_CODE, SiteShareRefusal, type ShareDatabaseProjection } from "#src/features/site-backup/share-policy";
 
 /** The slice of a forked helper this module drives: its failure/exit events and a kill switch. */
 export interface ImportWorkerChild {
@@ -27,6 +27,18 @@ export function importWorkerLaunch({ moduleUrl }: { moduleUrl: string }): { help
   return { helper, execArgv: [...(sourceMode ? ["--import", "tsx"] : []), "--max-old-space-size=512"] };
 }
 
+/** Maps the helper's private exit contract to the refusal the person sees.
+ * Only the trusted helper's typed refusals have a message file; native errors stay private.
+ * Reads at most refusal.txt from the private staging root; O(message bytes).
+ * @throws SiteShareRefusal INVALID_DATABASE for any non-zero exit.
+ */
+async function requireWorkerSuccess(required: { code: number | null; root: string }, _optional = {}): Promise<void> {
+  if (required.code === 0) return;
+  const message = required.code === IMPORT_REFUSAL_EXIT_CODE ? `Import database refused: ${await readFile(path.join(required.root, "refusal.txt"), "utf8")}`
+    : required.code === IMPORT_SCHEMA_MISMATCH_EXIT_CODE ? SHARE_VERSION_MISMATCH_MESSAGE : "Import database has unsupported schema, invalid references or unsafe data.";
+  throw new SiteShareRefusal({ code: "INVALID_DATABASE", message });
+}
+
 /** Read hostile SQLite only in a disposable helper with a deadline and heap ceiling.
  * IPC carries no DB bytes or secrets. Input/output paths are minted here, never supplied by tools.
  * The helper runs trusted source only and reuses A's sanitizer after checking schema objects.
@@ -43,7 +55,7 @@ export async function rebuildImportDatabase(required: { snapshot: Buffer; module
     await writeFile(path.join(root, "input.db"), required.snapshot, { flag: "wx", mode: 0o600 });
     await writeFile(path.join(root, "omitted-media.json"), JSON.stringify(required.omittedMediaIds ?? []), { flag: "wx", mode: 0o600 });
     const { helper, execArgv } = importWorkerLaunch({ moduleUrl: required.moduleUrl });
-    await new Promise<void>((resolve, reject) => {
+    const code = await new Promise<number | null>((resolve, reject) => {
       const child = fork(helper, [root], {
         execArgv,
         stdio: ["ignore", "ignore", "ignore", "ipc"],
@@ -62,10 +74,10 @@ export async function rebuildImportDatabase(required: { snapshot: Buffer; module
       child.once("close", code => {
         clearTimeout(timer); optional.signal?.removeEventListener("abort", abort);
         if (reason) reject(reason);
-        else if (code !== 0) reject(new SiteShareRefusal({ code: "INVALID_DATABASE", message: code === IMPORT_SCHEMA_MISMATCH_EXIT_CODE ? SHARE_VERSION_MISMATCH_MESSAGE : "Import database has unsupported schema, invalid references or unsafe data." }));
-        else resolve();
+        else resolve(code);
       });
     });
+    await requireWorkerSuccess({ code, root });
     const output = path.join(root, "output.db");
     const bytes = await readFile(output);
     if (bytes.length > limits.maxExpandedBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Rebuilt import database exceeds 300 MiB." });

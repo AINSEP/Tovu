@@ -64,9 +64,20 @@ test("v1 and malformed manifests refuse before the database owner", { timeout: 1
   for (const bytes of [Buffer.from("{"), Buffer.from("null")]) await refuses([file("manifest.json", bytes)], BAD_MANIFEST);
   await refuses(entries().filter(entry => entry.entryPath !== "manifest.json"), NO_MANIFEST);
 });
-test("incompatible schema identities name the source-version remedy before the database owner", { timeout: 120000 }, async () => {
-  for (const identity of [{ ...schema, index: 8 }, { ...schema, tag: "other" }]) {
+test("a known incompatible schema identity names the source-version remedy before the database owner", { timeout: 120000 }, async () => {
+  for (const identity of [{ index: 0, tag: "0000_yellow_ravenous" }, { index: 1, tag: "0001_amused_crystal" }]) {
     await refuses(entries(manifest({ schema: identity })), VERSION_MISMATCH);
+  }
+});
+test("version advice never masks malformed manifest records", async () => {
+  const differentVersion = { index: 0, tag: "0000_yellow_ravenous" };
+  for (const overrides of [{ site: null }, { files: null }, { plugins: null }]) {
+    await refuses(entries(manifest({ schema: differentVersion, ...overrides })), BAD_MANIFEST);
+  }
+});
+test("invented schema identities retain the exact identity without version advice", async () => {
+  for (const identity of [{ ...schema, index: 8 }, { ...schema, tag: "other" }]) {
+    await refuses(entries(manifest({ schema: identity })), INVALID(`Unknown archive schema identity ${JSON.stringify(identity)}.`));
   }
 });
 test("unlisted, missing, self-listed and duplicate files refuse", { timeout: 120000 }, async () => {
@@ -261,7 +272,10 @@ test("a manifest that is not JSON is refused", { timeout: 120000 }, async () => 
 const IDENTITY_CASES: readonly [string, unknown, ReturnType<typeof INVALID>?][] = [
   ["a null manifest", null], ["a numeric manifest", 5], ["format version 1", manifest({ formatVersion: 1 })],
   ["the backup profile", manifest({ profile: "backup" })], ["a missing schema", manifest({ schema: undefined })],
-  ["another schema index", manifest({ schema: { ...schema, index: 8 } }), VERSION_MISMATCH], ["another schema tag", manifest({ schema: { ...schema, tag: "forged" } }), VERSION_MISMATCH],
+  // 9081f631e grouped invented identities with versions; the owner's refusal rule
+  // requires these forged pairs to retain their identity, without version advice.
+  ["another schema index", manifest({ schema: { ...schema, index: 8 } }), INVALID('Unknown archive schema identity {"index":8,"tag":"schema"}.')],
+  ["another schema tag", manifest({ schema: { ...schema, tag: "forged" } }), INVALID('Unknown archive schema identity {"index":7,"tag":"forged"}.')],
   ["a missing scope", manifest({ scopes: { database: true, media: true, themes: true, plugins: true } })],
   ["a non-array file list", manifest({ files: {} })], ["a 2,000-record file list", manifest({ files: Array(SHARE_LIMITS.maxFiles).fill(records()[0]) })],
   ["a non-array media list", manifest({ media: {} })], ["a non-array plugin list", manifest({ plugins: {} })],

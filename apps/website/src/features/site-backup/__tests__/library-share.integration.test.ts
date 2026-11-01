@@ -213,7 +213,14 @@ for (const schema of [{ index: 13, tag: "0013_unify_vault_credentials" }, { inde
     { path: "manifest.json", content: fixtureManifest({ plan: { ...h.plan, schema }, files }) },
   ]);
   const upload = await h.backend.upload({ principalId: "recipient", archive });
-  await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), /schema identity/);
+  await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), error => {
+    assert.equal((error as { code: string }).code, "INVALID_ARCHIVE");
+    assert.match((error as Error).message, /schema identity/);
+    assert.ok((error as Error).message.includes(String(schema.index)));
+    assert.ok((error as Error).message.includes(schema.tag));
+    assert.doesNotMatch((error as Error).message, /different Tovu version/i);
+    return true;
+  });
   assert.deepEqual(h.workspace.registry({}).list({}), []); assert.deepEqual(h.started, []);
 });
 

@@ -74,9 +74,13 @@ async function declarePortableTables(required: { target: Kernel; decl: DataModul
   if (!result.ok) throw new SiteShareRefusal({ code: "UNSUPPORTED_SCHEMA", message: `Cannot build portable plugin schema for '${required.decl.pluginId}': ${result.error?.message}` });
 }
 
-/** Never execute source DDL. Even an unknown empty table contributes no schema. O(tables).
- * `listTables` already omits SQLite's own `sqlite_*` tables. */
-async function refuseUnknownTables(source: Kernel, trusted: Set<string>): Promise<void> {
+/** Refuse populated undeclared tables by name before any portable-row projection.
+ * Never executes source DDL; `listTables` omits SQLite's own `sqlite_*` tables.
+ * @throws SiteShareRefusal UNSUPPORTED_DATA with the table and required policy.
+ * @complexity O(tables), with one bounded existence query per undeclared table.
+ * @example await refuseUnknownShareTables({ source, trusted: new Set(await listTables(target)) });
+ */
+export async function refuseUnknownShareTables({ source, trusted }: { source: Kernel; trusted: ReadonlySet<string> }, _options = {}): Promise<void> {
   for (const table of await listTables(source)) {
     if (trusted.has(table) || SHARE_LEGACY_PRIVATE_TABLES.has(table) || CHAT_TABLE_NAMES.includes(table) || table.startsWith("_vault_backup_")) continue;
     const rows = await source.query<{ found: number }>(sql`SELECT 1 AS found FROM ${sql.id(table)} LIMIT 1`);
@@ -436,7 +440,7 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; omitte
     const from = source;
     const present = new Set(await listTables(from));
     const plugins = await prepareSharePluginTables({ target, present, modules: required.modules });
-    await refuseUnknownTables(source, new Set([...await listTables(target), ...plugins.private]));
+    await refuseUnknownShareTables({ source, trusted: new Set([...await listTables(target), ...plugins.private]) });
     await copyPortableTables({ source: from, target, present, plugins, notices, omittedRows, omittedMediaIds: required.omittedMediaIds }, optional);
     await backfillPostSearchIndex({ kernel: contentKernel(fresh) });
     const documents = await documentReferences({ target });

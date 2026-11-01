@@ -130,7 +130,14 @@ for (const [pluginId, table, columns] of [
   });
   // The same rows forged into an archive must not reach a new site either.
   const upload = await h.backend.upload({ principalId: "recipient", archive: await h.archiveWithDatabase(h.db.$client.serialize()) });
-  await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), /schema|database/i);
+  await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), error => {
+    assert.equal((error as { code: string }).code, "INVALID_DATABASE");
+    assert.match((error as Error).message, /schema|database/i);
+    assert.ok((error as Error).message.includes(name), (error as Error).message);
+    assert.match((error as Error).message, /portable-data policy/);
+    assert.doesNotMatch((error as Error).message, /different Tovu version/i);
+    return true;
+  });
   assert.deepEqual(h.workspace.registry({}).list({}), []);
 });
 

@@ -51,13 +51,41 @@ for (const [label, ddl] of changes) test(`importing a ZIP with ${label} returns 
   await assert.rejects(verifySiteImport({ archive, reader: createShareArchiveReader({ yauzl }), schema, sanitize: rebuildImportDatabase }), versionRefusal("INVALID_DATABASE"));
 });
 
-for (const identity of [{ ...schema, index: schema.index - 1 }, { ...schema, tag: schema.tag + "-old" }]) test(`importing a ZIP with a different manifest schema ${JSON.stringify(identity)} returns version advice`, async t => {
+// The owner's specific-refusal rule requires a real source identity. 9081f631e's
+// original fixtures invented index/tag pairs; retain both index and tag comparisons
+// without presenting an invented identity as evidence of a genuine source version.
+for (const [label, identity, recipientSchema] of [
+  ["index", { index: 0, tag: "0000_yellow_ravenous" }, schema],
+  ["tag", schema, { ...schema, tag: schema.tag + "-other-build" }],
+] as const) test(`importing a ZIP with a different manifest schema ${label} returns version advice`, async t => {
   const archive = await zip(await snapshot(t), identity);
-  await assert.rejects(verifySiteImport({ archive, reader: createShareArchiveReader({ yauzl }), schema, sanitize: async () => assert.fail("incompatible manifests must refuse before SQLite") }), versionRefusal("INVALID_ARCHIVE"));
+  await assert.rejects(verifySiteImport({ archive, reader: createShareArchiveReader({ yauzl }), schema: recipientSchema, sanitize: async () => assert.fail("incompatible manifests must refuse before SQLite") }), versionRefusal("INVALID_ARCHIVE"));
 });
 
 test("a corrupt database retains its corruption refusal rather than claiming a version mismatch", async () => {
   await assert.rejects(rebuildImportDatabase({ snapshot: Buffer.from("not a SQLite database") }), {
     code: "INVALID_DATABASE", message: "Import database has unsupported schema, invalid references or unsafe data.",
+  });
+});
+
+// A column-version difference must never hide an independent unsafe object, even when
+// that object sorts after the changed table in sqlite_schema.
+for (const [label, ddl, name] of [
+  ["view", "CREATE VIEW hostile AS SELECT load_extension('/tmp/never')", "hostile"],
+  ["trigger", "CREATE TRIGGER hostile AFTER INSERT ON posts BEGIN SELECT 1; END", "hostile"],
+  ["undeclared table", "CREATE TABLE unknown_business(payload TEXT); INSERT INTO unknown_business VALUES ('required-data')", "unknown_business"],
+  ["empty undeclared table", "CREATE TABLE unknown_empty(payload TEXT)", "unknown_empty"],
+  ["virtual table", "CREATE VIRTUAL TABLE hostile USING fts5(payload)", "hostile"],
+  ["index", "CREATE INDEX hostile ON posts(title)", "hostile"],
+  ["missing index", "DROP INDEX idx_posts_workspace", "idx_posts_workspace"],
+  ["generated column", "ALTER TABLE posts ADD COLUMN hostile TEXT GENERATED ALWAYS AS ('unsafe') VIRTUAL", "posts"],
+] as const) test(`version advice never masks an untrusted ${label} refusal`, async t => {
+  const archive = await zip(await snapshot(t, `ALTER TABLE posts ADD COLUMN old_build_field TEXT; ${ddl}`));
+  await assert.rejects(verifySiteImport({ archive, reader: createShareArchiveReader({ yauzl }), schema, sanitize: rebuildImportDatabase }), error => {
+    assert.equal((error as { code: string }).code, "INVALID_DATABASE");
+    assert.ok((error as Error).message.includes(name), (error as Error).message);
+    assert.match((error as Error).message, /schema|database/i);
+    assert.doesNotMatch((error as Error).message, /different Tovu version|Update (?:this |the )?site first/i);
+    return true;
   });
 });

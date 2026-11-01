@@ -52,6 +52,17 @@ export function runtimeSchemaVersion(): RuntimeSchemaVersion {
   return { index: latest.idx, tag: latest.tag };
 }
 
+/** Check an archive identity against the trusted bundled migration journal, never archive DDL.
+ * Reads the same journal as runtimeSchemaVersion; unknown identities are not version evidence.
+ * @returns Whether both the index and tag name one bundled migration.
+ * @complexity O(bundled migrations) time/space; one generated JSON file read.
+ * @example isBundledSchemaIdentity({ schema: { index: 0, tag: "0000_yellow_ravenous" } });
+ */
+export function isBundledSchemaIdentity(required: { schema: RuntimeSchemaVersion }, _options = {}): boolean {
+  const journal = JSON.parse(fs.readFileSync(JOURNAL_PATH, "utf8")) as DrizzleJournal;
+  return journal.entries.some(entry => entry.idx === required.schema.index && entry.tag === required.schema.tag);
+}
+
 export interface CompareSchemaVersionRequired {
   schemaVersion: number;
   schemaTag: string;

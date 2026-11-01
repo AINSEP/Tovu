@@ -316,7 +316,12 @@ test("B untrusted schema objects and partial restore errors leave no site, inclu
     const db = m.files.find((f: any) => f.path === "content.db"); db.bytes = payload.length; db.sha256 = createHash("sha256").update(payload).digest("hex");
   });
   const upload = await h.backend.upload({ principalId: "recipient", archive: await pack(hostile) });
-  await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), /schema|database/i);
+  await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), error => {
+    assert.equal((error as { code: string }).code, "INVALID_DATABASE");
+    assert.match((error as Error).message, /database.*hostile/i);
+    assert.doesNotMatch((error as Error).message, /different Tovu version/i);
+    return true;
+  });
   h.db.$client.exec("DROP VIEW hostile");
   for (const [create, drop] of [
     ["CREATE TRIGGER hostile AFTER INSERT ON posts BEGIN SELECT 1; END", "DROP TRIGGER hostile"],

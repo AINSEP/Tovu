@@ -8,6 +8,8 @@ export { SHARE_LIMITS } from "@tovu/contracts/site-share-limits";
 export const SHARE_VERSION_MISMATCH_MESSAGE = "This ZIP was made by a different Tovu version. Export the site again from an updated Tovu, then import the new ZIP.";
 /** Private worker exit contract: distinguish schema refusal without exposing untrusted SQL/errors. */
 export const IMPORT_SCHEMA_MISMATCH_EXIT_CODE = 2;
+/** Private worker exit contract: exit 3 accompanies application-owned refusal.txt, never raw SQL errors. */
+export const IMPORT_REFUSAL_EXIT_CODE = 3;
 
 export const SHARE_TABLES = new Set([
   "workspaces", "posts", "presentation_settings", "menus", "nav_location_bindings",

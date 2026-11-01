@@ -4,6 +4,7 @@ import type { SiteBackupInclude } from "./sources.js";
 import { isStaticSitePath, type StaticSiteMetadata } from "./static-copy.js";
 
 import { SAVED_KEYS_PATH, ENCRYPTED_KEYS_DESCRIPTOR } from "./saved-keys-port.js";
+import { isBundledSchemaIdentity } from "#src/platform/site-dir/schema-guard";
 
 export const ARCHIVE_MANIFEST_PATH = "manifest.json";
 export const ARCHIVE_DATABASE_PATH = "content.db";
@@ -57,7 +58,7 @@ export function parseArchiveManifest(required: { bytes: Buffer; schema: ArchiveM
 
 // The manifest is untrusted JSON of any shape; each predicate reads it exactly as the archive gave it.
 function validateManifest({ manifest: m, schema }: { manifest: any; schema: ArchiveManifest["schema"] }): void {
-  validateIdentity({ manifest: m, schema });
+  validateIdentity({ manifest: m });
   validateSiteName({ name: m.site?.name });
   if (!["database", "media", "themes", "plugins", "settings"].every(scope => m.scopes?.[scope] === true)) invalid();
   if (!Array.isArray(m.files) || m.files.length + 1 > SHARE_LIMITS.maxFiles) invalid();
@@ -66,6 +67,7 @@ function validateManifest({ manifest: m, schema }: { manifest: any; schema: Arch
   validateMedia({ media: m.media, files });
   validatePlugins({ plugins: m.plugins, files });
   validateEncryptedKeys({ descriptor: m.encryptedKeys, files });
+  validateSchemaVersion({ identity: m.schema, schema });
 }
 
 function validateFiles({ files }: { files: any[] }): Map<string, ArchiveFile> {
@@ -146,12 +148,21 @@ function requirePluginCoverage(required: { files: ReadonlyMap<string, ArchiveFil
 }
 
 /** Refuse malformed identities separately so version advice never masks a broken manifest shape. */
-function validateIdentity({ manifest: m, schema }: { manifest: any; schema: ArchiveManifest["schema"] }): void {
+function validateIdentity({ manifest: m }: { manifest: any }, _options = {}): void {
   if (m?.formatVersion !== 2 || m.profile !== "share") invalid();
   // Library added columns, not a new manifest identity. Historical database compatibility
   // belongs to the worker's trusted schema matcher, never invented migration-ID aliases.
   if (!Number.isSafeInteger(m.schema?.index) || typeof m.schema?.tag !== "string") invalid();
-  if (m.schema.index !== schema.index || m.schema.tag !== schema.tag) throw new SiteShareRefusal({ code: "INVALID_ARCHIVE", message: SHARE_VERSION_MISMATCH_MESSAGE });
+}
+
+/** After structural validation, distinguish an invented identity from a known source version.
+ * Reads only the trusted journal through its owner; throws INVALID_ARCHIVE without touching SQLite.
+ * O(bundled migrations), with no source DDL or migration code executed.
+ */
+function validateSchemaVersion({ identity, schema }: { identity: ArchiveManifest["schema"]; schema: ArchiveManifest["schema"] }, _options = {}): void {
+  if (identity.index === schema.index && identity.tag === schema.tag) return;
+  if (!isBundledSchemaIdentity({ schema: identity })) throw new SiteShareRefusal({ code: "INVALID_ARCHIVE", message: `Unknown archive schema identity ${JSON.stringify(identity)}.` });
+  throw new SiteShareRefusal({ code: "INVALID_ARCHIVE", message: SHARE_VERSION_MISMATCH_MESSAGE });
 }
 
 /** The single file-record contract shared by manifest parsing and inventory construction.
