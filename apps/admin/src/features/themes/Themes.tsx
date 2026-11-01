@@ -110,7 +110,7 @@ function ThemeCardPreview({ themeId, previewImageUrl, agentHandleBase, t }: { th
             type="button"
             className="theme-card-preview-trigger"
             onClick={() => setExpanded(true)}
-            aria-label={`Expand preview for ${themeId}`}
+            aria-label={interpolate({ template: t("Expand preview for {id}"), vars: { id: themeId } })}
             {...agentHandle({ handle: `${agentHandleBase}-preview` }, { role: "button", label: `Expand the "${themeId}" theme's preview image` })}
           >
             <img src={src} alt="" loading="lazy" onError={handleError} />
@@ -220,17 +220,21 @@ function buildThemeTabs(t: Translate, grouped: Record<ThemeTabGroup, string[]>):
  *  its role/tone ternaries score independently of `Themes`'s own complexity. */
 function RescanToast({
   rescanNotice,
+  rescanHasDuplicates,
   onDismiss,
 }: {
   rescanNotice: string | null;
+  rescanHasDuplicates: boolean | undefined;
   onDismiss: (() => void) | undefined;
 }) {
   if (!rescanNotice) return null;
+  // Older injected controllers supply only English copy; the live hook supplies structured severity.
+  const hasDuplicates = rescanHasDuplicates ?? rescanNotice.includes("Duplicate");
   return (
     <Toast
       message={rescanNotice}
-      role={rescanNotice.includes("Duplicate") ? "alert" : "status"}
-      tone={rescanNotice.includes("Duplicate") ? "error" : "success"}
+      role={hasDuplicates ? "alert" : "status"}
+      tone={hasDuplicates ? "error" : "success"}
       ttlMs={5000}
       onDismiss={onDismiss}
     />
@@ -561,6 +565,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
     activate,
     rescanning,
     rescanNotice,
+    rescanHasDuplicates,
     rescan,
     dismissRescanNotice,
     duplicatingTheme,
@@ -619,7 +624,7 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
           t={t}
         />
       </div>
-      <RescanToast rescanNotice={rescanNotice} onDismiss={dismissRescanNotice} />
+      <RescanToast rescanNotice={rescanNotice} rescanHasDuplicates={rescanHasDuplicates} onDismiss={dismissRescanNotice} />
       <SuccessToast notice={duplicateNotice} onDismiss={dismissDuplicateNotice} />
       <SuccessToast notice={trashNotice} onDismiss={dismissTrashNotice} />
       {/* Stranded active theme (2026-08-10) — `settings.activeThemeId` names a theme the server no

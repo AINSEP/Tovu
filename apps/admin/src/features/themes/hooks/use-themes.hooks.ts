@@ -23,10 +23,8 @@ import { subscribeThemePreviewRefresh } from "../theme-preview-refresh";
  * `deps.t` (standing i18n rule, 2026-08-11 — a component with a hook gets a BOUND `t` from that
  * hook, not its own `useAdminLocale()`/dictionary import, same shape `use-pages.hooks.ts`
  * established): injected so `Themes.tsx` sources its UI copy from this hook instead of building
- * its own `(key) => translateThemes(locale, key)` closure. This hook's OWN error strings stay
- * hardcoded English (unchanged) — `useAdminLocale()`/`themes-i18n.ts`'s `t` (aliased
- * `translateThemes`, its own established name in this feature) are read only inside
- * {@link useWiredThemes}.
+ * its own `(key) => translateThemes(locale, key)` closure. Fallback errors and rescan copy use
+ * that same translator; locale resolution stays inside {@link useWiredThemes}.
  */
 
 export interface ThemesDependencies {
@@ -75,6 +73,8 @@ export interface ThemesController {
    * exists — a rescan that finds nothing has to say so out loud.
    */
   rescanNotice?: string | null;
+  /** Duplicate-id severity comes from the response, never from translated copy or theme names. */
+  rescanHasDuplicates?: boolean;
   rescan?: () => Promise<void>;
   /** Clears `rescanNotice`. The toast auto-dismisses on a timer and calls this when it does. */
   dismissRescanNotice?: () => void;
@@ -87,7 +87,7 @@ export interface ThemesController {
    */
   duplicate?: (themeId: string) => Promise<void>;
   /** "Duplicated as …" after a successful copy, or `null`. Its own field, not `rescanNotice`:
-   *  `RescanToast` styles any message containing "Duplicate" as an error. */
+   *  `RescanToast` styles a rescan notice reporting duplicate ids as an error. */
   duplicateNotice?: string | null;
   dismissDuplicateNotice?: () => void;
   /** Theme id -> ships with the package (`builtIn` from `getPresentation`); the card menu won't
@@ -112,8 +112,8 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   const key = useMemo(() => ["themes", "presentation"] as const, []);
   const fetchPresentation = useCallback(async () => {
     try { return await port.getPresentation(); }
-    catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load themes"); }
-  }, [port]);
+    catch (error) { throw new Error(error instanceof Error ? error.message : t("failed to load themes")); }
+  }, [port, t]);
   const query = useFetchQuery({ key, fetch: fetchPresentation }, { staleTime: 0 });
   const loader = useCachedLoader({ key, fetch: fetchPresentation }, { staleTime: 0 });
   const { settings, themes, themeTiers, themeNames, themePreviewImages, themeBuiltIn } = presentationView(query.data);
@@ -128,6 +128,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   const [busyTheme, setBusyTheme] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
   const [rescanNotice, setRescanNotice] = useState<string | null>(null);
+  const [rescanHasDuplicates, setRescanHasDuplicates] = useState(false);
   const [duplicatingTheme, setDuplicatingTheme] = useState<string | null>(null);
   const [duplicateNotice, setDuplicateNotice] = useState<string | null>(null);
   const [trashingTheme, setTrashingTheme] = useState<string | null>(null);
@@ -166,12 +167,14 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     setRescanning(true);
     setError(null);
     setRescanNotice(null);
+    setRescanHasDuplicates(false);
     try {
       const r = await write.mutate({ input: () => port.rescanThemes() }) as Awaited<ReturnType<typeof port.rescanThemes>>;
       applyPresentation(await loader.load());
-      setRescanNotice(describeRescan(r));
+      setRescanNotice(describeRescan(r, { t }));
+      setRescanHasDuplicates(r.duplicateIds.length > 0);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to rescan themes");
+      setError(e instanceof Error ? e.message : t("failed to rescan themes"));
     } finally {
       setRescanning(false);
     }
@@ -259,6 +262,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
     activate,
     rescanning,
     rescanNotice,
+    rescanHasDuplicates,
     rescan,
     dismissRescanNotice: () => setRescanNotice(null),
     duplicatingTheme,
@@ -311,19 +315,20 @@ export function useWiredThemes(): ThemesController {
  * Duplicates lead when present: two themes claiming one id means the site renders whichever sorts
  * first with no error anywhere, so it outranks the added/removed counts an operator was actually
  * looking at. "No changes" is stated explicitly rather than left blank — silence after pressing a
- * button reads as a broken button.
+ * button reads as a broken button. Interpolate ids after translation to preserve user data verbatim.
+ * @complexity Time/space: O(n) in the combined lengths of the reported theme ids and output.
  */
 function describeRescan(result: {
   added: string[];
   removed: string[];
   total: number;
   duplicateIds: string[];
-}): string {
+}, { t }: { t: Translate }): string {
   const parts: string[] = [];
-  if (result.added.length > 0) parts.push(`added ${result.added.join(", ")}`);
-  if (result.removed.length > 0) parts.push(`removed ${result.removed.join(", ")}`);
-  const summary = parts.length > 0 ? parts.join(" · ") : `no changes — ${result.total} themes`;
+  if (result.added.length > 0) parts.push(interpolate({ template: t("added {themes}"), vars: { themes: result.added.join(", ") } }));
+  if (result.removed.length > 0) parts.push(interpolate({ template: t("removed {themes}"), vars: { themes: result.removed.join(", ") } }));
+  const summary = parts.length > 0 ? parts.join(" · ") : interpolate({ template: t("no changes — {total} themes"), vars: { total: result.total } });
   return result.duplicateIds.length > 0
-    ? `${summary}. Duplicate theme ids: ${result.duplicateIds.join(", ")} — only one of each will ever load.`
+    ? interpolate({ template: t("{summary}. Duplicate theme ids: {ids} — only one of each will ever load."), vars: { summary, ids: result.duplicateIds.join(", ") } })
     : summary;
 }

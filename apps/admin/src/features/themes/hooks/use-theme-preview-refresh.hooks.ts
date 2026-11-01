@@ -40,6 +40,7 @@ export function useThemePreviewRefresh(
   };
 }
 
+/** Shows reload failures using the current admin locale; server-provided Error messages stay intact. */
 export function useThemePreviewReloadButton(
   _required: Record<string, never> = {},
   { reload = reloadThemePreviews }: { reload?: () => Promise<void> } = {},
@@ -49,9 +50,9 @@ export function useThemePreviewReloadButton(
   const onReload = useCallback(() => {
     setError(null);
     void reload().catch((error: unknown) =>
-      setError(error instanceof Error ? error.message : "preview reload failed"),
+      setError(error instanceof Error ? error.message : t({ locale, key: "preview reload failed" })),
     );
-  }, [reload]);
+  }, [reload, locale]);
   return { label: t({ locale: locale, key: "Reload preview" }), reload: onReload, error };
 }
 
