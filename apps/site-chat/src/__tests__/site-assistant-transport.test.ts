@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { getEventListeners } from "node:events";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
@@ -571,6 +572,89 @@ describe("createSiteAssistantTransport", () => {
       assert.deepEqual(errors, []);
       assert.equal(doneCount(), 1);
     });
+
+    it("does not re-arm or fire the idle timer for chunks received after end", async (t) => {
+      t.mock.timers.enable({ apis: ["setTimeout"] });
+      const schedule = t.mock.method(globalThis, "setTimeout");
+      const stream = controlledStreamResponse();
+      let requestSignal!: AbortSignal;
+      const injected = createSiteAssistantTransport({}, { idleTimeoutMs: 100, fetch: async (_url, init) => {
+        requestSignal = init!.signal!;
+        return stream.response;
+      } });
+      const { handlers, errors, doneCount, donePromise } = makeHandlers();
+      try {
+        await injected.startRun(baseInput([userMessage("hi")]), handlers);
+        stream.send(sseFrame("text", { delta: "answer" }) + sseFrame("end", { reason: "stop" }));
+        await donePromise;
+        const schedulesAtEnd = schedule.mock.callCount();
+        stream.send(": late keep-alive\n\n");
+        await flushStream();
+        t.mock.timers.tick(200);
+        await flushStream();
+        assert.equal(requestSignal.aborted, false, "no idle timer may fire after end");
+        assert.equal(schedule.mock.callCount(), schedulesAtEnd, "late bytes must not schedule a timer");
+        assert.deepEqual(errors, []);
+        assert.equal(doneCount(), 1);
+      } finally {
+        stream.close();
+        await flushStream();
+      }
+    });
+
+    it("removes the input abort listener at end even while the response remains open", async () => {
+      const stream = controlledStreamResponse();
+      const input = baseInput([userMessage("hi")]);
+      const listenersBefore = getEventListeners(input.signal, "abort").length;
+      const injected = createSiteAssistantTransport({}, { fetch: async () => stream.response });
+      const { handlers, donePromise } = makeHandlers();
+      try {
+        await injected.startRun(input, handlers);
+        assert.equal(getEventListeners(input.signal, "abort").length, listenersBefore + 1);
+        stream.send(sseFrame("text", { delta: "answer" }) + sseFrame("end", { reason: "stop" }));
+        await donePromise;
+        assert.equal(getEventListeners(input.signal, "abort").length, listenersBefore);
+      } finally {
+        stream.close();
+        await flushStream();
+      }
+    });
+
+    for (const delivery of ["same chunk", "later chunk"] as const) {
+      it(`ignores all frames after end in the ${delivery}`, async (t) => {
+        t.mock.timers.enable({ apis: ["setTimeout"] });
+        const stream = controlledStreamResponse();
+        const frontendFinish = t.mock.fn();
+        const confirmation = t.mock.fn();
+        const injected = createSiteAssistantTransport({}, {
+          fetch: async () => stream.response,
+          frontend: { headers: async () => ({}), finish: frontendFinish },
+          onToolConfirmation: confirmation,
+        });
+        const { handlers, events, errors, doneCount, doneEvents, donePromise } = makeHandlers();
+        const end = sseFrame("text", { delta: "answer" }) + sseFrame("end", { reason: "stop" });
+        const late = sseFrame("text", { delta: "late" }) + sseFrame("error", { message: "late error" }) +
+          sseFrame("client_directive", { kind: "tool_confirmation", challengeId: "a".repeat(22), title: "Allow?", summary: "Search." }) +
+          sseFrame("end", { reason: "navigation" });
+        try {
+          await injected.startRun(baseInput([userMessage("hi")]), handlers);
+          stream.send(end + (delivery === "same chunk" ? late : ""));
+          await donePromise;
+          if (delivery === "later chunk") stream.send(late);
+          await flushStream();
+          assert.deepEqual(events, [{ kind: "text", text: "answer" }]);
+          assert.deepEqual(doneEvents(), [{ kind: "text", text: "answer" }], "completed transcript must stay unchanged");
+          assert.deepEqual(errors, []);
+          assert.equal(doneCount(), 1);
+          assert.equal(frontendFinish.mock.callCount(), 1);
+          assert.equal(frontendFinish.mock.calls[0]!.arguments[0].navigation, false);
+          assert.deepEqual(confirmation.mock.calls.map(call => call.arguments[0]), [{ directive: null }]);
+        } finally {
+          stream.close();
+          await flushStream();
+        }
+      });
+    }
 
     it("words a fetch network failure as an unreachable site", async () => {
       const injected = createSiteAssistantTransport({}, { fetch: (async () => { throw new TypeError("Failed to fetch"); }) as typeof fetch });

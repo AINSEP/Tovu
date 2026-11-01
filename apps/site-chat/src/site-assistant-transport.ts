@@ -201,7 +201,8 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
       // `input.signal` closes the browser-side subscription (component unmount, pane reset). This
       // backend has no host-side continuation once that happens — the whole run IS this fetch — so
       // unlike the admin transport's `signal` doc, here that also means stopping the run for real.
-      input.signal.addEventListener("abort", () => controller.abort());
+      const abort = () => controller.abort();
+      input.signal.addEventListener("abort", abort);
 
       const collected: AgentEvent[] = [];
       let settled = false;
@@ -210,6 +211,8 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
       let timedOut = false;
       let idleTimer: ReturnType<typeof setTimeout> | undefined;
       const armIdleTimer = () => {
+        // The response can keep delivering bytes after its terminal frame.
+        if (settled) return;
         clearTimeout(idleTimer);
         idleTimer = setTimeout(() => { timedOut = true; controller.abort(); }, idleTimeoutMs);
       };
@@ -227,6 +230,7 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
         settled = true;
         options.onToolConfirmation?.({ directive: null });
         clearTimeout(idleTimer);
+        input.signal.removeEventListener("abort", abort);
         activeRuns.delete(runId);
         handlers.onDone(collected);
       };
@@ -253,6 +257,8 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
           }
 
           await pumpServerSentEvents(response, (event, data) => {
+            // End is terminal even for frames coalesced into the same response chunk.
+            if (settled) return;
             if (event === "text") {
               const ev: AgentEvent = { kind: "text", text: (data as ChatFrameText).delta };
               if (ev.text.trim()) replied = true;
@@ -267,9 +273,9 @@ export function createSiteAssistantTransport(_required: Record<string, never> = 
                 ...input.history, { id: input.assistantMessageId ?? runId, role: 'assistant', content: assistantContentFromEvents({ events: collected }), events: collected, runStatus: 'succeeded' },
               ] });
             } else if (event === "client_directive") {
-              if (consumeToolConfirmation({ data, settled, receive: options.onToolConfirmation })) return;
-              // Retired/unknown machine directives never enter the visitor transcript.
-
+              // Confirmation directives go to their receiver; retired/unknown machine directives
+              // never enter the visitor transcript either way.
+              consumeToolConfirmation({ data, settled, receive: options.onToolConfirmation });
             } else {
               // Ignore event kinds outside this transport's protocol.
             }
