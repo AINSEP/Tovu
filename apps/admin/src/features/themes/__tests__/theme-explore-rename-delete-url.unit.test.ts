@@ -75,4 +75,34 @@ describe("useThemeExplore — the address bar follows a rename or delete of the 
     expect(result.current.selected).toBe("pages/index.html");
     expect(params().get("page")).toBe("index");
   });
+
+  it("copying a file selects the copy and moves ?page= to it", async () => {
+    window.history.replaceState(null, "", "/admin/themes/explore?theme=basic&page=about");
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "about" }));
+    await waitFor(() => expect(result.current.selected).toBe("pages/about.html"));
+
+    await act(async () => {
+      await result.current.copyFile("pages/about.html");
+    });
+
+    expect(result.current.selected).toBe("pages/about-1.html");
+    expect(params().get("page")).toBe("about-1");
+    expect(params().get("theme")).toBe("basic");
+  });
+
+  it("copying a stylesheet moves ?file= to the copy and drops ?page=", async () => {
+    window.history.replaceState(null, "", "/admin/themes/explore?theme=basic&page=about");
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "about" }));
+    await waitFor(() => expect(result.current.selected).toBe("pages/about.html"));
+
+    await act(async () => {
+      await result.current.copyFile("css/a.css");
+    });
+
+    expect(result.current.selected).toBe("css/a-1.css");
+    expect(params().get("file")).toBe("css/a-1.css");
+    expect(params().get("page")).toBeNull();
+  });
 });

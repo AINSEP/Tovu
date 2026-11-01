@@ -1474,6 +1474,10 @@ export function useThemeExplore(
         }
         setDetail(refetched.detail);
         setFiles(refetched.files);
+        // The copy becomes the open file, so the address bar names it — the way a click
+        // (`select`) or a rename of the open file does — not the original it was copied from.
+        const copied = refetched.files.find((f) => f.path === r.path);
+        if (copied) writeThemeExploreSelectionToUrl(copied);
         setSelected(r.path);
         setPendingSelection(null);
       } catch (e) {
