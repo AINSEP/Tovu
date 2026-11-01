@@ -969,6 +969,26 @@ button.jini-composer-leading,
   margin-left: -2px;
 }
 
+/* Browser tab only: while the folder dialog is open on the computer running Tovu, a note above the
+   button says so (owner bug 11-01). Opens upward like the attached-folders list and costs the
+   one-line footer no width; anchored ~40px in from the composer's left edge on a phone. */
+.admin-chat-dock .jini-chat-pane .jini-composer-footer .tovu-composer-folder-path-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.admin-chat-dock .jini-chat-pane .tovu-composer-folder-status {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 8;
+  width: max-content;
+  max-width: min(240px, calc(100vw - 64px));
+  padding: 6px 10px;
+  color: var(--jini-chat-text);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 /* One line at the dock's default width and on phones (owner, 2026-10-30): "+", folder, attached
    folders and mic on the left; picker and send on the right. 4px gaps instead of 6px, and the
    picker's triggers hug their labels, so the model label keeps more of its text before it truncates. */

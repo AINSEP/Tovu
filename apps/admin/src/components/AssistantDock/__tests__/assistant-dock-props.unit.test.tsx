@@ -89,6 +89,16 @@ describe("composerFooterLeading", () => {
     expect(voice).toBe(mic);
   });
 
+  it("marks the folder button remote in a browser tab and local in the desktop app", () => {
+    const remoteOf = (desktop: boolean) => {
+      const slot = composerFooterLeading({ folderPicker: picker, voice: mic }, { desktop });
+      const [button] = (isValidElement<{ children: unknown[] }>(slot) ? slot.props.children : []) as [unknown];
+      return isValidElement<{ remote?: boolean }>(button) ? button.props.remote : undefined;
+    };
+    expect(remoteOf(false)).toBe(true);
+    expect(remoteOf(true)).toBe(false);
+  });
+
   it("puts the attached-folders button after the folder button, before the mic, even with no folder dialog here", () => {
     const chip = <span>chip</span>;
     const children = (slot: unknown) => (isValidElement<{ children: unknown[] }>(slot) ? slot.props.children : []);

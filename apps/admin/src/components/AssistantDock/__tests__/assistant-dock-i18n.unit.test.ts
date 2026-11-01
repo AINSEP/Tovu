@@ -77,3 +77,8 @@ describe("createChatI18nAdapter — the typed-answer notices", () => {
     for (const notice of NOTICES) expect(createChatI18nAdapter(locale).t(notice)).not.toBe(notice);
   });
 });
+
+it.each(CHAT_LOCALES)("%s translates the folder-window note a browser tab shows", (locale) => {
+  const key = "Folder window opened on the computer running Tovu";
+  expect(createChatI18nAdapter(locale).t(key)).not.toBe(key);
+});
