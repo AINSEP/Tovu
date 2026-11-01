@@ -1,0 +1,602 @@
+[
+  {
+    "file": "apps/website/src/__tests__/integration/port-in-use.integration.test.ts",
+    "line": 47,
+    "call": "blocker.listen(0, resolve)"
+  },
+  {
+    "file": "apps/website/src/cli/__tests__/integration/adopt-command.integration.test.ts",
+    "line": 132,
+    "call": "srv.listen(0, () => {\n      const address = srv.address();\n      if (address && typeof address === \"object\") {\n        const port = address.port;\n        srv.close(() => resolve(port));\n      } else {\n        srv.close(() => reject(new Error(\"could not determine a free port\")));\n      }\n    })"
+  },
+  {
+    "file": "apps/website/src/cli/__tests__/integration/serve-command-boot-lifecycle.integration.test.ts",
+    "line": 53,
+    "call": "srv.listen(0, () => {\n      const address = srv.address();\n      if (address && typeof address === \"object\") {\n        const port = address.port;\n        srv.close(() => resolve(port));\n      } else {\n        srv.close(() => reject(new Error(\"could not determine a free port\")));\n      }\n    })"
+  },
+  {
+    "file": "apps/website/src/cli/__tests__/integration/serve-command-plugin-sdk-resolver.integration.test.ts",
+    "line": 55,
+    "call": "srv.listen(0, () => {\n      const address = srv.address();\n      if (address && typeof address === \"object\") {\n        const port = address.port;\n        srv.close(() => resolve(port));\n      } else {\n        srv.close(() => reject(new Error(\"could not determine a free port\")));\n      }\n    })"
+  },
+  {
+    "file": "apps/website/src/cli/__tests__/integration/serve-command-site-key.integration.test.ts",
+    "line": 56,
+    "call": "srv.listen(0, () => {\n      const address = srv.address();\n      if (address && typeof address === \"object\") {\n        const port = address.port;\n        srv.close(() => resolve(port));\n      } else {\n        srv.close(() => reject(new Error(\"could not determine a free port\")));\n      }\n    })"
+  },
+  {
+    "file": "apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts",
+    "line": 75,
+    "call": "srv.listen(0, () => {\n      const address = srv.address();\n      if (address && typeof address === \"object\") {\n        const port = address.port;\n        srv.close(() => resolve(port));\n      } else {\n        srv.close(() => reject(new Error(\"could not determine a free port\")));\n      }\n    })"
+  },
+  {
+    "file": "apps/website/src/features/plugin-runtime/__tests__/integration/testimonials-faq-sample.integration.test.ts",
+    "line": 82,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/admin-external-mcp-admissions-routes.test.ts",
+    "line": 47,
+    "call": "reservation.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/admin-page-get-route.test.ts",
+    "line": 24,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/admin-page-html-route.test.ts",
+    "line": 34,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/admin-post-page-delete-routes.test.ts",
+    "line": 25,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/admin-post-page-delete-routes.test.ts",
+    "line": 50,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/admin-post-update-rollback-ledger.test.ts",
+    "line": 41,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/api-key-routes.test.ts",
+    "line": 28,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/helpers/stub-provider-server.ts",
+    "line": 86,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/identity-crud-routes.test.ts",
+    "line": 23,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/identity-policy-permission-removal.test.ts",
+    "line": 27,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/identity-routes.test.ts",
+    "line": 27,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/identity-routes.test.ts",
+    "line": 323,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/integration/publish-content-export-no-leak.integration.test.ts",
+    "line": 301,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/integration/site-reboot-persistence.unrun.integration.test.ts",
+    "line": 48,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/login-rate-limit.test.ts",
+    "line": 23,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/media-original-video-route.test.ts",
+    "line": 30,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/media-rendition-gating-bypass.test.ts",
+    "line": 31,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/media-rendition-route.test.ts",
+    "line": 32,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/media-slug-uuid-collision.test.ts",
+    "line": 27,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 23,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 103,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 140,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 174,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 230,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 286,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 326,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 381,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 428,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 457,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 536,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 597,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 664,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 730,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 799,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/packet-one-routes.test.ts",
+    "line": 845,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/analytics-ingest.test.ts",
+    "line": 54,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/core-module-auth-ordering.test.ts",
+    "line": 28,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/forms-submit.test.ts",
+    "line": 93,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/html-form-authoring.test.ts",
+    "line": 44,
+    "call": "createServer(app).listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/html-form-authoring.test.ts",
+    "line": 145,
+    "call": "createServer(app).listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/pages-update-expected-version.test.ts",
+    "line": 34,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/pages-update-html-auth.test.ts",
+    "line": 135,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/pages-update-html-auth.test.ts",
+    "line": 381,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/publish-content-blob-get.test.ts",
+    "line": 41,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/publish-content-blobs.test.ts",
+    "line": 32,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/publish-content-bundles.test.ts",
+    "line": 31,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/publish-content-export.test.ts",
+    "line": 40,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/publish-content-import-routes.test.ts",
+    "line": 37,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/publish-content-media-wiring.test.ts",
+    "line": 55,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/publish-content-pull-blobs.integration.test.ts",
+    "line": 53,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/publish-content-types-round-trip.test.ts",
+    "line": 36,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts",
+    "line": 96,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/routes/publish-zero-setup-end-to-end.test.ts",
+    "line": 134,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/site-assistant-routes.test.ts",
+    "line": 616,
+    "call": "provider.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/__tests__/workspace-routes.test.ts",
+    "line": 22,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/__tests__/admin-dev-proxy.test.ts",
+    "line": 29,
+    "call": "app.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/__tests__/admin-dev-proxy.test.ts",
+    "line": 58,
+    "call": "fakeVite.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/__tests__/admin-dev-proxy.test.ts",
+    "line": 106,
+    "call": "fakeVite.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/__tests__/admin-dev-proxy.test.ts",
+    "line": 131,
+    "call": "fakeVite.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/__tests__/admin-dev-proxy.test.ts",
+    "line": 219,
+    "call": "fakeVite.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/__tests__/admin-dev-proxy.test.ts",
+    "line": 232,
+    "call": "proxyServer.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/__tests__/admin-dev-proxy.test.ts",
+    "line": 362,
+    "call": "upstream.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/__tests__/admin-dev-proxy.test.ts",
+    "line": 380,
+    "call": "upstream.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/__tests__/admin-dev-proxy.test.ts",
+    "line": 390,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/__tests__/admin-dev-proxy.test.ts",
+    "line": 413,
+    "call": "fakeVite.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/assistant/__tests__/test-agent-mock-module.test.ts",
+    "line": 117,
+    "call": "app.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/unit/provider-settings-route.unit.test.ts",
+    "line": 82,
+    "call": "app.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/posts/__tests__/autosave.test.ts",
+    "line": 27,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/posts/__tests__/autosave.test.ts",
+    "line": 262,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/posts/__tests__/create.test.ts",
+    "line": 25,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/posts/__tests__/read-routes.test.ts",
+    "line": 26,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/posts/__tests__/revision-attribution.test.ts",
+    "line": 32,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/posts/__tests__/update.featured-image.test.ts",
+    "line": 58,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/posts/__tests__/update.test.ts",
+    "line": 28,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/posts/__tests__/update.test.ts",
+    "line": 53,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/admin-http/routes/seo/__tests__/og-image-refuses-non-image.test.ts",
+    "line": 58,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/assistant/__tests__/integration/component-catalog-routes.integration.test.ts",
+    "line": 43,
+    "call": "probe.listen(0, resolve)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/assistant/__tests__/integration/daemon-boots.integration.test.ts",
+    "line": 60,
+    "call": "probe.listen(0, resolve)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/middleware/__tests__/integration/theme-static-assets-preview.integration.test.ts",
+    "line": 87,
+    "call": "server.listen(0, resolve)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/middleware/__tests__/integration/theme-static-assets.integration.test.ts",
+    "line": 41,
+    "call": "server.listen(0, async () => {\n      const address = server.address();\n      if (address === null || typeof address === \"string\") {\n        server.close();\n        reject(new Error(\"expected a real listening address\"));\n        return;\n      }\n      const baseUrl = `http://127.0.0.1:${address.port}`;\n      try {\n        await fn(baseUrl);\n        resolve();\n      } catch (err) {\n        reject(err as Error);\n      } finally {\n        server.close();\n      }\n    })"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/middleware/__tests__/integration/theme-static-assets.integration.test.ts",
+    "line": 368,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/middleware/__tests__/integration/theme-static-assets.integration.test.ts",
+    "line": 383,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/middleware/__tests__/integration/theme-static-assets.integration.test.ts",
+    "line": 401,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/middleware/__tests__/integration/theme-static-assets.integration.test.ts",
+    "line": 423,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/middleware/__tests__/integration/theme-static-assets.integration.test.ts",
+    "line": 449,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/middleware/__tests__/integration/theme-static-assets.integration.test.ts",
+    "line": 463,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/middleware/__tests__/theme-preview-static.test.ts",
+    "line": 31,
+    "call": "server.listen(0, async () => {\n      const address = server.address();\n      if (address === null || typeof address === \"string\") {\n        server.close();\n        reject(new Error(\"expected a real listening address\"));\n        return;\n      }\n      const baseUrl = `http://127.0.0.1:${address.port}`;\n      try {\n        await fn(baseUrl);\n        resolve();\n      } catch (err) {\n        reject(err as Error);\n      } finally {\n        server.close();\n      }\n    })"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/analytics-ingest.test.ts",
+    "line": 63,
+    "call": "app.listen(0, () => {\n      t.after(() => new Promise<void>((r) => server.close(() => r())));\n      const { port } = server.address() as import(\"node:net\").AddressInfo;\n      const payload = JSON.stringify(body ?? {});\n      const req = http.request(\n        { host: \"127.0.0.1\", port, method: \"POST\", path: \"/_analytics/e\", headers: { \"content-type\": \"application/json\", \"content-length\": Buffer.byteLength(payload) } },\n        (res) => {\n          res.resume();\n          res.on(\"end\", () => resolve(res.statusCode ?? 0));\n        }\n      );\n      req.on(\"error\", reject);\n      req.end(payload);\n    })"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts",
+    "line": 95,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/embeds-everywhere.route.test.ts",
+    "line": 147,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/member-pages.route.test.ts",
+    "line": 48,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/no-theme.route.test.ts",
+    "line": 40,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts",
+    "line": 70,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts",
+    "line": 205,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts",
+    "line": 41,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.site-timezone.route.test.ts",
+    "line": 47,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.site-timezone.route.test.ts",
+    "line": 155,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/products.route.test.ts",
+    "line": 36,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts",
+    "line": 115,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts",
+    "line": 261,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts",
+    "line": 291,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts",
+    "line": 417,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts",
+    "line": 447,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts",
+    "line": 484,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts",
+    "line": 517,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts",
+    "line": 537,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts",
+    "line": 598,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts",
+    "line": 624,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts",
+    "line": 649,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "apps/website/src/server/inbound/public-http/routes/site/__tests__/static-post-previews-resolution.test.ts",
+    "line": 157,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "content/agent-plugins/s3-compatible/__tests__/media-store.integration.test.mjs",
+    "line": 128,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "content/agent-plugins/s3-compatible/__tests__/media-store.integration.test.mjs",
+    "line": 241,
+    "call": "server.listen(0)"
+  },
+  {
+    "file": "development/scripts/lib/tovu-test-server.ts",
+    "line": 25,
+    "call": "server.listen(0)"
+  }
+]

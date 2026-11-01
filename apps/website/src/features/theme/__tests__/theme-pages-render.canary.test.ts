@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
@@ -7,6 +8,7 @@ import { scanEmbedMarkers, type EmbedMarker } from "@jini-ai/cms/widgets/markers
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
 import { injectCurrentEntityContentId, renderStaticPage, resolveTemplate, scanMenuEmbedIds } from "../static-render.js";
 import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
+import { loadTheme } from "../theme.js";
 import { CHROMELESS_TEMPLATES } from "./chromeless-templates.fixture.js";
 
 /**
@@ -47,39 +49,15 @@ function readHtmlDir(dir: string): Record<string, string> {
   );
 }
 
-/** Mirrors `loadStaticTierAssets`'s own v1 partial-selection rule (`theme.ts`) exactly — `nav.html`
- * plus any `footer*.html` at the theme root — so a canary failure here can only mean the render
- * pipeline changed, never a looser test-only convention picking up a file the real loader would not. */
-function readRootPartials(dir: string): Record<string, string> {
-  const partials: Record<string, string> = {};
-  for (const file of fs.readdirSync(dir)) {
-    if (file.endsWith(".html") && (file === "nav.html" || file.startsWith("footer"))) {
-      partials[file.replace(/\.html$/, "")] = fs.readFileSync(path.join(dir, file), "utf8");
-    }
-  }
-  return partials;
-}
-
-/** v2's `render/partials/` is dedicated to partials only (theme-authoring-guide-v2.md §3), unlike
- * v1's theme root which mixes many things — every `.html` file there is a partial, no name filter
- * needed. Mirrors `loadStaticTierAssets`'s v2 branch (`theme.ts`'s `partialsDir`/`loadSlotPartials`). */
-function readV2Partials(dir: string): Record<string, string> {
-  const partialsDir = path.join(dir, "render", "partials");
-  if (!fs.existsSync(partialsDir)) return {};
-  return readHtmlDir(partialsDir);
-}
-
-/** The real theme, assembled from its own files the way `loadTheme` assembles it (manifest straight
- * off `theme.json`, pages/partials keyed by filename stem) — built here rather than via `loadTheme`
- * so a canary failure can only ever mean the render pipeline changed, never the loader, matching
- * `post-template-render.canary.test.ts`'s own `basicTheme()`.
- *
- * apiVersion-branched (2026-08-18) the same way `loadTheme`'s own `pagesDirName`/`partialsDir` are
- * (`theme.ts`): v1 keeps `pages/` and root-level `nav.html`/`footer*.html`; v2 nests both under
- * `render/`. Every real v2-migrated static theme lost its `pages/` folder permanently once migrated
- * — this isn't staging-directory debris, a hardcoded v1 path here breaks every one of them for good. */
-function readTheme(themeId: string): DiscoveredTheme {
-  const dir = path.join(STATIC_THEMES_DIR, themeId);
+/** Read pages independently for render assertions, but use production partial selection. A broader
+ * test-only scan can hide a missing slot declaration, so partial discovery must have one owner.
+ * @complexity Reads this small on-disk theme twice: raw canary pages plus production discovery.
+ */
+function readTheme(
+  { themeId }: { themeId: string },
+  { themesDir = STATIC_THEMES_DIR }: { themesDir?: string } = {},
+): DiscoveredTheme {
+  const dir = path.join(themesDir, themeId);
   const tokensLightPath = path.join(dir, "tokens.light.json");
   const manifest = JSON.parse(fs.readFileSync(path.join(dir, "theme.json"), "utf8"));
   const isV2 = manifest.apiVersion === 2;
@@ -91,13 +69,57 @@ function readTheme(themeId: string): DiscoveredTheme {
     templates: {},
     liquidTemplates: {},
     handlebarsTemplates: {},
+    // apiVersion-branched (2026-08-18) like `loadTheme`'s `pagesDirName`: v1 keeps `pages/`, v2 nests
+    // it under `render/`. Every real v2-migrated static theme lost its `pages/` folder permanently once
+    // migrated — not staging debris — so a hardcoded v1 path here breaks every one of them for good.
     pages: readHtmlDir(path.join(dir, isV2 ? "render/pages" : "pages")),
-    partials: isV2 ? readV2Partials(dir) : readRootPartials(dir),
+    partials: loadTheme({ themeDir: dir, id: themeId, source: "builtin" }).partials,
     css: "",
     source: "builtin",
     status: "valid",
     errors: [],
   } as unknown as DiscoveredTheme;
+}
+
+// A test-only directory scan used to make undeclared files available to the canary even though
+// visitors could never load them. Use a real theme fixture through the canary's own reader.
+for (const apiVersion of [1, 2]) {
+  test(`canary loader v${apiVersion} excludes undeclared partials while retaining declared sources and variants`, (t) => {
+    const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-canary-partials-"));
+    t.after(() => fs.rmSync(themesDir, { recursive: true, force: true }));
+    const themeId = "selection-fixture";
+    const dir = path.join(themesDir, themeId);
+    const pagesDir = path.join(dir, apiVersion === 2 ? "render/pages" : "pages");
+    const partialsDir = apiVersion === 2 ? path.join(dir, "render/partials") : dir;
+    fs.mkdirSync(pagesDir, { recursive: true });
+    fs.mkdirSync(partialsDir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "tokens.json"), "{}");
+    fs.writeFileSync(path.join(dir, "theme.json"), JSON.stringify({
+      id: themeId, name: "Selection fixture", version: "1.0.0", tier: "static", engine: 1, ...(apiVersion === 2 ? { apiVersion } : {}),
+      slots: { banner: { source: "masthead.html", variants: { compact: "small.html" } } },
+    }));
+    fs.writeFileSync(path.join(pagesDir, "index.html"), `<main>
+      <div data-embed-config='{"type":"partial","id":"banner"}'></div>
+      <div data-embed-config='{"type":"partial","id":"sidebar"}'>authored fallback</div>
+    </main>`);
+    for (const name of ["masthead", "masthead-wide", "small", "sidebar", "nav", "footer"]) {
+      fs.writeFileSync(path.join(partialsDir, `${name}.html`), `<aside>${name} sentinel</aside>`);
+    }
+    const production = loadTheme({ themeDir: dir, id: themeId, source: "site" });
+    assert.equal(production.status, "valid", JSON.stringify(production.errors));
+    const expected = {
+      masthead: "<aside>masthead sentinel</aside>",
+      "masthead-wide": "<aside>masthead-wide sentinel</aside>",
+      small: "<aside>small sentinel</aside>",
+    };
+    assert.deepEqual(production.partials, expected);
+    const canary = readTheme({ themeId }, { themesDir });
+    assert.deepEqual(canary.partials, expected);
+    const rendered = renderStaticPage({ theme: canary, pageId: "index", menus: {} })!;
+    assert.match(rendered, /masthead sentinel/);
+    assert.match(rendered, /authored fallback/);
+    assert.doesNotMatch(rendered, /sidebar sentinel/);
+  });
 }
 
 function items(...entries: Array<Partial<StaticMenuItem> & { label: string }>): StaticMenuItem[] {
@@ -266,9 +288,8 @@ function assertHeldBackOrResolved(required: {
 /**
  * Every static theme that stands on its own.
  *
- * `readTheme` below deliberately assembles a `DiscoveredTheme` from files on disk instead of calling
- * `loadTheme` — so that a canary failure can only ever mean the RENDER pipeline changed, never the
- * loader.
+ * `readTheme` assembles pages directly from disk while delegating partial selection to `loadTheme`,
+ * so the render canary cannot substitute files that visitors would never receive.
  */
 const STATIC_THEME_IDS = fs
   .readdirSync(STATIC_THEMES_DIR)
@@ -281,7 +302,7 @@ test("canary: discovery includes the shipped tovu-theme", () => {
 
 for (const themeId of STATIC_THEME_IDS) {
   test(`canary: ${themeId} — every page renders and carries no retired embed attribute`, () => {
-    const theme = readTheme(themeId);
+    const theme = readTheme({ themeId });
     for (const pageId of Object.keys(theme.pages)) {
       const html = renderStaticPage({ theme, pageId, menus: {} });
       assert.notEqual(html, null, `${themeId}/${pageId}: renderStaticPage must resolve a page it just loaded from its own pages/`);
@@ -301,7 +322,7 @@ for (const themeId of STATIC_THEME_IDS) {
   });
 
   test(`canary: ${themeId} — every menu marker resolves to real data, tree opt-in honored`, () => {
-    const theme = readTheme(themeId);
+    const theme = readTheme({ themeId });
     const menus = sentinelMenus(theme);
     assert.deepEqual([...scanMenuEmbedIds(theme)].sort(), expectedMenuIds(theme).sort());
     assert.ok(Object.keys(menus).length > 0, "shipped themes contain menus");
@@ -322,7 +343,7 @@ for (const themeId of STATIC_THEME_IDS) {
   });
 
   test(`canary: ${themeId} — a menu id absent from resolved data keeps that one marker's fallback while its siblings still resolve`, () => {
-    const theme = readTheme(themeId);
+    const theme = readTheme({ themeId });
     const allIds = scanMenuEmbedIds(theme);
     if (allIds.length < 2) return; // nothing to hold back while proving a sibling still resolves
     const [heldBack, ...rest] = allIds;
@@ -340,7 +361,7 @@ for (const themeId of STATIC_THEME_IDS) {
   });
 
   test(`canary: ${themeId} — every declared partial slot marker is substituted, never left as raw marker markup`, () => {
-    const theme = readTheme(themeId);
+    const theme = readTheme({ themeId });
     let asserted = 0;
     for (const [pageId, source] of Object.entries(theme.pages)) {
       const resolvedOnce = renderStaticPage({ theme, pageId, menus: {} }) as string;
@@ -360,10 +381,10 @@ for (const themeId of STATIC_THEME_IDS) {
   // 2026-08-11 unification: `postTemplate` collapsed into `templates` (one array, shared by Posts
   // and Pages) and the marker collapsed onto `{"type":"content"}` — `injectCurrentEntityContentId`/
   // `resolveTemplate` replace `injectPostEmbedId`/`resolvePostTemplate` below unchanged in spirit.
-  const templates = (readTheme(themeId).manifest.templates as string[] | undefined) ?? [];
+  const templates = (readTheme({ themeId }).manifest.templates as string[] | undefined) ?? [];
   for (const choice of templates) {
     test(`canary: ${themeId} — template "${choice}" resolves entity body and honors its chrome contract`, () => {
-      const theme = readTheme(themeId);
+      const theme = readTheme({ themeId });
       const menus = sentinelMenus(theme);
       const resolution = resolveTemplate({ theme, templateChoice: choice });
       assert.equal(resolution.kind, "template", `${themeId}/${choice}: the theme's own declared templates entry must resolve to a template`);
