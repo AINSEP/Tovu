@@ -475,7 +475,7 @@ function formatSaveSuccessMessage(statusOverride: SaveStatusOverride, saved: Adm
       version: saved.version,
     } });
   }
-  return `${statusOverride === "published" ? "Published" : "Saved"} · version ${saved.version}`;
+  return interpolate({ template: t(statusOverride === "published" ? "Published · version {version}" : "Saved · version {version}"), vars: { version: saved.version } });
 }
 
 /**
@@ -884,7 +884,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         const redirectPath = slugRedirectPath("/posts", postId, post);
         if (redirectPath) navigate(redirectPath, { replace: true });
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load post"));
+      .catch((e) => setError(e instanceof Error ? e.message : t("failed to load post")));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId]);
 
@@ -1159,7 +1159,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     const attemptedStatus = saveConflict?.attemptedStatus;
     const fresh = await port.getPost(entryId).then(({ post: p }) => p, () => null);
     if (!fresh) {
-      setError("could not re-read the current version — your changes are still here, try again");
+      setError(t("could not re-read the current version — your changes are still here, try again"));
       return;
     }
     setPost(fresh);
@@ -1206,7 +1206,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       await port.deletePost(entryId);
       navigate(post.kind === "page" ? "/pages" : "/posts");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "delete failed");
+      setError(e instanceof Error ? e.message : t("delete failed"));
       setDeleting(false);
       setConfirmingDelete(false);
     }

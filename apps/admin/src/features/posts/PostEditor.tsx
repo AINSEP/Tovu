@@ -1300,7 +1300,7 @@ function PostEditorBody({
           dispatch made follows, not a stated requirement for reordering INSIDE a list/table/etc. */}
       {editor ? (
         <DragHandle editor={editor}>
-          <div className="editor-drag-handle" title="Drag to reorder" aria-hidden="true">
+          <div className="editor-drag-handle" title={t("Drag to reorder")} aria-hidden="true">
             <svg viewBox="0 0 18 18" fill="currentColor">
               <circle cx="6" cy="4" r="1.3" />
               <circle cx="12" cy="4" r="1.3" />

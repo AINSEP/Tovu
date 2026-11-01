@@ -1,4 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createElement as h } from "react";
+import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
+import { api } from "@/lib/api";
+import { Posts } from "../Posts";
+import { PostEditor } from "../PostEditor";
+import { PostPublishAtField } from "../PostPublishingFields";
+import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
+import { usePostEditor } from "../hooks/use-post-editor.hooks";
+import type { PostEditorController } from "../hooks/use-post-editor.hooks";
 
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { POSTS_DICT, t } from "../posts-i18n";
@@ -91,3 +100,144 @@ it("translates the preview consent note in every admin locale", () => {
     expect(t({ locale, key }), locale).not.toBe(key);
   }
 });
+
+// Exercise the real screen translators; external feature cards keep their own tests.
+const language = vi.hoisted(() => ({ locale: "es" }));
+vi.mock("@/hooks/use-admin-locale.hooks", () => ({
+  useAdminLocale: () => language.locale,
+  useWiredAdminLocale: () => language.locale,
+}));
+vi.mock("../../taxonomy/TermPicker", () => ({ TermPicker: () => null }));
+vi.mock("../../content-analysis/ContentAnalysisCard", () => ({ ContentAnalysisCard: () => null }));
+vi.mock("@/components/EmbedInsertControl/EmbedInsertControl", () => ({ EmbedInsertControl: () => null }));
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  localStorage.clear();
+});
+
+// Union-key parity cannot see a requirement omitted from EVERY locale.
+const REQUIRED_POST_COPY = [
+  "Drag to reorder", "Saved · version {version}", "Published · version {version}",
+  "failed to load post", "could not re-read the current version — your changes are still here, try again",
+  "delete failed", "failed to load posts", "failed to create post", "failed to publish post",
+  "failed to unpublish post", "failed to delete post", "Publish at", "Scheduled", "Alt text (optional)", "Insert",
+];
+
+it.each(REQUIRED_POST_COPY)("provides the required screen key %j in every locale", (key) => {
+  for (const locale of Object.keys(POSTS_DICT)) {
+    expect(t({ locale, key }), `${locale}: ${key}`).not.toBe(key);
+  }
+});
+
+const LOCALIZED = [
+  { locale: "es", drag: "Arrastrar para reordenar", saved: "Guardado · versión 2", published: "Publicado · versión 2",
+    publishAt: "Publicar el", scheduled: "Programado", alt: "Texto alternativo (opcional)", insert: "Insertar",
+    load: "No se pudieron cargar las entradas", create: "No se pudo crear la entrada", publish: "No se pudo publicar la entrada",
+    unpublish: "No se pudo anular la publicación de la entrada", remove: "No se pudo eliminar la entrada",
+    editorLoad: "No se pudo cargar la entrada", editorDelete: "Error al eliminar",
+    conflict: "No se pudo volver a leer la versión actual — tus cambios siguen aquí, inténtalo de nuevo" },
+  { locale: "ja", drag: "ドラッグして並べ替え", saved: "保存しました · バージョン 2", published: "公開しました · バージョン 2",
+    publishAt: "公開日時", scheduled: "公開予約済み", alt: "代替テキスト（任意）", insert: "挿入",
+    load: "投稿を読み込めませんでした", create: "投稿を作成できませんでした", publish: "投稿を公開できませんでした",
+    unpublish: "投稿の公開を取り消せませんでした", remove: "投稿を削除できませんでした",
+    editorLoad: "投稿を読み込めませんでした", editorDelete: "削除に失敗しました",
+    conflict: "現在のバージョンを再取得できませんでした — 変更内容は保持されています。もう一度お試しください" },
+];
+
+for (const copy of LOCALIZED) {
+  describe(`Posts screens in ${copy.locale}`, () => {
+    const translate = (key: string) => t({ locale: copy.locale, key });
+
+    it("renders translated scheduling text and the URL dialog's accessible controls", async () => {
+      language.locale = copy.locale;
+      const port = createFakePostEditorPort();
+      function useEditor(id: string) {
+        return usePostEditor(id, { port, navigate: vi.fn(), t: translate });
+      }
+      render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
+      await screen.findByTitle(copy.drag);
+      fireEvent.click(screen.getByTitle(translate("Insert image by URL")));
+      expect(await screen.findByRole("textbox", { name: copy.alt })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: copy.insert })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: translate("Cancel") }));
+      render(h(PostPublishAtField, { publishAtInput: "", setPublishAtInput: vi.fn(), scheduled: true, t: translate }));
+      expect(screen.getByLabelText(new RegExp(copy.publishAt))).toBeInTheDocument();
+      expect(screen.getByText(copy.scheduled)).toBeInTheDocument();
+    });
+
+    it.each(["saved", "published"] as const)("renders the translated %s version notice after saving", async (kind) => {
+      const port = createFakePostEditorPort();
+      let controller!: PostEditorController;
+      function useEditor(id: string) {
+        controller = usePostEditor(id, { port, navigate: vi.fn(), t: translate });
+        return controller;
+      }
+      render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
+      await waitFor(() => expect(controller.post).not.toBeNull());
+      await waitFor(() => expect(controller.editor).not.toBeNull());
+      if (kind === "saved") {
+        fireEvent.change(screen.getByRole("textbox", { name: translate("Post title") }), { target: { value: "Updated title" } });
+      }
+      fireEvent.click(screen.getByRole("button", { name: translate(kind === "published" ? "Publish" : "Save") }));
+      expect(await screen.findByText(copy[kind])).toBeInTheDocument();
+    });
+
+    it.each(["load", "create", "publish", "unpublish", "remove"] as const)("translates the list %s failure reached through the screen", async (action) => {
+      language.locale = copy.locale;
+      const post = createFakePostEditorPort().post;
+      if (action === "unpublish") post.status = "published";
+      vi.spyOn(api, "listPosts").mockImplementation(async () => {
+        if (action === "load") throw null;
+        return { posts: [{ post }] };
+      });
+      vi.spyOn(api, "createPost").mockRejectedValue(null);
+      vi.spyOn(api, "updatePost").mockRejectedValue(null);
+      vi.spyOn(api, "deletePost").mockRejectedValue(null);
+      render(h(Posts));
+      if (action !== "load") {
+        await screen.findByRole("link", { name: post.title });
+        if (action === "create") fireEvent.click(screen.getByRole("button", { name: translate("New Post") }));
+        else {
+          fireEvent.click(screen.getByRole("button", { name: translate('Actions for "{title}"').replace("{title}", post.title) }));
+          const key = action === "remove" ? "Delete" : action === "publish" ? "Publish" : "Unpublish";
+          fireEvent.click(await screen.findByRole("menuitem", { name: translate(key) }));
+          if (action === "remove") {
+            const dialog = await screen.findByRole("dialog");
+            fireEvent.click(within(dialog).getByRole("button", { name: translate("Move to trash") }));
+          }
+        }
+      }
+      expect(await screen.findByText(copy[action])).toBeInTheDocument();
+    });
+
+    it.each(["editorLoad", "editorDelete", "conflict"] as const)("translates the editor %s fallback", async (action) => {
+      const port = createFakePostEditorPort();
+      if (action === "editorLoad") vi.spyOn(port, "getPost").mockRejectedValue(null);
+      vi.spyOn(port, "deletePost").mockRejectedValue(null);
+      let controller!: PostEditorController;
+      function useEditor(id: string) {
+        controller = usePostEditor(id, { port, navigate: vi.fn(), t: translate });
+        return controller;
+      }
+      render(h(PostEditor, { postId: port.post.slug, usePostEditorHook: useEditor }));
+      if (action !== "editorLoad") {
+        await waitFor(() => expect(controller.post).not.toBeNull());
+        await waitFor(() => expect(controller.editor).not.toBeNull());
+        if (action === "editorDelete") {
+          fireEvent.click(screen.getByRole("button", { name: translate("Delete") }));
+          const dialog = await screen.findByRole("dialog");
+          fireEvent.click(within(dialog).getByRole("button", { name: translate("Move to trash") }));
+        }
+        else {
+          port.simulateConcurrentSave();
+          await act(() => controller.save());
+          expect(controller.saveConflict).not.toBeNull();
+          vi.spyOn(port, "getPost").mockRejectedValue(null);
+          await act(() => controller.saveOverwritingConflict());
+        }
+      }
+      expect(await screen.findByText(copy[action])).toBeInTheDocument();
+    });
+  });
+}

@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminPost } from "@/lib/api";
+import { api, type AdminPost } from "@/lib/api";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakePostsListPort } from "../hooks/posts-list-dependencies.hooks";
 import { usePosts, usePostRowMenuHandleMap, useWiredPosts } from "../hooks/use-posts.hooks";
@@ -17,6 +17,11 @@ import { POSTS_RESOURCE } from "../rules";
  * `use-roles.unit.test.ts` established for this package); the "injected port" describe block at the
  * bottom proves the pure hook is independently testable against `createFakePostsListPort` with no
  * `fetch` stub at all.
+ *
+ * `useWiredPosts()` resolves the operator locale for its fallback errors, so its
+ * `useAdminLocale()` read of `core.language` fires before `listPosts()`. Spying on
+ * `api.getSettingsEffective` (same fix `use-pages.unit.test.ts` documents) keeps that read off
+ * `fetchMock`'s queue, so every scripted response still lands on the call it was written for.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -40,10 +45,12 @@ let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 beforeEach(() => {
   fetchMock = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
+  vi.spyOn(api, "getSettingsEffective").mockResolvedValue({ data: [] });
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 async function renderLoaded() {

@@ -1,5 +1,7 @@
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useMemo, useState } from "react";
+import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { t as translate } from "../posts-i18n";
 
 import { type AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
@@ -28,8 +30,8 @@ import type { PostsListPort } from "./posts-list-port.hooks";
  * `port`/`navigate` are injected — see `posts-list-port.hooks.ts` — rather than reaching `lib/api`/
  * `lib/router` directly, so a test can describe load/create/publish-toggle/delete outcomes against
  * `createFakePostsListPort` instead of stubbing global `fetch`. `useWiredPosts` below is the
- * zero-argument pair `Posts.tsx` actually mounts. No `locale`/`useAdminLocale` here — every error
- * string in this file is hardcoded English, matching its twin `use-pages.hooks.ts`. Named
+ * zero-argument pair `Posts.tsx` actually mounts. It resolves the operator locale for fallback
+ * errors through the existing Posts translator; API error messages retain their own details. Named
  * `posts-list-*` (not `posts-*`) to avoid colliding with `use-post-editor.hooks.ts`'s own
  * `post-editor-port.hooks.ts` — this is a deliberately separate hook for a deliberately separate
  * screen, per that file's own header.
@@ -94,13 +96,14 @@ export interface PostsListDependencies {
   navigate: (path: string) => void;
 }
 
-export function usePosts(deps: PostsListDependencies): PostsController {
+export function usePosts(deps: PostsListDependencies, { locale = "en" }: { locale?: string } = {}): PostsController {
   const { port, navigate } = deps;
+  const t = useCallback((key: string) => translate({ locale, key }), [locale]);
   const key = useMemo(() => ["posts", "list"] as const, []);
   const fetchList = useCallback(async () => {
     try { return (await port.listPosts()).posts.map(entry => entry.post); }
-    catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load posts"); }
-  }, [port]);
+    catch (error) { throw new Error(error instanceof Error ? error.message : t("failed to load posts")); }
+  }, [port, t]);
   // Mount reads and content-refresh invalidations can overlap. The shared cache revokes the
   // older request's ownership before starting the newer read, so a late success or failure
   // cannot replace the latest list. Background reads retain the rendered table.
@@ -138,7 +141,7 @@ export function usePosts(deps: PostsListDependencies): PostsController {
       const { post } = await write.mutate({ input: () => port.createPost("Untitled") }) as Awaited<ReturnType<typeof port.createPost>>;
       navigate(`/posts/${post.slug}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to create post");
+      setError(e instanceof Error ? e.message : t("failed to create post"));
       setCreating(false);
     }
   }
@@ -183,8 +186,7 @@ export function usePosts(deps: PostsListDependencies): PostsController {
       ) }) as Awaited<ReturnType<typeof port.updatePost>>;
       setPosts((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
     } catch (e) {
-      const action = nextStatus === "published" ? "publish" : "unpublish";
-      setError(e instanceof Error ? e.message : `failed to ${action} post`);
+      setError(e instanceof Error ? e.message : t(nextStatus === "published" ? "failed to publish post" : "failed to unpublish post"));
     } finally {
       // Only clear THIS row's lock — `rowSavingId` is shared with `removePost`'s delete-in-flight
       // lock (2026-09-20, S4b hardening). An unconditional `setRowSavingId(null)` here would wipe a
@@ -220,7 +222,7 @@ export function usePosts(deps: PostsListDependencies): PostsController {
       await write.mutate({ input: () => port.deletePost(post.id) });
       setPosts((prev) => (prev ? prev.filter((p) => p.id !== post.id) : prev));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to delete post");
+      setError(e instanceof Error ? e.message : t("failed to delete post"));
     } finally {
       // Symmetric guard to `togglePostPublish`'s — see its comment. Keeps this correct regardless of
       // which of the two in-flight actions settles first.
@@ -250,5 +252,6 @@ export function usePosts(deps: PostsListDependencies): PostsController {
  * `createFakePostsListPort`.
  */
 export function useWiredPosts(): PostsController {
-  return usePosts({ port: defaultPostsListPort, navigate: defaultNavigate });
+  const locale = useWiredAdminLocale();
+  return usePosts({ port: defaultPostsListPort, navigate: defaultNavigate }, { locale });
 }
