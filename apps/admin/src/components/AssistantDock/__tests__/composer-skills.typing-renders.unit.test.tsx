@@ -129,6 +129,7 @@ function renderSkillSendHost(options: {
     const discovery = useComposerDiscoveryDraft(catalog);
     const composerHandle = { current: options.withHandle === false ? null : {
       insertText(text: string) { inserted.push(text); setDraft(text); setInsertedOnce(true); },
+      addFolders() { /* folder staging is not part of skill-only send */ },
     } };
     const only = useSkillOnlySend({ prompt: options.prompt ?? "alpha", composerHandle, discovery });
     const showRoot = options.rootMounted !== false && !(insertedOnce && options.removeOnInsert === "root");
