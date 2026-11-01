@@ -105,13 +105,14 @@ test("T040/T041: /sitemap.xml and /robots.txt are reachable through the real run
   assert.match(sitemap.headers.get("content-type") ?? "", /xml/);
   const sitemapBody = await sitemap.text();
   assert.match(sitemapBody, /<urlset/);
-  assert.ok(sitemapBody.includes("<loc>http://localhost:3000/how-themes-work</loc>"));
+  // 315c5ab12: live discovery URLs use the request's serving origin, not the seeded localhost:3000.
+  assert.ok(sitemapBody.includes(`<loc>${baseUrl}/how-themes-work</loc>`), "sitemap loc must use the serving origin");
 
   const robots = await fetch(`${baseUrl}/robots.txt`);
   assert.equal(robots.status, 200);
   assert.match(robots.headers.get("content-type") ?? "", /text\/plain/);
   const robotsBody = await robots.text();
-  assert.match(robotsBody, /^Sitemap: http:\/\/localhost:3000\/sitemap\.xml$/m);
+  assert.ok(robotsBody.split("\n").includes(`Sitemap: ${baseUrl}/sitemap.xml`), "robots Sitemap must use the serving origin");
   assert.doesNotMatch(robotsBody, /^Disallow:\s*\/\s*$/m);
 });
 
@@ -171,7 +172,7 @@ test("T045: the real home-page title uses the site setting while preserving expl
   assert.equal(countRealTitleTags(html), 1);
   assert.match(html, /<link rel="canonical"/);
   assert.match(html, /<title>Home SEO fold proof<\/title>/);
-  assert.match(html, /<link rel="canonical" href="http:\/\/localhost:3000\/"/);
+  assert.ok(html.includes(`<link rel="canonical" href="${baseUrl}/"`), "home canonical must use the serving origin");
 
   const otherPage = await fetch(`${baseUrl}/how-themes-work`);
   assert.equal(otherPage.status, 200);
@@ -250,11 +251,10 @@ test("T045b: a static-tier marketing /:slug page (no backing post) also gets SEO
   // Absolute, not root-relative, since `d4a10b35` ("fix(seo): make canonical, og:url, og:image, and
   // sitemap loc absolute") — a deliberate fix, not a regression: a bare relative canonical/og:url
   // breaks social crawlers and link-preview fetchers, which require an absolute URL per the Open
-  // Graph protocol. `createRouteDeps()` seeds a verified `http://localhost:3000` origin for this
-  // workspace, so the fold resolves through that rather than falling back to a relative path.
-  assert.match(
-    html,
-    /<link rel="canonical" href="http:\/\/localhost:3000\/pricing"\/>/,
+  // Graph protocol. Since 315c5ab12 the live fold resolves against the request's serving origin
+  // (`baseUrl`), never the seeded `http://localhost:3000` origin and never a relative path.
+  assert.ok(
+    html.includes(`<link rel="canonical" href="${baseUrl}/pricing"/>`),
     "canonical must point at /pricing, not fall back to home's \"/\""
   );
 });
@@ -335,8 +335,9 @@ for (const ownerTitle of [undefined, "Owner Title"]) {
       const html = await response.text();
       assert.match(html, /data-theme-title-probe/, "must exercise the theme's static document");
       assert.equal(countRealTitleTags(html), 1);
-      assert.ok(html.includes(`<title>${ownerTitle ?? "Theme Own Title"}</title>`));
-      assert.ok(html.includes(`<link rel="canonical" href="http://localhost:3000${pathname}"/>`));
+      // Explicit messages avoid Node re-parsing the tsx output to generate a failing assert.ok message.
+      assert.ok(html.includes(`<title>${ownerTitle ?? "Theme Own Title"}</title>`), `${pathname}: expected the resolved theme title`);
+      assert.ok(html.includes(`<link rel="canonical" href="${baseUrl}${pathname}"/>`), `${pathname}: expected this page's canonical URL`);
       assert.match(html, /application\/rss\+xml/);
     };
     await assertThemePage("/");
@@ -350,7 +351,7 @@ for (const ownerTitle of [undefined, "Owner Title"]) {
     const backedHtml = await backedHome.text();
     assert.match(backedHtml, /data-tpl="blog-post"/);
     assert.equal(countRealTitleTags(backedHtml), 1);
-    assert.ok(backedHtml.includes(`<title>${ownerTitle ?? home.title}</title>`));
+    assert.ok(backedHtml.includes(`<title>${ownerTitle ?? home.title}</title>`), "content-backed home must use its resolved title");
     const seo = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/seo/entries/${home.id}`, {
       method: "PUT",
       headers: { "content-type": "application/json", cookie },
@@ -415,5 +416,5 @@ test("T045c: a static-tier post/page rendered through its chosen TEMPLATE also g
     "the fold's per-entry title (post.title through the default \"%s\" titleTemplate) must win, proving the ENTRY-bearing fold path (not just home's entry-less one) reaches this render"
   );
   // Absolute, not root-relative — same `d4a10b35` fix as T045b above; see that test's comment for why.
-  assert.match(html, /<link rel="canonical" href="http:\/\/localhost:3000\/templated-post"\/>/);
+  assert.ok(html.includes(`<link rel="canonical" href="${baseUrl}/templated-post"/>`), "templated canonical must use the serving origin");
 });

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import test, { type TestContext } from "node:test";
 import express from "express";
-import { InMemoryOriginSettingRepo, OriginRegistry, type VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
+import { InMemoryOriginSettingRepo, OriginNotVerifiedError, OriginRegistry, type VerifiedOrigin } from "@jini-ai/http-kit/verified-origin";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { applyCanonicalSiteHostRedirect } from "../canonical-site-host.js";
 
@@ -12,9 +12,16 @@ const canonical: VerifiedOrigin = {
 
 async function fixture({ t, origin }: { t: TestContext; origin: VerifiedOrigin | null }, _options = {}) {
   const app = express();
-  const registry = new OriginRegistry({ repo: new InMemoryOriginSettingRepo({
-    seeds: origin ? [{ workspaceId: "site", origin }] : [],
-  }) });
+  // Jini b8aee6e79 rejects loopback settings at construction. Model legacy stored rows through
+  // the read port so the real registry still validates them before middleware considers a redirect.
+  const registry = new OriginRegistry({ repo: {
+    findByWorkspaceId: async ({ workspaceId }) => {
+      assert.equal(workspaceId, "site");
+      return origin;
+    },
+    findRedirectAllowlist: async () => [],
+    findEgressAllowlist: async () => [],
+  } });
   applyCanonicalSiteHostRedirect({ app, originRegistry: registry, workspaceId: "site", runtimeMode: "production" });
   // A downstream sentinel proves excluded requests reached their original handler.
   app.use((_req, res) => res.status(200).send("original handler"));
@@ -88,6 +95,14 @@ test("missing configuration, dev seeds, localhost and IP canonical origins never
     const response = await send({ base, path: "/", host });
     assert.equal(response.status, 200);
     assert.equal(response.location, undefined);
+  }
+});
+
+test("public loopback origins are rejected before new settings can enter the registry", () => {
+  for (const host of ["localhost", "preview.localhost", "127.0.0.1", "[::1]"]) {
+    assert.throws(() => new InMemoryOriginSettingRepo({
+      seeds: [{ workspaceId: "site", origin: { ...canonical, host } }],
+    }), OriginNotVerifiedError, host);
   }
 });
 

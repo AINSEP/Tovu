@@ -667,7 +667,8 @@ test('packaging failures block both the commit adapter and a successful preview'
   assert.deepEqual(await previewCommitExport(input), result);
 });
 
-test('relocated destination collisions fail preview and commit before the provider executes', async () => {
+// 315c5ab12 allocates distinct destinations instead of refusing relocatable filename collisions.
+test('relocated filename collisions preserve both assets and their links in preview and commit', async () => {
   const deps = await withExampleGitCredential(testRouteDeps());
   const input = controlledInput(deps, async ({ outputDir }) => {
     const report = controlledReport(outputDir);
@@ -679,9 +680,43 @@ test('relocated destination collisions fail preview and commit before the provid
     return report;
   });
   let providerCalls = 0;
+  const captured: { files: readonly CommitFile[] } = { files: [] };
   const result = await commitSiteToSourceControl({ providerId: 'example-git',
     credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
-    gitAdapter: { commit: async () => { providerCalls++; return { ok: false, code: 'PROVIDER_ERROR', message: 'must not run' }; } },
+    gitAdapter: { commit: async ({ files }) => {
+      providerCalls++;
+      captured.files = files;
+      return { ok: true, branch: 'main', branchCreated: false, commitSha: 'sha', commitUrl: 'https://example.test/sha', filesChanged: files.length, filesDeleted: 0 };
+    } },
+  }, input);
+  assert.equal(result.ok, true);
+  assert.equal(providerCalls, 1);
+  const files = new Map(captured.files.map(file => [file.path, Buffer.from(file.data).toString()]));
+  assert.equal(files.get('sites/fixture/css/main.css'), 'body { color: red; }');
+  assert.equal(files.get('sites/fixture/css/main-2.css'), 'body { color: blue; }');
+  assert.equal(files.get('sites/fixture/index.html'), '<link rel="stylesheet" href="css/main.css"><link rel="stylesheet" href="css/main-2.css">');
+  const preview = await previewCommitExport(input);
+  if (!preview.ok) assert.fail(preview.message);
+  assert.equal(providerCalls, 1, 'preview must never call the provider');
+  assert.equal(preview.fileCount, 5);
+  assert.deepEqual(preview.paths, ['Open website.html', 'README.txt', 'sites/fixture/css/main-2.css', 'sites/fixture/css/main.css', 'sites/fixture/index.html']);
+  assert.equal(preview.totalBytes, captured.files.reduce((sum, file) => sum + Buffer.byteLength(file.data), 0));
+});
+
+test('relocated file/directory collisions fail preview and commit before the provider executes', async () => {
+  const deps = await withExampleGitCredential(testRouteDeps());
+  const input = controlledInput(deps, async ({ outputDir }) => {
+    const report = controlledReport(outputDir);
+    // Distinct original paths become a file and its child after stripping css/styles prefixes.
+    report.assets.succeeded = ['css/main.css', 'styles/main.css/child.css'].map(asset => ({
+      url: `/theme-assets/fixture/${asset}`, outputFile: `theme-assets/fixture/${asset}`, data: Buffer.from('body {}'),
+    }));
+    return report;
+  });
+  let providerCalls = 0;
+  const result = await commitSiteToSourceControl({ providerId: 'example-git',
+    credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
+    gitAdapter: { commit: async () => { providerCalls++; return { ok: false, code: 'provider-error', message: 'must not run' }; } },
   }, input);
   assert.equal(providerCalls, 0);
   assert.equal(result.ok, false);
