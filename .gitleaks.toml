@@ -5,3 +5,32 @@ useDefault = true
 
 # Add exceptions only as Jini does (.gitleaks.toml there): exact source lines, condition = "AND" with a
 # path, never a whole test directory — test paths alone must never suppress a finding.
+
+# Migration checksum map: every value is a sha256 of a migration file, keyed by migration name.
+[[allowlists]]
+description = "Migration sha256 checksums, exact file and line shape only"
+condition = "AND"
+paths = ['''^apps/website/src/platform/db/migrations/checksums\.ts$''']
+regexTarget = "line"
+regexes = ['''^\s*"(?:project/)?\d{4}_[a-z0-9_]+": "[0-9a-f]{64}",?\s*$''']
+
+[[allowlists]]
+description = "Fake credential fixtures, exact values in their own test files only"
+condition = "AND"
+paths = [
+  '''^apps/website/src/features/site-backup/__tests__/share-round-trip\.integration\.test\.ts$''',
+  '''^apps/website/src/features/media/__tests__/provider-credential-store\.test\.ts$''',
+]
+regexTarget = "line"
+regexes = [
+  '''Buffer\.from\('\{"API token": "abc123def456ghi789"\}'\)''',
+  '''apiKey: "xai-existing-1234"''',
+]
+
+# Historical report prose (no credentials): exact files only, never the reports directory.
+[[allowlists]]
+description = "Agent report prose that the generic-api-key rule misreads, exact files only"
+paths = [
+  '''^ADS-memory/reports/cloud-runs/2026-10-24-checks/context/lane-mail-embeds/embeds-t1-HANDOFF\.md$''',
+  '''^ADS-memory/reports/2026-10-31-visitor-page-tools-build\.md$''',
+]
