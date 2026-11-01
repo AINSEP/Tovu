@@ -8,6 +8,7 @@ import { getAuthedPrincipal } from "../../dev-auth.js";
 import { isSiteSwitcherEnabled, type SitesWorkspace } from "#src/platform/site-dir/index";
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 import type { UUID } from "@jini-ai/core/primitives";
+import { DirectoryUserConfigRefusal, validateDirectoryUserConfig } from "@jini-ai/platform/fs";
 
 type SettingsDeps = {
   workspaceId: UUID;
@@ -30,11 +31,16 @@ export function registerSitesHomeRoutes({ app, deps, workspace }: { app: Express
       if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: method === "get" ? "system.read" : "system.write", workspaceId: deps.workspaceId, entityType: "site-registry" }))) return;
       if (method === "get") { res.json(workspace.config({})); return; }
       try {
-        const patch = req.body;
+        // Validate the shape before inspecting paths; malformed input is a refusal, not an I/O error.
+        if (req.body?.sitesHome !== undefined) parseSettingsDirectory({ directory: req.body.sitesHome });
+        const patch = validateDirectoryUserConfig({ value: req.body });
         validateSettingsDirectories({ patch });
         res.json(workspace.updateConfig({ patch }));
       }
-      catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Could not save sites settings." }); }
+      catch (error) {
+        if (error instanceof DirectoryUserConfigRefusal) { res.status(400).json({ error: error.message }); return; }
+        sendAdminFailure({ res, error }, { operation: "routes/sites/sites-home", code: "INTERNAL_ERROR", message: "Could not save sites settings." });
+      }
     } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/sites/sites-home", code: "INTERNAL_ERROR", message: "Could not read sites settings." }); }
   });
   app.put("/api/admin/v1/workspaces/:workspaceId/system/sites/home", async (req, res) => {
@@ -44,10 +50,13 @@ export function registerSitesHomeRoutes({ app, deps, workspace }: { app: Express
       if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: "system.write", workspaceId: deps.workspaceId, entityType: "site-registry" }))) return;
       const selected = req.body?.path;
       try {
-        if (selected === undefined) throw new Error("Choose an absolute folder path for sites settings.");
+        if (selected === undefined) throw new DirectoryUserConfigRefusal({ message: "Choose an absolute folder path for sites settings." });
         validateSettingsDirectories({ patch: { sitesHome: selected } });
       }
-      catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Invalid sites home." }); return; }
+      catch (error) {
+        if (error instanceof DirectoryUserConfigRefusal) { res.status(400).json({ error: error.message }); return; }
+        throw error;
+      }
       const home = workspace.setHome({ path: selected });
       res.json({ home });
     } catch (error) {
@@ -66,7 +75,7 @@ function validateSettingsDirectories({ patch }: { patch: { sitesHome?: unknown; 
 }
 
 function parseSettingsDirectory({ directory }: { directory: unknown }, _options = {}): string {
-  if (typeof directory !== "string" || !directory.trim() || !path.isAbsolute(directory) || directory.includes("\0")) throw new Error("Choose an absolute folder path for sites settings.");
+  if (typeof directory !== "string" || !directory.trim() || !path.isAbsolute(directory) || directory.includes("\0")) throw new DirectoryUserConfigRefusal({ message: "Choose an absolute folder path for sites settings." });
   return directory;
 }
 
@@ -76,9 +85,9 @@ function parseSettingsDirectory({ directory }: { directory: unknown }, _options 
  */
 function validateSettingsDirectory({ directory, required }: { directory: string; required: boolean }, _options = {}): void {
   try {
-    if (!fs.statSync(directory).isDirectory()) throw new Error("Sites folder must be a directory.");
+    if (!fs.statSync(directory).isDirectory()) throw new DirectoryUserConfigRefusal({ message: "Sites folder must be a directory." });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    if (required || !fs.existsSync(path.dirname(directory))) throw new Error(`Sites folder is unavailable: ${directory}. Mount it or choose an existing local folder.`);
+    if (required || !fs.existsSync(path.dirname(directory))) throw new DirectoryUserConfigRefusal({ message: `Sites folder is unavailable: ${directory}. Mount it or choose an existing local folder.` });
   }
 }

@@ -63,15 +63,15 @@ for (const route of ROUTES) {
 }
 
 for (const { label, error, readMessage, saveMessage, homeMessage } of [
-  // 500s are private and correlated; the 400 save refusal keeps its pre-existing diagnosis.
-  { label: "Error", error: new Error("private failure detail"), readMessage: "Could not read sites settings.", saveMessage: "private failure detail", homeMessage: "Could not save sites home." },
+  // Unexpected errors stay private and correlated at every settings boundary.
+  { label: "Error", error: new Error("private failure detail"), readMessage: "Could not read sites settings.", saveMessage: "Could not save sites settings.", homeMessage: "Could not save sites home." },
   { label: "opaque", error: "opaque", readMessage: "Could not read sites settings.", saveMessage: "Could not save sites settings.", homeMessage: "Could not save sites home." },
 ]) {
   test(`settings routes retain ${label} boundaries and fallback messages`, async (t) => {
     const read = await fixture({ t }, { workspaceOverrides: { config: () => { throw error; } } });
     assertAdminResponse({ actual: await read.request({ method: "get" }), expected: { status: 500, body: { error: readMessage, code: "INTERNAL_ERROR" } } });
     const save = await fixture({ t }, { workspaceOverrides: { updateConfig: () => { throw error; } } });
-    assert.deepEqual(await save.request(), { status: 400, body: { error: saveMessage } });
+    assertAdminResponse({ actual: await save.request(), expected: { status: 500, body: { error: saveMessage, code: "INTERNAL_ERROR" } } });
     const home = await fixture({ t }, { workspaceOverrides: { setHome: () => { throw error; } } });
     assertAdminResponse({ actual: await home.request({ suffix: "/home", body: { path: home.root } }), expected: { status: 500, body: { error: homeMessage, code: "INTERNAL_ERROR" } } });
     for (const route of ROUTES) {
@@ -103,13 +103,13 @@ test("directory validation retains absolute/nonempty/NUL, type, directory and mo
   assert.equal(fs.existsSync(path.join(f.root, "unmounted")), false);
 });
 
-test("directory probe errors keep their original message or route-specific fallback", async (t) => {
+test("unexpected directory probe errors use correlated private failures", async (t) => {
   const f = await fixture({ t });
   for (const error of [Object.assign(new Error("access denied"), { code: "EACCES" }), "opaque"]) {
     const probe = t.mock.method(fs, "statSync", () => { throw error; });
     try {
-      assert.deepEqual(await f.request({ body: { sitesHome: f.root } }), { status: 400, body: { error: error instanceof Error ? error.message : "Could not save sites settings." } });
-      assert.deepEqual(await f.request({ suffix: "/home", body: { path: f.root } }), { status: 400, body: { error: error instanceof Error ? error.message : "Invalid sites home." } });
+      assertAdminResponse({ actual: await f.request({ body: { sitesHome: f.root } }), expected: { status: 500, body: { error: "Could not save sites settings.", code: "INTERNAL_ERROR" } } });
+      assertAdminResponse({ actual: await f.request({ suffix: "/home", body: { path: f.root } }), expected: { status: 500, body: { error: "Could not save sites home.", code: "INTERNAL_ERROR" } } });
     } finally { probe.mock.restore(); }
   }
 });

@@ -1,5 +1,6 @@
 import { pluginHookRefusalText } from "#src/contracts/core/plugin-hook-failed-error";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 /**
  * @file P0c fix (hooks v2 plan, 2026-09-23) — `PluginHookFailedError`'s own doc comment
@@ -27,14 +28,14 @@ export interface PluginHookFailedBody {
  * The `PLUGIN_HOOK_FAILED` envelope every HTTP route returns for a hook refusal. `error` is fixed
  * text (`pluginHookRefusalText`, or `publicText` when the route is not a save), never `err.message`:
  * that quotes the plugin's own thrown error, which can carry a credential, SQL or a path — agent
- * tools redact it the same way. The full message goes to the server log instead, the only place the
+ * tools redact it the same way. The redacted message goes to the server log instead, the only place the
  * cause survives for a preview (a save's also lands in the quarantine reason).
  *
- * @complexity O(1).
+ * @complexity O(n) in the diagnostic text scanned for secrets.
  */
 export function pluginHookFailedBody(err: PluginHookFailedError, optional: { publicText?: string } = {}): PluginHookFailedBody {
   // eslint-disable-next-line no-console
-  console.warn(`[plugin-runtime] '${err.pluginId}' hook refused a request: ${err.message}`);
+  console.warn(redactSecretShapes({ text: `[plugin-runtime] '${err.pluginId}' hook refused a request: ${err.message}` }).text);
   return { error: optional.publicText ?? pluginHookRefusalText(err), code: "PLUGIN_HOOK_FAILED", pluginId: err.pluginId };
 }
 
@@ -43,7 +44,7 @@ export function pluginHookFailedBody(err: PluginHookFailedError, optional: { pub
  * ({@link pluginHookFailedBody}) and returns `true`. Returns `false` (writes nothing) for any other
  * error, so a route's own error mapper can call this first and fall through to its remaining
  * branches unchanged.
- * @complexity O(1).
+ * @complexity O(n) in the diagnostic text when a hook failure is handled.
  */
 export function sendPluginHookFailedError(res: PluginHookErrorResponse, err: unknown): boolean {
   if (!(err instanceof PluginHookFailedError)) return false;
