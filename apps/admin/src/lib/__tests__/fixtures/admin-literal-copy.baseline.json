@@ -1,0 +1,725 @@
+{
+  "reviewedAt": "2026-11-01",
+  "scope": [
+    "apps/admin/src/features/**",
+    "apps/admin/src/components/**"
+  ],
+  "reason": "Existing literal JSX sites inspected for the admin translation class guard. Includes untranslated debt, code examples, exact brands/protocols, and intentional display values; it does not certify translation correctness.",
+  "policy": "File + sink + normalized literal + multiplicity. Lines are diagnostic. Do not regenerate to admit new prose; translate through the owning dictionary and prune resolved entries.",
+  "sites": [
+    {
+      "file": "features/ai-assistant/VisitorAssistantPanel.tsx",
+      "line": 92,
+      "kind": "text",
+      "text": "React (~210 KB)",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/ai-assistant/VisitorAssistantPanel.tsx",
+      "line": 93,
+      "kind": "text",
+      "text": "(~35 KB)",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/auth/Login.tsx",
+      "line": 31,
+      "kind": "text",
+      "text": "Tovu",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/authentication/Authentication.tsx",
+      "line": 88,
+      "kind": "aria-label",
+      "text": "authentication setup",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/collections/CollectionEntryEditor.tsx",
+      "line": 328,
+      "kind": "placeholder",
+      "text": "entry-slug",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/collections/Collections.tsx",
+      "line": 85,
+      "kind": "placeholder",
+      "text": "e.g. prep_time",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/collections/Collections.tsx",
+      "line": 198,
+      "kind": "placeholder",
+      "text": "e.g. recipe",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/email/EmailSenderTab.tsx",
+      "line": 59,
+      "kind": "placeholder",
+      "text": "hello@example.com",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/integrations/Integrations.tsx",
+      "line": 74,
+      "kind": "placeholder",
+      "text": "https://example.com/hooks",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/media/Media.tsx",
+      "line": 951,
+      "kind": "text",
+      "text": "&quot;",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "features/media/Media.tsx",
+      "line": 951,
+      "kind": "text",
+      "text": "&quot;?",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "features/media/RemoteImageImport.tsx",
+      "line": 21,
+      "kind": "placeholder",
+      "text": "https://",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/members/MembersPanel.tsx",
+      "line": 26,
+      "kind": "description",
+      "text": "Site visitors who have registered an account — review status, resend a sign-in link, or disable access.",
+      "reason": "Intentional English source prop: Jini Members calls controller.t(description/emptyDescription); translated by members-i18n.ts."
+    },
+    {
+      "file": "features/members/MembersPanel.tsx",
+      "line": 27,
+      "kind": "emptyDescription",
+      "text": "Registered site visitors will show up here.",
+      "reason": "Intentional English source prop: Jini Members calls controller.t(description/emptyDescription); translated by members-i18n.ts."
+    },
+    {
+      "file": "features/menus/MenuEditor.tsx",
+      "line": 99,
+      "kind": "text",
+      "text": "URL",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/menus/MenuEditor.tsx",
+      "line": 102,
+      "kind": "placeholder",
+      "text": "https://…",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/menus/MenuEditor.tsx",
+      "line": 482,
+      "kind": "placeholder",
+      "text": "menu-slug",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/pages/PageEditor.tsx",
+      "line": 936,
+      "kind": "text",
+      "text": "&quot;",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "features/pages/PageEditor.tsx",
+      "line": 936,
+      "kind": "text",
+      "text": "&quot;",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "features/pages/Pages.tsx",
+      "line": 299,
+      "kind": "text",
+      "text": "&quot;",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "features/pages/Pages.tsx",
+      "line": 299,
+      "kind": "text",
+      "text": "&quot;",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "features/plugins/AddAgentPluginPanel.tsx",
+      "line": 72,
+      "kind": "placeholder",
+      "text": "https://example.test/owner/plugin",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/plugins/AddPluginPanel.tsx",
+      "line": 54,
+      "kind": "placeholder",
+      "text": "/path/to/plugin",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/plugins/AgentPluginRow.tsx",
+      "line": 235,
+      "kind": "text",
+      "text": "v",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/plugins/PluginProviderSettingField.tsx",
+      "line": 47,
+      "kind": "placeholder",
+      "text": "https://",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/plugins/PluginRow.tsx",
+      "line": 143,
+      "kind": "text",
+      "text": "v",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 232,
+      "kind": "text",
+      "text": "B",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 233,
+      "kind": "text",
+      "text": "I",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 234,
+      "kind": "text",
+      "text": "S",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 235,
+      "kind": "text",
+      "text": "U",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 236,
+      "kind": "text",
+      "text": "H",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 237,
+      "kind": "text",
+      "text": "X₂",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 238,
+      "kind": "text",
+      "text": "X²",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 239,
+      "kind": "text",
+      "text": "&lt;/&gt;",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 258,
+      "kind": "text",
+      "text": "H1",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 259,
+      "kind": "text",
+      "text": "H2",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 260,
+      "kind": "text",
+      "text": "H3",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 266,
+      "kind": "text",
+      "text": "&ldquo;",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 505,
+      "kind": "text",
+      "text": "YouTube",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 621,
+      "kind": "text",
+      "text": "B",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 622,
+      "kind": "text",
+      "text": "I",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 623,
+      "kind": "text",
+      "text": "U",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 624,
+      "kind": "text",
+      "text": "H",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 1392,
+      "kind": "text",
+      "text": "(&quot;",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "features/posts/PostEditor.tsx",
+      "line": 1392,
+      "kind": "text",
+      "text": "&quot;)",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "features/posts/PostUrlDialog.tsx",
+      "line": 13,
+      "kind": "placeholder",
+      "text": "https://",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/posts/Posts.tsx",
+      "line": 206,
+      "kind": "text",
+      "text": "&quot;",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "features/posts/Posts.tsx",
+      "line": 206,
+      "kind": "text",
+      "text": "&quot;",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "features/security/AccessTokensTab.tsx",
+      "line": 808,
+      "kind": "aria-label",
+      "text": "adding this",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/security/AccessTokensTab.tsx",
+      "line": 808,
+      "kind": "aria-label",
+      "text": "token",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/security/AccessTokensTab.tsx",
+      "line": 889,
+      "kind": "aria-label",
+      "text": "required",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/security/AccessTokensTab.tsx",
+      "line": 911,
+      "kind": "placeholder",
+      "text": "https://secondary-api.example.test",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/security/AccessTokensTab.tsx",
+      "line": 993,
+      "kind": "placeholder",
+      "text": "https://api.example.com",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/settings/ExternalMcpSettingsPanel.tsx",
+      "line": 356,
+      "kind": "aria-label",
+      "text": "Open tool permissions for",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/settings/ExternalMcpSettingsPanel.tsx",
+      "line": 356,
+      "kind": "aria-label",
+      "text": "enabled",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/settings/SettingsUi.tsx",
+      "line": 214,
+      "kind": "expression",
+      "text": "Tovu Admin",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/settings/SettingsUi.tsx",
+      "line": 438,
+      "kind": "description",
+      "text": "Extra instructions applied to every conversation in this workspace, in addition to any per-request instructions.",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/sites/CreateSiteOnboarding.tsx",
+      "line": 129,
+      "kind": "placeholder",
+      "text": "https://… or postgres://…",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/sites/CreateSiteOnboarding.tsx",
+      "line": 261,
+      "kind": "placeholder",
+      "text": "my-second-site",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/sites/CreateSiteOnboarding.tsx",
+      "line": 320,
+      "kind": "text",
+      "text": "admin",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/sites/SiteImportTab.tsx",
+      "line": 73,
+      "kind": "placeholder",
+      "text": "https://",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/sites/SiteImportTab.tsx",
+      "line": 142,
+      "kind": "placeholder",
+      "text": "https://",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/skills/SkillInstallConfirmation.tsx",
+      "line": 11,
+      "kind": "aria-label",
+      "text": "Install skill",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/SkillInstallConfirmation.tsx",
+      "line": 12,
+      "kind": "text",
+      "text": "Install skill?",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/SkillInstallConfirmation.tsx",
+      "line": 14,
+      "kind": "text",
+      "text": "Review instructions from sources you trust. Installation runs no code.",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/SkillInstallConfirmation.tsx",
+      "line": 17,
+      "kind": "text",
+      "text": "Cancel",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/SkillInstallConfirmation.tsx",
+      "line": 18,
+      "kind": "text",
+      "text": "Confirm install",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/SkillRemoveConfirmDialog.tsx",
+      "line": 7,
+      "kind": "aria-label",
+      "text": "Remove skill",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/SkillRemoveConfirmDialog.tsx",
+      "line": 8,
+      "kind": "text",
+      "text": "Remove",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/SkillRemoveConfirmDialog.tsx",
+      "line": 11,
+      "kind": "text",
+      "text": "Cancel",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/SkillRemoveConfirmDialog.tsx",
+      "line": 12,
+      "kind": "text",
+      "text": "Confirm remove",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/SkillRow.tsx",
+      "line": 21,
+      "kind": "aria-label",
+      "text": "Show or hide details —",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/SkillRow.tsx",
+      "line": 26,
+      "kind": "expression",
+      "text": "Uploaded",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/SkillRow.tsx",
+      "line": 26,
+      "kind": "text",
+      "text": "GitHub",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "features/skills/SkillRow.tsx",
+      "line": 30,
+      "kind": "expression",
+      "text": "Enabled",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/SkillRow.tsx",
+      "line": 30,
+      "kind": "expression",
+      "text": "Disabled",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/SkillRow.tsx",
+      "line": 31,
+      "kind": "aria-label",
+      "text": "Enable",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/SkillRow.tsx",
+      "line": 34,
+      "kind": "aria-label",
+      "text": "Inspect skill files —",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/SkillRow.tsx",
+      "line": 35,
+      "kind": "aria-label",
+      "text": "Remove",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/Skills.tsx",
+      "line": 19,
+      "kind": "text",
+      "text": "Loading skills…",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/Skills.tsx",
+      "line": 23,
+      "kind": "text",
+      "text": "No skills installed yet",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/Skills.tsx",
+      "line": 24,
+      "kind": "text",
+      "text": "Add a GitHub skill or upload files to get started.",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/Skills.tsx",
+      "line": 25,
+      "kind": "text",
+      "text": "Add a skill",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/Skills.tsx",
+      "line": 30,
+      "kind": "aria-label",
+      "text": "Installed skills",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/Skills.tsx",
+      "line": 41,
+      "kind": "title",
+      "text": "Add a skill",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/Skills.tsx",
+      "line": 47,
+      "kind": "label",
+      "text": "GitHub URL",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/Skills.tsx",
+      "line": 50,
+      "kind": "placeholder",
+      "text": "https://github.com/owner/skill",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "features/skills/Skills.tsx",
+      "line": 55,
+      "kind": "text",
+      "text": "Upload files",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/Skills.tsx",
+      "line": 56,
+      "kind": "text",
+      "text": "Upload folder",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/Skills.tsx",
+      "line": 59,
+      "kind": "aria-label",
+      "text": "Choose skill files",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/Skills.tsx",
+      "line": 60,
+      "kind": "aria-label",
+      "text": "Choose skill folder",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/Skills.tsx",
+      "line": 76,
+      "kind": "aria-label",
+      "text": "Skills",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/skills/Skills.tsx",
+      "line": 91,
+      "kind": "text",
+      "text": "Skills work with Claude Code, Codex and BYOK. Aider, Gemini CLI and Pi can't use them.",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/taxonomy/Taxonomy.tsx",
+      "line": 776,
+      "kind": "text",
+      "text": "&quot;",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "features/taxonomy/Taxonomy.tsx",
+      "line": 776,
+      "kind": "text",
+      "text": "&quot;:",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "features/taxonomy/Taxonomy.tsx",
+      "line": 831,
+      "kind": "aria-label",
+      "text": ", subcategory of",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "features/taxonomy/Taxonomy.tsx",
+      "line": 890,
+      "kind": "text",
+      "text": "&quot;",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "features/taxonomy/Taxonomy.tsx",
+      "line": 890,
+      "kind": "text",
+      "text": "&quot;:",
+      "reason": "Encoded punctuation, not prose."
+    },
+    {
+      "file": "components/DevicePreview/DevicePreviewToggle.tsx",
+      "line": 48,
+      "kind": "text",
+      "text": "px",
+      "reason": "Exact brand, protocol, unit or editor notation."
+    },
+    {
+      "file": "components/MediaPickerDialog/MediaPickerDialog.tsx",
+      "line": 149,
+      "kind": "text",
+      "text": "Cancel",
+      "reason": "Existing untranslated copy; use the owning translator when resolving this debt."
+    },
+    {
+      "file": "components/WidgetConfigFields/HtmlAttributeRows.tsx",
+      "line": 33,
+      "kind": "placeholder",
+      "text": "data-kui",
+      "reason": "Literal example of a URL, identifier or markup."
+    },
+    {
+      "file": "components/WidgetConfigFields/MediaContentEditor.tsx",
+      "line": 322,
+      "kind": "placeholder",
+      "text": "<img data-media-slug=\"…\" alt=\"…\">",
+      "reason": "Literal example of a URL, identifier or markup."
+    }
+  ]
+}

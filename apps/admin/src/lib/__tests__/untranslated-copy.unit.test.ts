@@ -105,6 +105,10 @@ const SAME_AS_ENGLISH: Readonly<Record<string, readonly string[]>> = {
   Filter: ["id", "de"],
   Form: ["tr"],
   General: ["es"],
+  // Colour names (Appearance accent swatches) German and French spell exactly like English.
+  Gold: ["de"],
+  Pink: ["de"],
+  Violet: ["fr"],
   "Import & Export": ["de"],
   Info: ["id", "de"],
   Item: ["id", "pt-BR"],

@@ -325,6 +325,12 @@ jobs:
       - name: Install admin dependencies
         run: npm ci --prefix apps/admin
 
+      - name: Guard admin untranslated copy and dictionary parity
+        id: gate-admin-copy
+        continue-on-error: true
+        working-directory: apps/admin
+        run: npx --no-install vitest run --maxWorkers=2 src/lib/__tests__/admin-literal-copy.unit.test.ts src/lib/__tests__/untranslated-copy.unit.test.ts
+
       - name: Typecheck (admin)
         id: gate-admin-typecheck
         continue-on-error: true
@@ -383,6 +389,7 @@ jobs:
           # Keep hardwiring informational until devops publishes the guard exports
           # and the coordinator updates the installed version and lockfile.
           check "${{ steps.gate-admin-typecheck.outcome }}"    "typecheck (admin)"
+          check "${{ steps.gate-admin-copy.outcome }}"         "admin untranslated copy and dictionary parity"
           check "${{ steps.gate-admin-build.outcome }}"        "admin:build"
           echo "---"
           if [ "$fail" -ne 0 ]; then
