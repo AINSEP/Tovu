@@ -153,7 +153,8 @@ test("static-only ZIP and top folder use the display name with a dated README an
       ], failed: [] } }) } });
   const result = await backend.create({ principalId: "owner", signal: new AbortController().signal, format: "static" }, { waitMs: 60_000 }) as { shareId: string; file: string };
   assert.equal(result.file, "my-site-static-2026-10-30-1015.zip");
-  assert.equal((result as unknown as { message: string }).message, 'Extract the ZIP, then double-click “Open website.html” inside the extracted folder. No local server is needed to view the exported pages. README.txt lists features that need a server.');
+  // No publicUrl on this start: discovery files are left out and the completion says so (owner 10-31).
+  assert.equal((result as unknown as { message: string }).message, 'No domain was given, so sitemap.xml and feed.xml were left out. Extract the ZIP, then double-click “Open website.html” inside the extracted folder. No local server is needed to view the exported pages. README.txt lists features that need a server.');
   const files = await unpack(await readFile(registry.artifactPath({ shareId: result.shareId })));
   assert.deepEqual([...files.keys()].sort(), ["Open website.html", "README.txt", "sites/my-theme/css/site.css", "sites/my-theme/index.html", "sites/my-theme/js/site.js"].map(file => "my-site-static-2026-10-30-1015/" + file));
 });
@@ -195,15 +196,20 @@ test("a Tovu backup omits static_site while import still ignores a genuine older
   assert.ok(![...current.keys()].some(name => isStaticSitePath({ path: name })));
 });
 
-test("unsafe static bytes cannot block a backup or weaken its secret scanner", async () => {
+test("unsafe static bytes are omitted without blocking a backup", { timeout: 120000 }, async () => {
   const copy = await captureStaticSite({ context, now, render: async ({ outputDir }) => ({ ...report(outputDir),
     assets: { succeeded: [{ url: "/secret.js", outputFile: "secret.js", data: Buffer.from('const key="gh' + 'p_' + 'x'.repeat(36) + '"') }], failed: [] },
   }) });
   const files = await unpack(await buildShareZip({ plan: plan(), zip: zipFolderFiles }, { staticCopy: copy, packageFiles: new Map() }));
   assert.ok(files.has("content.db"));
   assert.ok(!files.has("static_site/index.html"));
-  assert.match(JSON.parse(files.get("manifest.json")!.toString()).staticSiteOmitted, /credential-shaped/);
-  if (!("reason" in copy)) await assert.rejects(buildStaticSiteZip({ copy, zip: zipFolderFiles }), { code: "SECRET_IN_CONTENT" });
+  assert.match(JSON.parse(files.get("manifest.json")!.toString()).staticSiteOmitted, /looked like a key/);
+  if (!("reason" in copy)) {
+    const notices: string[] = [];
+    const staticFiles = await unpack(await buildStaticSiteZip({ copy, zip: zipFolderFiles }, { notices }));
+    assert.equal([...staticFiles.keys()].some(path => path.endsWith("/secret.js")), false);
+    assert.ok(notices.some(notice => notice.includes("secret.js")));
+  }
 });
 
 // Owner-approved DOWNLOAD contract (2026-10-30). Keep the renderer/report seam and ZIP

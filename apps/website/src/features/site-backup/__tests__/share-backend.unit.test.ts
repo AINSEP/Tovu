@@ -146,3 +146,22 @@ test('theme none offers only Current site and preserves both legacy and picked u
   assert.deepEqual(renders, ['none', 'none']);
   assert.match([...entries].find(([name]) => name.endsWith('/sites/none/index.html'))![1], /Unstyled site/);
 });
+
+for (const publicUrl of [undefined, "https://download.example"]) {
+  test(`static completion discloses omitted discovery only without a request domain (${publicUrl ?? "none"})`, async t => {
+    const registry = await registryIn(t);
+    const seen: (string | undefined)[] = [];
+    const backend = createSiteShareBackend({ registry, site: "ws", prepare: async () => { throw new Error("static only"); }, delivery: async () => undefined, zip: zipFolderFiles,
+      staticSite: { now: () => new Date("2026-10-31T00:00:00Z"), context: async () => ({ name: "Site", slug: "site", theme: "none" }),
+        render: async input => { seen.push(input.publicUrl); return { outputDir: input.outputDir, publicOrigin: input.publicUrl,
+          routes: { succeeded: [{ path: "/", kind: "home", outputFile: "index.html", data: "<main>Site</main>" }], failed: [] },
+          assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] }; } } });
+    const result = await backend.create({ principalId: "owner", signal: new AbortController().signal, format: "static", publicUrl }) as { message: string; notices?: string[] };
+    assert.deepEqual(seen, [publicUrl]);
+    if (publicUrl) assert.doesNotMatch(result.message, /sitemap.xml.*left out/);
+    else {
+      assert.match(result.message, /No domain was given.*sitemap.xml and feed.xml were left out/);
+      assert.ok(result.notices?.some(notice => /No domain was given.*sitemap.xml and feed.xml were left out/.test(notice)), "completion notice reaches the admin's existing notice surface");
+    }
+  });
+}

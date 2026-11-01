@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { NO_THEME_ID } from "../theme/index.js";
 import type { prepareShareContent } from "./share-preparation.js";
@@ -7,24 +8,28 @@ import { SiteBackupPushJobs, type PushJobKey, type PushJobWait } from "./push-jo
 import { buildShareZip, buildStaticSiteZip } from "./share-zip.js";
 import { captureStaticSite, type StaticSitePorts, type StaticSiteCopy } from "./static-copy.js";
 import { createSiteShare, isOwnShareFolder, revokeSiteShare, type ShareDelivery } from "./share-service.js";
-import { SiteShareRegistry, type SiteShareRecord } from "./share-registry.js";
+import { SiteShareRegistry, type SiteShareRecord, newShareIdentity } from "./share-registry.js";
 import { allocateStaticExportThemes, parseStaticExportInput, type StaticExportOptions } from "./static-export-selection.js";
+import type { SiteSavedKeysPort } from "./saved-keys-port.js";
 import { checkShareLimits, SiteShareRefusal } from "./share-policy.js";
 
 export interface SiteShareBackend {
   readonly registry: SiteShareRegistry;
   staticOptions(required: Record<string, never>, optional?: Record<string, never>): Promise<StaticExportOptions>;
-  create(required: { principalId: string; jobId?: string; signal: AbortSignal; format?: "static"; themeIds?: readonly string[] }, optional?: { waitMs?: number }): Promise<unknown>;
+  create(required: { principalId: string; jobId?: string; signal: AbortSignal; includeSavedKeys?: boolean; format?: "static"; themeIds?: readonly string[]; publicUrl?: string }, optional?: { waitMs?: number }): Promise<unknown>;
+  revealPassword(required: { principalId: string; shareId: string }, optional?: Record<string, never>): Promise<{ password: string }>;
   list(required: Record<string, never>, optional?: Record<string, never>): Promise<readonly SiteShareView[]>;
   revoke(required: { shareId: string }, optional?: Record<string, never>): Promise<SiteShareView>;
 }
-export type SiteShareView = Omit<SiteShareRecord, "token" | "storage"> & { downloadUrl: string };
+export type SiteShareView = Omit<SiteShareRecord, "token" | "storage" | "sealedPassword"> & { downloadUrl: string };
 /** A finished export, with what was left out of it (the share's scope notes) for the exporter only. */
 type ExportedShare = SiteShareRecord & { readonly notes?: readonly string[] };
 
+const DOMAINLESS_DISCOVERY_NOTICE = "No domain was given, so sitemap.xml and feed.xml were left out.";
+
 /** Locators/tokens stay in the private registry. The authorized caller receives the verified URL. */
 function view(row: SiteShareRecord): SiteShareView {
-  const { token: _token, storage: _storage, ...publicFields } = row;
+  const { token: _token, storage: _storage, sealedPassword: _sealedPassword, ...publicFields } = row;
   return { ...publicFields, downloadUrl: `/api/admin/v1/workspaces/${encodeURIComponent(row.site)}/site-shares/${row.shareId}/download` };
 }
 
@@ -32,7 +37,7 @@ function view(row: SiteShareRecord): SiteShareView {
 function createOutcome(required: { waited: PushJobWait<ExportedShare>; jobId: string; format?: "static" }, _options = {}): unknown {
   const { waited } = required;
   if (waited.state === "done") {
-    if (required.format === "static") return { ...view(waited.result), message: "Extract the ZIP, then double-click “Open website.html” inside the extracted folder. No local server is needed to view the exported pages. README.txt lists features that need a server." };
+    if (required.format === "static") return { ...view(waited.result), message: (waited.result.notices?.includes(DOMAINLESS_DISCOVERY_NOTICE) ? DOMAINLESS_DISCOVERY_NOTICE + " " : "") + "Extract the ZIP, then double-click “Open website.html” inside the extracted folder. No local server is needed to view the exported pages. README.txt lists features that need a server." };
     return { ...view(waited.result), ...(waited.result.url ? {} : { message: "ZIP ready. Download zip only. Connect a deployed Tovu site or S3-compatible storage to get a link." }) };
   }
   if (waited.state === "abandoned") throw new SiteShareRefusal({ code: "CANCELLED", message: "Share export was cancelled." });
@@ -69,7 +74,7 @@ function retainStaticCapture({ copy, media, sizes }: { copy: Exclude<StaticSiteC
  * @throws SiteShareRefusal for unknown selections or any unusable selected capture.
  * @complexity O(selected export bytes + retained files² + roster sorting); sequential under the job deadline.
  */
-async function captureSelection({ ports, themeIds, signal }: { ports: StaticSitePorts; themeIds?: readonly string[]; signal: AbortSignal }, _options = {}) {
+async function captureSelection({ ports, themeIds, signal, publicUrl }: { ports: StaticSitePorts; themeIds?: readonly string[]; publicUrl?: string; signal: AbortSignal }, _options = {}) {
   const context = await ports.context(), instant = ports.now();
   const { roster, themes, activeThemeId } = staticRoster({ ports, context });
   const selected = themeIds ?? [activeThemeId];
@@ -80,7 +85,7 @@ async function captureSelection({ ports, themeIds, signal }: { ports: StaticSite
   for (const themeId of selected) {
     signal.throwIfAborted();
     const theme = installed.get(themeId)!;
-    const copy = await captureStaticSite({ ...ports, now: () => instant, context: async () => ({ ...context, themeId, theme: theme.title }) }, { themeId });
+    const copy = await captureStaticSite({ ...ports, now: () => instant, context: async () => ({ ...context, themeId, theme: theme.title }) }, { themeId, publicUrl });
     if ("reason" in copy) throw new SiteShareRefusal({ code: "UNAVAILABLE", message: `${themeId}: ${copy.reason}` });
     retainStaticCapture({ copy, media, sizes });
     copies.push(copy);
@@ -89,47 +94,67 @@ async function captureSelection({ ports, themeIds, signal }: { ports: StaticSite
   return { copy: copies[0]!, copies, activeThemeId, themes };
 }
 
+/** Opt-in capture is owner-only; polls cannot change the captured selection. */
+async function requireSavedKeysOwner(required: { input: { principalId: string; includeSavedKeys?: boolean; jobId?: string; format?: "static" }; ownerPrincipalId?: PromiseLike<string> | string }, _options = {}): Promise<void> {
+  const { input } = required;
+  if (!input.includeSavedKeys) return;
+  if (input.principalId !== await required.ownerPrincipalId) throw new SiteShareRefusal({ code: "FORBIDDEN", message: "Only the site owner can export saved keys." });
+  if (input.jobId || input.format) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Saved keys can only be selected on the initial backup request." });
+}
+
+/** A lost sealed password must prevent artifact publication, even if capture returned bytes. */
+function requireRetainedPassword(required: { content: Awaited<ReturnType<typeof prepareShareContent>>; includeSavedKeys?: boolean }, _options = {}): void {
+  if (!required.includeSavedKeys) return;
+  if (!required.content.encryptedKeys || !required.content.sealedPassword) throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Saved keys export could not retain its password. No archive was published." });
+}
+
 /** Reuses backup jobs and the common backup plan content. Only one bounded, buffered preparation runs per site at a time. */
 export function createSiteShareBackend(required: {
   registry: SiteShareRegistry;
   site: string;
-  prepare: (required: { signal: AbortSignal }) => ReturnType<typeof prepareShareContent>;
+  prepare: (required: { signal: AbortSignal; includeSavedKeys?: boolean; shareId: string; workspaceId: string }) => ReturnType<typeof prepareShareContent>;
   zip: typeof zipFolderFiles;
   delivery: (required: { provider?: string; binding?: string }) => Promise<ShareDelivery | undefined>;
+  ownerPrincipalId?: PromiseLike<string> | string;
+  savedKeys?: Pick<SiteSavedKeysPort, "reveal">;
   staticSite?: StaticSitePorts;
 }, _optional: Record<string, never> = {}): SiteShareBackend {
   const jobs = new SiteBackupPushJobs<ExportedShare>();
   let active: string | null = null;
   /** Prepares, archives and delivers one share under a ten-minute bound; always frees the site's lane. */
-  const exportShare = async ({ signal, progress, format, themeIds }: { signal: AbortSignal; progress: SiteBackupPushProgress; format?: "static"; themeIds?: readonly string[] }, _options = {}): Promise<ExportedShare> => {
+  const exportShare = async ({ signal, progress, format, themeIds, includeSavedKeys, publicUrl }: { signal: AbortSignal; progress: SiteBackupPushProgress; format?: "static"; themeIds?: readonly string[]; publicUrl?: string; includeSavedKeys?: boolean }, _options = {}): Promise<ExportedShare> => {
     try {
       const bounded = AbortSignal.any([signal, AbortSignal.timeout(10 * 60 * 1000)]);
       if (format === "static") {
         if (!required.staticSite) throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Static exporter is unavailable in this context." });
-        const selection = await captureSelection({ ports: required.staticSite, themeIds, signal: bounded });
+        const selection = await captureSelection({ ports: required.staticSite, themeIds, publicUrl, signal: bounded });
         const { copy } = selection;
-        const archive = await buildStaticSiteZip({ ...selection, zip: required.zip }, { signal: bounded, progress });
-        return await createSiteShare({ registry: required.registry, site: required.site, name: copy.filename, archive }, { signal: bounded, filename: copy.filename });
+        const notices: string[] = copy.publicOrigin ? [] : [DOMAINLESS_DISCOVERY_NOTICE];
+        const archive = await buildStaticSiteZip({ ...selection, zip: required.zip }, { signal: bounded, progress, notices });
+        return await createSiteShare({ registry: required.registry, site: required.site, name: copy.filename, archive }, { signal: bounded, filename: copy.filename, notices });
       }
-      const content = await required.prepare({ signal: bounded });
+      const identity = newShareIdentity({});
+      const content = await required.prepare({ signal: bounded, includeSavedKeys, shareId: identity.shareId, workspaceId: required.site });
+      requireRetainedPassword({ content, includeSavedKeys });
+      const notices = [...new Set(content.notices ?? [])];
+      const notes = Object.values(content.scopeNotes).map(note => redactSecretShapes({ text: note }).text);
       // Progress's readonly totals describe the prepared backup; the ZIP collector records its exact files.
       Object.assign(progress, { filesTotal: content.files.length + (content.bufferedFiles?.length ?? 0) + 1, bytesTotal: content.totalBytes });
-      const archive = await buildShareZip({ plan: content, zip: required.zip }, { signal: bounded, progress });
+      const archive = await buildShareZip({ plan: content, zip: required.zip }, { signal: bounded, progress, notices });
       const delivery = await required.delivery({});
       bounded.throwIfAborted();
-      const record = await createSiteShare({ registry: required.registry, site: required.site, name: content.site.folderName, archive }, { delivery, signal: bounded });
+      const record = await createSiteShare({ registry: required.registry, site: required.site, name: content.site.folderName, archive }, { delivery, signal: bounded, identity, sealedPassword: content.sealedPassword, notices, notes });
       // Plugins left out of the archive are told to the exporter, never dropped silently.
-      const notes = Object.values(content.scopeNotes);
       return notes.length > 0 ? { ...record, notes } : record;
     } finally { active = null; }
   };
   /** Starts a new export job, refusing a resume of an unknown job and a second export on this site. */
-  const startExport = (startRequired: { key: PushJobKey; resumedJobId: string | undefined; format?: "static"; themeIds?: readonly string[] }, _options = {}) => {
+  const startExport = (startRequired: { key: PushJobKey; resumedJobId: string | undefined; format?: "static"; themeIds?: readonly string[]; publicUrl?: string; includeSavedKeys?: boolean }, _options = {}) => {
     const { key } = startRequired;
     if (startRequired.resumedJobId) throw new SiteShareRefusal({ code: "JOB_NOT_FOUND", message: "Share job expired or belongs to another principal. Create a new export." });
     if (active) throw new SiteShareRefusal({ code: "BUSY", message: "Another share export is running for this site. Wait for it to finish." });
     active = key.planId;
-    return jobs.start(key, { filesDone: 0, filesTotal: 0, bytesDone: 0, bytesTotal: 0 }, (signal, progress) => exportShare({ signal, progress, format: startRequired.format, themeIds: startRequired.themeIds }));
+    return jobs.start(key, { filesDone: 0, filesTotal: 0, bytesDone: 0, bytesTotal: 0 }, (signal, progress) => exportShare({ signal, progress, format: startRequired.format, themeIds: startRequired.themeIds, publicUrl: startRequired.publicUrl, includeSavedKeys: startRequired.includeSavedKeys }));
   };
   return {
     registry: required.registry,
@@ -140,12 +165,20 @@ export function createSiteShareBackend(required: {
     },
     async create(input, options = {}) {
       input.signal.throwIfAborted();
-      const selection = input.format === "static" ? parseStaticExportInput({ input: { ...(input.jobId === undefined ? {} : { jobId: input.jobId }), ...(input.themeIds === undefined ? {} : { themeIds: input.themeIds }) } }) : {};
+      await requireSavedKeysOwner({ input, ownerPrincipalId: required.ownerPrincipalId });
+      const selection = input.format === "static" ? parseStaticExportInput({ input: { jobId: input.jobId, themeIds: input.themeIds, publicUrl: input.publicUrl } }) : {};
       const jobId = input.jobId ?? randomUUID();
       const key = { planId: jobId, principalId: input.principalId, workspaceId: required.site + (input.format === "static" ? "/static" : "") };
-      const job = jobs.find(key) ?? startExport({ key, resumedJobId: input.jobId, format: input.format, themeIds: selection.themeIds });
+      const job = jobs.find(key) ?? startExport({ key, resumedJobId: input.jobId, format: input.format, themeIds: selection.themeIds, publicUrl: selection.publicUrl, includeSavedKeys: input.includeSavedKeys });
       const waited = await jobs.wait(job, { signal: input.signal, budgetMs: options.waitMs ?? 1500 });
       return createOutcome({ waited, jobId, format: input.format });
+    },
+    async revealPassword(input) {
+      if (input.principalId !== await required.ownerPrincipalId) throw new SiteShareRefusal({ code: "FORBIDDEN", message: "Only the site owner can reveal an export password." });
+      const row = await required.registry.get({ site: required.site, shareId: input.shareId });
+      if (!row?.hasEncryptedKeys || !row.sealedPassword || row.status === "revoked") throw new SiteShareRefusal({ code: "NOT_FOUND", message: "Export password not found for this site." });
+      if (!required.savedKeys) throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Saved keys are unavailable." });
+      return required.savedKeys.reveal({ sealedPassword: row.sealedPassword, shareId: row.shareId, workspaceId: required.site });
     },
     list: async () => (await required.registry.list({ site: required.site })).map(view),
     async revoke(input) {
