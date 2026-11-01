@@ -533,7 +533,7 @@ function listingRoutes({ hrefs, kind }: { hrefs: readonly string[]; kind: string
  * a public URL owns the output prefix, so an explicit base path beside it is reported as ignored. */
 function ignoredBasePathNotice({ publicUrl, basePath, warning }: Pick<ExportSiteOptions, "publicUrl" | "basePath"> & { warning: string | undefined }) {
   if (publicUrl === undefined || basePath === undefined) return {};
-  return { basePathRewriteWarning: ["--base-path was ignored because --public-url decides the path.", warning].filter(Boolean).join(" ") };
+  return { basePathRewriteWarning: ["The base path was ignored because the public URL sets the path.", warning].filter(Boolean).join(" ") };
 }
 
 /** Validate the destination through Jini's origin owner; scope every rewrite to this copy.

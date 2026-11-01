@@ -10,7 +10,7 @@ import { exportSite } from "#src/features/site-export/site-exporter";
 import { runExportCommand, type RunExportCommandOptional } from "../../commands/export.js";
 
 type Boot = Awaited<ReturnType<NonNullable<RunExportCommandOptional["bootSiteDir"]>>>;
-const NOTICE = "--base-path was ignored because --public-url decides the path.";
+const NOTICE = "The base path was ignored because the public URL sets the path.";
 
 for (const [publicUrl, basePath, expectedPath, ignored] of [
   ["https://export.example/docs/", "/requested", "/docs", true],
