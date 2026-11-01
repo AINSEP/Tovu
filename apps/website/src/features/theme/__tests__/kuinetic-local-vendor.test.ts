@@ -7,6 +7,7 @@ import { renderStaticPage } from "../static-render.js";
 import { loadTheme } from "../theme.js";
 import { checkApprovedRoots } from "../validation/structure.js";
 import { renderSite } from "#src/server/inbound/public-http/http/site/render";
+import { CHROMELESS_TEMPLATES } from "./chromeless-templates.fixture.js";
 
 const ROOT = path.resolve(import.meta.dirname, "../../../../../..");
 const STOCK_THEMES = ["tovu-starter", "tovu-theme"];
@@ -49,7 +50,7 @@ test("no shipped or site theme loads kUInetic from jsDelivr", () => {
   assert.ok(inspected > 0, "must inspect real theme HTML, not an empty set");
 });
 
-test("stock theme pages carry no kUInetic tag or document.write of their own", () => {
+test("stock theme pages load kUInetic locally once only when declared chrome-less, otherwise via the footer", () => {
   let pages = 0;
   for (const themeDir of stockThemeDirs()) {
     for (const file of htmlFiles(path.join(themeDir, "render/pages"))) {
@@ -57,14 +58,20 @@ test("stock theme pages carry no kUInetic tag or document.write of their own", (
       const raw = fs.readFileSync(file, "utf8");
       const relative = path.relative(ROOT, file);
       assert.ok(!raw.includes("cdn.jsdelivr.net/npm/kuinetic"), `${relative}: no kUInetic CDN reference, even in a comment`);
-      assert.ok(!raw.includes("document.write("), `${relative}: no document.write`);
-      // The runtime itself loads once from the footer partial. A page may still carry the small pre-JS
-      // cloak helper (assets/vendor/kuinetic/kui-cloak.js) in <head>: it has to run before <body> paints.
-      assert.doesNotMatch(raw, /<script\b[^>]*src=["'][^"']*kuinetic\.all(\.min)?\.js/i, `${relative}: kUInetic loads once from the footer partial, not per page`);
-      assert.match(raw, /data-embed-config='\{"type":"partial","id":"footer"/, `${relative}: must include the footer partial that loads kUInetic`);
+      assert.doesNotMatch(raw, /\bdocument\s*\.\s*write\s*\(/, `${relative}: no document.write`);
+      const id = path.basename(themeDir);
+      if (CHROMELESS_TEMPLATES.has(`${id}/${path.basename(file)}`)) {
+        // Chrome-less pages have no footer to load the runtime, so they own their one local tag.
+        const tags = [...loadMarkup(file).matchAll(/<script\b[^>]*src=["']([^"']*kuinetic\.all(?:\.min)?\.js[^"']*)["'][^>]*>/gi)].map((m) => m[1]);
+        assert.deepEqual(tags, [`/theme-assets/${id}/assets/vendor/kuinetic/kuinetic.all.min.js`], `${relative}: one local kUInetic tag`);
+      } else {
+        // The runtime loads once from the footer. The pre-JS kui-cloak.js helper is still allowed.
+        assert.doesNotMatch(raw, /<script\b[^>]*src=["'][^"']*kuinetic\.all(\.min)?\.js/i, `${relative}: kUInetic loads once from the footer partial, not per page`);
+        assert.match(raw, /data-embed-config='\{"type":"partial","id":"footer"/, `${relative}: must include the footer partial that loads kUInetic`);
+      }
     }
   }
-  assert.equal(pages, 2 * (6 + 13), "tovu-starter (6) + tovu-theme (13) pages, live and original");
+  assert.equal(pages, 2 * (7 + 14), "tovu-starter (7) + tovu-theme (14) pages including blank, live and original");
 });
 
 test("each stock footer partial loads the theme's local kUInetic exactly once", () => {

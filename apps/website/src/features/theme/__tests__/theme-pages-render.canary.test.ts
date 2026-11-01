@@ -7,6 +7,7 @@ import { scanEmbedMarkers, type EmbedMarker } from "@jini-ai/cms/widgets/markers
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
 import { injectCurrentEntityContentId, renderStaticPage, resolveTemplate, scanMenuEmbedIds } from "../static-render.js";
 import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
+import { CHROMELESS_TEMPLATES } from "./chromeless-templates.fixture.js";
 
 /**
  * @file Canaries for EVERY static theme's EVERY page on the `data-embed-config` marker spine — the
@@ -361,7 +362,7 @@ for (const themeId of STATIC_THEME_IDS) {
   // `resolveTemplate` replace `injectPostEmbedId`/`resolvePostTemplate` below unchanged in spirit.
   const templates = (readTheme(themeId).manifest.templates as string[] | undefined) ?? [];
   for (const choice of templates) {
-    test(`canary: ${themeId} — template "${choice}" resolves entity body, nav, footer, and menus together`, () => {
+    test(`canary: ${themeId} — template "${choice}" resolves entity body and honors its chrome contract`, () => {
       const theme = readTheme(themeId);
       const menus = sentinelMenus(theme);
       const resolution = resolveTemplate({ theme, templateChoice: choice });
@@ -389,7 +390,16 @@ for (const themeId of STATIC_THEME_IDS) {
           assert.equal(full.includes("Sweep Sentinel Post"), marker.config.header !== false, "title honors header setting");
         }
       }
-      assert.ok(assertPartialContents(theme, resolution.html, full, menus) > 0, "template chrome must resolve");
+      const partialCount = assertPartialContents(theme, resolution.html, full, menus);
+      if (CHROMELESS_TEMPLATES.has(`${themeId}/${choice}`)) {
+        const markup = full.replace(/<!--[\s\S]*?-->/g, "");
+        assert.doesNotMatch(markup, /<(?:header|nav|footer)\b/i, "chromeless templates must omit site header, nav, and footer");
+        for (const menuId of Object.keys(menus)) {
+          assert.ok(!markup.includes(`/sentinel-${menuId}`), "chromeless templates must omit site menus");
+        }
+      } else {
+        assert.ok(partialCount > 0, "template chrome must resolve");
+      }
       assert.ok(!full.includes('"type":"content"'), `${themeId}/${choice}: the content marker itself must not leak into the output`);
       assertNoRetiredMarkers(full, `${themeId}/${choice}`);
 
