@@ -74,6 +74,17 @@ class NetlifyDeployTarget {
     this.kit = kit;
   }
 
+  /** Resolve through the existing site lifecycle so a first publish and its upload share one
+   * provider-assigned identity. @complexity One bounded ensure-site pass; no file uploads.
+   */
+  async resolvePublicUrl({ projectName }, _options = {}) {
+    if (!this.config.token) throw new this.kit.DeployError("Netlify token is required.", 400);
+    this.resolvedSite = await ensureNetlifySite(this, deriveNetlifySiteName(this.kit, projectName));
+    const url = netlifyUrlCandidates(this.kit, this.resolvedSite)[0];
+    if (!url) throw new this.kit.DeployError("Netlify did not report the site's public URL.", 502);
+    return url;
+  }
+
   /**
    * Publishes `input.files` as a new Netlify deploy (creating the site on first use) and waits for
    * the URL to be reachable.
@@ -87,7 +98,7 @@ class NetlifyDeployTarget {
     const siteName = deriveNetlifySiteName(kit, input.projectName);
     if (!siteName) throw new kit.DeployError("Netlify site name could not be generated.", 400);
 
-    const site = await ensureNetlifySite(this, siteName);
+    const site = this.resolvedSite ?? await ensureNetlifySite(this, siteName);
     const siteId = typeof site.id === "string" ? site.id : "";
     if (!siteId) throw new kit.DeployError("Netlify site response did not include an id.", 502, site);
 

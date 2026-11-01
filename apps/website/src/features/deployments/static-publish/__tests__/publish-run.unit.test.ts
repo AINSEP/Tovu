@@ -284,7 +284,7 @@ test("startPublishRun: the fire-and-forget path records history too, once the ba
 for (const mode of ["awaited", "background"] as const) {
   test(`${mode} unexpected publish failure settles the run with its error and permits the next run`, { timeout: 5000 }, async () => {
     const routeDeps = testRouteDeps();
-    const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => assert.fail("must not build") };
+    const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget() }; // built before export (it names the URL); idGen fails next
     const history = new InMemoryPublishHistoryStore();
     const failure = new Error("run ID generation failed");
     const input = { ...githubInput(routeDeps), idGen: idGenFailingInsidePublish(failure), exportSiteBound: async () => assert.fail("must not export") };
@@ -371,7 +371,7 @@ for (const explicit of [false, true]) {
 
 test("an unexpected non-Error publish failure settles the run with its string form and is rethrown unchanged", { timeout: 5000 }, async () => {
   const routeDeps = testRouteDeps();
-  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => assert.fail("must not build") };
+  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), loadDeployTargets: routeDeps.loadDeployTargets, buildTarget: () => fakeDeployTarget() }; // built before export (it names the URL); idGen fails next
   const history = new InMemoryPublishHistoryStore();
   const input = { ...githubInput(routeDeps), idGen: idGenFailingInsidePublish("opaque failure value"), exportSiteBound: async () => assert.fail("must not export") };
   await assert.rejects(runPublishAndAwait(deps, input, clock, history), (error) => error === "opaque failure value");

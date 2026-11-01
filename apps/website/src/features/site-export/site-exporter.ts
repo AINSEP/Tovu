@@ -1,4 +1,5 @@
 import type { RequestListener } from "node:http";
+import { resolveConfiguredOrigin } from "@jini-ai/http-kit/verified-origin";
 import path from "node:path";
 import { rm } from "node:fs/promises";
 import { exportSite as runExport, redirectOutcomeFor as redirectDecision } from "@jini-ai/devops/static-export";
@@ -482,6 +483,7 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
     // Responses upgrade media URLs before crawling; Jini applies basePath only to URL positions in output.
 
 export interface ExportSiteRouteDeps extends RouteManifestDeps, ExportMediaUrlDeps {
+  readonly clock: { nowIso(): string };
   readonly settingsRepo?: SettingsRepoPort;
   readonly siteTitleReady?: Promise<void>;
   readonly createSiteApp: (optional?: { themeId?: string }) => RequestListener;
@@ -508,6 +510,8 @@ export interface ExportSiteOptions {
    * comment.
    */
   basePath?: string;
+  /** Destination URL supplied by this export request or deploy target; never saved as site identity. */
+  publicUrl?: string;
   /** Request-local theme override for a selected static capture; never activates it. */
   themeId?: string;
   /** Portable static copies render one theme; deployment builds retain previews. */
@@ -525,11 +529,28 @@ function listingRoutes({ hrefs, kind }: { hrefs: readonly string[]; kind: string
   return hrefs.filter((href) => href.startsWith("/") && !href.startsWith("//")).map((href) => ({ path: href, kind, label: href }));
 }
 
+/** Validate the destination through Jini's origin owner; scope every rewrite to this copy.
+ * No registration or mutation of the live site's origin. A destination overrides its old public URL.
+ * @complexity One bounded registry read plus O(URL bytes); invalid destinations throw before export.
+ */
+async function resolveExportIdentity({ routeDeps, publicUrl }: Pick<ExportSiteOptions, "routeDeps" | "publicUrl">, _options = {}) {
+  // The configured-origin owner refuses non-HTTPS, loopback, userinfo, query and fragment URLs.
+  const destination = publicUrl === undefined ? undefined : resolveConfiguredOrigin({ env: { destination: publicUrl }, envVarName: "destination", clock: routeDeps.clock, warn: () => {} });
+  if (publicUrl !== undefined && !destination) throw new Error("The public URL must be a public HTTPS address.");
+  // A publish renders against its own destination, without changing the local site's trust root.
+  const publicOrigin = destination && `https://${destination.host}${destination.port === undefined ? "" : `:${destination.port}`}`;
+  const publicBaseUrl = publicOrigin && publicOrigin + (destination.basePath ?? "");
+  const sourceOrigin = await exportPublicOrigin({ registry: routeDeps.originRegistry, workspaceId: routeDeps.workspaceId });
+  return { publicOrigin, publicBaseUrl, sourceOrigin };
+}
+
 /** Compose the real CMS manifest/theme/security policy with Jini's export engine. */
-export async function exportSite({ routeDeps, outputDir, clean, basePath, includeThemePreviews, themeId }: ExportSiteOptions, _options = {}): Promise<ExportReport> {
+export async function exportSite({ routeDeps, outputDir, clean, basePath, includeThemePreviews, themeId, publicUrl }: ExportSiteOptions, _options = {}): Promise<ExportReport> {
   const tracedFetch = trackFetch({ fetch: (input, init) => fetch(input, init), observability: routeDeps.observability });
   const { manifest, themeCount } = await buildPreviewExportManifest({ routeDeps: themeId === undefined ? routeDeps : { ...routeDeps, resolveActiveThemeId: async () => themeId } }, { includeThemePreviews: themeId === undefined ? includeThemePreviews : false });
-  const publicOrigin = await exportPublicOrigin({ registry: routeDeps.originRegistry, workspaceId: routeDeps.workspaceId });
+  const { publicOrigin, publicBaseUrl, sourceOrigin } = await resolveExportIdentity({ routeDeps, publicUrl });
+  // The resolved destination owns its prefix: custom domains and user Pages sites can be at root.
+  const outputBasePath = publicBaseUrl ? new URL(publicBaseUrl).pathname : basePath;
   const writer = createNodeArtifactWriter({}, {});
   // Sitemaps require absolute loc values; RSS requires an absolute channel link. With no public
   // identity omit both, including stale copies in a reused output directory (the CLI default).
@@ -543,7 +564,7 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
       for (const file of omitted) await rm(path.join(required.outputDir, file.slice(1)), { force: true });
     } },
     fetch: async ({ url }, options) => rewriteExportMediaResponse({
-      response: await rewriteExportOriginResponse({ response: await tracedFetch(url, options?.init), url, publicOrigin }), deps: routeDeps,
+      response: await rewriteExportOriginResponse({ response: await tracedFetch(url, options?.init), url, publicOrigin: publicBaseUrl, sourceOrigin }), deps: routeDeps,
     }),
     assetSource: createNodeAssetSource({}, {}),
     themeLayout: { resolve: ({ theme }) => ({
@@ -552,7 +573,7 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
     }) },
     assetUrlPrefixes: ["/theme-assets/", "/agent-icons/", "/m/", "/api/agent-plugin-exports/v1/"],
     requestHeaders: { "x-tovu-static-export": "1" },
-    security: { transformHtml: ({ html }) => withSecurityMeta(exportHtml({ html, publicOrigin })) },
+    security: { transformHtml: ({ html }) => withSecurityMeta(exportHtml({ html, publicOrigin: publicBaseUrl })) },
     errorPage: { outputFile: "404.html", acceptStatus: ({ status }) => status >= 400 && status < 500,
       rejectionReason: ({ status }) => `expected a 4xx response for the 404 probe, got ${status}` },
     assetPathFailureReason: "asset URL resolved outside the output directory — refused",
@@ -566,7 +587,7 @@ export async function exportSite({ routeDeps, outputDir, clean, basePath, includ
       ...listingRoutes({ hrefs: [...extractListingMoreHrefs({ html }), ...[listingJsonNextPath({ path, body: html })].filter((next) => next !== undefined)], kind: "listing-batch" }),
       ...listingRoutes({ hrefs: extractListingPageHrefs({ html }), kind: "listing-page" }),
     ],
-  }, { ...(clean !== undefined ? { clean } : {}), ...(basePath !== undefined ? { basePath } : {}) });
+  }, { ...(clean !== undefined ? { clean } : {}), ...(outputBasePath !== undefined ? { basePath: outputBasePath } : {}) });
   // Jini's reference scan diagnoses retained broken links; it does not remove them. A dropped
   // reference must be backed by an actual removal. Download-only removals are recorded by static-copy.
   const result = { ...report, outputDir, droppedReferences: [], ...(publicOrigin ? { publicOrigin } : {}) };

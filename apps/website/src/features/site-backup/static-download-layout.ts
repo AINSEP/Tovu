@@ -22,13 +22,22 @@ type RewriteUrl = (value: string) => string;
 const LOCAL_ORIGIN = "https://static-copy.invalid";
 
 /** Resolve local references against their original file; foreign URLs and fragments stay intact. */
-function localUrl({ value, file, publicOrigin }: { value: string; file: string; publicOrigin?: string }, _options = {}): URL | undefined {
+function localUrl({ value, file, publicOrigin, basePath }: { value: string; file: string; publicOrigin?: string; basePath?: string }, _options = {}): URL | undefined {
   if (!value || value.startsWith("#") || value.startsWith("//")) return undefined;
   try {
     const origin = publicOrigin ?? LOCAL_ORIGIN;
     const url = new URL(value, `${origin}/${file}`);
-    return url.origin === origin ? url : undefined;
+    return url.origin === origin ? withoutExportPrefix({ url, basePath }) : undefined;
   } catch { return undefined; }
+}
+
+/** This freshly parsed URL names an exported file. Strip its serving prefix before file lookup;
+ * the ZIP's page map is rooted at the artifact, while canonical/feed URLs retain their public base.
+ */
+function withoutExportPrefix({ url, basePath }: { url: URL; basePath?: string }, _options = {}): URL {
+  const prefix = basePath?.replace(/\/$/, "");
+  if (prefix && (url.pathname === prefix || url.pathname.startsWith(prefix + "/"))) url.pathname = url.pathname.slice(prefix.length) || "/";
+  return url;
 }
 
 /** Reuse the exporter's candidate parser, including data URLs and descriptors. O(srcset bytes). */
@@ -65,8 +74,8 @@ function rewriteHtml({ body, rewrite }: { body: string; rewrite: RewriteUrl }, _
   body = downloadDocumentBase({ html: body, rewrite });
   const parts: string[] = [];
   let cursor = 0;
-  for (const { start, end, kind } of exportUrlLocations({ body, contentType: "text/html" })) {
-    if (kind === "action") continue;
+  for (const { start, end, kind, identity } of exportUrlLocations({ body, contentType: "text/html" })) {
+    if (kind === "action" || identity) continue;
     const value = body.slice(start, end);
     const replacement = rewriteHtmlValue({ value, kind, rewrite });
     parts.push(body.slice(cursor, start), replacement);
@@ -136,7 +145,7 @@ function referencedFiles({ copy }: { copy: Copy }, _options = {}): Set<string> {
     const file = files.get(name);
     if (!file) continue;
     rewriteFile({ file, rewrite: value => {
-      const url = localUrl({ value, file: name, publicOrigin: copy.publicOrigin });
+      const url = localUrl({ value, file: name, publicOrigin: copy.publicOrigin, basePath: copy.basePath });
       if (url && files.has(url.pathname.slice(1))) reached.add(url.pathname.slice(1));
       return value;
     } });
@@ -144,18 +153,22 @@ function referencedFiles({ copy }: { copy: Copy }, _options = {}): Set<string> {
   return reached;
 }
 
-/** Flatten public media independently of theme images; claim portable aliases for suffix allocation. */
-function mediaPath({ file, claimed }: { file: string; claimed: Set<string> }, _options = {}): string {
-  const slug = file.split("/")[1]!;
-  const extension = path.posix.extname(file);
-  let suffix = 1;
-  let target = `media/${slug}${extension}`;
-  while (claimed.has(sharePathAlias({ path: target }))) {
+/** Allocate distinct portable filenames before rewriting; different source URLs retain their bytes. */
+function allocateDownloadPath({ target, claimed }: { target: string; claimed: Set<string> }, _options = {}): string {
+  const extension = path.posix.extname(target);
+  const stem = extension ? target.slice(0, -extension.length) : target;
+  let suffix = 1, candidate = target;
+  while (claimed.has(sharePathAlias({ path: candidate }))) {
     suffix += 1;
-    target = `media/${slug}-${suffix}${extension}`;
+    candidate = `${stem}-${suffix}${extension}`;
   }
-  claimed.add(sharePathAlias({ path: target }));
-  return target;
+  claimed.add(sharePathAlias({ path: candidate }));
+  return candidate;
+}
+
+/** Flatten public media independently of theme images, using the same portable filename allocator. */
+function mediaPath({ file, claimed }: { file: string; claimed: Set<string> }, _options = {}): string {
+  return allocateDownloadPath({ target: `media/${file.split("/")[1]!}${path.posix.extname(file)}`, claimed });
 }
 
 /** Repeated public URLs across themes use the first allocated media destination. */
@@ -197,7 +210,8 @@ function downloadPaths({ copy, theme, reached, media, claimed }: { copy: Copy; t
       if (target) paths.set(file.path, target);
       continue;
     }
-    paths.set(file.path, themeDownloadPath({ file: file.path, theme }));
+    // Removing theme/font directory prefixes can merge distinct URLs. Allocate before URL rewrites.
+    paths.set(file.path, allocateDownloadPath({ target: themeDownloadPath({ file: file.path, theme }), claimed }));
   }
   return paths;
 }
@@ -206,7 +220,7 @@ function downloadPaths({ copy, theme, reached, media, claimed }: { copy: Copy; t
  * Missing /m/ responses include private Library documents; never retain their URLs.
  */
 function relocatedUrl({ value, file, target, paths, copy, theme }: { value: string; file: string; target: string; paths: ReadonlyMap<string, string>; copy: Copy; theme: string }, _options = {}): string {
-  const url = localUrl({ value, file, publicOrigin: copy.publicOrigin });
+  const url = localUrl({ value, file, publicOrigin: copy.publicOrigin, basePath: copy.basePath });
   if (!url) return value;
   const source = url.pathname.slice(1);
   const page = source.replace(/\/$/, "");

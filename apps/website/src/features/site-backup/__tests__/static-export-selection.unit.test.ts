@@ -21,3 +21,12 @@ test("folder allocation strips branding, avoids case/Unicode aliases and stays s
   assert.match(themes.find(theme => theme.themeId === "zoran-poster")!.name, /^poster/);
   assert.deepEqual(new Map(themes.map(theme => [theme.themeId, theme.name])), new Map(allocateStaticExportThemes({ themeIds: [...themeIds].reverse(), siteSlug: "zoran-studio" }).map(theme => [theme.themeId, theme.name])));
 });
+
+test("a public URL belongs only to a static export start, never a poll", () => {
+  const publicUrl = "https://download.example/site/";
+  assert.deepEqual(parseStaticExportInput({ input: { publicUrl } }), { publicUrl });
+  assert.deepEqual(parseStaticExportInput({ input: { publicUrl, themeIds: ["none"] } }), { publicUrl, themeIds: ["none"] });
+  for (const input of [{ publicUrl: 7 }, { publicUrl: " " }, { jobId: "12345678-1234-1234-1234-123456789012", publicUrl }]) {
+    assert.throws(() => parseStaticExportInput({ input }), { code: "INVALID_INPUT" });
+  }
+});

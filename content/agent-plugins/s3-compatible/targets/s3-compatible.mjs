@@ -685,6 +685,10 @@ export function bindS3Compatible(kit) {
    * reporting a terminal status.
    */
   class S3CompatibleDeployTarget {
+      /** The operator supplied the bucket's public address; resolving it needs no storage call.
+       * @complexity O(1), no side effects.
+       */
+      async resolvePublicUrl(_required, _options = {}) { return this.config.publicUrl; }
       config;
       id = "s3-compatible";
       client;

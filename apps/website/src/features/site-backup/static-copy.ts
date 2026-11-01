@@ -14,9 +14,9 @@ export interface StaticSiteMetadata {
   /** Generated redirects are delivered, but are not pages/posts in the README count. */
   redirectFiles?: readonly string[];
 }
-export type StaticSiteCopy = { metadata: StaticSiteMetadata; filename: string; siteSlug?: string; themeId?: string; publicOrigin?: string; readme?: { name: string; words: string }; files: readonly { path: string; content: Buffer }[] } | { reason: string };
+export type StaticSiteCopy = { metadata: StaticSiteMetadata; filename: string; siteSlug?: string; themeId?: string; publicOrigin?: string; basePath?: string; readme?: { name: string; words: string }; files: readonly { path: string; content: Buffer }[] } | { reason: string };
 export interface StaticSitePorts {
-  render?: (required: { outputDir: string; clean: boolean; themeId?: string }) => Promise<ExportReport>;
+  render?: (required: { outputDir: string; clean: boolean; themeId?: string; publicUrl?: string }) => Promise<ExportReport>;
   context: () => Promise<{ name: string; slug: string; theme: string; themeId?: string; timeZone?: string }>;
   now: () => Date;
   /** Installed, valid themes only; copied once at static job start. */
@@ -105,11 +105,11 @@ function reportFiles({ report }: { report: ExportReport }, _options = {}) {
  * The publisher and CLI keep the renderer's original forms and layout.
  * @complexity O(export bytes + report entries), no effects.
  */
-export function prepareStaticReport({ report }: { report: ExportReport }, _options = {}): Pick<StaticSiteMetadata, "routes" | "redirectFiles" | "failed" | "skipped"> & { files: { path: string; content: Buffer }[]; publicOrigin?: string } {
+export function prepareStaticReport({ report }: { report: ExportReport }, _options = {}): Pick<StaticSiteMetadata, "routes" | "redirectFiles" | "failed" | "skipped"> & { files: { path: string; content: Buffer }[]; publicOrigin?: string; basePath?: string } {
   const downloads = downloadableFiles({ files: reportFiles({ report }), publicOrigin: report.publicOrigin,
     // The error document's route is the exporter's internal 404 probe; README names its file instead.
     pages: new Map(report.routes.succeeded.map(route => [route.outputFile, route.kind === "not-found" ? `/${route.outputFile}` : route.path])) });
-  return { files: downloads.files, publicOrigin: report.publicOrigin, routes: report.routes.succeeded.map(route => route.path),
+  return { files: downloads.files, publicOrigin: report.publicOrigin, basePath: report.basePath, routes: report.routes.succeeded.map(route => route.path),
     redirectFiles: report.routes.succeeded.filter(route => route.kind === "redirect").map(route => route.outputFile),
     failed: { routes: report.routes.failed, assets: report.assets.failed },
     skipped: { routes: report.skippedManifestEntries, assets: report.unreferencedThemeFiles, references: downloads.references } };
@@ -126,27 +126,27 @@ async function partialFiles({ outputDir }: { outputDir: string }, _options = {})
 }
 
 /** Render through the injected owner. A thrown render becomes a disclosed failure, retaining partial output. */
-async function renderCopy({ ports, outputDir, themeId }: { ports: StaticSitePorts; outputDir: string; themeId?: string }, _options = {}) {
+async function renderCopy({ ports, outputDir, themeId, publicUrl }: { ports: StaticSitePorts; outputDir: string; themeId?: string; publicUrl?: string }, _options = {}) {
   try {
-    const report = await ports.render!({ outputDir, clean: true, ...(themeId === undefined ? {} : { themeId }) });
+    const report = await ports.render!({ outputDir, clean: true, ...(publicUrl === undefined ? {} : { publicUrl }), ...(themeId === undefined ? {} : { themeId }) });
     return prepareStaticReport({ report });
   } catch (error) {
     const downloads = downloadableFiles({ files: await partialFiles({ outputDir }), pages: new Map() });
-    return { files: downloads.files, publicOrigin: undefined, routes: [], redirectFiles: [],
+    return { files: downloads.files, publicOrigin: undefined, basePath: undefined, routes: [], redirectFiles: [],
       failed: { routes: [{ path: "(export)", kind: "export", reason: String(error) }], assets: [] },
       skipped: { routes: [], assets: [], references: downloads.references } };
   }
 }
 
 /** Attach the stamp to a useful render; a 404 probe alone is not a renderable site. */
-async function stampedCopy({ ports, outputDir, themeId }: { ports: StaticSitePorts; outputDir: string; themeId?: string }, _options = {}): Promise<StaticSiteCopy> {
+async function stampedCopy({ ports, outputDir, themeId, publicUrl }: { ports: StaticSitePorts; outputDir: string; themeId?: string; publicUrl?: string }, _options = {}): Promise<StaticSiteCopy> {
   const context = await ports.context();
   const stamp = exportStamp({ date: ports.now(), timeZone: context.timeZone });
-  const rendered = await renderCopy({ ports, outputDir, themeId });
+  const rendered = await renderCopy({ ports, outputDir, themeId, publicUrl });
   if (!rendered.files.some(file => file.path !== "404.html" && /\.html$/i.test(file.path))) return { reason: rendered.failed.routes[0]?.reason ?? "The exporter produced no HTML pages." };
   const metadata: StaticSiteMetadata = { exportedAt: stamp.iso, theme: context.theme, routes: rendered.routes, failed: rendered.failed, skipped: rendered.skipped, redirectFiles: rendered.redirectFiles };
   const slug = shareFileStem({ name: context.name });
-  return { metadata, filename: `${slug}-static-${stamp.filename}.zip`, siteSlug: context.slug, themeId: context.themeId ?? context.theme, publicOrigin: rendered.publicOrigin, readme: { name: context.name, words: stamp.words },
+  return { metadata, filename: `${slug}-static-${stamp.filename}.zip`, siteSlug: context.slug, themeId: context.themeId ?? context.theme, publicOrigin: rendered.publicOrigin, basePath: rendered.basePath, readme: { name: context.name, words: stamp.words },
     files: [...rendered.files, { path: "README.txt", content: readmeText({ name: context.name, words: stamp.words, metadata, rendered }) }] };
 }
 
@@ -155,13 +155,13 @@ async function stampedCopy({ ports, outputDir, themeId }: { ports: StaticSitePor
  * Missing render support, render/cleanup errors or zero written pages cannot block a backup.
  * @complexity O(export bytes + report entries), buffered like the existing backup ZIP.
  */
-export async function captureStaticSite(ports: StaticSitePorts, { themeId }: { themeId?: string } = {}): Promise<StaticSiteCopy> {
+export async function captureStaticSite(ports: StaticSitePorts, { themeId, publicUrl }: { themeId?: string; publicUrl?: string } = {}): Promise<StaticSiteCopy> {
   if (!ports.render) return { reason: "Static exporter is unavailable in this context." };
   let outputDir: string | undefined;
   let copy: StaticSiteCopy;
   try {
     outputDir = await mkdtemp(path.join(tmpdir(), "tovu-static-copy-"));
-    copy = await stampedCopy({ ports, outputDir, themeId });
+    copy = await stampedCopy({ ports, outputDir, themeId, publicUrl });
   } catch (error) { copy = { reason: String(error) }; }
   try { if (outputDir) await rm(outputDir, { recursive: true, force: true }); }
   catch (error) { copy = { reason: `Static render cleanup failed: ${String(error)}` }; }

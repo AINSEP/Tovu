@@ -33,6 +33,9 @@ import type { ExportReport } from "../site-exporter.js";
  */
 
 /** Public identity fixture: development origins are deliberately omitted by static export. */
+/** Destination for tests that assert discovery files and canonical links; a domainless export omits them. */
+const PUBLIC_URL = "https://export.example.test";
+
 function createRouteDeps() {
   const deps = createSeededRouteDeps();
   deps.originRegistry.canonicalOrigin = async () => ({ scheme: "https", host: "export.example.test", source: "workspace-setting", verifiedAt: "2026-10-30T00:00:00Z" });
@@ -101,7 +104,7 @@ test("exportSite: --base-path unset leaves every written byte identical to a pla
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
 
-  const report = await exportSite({ routeDeps: createRouteDeps(), outputDir });
+  const report = await exportSite({ routeDeps: createRouteDeps(), outputDir, publicUrl: PUBLIC_URL });
 
   assert.equal(report.basePath, undefined);
   assert.equal(report.basePathRewriteWarning, undefined);
@@ -311,7 +314,8 @@ test("exportSite: --base-path rewrites HTML hrefs, leaves the already-absolute s
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
 
-  const report = await exportSite({ routeDeps: createRouteDeps(), outputDir, basePath: "my-repo" });
+  // A destination owns its prefix (a project Pages site): discovery URLs carry it once, as public URLs.
+  const report = await exportSite({ routeDeps: createRouteDeps(), outputDir, basePath: "my-repo", publicUrl: `${PUBLIC_URL}/my-repo` });
 
   assert.equal(report.basePath, "/my-repo", "a bare 'my-repo' flag value normalizes to a leading-slash, no-trailing-slash form");
   assert.ok(report.basePathRewriteWarning && report.basePathRewriteWarning.length > 0, "the disclosed limit must be reported whenever a base path is set");
@@ -333,10 +337,10 @@ test("exportSite: --base-path rewrites HTML hrefs, leaves the already-absolute s
   // absolute value UNTOUCHED rather than grafting `/my-repo` onto a foreign, fully-qualified URL that
   // was never part of this static export's own relative tree in the first place.
   const sitemap = readFileSync(path.join(outputDir, "sitemap.xml"), "utf8");
-  assert.match(sitemap, /<loc>https:\/\/export\.example\.test\/welcome<\/loc>/);
+  assert.match(sitemap, /<loc>https:\/\/export\.example\.test\/my-repo\/welcome<\/loc>/);
 
   const robots = readFileSync(path.join(outputDir, "robots.txt"), "utf8");
-  assert.match(robots, /^Sitemap: https:\/\/export\.example\.test\/sitemap\.xml$/m);
+  assert.match(robots, /^Sitemap: https:\/\/export\.example\.test\/my-repo\/sitemap\.xml$/m);
 
   // Idempotency/no-double-prefix, checked across EVERY route this export actually wrote — not one
   // hand-picked value — because a doubling bug in the shared prefixRootRelativePath helper would
@@ -369,7 +373,7 @@ test("exportSite: writes the expected file tree for the seeded demo workspace, w
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
 
-  const report = await exportSite({ routeDeps: createRouteDeps(), outputDir });
+  const report = await exportSite({ routeDeps: createRouteDeps(), outputDir, publicUrl: PUBLIC_URL });
 
   assert.deepEqual(report.routes.failed, []);
   // This was a bare `assert.equal(..., 19)` — route-manifest.test.ts's own count against this exact
@@ -436,7 +440,7 @@ test("exportSite: every succeeded route/asset carries its own bytes and content-
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
 
-  const report = await exportSite({ routeDeps: createRouteDeps(), outputDir });
+  const report = await exportSite({ routeDeps: createRouteDeps(), outputDir, publicUrl: PUBLIC_URL });
 
   const home = report.routes.succeeded.find((r) => r.path === "/");
   if (!home) throw new Error("expected a '/' route in routes.succeeded");
@@ -903,7 +907,7 @@ test("exportSite: an exact-match active redirect rule is exported as a static me
     },
   });
 
-  const report = await exportSite({ routeDeps: base, outputDir });
+  const report = await exportSite({ routeDeps: base, outputDir, publicUrl: PUBLIC_URL });
 
   const redirectFailure = report.routes.failed.find((r) => r.path === "/old-page");
   assert.equal(redirectFailure, undefined, `redirect route must not fail: ${JSON.stringify(redirectFailure)}`);
@@ -917,7 +921,7 @@ test("exportSite: an exact-match active redirect rule is exported as a static me
   assert.match(stub, /<meta name="referrer" content="strict-origin-when-cross-origin">/);
   assert.equal(stub, redirectSucceeded.data, "the succeeded entry's data must match the bytes actually written");
   assert.match(stub, /<meta http-equiv="refresh" content="0; url=\/welcome\?ref=export&amp;utm_source=redirect-test">/, "the redirect target must be HTML-escaped (& -> &amp;) into the meta refresh");
-  assert.match(stub, /<link rel="canonical" href="\/welcome\?ref=export&amp;utm_source=redirect-test">/);
+  assert.match(stub, /<link rel="canonical" href="https:\/\/export\.example\.test\/welcome\?ref=export&amp;utm_source=redirect-test">/);
   assert.match(stub, /Redirecting to <a href="\/welcome\?ref=export&amp;utm_source=redirect-test">/);
 });
 
@@ -977,7 +981,7 @@ test("exportSite: multi-segment exact active redirect rules are exported as stat
         tombstoned: false, actorId: "system", recordedAt: now },
     });
   }
-  const report = await exportSite({ routeDeps: base, outputDir });
+  const report = await exportSite({ routeDeps: base, outputDir, publicUrl: PUBLIC_URL });
   for (const { from, to } of redirects) {
     assert.equal(report.routes.failed.find(route => route.path === from), undefined);
     const succeeded = report.routes.succeeded.find(route => route.path === from);
@@ -986,8 +990,9 @@ test("exportSite: multi-segment exact active redirect rules are exported as stat
     assert.equal(succeeded.outputFile, path.join(from.slice(1), "index.html"));
     const stub = readFileSync(path.join(outputDir, from.slice(1), "index.html"), "utf8");
     assert.equal(stub, succeeded.data);
-    assert.ok(stub.includes(`<meta http-equiv="refresh" content="0; url=${to}">`));
-    assert.ok(stub.includes(`<link rel="canonical" href="${to}">`));
+    // Explicit messages: Node's generated assert.ok message re-parses this tsx-compiled file and pinned a CPU for 20+ min.
+    assert.ok(stub.includes(`<meta http-equiv="refresh" content="0; url=${to}">`), `${from} stub refresh: ${stub}`);
+    assert.ok(stub.includes(`<link rel="canonical" href="${PUBLIC_URL}${to}">`), `${from} stub canonical: ${stub}`);
   }
 });
 
@@ -1062,7 +1067,7 @@ test(`exportSite: a redirect stub safely renders ${target}`, async (t) => {
   }) as typeof fetch;
 
   try {
-    const report = await exportSite({ routeDeps: base, outputDir });
+    const report = await exportSite({ routeDeps: base, outputDir, publicUrl: PUBLIC_URL });
 
     const succeeded = report.routes.succeeded.find((r) => r.path === "/xss-fallback-probe");
     if (!succeeded) throw new Error(`expected /xss-fallback-probe in routes.succeeded: ${JSON.stringify(report.routes.failed)}`);
@@ -1529,8 +1534,10 @@ test("exportSite: explicit inactive theme owns its manifest, HTML and assets wit
   const before = await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId });
   // The seeded Home Page claims "/" with templateChoice "index", so it renders through the theme's
   // index.html; that template needs a content slot or "/" is "Template not configured", active or not.
-  const inactive: DiscoveredTheme = { ...deps.themes.find(theme => theme.status === "valid")!,
-    manifest: { ...deps.themes[0]!.manifest, id: "inactive-export", name: "Inactive", tier: "static", engine: 1, publishedPages: ["inactive-only"] },
+  // Copy the default theme by id: catalog order puts manifests without an index template first.
+  const starter = deps.themes.find(theme => theme.manifest.id === "tovu-starter" && theme.status === "valid")!;
+  const inactive: DiscoveredTheme = { ...starter,
+    manifest: { ...starter.manifest, id: "inactive-export", name: "Inactive", tier: "static", engine: 1, publishedPages: ["inactive-only"] },
     dir: themeDir, pages: { index: '<html><body>INACTIVE HOME<img src="/theme-assets/inactive-export/marker.svg"><div data-embed-config=\'{"type":"content"}\'></div></body></html>', "inactive-only": "<html><body>INACTIVE ONLY</body></html>" },
     partials: {}, css: "", status: "valid", errors: [] };
   writeFileSync(path.join(themeDir, "marker.svg"), '<svg xmlns="http://www.w3.org/2000/svg"><text>inactive asset</text></svg>');

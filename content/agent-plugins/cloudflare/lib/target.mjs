@@ -3,6 +3,7 @@ import { API_ROOT, createApi, refusal, segment, PAGES_PROJECTS_PAGING } from './
 import { prepareAssets } from './assets.mjs';
 import { previewDomains, assertDomainApproval, applyDomains } from './domains.mjs';
 import { normalizeDomain } from './zones.mjs';
+import { pagesAddress } from './pages-upload.mjs';
 import { formPageRoutes, formsWorkerParts, normalizeForms, previewForms, provisionForms } from './forms.mjs';
 
 const WORKERS_TARGET_ID = 'cloudflare-workers';
@@ -66,6 +67,11 @@ export function createTarget({ credential, config, kit, targetId, upload }, _opt
   const api = createApi({ credential, kit });
   return {
     id: targetId,
+    /** Read-only address resolution, sharing each variant's existing address owner. */
+    resolvePublicUrl: ({ projectName }, _options = {}) => {
+      const name = resourceName({ projectName, config, kit });
+      return targetId === WORKERS_TARGET_ID ? workersAddress({ api, kit, resourceName: name }) : Promise.resolve(pagesAddress({ resourceName: name }));
+    },
     async publish(input, options = {}) {
       const merged = { ...input, ...options };
       const name = resourceName({ projectName: input.projectName, config, kit });

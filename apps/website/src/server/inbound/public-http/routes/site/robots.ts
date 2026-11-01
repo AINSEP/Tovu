@@ -1,9 +1,10 @@
+import { seoForRequest } from "../../http/site/seo-render-context.js";
 import { buildRobots } from "@jini-ai/cms/seo";
 import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
 
 /** Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2) — same header,
  *  same reasoning as `pages.ts`'s own `CACHE_CONTROL_PUBLIC_PAGE` (see that file's doc): this route
- *  reads no per-request state beyond `deps`, so the body is identical for every visitor. */
+ *  uses the serving origin, so a cache must retain the request authority in its key. */
 const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";
 
 /**
@@ -11,11 +12,12 @@ const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=30
  * tasks.md T046).
  */
 export const registerSeoRobotsRoute: SeoRouteRegistrar = (app, deps) => {
-  app.get("/robots.txt", async (_req, res) => {
+  app.get("/robots.txt", async (req, res) => {
     try {
       await deps.seoReady;
+      const seoDeps = seoForRequest({ req, deps: deps.seoDeps });
       const policy = await buildRobots({
-        deps: deps.seoDeps,
+        deps: seoDeps,
         input: { workspaceId: deps.workspaceId },
       }, {});
       const lines: string[] = [];

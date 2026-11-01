@@ -27,11 +27,11 @@ export async function exportPublicOrigin({ registry, workspaceId }: { registry: 
  * its encoding. The ephemeral crawl origin and persisted dev origins need the same treatment.
  * @complexity O(body bytes), no requests or path/layout changes.
  */
-export function rewriteRenderOrigins({ body, renderOrigin, publicOrigin }: { body: string; renderOrigin: string; publicOrigin?: string }, _options = {}): string {
+export function rewriteRenderOrigins({ body, renderOrigin, publicOrigin, sourceOrigin }: { body: string; renderOrigin: string; publicOrigin?: string; sourceOrigin?: string }, _options = {}): string {
   return body.replace(/(?:\bhttps?:|(?<![:\w]))(?:\/\/|\\\/\\\/)(?:[^\s/"'<>\\()?#@]+@)?(?:\[[\da-f:.]+\]|[\w.-]+)(?::\d+)?/gi, (raw, offset: number) => {
     let parsed: URL;
     try { parsed = new URL(raw.replaceAll("\\/", "/"), renderOrigin); } catch { return raw; }
-    if (parsed.origin !== renderOrigin && !isRenderHost({ hostname: parsed.hostname })) return raw;
+    if (parsed.origin !== renderOrigin && parsed.origin !== sourceOrigin && !isRenderHost({ hostname: parsed.hostname })) return raw;
     const tail = body.slice(offset + raw.length, offset + raw.length + 2);
     const replacement = publicOrigin ?? (/^(?:\/|\\\/)/.test(tail) ? "" : "/");
     return raw.includes("\\/") ? replacement.replaceAll("/", "\\/") : replacement;
@@ -42,14 +42,14 @@ export function rewriteRenderOrigins({ body, renderOrigin, publicOrigin }: { bod
  * The copied response has no stale length/encoding headers after decoding and editing its body.
  * @complexity O(response text bytes), one buffered response and no additional fetch.
  */
-export async function rewriteExportOriginResponse({ response, url, publicOrigin }: { response: Response; url: string; publicOrigin?: string }, _options = {}): Promise<Response> {
+export async function rewriteExportOriginResponse({ response, url, publicOrigin, sourceOrigin }: { response: Response; url: string; publicOrigin?: string; sourceOrigin?: string }, _options = {}): Promise<Response> {
   const headers = new Headers(response.headers);
   const location = headers.get("location");
   const renderOrigin = new URL(url).origin;
-  if (location) headers.set("location", rewriteRenderOrigins({ body: location, renderOrigin, publicOrigin }));
+  if (location) headers.set("location", rewriteRenderOrigins({ body: location, renderOrigin, publicOrigin, sourceOrigin }));
   if (response.body === null) return new Response(null, { status: response.status, statusText: response.statusText, headers });
   if (!/^(?:text\/|image\/svg\+xml\b|application\/(?:[\w.+-]*\+)?(?:json|xml|javascript)\b)/i.test(headers.get("content-type") ?? "")) return response;
-  let body = rewriteRenderOrigins({ body: await response.text(), renderOrigin, publicOrigin });
+  let body = rewriteRenderOrigins({ body: await response.text(), renderOrigin, publicOrigin, sourceOrigin });
   if (!publicOrigin && new URL(url).pathname === "/robots.txt") body = body.replace(/^[\t ]*Sitemap:[^\r\n]*(?:\r?\n|$)/gim, "");
   headers.delete("content-length");
   headers.delete("content-encoding");

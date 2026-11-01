@@ -2,9 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  foldPageHead,
-  registerPageHeadContributor,
-  resetPageHeadRegistry,
+  foldPageHead as fold,
   serializeHeadElements,
   type HeadElement,
   type PageHeadContext,
@@ -25,9 +23,10 @@ const ctx: PageHeadContext = {
   siteTitle: "Example Site",
 };
 
-test.beforeEach(() => {
-  resetPageHeadRegistry();
-});
+let contributors: PageHeadHook[] = [];
+test.beforeEach(() => { contributors = []; });
+function registerPageHeadContributor(hook: PageHeadHook) { contributors.push(hook); }
+function foldPageHead(ctx: PageHeadContext) { return fold(ctx, { contributors }); }
 
 function hook(priority: number, elements: HeadElement[], opts: { throws?: boolean } = {}): PageHeadHook {
   return {

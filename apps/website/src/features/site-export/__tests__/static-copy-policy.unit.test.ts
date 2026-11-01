@@ -66,7 +66,7 @@ async function assertNoRenderOrigins({ outputDir }: { outputDir: string }, _opti
 
 test("configured public origin replaces every render origin; exporter layout and root links stay pinned", async t => {
   const { deps, outputDir } = await fixture({ t });
-  const report = await exportSite({ routeDeps: deps, outputDir, includeThemePreviews: false });
+  const report = await exportSite({ routeDeps: deps, outputDir, includeThemePreviews: false, publicUrl: "https://public.example.test" });
   assert.deepEqual(report.routes.failed, []);
   assert.deepEqual(report.assets.failed, []);
   await assertNoRenderOrigins({ outputDir });

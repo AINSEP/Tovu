@@ -1,7 +1,7 @@
 import { sharePathAlias, validateSharePath } from "./share-file-policy.js";
 import { SiteShareRefusal } from "./share-policy.js";
 
-export interface StaticExportInput { jobId?: string; themeIds?: readonly string[] }
+export interface StaticExportInput { jobId?: string; themeIds?: readonly string[]; publicUrl?: string }
 export interface StaticExportTheme { themeId: string; name: string }
 export interface StaticExportOptions { activeThemeId: string; themes: readonly StaticExportTheme[] }
 
@@ -12,18 +12,25 @@ export interface StaticExportOptions { activeThemeId: string; themes: readonly S
 export function parseStaticExportInput({ input }: { input: unknown }, _options = {}): StaticExportInput {
   if (typeof input !== "object" || input === null || Array.isArray(input)) invalidInput();
   const raw = input as Record<string, unknown>;
-  if (Object.keys(raw).some(key => !["jobId", "themeIds"].includes(key))) invalidInput();
+  if (Object.keys(raw).some(key => !["jobId", "themeIds", "publicUrl"].includes(key))) invalidInput();
   if (raw.jobId !== undefined) {
     return { jobId: readStaticJobId({ input: raw }) };
   }
-  if (raw.themeIds === undefined) return {};
-  const themeIds = readThemeIds({ value: raw.themeIds });
-  return { themeIds };
+  const publicUrl = readPublicUrl({ value: raw.publicUrl });
+  const themeIds = raw.themeIds === undefined ? undefined : readThemeIds({ value: raw.themeIds });
+  return { ...(themeIds === undefined ? {} : { themeIds }), ...(publicUrl === undefined ? {} : { publicUrl }) };
+}
+
+/** Only parse the input shape here; the existing export-origin owner validates the destination. */
+function readPublicUrl({ value }: { value: unknown }, _options = {}): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !value.trim()) invalidInput();
+  return value;
 }
 
 /** A resume cannot change the selection that the job already captured. */
 function readStaticJobId({ input }: { input: Record<string, unknown> }, _options = {}): string {
-  if (typeof input.jobId !== "string" || !/^[0-9a-f-]{36}$/.test(input.jobId) || input.themeIds !== undefined) invalidInput();
+  if (typeof input.jobId !== "string" || !/^[0-9a-f-]{36}$/.test(input.jobId) || input.themeIds !== undefined || input.publicUrl !== undefined) invalidInput();
   return input.jobId as string;
 }
 

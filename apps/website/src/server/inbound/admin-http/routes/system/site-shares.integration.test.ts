@@ -73,8 +73,10 @@ test("HTTP and tool selected exports deliver inactive HTML and shared public med
   const before = await deps.presentationRepo.findByWorkspaceId({ workspaceId: deps.workspaceId });
   const { media } = await uploadMedia({ deps: { clock: deps.clock, idGen: deps.idGen, mediaRepo: deps.mediaRepo, blobRepo: deps.assetBlobRepo, renditionRepo: deps.assetRenditionRepo, blobStore: deps.blobStore },
     input: { workspaceId: deps.workspaceId, filename: "export-shared.svg", contentType: "image/svg+xml", bytes: new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><rect width="1" height="1"/></svg>'), createdByPrincipal: ownerPrincipalId } });
-  const original = deps.themes.find(theme => theme.status === "valid")!;
-  // The seeded Home Page claims "/" through the theme's index.html, which needs a content slot.
+  // The seeded Home Page claims "/" through the theme's "index" template, which needs a content slot.
+  // Copy the active theme's manifest: the first valid catalog theme may declare no templates at all,
+  // and a Page then renders in generic chrome (isEligibleForTemplateBranch), never through index.html.
+  const original = deps.themes.find(theme => theme.manifest.id === activeThemeId)!;
   const themes = [activeThemeId, "inactive-picker"].map(id => ({ ...original, dir: directory,
     manifest: { ...original.manifest, id, tier: "static" as const, engine: 1 as const, publishedPages: ["theme-only"] },
     pages: { index: `<html><body>${id} HOME<img src="/m/${media.slug}/original.svg"><div data-embed-config='{"type":"content"}'></div></body></html>`, "theme-only": `<html><body>${id} ONLY</body></html>` }, partials: {}, css: "" }));

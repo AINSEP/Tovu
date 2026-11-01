@@ -906,6 +906,8 @@ export interface SettingsDeps {
   seoReady: Promise<void>;
   /** Host policy/ports for the sole Jini SEO evaluator; shared by routes, tools and head. */
   seoDeps: SeoHostBindings;
+  /** Extra head contributors belong to this app; the SEO contributor is constructed per render. */
+  pageHeadContributors?: readonly import("../inbound/public-http/http/site/page-head.js").PageHeadHook[];
   /** Per composed app, workspace-keyed cache/hooks/expiry; all invalidators use this instance. */
   sitemapService: ReturnType<typeof createSitemapService>;
   /**
@@ -1709,7 +1711,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `{ ...deps, createSiteApp: fake }` creates a different object while the original closure
    * still reads the original deps. Direct field reads outside the closure are unaffected.
    */
-  exportSiteBound: (options: { outputDir: string; clean?: boolean; basePath?: string; includeThemePreviews?: boolean; themeId?: string }) => Promise<ExportReport>;
+  exportSiteBound: (options: { outputDir: string; clean?: boolean; basePath?: string; publicUrl?: string; includeThemePreviews?: boolean; themeId?: string }) => Promise<ExportReport>;
 };
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;

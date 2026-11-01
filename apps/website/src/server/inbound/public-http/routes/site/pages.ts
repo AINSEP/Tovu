@@ -1,3 +1,5 @@
+import { seoForRequest } from "../../http/site/seo-render-context.js";
+import { createSeoPageHeadHook } from "#src/features/seo/page-head-contributor";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import { renderCommentsMarkers } from '#src/features/comments/index';
 import { renderPluginWidgetPartials } from "#src/features/plugin-runtime/widget-partials";
@@ -133,13 +135,13 @@ async function buildExtraHead(
   const canonical = post
     ? (await urlFor({ deps: { postRepo: deps.postRepo }, target: { kind: "entryRef", entryId: post.id, contentType: post.kind }, ctx: { workspaceId: deps.workspaceId } }))?.canonicalUrl
     : undefined;
-  const origin = await resolveWorkspaceOrigin({ originRegistry: deps.originRegistry, workspaceId: deps.workspaceId, runtimeMode: deps.seoDeps.runtimeMode }, {});
+  const origin = deps.seoDeps.renderBaseUrl ? undefined : await resolveWorkspaceOrigin({ originRegistry: deps.originRegistry, workspaceId: deps.workspaceId, runtimeMode: deps.seoDeps.runtimeMode }, {});
 
   const ctx: PageHeadContext = {
     workspaceId: deps.workspaceId,
     route,
     siteTitle,
-    canonicalUrl: toAbsoluteUrl({ origin, path: canonical ?? (post ? postPublicPath({ slug: post.slug }) : canonicalFallbackPath) }, {}),
+    canonicalUrl: toAbsoluteUrl({ origin, baseUrl: deps.seoDeps.renderBaseUrl, path: canonical ?? (post ? postPublicPath({ slug: post.slug }) : canonicalFallbackPath) }, {}),
     entry: post
       ? {
           id: post.id,
@@ -153,7 +155,9 @@ async function buildExtraHead(
       : undefined,
   };
 
-  const elements = await foldPageHead(ctx);
+  // Contributors close over this render only; another app/export cannot replace their dependencies.
+  const seoHook = createSeoPageHeadHook({ deps: deps.seoDeps, rootSlug: deps.seoDeps.rootSlug, siteTitle: deps.seoDeps.siteTitle });
+  const elements = await foldPageHead(ctx, { contributors: [seoHook, ...(deps.pageHeadContributors ?? [])] });
   return serializeHeadElements(elements);
 }
 
@@ -2703,6 +2707,7 @@ function pluginExportSession({ deps, req }: { deps: RouteDeps; req: Request }, _
 
 /** `deps` for this request, carrying its see-more batch request (if any) down to the listing render. */
 function withListingBatch<T extends RouteDeps>(deps: T, req: Request): T & Pick<TemplateRenderDeps, "listingBatch" | "listingPage"> {
+  deps = { ...deps, seoDeps: seoForRequest({ req, deps: deps.seoDeps }) };
   const listingBatch = listingBatchRequests.get(req);
   const listingPage = listingPageRequests.get(req)?.page;
   const pluginExportRender = pluginExportSession({ deps, req });
@@ -2902,6 +2907,7 @@ async function serveStaticThemeIndex({ req, res, deps, theme, staticMenus, extra
 export async function serveVirtualPage({ req, res, deps, post }: {
   req: Request; res: Response; deps: RouteDeps; post: PostRecord;
 }): Promise<void> {
+  deps = { ...deps, seoDeps: seoForRequest({ req, deps: deps.seoDeps }) };
   const [activeThemeId, siteAssistantEnabled] = await Promise.all([
     resolveRenderThemeId(res, deps),
     resolveSiteAssistantWidgetForRequest({ request: req, deps }),

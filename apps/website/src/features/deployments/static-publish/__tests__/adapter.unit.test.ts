@@ -309,9 +309,9 @@ test("publishStaticSite: an asset that fails to export blocks publishing, the sa
 
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
-      buildTarget: () => {
-        throw new Error("buildTarget must not be called when the export had a failed asset");
-      },
+      // The target is built before export so it can name its public URL; it must never upload.
+      buildTarget: () => ({ id: "fake", publish: async () => { throw new Error("publish must not be called when the export had a failed asset"); },
+        checkReachability: async () => ({ reachable: false }) }),
     },
     {
       workspaceId: deps.workspaceId,
@@ -680,9 +680,9 @@ test("publishStaticSite: exportSiteBound itself throwing (not merely returning f
   let runDir: string | undefined;
   const result = await publishStaticSite({ loadDeployTargets: hermeticDeployTargets,
       credentialSource: { async resolve() { return { ok: true, token: "synthetic-publish-token" }; }, async isConfigured() { return { configured: true }; } },
-      buildTarget: () => {
-        throw new Error("buildTarget must not be called when exportSiteBound itself threw");
-      },
+      // The target is built before export so it can name its public URL; it must never upload.
+      buildTarget: () => ({ id: "fake", publish: async () => { throw new Error("publish must not be called when exportSiteBound itself threw"); },
+        checkReachability: async () => ({ reachable: false }) }),
     },
     {
       workspaceId: deps.workspaceId,

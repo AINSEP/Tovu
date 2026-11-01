@@ -215,6 +215,8 @@ test("the REAL plugin Vercel module, fed through the adapter, posts exactly one 
       return json(200, { id: "dpl_1", readyState: "QUEUED", url: "demo.vercel.app" });
     }
     if (url.includes("/v13/deployments/dpl_1")) return json(200, { id: "dpl_1", readyState: "READY", url: "demo-abc123.vercel.app", alias: ["demo.vercel.app"] });
+    // resolvePublicUrl reads the project's verified production domain before the export renders.
+    if (url.includes("/v9/projects/demo/domains")) return json(200, { domains: [{ name: "demo.vercel.app", verified: true }] });
     if (url.startsWith("https://demo.vercel.app")) return new Response("", { status: 200 });
     // The per-deployment URL is behind Deployment Protection.
     if (url.startsWith("https://demo-abc123.vercel.app")) return new Response("", { status: 302, headers: { location: "https://vercel.com/sso-api" } });

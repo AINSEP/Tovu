@@ -125,8 +125,20 @@ export function bindVercel(kit) {
   class VercelDeployTarget {
       config;
       id = VERCEL_TARGET_ID;
+      resolvedProjectName;
+      resolvedPublicUrl;
       constructor(config) {
           this.config = config;
+      }
+      /** Resolve the host-assigned production domain before rendering. A first publish creates
+       * the same project publish() would create, then reads its actual alias (names may collide).
+       * @complexity At most three bounded API calls, at most 100 domain records; no file uploads.
+       * @throws DeployError for refused/ambiguous inventories; never fabricates a public URL.
+       */
+      async resolvePublicUrl({ projectName }, _options = {}) {
+          this.resolvedProjectName = safeVercelProjectName(projectName);
+          this.resolvedPublicUrl = await resolveVercelPublicUrl({ config: this.config, name: this.resolvedProjectName });
+          return this.resolvedPublicUrl;
       }
       /**
        * Publishes `input.files` as a new Vercel deployment and waits for the
@@ -147,13 +159,13 @@ export function bindVercel(kit) {
           }
           const { refs, blobs } = vercelFileManifest(withVercelConfigFile(input.files, input.responseHeaders));
           await uploadVercelFiles(this.config, blobs, [...blobs.keys()]);
-          const name = safeVercelProjectName(input.projectName);
+          const name = this.resolvedProjectName ?? safeVercelProjectName(input.projectName);
           const created = await createUploadedVercelDeployment({ config: this.config, name, refs, blobs });
           const fallbackId = typeof created.uid === 'string' ? created.uid : undefined;
           const deploymentId = typeof created.id === 'string' ? created.id : fallbackId;
           const initialUrl = deploymentUrl(created);
           const ready = await readyVercelDeployment({ config: this.config, deploymentId, created });
-          const link = await publicVercelLink({ name, ready, created, initialUrl });
+          const link = await publicVercelLink({ name, ready, created, initialUrl, publicUrl: this.resolvedPublicUrl });
           return {
               targetId: this.id,
               url: link.url || deploymentUrl(ready) || initialUrl,
@@ -170,6 +182,53 @@ export function bindVercel(kit) {
               protectedMessage: VERCEL_PROTECTED_MESSAGE,
           });
       }
+  }
+  /** Read the provider's production-only, verified, nonredirecting domains. Refuse a partial
+   * inventory rather than select a different canonical URL on different pages of the result.
+   * @complexity One bounded request; response limited to 100 records by the provider.
+   */
+  async function readPublicDomains({ config, name }, _options = {}) {
+      const url = new URL(`${VERCEL_API}/v9/projects/${encodeURIComponent(name)}/domains${vercelTeamQuery(config)}`);
+      for (const [key, value] of Object.entries({ production: 'true', redirects: 'false', verified: 'true', limit: '100' })) url.searchParams.set(key, value);
+      return fetchWithTimeout(url.href, redirectGuardInit({ method: 'GET', headers: { Authorization: `Bearer ${config.token}` } }), { timeoutMs: FETCH_TIMEOUT_MS.QUICK });
+  }
+  /** Provision only after an authoritative not-found response; permission/network failures never create.
+   * @complexity One POST with the same project name and framework as the existing publish request.
+   */
+  async function createPublicProject({ config, name }, _options = {}) {
+      const response = await fetchWithTimeout(`${VERCEL_API}/v11/projects${vercelTeamQuery(config)}`, redirectGuardInit({
+          method: 'POST', headers: { Authorization: `Bearer ${config.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ name, framework: null }),
+      }), { timeoutMs: FETCH_TIMEOUT_MS.QUICK });
+      assertNotRedirected(response, 'Vercel project creation');
+      const body = await readVercelJson(response);
+      if (!response.ok) throw vercelError(body, response.status);
+  }
+  /** Actual domain evidence, never a name-derived hostname; preparation stays inside this provider.
+   * @complexity At most three API requests and O(domains), capped at 100; errors propagate.
+   */
+  async function resolveVercelPublicUrl({ config, name }, _options = {}) {
+      if (!config.token) throw new DeployError('Vercel token is required.', 400);
+      let response = await readPublicDomains({ config, name });
+      if (response.status === 404) {
+          await response.body?.cancel();
+          await createPublicProject({ config, name });
+          response = await readPublicDomains({ config, name });
+      }
+      assertNotRedirected(response, 'Vercel public domain lookup');
+      const body = await readVercelJson(response);
+      if (!response.ok) throw vercelError(body, response.status);
+      return publicDomainUrl({ body, name });
+  }
+  /** Select a complete, bounded inventory. Missing evidence is a refusal, never a guessed alias.
+   * @complexity O(domains), capped at 100 records; pure, throws DeployError for missing evidence.
+   */
+  function publicDomainUrl({ body, name }, _options = {}) {
+      const entries = Array.isArray(body.domains) ? body.domains : [];
+      if (body.pagination?.next != null || entries.length > 100) throw new DeployError('Public domain inventory exceeds 100 domains; choose a smaller destination.', 400);
+      const domains = entries.filter(domain => domain.verified === true && !domain.redirect && !domain.gitBranch && typeof domain.name === 'string');
+      const domain = domains.find(domain => domain.name === `${name}.vercel.app`) ?? domains[0];
+      if (!domain) throw new DeployError('Vercel did not report a verified public domain for this project.', 400);
+      return `https://${domain.name}`;
   }
   async function createUploadedVercelDeployment({ config, name, refs, blobs }, _options = {}) {
       // `target: "production"`: without it Vercel makes a preview deployment, and only a project's
@@ -213,8 +272,9 @@ export function bindVercel(kit) {
       }
       return ready;
   }
-  async function publicVercelLink({ name, ready, created, initialUrl }, _options = {}) {
-      const candidates = deploymentUrlCandidates(`${name}.vercel.app`, ready, created);
+  async function publicVercelLink({ name, ready, created, initialUrl, publicUrl }, _options = {}) {
+      const aliases = deploymentUrlCandidates(`${name}.vercel.app`, ready, created);
+      const candidates = publicUrl ? [publicUrl, ...aliases.filter(alias => alias !== publicUrl)] : aliases;
       let link = await waitForReachableDeploymentUrl(candidates.length ? candidates : [initialUrl], {
           providerLabel: 'Vercel',
           detectProtected: isVercelProtectedResponse,

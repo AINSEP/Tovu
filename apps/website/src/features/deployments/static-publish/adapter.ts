@@ -249,7 +249,7 @@ export type StaticPublishFormDestinationPort = FormReceiverPort;
  * "duplicate the tiny type, never share across features" convention that file's own doc documents,
  * and the same one this file already followed for `OWNER_PATTERN`/`REPO_PATTERN`/`BRANCH_PATTERN`.
  */
-export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string }) => Promise<ExportReport>;
+export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string; publicUrl?: string }) => Promise<ExportReport>;
 
 export interface StaticPublishInput {
   /** Authenticated caller attribution, supplied by the HTTP/tool adapter, never publish config. */
@@ -350,11 +350,15 @@ async function resolvePublishCredentialForSite(
 async function runExportForPublish(
   input: StaticPublishInput,
   outputDir: string,
-  basePath: string | undefined
+  basePath: string | undefined,
+  target: DeployTarget,
 ): Promise<{ ok: true; report: ExportReport } | { ok: false; outcome: StaticPublishOutcome }> {
   let report: ExportReport;
   try {
-    report = await input.exportSiteBound({ outputDir, clean: true, ...(basePath !== undefined ? { basePath } : {}) });
+    const publicUrl = await target.resolvePublicUrl?.({ projectName: input.projectName }, {});
+    // Render for the destination, never the local site's saved domain. A target that cannot name its
+    // URL gets the domainless copy (no canonical, sitemap or feed), the same as a download without one.
+    report = await input.exportSiteBound({ outputDir, clean: true, ...(basePath !== undefined ? { basePath } : {}), ...(publicUrl ? { publicUrl } : {}) });
   } catch (err) {
     cleanupPublishRunDir(outputDir);
     return {
@@ -504,18 +508,16 @@ async function publishStaticSiteSteps(deps: StaticPublishDeps, input: StaticPubl
     return { ok: false, code: "INVALID_CONFIG", message: "CREDENTIAL_CHANGED: The connection changed after domain review. Preview and confirm again before publishing." };
   }
 
-  const outputDir = publishOutputDir(input.publishOutputRootDir, input.config.target, input.idGen.newId());
-  const exportResult = await runExportForPublish(input, outputDir, plan.basePath);
-  if (!exportResult.ok) {
-    return exportResult.outcome;
-  }
-
-  const files = buildDeployFilesForPublish(exportResult.report);
   const resolvedCredential = toDeployTargetCredential(credentialResult.credential);
   const targetResult = constructTargetForPublish(deps, plan.target, input.config, resolvedCredential);
   if (!targetResult.ok) {
     return targetResult.outcome;
   }
+
+  const outputDir = publishOutputDir(input.publishOutputRootDir, input.config.target, input.idGen.newId());
+  const exportResult = await runExportForPublish(input, outputDir, plan.basePath, targetResult.target);
+  if (!exportResult.ok) return finishPublishOutcome({ outcome: exportResult.outcome, credential: credentialResult.credential, target: plan.target });
+  const files = buildDeployFilesForPublish(exportResult.report);
 
   const forms = await prepareFormDestination({ deps, input });
   if (!forms.ok) return forms.outcome;
@@ -597,6 +599,7 @@ async function resolvePublishPlan(deps: StaticPublishDeps, input: StaticPublishI
 export function adaptInstalledTarget(installedTarget: HostDeployTarget): DeployTarget {
   return {
     id: installedTarget.id,
+    ...(installedTarget.resolvePublicUrl ? { resolvePublicUrl: (required: { projectName: string }) => installedTarget.resolvePublicUrl!(required, {}) } : {}),
     publish: (required, optional) => installedTarget.publish({ ...required, ...optional }),
     checkReachability: ({ url }) => installedTarget.checkReachability(url),
   };

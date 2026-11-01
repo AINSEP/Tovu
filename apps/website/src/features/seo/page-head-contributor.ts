@@ -3,8 +3,8 @@ import { withCoverReadDeps } from "./cover-image.js";
 
 /**
  * @file SEO's host PageHeadHook (ADR-PIPE-008 Decision, C-003). Ordered descriptor production
- * lives in Jini/packages/cms/src/seo/page-head.ts. Registered once at app boot into the
- * core-owned page-head registry, never imported directly by render.ts.
+ * lives in Jini/packages/cms/src/seo/page-head.ts. Bound per render to its own SEO
+ * dependencies, then passed to the core-owned fold; never imported directly by render.ts.
  */
 
 /** Default contributor-level priority (irrelevant with a single v1 contributor; kept explicit for future ones). */

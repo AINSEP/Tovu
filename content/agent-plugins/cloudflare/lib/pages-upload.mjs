@@ -1,6 +1,9 @@
 import { refusal, segment } from './api.mjs';
 import { chunkUploads } from './assets.mjs';
 
+/** Pages' stable project address, shared by render preparation and upload results. O(name bytes). */
+export function pagesAddress({ resourceName }, _options = {}) { return `https://${resourceName}.pages.dev`; }
+
 /** Retains project names, upload tokens, hash dedup/upsert and config-file form fields.
  * Root _headers/_redirects must be deployment fields: uploading them as assets serves them publicly
  * and never applies their rules (the Wrangler Pages deploy protocol does the same split).
@@ -22,7 +25,7 @@ export async function uploadPages({ api, kit, resourceName, prepared }, _options
   form.append('branch', 'main');
   for (const [name, data] of Object.entries(prepared.config)) form.append(name, new File([data], name));
   const deployment = await api.request({ path: `${path}/deployments`, method: 'POST', body: form }, { timeoutMs: kit.timeouts.DEPLOY });
-  return { url: `https://${resourceName}.pages.dev`, deploymentId: deployment.id };
+  return { url: pagesAddress({ resourceName }), deploymentId: deployment.id };
 }
 
 async function ensureProject({ api, path, resourceName }, _options = {}) {

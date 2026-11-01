@@ -97,6 +97,21 @@ export function bindGitHubPages(kit) {
       constructor(config) {
           this.config = config;
       }
+      /** Existing Pages sites can use a custom domain; read it before rendering. A new site has
+       * GitHub's fixed owner/repository address until its first Pages branch exists.
+       * @complexity One bounded read, no branch writes or Pages provisioning.
+       */
+      async resolvePublicUrl(_required, _options = {}) {
+          const { owner, repo } = this.config;
+          const response = await fetchWithTimeout(`${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/pages`, redirectGuardInit({ headers: githubHeaders(this.config.token) }), { timeoutMs: FETCH_TIMEOUT_MS.QUICK });
+          assertNotRedirected(response, 'GitHub Pages public URL lookup');
+          const body = await readGitHubJson(response);
+          if (response.status === 404) return `https://${owner.toLowerCase()}.github.io${repo.toLowerCase() === `${owner.toLowerCase()}.github.io` ? '' : `/${repo}`}`;
+          if (!response.ok) throw githubError(body, response.status, 'GitHub Pages site lookup failed.');
+          const url = githubPagesUrlCandidates(body)[0];
+          if (!url) throw new DeployError('GitHub Pages did not report a public URL.', 502);
+          return url;
+      }
       /**
        * Publishes `input.files` as a new commit on the configured Pages branch
        * (creating the branch if it doesn't exist yet), ensures the repository's

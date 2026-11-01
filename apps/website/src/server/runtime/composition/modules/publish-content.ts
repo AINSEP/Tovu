@@ -34,10 +34,10 @@ import type { ServerModuleHandle } from "./types.js";
  * `installFirstPartyPublishContentTypes()` — nothing before this module called it, so `post`/`page` were
  * registered contributors that no code path ever read.
  *
- * `installFirstPartyPublishContentTypes()` runs once per `createApp()` call, mirroring
- * `resetPageHeadRegistry()`'s call at the top of `createApp()` for the same class of problem: a
+ * `installFirstPartyPublishContentTypes()` runs once per `createApp()` call, for the class of problem
+ * the former page-head registry reset solved (page-head contributors are now passed per render): a
  * process-wide registry that a hermetic-composition test may rebuild many times per process. Unlike
- * that registry, this one needs no matching RESET here — `registerPublishContentContributor`
+ * that registry, this one needs no RESET here — `registerPublishContentContributor`
  * (Task 2) already replaces by `entityType` key rather than appending, so repeated calls across many
  * `createApp()` invocations never accumulate duplicates, and each registered contributor's `build()`
  * is resolved fresh against the CURRENT request's deps (`routes/publish-content/deps.ts`'s shared

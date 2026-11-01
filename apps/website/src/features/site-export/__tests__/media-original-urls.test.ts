@@ -102,7 +102,7 @@ for (const basePath of [undefined, "/preview"]) {
     app.use(createApp(deps));
     const outputDir = mkdtempSync(path.join(tmpdir(), "tovu-original-ext-"));
     try {
-      const report = await exportSite({ routeDeps: { ...deps, themes: [], listPublishedPosts: async () => ({ posts: [] }), resolveStorefrontProducts: async () => [], createSiteApp: () => app }, outputDir, ...(basePath ? { basePath } : {}) });
+      const report = await exportSite({ routeDeps: { ...deps, themes: [], listPublishedPosts: async () => ({ posts: [] }), resolveStorefrontProducts: async () => [], createSiteApp: () => app }, outputDir, publicUrl: `https://export.example.test${basePath ?? ""}` });
       assert.deepEqual(report.routes.failed, []);
       assert.deepEqual(report.assets.failed, []);
       const read = (file: string) => readFileSync(path.join(outputDir, file), "utf8");

@@ -73,13 +73,37 @@ function jsonLdEdit({ node, html }: { node: Element; html: string }, _options = 
   } catch { return { ...location, text: "" }; }
 }
 
+/** Public metadata can be relative when a legacy loopback origin has been treated as unset.
+ * Resolve it against this copy's trusted destination; preserve explicit external overrides.
+ * @complexity O(attribute bytes), pure; source edits preserve the remainder of the document.
+ */
+function identityAttribute({ node }: { node: Element }, _options = {}): "href" | "content" | undefined {
+  if (node.tagName === "link" && attribute({ node, name: "rel" })?.toLowerCase() === "canonical") return "href";
+  if (node.tagName !== "meta") return undefined;
+  const property = attribute({ node, name: "property" }) ?? attribute({ node, name: "name" });
+  return property?.toLowerCase() === "og:url" ? "content" : undefined;
+}
+
+/** Make only root-relative identity attributes absolute; source offsets leave theme bytes intact. */
+function publicIdentityEdit({ node, publicOrigin }: { node: Element; publicOrigin: string }, _options = {}): Edit | undefined {
+  const key = identityAttribute({ node });
+  if (key === undefined) return undefined;
+  const value = attribute({ node, name: key }) ?? "";
+  const location = node.sourceCodeLocation?.attrs?.[key];
+  if (!location || !/^\/(?!\/)/.test(value)) return undefined;
+  return { ...location, text: `${key}="${escapeHtml(publicOrigin + value)}"` };
+}
+
 /** Reuse WebMCP's exact opt-out owner; leave all theme-owned data attributes alone.
  * Without public identity remove canonical/OG identity and JSON-LD url/@id, without serializing HTML.
  * @complexity O(HTML bytes + edits log edits), no I/O.
  */
 export function exportHtml({ html, publicOrigin }: { html: string; publicOrigin?: string }, _options = {}): string {
   html = injectPublishedWebMcp({ html, enabled: false });
-  if (publicOrigin) return html;
+  if (publicOrigin) {
+    const edits = elements({ html }).map(node => publicIdentityEdit({ node, publicOrigin })).filter(edit => edit !== undefined);
+    return editedHtml({ html, edits });
+  }
   const edits: Edit[] = [];
   for (const node of elements({ html })) {
     if (omittedMetadata({ node }) && node.sourceCodeLocation) edits.push({ ...node.sourceCodeLocation, text: "" });

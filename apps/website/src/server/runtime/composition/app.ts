@@ -51,8 +51,6 @@ import { createNoopObservabilityPort } from "#src/platform/observability/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { SITEMAP_INVALIDATED_EVENT, createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps, ensureSeoSettingDefinitions, type EnsureSeoSettingDefinitionsDeps } from "#src/features/seo/index";
-import { createSeoPageHeadHook } from "#src/features/seo/page-head-contributor";
-import { registerPageHeadContributor, resetPageHeadRegistry } from "../../inbound/public-http/http/site/page-head.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
 import type { RedirectRecord } from "@jini-ai/cms/redirects";
@@ -1934,14 +1932,6 @@ function registerAdminSpa({ app, routeDeps }: { app: Express; routeDeps: RouteDe
 }
 
 export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps(), options: CreateAppOptions = {}) {
-  // `page-head.ts`'s `contributors` registry is a process-wide singleton, but `createApp()` still
-  // runs more than once per process: every test that calls it directly, and every
-  // `routeDeps.createSiteApp()` the exporter and site-inspection make. Resetting here — before this
-  // invocation registers its own SEO `page.head` hook below — keeps the registry scoped to
-  // whichever `createApp()` call runs most recently, so a stale seeded hook can never keep folding
-  // into a live request's `<head>` alongside the real one. See `resetPageHeadRegistry`'s own doc for
-  // the full trace.
-  resetPageHeadRegistry();
   const app = express();
   const internalRouter = express.Router();
   applyPublicMiddleware({ app, routeDeps, internalRouter }, options);
@@ -1949,16 +1939,6 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
 
   // Once per bus, not once per createApp call: see `subscribeSiteEventHandlersOnce`.
   subscribeSiteEventHandlersOnce(routeDeps);
-
-  // SPEC-008 (ADR-PIPE-008 Decision §2/§3, T009) — SEO's `page.head` contributor, registered once
-  // at boot into the core-owned `page-head.ts` registry (never imported directly by `render.ts`).
-  registerPageHeadContributor(
-    createSeoPageHeadHook({
-      deps: routeDeps.seoDeps,
-      rootSlug: routeDeps.seoDeps.rootSlug,
-      siteTitle: routeDeps.seoDeps.siteTitle,
-    }, {})
-  );
 
   // ADR-046 Phase 3 (SPEC-039): the `core` server module — ops routes, then
   // login/logout/me (ungated), then the `/api/admin` session gate, all

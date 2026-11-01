@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { loadTheme } from "../theme.js";
@@ -10,6 +11,16 @@ import { validateManifestV2 } from "../validation/manifest-v2.js";
 
 const templates = ["post.html", "shared.html", "page.html", "both.html"];
 const templateFor = { "post.html": ["post"], "page.html": ["page"], "both.html": ["post", "page"] } as const;
+
+for (const copy of ["static", "__original-themes__/static"]) {
+  test(`bundled tovu-theme ${copy}: editors offer only templates for the content kind`, () => {
+    const themeDir = fileURLToPath(new URL(`../../../../../../content/themes/${copy}/tovu-theme/`, import.meta.url));
+    const theme = loadTheme({ themeDir, id: "tovu-theme", source: "site" });
+    assert.equal(theme.status, "valid", theme.errors.join("\n"));
+    assert.deepEqual(applicableThemeTemplates({ manifest: theme.manifest, kind: "post" }), ["posts-default.html", "posts-sidebar.html"]);
+    assert.deepEqual(applicableThemeTemplates({ manifest: theme.manifest, kind: "page" }), ["pages-default.html", "pages-blank.html", "index", "listing-default.html"]);
+  });
+}
 
 test("templateFor: schema accepts declared kinds and loader preserves the mapping", (t) => {
   const raw = { apiVersion: 2, id: "fixture", name: "Fixture", version: "1.0.0", templates, templateFor };
