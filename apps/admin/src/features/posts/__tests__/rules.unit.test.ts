@@ -571,7 +571,7 @@ describe("withTitleNode", () => {
     });
   });
 
-  it("passes an already-migrated doc through unchanged, ignoring `title` entirely (the node, not the field, is authoritative once one exists)", () => {
+  it("passes an already-migrated doc through unchanged when its title node already holds `title`", () => {
     const bodyJson = {
       type: "doc",
       content: [
@@ -580,9 +580,29 @@ describe("withTitleNode", () => {
       ],
     };
 
-    const result = withTitleNode(bodyJson, "Stale Field Value");
+    const result = withTitleNode(bodyJson, "Existing");
 
     expect(result).toBe(bodyJson); // same reference — no copy made when nothing needs changing
+  });
+
+  // 11-01 owner bug: a title changed by the assistant/API leaves the body's title node behind. The
+  // stored title wins; the node keeps its attrs (alignment) so only the text changes.
+  it("rewrites an existing title node's text to the stored title when they differ, keeping its attrs and the rest of the doc", () => {
+    const bodyJson = {
+      type: "doc",
+      content: [
+        { type: "title", attrs: { textAlign: "center" }, content: [{ type: "text", text: "Old title" }] },
+        { type: "paragraph", content: [{ type: "text", text: "Body." }] },
+      ],
+    };
+
+    expect(withTitleNode(bodyJson, "New title")).toEqual({
+      type: "doc",
+      content: [
+        { type: "title", attrs: { textAlign: "center" }, content: [{ type: "text", text: "New title" }] },
+        { type: "paragraph", content: [{ type: "text", text: "Body." }] },
+      ],
+    });
   });
 
   it("treats null/undefined bodyJson (a brand-new post) the same as an empty doc", () => {

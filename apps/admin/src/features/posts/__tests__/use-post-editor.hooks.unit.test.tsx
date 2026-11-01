@@ -165,6 +165,36 @@ describe("usePostEditor — load", () => {
     });
     expect(result.current.dirty).toBe(false); // freshly loaded, untouched — must not show dirty
   });
+
+  // 11-01 owner bug: the assistant/API can rename a post without rewriting its body's title node.
+  // Opening it used to keep the body's old title, flip `title` state back to it, mark the editor
+  // dirty (autosave on open, "Leave site?" on exit) and let a Save silently revert the rename.
+  it("opens clean with the stored title when the body's title node still holds an older title", async () => {
+    const port = createFakePostEditorPort({
+      post: {
+        ...POST,
+        title: "Renamed by assistant",
+        bodyJson: {
+          type: "doc",
+          content: [
+            { type: "title", attrs: { textAlign: "center" }, content: [{ type: "text", text: "Hello World" }] },
+            { type: "paragraph", content: [{ type: "text", text: "Body." }] },
+          ],
+        },
+      },
+    });
+
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    const json = result.current.editor!.getJSON() as { content?: Array<{ attrs?: { textAlign?: string }; content?: Array<{ text?: string }> }> };
+    expect(json.content?.[0]?.content?.[0]?.text).toBe("Renamed by assistant");
+    expect(json.content?.[0]?.attrs?.textAlign).toBe("center");
+    expect(result.current.title).toBe("Renamed by assistant");
+    expect(result.current.dirty).toBe(false);
+    expect(result.current.contentDirty).toBe(false);
+  });
 });
 
 // readable-slugs S6a (2026-09-23): an old id-based bookmark quietly catches up to the slug URL, same

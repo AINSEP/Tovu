@@ -553,7 +553,9 @@ function titleNode(text: string): LooseNode {
  * editor's custom `doc` schema, `content: "title block+"`, would reject loading it as-is), so the
  * editor's load effect (`use-post-editor.hooks.ts`) runs every `bodyJson` through this FIRST:
  *
- *  - Already migrated (first content node is already `type: "title"`): passed through unchanged.
+ *  - Already migrated (first content node is already `type: "title"`): passed through unchanged
+ *    when its text already equals `title`; otherwise only the title node's text is replaced with
+ *    `title` (the stored field is authoritative — see the 11-01 note in the body).
  *  - Anything else: a title node synthesized from the post's own (pre-existing) `title` field is
  *    prepended, with a single empty paragraph appended when the source had no block content at all
  *    (a brand-new post's empty `bodyJson`, or any other doc with no blocks) — `"title block+"`
@@ -569,7 +571,14 @@ export function withTitleNode(bodyJson: unknown, title: string): LooseNode {
   const doc = isLooseNode(bodyJson) ? bodyJson : null;
   const content = doc && Array.isArray(doc.content) ? doc.content : [];
   const first = content[0];
-  if (isLooseNode(first) && first.type === "title") return doc as LooseNode;
+  if (isLooseNode(first) && first.type === "title") {
+    if (titleNodeText(doc) === title) return doc as LooseNode;
+    // The stored title wins (owner bug 11-01): the assistant/API can rename a post without
+    // rewriting its body's title node, and keeping the stale node let the editor's `onUpdate`
+    // flip `title` back to it — dirty on open, "Leave site?" on exit, a Save reverting the rename.
+    // Only the text changes; the node's attrs (alignment) and every other block are kept.
+    return { ...(doc as LooseNode), content: [{ ...first, content: titleNode(title).content }, ...content.slice(1)] };
+  }
 
   const blocks = content.length > 0 ? content : [{ type: "paragraph" }];
   return { type: "doc", content: [titleNode(title), ...blocks] };
