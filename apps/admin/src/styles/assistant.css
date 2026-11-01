@@ -164,8 +164,22 @@
   padding-bottom: 8px;
 }
 /* The package floats "Jump to latest" above its composer OVERLAY; here the controls are a flex
-   sibling below the list, so the scrollport's own bottom edge is already the composer's top. */
-.admin-chat-dock .jini-chat-pane .jini-message-list__jump { bottom: 8px; }
+   sibling below the list, so the scrollport's own bottom edge is already the composer's top.
+   2026-11-01: sticky at `bottom: 8px` it floated over the last visible row and covered a tool row's
+   expand chevron (dock and 375px). Absolute instead, so it is placed against
+   `.jini-chat-pane__body` (the list is unpositioned) and escapes the list's overflow clip; centred on
+   the transcript/composer seam, half of it lies on the composer's empty top padding. The seam is the
+   controls' measured content height (Jini's `--jini-chat-controls-height`) plus their 14px bottom
+   padding; `- 16px` centres the 32px button on it. `z-index: 5` beats the controls' flex-item 4, or
+   the composer paints over the lower half. `right: 26px` sits it in from the composer's rounded corner. */
+.admin-chat-dock .jini-chat-pane .jini-message-list__jump {
+  position: absolute;
+  left: auto;
+  right: 26px;
+  bottom: calc(var(--jini-chat-controls-height, 240px) + 14px - 16px);
+  padding-right: 0;
+  z-index: 5;
+}
 /* Owner 2026-10-22: the centred "Jump to latest" pill covered what they were reading. It is an
    icon-only round button at the right edge instead; the label text stays in the DOM (font-size 0)
    so it is still the button's accessible name. */

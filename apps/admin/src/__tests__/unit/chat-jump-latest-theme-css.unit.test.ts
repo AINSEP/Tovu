@@ -18,3 +18,21 @@ describe("chat Jump to latest button colours", () => {
     expect(button).not.toMatch(/#[0-9a-f]{3,8}\b|rgb\(|white/i);
   });
 });
+
+/**
+ * Bug 11-01 (ui-fix-4/6): floating inside the transcript's scrollport, the icon button covered the
+ * expand chevron of whichever tool row sat at the bottom edge (dock and 375px). In the dock it is
+ * placed against `.jini-chat-pane__body` instead (absolute escapes the list's overflow clip) and
+ * centred on the seam between transcript and composer: half over the composer's empty top padding,
+ * so at most 16px of the transcript's bottom edge is under it. Its z-index must beat the controls'
+ * flex-item z-index 4, or the composer paints over its lower half.
+ */
+describe("dock Jump to latest placement", () => {
+  it("straddles the composer's top edge instead of floating over the last transcript row", () => {
+    const jump = effectiveDeclarationsFor(assistantStyles, ".admin-chat-dock .jini-chat-pane .jini-message-list__jump");
+    expect(jump).toContain("position: absolute;");
+    // Controls' measured content height + their 14px bottom padding = the seam; minus half the 32px button.
+    expect(jump).toContain("bottom: calc(var(--jini-chat-controls-height, 240px) + 14px - 16px);");
+    expect(jump).toContain("z-index: 5;");
+  });
+});
