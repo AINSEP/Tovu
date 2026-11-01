@@ -17,6 +17,8 @@ import { closeSync, cpSync, existsSync, lstatSync, mkdirSync, openSync, readdirS
 import type { Dirent } from "node:fs";
 import path from "node:path";
 
+import { createNodePackagingFilesystem, missingClosureDependencies, stageTransitiveDependencies as stageClosure } from "@jini-ai/devops/packaging/electron";
+
 import { isBundleInput, type StalenessShell } from "./shell-staleness.ts";
 
 const NODE_MODULES = "node_modules";
@@ -136,52 +138,23 @@ export function findPackageDir(fromDir: string, depName: string): string | undef
 }
 
 /**
- * Resolves one `from -> dep` dependency edge and, unless `dep` is excluded or already visited,
- * stages it (skipping the copy — but not the walk — when its destination is already
- * staged). Returns `undefined` when there is nothing further to walk from this edge, or the
- * resolved package's real directory plus whether staging it actually copied anything (as opposed
- * to finding it already there). Missing required edges throw before an incomplete payload can ship.
- */
-function resolveDependencyEdge(
-  from: string,
-  dep: string,
-  { outDir, visited }: { outDir: string; visited: Set<string> }
-): { resolved: string; staged: boolean } | undefined {
-  if (isExcluded(dep)) return undefined;
-  const resolved = findPackageDir(from, dep);
-  if (resolved === undefined) throw new Error(`Unresolved runtime dependency: ${from} -> ${dep}`);
-  if (visited.has(resolved)) return undefined;
-  visited.add(resolved);
-  const dest = path.join(outDir, NODE_MODULES, dep);
-  const alreadyStaged = existsSync(dest);
-  if (!alreadyStaged) stageDir(resolved, dest, true);
-  return { resolved, staged: !alreadyStaged };
-}
-
-/**
  * Jini's packages declare ordinary npm dependencies of their own — `@jini-ai/devops` needs `undici`
  * — that exist only inside Jini's pnpm store. Tovu never names them, so copying only its declared
  * root packages misses them. Follow their declared runtime edges rather than copying sibling
  * packages wholesale; development dependencies and optional peers never select plugins.
- *
- * Takes `outDir` explicitly (rather than closing over `scripts/stage-payload.ts`'s module-level
- * constant of the same name) so a test can point it at a throwaway directory.
+ * Jini's version-checked planner applies Tovu's required-peer/optional-edge policy, so a flattening
+ * conflict fails before any copy rather than silently shipping the wrong version. `outDir` is
+ * explicit so a test can point it at a throwaway directory.
+ * @returns Number of newly staged packages; supplied roots are already staged by the caller.
+ * @throws Error for unresolved edges or incompatible package versions.
+ * @complexity O(packages + edges × ancestor depth) reads, plus bytes of newly copied packages.
  */
-export function stageTransitiveDependencies({ roots, outDir }: { roots: string[]; outDir: string }): number {
-  const visited = new Set(roots);
-  const queue = [...roots];
-  let count = 0;
-  while (queue.length > 0) {
-    // `!`: the loop guard proves the queue is non-empty here.
-    const from = queue.pop()!;
-    for (const dep of declaredDependencies(from)) {
-      const edge = resolveDependencyEdge(from, dep, { outDir, visited });
-      if (edge === undefined) continue;
-      queue.push(edge.resolved);
-      if (edge.staged) count += 1;
-    }
-  }
-  return count;
+export function stageTransitiveDependencies({ roots, outDir }: { roots: string[]; outDir: string }, _options = {}): number {
+  const fs = createNodePackagingFilesystem({});
+  return stageClosure({ roots, outDir, excluded: EXCLUDED_PACKAGES,
+    fs: { ...fs, copy: ({ from, to }, options) => stageDir(from, to, options?.dropNestedModules ?? false) },
+    resolver: { resolve: ({ fromDirectory, packageName }) => findPackageDir(fromDirectory, packageName) },
+  }, { dependencies: ({ packageDir }) => declaredDependencies(packageDir) });
 }
 
 export function stagedPackageDirs(modulesDir: string): string[] {
@@ -215,20 +188,9 @@ export function stagedPackageDirs(modulesDir: string): string[] {
  *
  * @throws {Error} listing every `pkg -> dep` pair that did not resolve.
  */
-export function assertClosureComplete({ outDir }: { outDir: string }): void {
-  const modulesDir = path.join(outDir, NODE_MODULES);
-  const unresolved = (packageDir: string, dep: string) => {
-    const hoisted = path.join(modulesDir, dep, PACKAGE_JSON);
-    const nested = path.join(packageDir, NODE_MODULES, dep, PACKAGE_JSON);
-    return !existsSync(hoisted) && !existsSync(nested);
-  };
-  // flatMap/filter/map preserve array order throughout, so this reports missing dependencies in
-  // the same order the equivalent nested loop would have.
-  const missing = stagedPackageDirs(modulesDir).flatMap((packageDir) =>
-    declaredDependencies(packageDir)
-      .filter((dep) => !isExcluded(dep) && unresolved(packageDir, dep))
-      .map((dep) => `${path.relative(modulesDir, packageDir)} -> ${dep}`)
-  );
+export function assertClosureComplete({ outDir }: { outDir: string }, _options = {}): void {
+  const missing = missingClosureDependencies({ outDir, excluded: EXCLUDED_PACKAGES, fs: createNodePackagingFilesystem({}) },
+    { dependencies: ({ packageDir }) => declaredDependencies(packageDir) });
   if (missing.length > 0) {
     throw new Error(
       `staged tree is missing ${missing.length} declared dependencies, so the packaged app would fail once installed outside this repo:\n  ${missing.join("\n  ")}`
