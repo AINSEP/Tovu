@@ -237,16 +237,17 @@
 .content-editor-header > .editor-slug input {
   width: auto; field-sizing: content; min-width: 6rem; max-width: min(100%, var(--editor-slug-max-width)); flex: 0 1 auto;
 }
-/* Above the phone breakpoint the slug group is pinned to the row's right edge at a fixed width (the
- * 16rem cap), so it stops sliding sideways as the title's length changes (owner, 2026-10-10: "it moves
+/* Above the phone breakpoint the slug group is pinned to the row's right edge (`margin-left: auto`
+ * above), so it stops sliding sideways as the title's length changes (owner, 2026-10-10: "it moves
  * too much"). The title takes the room on the left and wraps inside it; its flex-basis drops from 20rem
  * to 10rem so the slug only falls to its own (still right-aligned) row on a narrow tablet instead of
- * wrapping early. Phones keep the content-sized input on a row under the title (rules below). */
+ * wrapping early. The input itself was also a fixed 16rem box here, ~100px wider than a typical slug
+ * (owner bug 11-01); it is now content-sized everywhere (rule above, still capped at 16rem). Its right
+ * edge stays put — only the "/" before it moves as the slug is typed. */
 /* Container, not viewport (2026-10-11): the pair with the narrow-pane rules below, both keyed on the
  * pane's real width so a desktop pane squeezed by the nav + dock gets the stacked header too. */
 @container admin-content (min-width: 621px) {
   .content-editor-header .content-editor-title { flex: 1 1 10rem; }
-  .content-editor-header > .editor-slug input { width: var(--editor-slug-max-width); field-sizing: fixed; }
 }
 
 /* Toolbar: the device icons + width readout sit right next to Editor/Preview (3px apart); reload,

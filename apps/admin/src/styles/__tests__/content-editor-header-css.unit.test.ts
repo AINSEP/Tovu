@@ -58,3 +58,15 @@ describe("phone pane: the settings gear stays on the action row", () => {
     expect(declarations(phone, ".content-action-row > .post-settings-trigger")).toMatch(/align-self:\s*flex-end/);
   });
 });
+
+describe("desktop pane: the slug box is as wide as the slug", () => {
+  it("keeps the content-sized slug input (capped at 16rem) instead of a fixed 16rem box", () => {
+    const desktop = containerBlocks("min-width: 621px");
+    const input = declarations(desktop, ".content-editor-header > .editor-slug input");
+    expect(input).not.toMatch(/field-sizing:\s*fixed/);
+    expect(input).not.toMatch(/width:\s*var\(--editor-slug-max-width\)/);
+    const base = declarations(CSS, ".content-editor-header > .editor-slug input");
+    expect(base).toMatch(/field-sizing:\s*content/);
+    expect(base).toMatch(/max-width:\s*min\(100%, var\(--editor-slug-max-width\)\)/);
+  });
+});
