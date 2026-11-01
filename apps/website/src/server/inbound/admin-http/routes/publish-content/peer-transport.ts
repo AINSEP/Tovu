@@ -97,8 +97,10 @@ const PEER_ACTION_ERRORS: readonly MappedErrorClass[] = [
   [PublishContentPeerSecretStoreUnconfiguredError, 503, "SECRET_STORE_UNCONFIGURED"],
 ];
 
-/** @complexity O(1). */
-function respondWithError(res: Response, err: unknown): void {
+/** Answers a peer action's failure. Manual publishing (`backstop.ts`) reuses it, so a live-site
+ *  failure reaches the owner there as the same actionable answer; `message` names its private 500.
+ *  @complexity O(1). */
+export function respondWithError(res: Response, err: unknown, { message }: { message?: string } = {}): void {
   if (err instanceof PublishContentPeerTransportError) {
     // 502: this instance is fine and the request was well-formed; the PEER (or the path to it) is
     // what failed. A 500 here would send an operator looking in the wrong server's logs — and for
@@ -107,7 +109,7 @@ function respondWithError(res: Response, err: unknown): void {
     res.status(502).json({ error: err.message, code: err.code });
     return;
   }
-  sendRefusal(res, mappedErrorResponse(err, PEER_ACTION_ERRORS, { tracker: res.locals?.adminFailureTracker }));
+  sendRefusal(res, mappedErrorResponse(err, PEER_ACTION_ERRORS, { tracker: res.locals?.adminFailureTracker, message }));
 }
 
 /** The per-request transport bag: the guarded client plus the opened credential.

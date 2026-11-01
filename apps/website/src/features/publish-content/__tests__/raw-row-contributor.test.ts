@@ -8,6 +8,7 @@ import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
 import { contributeRawRowPublish, rawRowId, undoRawRow } from "../raw-row-contributor.js";
 import { contentKernel } from "#src/platform/db/content-kernel";
+import { BackstopRefusal } from "../backstop-policy.js";
 import type { PackedEntity, PublishContentDeps } from "../type-registry.js";
 
 function fixture(t: test.TestContext) {
@@ -35,6 +36,31 @@ test("selected plugin row packs all columns, round-trips its hash, and identical
   assert.deepEqual(packed!.state.values, { id: "a", title: "footer" });
   assert.equal((await f.handler.inspect(packed!.id))?.hash, packed!.contentHash);
   assert.equal(await f.handler.precheck(packed!), null);
+});
+
+test("raw row packing and precheck expose only typed refusals; other port failures propagate unchanged", async (t) => {
+  const f = fixture(t);
+  f.db.exec("INSERT INTO p_widgets VALUES ('a', 'footer')");
+  const [entity] = await f.collect();
+  assert.ok(entity);
+  const refusal = new BackstopRefusal({ message: "This row cannot be sent safely." });
+  for (const operation of ["read", "columns"] as const) {
+    for (const error of [refusal, new Error("database connection lost"), "opaque failure"]) {
+      const handler = contributeRawRowPublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, rows: {
+        ...f.rows, [operation]: async () => { throw error; },
+      } } });
+      const collect = async () => { for await (const _entity of handler.pack()) assert.fail("must never yield"); };
+      if (error === refusal) {
+        await collect();
+        assert.equal((await handler.listSkipped!())[0]!.reason, refusal.message);
+        if (operation === "columns") assert.equal(await handler.precheck(entity), refusal.message);
+      } else {
+        await assert.rejects(collect(), (caught) => caught === error);
+        assert.deepEqual(await handler.listSkipped!(), []);
+        if (operation === "columns") await assert.rejects(handler.precheck(entity), (caught) => caught === error);
+      }
+    }
+  }
 });
 
 test("covered tables, shape drift and hostile column names are refused on destination", async (t) => {

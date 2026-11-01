@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { executeCommand } from "@jini-ai/cms/core";
 import { computeBlobStorageKey, isDocumentOnlyBlob } from "@jini-ai/cms/media";
-import { checkRawFilePath, checkRawValues, BACKSTOP_LIMITS } from "./backstop-policy.js";
+import { BackstopRefusal, checkRawFilePath, checkRawValues, BACKSTOP_LIMITS } from "./backstop-policy.js";
 import { normalizeMode } from "./file-tree-policy.js";
 import type { RawFileInverse, RawFileSnapshot } from "./backstop-ports.js";
 import { PublishContentApplyRowError } from "./apply-errors.js";
@@ -22,8 +22,7 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
     function pathReason(relPath: string): string | null {
       const policy = checkRawFilePath({ relPath });
       if (policy) return policy;
-      return deps.backstop?.coveredRoots.some((root) => relPath.toLowerCase() === root.toLowerCase().replace(/\/$/, "") ||
-        relPath.toLowerCase().startsWith(root.toLowerCase().replace(/\/$/, "") + "/"))
+      return isCoveredPath({ deps, relPath })
         ? `File '${relPath}' already publishes normally; use Overwrite live in normal publishing.` : null;
     }
     async function blob(entity: PackedEntity): Promise<Uint8Array | null> {
@@ -67,7 +66,11 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
     async function selectedFile({ relPath }: { relPath: string }, _options = {}): Promise<{ reason: string | null; file: RawFileSnapshot | null }> {
       let reason = pathReason(relPath);
       let file: RawFileSnapshot | null = null;
-      if (!reason) try { file = await files!.read({ relPath }); } catch (error) { reason = error instanceof Error ? error.message : "This file cannot be sent safely."; }
+      if (!reason) try { file = await files!.read({ relPath }); } catch (error) {
+        // Only expected refusals are public skips; driver/I/O details belong to the failure handler.
+        if (!(error instanceof BackstopRefusal)) throw error;
+        reason = error.message;
+      }
       if (!reason && !file) reason = "The selected file no longer exists.";
       return { reason, file };
     }
@@ -96,7 +99,7 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
     function selectedPaths(_required: Record<string, never>, _options = {}): readonly string[] | null {
       if (!files || !deps.backstop?.fileBlobIndex) return null;
       const selected = deps.backstop.selection?.files ?? [];
-      if (selected.length > BACKSTOP_LIMITS.files) throw new Error("Choose at most 50 files per send.");
+      if (selected.length > BACKSTOP_LIMITS.files) throw new BackstopRefusal({ message: "Choose at most 50 files per send." });
       return selected;
     }
     const handler: PublishContentHandler = {
@@ -110,7 +113,7 @@ export function contributeRawFilePublish(_required: Record<string, never> = {}, 
           const { reason: readReason, file } = await selectedFile({ relPath });
           if (readReason || !file) { skipped.push({ entityType: "raw-file", id: relPath, label: relPath, reason: readReason! }); continue; }
           total += file.bytes.byteLength;
-          if (total > BACKSTOP_LIMITS.bytes) throw new Error("Choose files totaling at most 50 MB per send.");
+          if (total > BACKSTOP_LIMITS.bytes) throw new BackstopRefusal({ message: "Choose files totaling at most 50 MB per send." });
           const entity = await packFile({ relPath, file });
           if (entity) yield entity;
         }
@@ -182,7 +185,7 @@ export async function undoRawFile(
   if (before.relPath !== entity.id) return "The saved undo file does not match this item.";
   const denied = checkRawFilePath({ relPath: entity.id }) ?? await files.check({ relPath: entity.id });
   if (denied) return denied;
-  if (isCoveredUndoPath({ deps, relPath: entity.id })) return `File '${entity.id}' already publishes normally; it was left alone.`;
+  if (isCoveredPath({ deps, relPath: entity.id })) return `File '${entity.id}' already publishes normally; it was left alone.`;
   const current = await files.read({ relPath: entity.id });
   if (!current || hash(entity.id, current) !== afterHash) return `File '${entity.id}' changed on live after this send; it was left alone.`;
   await files.restore({ inverse: before });
@@ -203,7 +206,13 @@ function validRawFileSize({ size }: { size: unknown }, _options = {}): boolean {
   return typeof size === "number" && Number.isSafeInteger(size) && size >= 0 && size <= BACKSTOP_LIMITS.bytes;
 }
 
-/** Undo retains its existing case-sensitive covered-root comparison. @complexity O(r * k). */
-function isCoveredUndoPath({ deps, relPath }: { deps: PublishContentDeps; relPath: string }, _options = {}): boolean | undefined {
-  return deps.backstop?.coveredRoots.some((root) => relPath === root.replace(/\/$/, "") || relPath.startsWith(root.replace(/\/$/, "") + "/"));
+/** Packing and undo share case-insensitive coverage so an undo cannot bypass normal publishing.
+ * @complexity O(r * k) time for r roots of length k, plus O(p) path normalization.
+ */
+function isCoveredPath({ deps, relPath }: { deps: PublishContentDeps; relPath: string }, _options = {}): boolean | undefined {
+  const normalizedPath = relPath.toLowerCase();
+  return deps.backstop?.coveredRoots.some((root) => {
+    const normalizedRoot = root.toLowerCase().replace(/\/$/, "");
+    return normalizedPath === normalizedRoot || normalizedPath.startsWith(normalizedRoot + "/");
+  });
 }

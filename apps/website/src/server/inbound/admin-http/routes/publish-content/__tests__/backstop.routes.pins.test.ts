@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -109,7 +110,7 @@ test("status reports installed:true once the audit table exists", async (t) => {
 
 test("status answers its own 500 when authorization fails", async () => {
   const app = routeApp(registerPublishBackstopRoutes, routeDeps({ ownerPrincipalId: Promise.resolve("owner"), authorize: async () => { throw new Error("rbac down"); } }));
-  assert.deepEqual(await dispatchJsonRequest(app, "GET", `${BASE}/backstop/status`), { status: 500, body: { error: "Manual publishing availability could not be read." } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, "GET", `${BASE}/backstop/status`), expected: { status: 500, body: { error: "Manual publishing availability could not be read.", code: "INTERNAL_ERROR" } } });
 });
 
 test("run summary is the 503 when audit storage is not installed", async (t) => {
@@ -138,7 +139,7 @@ test("run summary offers undo for a failure only when it recorded inverses", asy
 
 test("run summary answers its own 500 when the audit read fails", async (t) => {
   const app = routeApp(registerPublishBackstopRoutes, await backstopDeps({ contentKernel: backstopKernel(t, { audit: "broken" }) }));
-  assert.deepEqual(await dispatchJsonRequest(app, "GET", `${BASE}/runs/run-1/backstop`), { status: 500, body: { error: "This send could not be read." } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, "GET", `${BASE}/runs/run-1/backstop`), expected: { status: 500, body: { error: "This send could not be read.", code: "INTERNAL_ERROR" } } });
 });
 
 test("gaps: foreign workspace 404, denied 403, uninstalled [], installed list, failure 500", async (t) => {
@@ -152,7 +153,7 @@ test("gaps: foreign workspace 404, denied 403, uninstalled [], installed list, f
   assert.deepEqual(await dispatchJsonRequest(routeApp(registerPublishBackstopRoutes, routeDeps()), "GET", gaps), { status: 200, body: { gaps: [] } });
   const installed = await dispatchJsonRequest(routeApp(registerPublishBackstopRoutes, routeDeps({ contentKernel: kernel })), "GET", gaps);
   assert.deepEqual((installed.body as { gaps: Array<{ label: string }> }).gaps.map((gap) => gap.label), ["table:p_banner"]);
-  assert.deepEqual(await dispatchJsonRequest(routeApp(registerPublishBackstopRoutes, routeDeps({ authorize: async () => { throw new Error("rbac down"); } })), "GET", gaps), { status: 500, body: { error: "Publishing history could not be read." } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(routeApp(registerPublishBackstopRoutes, routeDeps({ authorize: async () => { throw new Error("rbac down"); } })), "GET", gaps), expected: { status: 500, body: { error: "Publishing history could not be read.", code: "INTERNAL_ERROR" } } });
 });
 
 test("send-by-hand refuses a body with no peerId", async () => {
@@ -165,9 +166,9 @@ test("send-by-hand answers an unknown peer with 404", async () => {
   assert.deepEqual(await dispatchJsonRequest(app, "POST", `${BASE}/backstop`, PLAN_BODY), { status: 404, body: { error: "The connected live site was not found." } });
 });
 
-test("send-by-hand answers a non-Error failure with its fixed 409 text", async () => {
+test("send-by-hand answers a non-Error failure with a correlated private 500", async () => {
   const app = routeApp(registerPublishBackstopRoutes, routeDeps({ ownerPrincipalId: Promise.resolve("owner"), publishContentPeerRepo: new ThrowingValuePeerRepo() }));
-  assert.deepEqual(await dispatchJsonRequest(app, "POST", `${BASE}/backstop`, PLAN_BODY), { status: 409, body: { error: "This send could not complete." } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, "POST", `${BASE}/backstop`, PLAN_BODY), expected: { status: 500, body: { error: "This send could not complete.", code: "INTERNAL_ERROR" } } });
 });
 
 test("send-by-hand is the 503 when audit storage is not installed", async (t) => {
@@ -262,6 +263,41 @@ test("plan to a live site that cannot take raw rows fails the send with 409 and 
   });
 });
 
+// Live-site failures carry the sentence the owner acts on (start live, fix its address, update it,
+// re-save its key). They must reach the owner the way normal publishing answers them, never as the
+// private 500 an unexpected local failure gets.
+test("plan to a live site that refuses the connection answers the actionable 502", async (t) => {
+  const refused: HttpClientPort = { send: async () => { throw Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }); } };
+  const app = routeApp(registerPublishBackstopRoutes, await backstopDeps({ contentKernel: backstopKernel(t), publishContentPeerHttpClient: refused }));
+  assert.deepEqual(await dispatchJsonRequest(app, "POST", `${BASE}/backstop`, PLAN_BODY), { status: 502, body: {
+    error: "the peer at 'live.example' could not be reached. The peer refused the connection; check that it is running and reachable.", code: "PEER_UNREACHABLE",
+  } });
+});
+
+test("plan with overwrite ticks to an older live site answers its update-live 502", async (t) => {
+  const older = fakePeer();
+  const send = older.send;
+  older.send = async (request) => {
+    const reply = await send(request);
+    return request.url.endsWith("/capabilities") ? { ...reply, bodyText: JSON.stringify({ entityTypes: ["raw-row", "raw-file"], features: [] }) } : reply;
+  };
+  const app = routeApp(registerPublishBackstopRoutes, await backstopDeps({ contentKernel: backstopKernel(t), publishContentPeerHttpClient: older }));
+  assert.deepEqual(await dispatchJsonRequest(app, "POST", `${BASE}/backstop`, { ...PLAN_BODY, overwriteEntityKeys: ['raw-row:p_banner:{"id":"one"}'] }), { status: 502, body: {
+    error: `${LIVE} is on an older Tovu, so it can't overwrite these yet. Update ${LIVE}, then publish again.`, code: "PEER_CANNOT_OVERWRITE",
+  } });
+});
+
+test("send whose saved live key can no longer be opened answers the secret-store 503", async (t) => {
+  const kernel = backstopKernel(t);
+  await createBackstopAuditSqlitePort({ kernel }).save({ record: auditRecord() });
+  const deps = await backstopDeps({ contentKernel: kernel });
+  // The site key changed after the live key was saved: the sealed key no longer opens.
+  const app = routeApp(registerPublishBackstopRoutes, { ...deps, siteAssistantSecretSealer: new AesGcmSecretSealer(new InMemoryKeyring()) });
+  const result = await dispatchJsonRequest(app, "POST", `${BASE}/backstop`, SEND_BODY);
+  assert.equal(result.status, 503, JSON.stringify(result.body));
+  assert.equal((result.body as { code: string }).code, "SECRET_STORE_UNCONFIGURED");
+});
+
 test("undo is the 503 when audit storage is not installed", async (t) => {
   const app = routeApp(registerPublishBackstopRoutes, await backstopDeps({ contentKernel: backstopKernel(t, { audit: false }) }));
   assert.deepEqual(await dispatchJsonRequest(app, "POST", `${BASE}/runs/run-1/undo-backstop`), { status: 503, body: { error: "Send by hand needs its audit storage installed." } });
@@ -279,11 +315,11 @@ test("undo refuses a run with no undo available: missing, source-side, undone, o
   }
 });
 
-test("undo answers a failure with the error's own message as 409", async (t) => {
+test("undo hides an unexpected audit failure behind a correlated private 500", async (t) => {
   const app = routeApp(registerPublishBackstopRoutes, await backstopDeps({ contentKernel: backstopKernel(t, { audit: "broken" }) }));
   const result = await dispatchJsonRequest(app, "POST", `${BASE}/runs/run-1/undo-backstop`);
-  assert.equal(result.status, 409);
-  assert.match((result.body as { error: string }).error, /no such column/);
+  assertAdminResponse({ actual: result, expected: { status: 500, body: { error: "This send could not be undone.", code: "INTERNAL_ERROR" } } });
+  assert.doesNotMatch(JSON.stringify(result.body), /no such column/);
 });
 
 test("every backstop route 404s a foreign workspace before anything else", async () => {

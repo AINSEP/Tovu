@@ -2,22 +2,23 @@ import { sql } from "kysely";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { sqliteForeignKeyCheckedTransaction, sqliteTableInfo } from "../../platform/db/kernel/sqlite-only.js";
 import type { RawColumn, RawRowPort, RawValue } from "#src/features/publish-content/backstop-ports";
-import { checkRawTable } from "#src/features/publish-content/backstop-policy";
+import { BackstopRefusal, checkRawTable } from "#src/features/publish-content/backstop-policy";
 
 function identifier(name: string): string {
-  if (!/^[A-Za-z_]\w*$/.test(name)) throw new Error("Invalid raw database identifier.");
+  if (!/^[A-Za-z_]\w*$/.test(name)) throw new BackstopRefusal({ message: "Invalid raw database identifier." });
   return `"${name}"`;
 }
 function allowed(table: string, columns: readonly string[]): void {
   const denied = checkRawTable({ table, columns });
-  if (denied) throw new Error(denied);
+  // Only policy refusals may become public skip reasons; driver failures keep their type.
+  if (denied) throw new BackstopRefusal({ message: denied });
 }
 function encode(value: unknown): RawValue {
   if (value instanceof Uint8Array) return { blobBase64: Buffer.from(value).toString("base64") };
   // The default SQLite driver reads INTEGER as number; refuse values that JSON would round.
   if (value === null || typeof value === "string") return value;
   if (typeof value === "number" && Number.isFinite(value) && (!Number.isInteger(value) || Number.isSafeInteger(value))) return value;
-  throw new Error("This row contains a database value that cannot be sent safely.");
+  throw new BackstopRefusal({ message: "This row contains a database value that cannot be sent safely." });
 }
 function decode(value: RawValue): string | number | null | Buffer {
   return typeof value === "object" && value !== null ? Buffer.from(value.blobBase64, "base64") : value;
@@ -42,10 +43,10 @@ export function createRawRowSqlitePort({ kernel, tableInfo, checkedTransaction }
   }
   async function verifyPk(table: string, pk: Readonly<Record<string, RawValue>>): Promise<readonly RawColumn[]> {
     const info = await columns({ table });
-    if (!info) throw new Error(`Table '${table}' does not exist.`);
+    if (!info) throw new BackstopRefusal({ message: `Table '${table}' does not exist.` });
     const names = info.filter((c) => c.pk > 0).map((c) => c.name).sort();
     if (names.length === 0 || JSON.stringify(names) !== JSON.stringify(Object.keys(pk).sort()) ||
-      Object.values(pk).some((value) => value === null || !["string", "number"].includes(typeof value))) throw new Error("Choose a row by its complete primary key.");
+      Object.values(pk).some((value) => value === null || !["string", "number"].includes(typeof value))) throw new BackstopRefusal({ message: "Choose a row by its complete primary key." });
     return info;
   }
   return {

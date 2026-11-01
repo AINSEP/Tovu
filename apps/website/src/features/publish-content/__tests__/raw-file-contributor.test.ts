@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import { contentHash } from "../content-hash.js";
 import { createRawFileSitePort } from "#src/features/publish-content/publish-backstop-file";
+import { BackstopRefusal } from "../backstop-policy.js";
 import { contributeRawFilePublish, undoRawFile } from "../raw-file-contributor.js";
 import { createFileBlobIndex } from "../file-blob-index.js";
 import { InMemoryBlobStore, InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryMediaContentTypeStore } from "#src/features/media/index";
@@ -119,17 +120,21 @@ test("L044 validation rejects malformed metadata before reading blobs", async (t
   assert.equal(await unavailable.precheck(entity), "Send by hand is not available on this destination.");
 });
 
-test("L044 pack preserves missing/read-error skips, resets skips and enforces selection caps", async (t) => {
+test("L044 pack preserves missing/refusal skips, propagates unexpected errors, resets skips and enforces selection caps", async (t) => {
   const f = await fixture(t);
   assert.deepEqual(await f.pack(), []);
   assert.equal((await f.handler.listSkipped!())[0]!.reason, "The selected file no longer exists.");
   await writeFile(path.join(f.siteDir, "snippets/footer.html"), "footer");
   assert.equal((await f.pack()).length, 1);
   assert.deepEqual(await f.handler.listSkipped!(), []);
+  const refusal = new BackstopRefusal({ message: "Choose a regular file." });
+  const refused = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, files: { ...f.files, read: async () => { throw refusal; } } } });
+  for await (const _entity of refused.pack()) assert.fail("must skip the refusal");
+  assert.equal((await refused.listSkipped!())[0]!.reason, refusal.message);
   for (const error of [new Error("read failed"), "opaque"]) {
     const handler = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, files: { ...f.files, read: async () => { throw error; } } } });
-    for await (const _entity of handler.pack()) assert.fail("must skip");
-    assert.equal((await handler.listSkipped!())[0]!.reason, error instanceof Error ? error.message : "This file cannot be sent safely.");
+    await assert.rejects(async () => { for await (const _entity of handler.pack()) assert.fail("must fail before yielding"); }, (actual) => actual === error);
+    assert.deepEqual(await handler.listSkipped!(), []);
   }
   const tooMany = contributeRawFilePublish().build({ ...f.deps, backstop: { ...f.deps.backstop!, selection: { files: Array(51).fill("snippets/footer.html") } } });
   await assert.rejects(async () => { for await (const _entity of tooMany.pack()) {} }, /at most 50 files/);
@@ -194,16 +199,24 @@ test("L044 recorded inverses support compensation and reject later drift", async
   await assert.rejects(fileRollbacks[0]!(), /changed on live/);
 });
 
-test("L044 undo covered roots remain case sensitive (reported, not fixed)", async (t) => {
+test("L044 undo refuses newly covered roots regardless of case and leaves live bytes alone", async (t) => {
   const f = await fixture(t);
   const target = path.join(f.siteDir, "snippets/footer.html");
-  await writeFile(target, "footer");
+  await writeFile(target, "old footer");
+  const before = await f.files.capture({ relPath: "snippets/footer.html" });
+  await writeFile(target, "new footer");
   const [entity] = await f.pack();
   assert.ok(entity);
-  const before = await f.files.capture({ relPath: entity.id });
-  const deps = { ...f.deps, backstop: { ...f.deps.backstop!, coveredRoots: ["SNIPPETS"] } };
-  assert.equal(await contributeRawFilePublish().build(deps).inspect(entity.id), null);
-  assert.equal(await undoRawFile({ deps, entity, before, afterHash: entity.contentHash }), null);
+  for (const root of ["SNIPPETS", "SnIpPeTs/", "SNIPPETS/FOOTER.HTML"]) {
+    const deps = { ...f.deps, backstop: { ...f.deps.backstop!, coveredRoots: [root] } };
+    assert.equal(await contributeRawFilePublish().build(deps).inspect(entity.id), null);
+    assert.equal(await undoRawFile({ deps, entity, before, afterHash: entity.contentHash }),
+      "File 'snippets/footer.html' already publishes normally; it was left alone.");
+    assert.equal(await readFile(target, "utf8"), "new footer");
+  }
+  const adjacent = { ...f.deps, backstop: { ...f.deps.backstop!, coveredRoots: ["SNIPPET"] } };
+  assert.equal(await undoRawFile({ deps: adjacent, entity, before, afterHash: entity.contentHash }), null);
+  assert.equal(await readFile(target, "utf8"), "old footer");
 });
 
 test("a destination without a blob store treats verified bytes as missing, and an unreadable live file inspects as absent", async (t) => {

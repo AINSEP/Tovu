@@ -1,6 +1,14 @@
 import { checkTreePath } from "./file-tree-policy.js";
 import { scanTextForSecrets } from "#src/features/webhooks/index";
 
+/** An expected manual-publishing refusal with a caller-safe message.
+ * Unexpected storage/transport errors must retain their original type for private diagnostics.
+ */
+export class BackstopRefusal extends Error {
+  readonly name = "BackstopRefusal";
+  constructor({ message }: { message: string }, _options = {}) { super(message); }
+}
+
 /** CMS-specific, immutable boundaries, run on BOTH peers. Neither a grant nor a confirmation
  * can relax these. Plugin tables are allowed (owner B3, 2026-10-04), subject to the same rules. */
 export const BACKSTOP_DENIED_TABLE_PATTERNS: readonly RegExp[] = [

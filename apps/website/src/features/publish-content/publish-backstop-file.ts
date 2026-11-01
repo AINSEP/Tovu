@@ -2,7 +2,7 @@ import fs, { constants } from "node:fs";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import type { RawFilePort, RawFileSnapshot } from "#src/features/publish-content/backstop-ports";
-import { checkRawFilePath, BACKSTOP_LIMITS } from "#src/features/publish-content/backstop-policy";
+import { BackstopRefusal, checkRawFilePath, BACKSTOP_LIMITS } from "#src/features/publish-content/backstop-policy";
 import { normalizeMode } from "#src/features/publish-content/file-tree-policy";
 
 function missing(error: unknown): boolean { return (error as { code?: string })?.code === "ENOENT"; }
@@ -56,7 +56,7 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
   }
   function target(relPath: string): string {
     const reason = check(relPath);
-    if (reason) throw new Error(reason);
+    if (reason) throw new BackstopRefusal({ message: reason });
     return path.join(root, ...relPath.split("/"));
   }
   function read(relPath: string): RawFileSnapshot | null {
@@ -68,7 +68,7 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
     }
     try {
       const stat = lstatSync(filename);
-      if (stat.size > BACKSTOP_LIMITS.bytes) throw new Error("Choose files totaling at most 50 MB per send.");
+      if (stat.size > BACKSTOP_LIMITS.bytes) throw new BackstopRefusal({ message: "Choose files totaling at most 50 MB per send." });
       return { absPath: filename, bytes: readFileSync(fd), mode: normalizeMode(stat.mode) };
     } finally { closeSync(fd); }
   }
@@ -77,7 +77,7 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
     // lstat never follows a link, so a linked folder fails isDirectory() too.
     const stat = lstatOrNull({ file: dir }, { filesystem });
     if (!stat) mkdirSync(dir, { mode: 0o700 });
-    if (stat && !stat.isDirectory()) throw new Error("The publish staging folder is not a safe directory.");
+    if (stat && !stat.isDirectory()) throw new BackstopRefusal({ message: "The publish staging folder is not a safe directory." });
     chmodSync(dir, 0o700);
     return dir;
   }
@@ -87,7 +87,7 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
       current = path.join(current, part);
       const stat = lstatOrNull({ file: current }, { filesystem });
       if (!stat) mkdirSync(current, { mode: 0o755 });
-      if (stat && !stat.isDirectory()) throw new Error(LINK_REFUSAL);
+      if (stat && !stat.isDirectory()) throw new BackstopRefusal({ message: LINK_REFUSAL });
     }
   }
   /** A backup's bytes, or `null` when it is gone. Never follows a link. */
@@ -108,13 +108,13 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
   }
   function replace(relPath: string, bytes: Uint8Array, mode: number): void {
     target(relPath);
-    if (bytes.byteLength > BACKSTOP_LIMITS.bytes) throw new Error("Choose files totaling at most 50 MB per send.");
+    if (bytes.byteLength > BACKSTOP_LIMITS.bytes) throw new BackstopRefusal({ message: "Choose files totaling at most 50 MB per send." });
     const stage = path.join(privateDir(".publish-staging"), randomUUID());
     try {
       writeFileSync(stage, bytes, { mode: normalizeMode(mode), flag: "wx" });
       // The process umask must not change the normalized mode included in the checked hash.
       chmodSync(stage, normalizeMode(mode));
-      if (sha(readFileSync(stage)) !== sha(bytes)) throw new Error("The staged file failed its checksum check.");
+      if (sha(readFileSync(stage)) !== sha(bytes)) throw new BackstopRefusal({ message: "The staged file failed its checksum check." });
       parents(relPath);
       renameSync(stage, target(relPath));
     } finally {
@@ -137,13 +137,13 @@ export function createRawFileSitePort({ siteDir }: { siteDir: string }, { filesy
         removeCreatedFile({ relPath: inverse.relPath });
         return;
       }
-      if (!/^[a-f0-9-]{36}$/.test(inverse.backupName)) throw new Error("The saved undo file has an unsafe address.");
+      if (!/^[a-f0-9-]{36}$/.test(inverse.backupName)) throw new BackstopRefusal({ message: "The saved undo file has an unsafe address." });
       const backup = path.join(privateDir(".publish-previous"), inverse.backupName);
       const bytes = readBackup(backup);
       // A repeated undo finds its copy already reclaimed below: done when the file holds those bytes.
       if (bytes === null && alreadyRestored(inverse)) return;
-      if (bytes === null) throw new Error("The saved undo file is missing.");
-      if (sha(bytes) !== inverse.sha256) throw new Error("The saved undo file failed its checksum check.");
+      if (bytes === null) throw new BackstopRefusal({ message: "The saved undo file is missing." });
+      if (sha(bytes) !== inverse.sha256) throw new BackstopRefusal({ message: "The saved undo file failed its checksum check." });
       replace(inverse.relPath, bytes, inverse.mode);
       // The undo is spent and nothing else reads this copy; kept, every overwrite would leave up to
       // 50 MB behind for good.

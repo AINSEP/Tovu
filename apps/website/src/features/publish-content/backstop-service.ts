@@ -2,6 +2,7 @@ import type { BackstopAuditPort, BackstopAuditRecord, BackstopMetadata } from ".
 import type { BackstopSelection } from "./backstop-ports.js";
 import { BACKSTOP_LIMITS, checkRawValues, gapLabelFor } from "./backstop-policy.js";
 import type { PackedEntity } from "./type-registry.js";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 export const BACKSTOP_FORBIDDEN = "Only the owner and built-in admins can send items by hand.";
 
@@ -42,7 +43,9 @@ export async function runAuditedBackstop<T extends Record<string, unknown>>(
     await audit.save({ record: { ...record, result: successResult, runId: typeof result.runId === "string" ? result.runId : record.runId, details: result } });
     return result;
   } catch (error) {
-    await audit.save({ record: { ...record, result: "failure", details: { error: error instanceof Error ? error.message : "This send failed." } } });
+    // Audit storage is a diagnostic sink too: preserve useful text without persisting credentials.
+    const diagnostic = redactSecretShapes({ text: error instanceof Error ? error.message : "This send failed." }).text;
+    await audit.save({ record: { ...record, result: "failure", details: { error: diagnostic } } });
     throw error;
   }
 }

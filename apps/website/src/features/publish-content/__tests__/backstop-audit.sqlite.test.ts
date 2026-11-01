@@ -4,6 +4,35 @@ import Database from "better-sqlite3";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { createBackstopAuditSqlitePort } from "#src/platform/db/sqlite/publish-backstop-audit.sqlite";
 import type { BackstopAuditRecord } from "../backstop-audit.js";
+import { runAuditedBackstop } from "../backstop-service.js";
+import { BackstopRefusal } from "../backstop-policy.js";
+
+test("failed manual sends redact credentials before audit persistence and preserve safe refusals", async (t) => {
+  const db = new Database(":memory:");
+  t.after(() => db.close());
+  db.exec(`CREATE TABLE publish_backstop_log (id TEXT PRIMARY KEY, workspace_id TEXT, direction TEXT,
+    actor_id TEXT, destination TEXT, reason TEXT, at TEXT, items_json TEXT, gap_labels_json TEXT,
+    result TEXT, run_id TEXT, details_json TEXT, inverses_json TEXT)`);
+  const audit = createBackstopAuditSqlitePort({ kernel: contentKernel(db) });
+  const record: BackstopAuditRecord = { id: "failed", workspaceId: "ws", direction: "source", actorId: "owner",
+    destination: "https://live.example", reason: "Emergency row repair", at: "2026-10-31T00:00:00.000Z",
+    items: [], gapLabels: [], result: "pending", runId: null, details: {}, inverses: [] };
+  const safe = new BackstopRefusal({ message: "Choose a row by its complete primary key." });
+  const secrets = ["sk-" + "a".repeat(40), "bearer".repeat(10), "db-password-123", "x".repeat(32)];
+  const failure = new Error(`storage failed ${secrets[0]} Authorization: Bearer ${secrets[1]} postgres://user:${secrets[2]}@localhost/db tovu_ak_123456abcdef.${secrets[3]}`);
+  for (const error of [safe, failure]) {
+    await assert.rejects(runAuditedBackstop({ audit, record, work: async () => { throw error; } }), (caught) => caught === error);
+    const stored = db.prepare("SELECT result, details_json FROM publish_backstop_log WHERE id = ?").get(record.id) as { result: string; details_json: string };
+    assert.equal(stored.result, "failure");
+    const detail = JSON.parse(stored.details_json).error as string;
+    if (error === safe) assert.equal(detail, safe.message);
+    else {
+      for (const secret of secrets) assert.equal(stored.details_json.includes(secret), false, "credential persisted in audit storage");
+      assert.match(detail, /storage failed .*REDACTED/);
+      assert.ok(detail.includes("localhost/db"));
+    }
+  }
+});
 
 test("audit storage stays closed before installation and persists source and destination events by workspace", async (t) => {
   const db = new Database(":memory:");

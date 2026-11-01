@@ -39,18 +39,18 @@ test("columns() reports a missing table as null and refuses private tables and s
   await withPort(async ({ port }) => {
     assert.equal(await port.columns({ table: "p_missing" }), null);
     await assert.rejects(port.columns({ table: "members" }), /holds private or per-install data/);
-    await assert.rejects(port.columns({ table: "p_unsafe" }), { message: "Column 'api_key' may hold a key or password; this row is never sent." });
+    await assert.rejects(port.columns({ table: "p_unsafe" }), { name: "BackstopRefusal", message: "Column 'api_key' may hold a key or password; this row is never sent." });
     assert.deepEqual((await port.columns({ table: "p_widgets" }))?.map((column) => column.name), ["icon", "id", "label"]);
   });
 });
 
 test("read and removal require an existing table and its complete, scalar primary key", async () => {
   await withPort(async ({ port }) => {
-    await assert.rejects(port.read({ table: "p_missing", pk: { id: "a" } }), { message: "Table 'p_missing' does not exist." });
+    await assert.rejects(port.read({ table: "p_missing", pk: { id: "a" } }), { name: "BackstopRefusal", message: "Table 'p_missing' does not exist." });
     const partialKeys: Array<Readonly<Record<string, RawValue>>> = [{}, { label: "a" }, { post_id: "p" }, { id: null }, { id: { blobBase64: "AA==" } }];
     for (const pk of partialKeys) {
       const table = "post_id" in pk ? "p_tags" : "p_widgets";
-      await assert.rejects(port.read({ table, pk }), { message: "Choose a row by its complete primary key." }, JSON.stringify(pk));
+      await assert.rejects(port.read({ table, pk }), { name: "BackstopRefusal", message: "Choose a row by its complete primary key." }, JSON.stringify(pk));
     }
     await assert.rejects(port.removeCreated({ table: "p_tags", pk: { post_id: "p" } }), { message: "Choose a row by its complete primary key." });
     assert.equal(await port.read({ table: "p_widgets", pk: { id: "absent" } }), null);
@@ -95,7 +95,7 @@ test("read refuses a stored integer that JSON would round", async () => {
   await withPort(async ({ kernel, port }) => {
     await kernel.execute(sql`INSERT INTO p_counters VALUES ('big', 9007199254740993), ('ok', 7)`);
     assert.deepEqual((await port.read({ table: "p_counters", pk: { id: "ok" } }))?.values, { id: "ok", n: 7 });
-    await assert.rejects(port.read({ table: "p_counters", pk: { id: "big" } }), { message: "This row contains a database value that cannot be sent safely." });
+    await assert.rejects(port.read({ table: "p_counters", pk: { id: "big" } }), { name: "BackstopRefusal", message: "This row contains a database value that cannot be sent safely." });
   });
 });
 

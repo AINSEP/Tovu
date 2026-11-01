@@ -1,6 +1,6 @@
 import { executeCommand } from "@jini-ai/cms/core";
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { checkRawTable, checkRawValues, BACKSTOP_LIMITS } from "./backstop-policy.js";
+import { BackstopRefusal, checkRawTable, checkRawValues, BACKSTOP_LIMITS } from "./backstop-policy.js";
 import type { RawColumn, RawRowSnapshot, RawValue } from "./backstop-ports.js";
 import { PublishContentApplyRowError } from "./apply-errors.js";
 import { contentHash, CONTENT_HASH_VERSION } from "./content-hash.js";
@@ -88,7 +88,11 @@ function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: R
     const invalid = checkShape({ entity });
     if (invalid) return invalid;
     let live: readonly RawColumn[] | null;
-    try { live = await port.columns({ table }); } catch (error) { return error instanceof Error ? error.message : "The live row cannot be inspected safely."; }
+    try { live = await port.columns({ table }); } catch (error) {
+      // Only expected refusals are public; unexpected diagnostics belong to the shared failure handler.
+      if (!(error instanceof BackstopRefusal)) throw error;
+      return error.message;
+    }
     if (!live || shape(live) !== shape(columns)) return `Live's '${table}' has a different shape; update live first.`;
     const invalidValues = checkLiveValues({ entity, live });
     if (invalidValues) return invalidValues;
@@ -100,7 +104,10 @@ function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: R
     let row: RawRowSnapshot | null = null;
     let readReason: string | null = null;
     if (!early) {
-      try { row = await port!.read(selected); } catch (error) { readReason = error instanceof Error ? error.message : "This row cannot be sent safely."; }
+      try { row = await port!.read(selected); } catch (error) {
+        if (!(error instanceof BackstopRefusal)) throw error;
+        readReason = error.message;
+      }
     }
     const entity: PackedEntity | null = row ? {
       entityType: "raw-row", id, schemaVersion: 1,

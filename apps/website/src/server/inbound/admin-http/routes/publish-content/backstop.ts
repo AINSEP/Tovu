@@ -1,4 +1,5 @@
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { BackstopRefusal } from "#src/features/publish-content/backstop-policy";
 import type { Request, Response } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
@@ -18,6 +19,7 @@ import { pushBundleToPeer, confirmPeerImport, executePeerImport, type PeerCallDe
 import type { PublishContentPeerRecord } from "#src/features/publish-content/peers";
 import { toPublishContentDeps, type PublishContentRouteDeps, type PublishContentRouteRegistrar } from "./deps.js";
 import { bodyRecord, rejectForeignWorkspace, sendRefusal, type RouteRefusal } from "./route-helpers.js";
+import { respondWithError } from "./peer-transport.js";
 
 /** Whether `actorId` may send by hand: the `publish.backstop` permission AND the owner or a
  *  built-in admin/owner role. @complexity O(r) role reads. */
@@ -161,7 +163,7 @@ async function planSelection(res: Response, run: BackstopRun, overwriteEntityKey
         sourceLabel: deps.workspaceId, entities: auditedEntities, blobManifest: [...new Set(entities.flatMap((e) => e.requiredBlobs))], skipped },
       ...overwrite,
     });
-    if (pushed.notSupportedByLive.length > 0) throw new Error("Live can't accept send by hand yet; update live and enable its backstop grant.");
+    if (pushed.notSupportedByLive.length > 0) throw new BackstopRefusal({ message: "Live can't accept send by hand yet; update live and enable its backstop grant." });
     return { ...pushed, peerId: target.peerId, entities, skipped, ...overwrite };
   } });
   res.json({ ...result, logId: record.id });
@@ -249,7 +251,10 @@ export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = (app,
     if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
     try {
       await handleBackstopRequest(req, res, deps);
-    } catch (error) { res.status(409).json({ error: error instanceof Error ? error.message : "This send could not complete." }); }
+    } catch (error) {
+      if (error instanceof BackstopRefusal) { res.status(409).json({ error: error.message }); return; }
+      respondWithError(res, error, { message: "This send could not complete." });
+    }
   });
 
   app.get(`${base}/backstop/gaps`, async (req, res) => {
@@ -267,6 +272,9 @@ export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = (app,
     if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
     try {
       await handleUndoRequest(req, res, deps);
-    } catch (error) { res.status(409).json({ error: error instanceof Error ? error.message : "This send could not be undone." }); }
+    } catch (error) {
+      if (error instanceof BackstopRefusal) { res.status(409).json({ error: error.message }); return; }
+      respondWithError(res, error, { message: "This send could not be undone." });
+    }
   });
 };
