@@ -1,6 +1,7 @@
 export const CONTENT_POST_DELETE_TOOL_ID = "content_post_delete";
 import { DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT, MAX_SLUG_LENGTH, MAX_TITLE_LENGTH, SLUG_FORMAT_PATTERN, SLUG_OR_ROOT_PATTERN } from "./post.js";
 import { DEFAULT_POST_SEARCH_LIMIT, MAX_POST_SEARCH_LIMIT } from "./search.js";
+import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "../../contracts/core/assistant-content-guidance.js";
 
 const BLOCK_NODE_REF = "#/$defs/blockNode" as const;
 
@@ -933,7 +934,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "without expectedVersion, a partial patch (any field omitted) is still checked against the row's current version at write " +
       "time, so a human's save landing between your read and this call still rejects with VERSION_CONFLICT rather than silently " +
       "merging over it — only a FULL four-field call with no expectedVersion keeps the old unguarded last-write-wins behavior. " +
-      "Returns post.publicUrl when published, null for drafts. Link to publicUrl first; adminUrl is only a secondary edit link, never the main published-content link.",
+      "Returns post.publicUrl when published, null for drafts. Link to publicUrl first; adminUrl is only a secondary edit link, never the main published-content link. " +
+      ASSISTANT_CONTENT_EDIT_GUIDANCE,
     sideEffects: "mutates-durable-state",
     authorization: { permission: "content.write" },
     inputSchema: {

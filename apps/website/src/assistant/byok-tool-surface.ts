@@ -197,6 +197,12 @@ export const META_TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
             `default cutoff missed, so a miss at the default limit is weak evidence, not proof that no matching tool exists. If a retry ` +
             `with different terms still finds nothing, say you could not find a matching tool rather than assuming none exists.`,
         },
+        max_results: {
+          type: "integer",
+          minimum: 1,
+          maximum: SEARCH_LIMIT_MAX,
+          description: "Alias of limit. Supply only one value when using both names.",
+        },
       },
       required: ["query"],
       additionalProperties: false,
@@ -255,17 +261,33 @@ const META_TOOL_IDS: ReadonlySet<string> = new Set(META_TOOL_DESCRIPTORS.map((to
  */
 type MetaToolCatalogAudit = { readonly sink: ToolAttemptAuditSink; readonly workspaceId: string; readonly principalId: string; readonly runId: string };
 
+/** Check this adapter's advertised keys and ambiguous aliases before searching.
+ * Unlike MCP, BYOK retains its existing forgiving limit clamp below.
+ * @returns A model-readable error, or undefined for an unambiguous input; no effects.
+ * @complexity O(k) time/space for k supplied argument keys. */
+function searchInputError({ args }: { args: Record<string, unknown> }, _options = {}): string | undefined {
+  const schema = META_TOOL_DESCRIPTORS.find(tool => tool.id === 'search_tools')!.inputSchema as { properties: Record<string, unknown> };
+  const unknownKey = Object.keys(args).find(key => !Object.hasOwn(schema.properties, key));
+  if (unknownKey !== undefined) return `Unknown argument '${unknownKey}' for search_tools.`;
+  if (Object.hasOwn(args, 'limit') && Object.hasOwn(args, 'max_results') && args.limit !== args.max_results) {
+    return "Supply only one value for 'limit' and its alias 'max_results'.";
+  }
+  return undefined;
+}
+
 /** `search_tools` branch of {@link createByokToolSurface}'s `executeMetaTool` dispatcher — split out
- *  purely to keep that function's complexity under the shop ceiling; behavior is unchanged. */
+ *  purely to keep that function's complexity under the shop ceiling. */
 function runSearchTools(
   catalog: ToolCatalogQuery,
   registry: Pick<ToolRegistry, "list">,
   args: Record<string, unknown>,
   audit: MetaToolCatalogAudit | undefined,
 ): ByokMetaToolResult {
+  const inputError = searchInputError({ args });
+  if (inputError) return err(inputError);
   const query = typeof args.query === "string" ? args.query.trim() : "";
   if (query.length === 0) return err("'query' is required and must be a non-empty string.");
-  const rawLimit = args.limit;
+  const rawLimit = args.limit ?? args.max_results;
   // Clamp rather than reject: `limit` is an optimization hint, not part of what the caller is
   // asking for, so an out-of-range one should not cost a whole turn to correct.
   const limit =

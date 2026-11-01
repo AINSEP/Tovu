@@ -149,6 +149,24 @@ test("search_tools clamps an out-of-range limit instead of spending a turn refus
   assert.equal(parsed.hits.length, 1, "expected a 0 limit clamped up to 1, not treated as 'no results'");
 });
 
+test("search_tools accepts the advertised max_results alias and actually applies it", async () => {
+  const s = surface();
+  for (const limits of [{ max_results: 1 }, { limit: 1, max_results: 1 }]) {
+    const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "post", ...limits }));
+    assert.notEqual(result.isError, true);
+    assert.equal((JSON.parse(textOf(result)) as { hits: unknown[] }).hits.length, 1);
+  }
+  const schema = META_TOOL_DESCRIPTORS.find(tool => tool.id === 'search_tools')!.inputSchema as { properties: Record<string, unknown> };
+  assert.ok(schema.properties.max_results);
+});
+
+test("search_tools refuses conflicting aliases and unknown fields instead of silently discarding them", async () => {
+  for (const input of [{ query: 'post', limit: 1, max_results: 2 }, { query: 'post', junk: 2 }]) {
+    const result = await surface().executeMetaTool(PRINCIPAL, RUN, call('search_tools', input));
+    assert.equal(result.isError, true);
+  }
+});
+
 // Retrieval percentages depend on the current catalog/keywords and belong in measured eval reports.
 // Prompt text should describe what to do on a miss. Pin the essential retry guidance instead of
 // an entire paragraph, so wording changes do not obscure the contract being tested.

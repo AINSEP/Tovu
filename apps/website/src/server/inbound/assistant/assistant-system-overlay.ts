@@ -1,6 +1,7 @@
 import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/index";
 import { CREDENTIAL_GUIDANCE, SITE_GUIDE_POINTER } from "#src/assistant/prompt-guidance";
 import { TOOLS_FIRST_RULE } from "#src/contracts/core/assistant-native-fallbacks";
+import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "#src/contracts/core/assistant-content-guidance";
 import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliPermissions } from "#src/contracts/headless/index";
 /**
  * @file Test seam extracted out of `agent-daemon-server.ts`'s `assistantPromptAugmenter.
@@ -181,6 +182,7 @@ const SEARCH_SCOPE_GUIDANCE =
 export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean, optional: { nativeToolAccess?: boolean; messageRelayEnabled?: boolean } = {}): string {
   return (
     SITE_GUIDE_POINTER +
+    ASSISTANT_CONTENT_EDIT_GUIDANCE +
     "You are answering a live administrator's request through Tovu's own admin chat assistant, " +
     (optional.nativeToolAccess ? "Use the site's tools before native CLI fallbacks. Keep replies short and direct: " :
       "not doing general development work on the Tovu codebase. Keep replies short and direct: ") +

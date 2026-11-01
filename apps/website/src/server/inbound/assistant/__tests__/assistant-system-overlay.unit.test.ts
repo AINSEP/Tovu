@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { postAgentToolCatalog } from '#src/features/post/agent-tools';
+import { pagesAgentToolCatalog } from '#src/features/pages/agent-tools';
+import { SYSTEM_PREAMBLE } from '#src/server/runtime/composition/modules/assistant-byok';
 import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
 import { TOOLS_FIRST_RULE } from "#src/contracts/core/assistant-native-fallbacks";
 
@@ -314,6 +317,28 @@ test("published content guidance prioritizes the live URL and requires explicit 
   assert.match(overlay, /publicUrl first/);
   assert.match(overlay, /adminUrl is only a secondary edit link/);
   assert.match(overlay, /overwrite:true only when the user explicitly asked/);
+});
+
+test("every assistant overlay explains automatic editor updates and slug navigation after content edits", () => {
+  const overlays = [SYSTEM_PREAMBLE, ...[false, true].flatMap(prohibited =>
+    [false, true].map(nativeToolAccess => buildBaseSystemOverlay(prohibited, { nativeToolAccess })))];
+  for (const overlay of overlays) {
+    assert.match(overlay, /open post\/page editor automatically picks up successful assistant edits/);
+    assert.match(overlay, /editor URL follows a changed slug/);
+    assert.match(overlay, /Do not tell the user to reload the editor or claim its URL still uses the old slug/);
+    assert.match(overlay, /Unsaved local edits are preserved/);
+  }
+});
+
+test('all post/page write descriptions explain editor synchronization without recommending a reload', () => {
+  const writers = [...postAgentToolCatalog, ...pagesAgentToolCatalog].filter(tool =>
+    ['content_post_update', 'pages_write_html', 'pages_write_region', 'pages_move_region'].includes(tool.name));
+  assert.equal(writers.length, 4);
+  for (const tool of writers) {
+    assert.match(tool.description, /open post\/page editor automatically picks up successful assistant edits/, tool.name);
+    assert.match(tool.description, /editor URL follows a changed slug/, tool.name);
+    assert.doesNotMatch(tool.description, /(?:please|must|need to) (?:reload|refresh)|(?:^|[.!?]\s+)(?:The )?editor URL (?:still uses|keeps) the old slug/i, tool.name);
+  }
 });
 
 test("default prompt describes the enforced host tool grant", () => {

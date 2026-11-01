@@ -1,4 +1,5 @@
 import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
+import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "../../contracts/core/assistant-content-guidance.js";
 
 /**
  * @file The Pages domain's agent-tool catalog — how the assistant authors a bespoke HTML Page.
@@ -58,6 +59,7 @@ const EXPECTED_VERSION_SCHEMA = {
 
 /** Appended to both writers' descriptions so the conflict protocol is stated where it is used. */
 const VERSION_CONFLICT_GUIDANCE =
+  "\n\n" + ASSISTANT_CONTENT_EDIT_GUIDANCE +
   "\n\nCONCURRENCY: pass expectedVersion (from pages_read_html) whenever you read the page before " +
   "editing it. On VERSION_CONFLICT nothing was written — re-read with pages_read_html, reapply your " +
   "change to what you get back, and resend with the new version.";

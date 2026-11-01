@@ -126,6 +126,8 @@ import { installFirstPartyToolContributors } from "../../server/runtime/composit
 import { pluginSourceAgentToolCatalog } from '../../features/plugin-runtime/source-tools.js';
 import { createRetiredReadToolIdRewriter, RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
+import { META_TOOL_DESCRIPTORS } from '../byok-tool-surface.js';
+import { buildBaseSystemOverlay } from '../../server/inbound/assistant/assistant-system-overlay.js';
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -190,6 +192,33 @@ function registrationsById(existing?: ContentTypeRecord): Map<string, ToolRegist
   const guidance = createAutomaticPluginRuns({ askAgentPluginChoice, deps: createRouteDeps(), surfaces: { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) } });
   return new Map([...buildConfirmedAssistantToolRegistrations({ routeDeps: toAssistantRegistryDeps({ routeDeps }), options: { contributions } }), guidance.loadRegistration].map((r) => [r.descriptor.id, r]));
 }
+
+test('every tool description and explicit prompt call names only declared input arguments', () => {
+  const descriptors = [...registrationsById().values()].map(tool => tool.descriptor).concat(META_TOOL_DESCRIPTORS);
+  const byId = new Map(descriptors.map(tool => [tool.id, tool]));
+  const prompts = [buildBaseSystemOverlay(false), buildBaseSystemOverlay(true), buildBaseSystemOverlay(false, { nativeToolAccess: true })];
+  for (const tool of descriptors) {
+    const schema = tool.inputSchema as { properties?: Record<string, { description?: string }> } | undefined;
+    const fields = schema?.properties ?? {};
+    const guidance = [tool.description, ...Object.values(fields).map(field => field.description)].join('\n');
+    // Explicit argument/parameter references are inputs; return-shape names are not.
+    for (const match of guidance.matchAll(/(?:argument|parameter)\s+[`"'](\w+)[`"']|[`"'](\w+)[`"']\s+(?:argument|parameter)/g)) {
+      assert.ok(Object.hasOwn(fields, match[1] ?? match[2]!), `${tool.id}: ${match[0]}`);
+    }
+    prompts.push(guidance);
+  }
+  // Check JSON call examples in descriptions AND the injected system guidance against the target,
+  // rather than the tool that happens to mention it. Prose without a call is checked above.
+  for (const text of prompts) for (const match of text.matchAll(/\b([a-z][a-z_0-9.]*)\(\s*(\{[^{}]*\})\s*\)/g)) {
+    const target = byId.get(match[1]!);
+    if (!target) continue; // Native/external tools have their own schemas outside this catalog.
+    let args: Record<string, unknown>;
+    try { args = JSON.parse(match[2]!); } catch { continue; } // Non-JSON illustrations are prose.
+    const schema = target.inputSchema as { properties?: object; additionalProperties?: boolean };
+    if (schema.additionalProperties !== false) continue;
+    for (const key of Object.keys(args)) assert.ok(Object.hasOwn(schema.properties ?? {}, key), `${target.id}: example advertises ${key}`);
+  }
+});
 
 /** The one registration under test, asserted present so no call site needs a non-null assertion. */
 function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRegistration {

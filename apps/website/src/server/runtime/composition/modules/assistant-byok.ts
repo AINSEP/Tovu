@@ -1,4 +1,5 @@
 import { ensureAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
+import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "#src/contracts/core/assistant-content-guidance";
 import { createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic-agent-plugins";
 import { askAgentPluginChoice } from "#src/assistant/ask-choice-tool";
 import { createAiTraceRecorder } from "@jini-ai/agent-runtime/ai-trace";
@@ -98,6 +99,7 @@ export const BYOK_TURN_PATH = "/api/admin/v1/assistant/byok-turn";
  *  composition this constant is the fixed half of. */
 export const SYSTEM_PREAMBLE =
   SITE_GUIDE_POINTER +
+  ASSISTANT_CONTENT_EDIT_GUIDANCE +
   "You are the Tovu admin assistant, running with the operator's own AI provider key (BYOK mode). " +
   "Use the tools you are given to inspect and manage this Tovu site on the operator's behalf. " +
   "Keep replies short and direct: lead with the answer, skip preamble and skip restating the " +

@@ -1,0 +1,80 @@
+Programmer(Execution), with TDD: root-cause implementation and red-to-green regression tests.
+
+Outcome
+Bugs 1 and 2 are addressed in source. For bug 3, a repeated-error defect on disabled-consent analytics requests is reproduced and fixed; the original fake-test-site incident is not confirmed because neither clone contains that site or its server.log. No commits, installs, builds, or servers were started. Test processes exited. Concurrent agents' unrelated edits were left alone.
+
+1. search_tools rejects max_results
+Cause: Jini packages/mcp/src/server/tools/tool-catalog-tools.ts:55-107 declared only query/limit with additionalProperties:false. Strict dispatch therefore rejected max_results. Tovu apps/website/src/assistant/byok-tool-surface.ts:178-208 likewise omitted the alias, and its dispatcher previously silently ignored it, returning the default ten hits instead of the requested one. No max_results advertisement was found in the inspected assistant, agent-runtime, or MCP source; acceptance now explicitly supports the observed model call regardless of its origin.
+Change: advertise max_results in both schemas. Jini reuses its existing argumentNormalization alias mechanism to normalize it to limit before strict validation. BYOK applies the alias with its existing clamping behavior, rejects conflicting aliases, and derives its allowed keys from its descriptor. Other unknown MCP arguments remain rejected.
+Red: Jini strict-dispatch regression returned isError:true. Corrected Tovu regression replayed against the original source returned 10 hits instead of 1. The initial Tovu test used an undefined helper; that test-authoring error was corrected before this replay and is recorded in the mistake notebook.
+Green: MCP 50/50; Tovu combined 152/152.
+Class guards: all built-in Jini aliases and explicit argument references must be declared. Tovu checks every registered first-party descriptor and meta descriptor for explicit quoted argument/parameter references, and JSON tool-call examples in descriptions and system overlays against the target schema. This is a syntactic guard for explicit references/examples, not a semantic proof about arbitrary prose or external/native tool guidance. Regression cases also cover alias bounds, ambiguous values, equal values, and unknown fields.
+Tests: packages/mcp/src/server/tools/__tests__/argument-shapes.test.ts; packages/mcp/src/server/tools/__tests__/tool-catalog-tools.test.ts; Tovu apps/website/src/assistant/__tests__/byok-tool-surface.test.ts and tool-registrations.contracts.test.ts.
+
+2. Assistant still recommends reloading after an edit
+Cause: apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:182, server/runtime/composition/modules/assistant-byok.ts:100, features/post/agent-tools.ts:919 and features/pages/agent-tools.ts:61 did not explain the editor synchronization behavior. No literal stale reload/old-slug instruction was found in the active post/page prompts, tool descriptions, or result hints inspected; this is missing current guidance rather than a located stale sentence.
+Change: one CMS-specific text constant in contracts/core/assistant-content-guidance.ts is included in both prompt paths and all four content write descriptions (content_post_update, pages_write_html, pages_write_region, pages_move_region). It explains automatic clean-editor refresh, slug-following navigation, and preservation of unsaved edits with a conflict choice. It explicitly tells the assistant not to recommend reloading after a successful edit.
+Evidence: inspected the actual Posts external-refresh/applyExternalPost path and Pages external refresh behavior. No admin rendering/editor UI files were edited.
+Red: two new guidance regressions failed because both the overlay and write descriptors lacked the current behavior.
+Green: all prompt variants, the actual BYOK SYSTEM_PREAMBLE, and all four write descriptions pass in the 152-test Tovu run.
+Class guard: both assistant modes and the complete set of these content writers share and test the same facts, including the dirty-editor exception.
+Test: apps/website/src/server/inbound/assistant/__tests__/assistant-system-overlay.unit.test.ts.
+
+3. Repeated consent read errors
+Caller trace: Tovu server/runtime/composition/browser-analytics-http.ts:collectionAllowed calls Jini readRequestBrowserAnalyticsMode; analytics-providers.ts:analyticsProviderRouteDeps calls readRequestAnalyticsProof. Both use createSiteConsentPorts. Jini cms/src/consent/express/index.ts:currentRecord reports missing/invalid receipts via the injected reporter; Tovu server/inbound/public-http/middleware/site-consent.ts:74 emits [consent] read failed.
+Proved cause: Jini's analytics proof reader, browser analytics mode reader, and detached-proof recheck ignored config.enabled. Even on a disabled site they read a stale visitor receipt, repeatedly reporting missing proof; an old accepted receipt could also authorize analytics after consent was disabled.
+Change: packages/cms/src/consent/express/index.ts:257,273,289 stops these three readers before receipt access when the policy is disabled. Results remain undefined/false/pending. No reporter is muted, and enabled-site receipt failures retain their existing handling.
+Red: repeated disabled-policy requests performed nine unwanted receipt reads. The original six analytics tests passed.
+Green: nine tests pass, including repeated requests against missing, accepted, and unavailable receipt storage with zero reads/errors when disabled.
+Class guard: all three analytics evidence paths honor disabled policy before receipt access, for each receipt state, while existing enabled-policy tests still verify grants, rejection, GPC/DNT, expiry, policy changes, and retirement.
+Test: packages/cms/src/consent/__tests__/analytics-proof.test.ts.
+Limitation: Tovu deliberately defaults consent ON even without an installed consent plugin (features/consent/config.ts:18 and existing settings tests). An absent consent head row already returns empty draft/published state. Therefore disabled-policy reproduction must not be represented as proof of the original unconfigured fake-test-site cause. Site/log location was requested while work continued; no location was available at handoff.
+
+Verification commands (all final runs green)
+Tovu root, 152 tests:
+TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --test-concurrency=1 --test-timeout=120000 apps/website/src/assistant/__tests__/byok-tool-surface.test.ts apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts apps/website/src/server/inbound/assistant/__tests__/assistant-system-overlay.unit.test.ts
+Jini packages/mcp, 50 tests:
+npx --no-install vitest run --poolOptions.forks.maxForks=2 --poolOptions.forks.minForks=1 src/server/tools/__tests__/argument-shapes.test.ts src/server/tools/__tests__/tool-catalog-tools.test.ts
+Jini packages/cms, 9 tests:
+npx --no-install vitest run --poolOptions.forks.maxForks=2 --poolOptions.forks.minForks=1 src/consent/__tests__/analytics-proof.test.ts
+Focused diff whitespace checks passed in both repositories.
+Red evidence: /tmp/prov2-friction-byok-corrected-red.log and /tmp/prov2-friction-guidance-red.log; MCP/CMS red output was captured in the tool transcript. Final Tovu evidence: /tmp/prov2-friction-tovu-final.log.
+
+Commit file list — Tovu (only this dispatch's files)
+apps/website/src/assistant/byok-tool-surface.ts
+apps/website/src/assistant/__tests__/byok-tool-surface.test.ts
+apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+apps/website/src/contracts/core/assistant-content-guidance.ts (new)
+apps/website/src/features/post/agent-tools.ts
+apps/website/src/features/pages/agent-tools.ts
+apps/website/src/server/inbound/assistant/assistant-system-overlay.ts
+apps/website/src/server/inbound/assistant/__tests__/assistant-system-overlay.unit.test.ts
+apps/website/src/server/runtime/composition/modules/assistant-byok.ts
+ADS-memory/knowledge/mistakes/2026-10-31-friction-test-helper.md (new)
+ADS-memory/reports/2026-10-31-assistant-tool-friction.txt (this report)
+
+Commit file list — Jini
+packages/mcp/src/server/tools/tool-catalog-tools.ts
+packages/mcp/src/server/tools/__tests__/argument-shapes.test.ts
+packages/mcp/src/server/tools/__tests__/tool-catalog-tools.test.ts
+packages/cms/src/consent/express/index.ts
+packages/cms/src/consent/__tests__/analytics-proof.test.ts
+
+Rebuild/integration handoff
+Jini packages to rebuild: @jini-ai/mcp and @jini-ai/cms. Coordinator must make rebuilt versions available to Tovu to verify the composed runtime; this job did not build or alter dist/node_modules. No new dependency or lockfile change is required by these source edits. Any release/version/pin and lockfile update is for Coordinator.
+Suggested coordinator socket checks after rebuilding: Jini packages/mcp/src/server/__tests__/tool-server.wire.test.ts and packages/cms/src/consent/__tests__/http.test.ts; Tovu apps/website/src/server/__tests__/assistant-byok-routes.test.ts. These existing socket suites were not run here under the stated EPERM restriction. No new socket-listening test was needed: strict dispatch and receipt behavior were reproduced at the actual exported boundaries without listening.
+
+Reuse and architecture review
+Search: reused Jini's existing explicit-alias normalization owner; BYOK remains a thin adapter preserving its established permissive limit contract, rather than changing generic unknown-argument handling. CMS receipt behavior remains in @jini-ai/cms; Tovu's logger is unchanged. Editor facts are CMS-specific and shared through the existing contracts/core layer, with no UI edit or new platform module. Changed production units remain below the requested complexity ceiling; the small private search input guard separates argument-contract checks from search/audit effects. No architecture boundary change is introduced. Graph MCP tools and Jini's CLI/Graphify indexes were unavailable; its remaining knowledge graph had no matching discovery nodes, so current source searches/readings supplied evidence. Referenced Tovu architecture chapter/governance paths are missing in this clone; the available architecture ADR index and Jini locked extraction records were consulted.
+
+Bugs found
+- Fixed: strict MCP rejection and BYOK silent dropping of max_results.
+- Fixed: missing current editor synchronization guidance in both prompt paths and content write descriptions.
+- Fixed: disabled consent still accessing stale receipt storage, logging missing proof, and potentially honoring a stale accepted grant.
+- Additional, unchanged: packages/mcp/src/server/tools/tool-catalog-tools.ts:97 still advertises fixed 98%/100% retrieval claims. Tovu's corresponding guidance/test documents removal of those unsupported claims; Jini still carries them. Recommend a separate prompt correction with a no-hardcoded-percentage regression.
+
+Not done
+- Confirming and eliminating the original fake-test-site log spike: its site/log is unavailable, and product-default ON differs from the proved disabled-policy case. Next owner: Coordinator, provide that site's policy state and original error path/log.
+- Live model/browser replay, rebuilt-package consumer verification, and socket suites: no builds/servers permitted and sockets unavailable. Source-level targeted evidence is green.
+- Arbitrary natural-language argument-reference validation beyond explicit references/JSON examples; external/native tool guidance is outside the registered first-party catalog guard.
+- Commits/pushes: expressly prohibited; changes are left reviewable in the working trees.
