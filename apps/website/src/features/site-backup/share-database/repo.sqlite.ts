@@ -320,16 +320,21 @@ function hasSecretShape(required: { text: string }, _options: Record<string, nev
   return redactSecretShapes({ text: required.text }).redactions > 0;
 }
 
-/** Blank text BEFORE insertion so removed bytes cannot survive in FTS or SQLite free pages.
- * JSON columns receive a valid empty JSON value; schema-specific settings use their owner below.
+/** Blank text/BLOBs BEFORE insertion so removed bytes cannot survive in FTS or SQLite free pages.
+ * Text JSON columns receive valid empty JSON; BLOBs keep their binary storage type;
+ * schema-specific settings use their owner below.
  * O(row bytes); mutates only the fresh projected row, never the source snapshot.
  */
 function sanitizePortableRow(required: { row: Row; table: string; notices: string[] }, _options = {}): { row: Row; changed: string[] } {
   const row = { ...required.row }, changed: string[] = [];
   for (const [column, value] of Object.entries(row)) {
-    if (typeof value !== "string" || !hasSecretShape({ text: value })) continue;
+    const binary = value instanceof Uint8Array;
+    // Decode UTF-8 for the same scanner; replacement decoding also exposes ASCII keys beside
+    // invalid bytes. Harmless binary values retain their exact original bytes.
+    const text = binary ? Buffer.from(value).toString("utf8") : value;
+    if (typeof text !== "string" || !hasSecretShape({ text })) continue;
     addShareOmission({ notices: required.notices, location: `${required.table}.${column} row ${String(row.id ?? row.workspace_id ?? "unknown")}` });
-    row[column] = blankPortableText({ column, value });
+    row[column] = binary ? Buffer.alloc(0) : blankPortableText({ column, value: text });
     changed.push(column);
   }
   return { row, changed };

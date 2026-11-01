@@ -1,4 +1,4 @@
-import { SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
+import { SHARE_LIMITS, SHARE_VERSION_MISMATCH_MESSAGE, SiteShareRefusal } from "./share-policy.js";
 import { claimSharePath, SHARED_PLUGIN_MEMORY } from "./share-file-policy.js";
 import type { SiteBackupInclude } from "./sources.js";
 import { isStaticSitePath, type StaticSiteMetadata } from "./static-copy.js";
@@ -145,11 +145,13 @@ function requirePluginCoverage(required: { files: ReadonlyMap<string, ArchiveFil
   }
 }
 
+/** Refuse malformed identities separately so version advice never masks a broken manifest shape. */
 function validateIdentity({ manifest: m, schema }: { manifest: any; schema: ArchiveManifest["schema"] }): void {
   if (m?.formatVersion !== 2 || m.profile !== "share") invalid();
   // Library added columns, not a new manifest identity. Historical database compatibility
   // belongs to the worker's trusted schema matcher, never invented migration-ID aliases.
-  if (m.schema?.index !== schema.index || m.schema?.tag !== schema.tag) invalid();
+  if (!Number.isSafeInteger(m.schema?.index) || typeof m.schema?.tag !== "string") invalid();
+  if (m.schema.index !== schema.index || m.schema.tag !== schema.tag) throw new SiteShareRefusal({ code: "INVALID_ARCHIVE", message: SHARE_VERSION_MISMATCH_MESSAGE });
 }
 
 /** The single file-record contract shared by manifest parsing and inventory construction.

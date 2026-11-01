@@ -19,7 +19,7 @@ export interface ImportedExtensionState {
   keptOff?: readonly string[];
 }
 
-/** Seed only THIS install's code before applying bundled-identical activation decisions.
+/** Seed only THIS install's code before applying imported activation choices by plugin id.
  * Shipped code remains quarantined (see `importedActivation` for the per-plugin decision).
  * @complexity O(local bundled package bytes + imported memory bytes), bounded by share caps.
  */
@@ -36,24 +36,24 @@ export async function restoreImportedPluginState(required: { root: string; dir: 
   for (const plugin of required.state.plugins.filter(plugin => plugin.kind === "agent")) {
     const edited = required.state.modified.includes("agent-plugins/" + plugin.id);
     const enabled = importedActivation({ plugin, installed, trusted, edited });
-    if (enabled !== undefined) await lifecycle.setAgentPluginActivation({ workspaceRoot: workspace.root, pluginId: plugin.id, enabled, actor: "system:import" });
+    await lifecycle.setAgentPluginActivation({ workspaceRoot: workspace.root, pluginId: plugin.id, enabled, actor: "system:import" });
   }
   return placeImportedMemory({ root: required.root, dir: required.dir, files: required.files, workspace, pluginIds: new Set(installed.map(plugin => plugin.pluginId)) });
 }
 
 /**
- * The activation an imported agent plugin writes, or `undefined` to write none.
+ * The activation an imported agent plugin writes onto this install's own bundled code.
  * - This install ships the same id under a different digest (the source ran another Tovu
- *   version) and the copy was not edited: keep this install's own seeded state. An explicit
- *   `false` would read as "disabled by operator" and the boot seeder would preserve it.
+ *   version) and the copy was not edited: carry the operator's choice by id, including an
+ *   explicit `false` so later boots preserve it. The imported code stays quarantined.
  * - Otherwise only bundled-identical, trusted code carries the source's `enabled` over; an
  *   unrecognised or edited version explicitly stays off.
  * `trusted` already excludes edited units.
  */
-function importedActivation(required: { plugin: ArchivePlugin; installed: readonly InstalledPlugin[]; trusted: ReadonlySet<string>; edited: boolean }): boolean | undefined {
+function importedActivation(required: { plugin: ArchivePlugin; installed: readonly InstalledPlugin[]; trusted: ReadonlySet<string>; edited: boolean }): boolean {
   const { plugin } = required;
   const local = required.installed.find(local => local.pluginId === plugin.id);
-  if (local && local.archiveDigest !== plugin.digest && !required.edited) return undefined;
+  if (local && local.archiveDigest !== plugin.digest && !required.edited) return plugin.enabled;
   return Boolean(local && required.trusted.has(plugin.id) && plugin.enabled);
 }
 

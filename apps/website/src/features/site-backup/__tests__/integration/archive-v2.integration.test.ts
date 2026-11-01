@@ -54,7 +54,7 @@ async function repack(files: ReadonlyMap<string, Buffer>): Promise<Buffer> {
   });
   return Buffer.from(await (await zipFolderFiles({ files: picked, maxBytes: 300 * 1024 * 1024 })).arrayBuffer());
 }
-async function fixture(t: TestContext, optional: { siteFiles?: Readonly<Record<string, string>>; activeThemeId?: string } = {}) {
+async function fixture(t: TestContext, optional: { siteFiles?: Readonly<Record<string, string>>; activeThemeId?: string; pluginEnabled?: boolean } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-v2-"));
   t.after(() => {
     // Installed plugin packages are read-only; make the tree writable so it can be removed.
@@ -107,7 +107,7 @@ async function fixture(t: TestContext, optional: { siteFiles?: Readonly<Record<s
   const layout = resolveAgentPluginLayout({ siteDir: siteDir }, { env: {} });
   const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
   await lifecycle.seedBundledAgentPlugins({ layout, workspaceId: "ws", sourceRoot });
-  await lifecycle.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace("ws").root, pluginId: "demo", enabled: true, actor: "owner" });
+  await lifecycle.setAgentPluginActivation({ workspaceRoot: layout.forWorkspace("ws").root, pluginId: "demo", enabled: optional.pluginEnabled ?? true, actor: "owner" });
   write(siteDir, "agent-plugins/ws/ws/demo/memory/notes/note.md", "Site note");
   const packageFiles = await readBundledPackageFiles({}, { sourceRoot });
   const sourceBefore = db.$client.serialize();
@@ -271,29 +271,48 @@ test("edited plugin and theme import with a warning and the whole unit kept off"
   }
 });
 
-test("a built-in shipped by a different Tovu version keeps this install's own state; the imported copy stays off with a warning", async t => {
-  const h = await fixture(t), bundled = path.join(h.root, "bundled-next");
-  write(bundled, "demo/plugin.json", '{"$schema":"https://agent-plugins.org/schemas/1.1.0/plugin.schema.json","name":"demo","version":"1.1.0","description":"Fixture plugin"}');
+for (const enabled of [false, true]) test(`a different build carries the plugin's enabled=${enabled} choice onto local code`, async t => {
+  const h = await fixture(t, { pluginEnabled: enabled }), bundled = path.join(h.root, "bundled-next");
+  write(bundled, "demo/plugin.json", JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.1.0/plugin.schema.json", name: "demo", version: "1.1.0", description: "Fixture plugin" }));
   write(bundled, "demo/skills/demo/SKILL.md", "Fixture skill");
   write(bundled, "demo/server.mjs", "export const value = 2;");
   const verified = await verifySiteImport({ archive: h.archive, reader, sanitize: sanitizeShareDatabase, schema: runtimeSchemaVersion() }, { packageFiles: await readBundledPackageFiles({}, { sourceRoot: bundled }) });
-  const stage = path.join(h.root, "skew-stage"), dir = path.join(h.root, "skew"), fresh = path.join(h.root, "fresh");
+  assert.equal(verified.plugins.find(plugin => plugin.id === "demo")!.enabled, enabled);
+  assert.deepEqual(verified.trustedPlugins, [], "the source build's code gains no execution trust");
+  const stage = path.join(h.root, "skew-stage"), dir = path.join(h.root, "skew");
   fs.mkdirSync(dir);
   stageVerifiedImport({ root: stage, verified });
   await restoreStagedImport({ root: stage, dir, dbPath: path.join(dir, "content.db") }, { pluginSourceRoot: bundled });
   const workspaceId = readTemplate({ templateId: "starter" }).seed.workspace.id;
-  const activation = async (siteDir: string) => {
-    const layout = resolveAgentPluginLayout({ siteDir: siteDir }, { env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() });
-    if (siteDir === fresh) await lifecycle.seedBundledAgentPlugins({ layout, workspaceId, sourceRoot: bundled });
-    const { updatedAt: _when, ...record } = (await lifecycle.readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(workspaceId).root })).plugins.demo!;
-    return record;
-  };
-  // Same record a fresh seed writes: not an import-written "switched off" decision the seeder would then preserve.
-  assert.deepEqual(await activation(dir), await activation(fresh));
+  const layout = resolveAgentPluginLayout({ siteDir: dir }, { env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundled });
+  const workspaceRoot = layout.forWorkspace(workspaceId).root;
+  assert.equal((await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins.demo!.enabled, enabled);
+  // A later boot must preserve the imported operator choice, including an explicit off.
+  await lifecycle.seedBundledAgentPlugins({ layout, workspaceId, sourceRoot: bundled });
+  assert.equal((await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins.demo!.enabled, enabled);
+  const [installed] = await lifecycle.listInstalledPlugins(workspaceRoot);
+  assert.equal(fs.readFileSync(path.join(installed!.packageRoot, "server.mjs"), "utf8"), "export const value = 2;");
+  assert.equal(fs.readFileSync(path.join(dir, ".import-quarantine/agent-plugins/demo/package/server.mjs"), "utf8"), "export const value = 1;");
   assert.deepEqual(stagedImportWarnings({ root: stage }), [
     "Agent plugin 'demo' isn't code this Tovu recognises. It was imported and kept switched off.",
     "Skill 'notes' isn't code this Tovu recognises. It was imported and kept switched off.",
   ]);
+});
+
+test("an enabled plugin absent from this build stays quarantined and the import names why it stays off", async t => {
+  const h = await fixture(t), bundled = path.join(h.root, "empty-bundled");
+  fs.mkdirSync(bundled);
+  const verified = await verifySiteImport({ archive: h.archive, reader, sanitize: sanitizeShareDatabase, schema: runtimeSchemaVersion() }, { packageFiles: new Map() });
+  const stage = path.join(h.root, "unavailable-stage"), dir = path.join(h.root, "unavailable");
+  fs.mkdirSync(dir);
+  stageVerifiedImport({ root: stage, verified });
+  await restoreStagedImport({ root: stage, dir, dbPath: path.join(dir, "content.db") }, { pluginSourceRoot: bundled });
+  const layout = resolveAgentPluginLayout({ siteDir: dir }, { env: {} }), lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundled });
+  const workspaceRoot = layout.forWorkspace(readTemplate({ templateId: "starter" }).seed.workspace.id).root;
+  assert.deepEqual(await lifecycle.listInstalledPlugins(workspaceRoot), []);
+  assert.equal((await lifecycle.readAgentPluginActivations({ workspaceRoot })).plugins.demo!.enabled, false);
+  assert.equal(fs.readFileSync(path.join(dir, ".import-quarantine/agent-plugins/demo/package/server.mjs"), "utf8"), "export const value = 1;");
+  assert.ok(stagedImportWarnings({ root: stage }).includes("Agent plugin 'demo' isn't code this Tovu recognises. It was imported and kept switched off."));
 });
 
 test("the real public raster transformer strips GPS/EXIF before archive selection", async () => {

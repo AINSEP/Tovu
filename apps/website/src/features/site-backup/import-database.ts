@@ -3,7 +3,7 @@ import { mkdtemp, writeFile, readFile, rm, statfs } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseProjection } from "#src/features/site-backup/share-policy";
+import { SHARE_LIMITS, SHARE_VERSION_MISMATCH_MESSAGE, IMPORT_SCHEMA_MISMATCH_EXIT_CODE, SiteShareRefusal, type ShareDatabaseProjection } from "#src/features/site-backup/share-policy";
 
 /** The slice of a forked helper this module drives: its failure/exit events and a kill switch. */
 export interface ImportWorkerChild {
@@ -62,7 +62,7 @@ export async function rebuildImportDatabase(required: { snapshot: Buffer; module
       child.once("close", code => {
         clearTimeout(timer); optional.signal?.removeEventListener("abort", abort);
         if (reason) reject(reason);
-        else if (code !== 0) reject(new SiteShareRefusal({ code: "INVALID_DATABASE", message: "Import database has unsupported schema, invalid references or unsafe data." }));
+        else if (code !== 0) reject(new SiteShareRefusal({ code: "INVALID_DATABASE", message: code === IMPORT_SCHEMA_MISMATCH_EXIT_CODE ? SHARE_VERSION_MISMATCH_MESSAGE : "Import database has unsupported schema, invalid references or unsafe data." }));
         else resolve();
       });
     });

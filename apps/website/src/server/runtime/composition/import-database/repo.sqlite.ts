@@ -12,7 +12,7 @@ import { listColumns } from "#src/platform/db/kernel/dialect";
 import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects } from "#src/platform/db/kernel/sqlite-only";
 import type { StorageKernel } from "#src/platform/db/kernel/port";
 import { sanitizeShareDatabase, prepareSharePluginTables } from "#src/features/site-backup/share-database/repo.sqlite";
-import { SHARE_TABLES } from "#src/features/site-backup/share-policy";
+import { SHARE_TABLES, IMPORT_SCHEMA_MISMATCH_EXIT_CODE, SHARE_VERSION_MISMATCH_MESSAGE, SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import { readTemplate } from "#src/platform/site-dir/index";
 import { computeBlobStorageKey } from "#src/features/media/index";
 
@@ -57,7 +57,7 @@ async function run(required: { root: string }, _options: Record<string, never> =
     const expected = await sqliteSchemaObjects({ kernel: sqliteKernel(trusted) });
     // No archived SQL is executed or relaxed: every table, index and trigger must match
     // this build. Historical ADD COLUMN schema variants are not part of the v2 contract.
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error("Unsupported SQLite schema objects");
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new SiteShareRefusal({ code: "UNSUPPORTED_SCHEMA", message: SHARE_VERSION_MISMATCH_MESSAGE });
     if ((await sourceKernel.query(sql`SELECT id FROM workspaces LIMIT 2`)).length !== 1) throw new Error("Import requires one workspace");
     // Source FKs may reference private rows omitted by projection; validate rebuilt FKs below.
     if (verifySqliteIntegrity({ db: source, quick: true }).issues.some(issue => issue.kind === "integrity")) throw new Error("Invalid SQLite integrity");
@@ -108,4 +108,5 @@ async function run(required: { root: string }, _options: Record<string, never> =
   await writeFile(path.join(required.root, "documents.json"), JSON.stringify(projection.documents!), { flag: "wx", mode: 0o600 });
 }
 
-run({ root: process.argv[2]! }).then(() => process.exit(0), () => process.exit(1));
+// Only a typed schema refusal crosses as a distinct exit code; raw SQLite details stay private.
+run({ root: process.argv[2]! }).then(() => process.exit(0), error => process.exit(error instanceof SiteShareRefusal && error.code === "UNSUPPORTED_SCHEMA" ? IMPORT_SCHEMA_MISMATCH_EXIT_CODE : 1));

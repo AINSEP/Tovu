@@ -36,6 +36,7 @@ async function refuses(items: readonly AgentPluginArchiveEntry[], expected: { co
 }
 const INVALID = (message: string | RegExp) => ({ code: "INVALID_ARCHIVE", message });
 const BAD_MANIFEST = INVALID("Invalid v2 share manifest, inventory or schema identity.");
+const VERSION_MISMATCH = INVALID("This ZIP was made by a different Tovu version. Export the site again from an updated Tovu, then import the new ZIP.");
 const NO_MANIFEST = INVALID(/^A v2 manifest\.json at root/);
 const INVENTORY_DIFFERS = INVALID("ZIP inventory differs from the manifest.");
 const dir = (entryPath: string): AgentPluginArchiveEntry => ({ kind: "directory", entryPath });
@@ -56,12 +57,17 @@ test("v2 returns a fresh projection and maps the single media copy to its blob k
   assert.equal(result.files.has("media/photo.bin"), false);
   assert.deepEqual(result.warnings, []);
 });
-test("v1 and incompatible identities refuse before the database owner", { timeout: 120000 }, async () => {
-  for (const overrides of [{ formatVersion: 1 }, { profile: "backup" }, { schema: { ...schema, index: 8 } }, { schema: { ...schema, tag: "other" } }, { site: null }, { site: { name: " " } }, { site: { name: "x".repeat(201) } }, { files: null }, { media: null }, { plugins: null }]) {
+test("v1 and malformed manifests refuse before the database owner", { timeout: 120000 }, async () => {
+  for (const overrides of [{ formatVersion: 1 }, { profile: "backup" }, { schema: null }, { schema: { index: "7", tag: "schema" } }, { site: null }, { site: { name: " " } }, { site: { name: "x".repeat(201) } }, { files: null }, { media: null }, { plugins: null }]) {
     await refuses(entries(manifest(overrides)), BAD_MANIFEST);
   }
   for (const bytes of [Buffer.from("{"), Buffer.from("null")]) await refuses([file("manifest.json", bytes)], BAD_MANIFEST);
   await refuses(entries().filter(entry => entry.entryPath !== "manifest.json"), NO_MANIFEST);
+});
+test("incompatible schema identities name the source-version remedy before the database owner", { timeout: 120000 }, async () => {
+  for (const identity of [{ ...schema, index: 8 }, { ...schema, tag: "other" }]) {
+    await refuses(entries(manifest({ schema: identity })), VERSION_MISMATCH);
+  }
 });
 test("unlisted, missing, self-listed and duplicate files refuse", { timeout: 120000 }, async () => {
   await refuses([...entries(), file("themes/site/extra.txt", Buffer.from("x"))], INVENTORY_DIFFERS);
@@ -252,18 +258,18 @@ test("a manifest that is not JSON is refused", { timeout: 120000 }, async () => 
 
 // Manifest identity ---------------------------------------------------------------------------
 
-const IDENTITY_CASES: readonly [string, unknown][] = [
+const IDENTITY_CASES: readonly [string, unknown, ReturnType<typeof INVALID>?][] = [
   ["a null manifest", null], ["a numeric manifest", 5], ["format version 1", manifest({ formatVersion: 1 })],
   ["the backup profile", manifest({ profile: "backup" })], ["a missing schema", manifest({ schema: undefined })],
-  ["another schema index", manifest({ schema: { ...schema, index: 8 } })], ["another schema tag", manifest({ schema: { ...schema, tag: "forged" } })],
+  ["another schema index", manifest({ schema: { ...schema, index: 8 } }), VERSION_MISMATCH], ["another schema tag", manifest({ schema: { ...schema, tag: "forged" } }), VERSION_MISMATCH],
   ["a missing scope", manifest({ scopes: { database: true, media: true, themes: true, plugins: true } })],
   ["a non-array file list", manifest({ files: {} })], ["a 2,000-record file list", manifest({ files: Array(SHARE_LIMITS.maxFiles).fill(records()[0]) })],
   ["a non-array media list", manifest({ media: {} })], ["a non-array plugin list", manifest({ plugins: {} })],
   ["a missing site", manifest({ site: undefined })], ["a non-string site name", manifest({ site: { name: 42 } })],
   ["a blank site name", manifest({ site: { name: "  " } })], ["a 201-character site name", manifest({ site: { name: "x".repeat(201) } })],
 ];
-for (const [label, value] of IDENTITY_CASES) {
-  test(`a manifest with ${label} is refused`, { timeout: 120000 }, async () => { await refuses([file("manifest.json", Buffer.from(JSON.stringify(value))), ...entries().slice(1)], BAD_MANIFEST); });
+for (const [label, value, expected = BAD_MANIFEST] of IDENTITY_CASES) {
+  test(`a manifest with ${label} is refused`, { timeout: 120000 }, async () => { await refuses([file("manifest.json", Buffer.from(JSON.stringify(value))), ...entries().slice(1)], expected); });
 }
 
 // Manifest inventory ---------------------------------------------------------------------------
