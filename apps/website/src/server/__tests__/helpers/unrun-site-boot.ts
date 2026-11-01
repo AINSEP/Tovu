@@ -62,7 +62,7 @@ export type BootReadiness = Pick<
  *  adoption, then the legacy publish-credential copy), and closing under it logged "The database
  *  connection is not open" on every teardown. */
 export async function drainBootReadiness(deps: BootReadiness): Promise<void> {
-  await Promise.all([
+  const results = await Promise.allSettled([
     deps.identityReady,
     deps.settingsReady,
     deps.seoReady,
@@ -75,6 +75,9 @@ export async function drainBootReadiness(deps: BootReadiness): Promise<void> {
     deps.pluginRuntimeReady,
     deps.legacyPublishCredentialsReady,
   ]);
+  // A failed pass must not let teardown close beneath its still-running siblings.
+  const failed = results.find(result => result.status === "rejected");
+  if (failed?.status === "rejected") throw failed.reason;
 }
 
 /** Boots a fresh site of `dialect` and registers its teardown on `t`. */
@@ -85,22 +88,24 @@ export async function bootSite(t: TestContext, dialect: SiteDialect, optional: {
   const socketDir = defaultPgliteSocketDir(path.join(siteDir, PGLITE_DATA_DIR_NAME));
   if (dialect === "pglite") process.env[PG_SOCKET_ENV] = path.join(socketDir, PGLITE_SOCKET_FILE);
 
-  await initSite({ dir: siteDir, name: `Unrun ${dialect} site`, storage: { kind: dialect } });
-  const boot = await bootSiteDir({ dir: siteDir });
+  let boot: Awaited<ReturnType<typeof bootSiteDir>> | undefined;
   let composed: SiteStore | undefined;
+  let deps: SiteDeps | undefined;
   // Background passes `createApp` starts and returns before they finish (`onBootWork`); teardown
   // awaits them so the store does not close under their reads.
   const appBootWork: Promise<void>[] = [];
-  const deps = await createSiteRouteDeps(resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath, {
-    db: boot.db,
-    store: boot.store,
-    workspaceId: boot.workspaceId,
-    onStoreOpened: (store) => (composed = store),
-    uploadsDir: path.join(siteDir, "uploads"),
-    themesDir: path.join(siteDir, "themes"),
-    siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
-  });
   try {
+    await initSite({ dir: siteDir, name: `Unrun ${dialect} site`, storage: { kind: dialect } });
+    boot = await bootSiteDir({ dir: siteDir });
+    deps = await createSiteRouteDeps(resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath, {
+      db: boot.db,
+      store: boot.store,
+      workspaceId: boot.workspaceId,
+      onStoreOpened: (store) => (composed = store),
+      uploadsDir: path.join(siteDir, "uploads"),
+      themesDir: path.join(siteDir, "themes"),
+      siteBinding: { dir: siteDir, name: path.basename(siteDir), dirOverridden: true, switcherCompatible: false },
+    });
     await drainBootReadiness(deps);
     optional.configureDeps?.(deps);
     const { baseUrl, cookie } = await bootAuthenticated(createApp(deps, { onBootWork: (work) => appBootWork.push(work) }), t);
@@ -109,11 +114,13 @@ export async function bootSite(t: TestContext, dialect: SiteDialect, optional: {
     // Register after HTTP teardown, even if login fails: node:test skips hooks after one throws.
     t.after(async () => {
       try {
-        await drainBootReadiness(deps).catch(() => undefined);
-        await Promise.all(appBootWork);
+        if (deps) await drainBootReadiness(deps).catch(() => undefined);
+        const results = await Promise.allSettled(appBootWork);
+        const failed = results.find(result => result.status === "rejected");
+        if (failed?.status === "rejected") throw failed.reason;
       } finally {
         // A rejected boot pass must still close the store and restore process-global fixtures.
-        await closeSiteDirBoot(boot, composed).catch(() => undefined);
+        if (boot) await closeSiteDirBoot(boot, composed).catch(() => undefined);
         if (savedSocketEnv === undefined) delete process.env[PG_SOCKET_ENV];
         else process.env[PG_SOCKET_ENV] = savedSocketEnv;
         try { fs.rmSync(parent, { recursive: true, force: true }); }

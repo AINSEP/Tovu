@@ -83,7 +83,7 @@ export async function startStubProviderServer(
       res.end(reply.body);
     });
   });
-  server.listen(0);
+  server.listen(0, "127.0.0.1");
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }));
 
