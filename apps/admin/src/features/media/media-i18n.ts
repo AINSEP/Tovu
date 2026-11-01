@@ -1736,13 +1736,38 @@ const MEDIA_SHAPE_STRINGS: Record<string, Record<string, string>> = {
   bn: { "Long image": "লম্বা ছবি" },
 };
 
+/** `/admin/media?id=` naming an item the library doesn't hold (use-media-item-link.hooks.ts). */
+const MEDIA_LINK_STRINGS: Record<string, Record<string, string>> = {
+  es: { "That media item wasn't found.": "No se encontró ese elemento multimedia." },
+  id: { "That media item wasn't found.": "Item media itu tidak ditemukan." },
+  de: { "That media item wasn't found.": "Dieses Medium wurde nicht gefunden." },
+  "zh-CN": { "That media item wasn't found.": "未找到该媒体项。" },
+  "zh-TW": { "That media item wasn't found.": "找不到該媒體項目。" },
+  "pt-BR": { "That media item wasn't found.": "Esse item de mídia não foi encontrado." },
+  ru: { "That media item wasn't found.": "Этот медиафайл не найден." },
+  fa: { "That media item wasn't found.": "آن مورد رسانه پیدا نشد." },
+  ar: { "That media item wasn't found.": "لم يتم العثور على عنصر الوسائط هذا." },
+  ja: { "That media item wasn't found.": "そのメディアは見つかりませんでした。" },
+  ko: { "That media item wasn't found.": "해당 미디어 항목을 찾을 수 없습니다." },
+  pl: { "That media item wasn't found.": "Nie znaleziono tego elementu multimediów." },
+  hu: { "That media item wasn't found.": "Ez a médiaelem nem található." },
+  fr: { "That media item wasn't found.": "Ce média est introuvable." },
+  uk: { "That media item wasn't found.": "Цей медіафайл не знайдено." },
+  tr: { "That media item wasn't found.": "Bu medya öğesi bulunamadı." },
+  th: { "That media item wasn't found.": "ไม่พบรายการสื่อนั้น" },
+  it: { "That media item wasn't found.": "Questo elemento multimediale non è stato trovato." },
+  hi: { "That media item wasn't found.": "वह मीडिया आइटम नहीं मिला।" },
+  ur: { "That media item wasn't found.": "وہ میڈیا آئٹم نہیں ملا۔" },
+  bn: { "That media item wasn't found.": "সেই মিডিয়া আইটেমটি পাওয়া যায়নি।" },
+};
+
 export const MEDIA_DICT: Record<string, Record<string, string>> = Object.fromEntries(
   Object.entries(MEDIA_TRANSLATIONS).map(([locale, entries]) => [
     locale,
     // Spreading a missing locale's `undefined` contributes nothing, so a locale absent from one of
     // these add-on tables still merges cleanly — no `?? {}` fallback is needed (every current locale
     // is present in every one, which left those fallbacks with no reachable branch).
-    { ...entries, ...MEDIA_AUDIT_STRINGS[locale], ...MEDIA_IMPORT_STRINGS[locale], ...MEDIA_PROVENANCE_STRINGS[locale], ...MEDIA_DIALOG_STRINGS[locale], ...MEDIA_TRASH_STRINGS[locale], ...MEDIA_SHAPE_STRINGS[locale] },
+    { ...entries, ...MEDIA_AUDIT_STRINGS[locale], ...MEDIA_IMPORT_STRINGS[locale], ...MEDIA_PROVENANCE_STRINGS[locale], ...MEDIA_DIALOG_STRINGS[locale], ...MEDIA_TRASH_STRINGS[locale], ...MEDIA_SHAPE_STRINGS[locale], ...MEDIA_LINK_STRINGS[locale] },
   ]),
 );
 

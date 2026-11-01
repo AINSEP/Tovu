@@ -25,6 +25,7 @@ import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useMediaCardDetails } from "./hooks/use-media-card-details.hooks";
 import { useWiredEditMediaPanel, type EditMediaPanelController } from "./hooks/use-edit-media-panel.hooks";
 import { useEditMediaModal } from "./hooks/use-edit-media-modal.hooks";
+import { useMediaItemLink } from "./hooks/use-media-item-link.hooks";
 import { useMediaCardMetadata } from "./hooks/use-media-card-metadata.hooks";
 import { useMediaTabs, type MediaContentTabId, type MediaTabId, type MediaTabsController } from "./hooks/use-media-tabs.hooks";
 import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from "./media-provider-catalog";
@@ -974,7 +975,9 @@ export interface MediaProps {
   useMediaTabsHook?: typeof useMediaTabs;
   /** The `?tab=` query value from `panels.tsx`'s `media` route (`URLSearchParams.get` returns
    *  `null` when the param is absent). See `use-media-tabs.hooks.ts`'s `resolveActiveTab`. */
-  tabId?: string | null;
+  tabId?: string | null;  /** The `?id=` query value — the one media item whose detail (metadata) dialog the URL opens.
+   *  See `use-media-item-link.hooks.ts`. */
+  itemId?: string | null;
 }
 
 function MediaCardMetadata(props: { item: AdminMedia; locale: string }) {
@@ -1400,6 +1403,13 @@ export function Media(props: MediaProps) {
   const controller = useMediaHook();
   const { media, error, t } = controller;
   const { activeTab, setActiveTab } = useMediaTabsHook(props.tabId);
+  const { notFound } = useMediaItemLink({
+    itemId: props.itemId,
+    activeTab,
+    media,
+    editingId: controller.editingId,
+    setEditingId: controller.setEditingId,
+  });
 
   if (error && !media) return <div className="notice error">{error}</div>;
   if (!media) return <div className="notice">{t("Loading media…")}</div>;
@@ -1445,6 +1455,7 @@ export function Media(props: MediaProps) {
       {/* "all", "images" and "videos" all render the SAME grid, differing only in which items reach
           it — one code path, so a card looks and behaves identically whichever tab it is viewed
           from, and the lightbox/edit/row-menu wiring below cannot drift per tab. */}
+      {notFound ? <div className="notice">{t("That media item wasn't found.")}</div> : null}
       <MediaLibraryPanel
         {...controller}
         media={media}

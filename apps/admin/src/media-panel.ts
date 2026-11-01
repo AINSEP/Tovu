@@ -14,5 +14,6 @@ export function renderMediaPanel(ctx: PanelRouteContext, _optional: Record<strin
   //   return createElement(ModulePanel, { moduleId: "media", pageId: "library", route: ctx });
   // Legacy Media owns `/admin/media` in every build until owner visual-parity sign-off.
   // Pass its existing tab prop through so direct links and its tab buttons use the same URL.
-  return createElement(Media, { tabId: ctx.query.get("tab") });
+  // `?id=` names one item whose detail dialog opens (use-media-item-link.hooks.ts).
+  return createElement(Media, { tabId: ctx.query.get("tab"), itemId: ctx.query.get("id") });
 }
