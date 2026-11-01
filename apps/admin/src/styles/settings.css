@@ -295,6 +295,12 @@
 :root .jini-accent-swatch.active {
   box-shadow: var(--jini-control-shadow-swatch-selected);
 }
+/* Dark (2026-11-01): Jini rings swatches with `--jini-border`, which in dark sits so close to both
+   the surface and a dark swatch that Charcoal (#363636) barely showed. The strong border token rings
+   every unselected swatch instead; `.active` keeps its own selected ring. */
+:root[data-theme="dark"] .jini-accent-swatch:not(.active) {
+  box-shadow: inset 0 0 0 1px var(--jini-border-strong);
+}
 :root .filter-pill.active { border-color: var(--selected-ring); }
 
 /* Keep the separator with the description when cards wrap. A separate divider can be stranded
