@@ -19,6 +19,10 @@ import { createDictionaryTranslator } from "@jini-ai/ui/panel-kit";
 
 const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
   es: {
+    "Edit \"{title}\"": "Editar \"{title}\"",
+    "View \"{title}\" larger": "Ver \"{title}\" más grande",
+    "native": "tamaño original",
+    "failed to read file": "no se pudo leer el archivo",
     Content: "Contenido",
     Media: "Multimedia",
     "Upload and manage image and video assets used across the site.":
@@ -107,6 +111,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Acciones para \"{title}\"",
   },
   id: {
+    "Edit \"{title}\"": "Sunting \"{title}\"",
+    "View \"{title}\" larger": "Lihat \"{title}\" lebih besar",
+    "native": "ukuran asli",
+    "failed to read file": "gagal membaca file",
     Content: "Konten",
     Media: "Media",
     "Upload and manage image and video assets used across the site.":
@@ -181,6 +189,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Tindakan untuk \"{title}\"",
   },
   de: {
+    "Edit \"{title}\"": "„{title}“ bearbeiten",
+    "View \"{title}\" larger": "„{title}“ vergrößern",
+    "native": "Originalgröße",
+    "failed to read file": "Datei konnte nicht gelesen werden",
     Content: "Inhalt",
     Media: "Medien",
     "Upload and manage image and video assets used across the site.":
@@ -255,6 +267,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Aktionen für \"{title}\"",
   },
   "zh-CN": {
+    "Edit \"{title}\"": "编辑“{title}”",
+    "View \"{title}\" larger": "放大查看“{title}”",
+    "native": "原始尺寸",
+    "failed to read file": "无法读取文件",
     Content: "内容",
     Media: "媒体",
     "Upload and manage image and video assets used across the site.":
@@ -329,6 +345,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "\"{title}\"的操作",
   },
   "zh-TW": {
+    "Edit \"{title}\"": "編輯「{title}」",
+    "View \"{title}\" larger": "放大檢視「{title}」",
+    "native": "原始尺寸",
+    "failed to read file": "無法讀取檔案",
     Content: "內容",
     Media: "媒體",
     "Upload and manage image and video assets used across the site.":
@@ -403,6 +423,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "\"{title}\"的操作",
   },
   "pt-BR": {
+    "Edit \"{title}\"": "Editar \"{title}\"",
+    "View \"{title}\" larger": "Ver \"{title}\" ampliado",
+    "native": "tamanho original",
+    "failed to read file": "não foi possível ler o arquivo",
     Content: "Conteúdo",
     Media: "Mídia",
     "Upload and manage image and video assets used across the site.":
@@ -477,6 +501,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Ações para \"{title}\"",
   },
   ru: {
+    "Edit \"{title}\"": "Редактировать «{title}»",
+    "View \"{title}\" larger": "Увеличить «{title}»",
+    "native": "исходный размер",
+    "failed to read file": "не удалось прочитать файл",
     Content: "Контент",
     Media: "Медиа",
     "Upload and manage image and video assets used across the site.":
@@ -551,6 +579,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Действия для \"{title}\"",
   },
   fa: {
+    "Edit \"{title}\"": "ویرایش «{title}»",
+    "View \"{title}\" larger": "نمایش بزرگ‌تر «{title}»",
+    "native": "اندازهٔ اصلی",
+    "failed to read file": "خواندن فایل ناموفق بود",
     Content: "محتوا",
     Media: "رسانه",
     "Upload and manage image and video assets used across the site.":
@@ -625,6 +657,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "عملیات مربوط به \"{title}\"",
   },
   ar: {
+    "Edit \"{title}\"": "تعديل «{title}»",
+    "View \"{title}\" larger": "عرض «{title}» بحجم أكبر",
+    "native": "الحجم الأصلي",
+    "failed to read file": "تعذّرت قراءة الملف",
     Content: "المحتوى",
     Media: "الوسائط",
     "Upload and manage image and video assets used across the site.":
@@ -699,6 +735,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "إجراءات لـ\"{title}\"",
   },
   ja: {
+    "Edit \"{title}\"": "「{title}」を編集",
+    "View \"{title}\" larger": "「{title}」を拡大表示",
+    "native": "元のサイズ",
+    "failed to read file": "ファイルを読み込めませんでした",
     Content: "コンテンツ",
     Media: "メディア",
     "Upload and manage image and video assets used across the site.":
@@ -773,6 +813,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "\"{title}\"の操作",
   },
   ko: {
+    "Edit \"{title}\"": "“{title}” 편집",
+    "View \"{title}\" larger": "“{title}” 크게 보기",
+    "native": "원본 크기",
+    "failed to read file": "파일을 읽을 수 없습니다",
     Content: "콘텐츠",
     Media: "미디어",
     "Upload and manage image and video assets used across the site.":
@@ -847,6 +891,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "\"{title}\" 작업",
   },
   pl: {
+    "Edit \"{title}\"": "Edytuj „{title}”",
+    "View \"{title}\" larger": "Powiększ „{title}”",
+    "native": "oryginalny rozmiar",
+    "failed to read file": "nie udało się odczytać pliku",
     Content: "Treść",
     Media: "Multimedia",
     "Upload and manage image and video assets used across the site.":
@@ -921,6 +969,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Działania dla \"{title}\"",
   },
   hu: {
+    "Edit \"{title}\"": "„{title}” szerkesztése",
+    "View \"{title}\" larger": "„{title}” nagyítása",
+    "native": "eredeti méret",
+    "failed to read file": "nem sikerült beolvasni a fájlt",
     Content: "Tartalom",
     Media: "Média",
     "Upload and manage image and video assets used across the site.":
@@ -995,6 +1047,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Műveletek: \"{title}\"",
   },
   fr: {
+    "Edit \"{title}\"": "Modifier « {title} »",
+    "View \"{title}\" larger": "Agrandir « {title} »",
+    "native": "taille d’origine",
+    "failed to read file": "impossible de lire le fichier",
     Content: "Contenu",
     Media: "Médias",
     "Upload and manage image and video assets used across the site.":
@@ -1069,6 +1125,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Actions pour \"{title}\"",
   },
   uk: {
+    "Edit \"{title}\"": "Редагувати «{title}»",
+    "View \"{title}\" larger": "Збільшити «{title}»",
+    "native": "початковий розмір",
+    "failed to read file": "не вдалося прочитати файл",
     Content: "Вміст",
     Media: "Медіа",
     "Upload and manage image and video assets used across the site.":
@@ -1143,6 +1203,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Дії для \"{title}\"",
   },
   tr: {
+    "Edit \"{title}\"": "“{title}” öğesini düzenle",
+    "View \"{title}\" larger": "“{title}” öğesini büyüt",
+    "native": "özgün boyut",
+    "failed to read file": "dosya okunamadı",
     Content: "İçerik",
     Media: "Medya",
     "Upload and manage image and video assets used across the site.":
@@ -1217,6 +1281,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "\"{title}\" için işlemler",
   },
   th: {
+    "Edit \"{title}\"": "แก้ไข “{title}”",
+    "View \"{title}\" larger": "ดู “{title}” แบบขยาย",
+    "native": "ขนาดต้นฉบับ",
+    "failed to read file": "ไม่สามารถอ่านไฟล์ได้",
     Content: "เนื้อหา",
     Media: "สื่อ",
     "Upload and manage image and video assets used across the site.":
@@ -1291,6 +1359,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "การดำเนินการสำหรับ \"{title}\"",
   },
   it: {
+    "Edit \"{title}\"": "Modifica \"{title}\"",
+    "View \"{title}\" larger": "Ingrandisci \"{title}\"",
+    "native": "dimensioni originali",
+    "failed to read file": "impossibile leggere il file",
     Content: "Contenuti",
     Media: "Contenuti multimediali",
     "Upload and manage image and video assets used across the site.":
@@ -1365,6 +1437,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "Azioni per \"{title}\"",
   },
   hi: {
+    "Edit \"{title}\"": "“{title}” संपादित करें",
+    "View \"{title}\" larger": "“{title}” बड़ा करके देखें",
+    "native": "मूल आकार",
+    "failed to read file": "फ़ाइल पढ़ी नहीं जा सकी",
     Content: "सामग्री",
     Media: "मीडिया",
     "Upload and manage image and video assets used across the site.":
@@ -1439,6 +1515,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "\"{title}\" के लिए कार्रवाइयां",
   },
   ur: {
+    "Edit \"{title}\"": "«{title}» میں ترمیم کریں",
+    "View \"{title}\" larger": "«{title}» کو بڑا کر کے دیکھیں",
+    "native": "اصل سائز",
+    "failed to read file": "فائل پڑھی نہیں جا سکی",
     Content: "مواد",
     Media: "میڈیا",
     "Upload and manage image and video assets used across the site.":
@@ -1513,6 +1593,10 @@ const MEDIA_TRANSLATIONS: Record<string, Record<string, string>> = {
     "Actions for \"{title}\"": "\"{title}\" کے لیے کارروائیاں",
   },
   bn: {
+    "Edit \"{title}\"": "“{title}” সম্পাদনা করুন",
+    "View \"{title}\" larger": "“{title}” বড় করে দেখুন",
+    "native": "মূল আকার",
+    "failed to read file": "ফাইল পড়া যায়নি",
     Content: "কন্টেন্ট",
     Media: "মিডিয়া",
     "Upload and manage image and video assets used across the site.":

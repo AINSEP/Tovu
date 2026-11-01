@@ -239,7 +239,7 @@ function MediaPreview(props: MediaPreviewProps) {
     <button
       type="button"
       className="media-card-edit"
-      aria-label={`Edit "${props.item.title}"`}
+      aria-label={t('Edit "{title}"').replace("{title}", () => props.item.title)}
       onClick={props.edit.onEdit}
       {...agentHandle({ handle: props.edit.agentHandle }, { role: "button", label: "Open the edit form for this asset as a modal" })}
     >
@@ -325,7 +325,7 @@ function MediaCardStage({ preview, title, onExpand, agentExpandHandle, editButto
       <button
         type="button"
         className="media-card-expand media-card-expand-fill"
-        aria-label={`View "${title}" larger`}
+        aria-label={t('View "{title}" larger').replace("{title}", () => title)}
         onClick={onExpand}
         {...expandHandle}
       >
@@ -586,7 +586,7 @@ function MediaEditRenderOverrideFields(
             id={`media-edit-width-${item.id}`}
             type="number"
             min={1}
-            placeholder="native"
+            placeholder={t("native")}
             value={draft.width ?? ""}
             onChange={(e) => setWidth(e.target.value)}
             {...agentHandle({ handle: "media-edit-width" }, {
@@ -603,7 +603,7 @@ function MediaEditRenderOverrideFields(
             id={`media-edit-height-${item.id}`}
             type="number"
             min={1}
-            placeholder="native"
+            placeholder={t("native")}
             value={draft.height ?? ""}
             onChange={(e) => setHeight(e.target.value)}
             {...agentHandle({ handle: "media-edit-height" }, {

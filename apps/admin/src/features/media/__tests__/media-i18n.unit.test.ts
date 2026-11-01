@@ -1,10 +1,99 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createElement } from "react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
 import { COMMON_I18N } from "@/lib/i18n-common";
 import { MEDIA_DICT, t } from "../media-i18n";
 import { MEDIA_ORDER_OPTIONS } from "../rules";
+import { Media } from "../Media";
+import { useMedia } from "../hooks/use-media.hooks";
+import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
+import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+
+afterEach(() => vi.restoreAllMocks());
+
+const COPY_KEYS = ['Edit "{title}"', 'View "{title}" larger', "native", "failed to read file"];
+
+describe("Media copy reaches the active locale", () => {
+  it("registers every newly required key in all 21 locales without English placeholders", () => {
+    expect(Object.keys(MEDIA_DICT)).toHaveLength(21);
+    for (const [locale, dictionary] of Object.entries(MEDIA_DICT)) {
+      for (const key of COPY_KEYS) {
+        expect(dictionary[key], `${locale}: ${key}`).toBeTruthy();
+        expect(dictionary[key], `${locale}: ${key}`).not.toBe(key);
+      }
+    }
+  });
+
+  // Guard the class: accessible attributes must translate authored copy, including templates.
+  it("has no untranslated literal copy in Media's accessible labels or placeholders", () => {
+    const source = ts.createSourceFile("Media.tsx", readFileSync(resolve(process.cwd(), "src/features/media/Media.tsx"), "utf8"), ts.ScriptTarget.Latest, true);
+    const bypasses: string[] = [];
+    function visit(node: ts.Node) {
+      if (ts.isJsxAttribute(node) && ["aria-label", "title", "placeholder", "alt"].includes(node.name.getText(source))) {
+        const value = node.initializer;
+        const expression = value && ts.isJsxExpression(value) ? value.expression : value;
+        if (expression && ts.isStringLiteralLike(expression) && expression.text.trim()) bypasses.push(node.getText(source));
+        if (expression && ts.isTemplateExpression(expression)) {
+          const fragments = [expression.head.text, ...expression.templateSpans.map(span => span.literal.text)];
+          if (fragments.some(fragment => /[a-zA-Z]/.test(fragment))) bypasses.push(node.getText(source));
+        }
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(source);
+    expect(bypasses).toEqual([]);
+  });
+
+  for (const copy of [
+    { locale: "es", edit: 'Editar "Sunset $&"', expand: 'Ver "Sunset $&" más grande', native: "tamaño original", read: "no se pudo leer el archivo", upload: "no se pudo subir" },
+    { locale: "ja", edit: '「Sunset $&」を編集', expand: '「Sunset $&」を拡大表示', native: "元のサイズ", read: "ファイルを読み込めませんでした", upload: "アップロードに失敗しました" },
+  ]) {
+    async function renderLocalizedMedia() {
+      const port = createFakeMediaPort();
+      await port.uploadMedia({ filename: "Sunset $&", contentType: "image/png", dataBase64: "aGk=" });
+      const translate = (key: string) => t({ locale: copy.locale, key });
+      render(createElement(FetchQueryProvider, {}, createElement(Media, {
+        useMediaHook: () => useMedia({ port, locale: copy.locale, t: translate }),
+      })));
+      return { port, translate };
+    }
+
+    it(`${copy.locale}: translates preview actions and the sizing fields reached from Edit`, async () => {
+      await renderLocalizedMedia();
+      expect(await screen.findByRole("button", { name: copy.expand })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: copy.edit }));
+      expect(await screen.findAllByPlaceholderText(copy.native)).toHaveLength(2);
+    });
+
+    it.each([null, new DOMException("The selected file is no longer readable", "NotReadableError")])(`${copy.locale}: localizes file-read failures without starting an upload (%s)`, async (readFailure) => {
+      const { port, translate } = await renderLocalizedMedia();
+      const upload = vi.spyOn(port, "uploadMedia");
+      vi.spyOn(FileReader.prototype, "error", "get").mockReturnValue(readFailure);
+      vi.spyOn(FileReader.prototype, "readAsDataURL").mockImplementation(function (this: FileReader) {
+        // A missing DOMException exercises the local fallback before any HTTP mutation.
+        this.onerror?.(new ProgressEvent("error") as ProgressEvent<FileReader>);
+      });
+      fireEvent.click(await screen.findByRole("button", { name: translate("Upload image") }));
+      fireEvent.change(screen.getByLabelText(translate("File to upload")), { target: { files: [new File(["broken"], "broken.png", { type: "image/png" })] } });
+      fireEvent.click(screen.getByRole("button", { name: translate("Upload"), exact: true }));
+      // jsdom's DOMException follows describeApiError's existing non-Error fallback contract.
+      expect(await screen.findByRole("alert")).toHaveTextContent(readFailure ? copy.upload : copy.read);
+      expect(upload).not.toHaveBeenCalled();
+    });
+
+    it(`${copy.locale}: preserves an upload service's specific Error diagnostic`, async () => {
+      const { port, translate } = await renderLocalizedMedia();
+      vi.spyOn(port, "uploadMedia").mockRejectedValueOnce(new Error("Storage quota reached"));
+      fireEvent.click(await screen.findByRole("button", { name: translate("Upload image") }));
+      fireEvent.change(screen.getByLabelText(translate("File to upload")), { target: { files: [new File(["pixel"], "photo.png", { type: "image/png" })] } });
+      fireEvent.click(screen.getByRole("button", { name: translate("Upload"), exact: true }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Storage quota reached");
+    });
+  }
+});
 
 /**
  * @file `MEDIA_DICT` cross-locale coverage — the exact gap a live audit caught 2026-09-07: `Media.tsx`
