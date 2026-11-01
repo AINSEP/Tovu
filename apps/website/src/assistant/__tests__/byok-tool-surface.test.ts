@@ -122,6 +122,12 @@ test("the published meta-tool set is exactly the 3 staged-discovery tools, and n
   assert.equal(surface().metaTools, META_TOOL_DESCRIPTORS);
 });
 
+test("BYOK search_tools tells providers to supply every required argument from each hit's signature", () => {
+  const description = surface().metaTools.find(tool => tool.id === "search_tools")?.description ?? "";
+  assert.match(description, /signature/);
+  assert.match(description, /every required argument/i);
+});
+
 test("search_tools finds a real tool in the real catalog, and every hit it returns is one describe_tool can then resolve", async () => {
   const s = surface();
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "workspace" }));

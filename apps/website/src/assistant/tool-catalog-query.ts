@@ -7,6 +7,7 @@ import { createSqliteCatalogStoreFactory } from "@jini-ai/registry/tool-catalog-
 
 import { indexedDescriptionFor, stripSearchKeywords } from "./tool-search-keywords.js";
 import { PAGE_HTML_CONTRACT } from "../contracts/core/page-html.js";
+import { currentToolIdFor } from "./content-read-tool.js";
 
 /**
  * @file Backs `@jini-ai/daemon/http`'s `GET /api/tools/search` / `GET /api/tools/:id` with Tovu's own
@@ -139,8 +140,15 @@ export function buildToolCatalogQuery(
     },
     describe({ id }) {
       refresh();
+      const entry = snapshot.query.describe({ id });
+      if (entry) return entry;
+      const currentId = currentToolIdFor(id);
+      // A retired id is guidance only: never publish a schema/callable for an unregistered alias.
+      if (currentId !== id && snapshot.query.describe({ id: currentId })) {
+        return { id, source: sourceForToolId(id), description: `${id} was renamed to ${currentId}. Describe ${currentId} for its inputs, then call that exact id.` };
+      }
       // Only the namespace itself gets an overview; an unknown card must remain missing.
-      return snapshot.query.describe({ id }) ?? (snapshot.family && id === snapshot.family.id ? snapshot.family : null);
+      return snapshot.family && id === snapshot.family.id ? snapshot.family : null;
     },
   };
 }

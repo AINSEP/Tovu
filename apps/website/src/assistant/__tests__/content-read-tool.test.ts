@@ -225,6 +225,8 @@ test("RETIRED_READ_TOOL_TO_CARD is the single authority, and covers every retire
   assert.equal(currentToolIdFor("sites_list"), "content_read.site", "site eval ground truth maps to the published card");
   assert.equal(currentToolIdFor("members_get_by_id"), "content_read.member");
   assert.equal(currentToolIdFor("members_list"), "content_read.member", "both members of a merged pair resolve to the one card");
+  assert.equal(currentToolIdFor("content_read.content_region"), "content_read.widget_region");
+  assert.equal(currentToolIdFor("content_read.form"), "content_read.form_definition");
   assert.equal(currentToolIdFor("content_post_search"), "content_post_search", "a tool the collapse never touched passes through unchanged");
 });
 

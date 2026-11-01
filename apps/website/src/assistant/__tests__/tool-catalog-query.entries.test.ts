@@ -53,6 +53,17 @@ for (const [id, currentId, purpose] of [
   ["content_read.content_region", "content_read.widget_region", /\bregion\b/i],
   ["content_read.form", "content_read.form_definition", /\bform\b/i],
 ] as const) {
+  test(`describe_tool: ${id} only points to a registered ${currentId} and never becomes a callable search hit`, () => {
+    const catalog = buildToolCatalogQuery({ list: () => [{ id: currentId, description: "Reads a record.", inputSchema: { type: "object" } }] });
+    const entry = catalog.describe({ id });
+    assert.ok(entry);
+    assert.ok(entry.description.includes(currentId));
+    assert.equal(entry.inputSchema, undefined);
+    assert.ok(catalog.search({ query: "record" }).every(hit => hit.id !== id));
+    assert.equal(buildToolCatalogQuery({ list: () => [] }).describe({ id }), null);
+    assert.equal(catalog.describe({ id: "content_read.unknown" }), null);
+  });
+
   test(`describe_tool HTTP path: ${id} describes the sub-read or points to ${currentId}`, async () => {
     const { catalog } = await realToolCatalog();
     const current = catalog.describe({ id: currentId });

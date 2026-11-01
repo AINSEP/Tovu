@@ -177,7 +177,7 @@ export const META_TOOL_DESCRIPTORS: readonly ToolDescriptor[] = [
   {
     id: "search_tools",
     description:
-      "Search this Tovu site's tool catalog. Returns ranked {id, description, source, score} candidates only — no input schemas, so this stays cheap to call broadly. Call describe_tool on the 1-3 candidates that look right, then invoke the published callableName with its concrete input. execute_delegated_tool remains available for compatibility. If nothing in the results fits, re-search with a higher limit or different phrasing rather than assuming the tool does not exist.",
+      "Search this Tovu site's tool catalog. Returns ranked {id, description, source, score} candidates only — no input schemas, so this stays cheap to call broadly. Each hit's signature lists its arguments; supply every required argument when calling the tool. Call describe_tool on the 1-3 candidates that look right, then invoke the published callableName with its concrete input. execute_delegated_tool remains available for compatibility. If nothing in the results fits, re-search with a higher limit or different phrasing rather than assuming the tool does not exist.",
     inputSchema: {
       type: "object",
       properties: {

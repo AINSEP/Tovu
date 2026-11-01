@@ -174,6 +174,13 @@ export const RETIRED_READ_TOOL_TO_CARD: ReadonlyMap<string, string> = new Map(
   }),
 );
 
+/** Earlier card names survive in agent conversations, separately from the pre-collapse members:
+ * kept out of {@link RETIRED_READ_TOOL_TO_CARD}, which must list exactly the collapsed member ids. */
+const RENAMED_CARD_IDS: ReadonlyMap<string, string> = new Map([
+  ["content_read.content_region", "content_read.widget_region"],
+  ["content_read.form", "content_read.form_definition"],
+]);
+
 /**
  * Resolves a possibly-retired read tool id to the id that actually ships today; any other id is
  * returned unchanged, so a caller can pass every expected id through it unconditionally.
@@ -181,7 +188,7 @@ export const RETIRED_READ_TOOL_TO_CARD: ReadonlyMap<string, string> = new Map(
  * @complexity O(1).
  */
 export function currentToolIdFor(toolId: string): string {
-  return RETIRED_READ_TOOL_TO_CARD.get(toolId) ?? toolId;
+  return RENAMED_CARD_IDS.get(toolId) ?? RETIRED_READ_TOOL_TO_CARD.get(toolId) ?? toolId;
 }
 
 /** One card id repeated in a list ("X, X, or Y", "X or X", "X/X") once two retired members of the
