@@ -14,8 +14,10 @@ import { AgentPluginUploadError, UPLOADED_AGENT_PLUGIN_TRUST_WARNING, previewUpl
 import type { AgentPluginLayout } from "./layout.js";
 import { agentPluginActivations } from "./activation-effects.js";
 import { listBundledAgentPluginServers } from "./new-site-agent-plugin-tokens.js";
+import { CUSTOMIZE_AGENT_PLUGIN_TOOL, customizeAgentPluginCatalog, prepareCustomizedAgentPluginArchive } from './customize-tool.js';
 
 /** The assistant uses the same uploaded-package service as the Agent Plugins admin add tab.
+ * Customization prepares a new package and enters this same install flow, without replacement.
  * No opt-in for this family: only bundled digests may run code. Preview verifies the full archive,
  * install verifies the pinned bytes again, and every fresh/replacement install remains disabled. */
 export type AgentPluginsInstallToolDeps = {
@@ -37,7 +39,7 @@ export const catalog: AgentToolDefinition[] = [{
     "kind:'folder' with a local absolute path (packed like an admin folder upload); or kind:'bundled' with bundledId (a plugin shipped with Tovu, e.g. ui-ux-design): no file, never search the disk for it. " +
     "ZIPs and folders preview the full package before installing and carry the unverified-publisher trust warning. Installed OFF. An already installed bundled id is a no-op. " +
     "replace:true replaces the same plugin ID's disabled operator-installed version, preserving memory; older versions are refused (no downgrades). " +
-    "Bundled or enabled versions cannot be replaced. Enable afterwards with plugins_set_enabled (family 'agent-plugin'). Does not install site plugins, themes or standalone skills.",
+    "Bundled or enabled versions cannot be replaced. For owner-requested bundled edits use agent_plugins_customize to create an edited site copy automatically, never ask for manual copying. Enable afterwards with plugins_set_enabled (family 'agent-plugin'). Does not install site plugins, themes or standalone skills.",
   sideEffects: "mutates-durable-state", authorization: { permission: "admin.plugins.enable" },
   inputSchema: { type: "object", additionalProperties: false, required: ["source"], properties: {
     source: { ...PLUGIN_INSTALL_SOURCE_SCHEMA,
@@ -57,7 +59,7 @@ catalog.push({
   name: AGENT_PLUGINS_UPDATE_TOOL_ID,
   description: "Explicitly updates an operator-installed AGENT plugin to a newer package of the SAME plugin id. Source: kind:'zip' with attachmentRef (from chat_list_pending_attachments) or an absolute path, or kind:'folder' with a local absolute path. " +
     "expectedOldDigest is the installed archiveDigest from plugins_list (family 'agent-plugin'); if the plugin changed since, nothing happens. Keeps its enabled state and memory. " +
-    "Refuses bundled plugins, downgrades and another plugin's package. Running chats keep the guidance they already loaded; MCP calls in progress may fail. A failed update restores the previous package, not state the new version wrote.",
+    "Refuses bundled plugins, downgrades and another plugin's package. For bundled edits use agent_plugins_customize, which saves an edited site copy under a new id. Running chats keep the guidance they already loaded; MCP calls in progress may fail. A failed update restores the previous package, not state the new version wrote.",
   sideEffects: "mutates-durable-state", authorization: { permission: "admin.plugins.enable" },
   inputSchema: { type: "object", additionalProperties: false, required: ["source", "pluginId", "expectedOldDigest"], properties: {
     source: PLUGIN_INSTALL_SOURCE_SCHEMA,
@@ -65,20 +67,24 @@ catalog.push({
     expectedOldDigest: { type: "string", pattern: "^[a-f0-9]{64}$", description: "The installed archiveDigest the update replaces." },
   } },
 });
-export const derivedRisk: DerivedRiskByToolId = new Map([[AGENT_PLUGINS_INSTALL_TOOL_ID, "mutates-durable-state"], [AGENT_PLUGINS_UPDATE_TOOL_ID, "mutates-durable-state"]]);
+catalog.push(customizeAgentPluginCatalog);
+export const derivedRisk: DerivedRiskByToolId = new Map([[AGENT_PLUGINS_INSTALL_TOOL_ID, "mutates-durable-state"], [AGENT_PLUGINS_UPDATE_TOOL_ID, "mutates-durable-state"], [CUSTOMIZE_AGENT_PLUGIN_TOOL, "mutates-durable-state"]]);
 
 export function buildRegistrations(deps: AgentPluginsInstallToolDeps, _optional: Record<string, never> = {}): ToolRegistration[] {
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "agent-plugins-install", catalogModule: "features/agent-plugins/install-tool.ts", catalog: indexCatalogById({ catalog }), derivedRisk,
     handlers: {
       [AGENT_PLUGINS_INSTALL_TOOL_ID]: ctx => runInstallTool({ deps, ctx, operation: "install" }),
       [AGENT_PLUGINS_UPDATE_TOOL_ID]: ctx => runInstallTool({ deps, ctx, operation: "update" }),
+      [CUSTOMIZE_AGENT_PLUGIN_TOOL]: ctx => runInstallTool({ deps, ctx, operation: 'customize' }),
     },
   });
 }
 
-async function runInstallTool({ deps, ctx, operation }: { deps: AgentPluginsInstallToolDeps; ctx: ToolExecutionContext; operation: "install" | "update" }, _optional = {}) {
+/** Gate all three entry points before any source read or package publication. */
+async function runInstallTool({ deps, ctx, operation }: { deps: AgentPluginsInstallToolDeps; ctx: ToolExecutionContext; operation: "install" | "update" | 'customize' }, _optional = {}) {
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.plugins.enable" }, { entityType: "plugin" });
   const input = requireInputRecord({ input: ctx.input });
+  if (operation === 'customize') return installArchivePlugin({ deps, ctx }, { archive: await prepareCustomizedAgentPluginArchive({ deps, ctx }) });
   if (operation === "update") return updateArchivePlugin({ deps, ctx, update: readUpdateTarget({ input }) });
   const source = input.source as Record<string, unknown> | undefined;
   if (source?.kind === "bundled") return installBundledPlugin({ input, deps });
@@ -144,12 +150,19 @@ async function updateArchivePlugin(
   }
 }
 
+/** Shared preview, publication and activation report for uploads and customized copies.
+ * @throws Model-facing input errors for named install/upload/folder refusals.
+ * @complexity O(b) bounded archive bytes; the existing installer owns extraction and locking.
+ */
 async function installArchivePlugin(
   { deps, ctx }: { deps: AgentPluginsInstallToolDeps; ctx: ToolExecutionContext },
-  _optional: Record<string, never> = {},
+  prepared: { archive?: Uint8Array } = {},
 ) {
   try {
-    const { request, archive, expectedSha256 } = await readToolArchive({ deps, ctx });
+    // Customized copies enter the SAME preview/install/state-reporting sequence as folder uploads.
+    const { request, archive, expectedSha256 } = prepared.archive
+      ? { request: { replace: false }, archive: prepared.archive, expectedSha256: createHash('sha256').update(prepared.archive).digest('hex') }
+      : await readToolArchive({ deps, ctx });
     const required = { archive, expectedSha256, workspaceId: deps.workspaceId, actor: ctx.principal.id, replace: request.replace };
     const optional = { layout: deps.agentPluginLayout, ...(deps.pluginHost ? { pluginHost: deps.pluginHost } : {}) };
     const preview = await previewUploadedAgentPlugin(required, optional);

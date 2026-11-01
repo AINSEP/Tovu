@@ -91,7 +91,7 @@ export const PAGE_HTML_CONTRACT =
   "modest margin (at most about 2rem) so the page does not open large empty gaps.\n" +
   // Luvira import, 2026-10-08: copied markup keeps a source site's scroll-reveal start state, and no
   // page script ever reveals it. The writers also return a `warning` naming each hidden element.
-  "- VISIBLE WITHOUT SCRIPTS: no script from another site runs here. Never keep a scroll-reveal start " +
+  "- VISIBLE WITHOUT SCRIPTS: do not depend on another site's scroll-reveal scripts. Never keep a scroll-reveal start " +
   "state (inline `opacity:0` or `visibility:hidden`, data-aos/data-sal attributes, a `.reveal { opacity: 0 }` " +
   "rule); write every element in its final, visible state.\n" +
   "- TAG EDITABLE REGIONS with `data-agent-element=\"<handle>\" data-agent-role=\"region\"` on each " +
@@ -111,8 +111,14 @@ export const PAGE_HTML_CONTRACT =
   "- NO <form action=\"...\">. A form you invent posts nowhere and silently drops whatever a visitor " +
   "types into it. If the page needs to collect anything, embed a real form with the `form` marker " +
   "below; if no suitable form exists yet, say so in your reply instead of writing one.\n" +
-  "- NO external resources: no <script src>, no remote stylesheets, no remote fonts, no hotlinked " +
-  "images. Use the site's own uploaded media or inline SVG.\n" +
+  // The owner paste path stores authorized page HTML unchanged. A blanket script ban here made
+  // the assistant refuse working vendor snippets; keep the exception confined to vetted embeds.
+  "- EXTERNAL RESOURCES: only for an owner-requested Calendly embed, allow an HTTPS <script src> " +
+  "with the exact origin https://assets.calendly.com (normally /assets/external/widget.js), alongside " +
+  "its calendly-inline-widget div and the owner's https://calendly.com booking URL. Other external script origins are forbidden; " +
+  "lookalike hosts, subdomains, credentials, non-default ports and HTTP are not allowed. Do not ask the owner " +
+  "to paste this supported embed by hand: use pages_write_html or pages_write_region. " +
+  "No remote stylesheets, remote fonts or hotlinked images. Use the site's own uploaded media or inline SVG.\n" +
   "- NAME MISSING BINARY ASSETS, DON'T FAKE THEM. If content you're deriving this page from (e.g. an " +
   "existing HTML file read via fs_read_file) references an image, font, video, or audio file no tool " +
   "here can upload, do not invent a placeholder and do not silently drop it — say exactly which files " +

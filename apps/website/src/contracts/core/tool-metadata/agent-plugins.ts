@@ -31,6 +31,10 @@ export const toolMetadata = {
     },
     approval: { class: 'edit', confirmation: 'direct' },
   },
+  agent_plugins_customize: {
+    search: { keywords: 'edit customize change bundled agent plugin tovu-theme fork copy skills source EACCES PLUGIN_BUNDLED' },
+    approval: { class: 'edit', confirmation: 'direct' },
+  },
   // --- agent plugins (agent-plugins.org packages — a DIFFERENT system from .tovu-plugin above) -----------
   // Search vocabulary targets discovery intent before an operator knows manifest terminology.
   "search_agent_plugin_local": {
