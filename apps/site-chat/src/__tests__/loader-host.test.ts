@@ -173,7 +173,7 @@ test('loader defaults use the browser document, location, events and session sta
   assert.ok(config);
   assert.equal(config.resume, false);
   assert.equal(config.deepLink, true);
-  assert.equal(config.preload, false);
+  assert.equal('preload' in config, false, 'terminal actions never preload a destination widget');
 });
 
 test('a later hash change to #open-chat activates the loader; any other hash does not', () => {

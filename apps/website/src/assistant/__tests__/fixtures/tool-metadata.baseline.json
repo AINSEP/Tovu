@@ -356,7 +356,11 @@
     "site_restart": "restart site provider settings apply",
     "observability_send_test_error": "observability telemetry test error analytics delivery",
     "image_transform": "image picture photo logo icon favicon ico resize scale crop rotate flip convert webp avif png jpeg thumbnail social og 1200x630 apple-touch sizes compress optimize",
-    "files_copy": "files copy import assets folder picked custom local site theme media url glob overwrite rename fonts images transfer save library private document documents markdown pdf docx brand"
+    "files_copy": "files copy import assets folder picked custom local site theme media url glob overwrite rename fonts images transfer save library private document documents markdown pdf docx brand",
+    "page.find_elements": "read this screen read admin UI page controls inspect current state show me discover buttons find elements open bring up go to navigate",
+    "page.click": "click activate open bring up show me inspect published handle admin UI",
+    "page.navigate": "open bring up show me go to navigate navigation admin UI screen panel page editor take me",
+    "site_export_static": "export static site html css javascript assets zip download"
   },
   "queries": {
     "library_save_attachment": [
@@ -2053,6 +2057,10 @@
       "Download an image URL into the media library.",
       "Save documents from the picked folder to the private Library.",
       "Save a site file to the assistant Library."
+    ],
+    "site_export_static": [
+      "Export static site",
+      "Download my site as HTML pages"
     ]
   },
   "approvals": {
@@ -3668,6 +3676,10 @@
     "files_copy": {
       "class": "edit",
       "confirmation": "policy"
+    },
+    "site_export_static": {
+      "class": "edit",
+      "confirmation": "direct"
     }
   },
   "policyConfirmationIds": [

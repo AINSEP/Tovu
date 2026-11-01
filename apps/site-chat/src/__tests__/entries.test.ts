@@ -47,8 +47,14 @@ test('vanilla-entry mounts the vanilla widget into the page root', async t => {
 test('main mounts the React widget and creates its own root without replaying stored actions', async t => {
   const { dom, restore } = installDom({ html: '<!doctype html><html><body></body></html>' }, { url: 'https://example.test/' });
   t.after(restore);
-  const main = await import('../main');
-  assert.ok(dom.window.document.getElementById('tovu-site-assistant-root'));
-  assert.equal('executeDrainedAction' in main, false);
-  main.mountedRoot.unmount();
+  let main!: typeof import('../main');
+  // Flush the self-mount before asserting, and unmount before restoring browser globals.
+  // Otherwise React's scheduled work can outlive this document and crash the next test.
+  await act(async () => { main = await import('../main'); });
+  try {
+    assert.ok(dom.window.document.getElementById('tovu-site-assistant-root')!.children.length > 0);
+    assert.equal('executeDrainedAction' in main, false);
+  } finally {
+    await act(async () => { main.mountedRoot.unmount(); });
+  }
 });
