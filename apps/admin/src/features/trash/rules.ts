@@ -55,7 +55,9 @@ export function coverageLine(locale: string): string {
 
 /** A human label for a row's kind. Unknown kinds print as themselves rather than being hidden —
  *  the server already dropped the rows this operator may not see. @complexity O(1). */
-export function entityTypeLabel(locale: string, entityType: string): string {
+export function entityTypeLabel(locale: string, entity: string | Pick<AdminTrashItem, "entityType" | "displayKind">): string {
+  const entityType = typeof entity === "string" ? entity : entity.entityType;
+  const displayKind = typeof entity === "string" ? undefined : entity.displayKind;
   const known: Record<string, string> = {
     "email-template": "Email template",
     post: "Post",
@@ -74,7 +76,9 @@ export function entityTypeLabel(locale: string, entityType: string): string {
     member: "Member",
     theme: "Theme",
   };
-  const label = known[entityType];
+  // Pages share the post trash lifecycle; only their presentation uses the subtype.
+  const kind = entityType === "post" && displayKind === "page" ? "page" : entityType;
+  const label = known[kind];
   return label ? t({ locale: locale, key: label }) : entityType;
 }
 

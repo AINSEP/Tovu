@@ -7,10 +7,11 @@ import { DEFAULT_TRASH_PAGE_SIZE, MAX_TRASH_PAGE_SIZE, type TrashRouteDeps, type
 /**
  * GET one page of the Trash.
  *
- * Every row is rendered from the `trashed_items` snapshot alone — no entity is read, which is what
+ * Display strings come from the `trashed_items` snapshot; no entity payload is parsed, which is what
  * keeps this endpoint working on rows whose payload is corrupt (the failure `widgets_trash_instance`
- * still has today). Rows whose `purge_after` has passed are excluded by the repo itself, so a site
- * that sat closed past day 60 shows nothing expired on its first render, sweeper or no sweeper.
+ * still has today). Post subtype resolution reads only the `posts.kind` column for the same reason.
+ * Rows whose `purge_after` has passed are excluded by the repo itself, so a site that sat closed past
+ * day 60 shows nothing expired on its first render, sweeper or no sweeper.
  */
 export const registerAdminTrashListRoute: TrashRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/trash", async (req, res) => {
@@ -49,8 +50,12 @@ export const registerAdminTrashListRoute: TrashRouteRegistrar = (app, deps) => {
       // Skip the query on an empty page (nothing visible to this principal, or the Trash truly is
       // empty) rather than paying for a lookup with no rows to resolve.
       const usernameByPrincipalId = visible.length > 0 ? await loadUsernamesByPrincipalId(deps) : new Map<string, string>();
+      const postKindById = await loadPostDisplayKinds({ items: visible, deps });
       res.json({
-        items: visible.map((item) => toAdminTrashResponse(item, now, usernameByPrincipalId)),
+        items: visible.map((item) => {
+          const displayKind = item.entityType === "post" ? postKindById.get(item.entityId) : undefined;
+          return { ...toAdminTrashResponse(item, now, usernameByPrincipalId), ...(displayKind ? { displayKind } : {}) };
+        }),
         nextCursor: page.nextCursor,
       });
     } catch (error) {
@@ -58,6 +63,27 @@ export const registerAdminTrashListRoute: TrashRouteRegistrar = (app, deps) => {
     }
   });
 };
+
+/**
+ * Resolve post/page subtypes without parsing entity payloads or changing trash identity.
+ * Authorization has already filtered the input; missing rows leave the additive field absent.
+ * @complexity O(p) results for at most MAX_TRASH_PAGE_SIZE visible posts, one column-only query.
+ */
+async function loadPostDisplayKinds(
+  required: { items: readonly TrashItem[]; deps: TrashRouteDeps },
+  _optional: Record<string, never> = {}
+): Promise<ReadonlyMap<string, string>> {
+  const ids = required.items.filter((item) => item.entityType === "post").map((item) => item.entityId);
+  if (ids.length === 0) return new Map();
+  // Only the two subtypes the admin contract names (`AdminTrashItem.displayKind`) are emitted.
+  const posts = await required.deps.db.run((db) => db.selectFrom("posts")
+    .select(["id", "kind"])
+    .where("workspace_id", "=", required.deps.workspaceId)
+    .where("id", "in", ids)
+    .where("kind", "in", ["page", "post"])
+    .execute());
+  return new Map(posts.map((post) => [post.id, post.kind]));
+}
 
 /**
  * One `userRepo.list` call per request, not one lookup per row — the admin Users screen already

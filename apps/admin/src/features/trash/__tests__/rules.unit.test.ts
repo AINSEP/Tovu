@@ -14,6 +14,14 @@ it("labels every server Trash kind and the page display kind, including new regi
   }
 });
 
+it("uses page subtypes only for canonical posts and preserves legacy and unknown kind labels", () => {
+  expect(entityTypeLabel("en", { entityType: "post", displayKind: "page" })).toBe("Page");
+  expect(entityTypeLabel("en", { entityType: "post", displayKind: "post" })).toBe("Post");
+  expect(entityTypeLabel("en", { entityType: "post" })).toBe("Post");
+  expect(entityTypeLabel("en", { entityType: "media", displayKind: "page" })).toBe("Media");
+  expect(entityTypeLabel("en", { entityType: "future-kind", displayKind: "page" })).toBe("future-kind");
+});
+
 it("localizes a settled Trash timeout with a refresh action", () => {
   const error = new ApiError("the API timed out", 0, REQUEST_TIMEOUT_CODE, {});
   expect(describeTrashLoadError({ error, locale: "en" })).toBe("The Tovu API did not respond. Try refreshing the Trash.");

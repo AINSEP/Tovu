@@ -2126,6 +2126,8 @@ export interface AdminTrashItem {
   /** The trash row's own id. Purge addresses rows by THIS, not by `entityId`. */
   id: string;
   entityType: string;
+  /** Presentation subtype; canonical entityType still addresses restore/purge. Older rows may omit it. */
+  displayKind?: "page" | "post";
   entityId: string;
   title: string;
   subtitle: string | null;

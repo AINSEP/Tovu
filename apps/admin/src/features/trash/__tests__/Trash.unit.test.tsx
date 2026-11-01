@@ -194,6 +194,28 @@ describe("Trash screen", () => {
     expect(within(row).queryByRole("cell", { name: "Post" })).not.toBeInTheDocument();
   });
 
+  it.each([["en", "Page"], ["es", "Página"]])("labels canonical post rows using the page display kind in %s", (locale, label) => {
+    const port = createFakeTrashPort({ items: [item({ entityType: "post", displayKind: "page", title: "Deleted about page" })] });
+    render(<FetchQueryProvider><Trash useTrashHook={() => useTrash({ port, locale })} /></FetchQueryProvider>);
+    return screen.findByRole("row", { name: /Deleted about page/ }).then((row) => {
+      expect(within(row).getByRole("cell", { name: label })).toBeInTheDocument();
+    });
+  });
+
+  it("keeps legacy canonical rows without a display kind labeled Post", () => {
+    render(<Trash useTrashHook={() => controller({ items: [item({ title: "Old snapshot" })] })} />);
+    expect(within(screen.getByRole("row", { name: /Old snapshot/ })).getByRole("cell", { name: "Post" })).toBeInTheDocument();
+  });
+
+  it("restores a displayed Page using its canonical post identity", async () => {
+    const port = createFakeTrashPort({ items: [item({ entityType: "post", displayKind: "page", title: "Deleted about page" })] });
+    renderRealTrash(port);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("checkbox", { name: 'Select "Deleted about page"' }));
+    await user.click(screen.getByRole("button", { name: "Restore" }));
+    await waitFor(() => expect(port.restoreCalls).toEqual([{ items: [{ entityType: "post", entityId: "post-1" }] }]));
+  });
+
   it("labels a plugin row as shared across all workspaces on the site", () => {
     render(
       <Trash

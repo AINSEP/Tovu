@@ -55,8 +55,10 @@ test("trash list normalizes filters and cursor and clamps/defaults limits withou
     assert.equal(reads, 1);
   }
 });
-test("trash list projects exact snapshot fields, actor lookup, and rounded days remaining", async () => {
-  const invoke = harness({ trash: { list: async () => ({ items: [{
+test("trash list projects exact snapshot fields, actor lookup, and rounded days remaining", async (t) => {
+  const db = openContentDb(":memory:");
+  t.after(() => db.$client.close());
+  const invoke = harness({ db: contentKernel(db), trash: { list: async () => ({ items: [{
     id: "trash-9", workspaceId: "ws-7", entityType: "post", entityId: "post-8", displayTitle: "Deleted title", displaySubtitle: "deleted-slug",
     trashedAt: "2026-09-01T00:00:00.000Z", purgeAfter: "2026-10-03T13:00:00.000Z", actorPrincipalId: "principal-7", actorPluginId: "plugin-3", internal: "hidden",
   }], nextCursor: "next-9" }) }, userRepo: { list: async (input: unknown) => {

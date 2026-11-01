@@ -94,7 +94,7 @@ function trashColumns(props: {
     {
       key: "kind",
       header: t({ locale: props.locale, key: "Kind" }),
-      cell: (item) => entityTypeLabel(props.locale, item.entityType),
+      cell: (item) => entityTypeLabel(props.locale, item),
     },
     {
       key: "deleted",
