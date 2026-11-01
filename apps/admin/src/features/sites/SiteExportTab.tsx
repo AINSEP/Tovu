@@ -2,7 +2,7 @@ import { StaticExportPicker } from "./StaticExportPicker";
 import { DataTable } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { formatTimestamp, type Translate } from "@jini-ai/ui/panel-kit";
-import type { SiteShare } from "./hooks/site-transfer-dependencies.hooks";
+import { siteShareNotices, type SiteShare } from "./hooks/site-transfer-dependencies.hooks";
 import { useWiredSiteExport, type SiteExportController } from "./hooks/use-site-transfer.hooks";
 import { formatTransferBytes, shareStatusView, shortLink } from "./site-transfer-rules";
 
@@ -26,6 +26,14 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
     <section className="site-transfer" aria-label={t("Export Site")}>
       <p className="onboarding-section-lead site-transfer-lead">{t("Makes a .tovu.zip copy of this site that another Tovu can import.")}</p>
       <p className="site-transfer-lead">{t("Images are exported as web-optimized copies.")}</p>
+      {controller.canManageSavedKeys ? (
+        <label className="field-label">
+          <input type="checkbox" checked={controller.includeSavedKeys} disabled={exporting}
+            onChange={event => controller.setIncludeSavedKeys(event.target.checked)}
+            {...agentHandle({ handle: "sites-export-include-keys" }, { role: "field", label: "Include saved keys in an encrypted bundle" })} />
+          {" "}{t("Include saved keys")}
+        </label>
+      ) : null}
       <div className="site-export-actions">
         <button
           type="button"
@@ -41,11 +49,36 @@ export function SiteExportTab({ t, useExport = useWiredSiteExport }: SiteExportT
         <StaticExportPicker controller={controller} t={t} />
       </div>
       {controller.exportError ? <div className="notice error" role="alert">{controller.exportError}</div> : null}
+      {controller.passwordError ? <div className="notice error" role="alert">{controller.passwordError}</div> : null}
+      {controller.exportNotices?.map((notice, index) => <div className="notice" role="status" key={index}>{notice}</div>)}
+      <ExportPassword controller={controller} t={t} />
       {controller.zipOnly ? (
         <div className="notice">{t("No link host is set up, so exports are zip downloads only. Set up storage to get a share link.")}</div>
       ) : null}
       <ExportList controller={controller} t={t} />
     </section>
+  );
+}
+
+/** Passwords exist only while explicitly displayed; refreshing requires an owner reveal again. */
+function ExportPassword({ controller, t }: { controller: SiteExportController; t: Translate }) {
+  if (!controller.revealedPassword) return null;
+  return (
+    <div className="notice">
+      <div className="field">
+        <label className="field-label" htmlFor="sites-export-password">{t("Export password")}</label>
+        <input id="sites-export-password" type="text" readOnly autoComplete="off" spellCheck={false}
+          value={controller.revealedPassword.password} aria-describedby="sites-export-password-hint" />
+        <p className="field-hint" id="sites-export-password-hint">{t("Send this password separately")}</p>
+      </div>
+      <div className="site-transfer-actions">
+        <button type="button" className="btn-secondary" onClick={() => void controller.copyPassword()}
+          {...agentHandle({ handle: "sites-export-password-copy" }, { role: "button", label: "Copy this export's saved keys password" })}>
+          <span aria-live="polite">{controller.passwordCopied ? t("Copied") : t("Copy")}</span>
+        </button>
+        <button type="button" className="btn-secondary" onClick={controller.hidePassword}>{t("Hide password")}</button>
+      </div>
+    </div>
   );
 }
 
@@ -67,7 +100,10 @@ function ExportList({ controller, t }: { controller: SiteExportController; t: Tr
           header: t("Status"),
           cell: (share) => {
             const view = shareStatusView(share.status, t);
-            return <span className={view.className}>{view.label}</span>;
+            return <>
+              <span className={view.className}>{view.label}</span>
+              {controller.noticeShareId !== share.shareId ? siteShareNotices({ share }).map((notice, index) => <div className="notice" role="status" key={index}>{notice}</div>) : null}
+            </>;
           },
         },
         { key: "actions", headerLabel: t("Actions"), cell: (share, index) => <ShareActions share={share} index={index} controller={controller} t={t} /> },
@@ -87,6 +123,13 @@ function ShareActions({ share, index, controller, t }: { share: SiteShare; index
   const revoking = controller.revokingId === share.shareId;
   return (
     <div className="site-transfer-actions">
+      {share.hasEncryptedKeys && controller.canManageSavedKeys ? (
+        <button type="button" className="btn-secondary" disabled={controller.revealingId !== null || controller.exporting || controller.exportingStatic}
+          onClick={() => void controller.revealPassword({ shareId: share.shareId })}
+          {...agentHandle({ handle: `sites-export-${index + 1}-password` }, { role: "button", label: "Reveal this export's saved keys password" })}>
+          {controller.revealingId === share.shareId ? t("Revealing…") : t("Reveal password")}
+        </button>
+      ) : null}
       {share.url ? (
         <button
           type="button"

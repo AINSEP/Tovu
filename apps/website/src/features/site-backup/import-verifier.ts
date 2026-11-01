@@ -1,14 +1,17 @@
 import type { AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
-import { checkShareLimits, SHARE_LIMITS, type ShareDatabaseSanitizer } from "./share-policy.js";
+import { checkShareLimits, SHARE_LIMITS, addShareOmission, type ShareDatabaseSanitizer } from "./share-policy.js";
 import { ARCHIVE_DATABASE_PATH as SITE_BACKUP_DATABASE_PATH, type ArchivePlugin } from "./archive-manifest.js";
 import { archiveToRuntimePath, editedArchiveWarnings } from "./archive-paths.js";
 import { sha256Hex } from "./import-verifier-inventory.js";
 import { buildManifestInventory, checkArchiveMatchesInventory, parseShareManifest, readListedFiles, refuseArchive, scanArchiveMetadata } from "./import-verifier-inventory.js";
 import { applyShareProjection } from "./import-verifier-projection.js";
 import { readBundledImportPluginIds, readBundledPackageFiles } from "./package-file-inventory.js";
+import { SAVED_KEYS_PATH } from "./saved-keys-port.js";
+import { archiveCodeUnit } from "./archive-paths.js";
 import type { PackageFileInventory } from "./share-file-policy.js";
 
 export interface VerifiedSiteImport {
+  encryptedKeys?: Buffer;
   name: string;
   database: Buffer;
   files: Map<string, Buffer>;
@@ -36,15 +39,32 @@ export async function verifySiteImport(required: { archive: Buffer; reader: Agen
   const packageFiles = optional.packageFiles ?? await readBundledPackageFiles();
   const bundledImportPluginIds = optional.bundledImportPluginIds ?? await readBundledImportPluginIds();
   const modified = new Set<string>();
-  const files = await readListedFiles({ archive, reader, inventory, manifestBytes: scan.manifestBytes, wrapper: scan.wrapper, manifest, modified }, { ...optional, packageFiles, bundledImportPluginIds });
-  const trustedPlugins = manifest.plugins.filter(plugin => bundledIdentical({ plugin, files, packageFiles, modified }));
-  const projection = await required.sanitize({ snapshot: files.get(SITE_BACKUP_DATABASE_PATH)! }, { signal: optional.signal });
-  await applyShareProjection({ files, projection, manifest }, optional);
+  const notices: string[] = [];
+  const omitted = new Set<string>();
+  const files = await readListedFiles({ archive, reader, inventory, manifestBytes: scan.manifestBytes, wrapper: scan.wrapper, manifest, modified }, { ...optional, packageFiles, bundledImportPluginIds, notices, omitted });
+  const encryptedKeys = files.get(SAVED_KEYS_PATH);
+  files.delete(SAVED_KEYS_PATH);
+  const plugins = retainImportPlugins({ files, plugins: manifest.plugins, omitted, modified, notices });
+  const trustedPlugins = plugins.filter(plugin => bundledIdentical({ plugin, files, packageFiles, modified }));
+  const omittedMediaIds = manifest.media.filter(media => omitted.has(media.path)).map(media => media.id);
+  const projection = await required.sanitize({ snapshot: files.get(SITE_BACKUP_DATABASE_PATH)!, omittedMediaIds }, { signal: optional.signal });
+  await applyShareProjection({ files, projection, manifest: { ...manifest, media: manifest.media.filter(media => !omitted.has(media.path)) } }, optional);
   files.delete(SITE_BACKUP_DATABASE_PATH);
   checkShareLimits({ files: [...files].map(([path, content]) => ({ path, bytes: content.length })).concat({ path: SITE_BACKUP_DATABASE_PATH, bytes: projection.bytes.length }) });
   const runtimeFiles = new Map([...files].map(([path, bytes]) => [archiveToRuntimePath({ path, files }), bytes]));
-  const warnings = editedArchiveWarnings({ units: modified });
-  return { name: manifest.site.name.trim(), database: projection.bytes, files: runtimeFiles, warnings, modified, plugins: manifest.plugins, trustedPlugins };
+  const warnings = [...new Set([...notices, ...(projection.notices ?? []), ...editedArchiveWarnings({ units: modified })])];
+  return { name: manifest.site.name.trim(), database: projection.bytes, files: runtimeFiles, warnings, modified, plugins, trustedPlugins, ...(encryptedKeys ? { encryptedKeys } : {}) };
+}
+
+/** Omit an incomplete plugin unit whole; its manifest can no longer establish package integrity. */
+function retainImportPlugins(required: { files: Map<string, Buffer>; plugins: readonly ArchivePlugin[]; omitted: ReadonlySet<string>; modified: Set<string>; notices: string[] }, _options = {}): readonly ArchivePlugin[] {
+  const omittedUnits = new Set([...required.omitted].filter(path => /^(?:agent-plugins|plugins)\/[^/]+\/package\//.test(path)).map(path => archiveCodeUnit({ path })));
+  for (const unit of omittedUnits) if (unit) {
+    required.modified.delete(unit);
+    addShareOmission({ notices: required.notices, location: unit + " package" });
+  }
+  for (const path of required.files.keys()) if (omittedUnits.has(archiveCodeUnit({ path }))) required.files.delete(path);
+  return required.plugins.filter(plugin => !omittedUnits.has(`${plugin.kind === "agent" ? "agent-plugins" : "plugins"}/${plugin.id}`));
 }
 
 /** A manifest digest alone grants nothing: compare the entire shipped package to this build. */

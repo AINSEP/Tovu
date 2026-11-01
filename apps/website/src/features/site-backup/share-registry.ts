@@ -14,6 +14,10 @@ export interface SiteShareRecord {
   readonly status: "active" | "revoked" | "failed";
   readonly createdAt: string;
   readonly revokedAt: string | null;
+  readonly hasEncryptedKeys?: boolean;
+  readonly sealedPassword?: import("@jini-ai/platform/secrets").SealedSecret;
+  readonly notices?: readonly string[];
+  readonly notes?: readonly string[];
   readonly storage?: { readonly provider: string; readonly key: string; readonly url?: string; readonly binding?: string };
 }
 const ID = /^[0-9a-f-]{36}$/;

@@ -13,9 +13,15 @@ export const SHARE_DOWNLOAD_HEADERS = {
 } as const;
 export interface ShareDelivery { readonly provider: string; readonly binding?: string; readonly store: ArtifactStorePort }
 
+/** Persist safe notices and the site-sealed password with the export's existing registry row. */
+function privateExportMetadata(required: { sealedPassword?: SiteShareRecord["sealedPassword"]; notices?: readonly string[]; notes?: readonly string[] }, _options = {}) {
+  return { ...(required.sealedPassword ? { sealedPassword: required.sealedPassword, hasEncryptedKeys: true } : {}),
+    ...(required.notices?.length ? { notices: required.notices } : {}), ...(required.notes?.length ? { notes: required.notes } : {}) };
+}
+
 /** The one receiver for locally generated and authenticated management-uploaded artifacts. */
-export async function receiveSiteShareArtifact(required: { registry: SiteShareRegistry; site: string; token: string; file: string; archive: Buffer }, optional: { storage?: SiteShareRecord["storage"] } = {}): Promise<SiteShareRecord> {
-  const row: SiteShareRecord = { shareId: newShareIdentity({}).shareId, token: required.token, site: required.site, file: required.file, bytes: required.archive.length, sha256: createHash("sha256").update(required.archive).digest("hex"), url: null, status: "active", createdAt: new Date().toISOString(), revokedAt: null, ...(optional.storage ? { storage: optional.storage } : {}) };
+export async function receiveSiteShareArtifact(required: { registry: SiteShareRegistry; site: string; token: string; file: string; archive: Buffer }, optional: { storage?: SiteShareRecord["storage"]; shareId?: string; sealedPassword?: SiteShareRecord["sealedPassword"]; notices?: readonly string[]; notes?: readonly string[] } = {}): Promise<SiteShareRecord> {
+  const row: SiteShareRecord = { shareId: optional.shareId ?? newShareIdentity({}).shareId, token: required.token, site: required.site, file: required.file, bytes: required.archive.length, sha256: createHash("sha256").update(required.archive).digest("hex"), url: null, status: "active", createdAt: new Date().toISOString(), revokedAt: null, ...(optional.storage ? { storage: optional.storage } : {}), ...privateExportMetadata(optional) };
   if (!SHARE_FILE.test(row.file)) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Invalid share file name." });
   await required.registry.reserveToken(row);
   try {
@@ -26,12 +32,12 @@ export async function receiveSiteShareArtifact(required: { registry: SiteShareRe
 }
 
 /** Persist before delivery; publish a URL only after an anonymous verification succeeds. O(bytes). */
-export async function createSiteShare(required: { registry: SiteShareRegistry; site: string; name: string; archive: Buffer }, optional: { delivery?: ShareDelivery; signal?: AbortSignal; filename?: string } = {}): Promise<SiteShareRecord> {
-  const identity = newShareIdentity({});
+export async function createSiteShare(required: { registry: SiteShareRegistry; site: string; name: string; archive: Buffer }, optional: { delivery?: ShareDelivery; signal?: AbortSignal; filename?: string; identity?: { shareId: string; token: string }; sealedPassword?: SiteShareRecord["sealedPassword"]; notices?: readonly string[]; notes?: readonly string[] } = {}): Promise<SiteShareRecord> {
+  const identity = optional.identity ?? newShareIdentity({});
   // The derived stem always satisfies SHARE_FILE; receiveSiteShareArtifact re-checks it before any write.
   const file = optional.filename ?? `${shareFileStem({ name: required.name })}.tovu.zip`;
   const key = `_share/${identity.token}/${file}`;
-  const row = await receiveSiteShareArtifact({ ...required, token: identity.token, file }, optional.delivery ? { storage: deliveryStorage({ delivery: optional.delivery, key }) } : {});
+  const row = await receiveSiteShareArtifact({ ...required, token: identity.token, file }, { shareId: identity.shareId, sealedPassword: optional.sealedPassword, notices: optional.notices, notes: optional.notes, ...(optional.delivery ? { storage: deliveryStorage({ delivery: optional.delivery, key }) } : {}) });
   if (optional.signal?.aborted) await cancelReceivedShare({ registry: required.registry, row });
   if (!optional.delivery) return row;
   return deliverShare({ registry: required.registry, row, delivery: optional.delivery, key, file, archive: required.archive }, { signal: optional.signal });

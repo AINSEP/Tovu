@@ -121,6 +121,7 @@ export interface CollectedSiteBackupFiles {
   readonly files: PlannedDiskFile[];
   readonly skipped: SkippedSiteBackupFile[];
   readonly scopeNotes: Partial<Record<SiteBackupScope, string>>;
+  readonly notices?: readonly string[];
 }
 
 /** Names never backed up wherever they appear. `.publish-staging`/`.publish-previous` are
@@ -137,6 +138,7 @@ interface WalkSink {
   readonly files: PlannedDiskFile[];
   readonly skipped: SkippedSiteBackupFile[];
   readonly fileSystem: SiteBackupWalkFileSystem;
+  readonly notices?: string[];
   readonly profile?: "share";
 }
 
@@ -173,7 +175,7 @@ async function readdirOrEmpty(dir: string, fileSystem: SiteBackupWalkFileSystem)
  * @complexity O(1) — one `lstat`.
  */
 async function addFile(sink: WalkSink, input: { absPath: string; relPath: string; scope: SiteBackupScope }): Promise<void> {
-  if (sink.profile === "share" && excludedSharePath({ path: input.relPath })) return;
+  if (sink.profile === "share" && excludedSharePath({ path: input.relPath }, { notices: sink.notices })) return;
   let info;
   try {
     info = await sink.fileSystem.lstat(input.absPath);
@@ -215,7 +217,7 @@ async function walkTree(sink: WalkSink, input: { absDir: string; relDir: string;
 
 /** Share profile: a private folder is not entered, a missing one is empty, a linked or special one refuses. */
 async function enterShareDirectory(required: { sink: WalkSink; absDir: string; relDir: string }): Promise<boolean> {
-  if (excludedSharePath({ path: required.relDir })) return false;
+  if (excludedSharePath({ path: required.relDir }, { notices: required.sink.notices })) return false;
   const info = await required.sink.fileSystem.lstat(required.absDir).catch(err => isMissing(err) ? null : Promise.reject(err));
   if (!info) return false;
   if (!info.isDirectory() || info.isSymbolicLink()) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses linked or special directory '${required.relDir}'.` });
@@ -227,7 +229,7 @@ function skippedWalkEntry(required: { sink: WalkSink; relDir: string; name: stri
   const { name } = required;
   // Finder writes .DS_Store into any folder it opens; it is junk, never content, so drop it before the share refusal list sees it.
   if (name === ".DS_Store") return true;
-  if (required.sink.profile === "share" && excludedSharePath({ path: `${required.relDir}/${name}` })) return true;
+  if (required.sink.profile === "share" && excludedSharePath({ path: `${required.relDir}/${name}` }, { notices: required.sink.notices })) return true;
   return IGNORED_NAMES.has(name) || optional.excludeTopLevel?.has(name) === true;
 }
 
@@ -368,7 +370,7 @@ const MEDIA_IN_OBJECT_STORAGE_NOTE =
  */
 export async function collectSiteBackupFiles(input: { sources: SiteBackupSources; include: SiteBackupInclude }, optional: { fileSystem?: SiteBackupWalkFileSystem; profile?: "share" } = {}): Promise<CollectedSiteBackupFiles> {
   const { sources, include } = input;
-  const sink: WalkSink = { files: [], skipped: [], fileSystem: optional.fileSystem ?? WALK_FILE_SYSTEM, ...(optional.profile ? { profile: optional.profile } : {}) };
+  const sink: WalkSink = { files: [], skipped: [], notices: [], fileSystem: optional.fileSystem ?? WALK_FILE_SYSTEM, ...(optional.profile ? { profile: optional.profile } : {}) };
   const scopeNotes: Partial<Record<SiteBackupScope, string>> = {};
 
   if (include.media) await collectMediaScope({ sink, sources, scopeNotes });
@@ -385,7 +387,7 @@ export async function collectSiteBackupFiles(input: { sources: SiteBackupSources
   }
 
   sink.files.sort(byPath);
-  return { files: sink.files, skipped: sink.skipped, scopeNotes };
+  return { files: sink.files, skipped: sink.skipped, scopeNotes, notices: sink.notices };
 }
 
 /** Pins share themes and overrides through the same no-linked-ancestor read as site plugins.

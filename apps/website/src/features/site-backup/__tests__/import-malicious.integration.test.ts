@@ -92,7 +92,19 @@ async function importRefusal(h: Awaited<ReturnType<typeof importFixture>>, requi
   assert.deepEqual(h.workspace.registry({}).list({}), []);
 }
 
-test("package filename exceptions require the exact content-addressed root on export and import", async t => {
+/** A credential-looking file is omitted only AFTER its original inventory was checked. */
+async function importOmission(h: Awaited<ReturnType<typeof importFixture>>, required: { archive: string; bytes: Buffer; plugin?: PackageRecord }): Promise<void> {
+  const archive = await pack(appendPackageFile(await archiveItems(h.archive), { name: required.archive, bytes: required.bytes }, required.plugin));
+  const upload = await h.backend.upload({ principalId: "recipient", archive });
+  const pending = await h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } });
+  assert.equal(pending.status, "needs-owner");
+  assert.ok(pending.warnings?.some(warning => warning.includes(required.archive)));
+  const inventory = JSON.parse(fs.readFileSync(path.join(h.registry.stagePath(pending), ".inventory.json"), "utf8")) as string[];
+  assert.equal(inventory.includes(required.archive), false);
+  assert.deepEqual(h.workspace.registry({}).list({}), []);
+}
+
+test("credential filenames are omitted; malformed plugin identity still refuses import", { timeout: 120000 }, async t => {
   const root = `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(64)}`;
   const agent: PackageRecord = { kind: "agent", id: "portable" };
   // `runtime` is what export collects; `archive` is the same file in the v2 ZIP layout (no workspace,
@@ -112,32 +124,32 @@ test("package filename exceptions require the exact content-addressed root on ex
     { runtime: `${root}/nested/private-key.pem`, archive: "agent-plugins/portable/package/nested/private-key.pem", plugin: agent, code: "UNSAFE_PATH" },
     { runtime: `${root}/vendor-credentials.json`, archive: "agent-plugins/portable/package/vendor-credentials.json", plugin: agent, code: "UNSAFE_FILE" },
   ];
-  for (const item of cases) await t.test(item.runtime, async t => {
+  for (const item of cases) await t.test(item.runtime, { timeout: 120000 }, async t => {
     const h = await importFixture(t);
     const bytes = Buffer.from("{}");
     h.files.set(item.runtime, bytes);
-    await assert.rejects(h.prepareProductionShare(), { code: "UNSAFE_FILE" });
-    // B must independently reject a listed, correctly hashed file that bypassed A's collector.
-    await importRefusal(h, { archive: item.archive, bytes, plugin: item.plugin, code: item.code });
+    const exported = await h.prepareProductionShare();
+    assert.equal((await archiveItems(exported.archive)).some(entry => entry.name === item.archive), false);
+    if (item.code === "INVALID_ARCHIVE") await importRefusal(h, { archive: item.archive, bytes, plugin: item.plugin, code: item.code });
+    else await importOmission(h, { archive: item.archive, bytes, plugin: item.plugin });
   });
 });
 
-test("import refuses exactly what export refuses inside a site plugin package", async t => {
+test("import omits the same private files as export inside a site plugin package", { timeout: 120000 }, async t => {
   // Only an AGENT package's content-addressed root may ship MCP declarations and credential-named files;
   // a site plugin package gets the ordinary name rules on both sides, with the same refusal code.
-  for (const filename of ["mcp.json", "tovu-credential-schemes.json", "vendor-credentials.json"]) await t.test(filename, async t => {
+  for (const filename of ["mcp.json", "tovu-credential-schemes.json", "vendor-credentials.json"]) await t.test(filename, { timeout: 120000 }, async t => {
     const h = await importFixture(t);
     const name = `plugins/portable/package/${filename}`;
     const bytes = Buffer.from("{}");
     h.files.set(name, bytes);
-    const exported = await h.prepareProductionShare().then(() => "accepted", (error: { code?: string }) => error.code);
-    assert.equal(exported, "UNSAFE_FILE");
-    // Baseline RED: import mapped site plugins into the agent package root and accepted mcp.json.
-    await importRefusal(h, { archive: name, bytes, plugin: { kind: "site", id: "portable" }, code: exported });
+    const exported = await h.prepareProductionShare();
+    assert.equal((await archiveItems(exported.archive)).some(entry => entry.name === name), false);
+    await importOmission(h, { archive: name, bytes, plugin: { kind: "site", id: "portable" } });
   });
 });
 
-test("an installed site plugin's data/ folder stays out of the export, which then imports cleanly", async t => {
+test("an installed site plugin's data/ folder stays out of the export, which then imports cleanly", { timeout: 120000 }, async t => {
   // `plugins/custom/1.0.0/data/` is the plugin's runtime data (OAuth tokens, never content) beside its
   // package; export ships only the files Jini lists for the package. One policy on both sides.
   const h = await importFixture(t);
@@ -155,7 +167,7 @@ test("an installed site plugin's data/ folder stays out of the export, which the
 
 // RED (P1 check, batch7): the fixture's tier-3 plugin shipped only index.js, which Jini's installer refuses
 // (server/index.mjs is required), so "installed" fixtures were packages that could never be installed.
-test("the fixture's installed site plugin is a package Jini's own installer accepts", async t => {
+test("the fixture's installed site plugin is a package Jini's own installer accepts", { timeout: 120000 }, async t => {
   const h = await importFixture(t);
   await h.prepareProductionShare();
   const deps = { ...pluginHostBinding, installDir: path.join(h.root, "reinstall"), builtInIds: [], repo: new InMemoryPluginActivationRepo(), conflicts: async () => [] };
@@ -165,7 +177,7 @@ test("the fixture's installed site plugin is a package Jini's own installer acce
 
 // RED (P1 check, batch7): the fixture regenerated every site plugin manifest, so a hostile case's own
 // manifest (here: integrity that no longer matches the package) was silently repaired before export.
-test("a supplied site plugin manifest is installed as given: a stale integrity hash keeps the plugin out", async t => {
+test("a supplied site plugin manifest is installed as given: a stale integrity hash keeps the plugin out", { timeout: 120000 }, async t => {
   const h = await importFixture(t);
   const manifestPath = "plugins/custom/package/jini.plugin.json";
   const manifest = JSON.parse(h.files.get(manifestPath)!.toString("utf8")) as { integrity: Record<string, string> };
@@ -176,20 +188,32 @@ test("a supplied site plugin manifest is installed as given: a stale integrity h
   assert.match(plan.scopeNotes.plugins ?? "", /'custom'/);
 });
 
-test("package manifest filename exceptions preserve secret scanning on export and import", async t => {
-  for (const filename of ["mcp.json", "tovu-credential-schemes.json"]) await t.test(filename, async t => {
+test("package manifest filename exceptions preserve secret scanning on export and import", { timeout: 120000 }, async t => {
+  for (const filename of ["mcp.json", "tovu-credential-schemes.json"]) await t.test(filename, { timeout: 120000 }, async t => {
     const h = await importFixture(t);
     const name = `agent-plugins/ws/ws/portable/package/sha256/${"a".repeat(64)}/${filename}`;
     const bytes = Buffer.from(JSON.stringify({ token: "ghp_" + "x".repeat(36) }));
     h.files.set(name, bytes);
-    // Baseline RED: UNSAFE_FILE masks the required byte-level SECRET_IN_CONTENT refusal.
-    await assert.rejects(h.prepareProductionShare(), { code: "SECRET_IN_CONTENT" });
-    assert.deepEqual(fs.readFileSync(path.join(h.root, "source", name)), bytes, "refusal must not damage package bytes");
-    await importRefusal(h, { archive: `agent-plugins/portable/package/${filename}`, bytes, plugin: { kind: "agent", id: "portable" }, code: "SECRET_IN_CONTENT" });
+    const exported = await h.prepareProductionShare();
+    assert.equal((await archiveItems(exported.archive)).some(entry => entry.name.startsWith("agent-plugins/portable/package/")), false);
+    assert.deepEqual(fs.readFileSync(path.join(h.root, "source", name)), bytes, "omission must not damage source bytes");
+    await importOmission(h, { archive: `agent-plugins/portable/package/${filename}`, bytes, plugin: { kind: "agent", id: "portable" } });
   });
 });
 
-test("B malicious ZIP matrix: no registered/partial site and no mutation to an existing site", async t => {
+// A listed, correctly hashed private file is omitted after its integrity check, never imported.
+test("B private file is omitted with a notice after the inventory check", { timeout: 120000 }, async t => {
+  const h = await importFixture(t);
+  const name = "themes/site/.env.local";
+  const upload = await h.backend.upload({ principalId: "recipient", archive: await pack(appendListed(await archiveItems(h.archive), [{ name, bytes: Buffer.from("PRIVATE") }])) });
+  const pending = await h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } });
+  assert.equal(pending.status, "needs-owner");
+  assert.ok(pending.warnings?.some(warning => warning.includes(name)));
+  const inventory = JSON.parse(fs.readFileSync(path.join(h.registry.stagePath(pending), ".inventory.json"), "utf8")) as string[];
+  assert.equal(inventory.includes(name), false);
+});
+
+test("B malicious ZIP matrix: no registered/partial site and no mutation to an existing site", { timeout: 120000 }, async t => {
   const h = await importFixture(t);
   const existing = await createSite({ name: "existing", adminPassword: OWNER_PASSWORD }, { ...h.backendPorts.creationOptions, workspace: h.workspace });
   const beforeCatalog = JSON.stringify(h.workspace.registry({}).list({}));
@@ -240,7 +264,6 @@ test("B malicious ZIP matrix: no registered/partial site and no mutation to an e
   cases.push({ name: "unreferenced upload", make: () => pack(appendListed(items, [{ name: "uploads/stranded-chat", bytes: Buffer.from("private-chat") }])) });
   cases.push({ name: "unlisted directory", make: () => pack([...items, { name: "unused/", bytes: Buffer.alloc(0), mode: 0o040755 }]) });
   cases.push({ name: "missing file", make: () => pack(items.filter(item => item.name !== "themes/site/index.html")) });
-  cases.push({ name: "private file", make: () => pack(appendListed(items, [{ name: "themes/site/.env.local", bytes: Buffer.from("PRIVATE") }])) });
   cases.push({ name: "media hash differs from database", make: () => {
     const media = items.find(item => item.name.startsWith("media/"))!;
     const wrong = Buffer.from("changed-media");
@@ -274,7 +297,7 @@ test("B malicious ZIP matrix: no registered/partial site and no mutation to an e
     const bytes = await pack(changed);
     const entry = centralEntries(bytes).at(-1)!; bytes.writeUInt32LE(1, entry.central + 24); return bytes;
   } });
-  for (const item of cases) await t.test(item.name, async () => {
+  for (const item of cases) await t.test(item.name, { timeout: 120000 }, async () => {
     const upload = await h.backend.upload({ principalId: "recipient", archive: await item.make() });
     await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }));
     assert.equal(JSON.stringify(h.workspace.registry({}).list({})), beforeCatalog);
@@ -284,7 +307,7 @@ test("B malicious ZIP matrix: no registered/partial site and no mutation to an e
   });
 });
 
-test("B untrusted schema objects and partial restore errors leave no site, including app-data DBs", async t => {
+test("B untrusted schema objects and partial restore errors leave no site, including app-data DBs", { timeout: 120000 }, async t => {
   const h = await importFixture(t, "appData");
   const items = await archiveItems(h.archive);
   h.db.$client.exec("CREATE VIEW hostile AS SELECT load_extension('/tmp/never')");
@@ -322,7 +345,7 @@ test("B untrusted schema objects and partial restore errors leave no site, inclu
   assert.deepEqual(fs.existsSync(databases) ? fs.readdirSync(databases) : [], []);
 });
 
-test("verifier refuses malformed manifest contracts before invoking the database owner", async t => {
+test("verifier refuses malformed manifest contracts before invoking the database owner", { timeout: 120000 }, async t => {
   const { verifySiteImport } = await import("../import-verifier.js");
   const { reader } = await import("./import.fixture.js");
   const h = await importFixture(t), items = await archiveItems(h.archive);
@@ -339,7 +362,7 @@ test("verifier refuses malformed manifest contracts before invoking the database
     ["missing settings inventory", m => { m.files = m.files.filter((f: any) => f.path !== "settings.json"); }],
     ["oversized manifest inventory", m => { m.files = Array(2000).fill(m.files[0]); }],
   ];
-  for (const [label, change] of mutations) await t.test(label, async () => {
+  for (const [label, change] of mutations) await t.test(label, { timeout: 120000 }, async () => {
     await assert.rejects(verifySiteImport({ archive: await pack(mutateManifest(items, change)), reader, schema: h.plan.schema, sanitize: async () => assert.fail("invalid manifest must not invoke database owner") }), { code: "INVALID_ARCHIVE" });
   });
   // A path listed twice refuses as the same path collision export guards against (import-verifier-refusals pins the message).
@@ -348,7 +371,7 @@ test("verifier refuses malformed manifest contracts before invoking the database
   await assert.rejects(verifySiteImport({ archive: await pack(items.filter(item => item.name !== "manifest.json")), reader, schema: h.plan.schema, sanitize: async () => assert.fail() }), { code: "INVALID_ARCHIVE", message: /manifest/ });
 });
 
-test("share preflight independently rejects disagreeing local headers and ambiguous directory metadata", async t => {
+test("share preflight independently rejects disagreeing local headers and ambiguous directory metadata", { timeout: 120000 }, async t => {
   const { reader } = await import("./import.fixture.js");
   const consume = async (archive: Buffer) => { for await (const _entry of reader.entries({ archive })) { /* metadata-only preflight */ } };
   for (const [label, change] of [
@@ -357,11 +380,11 @@ test("share preflight independently rejects disagreeing local headers and ambigu
     ["local compression", (b: Buffer, o: number) => b.writeUInt16LE(b.readUInt16LE(o + 8) ^ 1, o + 8)],
     ["local filename", (b: Buffer, o: number) => b.writeUInt8(120, o + 30)],
     ["truncated extra fields", (b: Buffer, o: number) => b.writeUInt16LE(65535, o + 28)],
-  ] as const) await t.test(label, async () => {
+  ] as const) await t.test(label, { timeout: 120000 }, async () => {
     const bytes = await pack([{ name: "themes/a.txt", bytes: Buffer.from("x") }]); change(bytes, centralEntries(bytes)[0]!.local);
     await assert.rejects(consume(bytes), { code: "UNSAFE_ARCHIVE" });
   });
-  for (const [label, name, content, mode] of [["nonempty directory", "themes/dir/", "x", 0o040755], ["regular file named directory", "themes/dir/", "", 0o100644], ["directory named file", "themes/dir", "", 0o040755]] as const) await t.test(label, async () => {
+  for (const [label, name, content, mode] of [["nonempty directory", "themes/dir/", "x", 0o040755], ["regular file named directory", "themes/dir/", "", 0o100644], ["directory named file", "themes/dir", "", 0o040755]] as const) await t.test(label, { timeout: 120000 }, async () => {
     await assert.rejects(consume(await pack([{ name, bytes: Buffer.from(content), mode }])), { code: "UNSAFE_ARCHIVE" });
   });
 });

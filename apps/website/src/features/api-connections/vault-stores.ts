@@ -1,14 +1,15 @@
 import { createHash } from "node:crypto";
 
-import { SecretsVaultService, VaultError, createVaultMetaParsers, type VaultContext, type VaultMeta, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { SecretsVaultService, VaultError, createVaultMetaParsers, type VaultArchiveEntry, type VaultContext, type VaultMeta, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
 import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
 import type { Clock } from "@jini-ai/core/primitives";
 import {
   createApiConnectionGenerationReader, createVaultOAuthTokenStore,
+  deriveApiConnectionKey, parseTokenPayload, buildTokenPayload,
   type ApiConnectionAttempt, type ApiConnectionRecord, type ApiConnectionRecordStore, type ApiConnectionTokenStore,
 } from "@jini-ai/integrations/api-connections";
 import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
-import { API_CONNECTION_RECORD_FORMAT as RECORD_FORMAT, API_CONNECTION_ATTEMPT_FORMAT as ATTEMPT_FORMAT } from "#src/platform/secrets/vault-api-connection-meta";
+import { API_CONNECTION_RECORD_FORMAT as RECORD_FORMAT, API_CONNECTION_ATTEMPT_FORMAT as ATTEMPT_FORMAT, PLUGIN_STATE_FORMAT } from "#src/platform/secrets/vault-api-connection-meta";
 export { PLUGIN_STATE_FORMAT } from "#src/platform/secrets/vault-api-connection-meta";
 
 /**
@@ -161,4 +162,85 @@ export function createApiConnectionVaultTokenStore(
     vault: required.vault, vaultScope: apiConnectionVaultScope({ workspaceId: required.owner.workspaceId }), owner: required.owner,
     readGeneration: createApiConnectionGenerationReader({ records: required.records }), clock: required.clock,
   });
+}
+
+/** Verify the durable record owns its original derived key before constructing a recipient key. */
+function archiveConnection(row: VaultArchiveEntry): ApiConnectionRecord {
+  const record = row.payload?.record;
+  if (!isObject(record)) throw new VaultError({ code: "invalid-record" });
+  const ids = [record.workspaceId, record.pluginId, record.connectionId];
+  if (ids.some(value => typeof value !== "string" || !value)) throw new VaultError({ code: "invalid-record" });
+  const connection = record as unknown as ApiConnectionRecord;
+  if (deriveApiConnectionKey(connection) !== connection.key || row.id !== recordId(connection.key)) throw new VaultError({ code: "context" });
+  assertArchiveConnectionState(connection);
+  return connection;
+}
+
+/** Archive transport admits connected durable state only; no pending account switch is resumed. */
+function assertArchiveConnectionState(connection: ApiConnectionRecord): void {
+  if (!Number.isSafeInteger(connection.generation) || connection.generation < 0 || !Array.isArray(connection.grantedScopes)) throw new VaultError({ code: "invalid-record" });
+  if (!connection.grantedScopes.every(scope => typeof scope === "string") || connection.status !== "connected") throw new VaultError({ code: "invalid-record" });
+}
+
+/** Reuse the token owner's authenticated payload codec; enumerate only durable record fields. */
+function reboundConnection(required: { row: VaultArchiveEntry; rows: ReadonlyMap<string, VaultArchiveEntry>; workspaceId: string }): VaultArchiveEntry[] {
+  const connection = archiveConnection(required.row);
+  const tokenRow = required.rows.get(connection.key);
+  const payload = tokenRow?.payload, owner = payload?.owner;
+  if (!tokenRow || !isObject(owner) || typeof owner.clientId !== "string") throw new VaultError({ code: "invalid-record" });
+  const sourceOwner = { workspaceId: connection.workspaceId, pluginId: connection.pluginId, connectionId: connection.connectionId, clientId: owner.clientId };
+  const parsed = parseTokenPayload({ payload, key: connection.key, owner: sourceOwner });
+  if (parsed.generation !== connection.generation || !parsed.tokens) throw new VaultError({ code: "invalid-record" });
+  const key = deriveApiConnectionKey({ ...sourceOwner, workspaceId: required.workspaceId });
+  // Enumerate durable fields: staged account switches, actors, leases and source extensions die here.
+  const record: ApiConnectionRecord = { key, workspaceId: required.workspaceId, pluginId: connection.pluginId, connectionId: connection.connectionId,
+    status: "connected", revision: 1, generation: connection.generation, account: connection.account, grantedScopes: [...connection.grantedScopes],
+    staged: null, revocationFailure: null, updatedAt: connection.updatedAt };
+  return [
+    { ...required.row, id: recordId(key), label: recordLabel(key), payload: { record: record as unknown as VaultMeta } },
+    { ...tokenRow, id: key, label: key, meta: { credentialFormat: "oauth-token-set", status: "active", leaseHolder: null, leaseExpiresAtMs: null },
+      payload: buildTokenPayload({ key, owner: { ...sourceOwner, workspaceId: required.workspaceId }, generation: parsed.generation, tokens: parsed.tokens }) },
+  ];
+}
+
+/** Transient attempts/switches are deliberate exclusions; orphan durable rows deserve a notice. */
+function omittedApiRow(row: VaultArchiveEntry, consumed: ReadonlySet<string>): boolean {
+  const transient = row.id.endsWith("#staged") || row.meta.credentialFormat === ATTEMPT_FORMAT;
+  return !consumed.has(row.id) && !transient;
+}
+
+/** One failed pair gets one notice, even when both its record and tokens are unusable. */
+function markFailedApiPair(row: VaultArchiveEntry, consumed: Set<string>): void {
+  consumed.add(row.id);
+  const record = row.payload?.record;
+  if (isObject(record) && typeof record.key === "string") consumed.add(record.key);
+}
+
+/** Transport only complete, connected record/token pairs using the live key/codec owners. Plugin
+ * settings have no workspace-derived identity. Pending sign-ins and staged tokens never travel.
+ * Unsupported durable connections are omitted with a count, never raw identifiers/provider text.
+ * @example const rebound = rebindApiConnectionArchive({ entries, workspaceId: recipientWorkspaceId });
+ * @complexity O(rows + token bytes) time/space, bounded by the archive's credential cap.
+ */
+export function rebindApiConnectionArchive(required: { entries: readonly VaultArchiveEntry[]; workspaceId: string }, _optional: Record<string, never> = {}): { entries: VaultArchiveEntry[]; notices: string[] } {
+  const entries = required.entries.filter(row => row.kind !== "api-connection");
+  const api = required.entries.filter(row => row.kind === "api-connection");
+  const rows = new Map(api.map(row => [row.id, row]));
+  let omitted = 0;
+  const consumed = new Set<string>();
+  for (const row of api) {
+    if (row.meta.credentialFormat === PLUGIN_STATE_FORMAT && row.id.startsWith("plugin-state:")) { entries.push(row); consumed.add(row.id); }
+    if (row.meta.credentialFormat !== RECORD_FORMAT) continue;
+    try {
+      const pair = reboundConnection({ row, rows, workspaceId: required.workspaceId });
+      entries.push(...pair);
+      consumed.add(row.id);
+      consumed.add((row.payload!.record as VaultMeta).key as string);
+    } catch {
+      omitted++;
+      markFailedApiPair(row, consumed);
+    }
+  }
+  omitted += api.filter(row => omittedApiRow(row, consumed)).length;
+  return { entries, notices: omitted ? [`${omitted} unsupported API connection(s) were left out.`] : [] };
 }

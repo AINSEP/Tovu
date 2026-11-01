@@ -11,9 +11,9 @@ import { PLUGIN_MANIFEST_FILENAMES } from "@jini-ai/plugins/host";
  * @throws SiteShareRefusal for multiple workspaces, unsafe originals or stale planned files.
  * @complexity O(files × (themes + plugins) + package bytes), bounded by share caps.
  */
-export async function prepareArchiveExtensions(required: { sources: SiteBackupSources; files: readonly PlannedDiskFile[] }, optional: { packageThemesRoot?: string } = {}): Promise<{ files: PlannedDiskFile[]; plugins: ArchivePlugin[] }> {
-  const files = [...required.files];
-  await includeThemeOriginals({ sources: required.sources, files }, optional);
+export async function prepareArchiveExtensions(required: { sources: SiteBackupSources; files: readonly PlannedDiskFile[] }, optional: { packageThemesRoot?: string } = {}): Promise<{ files: PlannedDiskFile[]; plugins: ArchivePlugin[]; notices?: readonly string[] }> {
+  const files = [...required.files], notices: string[] = [];
+  await includeThemeOriginals({ sources: required.sources, files, notices }, optional);
   const workspaces = new Set(files.flatMap(file => /^agent-plugins\/ws\/([^/]+)\//.exec(file.path)?.[1] ?? []));
   if (workspaces.size > 1) throw new SiteShareRefusal({ code: "UNSUPPORTED_DATA", message: "Export requires a single plugin workspace." });
   const plugins: ArchivePlugin[] = [];
@@ -32,10 +32,10 @@ export async function prepareArchiveExtensions(required: { sources: SiteBackupSo
   }
   plugins.push(...await unindexedAgentRecords({ files: selected, plugins }));
   plugins.push(...await sitePluginRecords({ files: selected }));
-  return { files: selected.filter(file => runtimeToArchivePath({ path: file.path }) !== null), plugins };
+  return { files: selected.filter(file => runtimeToArchivePath({ path: file.path }) !== null), plugins, ...(notices.length ? { notices } : {}) };
 }
 
-async function includeThemeOriginals(required: { sources: SiteBackupSources; files: PlannedDiskFile[] }, optional: { packageThemesRoot?: string }): Promise<void> {
+async function includeThemeOriginals(required: { sources: SiteBackupSources; files: PlannedDiskFile[]; notices: string[] }, optional: { packageThemesRoot?: string }): Promise<void> {
   const themes = required.files.filter(file => /^themes\/(static|declarative|code)\/[^/]+\/theme.json$/.test(file.path));
   for (const file of themes) {
     const [, tier, id] = file.path.split("/");
@@ -44,6 +44,7 @@ async function includeThemeOriginals(required: { sources: SiteBackupSources; fil
     const original = resolveThemeOriginalSource({ manifest: { tier: tier as "static", id: id! }, siteThemesRoot: required.sources.themesDir, packageThemesRoot: optional.packageThemesRoot });
     if (original) {
       const collected = await collectSiteBackupFiles({ sources: { ...required.sources, themesDir: original.originalDir }, include: { database: false, media: false, themes: true, plugins: false, settings: false } }, { profile: "share" });
+      required.notices.push(...(collected.notices ?? []));
       if (collected.skipped.length) throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Cannot export theme original '${id}': ${collected.skipped[0]!.reason}.` });
       required.files.push(...collected.files.filter(file => file.path.startsWith("themes/")).map(file => ({ ...file, path: originalPrefix + file.path.slice("themes/".length) })));
     } else {

@@ -1,5 +1,6 @@
 import { archiveCodeUnit, editedArchiveWarnings, keptOffArchiveWarnings, OVERRIDES_UNIT } from "./archive-paths.js";
 import fs from "node:fs";
+import type { SiteSavedKeysPort } from "./saved-keys-port.js";
 import path from "node:path";
 import type { StorageKernel } from "#src/platform/db/kernel/port";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
@@ -13,8 +14,9 @@ export function stageVerifiedImport(required: { root: string; verified: Verified
   fs.mkdirSync(required.root, { mode: 0o700 });
   writeExclusive({ root: required.root, relative: "database/content.db", bytes: required.verified.database });
   for (const [relative, bytes] of required.verified.files) writeExclusive({ root: required.root, relative, bytes });
+  if (required.verified.encryptedKeys) writeExclusive({ root: required.root, relative: ".saved-keys.json", bytes: required.verified.encryptedKeys });
   const keptOff = keptOffUnits({ root: required.root, verified: required.verified });
-  fs.writeFileSync(path.join(required.root, ".archive-state.json"), JSON.stringify({ plugins: required.verified.plugins, trustedPlugins: required.verified.trustedPlugins, modified: [...required.verified.modified], keptOff }), { flag: "wx", mode: 0o600 });
+  fs.writeFileSync(path.join(required.root, ".archive-state.json"), JSON.stringify({ plugins: required.verified.plugins, trustedPlugins: required.verified.trustedPlugins, modified: [...required.verified.modified], keptOff, warnings: required.verified.warnings }), { flag: "wx", mode: 0o600 });
   fs.writeFileSync(path.join(required.root, ".inventory.json"), JSON.stringify([...required.verified.files.keys()]), { flag: "wx", mode: 0o600 });
 }
 
@@ -46,7 +48,7 @@ function stagedCodeUnit(required: { file: string; live: ReadonlySet<string> }): 
  * executable themes and overrides remain preserved under the unserved quarantine directory.
  * @complexity O(files + bytes), capped by the verified inventory (2,000 entries/300 MiB).
  */
-export async function restoreStagedImport(required: { root: string; dir: string; dbPath: string; pluginLayout: Parameters<typeof restoreImportedPluginState>[0]["layout"]; openContent: (required: { filePath: string }) => StorageKernel<ContentDatabase> }, optional: { pluginSourceRoot?: string } = {}): Promise<void> {
+export async function restoreStagedImport(required: { root: string; dir: string; dbPath: string; siteId?: string; savedKeys?: Pick<SiteSavedKeysPort, "restore">; pluginLayout: Parameters<typeof restoreImportedPluginState>[0]["layout"]; openContent: (required: { filePath: string }) => StorageKernel<ContentDatabase> }, optional: { pluginSourceRoot?: string; savedKeysPassword?: string; signal?: AbortSignal } = {}): Promise<void> {
   const files = JSON.parse(fs.readFileSync(path.join(required.root, ".inventory.json"), "utf8")) as string[];
   const state = JSON.parse(fs.readFileSync(path.join(required.root, ".archive-state.json"), "utf8")) as ImportedExtensionState;
   const findings = inspectThemeManifests({ root: required.root, files });
@@ -63,24 +65,40 @@ export async function restoreStagedImport(required: { root: string; dir: string;
     if (destination !== null) writeExclusive({ root: required.dir, relative: destination, bytes: fs.readFileSync(path.join(required.root, file)) });
   }
   await resetUnplacedActiveThemes({ dbPath: required.dbPath, liveThemes, openContent: required.openContent });
+  await restoreOptionalSavedKeys(required, optional);
 }
 
-/** A workspace whose active theme was quarantined (or never shipped) falls back to the starter theme. */
+/** Optional keys never prevent an otherwise valid site from being created. The adapter owns
+ * authentication, validation and atomic recipient writes; error details must never reach notices.
+ */
+async function restoreOptionalSavedKeys(required: { root: string; dir: string; dbPath: string; siteId?: string; savedKeys?: Pick<SiteSavedKeysPort, "restore"> }, optional: { savedKeysPassword?: string; signal?: AbortSignal }): Promise<void> {
+  const file = path.join(required.root, ".saved-keys.json");
+  if (!fs.existsSync(file)) return;
+  // restore() already turns every non-abort failure into a fixed notice.
+  const notices = required.savedKeys && required.siteId
+    ? (await required.savedKeys.restore({ encryptedKeys: fs.readFileSync(file), password: optional.savedKeysPassword, siteId: required.siteId, dir: required.dir, dbPath: required.dbPath }, { signal: optional.signal })).notices
+    : ["Saved keys were left out because their restore service was unavailable."];
+  const stateFile = path.join(required.root, ".archive-state.json");
+  const state = JSON.parse(fs.readFileSync(stateFile, "utf8"));
+  fs.writeFileSync(stateFile, JSON.stringify({ ...state, warnings: [...new Set([...(state.warnings ?? []), ...notices])] }), { mode: 0o600 });
+}
+
+/** Keep the explicit no-theme choice; only unavailable themes fall back to the starter theme. */
 async function resetUnplacedActiveThemes(required: { dbPath: string; liveThemes: ReadonlySet<string>; openContent: (required: { filePath: string }) => StorageKernel<ContentDatabase> }): Promise<void> {
   const db = required.openContent({ filePath: required.dbPath });
   try {
     const active = await db.run(query => query.selectFrom("presentation_settings").select("active_theme_id").execute());
     const fallback = readTemplate({ templateId: "starter" }).seed.presentation.activeThemeId;
-    for (const row of active) if (!required.liveThemes.has(row.active_theme_id)) {
+    for (const row of active) if (row.active_theme_id !== "none" && !required.liveThemes.has(row.active_theme_id)) {
       await db.run(query => query.updateTable("presentation_settings").set({ active_theme_id: fallback }).where("active_theme_id", "=", row.active_theme_id).execute());
     }
   } finally { await db.close(); }
 }
 
-/** Read pending-result warnings from the functional stage; nothing is added to import history. */
+/** Read bounded safe notices and extension warnings from the private functional stage. */
 export function stagedImportWarnings(required: { root: string }, _optional = {}): string[] {
   const file = path.join(required.root, ".archive-state.json");
   if (!fs.existsSync(file)) return [];
-  const state = JSON.parse(fs.readFileSync(file, "utf8")) as ImportedExtensionState;
-  return [...editedArchiveWarnings({ units: state.modified }), ...keptOffArchiveWarnings({ units: state.keptOff ?? [] })];
+  const state = JSON.parse(fs.readFileSync(file, "utf8")) as ImportedExtensionState & { warnings?: string[] };
+  return [...new Set([...(state.warnings ?? []), ...editedArchiveWarnings({ units: state.modified }), ...keptOffArchiveWarnings({ units: state.keptOff ?? [] })])];
 }

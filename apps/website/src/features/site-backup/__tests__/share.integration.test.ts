@@ -179,10 +179,15 @@ test("unsafe archive paths, aliases and file/directory collisions are refused be
   await refused(["themes/file", "themes/file/child"]);
 });
 
-test("credential-shaped bytes in required content refuse the share without changing the file", async () => {
+test("credential-shaped bytes are omitted with a notice without changing the source file", { timeout: 120000 }, async () => {
   const secret = "ghp_" + "x".repeat(36);
   const content = Buffer.from(`const token = "${secret}";`);
-  await assert.rejects(buildShareZip({ plan: { ...common(Buffer.alloc(0)), target: { kind: "zip" }, profile: "share", bufferedFiles: [{ path: "themes/site/script.js", content }] }, zip: zipFolderFiles }), /contains credential-shaped content/);
+  const notices: string[] = [];
+  const archive = await buildShareZip({ plan: { ...common(Buffer.alloc(0)), target: { kind: "zip" }, profile: "share", bufferedFiles: [...common(Buffer.alloc(0)).bufferedFiles, { path: "themes/site/script.js", content }] }, zip: zipFolderFiles }, { notices });
+  assert.match(notices.join(), /themes\/site\/script.js/);
+  assert.equal(notices.join().includes(secret), false);
+  const reader = createYauzlAgentPluginArchiveReader({ yauzl: yauzl as unknown as YauzlPort });
+  for await (const entry of reader.entries({ archive })) assert.notEqual(entry.entryPath, "themes/site/script.js");
   assert.equal(content.toString(), `const token = "${secret}";`);
 });
 
@@ -249,11 +254,11 @@ test("ordinary prose, theme query strings and SEO defaults/values survive byte-f
   assert.equal(found, true);
 });
 
-test("share excludes only private locations; required nested data/notes/out survive and suspect names refuse", () => {
+test("share excludes private locations and suspect names; required nested data/notes/out survive", { timeout: 120000 }, () => {
   // Site plugin data/ and private memory are never walked (only Jini's package listing is), so no path rule covers them.
   for (const file of ["themes/static/site/.env.local", "themes/static/site/nested/chat.db-wal"]) assert.equal(excludedSharePath({ path: file }), true, file);
   for (const file of ["themes/static/site/out/main.js", "themes/static/site/ops/help.md", "themes/static/site/staging/help.md", "plugins/site/src/data/default.json", "plugins/site/src/notes/help.md", "plugins/site/src/learned/help.md"]) assert.equal(excludedSharePath({ path: file }), false, file);
-  for (const file of ["themes/static/site/key.pem", "plugins/site/src/credentials.json", "themes/static/site/vault/readme.md", "plugins/site/src/.npmrc"]) assert.throws(() => excludedSharePath({ path: file }), (error: unknown) => (error as { code: string }).code === "UNSAFE_FILE", file);
+  for (const file of ["themes/static/site/key.pem", "plugins/site/src/credentials.json", "themes/static/site/vault/readme.md", "plugins/site/src/.npmrc"]) assert.equal(excludedSharePath({ path: file }), true, file);
 });
 
 // RED: nested JSON values used to be rewritten rather than omitted, or missed after double encoding.

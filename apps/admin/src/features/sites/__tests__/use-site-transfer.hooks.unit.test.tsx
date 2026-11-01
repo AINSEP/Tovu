@@ -4,6 +4,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { AdminBootScopeContext } from "@/lib/admin-boot-scope";
 import { API_UNREACHABLE_CODE, ApiError } from "@/lib/api";
 import { resetAssistantDockBus, subscribeToAssistantDockRequests } from "@/lib/assistant-dock-bus";
 import { resetAssistantPromptBus, useAssistantPromptRequests } from "@/lib/assistant-prompt-bus";
@@ -26,6 +27,50 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 const t = (key: string): string => key;
+
+it("discards a late password response when its export is revoked", async () => {
+  let reveal!: (value: { password: string }) => void;
+  const port = createFakeSiteTransferPort({ savedKeysAccess: async () => ({ isOwner: true }),
+    revealSharePassword: () => new Promise(resolve => { reveal = resolve; }), revokeShare: async () => share({ status: "revoked" }) });
+  const { result } = renderHook(() => useSiteExport({ port, t }), { wrapper });
+  await waitFor(() => expect(result.current.canManageSavedKeys).toBe(true));
+  let pending!: Promise<void>;
+  act(() => { pending = result.current.revealPassword({ shareId: "share-1" }); });
+  await act(() => result.current.revoke(share()));
+  await act(async () => { reveal({ password: "late-password" }); await pending; });
+  expect(result.current.revealedPassword).toBeNull();
+}, 10000);
+
+it("does not carry a revealed password across authenticated identities", async () => {
+  let principalId = "owner-one";
+  const port = createFakeSiteTransferPort({ savedKeysAccess: async () => ({ isOwner: true }), revealSharePassword: async () => ({ password: "private-password" }) });
+  const { result, rerender } = renderHook(() => useSiteExport({ port, t }), {
+    wrapper: ({ children }) => <FetchQueryProvider><AdminBootScopeContext.Provider value={{ principalId, checking: false }}>{children}</AdminBootScopeContext.Provider></FetchQueryProvider>,
+  });
+  await waitFor(() => expect(result.current.canManageSavedKeys).toBe(true));
+  await act(() => result.current.revealPassword({ shareId: "share-1" }));
+  expect(result.current.revealedPassword?.password).toBe("private-password");
+  principalId = "owner-two";
+  rerender();
+  await waitFor(() => expect(result.current.canManageSavedKeys).toBe(true));
+  expect(result.current.revealedPassword).toBeNull();
+}, 10000);
+
+it("retains older export scope notes in the completion controller", async () => {
+  const notes = ["Published content only."];
+  const port = createFakeSiteTransferPort({ createShare: async () => ({ ...share(), notes }) });
+  const { result } = renderHook(() => useSiteExport({ port, t }), { wrapper });
+  await act(() => result.current.exportSite());
+  expect(result.current.exportNotices).toEqual(notes);
+  expect(result.current.noticeShareId).toBe("share-1");
+}, 10000);
+
+it("keeps scope notes alongside new omission notices without duplicates", async () => {
+  const port = createFakeSiteTransferPort({ createShare: async () => ({ ...share(), notes: ["Published content only."], notices: ["Left out posts.content row 123.", "Published content only."] }) });
+  const { result } = renderHook(() => useSiteExport({ port, t }), { wrapper });
+  await act(() => result.current.exportSite());
+  expect(result.current.exportNotices).toEqual(["Published content only.", "Left out posts.content row 123."]);
+}, 10000);
 
 function share(overrides: Partial<SiteShare> = {}): SiteShare {
   return {
@@ -528,3 +573,23 @@ it("roster refresh prunes removed IDs without rechecking the active theme or cle
   await waitFor(() => expect(result.current.controller.staticThemes).toHaveLength(3));
   expect(result.current.controller.selectedThemeIds).toEqual([]);
 });
+
+
+it("isolates export and import history when the signed-in principal changes", async () => {
+  let principalId = "first-owner";
+  const port = createFakeSiteTransferPort({
+    listShares: async () => ({ shares: [share({ shareId: principalId })] }),
+    listImports: async () => ({ imports: [{ importId: principalId, source: { uploadId: "upload" }, newSiteName: null, state: "needs-owner", createdAt: "now" }] }),
+  });
+  const { result, rerender } = renderHook(() => ({ exports: useSiteExport({ port, t }), imports: useSiteImport({ port, t }) }), {
+    wrapper: ({ children }) => <FetchQueryProvider><AdminBootScopeContext.Provider value={{ principalId, checking: false }}>{children}</AdminBootScopeContext.Provider></FetchQueryProvider>,
+  });
+  await waitFor(() => expect(result.current.exports.shares?.[0]?.shareId).toBe("first-owner"));
+  await waitFor(() => expect(result.current.imports.imports?.[0]?.importId).toBe("first-owner"));
+  principalId = "second-owner";
+  rerender();
+  expect(result.current.exports.shares?.some(row => row.shareId === "first-owner")).toBeFalsy();
+  expect(result.current.imports.imports?.some(row => row.importId === "first-owner")).toBeFalsy();
+  await waitFor(() => expect(result.current.exports.shares?.[0]?.shareId).toBe("second-owner"));
+  await waitFor(() => expect(result.current.imports.imports?.[0]?.importId).toBe("second-owner"));
+}, 10000);

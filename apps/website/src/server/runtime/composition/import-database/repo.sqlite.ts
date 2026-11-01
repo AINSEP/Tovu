@@ -62,7 +62,8 @@ async function run(required: { root: string }, _options: Record<string, never> =
     // Source FKs may reference private rows omitted by projection; validate rebuilt FKs below.
     if (verifySqliteIntegrity({ db: source, quick: true }).issues.some(issue => issue.kind === "integrity")) throw new Error("Invalid SQLite integrity");
   } finally { source.close(); closeSqliteConnection(trusted); }
-  const projection = await sanitizeShareDatabase({ modules: FIRST_PARTY_DATA_MODULES, snapshot: await readFile(path.join(required.root, "input.db")) });
+  const omittedMediaIds = JSON.parse(await readFile(path.join(required.root, "omitted-media.json"), "utf8")) as string[];
+  const projection = await sanitizeShareDatabase({ omittedMediaIds, modules: FIRST_PARTY_DATA_MODULES, snapshot: await readFile(path.join(required.root, "input.db")) });
   const output = path.join(required.root, "output.db");
   await writeFile(output, projection.bytes, { flag: "wx", mode: 0o600 });
   const fresh = openSqliteFileKernel<Record<string, Record<string, unknown>>>(output);
@@ -102,6 +103,7 @@ async function run(required: { root: string }, _options: Record<string, never> =
   } finally { await fresh.close(); }
   const media = projection.media.map(blob => documentKeys.has(blob.storageKey) ? { ...blob, destinationStorageKey: documentKeys.get(blob.storageKey) } : blob);
   await writeFile(path.join(required.root, "media.json"), JSON.stringify(media), { flag: "wx", mode: 0o600 });
+  await writeFile(path.join(required.root, "notices.json"), JSON.stringify(projection.notices ?? []), { flag: "wx", mode: 0o600 });
   // sanitizeShareDatabase() always returns both lists; they are optional only on the shared projection type.
   await writeFile(path.join(required.root, "documents.json"), JSON.stringify(projection.documents!), { flag: "wx", mode: 0o600 });
 }

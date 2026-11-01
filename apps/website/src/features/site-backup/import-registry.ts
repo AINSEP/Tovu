@@ -20,6 +20,8 @@ export interface SiteImportRecord {
   createdAt: string;
   expiresAt: number;
   adminUrl?: string | null;
+  warnings?: readonly string[];
+  hasEncryptedKeys?: boolean;
   error?: string;
 }
 export interface SiteImportUpload { uploadId: string; principalId: string; createdAt: number; consumedBy?: string }

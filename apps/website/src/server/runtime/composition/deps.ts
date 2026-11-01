@@ -28,7 +28,7 @@ import { registerContentAnalytics } from './content-events.js';
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
 import { createSiteImportBackend } from "#src/features/site-backup/import-backend";
-import { rebuildImportDatabase, restoreStagedImport } from "#src/server/runtime/composition/site-portability";
+import { rebuildImportDatabase, restoreStagedImport, composeSiteSavedKeys } from "#src/server/runtime/composition/site-portability";
 import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
 import { startLocalSiteWhenRunning } from "#src/platform/site-dir/local-site-supervisor";
 import { SiteImportRegistry } from "#src/features/site-backup/import-registry";
@@ -2824,6 +2824,8 @@ async function composeSiteRouteDeps(
   configureSiteSharing({}, {});
 
   function configureSiteSharing(_required: Record<string, never>, _options = {}): void {
+    const savedKeys = composeSiteSavedKeys({ workspaceId, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, settingsRepo,
+      siteDir: resolvedSiteBinding.dir, projectVault, projectTransaction: projectStore?.transaction });
     if (routeDeps.siteBackupSources) {
       try {
         const contentRoots = [resolvedThemesDir, resolvedUploadsDir, agentPluginLayout.root, skillLayout.root, join(resolvedSiteBinding.dir, "plugins"), join(resolvedSiteBinding.dir, "overrides")];
@@ -2847,8 +2849,8 @@ async function composeSiteRouteDeps(
         };
         // Token-bearing verification requests use the guarded HTTP owner without telemetry. Never
         // infer a recipient-facing URL from localhost, Host, or ephemeral deployment storage.
-        routeDeps.siteShareBackend = createSiteShareBackend({ registry, site: workspaceId, zip: zipFolderFiles,
-          prepare: ({ signal }) => prepareShareContent({ dbOps: routeDeps.dbOps, snapshotRoot: tmpdir(), sources: routeDeps.siteBackupSources!, sanitize: sanitizeShareDatabase, blobStore, imageTransformer: routeDeps.imageTransformer!, rewriteMedia: rewriteArchiveMedia }, { signal, packageThemesRoot: routeDeps.packageThemesDir }),
+        routeDeps.siteShareBackend = createSiteShareBackend({ registry, site: workspaceId, zip: zipFolderFiles, savedKeys, ownerPrincipalId: identity.ownerPrincipalId,
+          prepare: ({ signal, ...selection }) => prepareShareContent({ dbOps: routeDeps.dbOps, snapshotRoot: tmpdir(), sources: routeDeps.siteBackupSources!, sanitize: sanitizeShareDatabase, blobStore, imageTransformer: routeDeps.imageTransformer!, rewriteMedia: rewriteArchiveMedia, savedKeys, ...selection }, { signal, packageThemesRoot: routeDeps.packageThemesDir }),
           staticSite: {
             render: input => routeDeps.exportSiteBound({ ...input, includeThemePreviews: false }),
             now: () => new Date(routeDeps.clock.nowMs()),
@@ -2906,7 +2908,7 @@ async function composeSiteRouteDeps(
       // Import payloads live in app-data, outside every served/source tree, including app-data DBs.
       const registry = new SiteImportRegistry({ directory: join(workspace.config({}).appData, "site-imports", workspaceId) });
       const importHttp = createDefaultHttpClient(SITE_IMPORT_EGRESS_POLICY, { observability });
-      routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, tracker, createSite, restoreStagedImport, reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
+      routeDeps.siteImportBackend = createSiteImportBackend({ registry, workspace, tracker, createSite, restoreStagedImport: (input, options) => restoreStagedImport({ ...input, savedKeys }, options), reader: createShareArchiveReader({ yauzl: importYauzl }), http: importHttp, sanitize: rebuildImportDatabase, schema: runtimeSchemaVersion(),
         // Wait for the new site to answer, so the import's "Open" link never points at a port still booting.
         startSite: async input => importSupervisor ? startLocalSiteWhenRunning({ supervisor: importSupervisor, name: input.name }) : { adminUrl: null, status: "stopped" },
         setupBase: "/api/admin/v1/workspaces/" + encodeURIComponent(workspaceId) + "/site-imports",

@@ -1716,6 +1716,8 @@ export interface AdminWebhookDelivery {
 }
 
 export interface AdminIdentityUser {
+  /** Server capability: the seeded owner cannot be renamed. */
+  canRename?: boolean;
   isOwner?: boolean;
   isProtectedAccount?: boolean;
   principalId: string;

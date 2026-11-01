@@ -3,6 +3,8 @@ import { claimSharePath, SHARED_PLUGIN_MEMORY } from "./share-file-policy.js";
 import type { SiteBackupInclude } from "./sources.js";
 import { isStaticSitePath, type StaticSiteMetadata } from "./static-copy.js";
 
+import { SAVED_KEYS_PATH, ENCRYPTED_KEYS_DESCRIPTOR } from "./saved-keys-port.js";
+
 export const ARCHIVE_MANIFEST_PATH = "manifest.json";
 export const ARCHIVE_DATABASE_PATH = "content.db";
 export interface ArchiveFile { readonly path: string; readonly bytes: number; readonly sha256: string }
@@ -24,6 +26,7 @@ export interface ArchiveManifest {
   readonly media: readonly ArchiveMedia[];
   readonly plugins: readonly ArchivePlugin[];
   readonly files: readonly ArchiveFile[];
+  readonly encryptedKeys?: typeof ENCRYPTED_KEYS_DESCRIPTOR;
   readonly staticSite?: StaticSiteMetadata;
   readonly staticSiteOmitted?: string;
 }
@@ -62,6 +65,7 @@ function validateManifest({ manifest: m, schema }: { manifest: any; schema: Arch
   if (!Array.isArray(m.media) || !Array.isArray(m.plugins)) invalid();
   validateMedia({ media: m.media, files });
   validatePlugins({ plugins: m.plugins, files });
+  validateEncryptedKeys({ descriptor: m.encryptedKeys, files });
 }
 
 function validateFiles({ files }: { files: any[] }): Map<string, ArchiveFile> {
@@ -72,12 +76,20 @@ function validateFiles({ files }: { files: any[] }): Map<string, ArchiveFile> {
     // Static copies are a convenience for humans, never restore input or an integrity dependency.
     if (typeof record?.path === "string" && isStaticSitePath({ path: record.path })) continue;
     const file = requireArchiveFileRecord({ file: record });
-    if (![ARCHIVE_DATABASE_PATH, "settings.json"].includes(file.path) && !ROOT.test(file.path)) invalid();
+    if (![ARCHIVE_DATABASE_PATH, "settings.json", SAVED_KEYS_PATH].includes(file.path) && !ROOT.test(file.path)) invalid();
     claimSharePath({ path: file.path, directory: false, aliases, files: names });
     inventory.set(file.path, file);
   }
   if (!inventory.has(ARCHIVE_DATABASE_PATH) || !inventory.has("settings.json")) invalid();
   return inventory;
+}
+
+/** Only the exact versioned optional encrypted entry is recognized; no generic secrets root. */
+function validateEncryptedKeys(required: { descriptor: any; files: ReadonlyMap<string, ArchiveFile> }, _options = {}): void {
+  if (required.descriptor === undefined) { if (required.files.has(SAVED_KEYS_PATH)) invalid(); return; }
+  const value = required.descriptor;
+  if (value?.version !== 1 || value.path !== SAVED_KEYS_PATH || value.format !== ENCRYPTED_KEYS_DESCRIPTOR.format) invalid();
+  if (!required.files.has(SAVED_KEYS_PATH)) invalid();
 }
 
 function validateMedia({ media, files }: { media: any[]; files: Map<string, ArchiveFile> }): void {

@@ -16,6 +16,21 @@ const options = { activeThemeId: "zoran-poster", themes: [{ themeId: "zoran-post
 const t = (text: string) => text;
 const share: SiteShare = { shareId: "static-1", file: "site-static-2026-10-30-1015.zip", bytes: 40, url: null, status: "active", createdAt: "2026-10-30T17:15:00Z", downloadUrl: "/download/static-1" };
 
+it("shows static-export scope notes and omission notices while downloading", async () => {
+  const notices = ["Left out custom/example.txt."];
+  const notes = ["Static copy only."];
+  const downloadShare = vi.fn();
+  const port = createFakeSiteTransferPort({ staticExportOptions: async () => options,
+    createStaticShare: async () => ({ ...share, notices, notes }), downloadShare });
+  render(<FetchQueryProvider><SiteExportTab t={t} useExport={() => useSiteExport({ port, t })} /></FetchQueryProvider>);
+  const button = screen.getByRole("button", { name: "Export static site" });
+  await waitFor(() => expect(button).not.toBeDisabled());
+  fireEvent.click(button);
+  expect(await screen.findByText(notices[0]!)).toBeVisible();
+  expect(screen.getByText(notes[0]!)).toBeVisible();
+  expect(downloadShare).toHaveBeenCalledOnce();
+}, 10000);
+
 describe("SiteExportTab static download", () => {
   it("renders an outlined Export static site button beside Export Tovu site and downloads through the share route", async () => {
     const createStaticShare = vi.fn(async () => share);

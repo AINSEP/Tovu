@@ -1,3 +1,4 @@
+import { createSiteSharePasswordHandler, requireSavedKeysOwnerSession } from "./site-share-password.js";
 import express, { type Express, type Request, type Response } from "express";
 import type { RouteDeps } from "#src/server/routes/types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -8,10 +9,23 @@ import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-
 import { SHARE_TOKEN, SHARE_FILE } from "#src/features/site-backup/share-registry";
 import { SHARE_DOWNLOAD_HEADERS, receiveSiteShareArtifact } from "#src/features/site-backup/share-service";
 
-function readShareJobId({ body }: { body: unknown }, _options = {}): string | undefined {
-  const raw = body ?? {};
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw) || Object.keys(raw).some(key => key !== "jobId")) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Only an optional jobId is accepted." });
-  const jobId = (raw as Record<string, unknown>).jobId;
+function readShareInput({ body }: { body: unknown }, _options = {}): { jobId?: string; includeSavedKeys?: boolean } {
+  const raw = shareInputRecord({ body });
+  const jobId = shareInputJob({ value: raw.jobId });
+  const includeSavedKeys = raw.includeSavedKeys;
+  if (includeSavedKeys !== undefined && typeof includeSavedKeys !== "boolean") throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "includeSavedKeys must be a boolean." });
+  if (jobId !== undefined && includeSavedKeys !== undefined) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Poll with jobId only." });
+  return { ...(jobId ? { jobId } : {}), ...(includeSavedKeys !== undefined ? { includeSavedKeys } : {}) };
+}
+
+function shareInputRecord(required: { body: unknown }, _options = {}): Record<string, unknown> {
+  const raw = required.body ?? {};
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw) || Object.keys(raw).some(key => !["jobId", "includeSavedKeys"].includes(key))) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Accept only jobId when polling, or includeSavedKeys for a new export." });
+  return raw as Record<string, unknown>;
+}
+
+function shareInputJob(required: { value: unknown }, _options = {}): string | undefined {
+  const jobId = required.value;
   if (jobId !== undefined && (typeof jobId !== "string" || !/^[0-9a-f-]{36}$/.test(jobId))) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "jobId must be a share job id." });
   return jobId as string | undefined;
 }
@@ -29,7 +43,7 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
     if (!deps.siteShareBackend) { res.status(503).json({ code: "UNAVAILABLE", message: "Site sharing requires a site folder and private artifact storage." }); return false; }
     return true;
   };
-  const fail = (res: Response, error: unknown) => res.status(error instanceof SiteShareRefusal && error.code === "NOT_FOUND" ? 404 : 400).json({ code: error instanceof SiteShareRefusal ? error.code : "SHARE_FAILED", message: error instanceof SiteShareRefusal ? error.message : "Share operation failed. Check storage configuration and retry." });
+  const fail = (res: Response, error: unknown) => res.status(error instanceof SiteShareRefusal && error.code === "NOT_FOUND" ? 404 : error instanceof SiteShareRefusal && error.code === "FORBIDDEN" ? 403 : 400).json({ code: error instanceof SiteShareRefusal ? error.code : "SHARE_FAILED", message: error instanceof SiteShareRefusal ? error.message : "Share operation failed. Check storage configuration and retry." });
   app.get(root, async (req, res) => {
     try { if (await gate(req, res)) res.json({ shares: await deps.siteShareBackend!.list({}) }); }
     catch (error) { fail(res, error); }
@@ -37,8 +51,9 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
   app.post(root, async (req, res) => {
     try {
       if (!await gate(req, res)) return;
-      const jobId = readShareJobId({ body: req.body });
-      res.json(await deps.siteShareBackend!.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, ...(jobId ? { jobId } : {}) }));
+      const input = readShareInput({ body: req.body });
+      if (input.includeSavedKeys && !await requireSavedKeysOwnerSession({ req, res, deps })) return;
+      res.json(await deps.siteShareBackend!.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, ...input }));
     } catch (error) { fail(res, error); }
   });
   app.get(`${root}/static/options`, async (req, res) => {
@@ -52,6 +67,7 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
       res.json(await deps.siteShareBackend!.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, format: "static", ...input }));
     } catch (error) { fail(res, error); }
   });
+  app.post(`${root}/:shareId/password`, createSiteSharePasswordHandler({ deps }));
   app.get(`${root}/:shareId/download`, async (req, res) => {
     try {
       if (!await gate(req, res)) return;

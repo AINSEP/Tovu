@@ -10,10 +10,9 @@ import { validateValueAgainstSchema, type SettingValueSchema } from "@jini-ai/co
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { PUBLISHABLE_SETTINGS } from "#src/features/settings/contracts";
 import { backfillPostSearchIndex } from "#src/features/post/index";
-import { SHARE_TABLES, SHARE_LEGACY_PRIVATE_TABLES, SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseProjection } from "#src/features/site-backup/share-policy";
-import { requireShareSecretFree } from "#src/features/site-backup/share-file-policy";
+import { SHARE_TABLES, SHARE_LEGACY_PRIVATE_TABLES, SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseProjection, addShareOmission } from "#src/features/site-backup/share-policy";
 import { computeBlobStorageKey, documentContentType } from "#src/features/media/index";
-import { listColumns, listTables } from "../../../platform/db/kernel/dialect.js";
+import { listColumns, listTables, listIndexes } from "../../../platform/db/kernel/dialect.js";
 import { openSqliteFileKernel, sqliteKernel, sqliteClientOf, sqliteConnectionOf, closeSqliteConnection } from "../../../platform/db/kernel/drivers/sqlite.js";
 import type { StorageKernel } from "../../../platform/db/kernel/port.js";
 import { CHAT_TABLE_NAMES } from "../../../platform/db/sqlite/chat-orphan-check.js";
@@ -107,17 +106,111 @@ function requireTrustedColumns(required: { table: string; columns: string[]; sou
  * O(rows × columns) projection/insertion; rows remain bounded by the snapshot cap.
  * @throws SiteShareRefusal for missing required columns or unapproved core columns.
  */
-async function copyTable({ source, target, table }: { source: Kernel; target: Kernel; table: string }, { signal, portablePlugin }: { signal?: AbortSignal; portablePlugin?: boolean } = {}): Promise<void> {
+async function copyTable({ source, target, table, notices, omittedRows }: { source: Kernel; target: Kernel; table: string; notices: string[]; omittedRows: Map<string, Set<string>> }, { signal, portablePlugin, omittedMediaIds = [] }: { signal?: AbortSignal; portablePlugin?: boolean; omittedMediaIds?: readonly string[] } = {}): Promise<void> {
   const columns = (await listColumns(target, table)).map(row => row.name);
   const sourceColumns = (await listColumns(source, table)).map(row => row.name);
   const defaults = ADDITIVE_COLUMN_DEFAULTS.get(table) ?? {};
   requireTrustedColumns({ table, columns, sourceColumns, defaults }, { portablePlugin });
   const rows = await source.run(db => db.selectFrom(table).select(columns.filter(column => sourceColumns.includes(column))).execute());
   const project = await mediaRowProjection({ target, table });
+  const indexes = await listIndexes(target, table);
+  const identities = new Set(["id", ...[...indexes.values()].filter(index => index.unique).flatMap(index => index.columns)]);
+  const omitted = new Set(omittedMediaIds);
   for (const [index, sourceRow] of rows.entries()) {
     if (index % 1000 === 0) { await scheduler.yield(); signal?.throwIfAborted(); }
-    const row = project({ ...defaults, ...sourceRow });
-    if (row) await target.run(db => db.insertInto(table).values(row).execute());
+    const retained = omitMediaReferences({ row: { ...defaults, ...sourceRow }, table, omitted });
+    if (!retained) continue;
+    const sanitized = sanitizePortableRow({ row: retained, table, notices });
+    if (sanitized.changed.some(column => identities.has(column))) { recordOmittedRow({ omittedRows, table, row: retained }); continue; }
+    const row = project(sanitized.row);
+    if (row) await insertPortableRow({ target, table, row, changed: sanitized.changed.length > 0, omittedRows });
+  }
+}
+
+/** Omitted media loses its rows, sidecars and application-owned links in the fresh projection.
+ * Sidecars use the retained-owner index below; posts retain their content with no featured image.
+ */
+function omitMediaReferences(required: { row: Row; table: string; omitted: ReadonlySet<string> }, _options = {}): Row | null {
+  const { row, table, omitted } = required;
+  if (table === "media" && omitted.has(String(row.id))) return null;
+  if (table === "posts" && omitted.has(String(row.featured_media_id))) return { ...row, featured_media_id: null };
+  if (table === "entry_refs" && row.target_kind === "media" && omitted.has(String(row.target_id))) return null;
+  return row;
+}
+
+/** Only redaction-caused constraint failures are omissions; corrupt required content still refuses. */
+async function insertPortableRow(required: { target: Kernel; table: string; row: Row; changed: boolean; omittedRows: Map<string, Set<string>> }, _options = {}): Promise<void> {
+  try { await required.target.run(db => db.insertInto(required.table).values(required.row).execute()); }
+  catch (error) {
+    if (!required.changed || !String((error as { code?: string }).code).startsWith("SQLITE_CONSTRAINT")) throw error;
+    recordOmittedRow(required);
+  }
+}
+
+function recordOmittedRow(required: { omittedRows: Map<string, Set<string>>; table: string; row: Row }, _options = {}): void {
+  if (required.row.id === undefined) return;
+  const ids = required.omittedRows.get(required.table) ?? new Set<string>();
+  ids.add(String(required.row.id));
+  if (required.table === "content_types") ids.add(String(required.row.key));
+  required.omittedRows.set(required.table, ids);
+}
+
+/** Prune only relationships of records this projection actually omitted. These fixed CMS
+ * relationships are read in dependency order; ordinary corrupt source references still refuse.
+ * O(portable rows) across a fixed set of bulk scans, plus indexed deletes of affected identities.
+ */
+async function pruneOmittedReferences(required: { target: Kernel; omittedRows: Map<string, Set<string>> }, _options = {}): Promise<void> {
+  const rules = [
+    { parent: "content_types", table: "entries", column: "type" },
+    { parent: "taxonomies", table: "terms", column: "taxonomy_id" },
+    { parent: "menus", table: "nav_location_bindings", column: "menu_id" },
+    { parent: "entries", table: "widget_region_bindings", column: "area_entry_id" },
+    { parent: "entries", table: "entry_terms", column: "content_id" },
+    { parent: "posts", table: "entry_terms", column: "content_id" },
+    { parent: "terms", table: "entry_terms", column: "term_id" },
+    { parent: "entries", table: "entry_refs", column: "source_entry_id" },
+    { parent: "posts", table: "entry_refs", column: "source_entry_id" },
+    { parent: "entries", table: "entry_refs", column: "target_id" },
+    { parent: "posts", table: "entry_refs", column: "target_id" },
+    { parent: "media", table: "entry_refs", column: "target_id" },
+  ];
+  for (const rule of rules) await pruneOmittedRelation({ ...required, rule });
+  await clearOmittedNullableReferences(required);
+}
+
+/** One scan per affected relation; a new omission can remove downstream derived references. */
+async function pruneOmittedRelation(required: { target: Kernel; omittedRows: Map<string, Set<string>>; rule: { parent: string; table: string; column: string } }, _options = {}): Promise<void> {
+  const { rule, omittedRows, target } = required;
+  const omitted = omittedRows.get(rule.parent);
+  if (!omitted?.size) return;
+  const rows = await target.run(db => db.selectFrom(rule.table).selectAll().execute());
+  for (const row of rows) {
+    if (!omitted.has(String(row[rule.column]))) continue;
+    recordOmittedRow({ omittedRows, table: rule.table, row });
+    await deletePortableIdentity({ target, table: rule.table, row });
+  }
+}
+
+/** Every relationship target has either a primary id or one of these two CMS composite keys. */
+async function deletePortableIdentity(required: { target: Kernel; table: string; row: Row }, _options = {}): Promise<void> {
+  if (required.row.id !== undefined) {
+    await required.target.run(db => db.deleteFrom(required.table).where("id", "=", required.row.id).execute());
+    return;
+  }
+  const column = required.table === "nav_location_bindings" ? "location_key" : "region_key";
+  await required.target.run(db => db.deleteFrom(required.table).where("workspace_id", "=", required.row.workspace_id).where(column, "=", required.row[column]).execute());
+}
+
+/** Nullable references retain the editorial record, clearing just a removed image or parent. */
+async function clearOmittedNullableReferences(required: { target: Kernel; omittedRows: Map<string, Set<string>> }, _options = {}): Promise<void> {
+  const rules = [{ table: "posts", parent: "media", column: "featured_media_id" }, { table: "terms", parent: "terms", column: "parent_id" }];
+  for (const rule of rules) {
+    const omitted = required.omittedRows.get(rule.parent);
+    if (!omitted?.size) continue;
+    const rows = await required.target.run(db => db.selectFrom(rule.table).select(["id", rule.column]).execute());
+    for (const row of rows) if (omitted.has(String(row[rule.column]))) {
+      await required.target.run(db => db.updateTable(rule.table).set({ [rule.column]: null }).where("id", "=", row.id).execute());
+    }
   }
 }
 
@@ -227,30 +320,42 @@ function hasSecretShape(required: { text: string }, _options: Record<string, nev
   return redactSecretShapes({ text: required.text }).redactions > 0;
 }
 
-/**
- * Scans projected text values separately from SQLite's concatenated record encoding.
- * @throws SiteShareRefusal SECRET_IN_CONTENT without exposing a value, column or row.
- * @complexity O(projected bytes) time; O(largest table) space, bounded by the snapshot cap.
+/** Blank text BEFORE insertion so removed bytes cannot survive in FTS or SQLite free pages.
+ * JSON columns receive a valid empty JSON value; schema-specific settings use their owner below.
+ * O(row bytes); mutates only the fresh projected row, never the source snapshot.
  */
-async function requireProjectedSecretFree({ target }: { target: Kernel }, _options = {}): Promise<void> {
-  for (const table of await listTables(target)) {
-    const rows = await target.run(db => db.selectFrom(table).selectAll().execute());
-    for (const row of rows) {
-      Object.values(row).forEach(value => {
-        if (typeof value === "string") requireShareSecretFree({ path: "database/content.db", bytes: Buffer.from(value) });
-      });
-    }
+function sanitizePortableRow(required: { row: Row; table: string; notices: string[] }, _options = {}): { row: Row; changed: string[] } {
+  const row = { ...required.row }, changed: string[] = [];
+  for (const [column, value] of Object.entries(row)) {
+    if (typeof value !== "string" || !hasSecretShape({ text: value })) continue;
+    addShareOmission({ notices: required.notices, location: `${required.table}.${column} row ${String(row.id ?? row.workspace_id ?? "unknown")}` });
+    row[column] = blankPortableText({ column, value });
+    changed.push(column);
   }
+  return { row, changed };
+}
+
+/** Preserve valid JSON syntax when blanking content; never redact serialized SQLite bytes. */
+function blankPortableText(required: { column: string; value: string }, _options = {}): string {
+  if (!required.column.endsWith("_json")) return "";
+  let value: unknown;
+  try { value = JSON.parse(required.value); } catch { return "{}"; }
+  if (Array.isArray(value)) return "[]";
+  if (value !== null && typeof value === "object") return "{}";
+  return '\"\"';
 }
 
 /** Only non-secret portable definitions/workspace values travel. Secret-bearing definitions/values are omitted, never rewritten. */
-async function copySettings(source: Kernel, target: Kernel): Promise<void> {
+async function copySettings({ source, target, notices }: { source: Kernel; target: Kernel; notices: string[] }, _options = {}): Promise<void> {
   const definitions = await source.run(db => db.selectFrom("setting_definitions").selectAll().where("secret", "=", 0).where("status", "=", "active").execute());
   for (const definition of definitions) {
     const schema = portableDefinitionSchema({ definition });
-    if (!schema) continue;
+    if (!schema) {
+      reportSettingOmissions({ row: definition, table: "setting_definitions", notices });
+      continue;
+    }
     await target.run(db => db.insertInto("setting_definitions").values(definition).execute());
-    await copyWorkspaceValues({ source, target, definition, schema });
+    await copyWorkspaceValues({ source, target, definition, schema, notices });
   }
 }
 
@@ -270,11 +375,12 @@ function portableDefinitionSchema(required: { definition: Row }, _options: Recor
 
 /** Copies the definition's current-version workspace values that may travel, stamped `share`.
  * O(values × value size). */
-async function copyWorkspaceValues(required: { source: Kernel; target: Kernel; definition: Row; schema: SettingValueSchema }, _options: Record<string, never> = {}): Promise<void> {
+async function copyWorkspaceValues(required: { source: Kernel; target: Kernel; definition: Row; schema: SettingValueSchema; notices: string[] }, _options: Record<string, never> = {}): Promise<void> {
   const { definition } = required;
   const rows = await required.source.run(db => db.selectFrom("setting_values_workspace").selectAll().where("setting_id", "=", definition.setting_id).where("def_version", "=", definition.version).execute());
   for (const row of rows) {
     const portable = portableValue({ row, schema: required.schema });
+    if (!portable) reportSettingOmissions({ row, table: "setting_values_workspace", notices: required.notices });
     if (portable) await required.target.run(db => db.insertInto("setting_values_workspace").values({ ...row, value_json: JSON.stringify(portable.value), updated_by: "share" }).execute());
   }
 }
@@ -289,6 +395,15 @@ function portableValue(required: { row: Row; schema: SettingValueSchema }, _opti
   return { value };
 }
 
+/** Settings retain their schema contract: omit whole invalid values instead of inserting bad JSON. */
+function reportSettingOmissions(required: { row: Row; table: string; notices: string[] }, _options = {}): void {
+  for (const [column, value] of Object.entries(required.row)) {
+    if (typeof value === "string" && hasSecretShape({ text: value })) {
+      addShareOmission({ notices: required.notices, location: `${required.table}.${column} row ${String(required.row.setting_id)}` });
+    }
+  }
+}
+
 /**
  * Build a fresh database from a consistent snapshot through trusted bootstrap only. Source SQL,
  * triggers, search projections and migration rows are never copied. Queries and inserts use the
@@ -297,9 +412,11 @@ function portableValue(required: { row: Row; schema: SettingValueSchema }, _opti
  * @throws SiteShareRefusal for caps, unknown populated tables, or unsupported schema.
  * @complexity O(snapshot + portable rows) time/space, bounded to the v1 expanded cap.
  */
-export async function sanitizeShareDatabase(required: { snapshot: Buffer; modules: readonly DataModuleDecl[] }, optional: { signal?: AbortSignal; statfs?: StagingSpacePort } = {}): Promise<ShareDatabaseProjection> {
+export async function sanitizeShareDatabase(required: { snapshot: Buffer; omittedMediaIds?: readonly string[]; modules: readonly DataModuleDecl[] }, optional: { signal?: AbortSignal; statfs?: StagingSpacePort } = {}): Promise<ShareDatabaseProjection> {
   optional.signal?.throwIfAborted();
   if (required.snapshot.length > SHARE_LIMITS.maxExpandedBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Database exceeds the 300 MiB cap." });
+  const notices: string[] = [];
+  const omittedRows = new Map<string, Set<string>>();
   const staging = await mkdtemp(path.join(tmpdir(), "tovu-share-projection-"));
   let source: Kernel | undefined;
   let fresh: ReturnType<typeof openContentDb> | undefined;
@@ -315,14 +432,7 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; module
     const present = new Set(await listTables(from));
     const plugins = await prepareSharePluginTables({ target, present, modules: required.modules });
     await refuseUnknownTables(source, new Set([...await listTables(target), ...plugins.private]));
-    await target.transaction(async () => {
-      for (const table of SHARE_TABLES) {
-        if (!present.has(table)) throw new SiteShareRefusal({ code: "UNSUPPORTED_SCHEMA", message: `Share requires current table '${table}'. Update this site first.` });
-        await copyTable({ source: from, target, table }, { signal: optional.signal });
-      }
-      for (const table of plugins.portable) await copyTable({ source: from, target, table }, { signal: optional.signal, portablePlugin: true });
-      await copySettings(from, target);
-    });
+    await copyPortableTables({ source: from, target, present, plugins, notices, omittedRows, omittedMediaIds: required.omittedMediaIds }, optional);
     await backfillPostSearchIndex({ kernel: contentKernel(fresh) });
     const documents = await documentReferences({ target });
     const media = [
@@ -331,15 +441,27 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; module
     ];
     // Older shares included Trash/orphan sidecars. v2 emits only retained owners, so
     // arbitrary unreferenced archive media must refuse rather than be pruned on import.
-    await requireProjectedSecretFree({ target });
     const bytes = sqliteClientOf(fresh).serialize();
-    requireShareSecretFree({ path: "database/content.db", bytes });
-    return { bytes, media, documents, archiveMedia: await archiveMediaSources({ target }) };
+    return { bytes, media, documents, notices, archiveMedia: await archiveMediaSources({ target }) };
   } finally {
     await source?.close();
     if (fresh) closeSqliteConnection(fresh);
     await rm(staging, { recursive: true, force: true });
   }
+}
+
+/** Copy under one fresh-target transaction; private data and source search tables never enter it. */
+async function copyPortableTables(required: { source: Kernel; target: Kernel; present: ReadonlySet<string>; plugins: { portable: ReadonlySet<string> }; notices: string[]; omittedRows: Map<string, Set<string>>; omittedMediaIds?: readonly string[] }, optional: { signal?: AbortSignal } = {}): Promise<void> {
+  const { source, target, present, plugins, notices, omittedRows, omittedMediaIds } = required;
+  await target.transaction(async () => {
+    for (const table of SHARE_TABLES) {
+      if (!present.has(table)) throw new SiteShareRefusal({ code: "UNSUPPORTED_SCHEMA", message: `Share requires current table '${table}'. Update this site first.` });
+      await copyTable({ source, target, table, notices, omittedRows }, { signal: optional.signal, omittedMediaIds });
+    }
+    for (const table of plugins.portable) await copyTable({ source, target, table, notices, omittedRows }, { signal: optional.signal, portablePlugin: true });
+    await pruneOmittedReferences({ target, omittedRows });
+    await copySettings({ source, target, notices });
+  });
 }
 
 /** Snapshot metadata for the archive selector. Three bulk reads, then indexed lookups per item. */
@@ -366,7 +488,7 @@ async function archiveMediaSources({ target }: { target: Kernel }): Promise<Arch
 
 /** Rewrites only the fresh share projection. No live DB or blob store is changed.
  * Rebuild sidecars so original and latest public point at the same copy; other renditions regenerate.
- * @throws SiteShareRefusal if copies do not cover the snapshot, or secret scanning refuses.
+ * @throws SiteShareRefusal if copies do not cover the sanitized snapshot.
  * @complexity O(media + copies) indexed reads/writes, bounded by the share snapshot cap.
  */
 export async function rewriteArchiveMedia(required: { bytes: Buffer; copies: readonly ArchiveMediaCopy[] }, optional: { signal?: AbortSignal } = {}): Promise<Buffer> {
@@ -377,9 +499,7 @@ export async function rewriteArchiveMedia(required: { bytes: Buffer; copies: rea
     await writeFile(file, required.bytes, { mode: 0o600, flag: "wx" });
     target = openSqliteFileKernel<Tables>(file);
     await rewriteMediaRows({ target, copies: required.copies }, optional);
-    await requireProjectedSecretFree({ target });
     const bytes = sqliteConnectionOf(target)!.serialize();
-    requireShareSecretFree({ path: "content.db", bytes });
     return bytes;
   } finally { await target?.close(); await rm(staging, { recursive: true, force: true }); }
 }

@@ -32,7 +32,7 @@ export function importWorkerLaunch({ moduleUrl }: { moduleUrl: string }): { help
  * The helper runs trusted source only and reuses A's sanitizer after checking schema objects.
  * @complexity O(database bytes) memory/disk, capped at 300 MiB; one helper per import lane.
  */
-export async function rebuildImportDatabase(required: { snapshot: Buffer; moduleUrl: string }, optional: RebuildImportDatabaseOptions = {}): Promise<ShareDatabaseProjection> {
+export async function rebuildImportDatabase(required: { snapshot: Buffer; moduleUrl: string; omittedMediaIds?: readonly string[] }, optional: RebuildImportDatabaseOptions = {}): Promise<ShareDatabaseProjection> {
   const { limits = SHARE_LIMITS, statfs: readSpace = statfs, fork = childProcess.fork } = optional;
   optional.signal?.throwIfAborted();
   if (required.snapshot.length > limits.maxExpandedBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Import database exceeds 300 MiB." });
@@ -41,6 +41,7 @@ export async function rebuildImportDatabase(required: { snapshot: Buffer; module
     const space = await readSpace(root);
     if (space.bavail * space.bsize < required.snapshot.length * 3 + 16 * 1024 * 1024) throw new SiteShareRefusal({ code: "INSUFFICIENT_STORAGE", message: "Not enough private staging space to verify this database." });
     await writeFile(path.join(root, "input.db"), required.snapshot, { flag: "wx", mode: 0o600 });
+    await writeFile(path.join(root, "omitted-media.json"), JSON.stringify(required.omittedMediaIds ?? []), { flag: "wx", mode: 0o600 });
     const { helper, execArgv } = importWorkerLaunch({ moduleUrl: required.moduleUrl });
     await new Promise<void>((resolve, reject) => {
       const child = fork(helper, [root], {
@@ -70,6 +71,7 @@ export async function rebuildImportDatabase(required: { snapshot: Buffer; module
     if (bytes.length > limits.maxExpandedBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Rebuilt import database exceeds 300 MiB." });
     const media = JSON.parse(await readFile(path.join(root, "media.json"), "utf8")) as ShareDatabaseProjection["media"];
     const documents = JSON.parse(await readFile(path.join(root, "documents.json"), "utf8")) as NonNullable<ShareDatabaseProjection["documents"]>;
-    return { bytes, media, documents };
+    const notices = JSON.parse(await readFile(path.join(root, "notices.json"), "utf8")) as string[];
+    return { bytes, media, documents, notices };
   } finally { await rm(root, { recursive: true, force: true }); }
 }

@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "@jini-ai/agent-plugins/lifecycle";
 import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal } from "./share-policy.js";
-import { validateSharePath, excludedSharePath, requireShareSecretFree, claimSharePath, sharePathAlias, type PackageFileInventory } from "./share-file-policy.js";
+import { validateSharePath, excludedSharePath, requireShareSecretFree, claimSharePath, sharePathAlias, secretSharePath, type PackageFileInventory } from "./share-file-policy.js";
 import { ARCHIVE_MANIFEST_PATH as SITE_BACKUP_MANIFEST_PATH, ARCHIVE_DATABASE_PATH as SITE_BACKUP_DATABASE_PATH, parseArchiveManifest, requireArchiveFileRecord, type ArchiveManifest } from "./archive-manifest.js";
 import { archiveCodeUnit, archiveSecretScanPath } from "./archive-paths.js";
+import { SAVED_KEYS_PATH } from "./saved-keys-port.js";
 import { isStaticSitePath } from "./static-copy.js";
 
 /**
@@ -165,8 +166,11 @@ export function buildManifestInventory(required: { files: readonly unknown[] }):
 }
 
 function refusedInventoryPath(path: string): boolean {
-  if (path === SITE_BACKUP_DATABASE_PATH) return false;
-  return excludedSharePath({ path: archiveSecretScanPath({ path, plugins: [] }) }) || !SHARE_INVENTORY_ROOTS.test(path) && !SHARE_SETTINGS_FILES.includes(path);
+  if (path === SITE_BACKUP_DATABASE_PATH || path === SAVED_KEYS_PATH) return false;
+  const scanPath = archiveSecretScanPath({ path, plugins: [] });
+  // Credential-like paths must reach the bounded hash check before omission.
+  const privateRuntime = !secretSharePath({ path: scanPath }, { packageContent: true }) && excludedSharePath({ path: scanPath });
+  return privateRuntime || !SHARE_INVENTORY_ROOTS.test(path) && !SHARE_SETTINGS_FILES.includes(path);
 }
 
 /**
@@ -183,10 +187,10 @@ export function checkArchiveMatchesInventory(required: { inventory: ReadonlyMap<
 /**
  * Second pass: reads every listed file under its manifest size and the remaining expanded budget,
  * checks its SHA-256, and secret-scans everything except the database (the sanitizer owns that).
- * @throws SiteShareRefusal (INVALID_ARCHIVE, SECRET_IN_CONTENT) or the signal's reason.
+ * @throws SiteShareRefusal (INVALID_ARCHIVE) or the signal's reason.
  * @complexity O(payload bytes), at most 300 MiB buffered.
  */
-export async function readListedFiles(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; inventory: ReadonlyMap<string, InventoryRecord>; manifestBytes: Buffer; wrapper?: string; manifest?: ArchiveManifest; modified?: Set<string> }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string> } = {}): Promise<Map<string, Buffer>> {
+export async function readListedFiles(required: { archive: Buffer; reader: AgentPluginArchiveReaderPort; inventory: ReadonlyMap<string, InventoryRecord>; manifestBytes: Buffer; wrapper?: string; manifest?: ArchiveManifest; modified?: Set<string> }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string>; notices?: string[]; omitted?: Set<string> } = {}): Promise<Map<string, Buffer>> {
   const files = new Map<string, Buffer>();
   let expanded = required.manifestBytes.length;
   for await (const entry of required.reader.entries({ archive: required.archive })) {
@@ -196,10 +200,18 @@ export async function readListedFiles(required: { archive: Buffer; reader: Agent
     if (entryPath !== SITE_BACKUP_MANIFEST_PATH) {
       const content = await readListedFile({ entry: { ...entry, entryPath }, inventory: required.inventory, remainingBytes: SHARE_LIMITS.maxExpandedBytes - expanded, manifest: required.manifest, modified: required.modified }, optional);
       expanded += content.length;
-      files.set(entryPath, content);
+      retainListedFile({ path: entryPath, content, files, plugins: required.manifest?.plugins ?? [] }, optional);
     }
   }
   return files;
+}
+
+/** Integrity has already passed. Optional ciphertext and projected SQLite have separate owners. */
+function retainListedFile(required: { path: string; content: Buffer; files: Map<string, Buffer>; plugins: ArchiveManifest["plugins"] }, optional: { packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string>; notices?: string[]; omitted?: Set<string> } = {}): void {
+  const structured = required.path === SITE_BACKUP_DATABASE_PATH || required.path === SAVED_KEYS_PATH;
+  const retained = structured || requireShareSecretFree({ path: archiveSecretScanPath({ path: required.path, plugins: required.plugins }), bytes: required.content }, { ...optional, shownPath: required.path });
+  if (retained) required.files.set(required.path, required.content);
+  else optional.omitted?.add(required.path);
 }
 
 async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyMap<string, InventoryRecord>; remainingBytes: number; manifest?: ArchiveManifest; modified?: Set<string> }, optional: { signal?: AbortSignal; packageFiles?: PackageFileInventory; bundledImportPluginIds?: ReadonlySet<string> }): Promise<Buffer> {
@@ -210,7 +222,6 @@ async function readListedFile(required: { entry: FileEntry; inventory: ReadonlyM
   if (!unit && expected.bytes !== entry.declaredSize) refuseArchive("ZIP size mismatch.");
   const content = await readBounded({ entry, maxBytes: Math.min(entry.declaredSize!, required.remainingBytes), signal: optional.signal });
   verifyListedIntegrity({ content, expected, unit, modified: required.modified });
-  if (entry.entryPath !== SITE_BACKUP_DATABASE_PATH) requireShareSecretFree({ path: archiveSecretScanPath({ path: entry.entryPath, plugins: required.manifest?.plugins ?? [] }), bytes: content }, { packageFiles: optional.packageFiles, bundledImportPluginIds: optional.bundledImportPluginIds, shownPath: entry.entryPath });
   return content;
 }
 

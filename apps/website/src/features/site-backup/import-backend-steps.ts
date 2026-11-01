@@ -16,6 +16,7 @@ export interface SiteImportView {
   importId: string; source: SiteImportSource; newSiteId: string | null; newSiteName: string | null;
   state: SiteImportRecord["status"]; status: SiteImportRecord["status"]; createdAt: string;
   warnings?: readonly string[];
+  hasEncryptedKeys?: boolean;
   setupUrl?: string; adminUrl?: string | null; error?: string; instructions: string;
 }
 export interface ParsedSiteImportInput { source: SiteImportSource; displayName?: string; requestId?: string }
@@ -156,7 +157,7 @@ export function siteImportView(required: { row: SiteImportRecord }, optional: { 
     importId: row.importId, source: row.source,
     newSiteId: row.newSiteId, newSiteName: row.newSiteName, state: row.status, status: row.status, createdAt: row.createdAt,
     ...(pending ? { setupUrl: (optional.setupBase ?? "/api/admin/v1/site-imports") + "/" + row.importId + "/owner" } : {}),
-    adminUrl: row.adminUrl, error: row.error,
+    adminUrl: row.adminUrl, error: row.error, warnings: row.warnings, hasEncryptedKeys: row.hasEncryptedKeys,
     instructions: pending ? "Open setupUrl while signed in as the importing principal and choose a new owner password privately. The site is unavailable until setup completes." : "Open adminUrl when available. Imported extensions remain quarantined and need explicit review before activation.",
   };
 }

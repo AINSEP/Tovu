@@ -1,9 +1,13 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
+import type { SiteSavedKeysPort } from "./saved-keys-port.js";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
+import { requireShareSecretFree } from "./share-file-policy.js";
+import type { ArchiveMediaCopy } from "./archive-media.js";
 import { MAX_DOCUMENT_BYTES, type BlobStorePort } from "#src/features/media/index";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import { captureDatabaseSnapshot, collectSiteBackupFiles, readPlannedFile, type CollectedSiteBackupFiles, type PlannedDiskFile, type SiteBackupInclude, type SiteBackupSources } from "./sources.js";
-import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseProjection, type ShareDatabaseSanitizer } from "./share-policy.js";
+import { checkShareLimits, SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseProjection, type ShareDatabaseSanitizer, addShareOmission } from "./share-policy.js";
 
 /**
  * @file The steps of `prepareShareContent`: the projected database, the collected site files, the
@@ -16,6 +20,7 @@ type ShareBlobStore = Pick<BlobStorePort, "get" | "sizeOf">;
 export interface ShareLedger {
   readonly sizes: { path: string; bytes: number }[];
   readonly buffered: { path: string; content: Buffer }[];
+  readonly notices?: string[];
 }
 
 const PROVENANCE_KEYS = ["templateId", "templateVersion", "schemaVersion", "schemaTag"];
@@ -28,6 +33,24 @@ export function addBuffered(required: { ledger: ShareLedger; file: { path: strin
   required.ledger.buffered.push(required.file);
 }
 
+/** Media omissions must use the database owner too: never emit dangling media or sidecars.
+ * Rebuild only when a file was omitted, so removed rows leave no free-page copies in the ZIP.
+ * Mutates the operation's ledger; O(buffered bytes + a bounded projection when needed).
+ */
+export async function retainSafeArchiveMedia(required: { ledger: ShareLedger; projected: ShareDatabaseProjection; copies: readonly ArchiveMediaCopy[]; sanitize: ShareDatabaseSanitizer }, optional: { signal?: AbortSignal } = {}): Promise<{ projected: ShareDatabaseProjection; copies: readonly ArchiveMediaCopy[] }> {
+  const omitted = new Set<string>();
+  for (const file of required.ledger.buffered) {
+    if (!requireShareSecretFree({ path: file.path, bytes: file.content }, { notices: required.ledger.notices })) omitted.add(file.path);
+  }
+  if (!omitted.size) return { projected: required.projected, copies: required.copies };
+  const omittedMediaIds = required.copies.filter(copy => omitted.has(copy.path)).map(copy => copy.id);
+  const projected = await required.sanitize({ snapshot: required.projected.bytes, omittedMediaIds }, optional);
+  const keep = <T extends { path: string }>(files: T[]): T[] => files.filter(file => !omitted.has(file.path));
+  required.ledger.buffered.splice(0, required.ledger.buffered.length, ...keep(required.ledger.buffered));
+  required.ledger.sizes.splice(0, required.ledger.sizes.length, ...keep(required.ledger.sizes));
+  return { projected, copies: required.copies.filter(copy => !omitted.has(copy.path)) };
+}
+
 /**
  * Snapshots the site database and returns only the sanitizer's fresh projection.
  * Release the private snapshot before buffering media and assembling the public ZIP: the snapshot
@@ -35,11 +58,16 @@ export function addBuffered(required: { ledger: ShareLedger; file: { path: strin
  * `snapshotRoot` is a private folder outside the source site: Export never writes into site storage.
  * @throws SiteShareRefusal DATABASE_SNAPSHOT_FAILED with the snapshot's caller-safe message.
  */
-export async function captureProjectedDatabase(required: { dbOps: DbOpsPort; sanitize: ShareDatabaseSanitizer; snapshotRoot: string }, optional: { signal?: AbortSignal } = {}): Promise<{ projected: ShareDatabaseProjection; watermarkAtCapture: number }> {
+export async function captureProjectedDatabase(required: { dbOps: DbOpsPort; sanitize: ShareDatabaseSanitizer; snapshotRoot: string; savedKeys?: Pick<SiteSavedKeysPort, "capture">; shareId?: string; workspaceId?: string; includeSavedKeys?: boolean }, optional: { signal?: AbortSignal } = {}): Promise<{ projected: ShareDatabaseProjection; watermarkAtCapture: number; savedKeys?: Awaited<ReturnType<SiteSavedKeysPort["capture"]>> }> {
   const snapshot = await captureDatabaseSnapshot({ dbOps: required.dbOps, scopeId: "site-share" }, { maxBytes: SHARE_LIMITS.maxExpandedBytes, snapshotRoot: required.snapshotRoot });
   if (!snapshot.ok) throw new SiteShareRefusal({ code: "DATABASE_SNAPSHOT_FAILED", message: snapshot.message });
   const projected = await required.sanitize({ snapshot: snapshot.bytes }, { signal: optional.signal });
-  return { projected, watermarkAtCapture: snapshot.watermarkAtCapture };
+  let savedKeys: Awaited<ReturnType<SiteSavedKeysPort["capture"]>> | undefined;
+  if (required.includeSavedKeys) {
+    if (!required.savedKeys || !required.shareId || !required.workspaceId) throw new SiteShareRefusal({ code: "UNAVAILABLE", message: "Saved keys export is unavailable." });
+    savedKeys = await required.savedKeys.capture({ snapshot: snapshot.bytes, shareId: required.shareId, workspaceId: required.workspaceId }, optional);
+  }
+  return { projected, watermarkAtCapture: snapshot.watermarkAtCapture, savedKeys };
 }
 
 /** Collects the share profile's files (never the media folder); any skipped file refuses by name. */
@@ -72,19 +100,27 @@ export async function fetchVerifiedBlob(required: { blobStore: ShareBlobStore; m
  */
 export async function addPortableSettings(required: { files: readonly PlannedDiskFile[]; siteDir: string; ledger: ShareLedger }): Promise<string> {
   const config = await readPortableJson({ file: required.files.find(file => file.path === "settings/config.json") });
-  const name = typeof config.name === "string" ? config.name : path.basename(required.siteDir);
+  let name = typeof config.name === "string" ? config.name : path.basename(required.siteDir);
+  if (redactSecretShapes({ text: name }).redactions > 0) {
+    if (required.ledger.notices) addShareOmission({ notices: required.ledger.notices, location: "settings.json name" });
+    name = "Shared site";
+  }
   const meta = await readPortableJson({ file: required.files.find(file => file.path === "settings/.site-meta.json") });
-  addBuffered({ ledger: required.ledger, file: { path: "settings.json", content: Buffer.from(JSON.stringify({ name, template: pickProvenance({ meta }) })) } });
+  addBuffered({ ledger: required.ledger, file: { path: "settings.json", content: Buffer.from(JSON.stringify({ name, template: pickProvenance({ meta, notices: required.ledger.notices }) })) } });
   return name;
 }
 
-function pickProvenance(required: { meta: Record<string, unknown> }): Record<string, unknown> {
+function pickProvenance(required: { meta: Record<string, unknown>; notices?: string[] }): Record<string, unknown> {
   const provenance: Record<string, unknown> = {};
   // Pick named provenance fields; never spread site identity, paths, fingerprints or storage.
   for (const key of PROVENANCE_KEYS) {
     const value = required.meta[key];
     const validText = typeof value === "string" && PROVENANCE_TEXT.test(value);
     const validNumber = typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+    if (redactSecretShapes({ text: String(value) }).redactions > 0) {
+      if (required.notices) addShareOmission({ notices: required.notices, location: `settings.json template.${key}` });
+      continue;
+    }
     if (validText || validNumber) provenance[key] = value;
   }
   return provenance;

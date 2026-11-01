@@ -74,12 +74,16 @@ const secrets = [
 
 for (const [kind, secret] of secrets) {
   for (const file of ["agent-plugins/github/package/source-control/write-files.mjs", "agent-plugins/unknown/package/readme.txt", "agent-plugins/github/memory/notes/note.md", "themes/site/notes.txt", "themes/site/asset.bin"]) {
-    test(`${kind} secret in ${file} refuses the entire import`, { timeout }, async () => {
+    test(`${kind} secret in ${file} is omitted with a safe notice`, { timeout }, async () => {
       const prefix = file.endsWith(".bin") ? Buffer.from([0, 255, 0]) : Buffer.from("ordinary content\n");
       const bytes = Buffer.concat([pluginFiles.get(file) ?? prefix, Buffer.from("\n" + secret())]);
       const h = await fixture(new Map([[file, bytes]]));
-      await assert.rejects(h.verify(), { code: "SECRET_IN_CONTENT", message: `Share refused: '${file}' contains credential-shaped content. Remove the secret before sharing.` });
-      assert.equal(h.wasSanitized(), false, "a partially invalid archive must never reach database restoration");
+      const imported = await h.verify();
+      assert.equal(imported.files.has(file), false);
+      assert.ok(imported.warnings.some(notice => notice.includes(file)), "name the omitted archive path");
+      assert.equal(imported.warnings.join().includes(secret()), false);
+      for (const content of imported.files.values()) assert.equal(content.includes(Buffer.from(secret())), false);
+      assert.equal(h.wasSanitized(), true, "ordinary content still imports after an omission");
     });
   }
 }
@@ -87,21 +91,23 @@ for (const [kind, secret] of secrets) {
 for (const file of ["agent-plugins/unknown/package/locales/es.json", "agent-plugins/github/memory/notes/note.md", "plugins/github/package/locales/es.json", "themes/site/labels.json"]) {
   test(`credential labels still get strict import scanning in ${file}`, { timeout }, async () => {
     const h = await fixture(new Map([[file, Buffer.from('{"API token":"Token de API"}')]]));
-    await assert.rejects(h.verify(), { code: "SECRET_IN_CONTENT", message: `Share refused: '${file}' contains credential-shaped content. Remove the secret before sharing.` });
-    assert.equal(h.wasSanitized(), false);
+    const imported = await h.verify();
+    assert.equal(imported.files.has(file), false);
+    assert.ok(imported.warnings.some(notice => notice.includes(file)));
+    assert.equal(h.wasSanitized(), true);
   });
 }
 
-test("export still refuses unverified package labels from another build", { timeout }, () => {
+test("scanner omits package labels when no bundled id or byte identity establishes classification", { timeout }, () => {
   const file = `agent-plugins/ws/w/github/package/sha256/${sourceDigest}/locales/es.json`;
-  assert.throws(() => requireShareSecretFree({ path: file, bytes: pluginFiles.get("agent-plugins/github/package/locales/tovu-source-control.json")! }), { code: "SECRET_IN_CONTENT" });
+  assert.equal(requireShareSecretFree({ path: file, bytes: pluginFiles.get("agent-plugins/github/package/locales/tovu-source-control.json")! }), false);
 });
 
 test("an unknown import id cannot borrow a bundled digest and file hash to relax its scan", { timeout }, () => {
   const file = `agent-plugins/ws/w/unknown/package/sha256/${recipientDigest}/locales/es.json`;
   const bytes = Buffer.from('{"API token":"Token de API"}');
   const packageFiles = new Map([[recipientDigest, new Map([["locales/es.json", sha(bytes)]])]]);
-  assert.throws(() => requireShareSecretFree({ path: file, bytes }, { packageFiles, bundledImportPluginIds: new Set(["github"]) }), { code: "SECRET_IN_CONTENT" });
+  assert.equal(requireShareSecretFree({ path: file, bytes }, { packageFiles, bundledImportPluginIds: new Set(["github"]) }), false);
 });
 
 // Optional private repro: exercise every actual ZIP file without retaining client bytes in the repo

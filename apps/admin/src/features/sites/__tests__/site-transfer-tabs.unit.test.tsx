@@ -260,13 +260,15 @@ describe("SiteImportTab", () => {
 // Exercise markup through the components' supported controller seam. Effects and persistence
 // remain covered above through the real hooks; these cases pin every transient display state.
 function exportController(overrides: Partial<SiteExportController> = {}): SiteExportController {
-  return { staticThemes: [], selectedThemeIds: [], staticExportReady: false, staticOptionsLoading: false, staticOptionsError: null, toggleStaticTheme: vi.fn(), selectAllStaticThemes: vi.fn(),
+  return { canManageSavedKeys: false, includeSavedKeys: false, setIncludeSavedKeys: vi.fn(), exportNotices: [], noticeShareId: null,
+    revealedPassword: null, passwordError: null, revealingId: null, passwordCopied: false, revealPassword: vi.fn(async () => {}), copyPassword: vi.fn(async () => {}), hidePassword: vi.fn(),
+    staticThemes: [], selectedThemeIds: [], staticExportReady: false, staticOptionsLoading: false, staticOptionsError: null, toggleStaticTheme: vi.fn(), selectAllStaticThemes: vi.fn(),
     shares: [], listError: null, exporting: false, exportError: null, zipOnly: false,
     exportSite: vi.fn(async () => {}), exportingStatic: false, exportStaticSite: vi.fn(async () => {}), revokingId: null, revoke: vi.fn(async () => {}),
     copiedId: null, copyLink: vi.fn(async () => {}), downloadHref: item => `/download/${item.shareId}`, ...overrides };
 }
 function importController(overrides: Partial<SiteImportController> = {}): SiteImportController {
-  return { imports: [], listError: null, link: "", setLink: vi.fn(), file: null, chooseFiles: vi.fn(), clearFile: vi.fn(),
+  return { savedKeysPassword: "", setSavedKeysPassword: vi.fn(), imports: [], listError: null, link: "", setLink: vi.fn(), file: null, chooseFiles: vi.fn(), clearFile: vi.fn(),
     canImport: false, importing: false, importError: null, startImport: vi.fn(async () => {}), current: null, resume: vi.fn(),
     password: "", setPassword: vi.fn(), confirm: "", setConfirm: vi.fn(), passwordProblem: null, settingOwner: false,
     ownerError: null, completeOwner: vi.fn(async () => {}), liveAddress: "", setLiveAddress: vi.fn(),

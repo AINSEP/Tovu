@@ -163,7 +163,7 @@ function delivery(overrides: Partial<ShareDelivery["store"]> = {}): ShareDeliver
 }
 function plan(): SiteSharePlanContent {
   return { profile: "share", target: { kind: "zip" }, include: { database: true, media: true, themes: true, plugins: true, settings: true },
-    database: { bytes: Buffer.from("safe projected DB"), watermarkAtCapture: 5 }, files: [], bufferedFiles: [{ path: "settings.json", content: Buffer.from("{}") }], skipped: [], scopeNotes: {}, totalBytes: 17,
+    database: { bytes: Buffer.from("safe projected DB"), watermarkAtCapture: 5 }, files: [], bufferedFiles: [{ path: "settings.json", content: Buffer.from("{}") }], skipped: [], scopeNotes: {}, totalBytes: 19,
     site: { name: "Site", folderName: "site" }, schema: { index: 1, tag: "one" }, tovuVersion: "test", createdAt: "2026-10-19T00:00:00Z" };
 }
 
@@ -402,12 +402,13 @@ test("zip surfaces encoding failures, translates size refusals, detects stale fi
   fs.writeFileSync(disk, "changed");
   await assert.rejects(buildShareZip({ plan: content, zip: async () => assert.fail("stale plan must not encode") }), { code: "PLAN_STALE" });
 });
-test("portable paths enforce depth, dangerous filenames, content scanning and order-independent collisions", () => {
+test("portable paths enforce depth, private-file omissions, content scanning and collisions", { timeout: 120000 }, () => {
   for (const name of ["themes/" + Array(33).fill("x").join("/"), "themes/space /x", "themes/x?.txt", "themes/x<.txt", "themes/a:b", "themes/x\u007f"]) assert.throws(() => validateSharePath({ path: name }), { code: "UNSAFE_PATH" });
   for (const name of ["uploads/chat-attachments/a", "agent-plugins/ws/ws/staging/x", "agent-plugins/ws/ws/a/memory/private/a", "themes/.env.production"]) assert.equal(excludedSharePath({ path: name }), true);
-  for (const name of ["themes/.git/a", "themes/.share-private/a", "themes/id_ed25519.pub", "themes/private_key.txt", "themes/foo.sqlite-wal", "themes/.mcp.a.json", "themes/restore-point-a", "themes/superseded-a"]) assert.throws(() => excludedSharePath({ path: name }), { code: "UNSAFE_FILE" });
+  for (const name of ["themes/.git/a", "themes/.share-private/a", "themes/foo.sqlite-wal", "themes/restore-point-a", "themes/superseded-a"]) assert.throws(() => excludedSharePath({ path: name }), { code: "UNSAFE_FILE" });
+  for (const name of ["themes/id_ed25519.pub", "themes/private_key.txt", "themes/.mcp.a.json"]) assert.equal(excludedSharePath({ path: name }), true);
   const bytes = Buffer.from("\u0000ghp_" + "x".repeat(36) + "\u0000");
-  assert.throws(() => requireShareSecretFree({ path: "themes/a.png", bytes }), { code: "SECRET_IN_CONTENT" });
+  assert.equal(requireShareSecretFree({ path: "themes/a.png", bytes }), false);
   for (const order of [["themes/file", "themes/file/child"], ["themes/file/child", "themes/file"], ["themes/A/x", "themes/a/y"], ["themes/x", "themes/x"]]) {
     const aliases = new Map<string, string>(), files = new Set<string>();
     claimSharePath({ path: order[0]!, directory: false, aliases, files });
@@ -424,8 +425,8 @@ test("backend reports archive progress without starting a second ZIP and keeps v
   const pending = await backend.create({ principalId: "owner", signal }, { waitMs: 0 }) as { jobId: string };
   await started;
   const progress = await backend.create({ principalId: "owner", jobId: pending.jobId, signal }, { waitMs: 0 }) as { phase: string; progress: { filesTotal: number; bytesTotal: number } };
-  // v2 refuses a plan without settings.json before encoding, so the plan keeps it: two entries; bytes are the plan's total.
-  assert.equal(progress.phase, "archive-or-upload"); assert.equal(progress.progress.filesTotal, 2); assert.equal(progress.progress.bytesTotal, 17);
+  // v2 refuses a plan without settings.json before encoding, so the plan keeps it: two entries totaling 19 bytes (17-byte DB plus two-byte settings).
+  assert.equal(progress.phase, "archive-or-upload"); assert.equal(progress.progress.filesTotal, 2); assert.equal(progress.progress.bytesTotal, 19);
   release();
   const done = await backend.create({ principalId: "owner", jobId: pending.jobId, signal }, { waitMs: 1000 }) as Record<string, unknown>;
   assert.equal(done.url, "https://bucket.example/site.zip"); assert.equal(done.message, undefined); assert.equal(done.storage, undefined); assert.equal(done.token, undefined); assert.equal(encodes, 1);

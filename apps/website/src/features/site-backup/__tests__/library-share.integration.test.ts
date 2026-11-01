@@ -304,7 +304,7 @@ test("L3 valid DOCX package expansion is bounded within entry limits", async t =
   assert.deepEqual(h.workspace.registry({}).list({}), []); assert.deepEqual(h.started, []);
 });
 
-for (const variant of ["oversize", "wrong-signature", "secret-sentinel", "destination-collision", "forged-cross-owner"] as const) test(`L3 isolated guard: ${variant}`, async t => {
+for (const variant of ["oversize", "wrong-signature", "secret-sentinel", "destination-collision", "forged-cross-owner"] as const) test(`L3 isolated guard: ${variant}`, { timeout: 120000 }, async t => {
   const h = await importFixture(t);
   const bytes = variant === "oversize" ? Buffer.alloc(MAX_DOCUMENT_BYTES + 1, 65)
     : variant === "secret-sentinel" ? Buffer.from("Document secret: ghp_" + "x".repeat(36)) : Buffer.from("Valid private text");
@@ -326,6 +326,16 @@ for (const variant of ["oversize", "wrong-signature", "secret-sentinel", "destin
     h.db.$client.prepare("UPDATE asset_renditions SET storage_key=? WHERE asset_id='guarded'").run(other.storageKey);
   }
   const upload = await h.backend.upload({ principalId: "recipient", archive: await h.archiveWithDatabase(h.db.$client.serialize()) });
+  if (variant === "secret-sentinel") {
+    const pending = await h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } });
+    assert.equal(pending.status, "needs-owner");
+    assert.ok(pending.warnings?.some(warning => warning.includes("media/")));
+    assert.equal(JSON.stringify(pending).includes("ghp_"), false);
+    const stage = h.registry.stagePath(pending);
+    const inventory = JSON.parse(fs.readFileSync(path.join(stage, ".inventory.json"), "utf8")) as string[];
+    for (const file of inventory) assert.equal(fs.readFileSync(path.join(stage, file)).includes(bytes), false);
+    return;
+  }
   await assert.rejects(h.backend.importBackup({ principalId: "recipient", source: { uploadId: upload.uploadId } }), errors[variant]);
   assert.deepEqual(h.workspace.registry({}).list({}), []); assert.deepEqual(h.started, []);
   assert.equal(fs.readdirSync(h.registry.directory).some(name => name.endsWith(".stage")), false);

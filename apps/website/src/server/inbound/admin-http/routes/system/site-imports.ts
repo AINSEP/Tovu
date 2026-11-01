@@ -88,7 +88,8 @@ export function registerAdminSiteImportRoutes(
   app.get(root + "/:importId/owner", async (req, res) => {
     try {
       if (!await ownerGate(req, res)) return;
-      res.json({ ...deps.siteImportBackend!.get({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId) }), ownerSetup: { method: "POST", field: "adminPassword", username: "admin", sessionRequired: true } });
+      const imported = deps.siteImportBackend!.get({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId) });
+      res.json({ ...imported, ownerSetup: { method: "POST", field: "adminPassword", username: "admin", sessionRequired: true, ...(imported.hasEncryptedKeys ? { savedKeysPasswordField: "savedKeysPassword" } : {}) } });
     } catch (error) { fail(res, error); }
   });
   app.post(root + "/:importId/owner", async (req, res, next) => {
@@ -100,8 +101,8 @@ export function registerAdminSiteImportRoutes(
     } catch (error) { fail(res, error); }
   }, express.urlencoded({ extended: false, limit: "8kb" }), async (req, res) => {
     try {
-      if (!req.body || Object.keys(req.body).some(key => key !== "adminPassword")) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Only the new owner password is accepted." });
-      res.json(await deps.siteImportBackend!.completeOwner({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId), adminPassword: req.body.adminPassword }, { signal: requestSignal(req, res) }));
+      if (!req.body || Object.keys(req.body).some(key => !["adminPassword", "savedKeysPassword"].includes(key))) throw new SiteShareRefusal({ code: "INVALID_INPUT", message: "Only the new owner password and optional saved keys password are accepted." });
+      res.json(await deps.siteImportBackend!.completeOwner({ principalId: getAuthedPrincipal(res).id, importId: String(req.params.importId), adminPassword: req.body.adminPassword, ...(req.body.savedKeysPassword === undefined ? {} : { savedKeysPassword: req.body.savedKeysPassword }) }, { signal: requestSignal(req, res) }));
     } catch (error) { fail(res, error); }
   });
 }

@@ -21,7 +21,7 @@ export type { SiteImportSource, SiteImportView } from "./import-backend-steps.js
 export interface SiteImportBackend {
   upload(required: { principalId: string; archive: Buffer }, optional?: Record<string, never>): Promise<{ uploadId: string }>;
   importBackup(required: { principalId: string; source: SiteImportSource; displayName?: string; requestId?: string }, optional?: { signal?: AbortSignal }): Promise<SiteImportView>;
-  completeOwner(required: { principalId: string; importId: string; adminPassword: unknown }, optional?: { signal?: AbortSignal }): Promise<SiteImportView>;
+  completeOwner(required: { principalId: string; importId: string; adminPassword: unknown; savedKeysPassword?: unknown }, optional?: { signal?: AbortSignal }): Promise<SiteImportView>;
   list(required: { principalId: string }, optional?: Record<string, never>): Promise<SiteImportView[]>;
   get(required: { principalId: string; importId: string }, optional?: Record<string, never>): SiteImportView;
 }
@@ -42,7 +42,7 @@ export function createSiteImportBackend(required: {
   startSite: (required: { name: string }) => Promise<{ adminUrl: string | null; status: string }>;
   tracker?: Tracker;
   createSite: CreateSitePort;
-  restoreStagedImport: (required: { root: string; dir: string; dbPath: string }, optional?: { pluginSourceRoot?: string }) => Promise<void>;
+  restoreStagedImport: (required: { root: string; dir: string; dbPath: string; siteId: string }, optional?: { pluginSourceRoot?: string; savedKeysPassword?: string; signal?: AbortSignal }) => Promise<void>;
   setupBase?: string;
   creationOptions?: Parameters<CreateSitePort>[1];
 }, optional: {
@@ -81,7 +81,7 @@ export function createSiteImportBackend(required: {
       const verified = await verifySiteImport({ archive, reader: required.reader, sanitize: required.sanitize, schema: required.schema }, { signal: input.signal });
       input.signal.throwIfAborted();
       stageVerifiedImport({ root: registry.stagePath(input.row), verified });
-      row = { ...row, displayName: input.parsed.displayName ?? verified.name, status: "needs-owner" };
+      row = { ...row, displayName: input.parsed.displayName ?? verified.name, status: "needs-owner", hasEncryptedKeys: Boolean(verified.encryptedKeys), warnings: stagedImportWarnings({ root: registry.stagePath(row) }) };
       put(row);
       return view(row);
     } catch (error) {
@@ -92,7 +92,7 @@ export function createSiteImportBackend(required: {
   };
 
   /** Creates the site from the stage; a failure rolls the row back to failed and removes the stage. */
-  const createImportedSite = async (input: { row: SiteImportRecord; adminPassword: string; signal: AbortSignal }): Promise<{ row: SiteImportRecord; created: CreateSiteResult }> => {
+  const createImportedSite = async (input: { row: SiteImportRecord; adminPassword: string; savedKeysPassword?: string; signal: AbortSignal }): Promise<{ row: SiteImportRecord; created: CreateSiteResult }> => {
     const { signal } = input;
     let row = input.row;
     try {
@@ -105,9 +105,11 @@ export function createSiteImportBackend(required: {
           put(row);
         },
         beforeRegister: () => { signal.throwIfAborted(); },
-        verifiedRestore: { signal, restore: async ({ dir, dbPath }) => {
+        verifiedRestore: { signal, restore: async ({ dir, dbPath, siteId }) => {
           signal.throwIfAborted();
-          await required.restoreStagedImport({ root: registry.stagePath(row), dir, dbPath });
+          await required.restoreStagedImport({ root: registry.stagePath(row), dir, dbPath, siteId }, { savedKeysPassword: input.savedKeysPassword, signal });
+          row = { ...row, warnings: stagedImportWarnings({ root: registry.stagePath(row) }) };
+          put(row);
         } },
       });
       return { row, created };
@@ -154,12 +156,12 @@ export function createSiteImportBackend(required: {
         if (pending.status === "ready") return view(pending);
         requireOwnerSetup({ row: pending, adminPassword: input.adminPassword });
         const adminPassword = resolveNewSiteAdminPassword({ adminPassword: input.adminPassword });
+        if (input.savedKeysPassword !== undefined && (typeof input.savedKeysPassword !== "string" || input.savedKeysPassword.length > 1024)) refusal("INVALID_INPUT", "Saved keys password must be text of at most 1024 characters.");
         const home = workspace.home({});
         requireFreeSpace({ dir: fs.existsSync(home) ? home : path.dirname(home), message: "Import requires 900 MiB of free space on the sites-home volume." });
         signal.throwIfAborted();
-        const warnings = stagedImportWarnings({ root: registry.stagePath(pending) });
         const creating: SiteImportRecord = { ...pending, status: "creating" }; put(creating);
-        const { row: allocated, created } = await createImportedSite({ row: creating, adminPassword, signal });
+        const { row: allocated, created } = await createImportedSite({ row: creating, adminPassword, savedKeysPassword: input.savedKeysPassword as string | undefined, signal });
         // Owner and restore are committed. A supervisor failure must not repeat site creation.
         const ready: SiteImportRecord = { ...allocated, newSiteId: created.siteId, newSiteName: created.name, status: "ready" };
         put(ready);
@@ -167,7 +169,7 @@ export function createSiteImportBackend(required: {
         fs.rmSync(registry.stagePath(ready), { recursive: true, force: true });
         const started = await startImportedSite({ row: ready, name: created.name, startSite: required.startSite });
         put(started);
-        return { ...view(started), ...(warnings.length ? { warnings } : {}) };
+        return view(started);
       });
     },
     async list(input) { return exclusive(async () => { registry.expire({}); return registry.list(input).map(view); }); },

@@ -212,6 +212,14 @@ function OwnerStep({ controller, name, t }: { controller: SiteImportController; 
             onChange={(event) => controller.setConfirm(event.target.value)} />
           {controller.passwordProblem ? <p className="field-error" id="sites-import-owner-problem">{controller.passwordProblem}</p> : null}
         </div>
+        {controller.current?.hasEncryptedKeys ? (
+          <div className="field">
+            <label className="field-label" htmlFor="sites-import-saved-keys-password">{t("Saved keys password")}</label>
+            <SecretInput label={t("Saved keys password")} id="sites-import-saved-keys-password" autoComplete="new-password" maxLength={512}
+              value={controller.savedKeysPassword} disabled={controller.settingOwner}
+              onChange={event => controller.setSavedKeysPassword(event.target.value)} />
+          </div>
+        ) : null}
         {controller.ownerError ? <div className="notice error" role="alert">{controller.ownerError}</div> : null}
         <div className="site-transfer-actions">
           <button type="submit" className="btn-primary" disabled={!ready || controller.settingOwner} aria-busy={controller.settingOwner}
@@ -242,7 +250,11 @@ function ImportList({ controller, t }: { controller: SiteImportController; t: Tr
           header: t("Status"),
           cell: (item) => {
             const view = importStateView(item.state, t);
-            return <span className={view.className}>{view.label}</span>;
+            return <>
+              <span className={view.className}>{view.label}</span>
+              {/* The current result already shows these above; history owns them after refresh. */}
+              {controller.current?.importId !== item.importId ? item.warnings?.map((warning, index) => <div className="notice" role="status" key={index}>{warning}</div>) : null}
+            </>;
           },
         },
         { key: "actions", headerLabel: t("Actions"), cell: (item, index) => <ImportAction item={item} index={index} controller={controller} t={t} /> },

@@ -1,4 +1,4 @@
-import { WORKSPACE_ID, authenticatedAdminRequest, authenticatedAdminUrl } from "@/lib/api";
+import { api, WORKSPACE_ID, authenticatedAdminRequest, authenticatedAdminUrl } from "@/lib/api";
 
 /**
  * @file The Export Site / Import Site tabs' port onto the committed share and import routes
@@ -16,6 +16,17 @@ export interface SiteShare {
   status: "active" | "revoked" | "failed";
   createdAt: string;
   downloadUrl: string;
+  hasEncryptedKeys?: boolean;
+  notices?: readonly string[];
+  /** Scope notes from older export responses. */
+  notes?: readonly string[];
+}
+
+/** Merge legacy scope notes with omission notices for completion and history alike.
+ * @returns Distinct safe server notices, in presentation order. O(n) for n notices.
+ */
+export function siteShareNotices({ share }: { share: Pick<SiteShare, "notices" | "notes"> }, _options = {}): readonly string[] {
+  return [...new Set([...(share.notes ?? []), ...(share.notices ?? [])])];
 }
 
 /** POST site-shares answers a finished export, or a running job to poll with its `jobId`. */
@@ -30,6 +41,7 @@ export interface SiteImport {
   newSiteName: string | null;
   state: SiteImportState;
   warnings?: readonly string[];
+  hasEncryptedKeys?: boolean;
   createdAt: string;
   adminUrl?: string | null;
   error?: string;
@@ -38,9 +50,11 @@ export interface SiteImport {
 export interface StaticExportOptions { activeThemeId: string; themes: readonly { themeId: string; name: string }[] }
 
 export interface SiteTransferPort {
+  savedKeysAccess(required: Record<string, never>, optional?: Record<string, never>): Promise<{ isOwner: boolean }>;
+  revealSharePassword(required: { shareId: string }, optional?: Record<string, never>): Promise<{ password: string }>;
   staticExportOptions(required: Record<string, never>, optional?: Record<string, never>): Promise<StaticExportOptions>;
   listShares(): Promise<{ shares: SiteShare[] }>;
-  createShare(input: { jobId?: string }): Promise<SiteShareCreateResult>;
+  createShare(input: { jobId?: string; includeSavedKeys?: boolean }): Promise<SiteShareCreateResult>;
   createStaticShare(input: { jobId?: string; themeIds?: readonly string[] }, optional?: Record<string, never>): Promise<SiteShareCreateResult>;
   downloadShare(required: { share: SiteShare }, optional?: Record<string, never>): void;
   revokeShare(input: { shareId: string }): Promise<SiteShare>;
@@ -49,8 +63,8 @@ export interface SiteTransferPort {
   listImports(): Promise<{ imports: SiteImport[] }>;
   uploadImportZip(input: { file: Blob }): Promise<{ uploadId: string }>;
   startImport(input: { url: string } | { uploadId: string }): Promise<SiteImport>;
-  /** The route only takes a form-encoded `adminPassword`, so the password never travels as JSON. */
-  completeImportOwner(input: { importId: string; adminPassword: string }): Promise<SiteImport>;
+  /** Both passwords use the session-only form endpoint, never URLs or tool inputs. */
+  completeImportOwner(input: { importId: string; adminPassword: string; savedKeysPassword?: string }): Promise<SiteImport>;
 }
 
 const SHARES = `/workspaces/${WORKSPACE_ID}/site-shares`;
@@ -63,8 +77,16 @@ function staticShareInput(input: { jobId?: string; themeIds?: readonly string[] 
 }
 
 export const defaultSiteTransferPort: SiteTransferPort = {
+  savedKeysAccess: async (_required, _optional = {}) => {
+    // The roster's isOwner includes wildcard policy owners. Only the bootstrap owner has
+    // canRename=false (users/list.ts); match that identity, never its display name or grants.
+    const [session, users] = await Promise.all([api.me(), api.listUsers()]);
+    const current = users.users.find(user => user.principalId === session.user.id);
+    return { isOwner: current?.isOwner === true && current.canRename === false };
+  },
+  revealSharePassword: ({ shareId }, _optional = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/${encodeURIComponent(shareId)}/password`, body: {} }),
   listShares: () => authenticatedAdminRequest({ method: "GET", path: SHARES }),
-  createShare: (input) => authenticatedAdminRequest({ method: "POST", path: SHARES, body: input.jobId ? { jobId: input.jobId } : {} }),
+  createShare: (input) => authenticatedAdminRequest({ method: "POST", path: SHARES, body: input.jobId ? { jobId: input.jobId } : input.includeSavedKeys === true ? { includeSavedKeys: true } : {} }),
   staticExportOptions: (_input, _options = {}) => authenticatedAdminRequest({ method: "GET", path: `${SHARES}/static/options` }),
   createStaticShare: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: `${SHARES}/static`, body: staticShareInput(input) }),
   downloadShare: ({ share }, _options = {}) => {
@@ -84,11 +106,11 @@ export const defaultSiteTransferPort: SiteTransferPort = {
   uploadImportZip: ({ file }) =>
     authenticatedAdminRequest({ method: "POST", path: `${IMPORTS}/uploads`, body: new Blob([file], { type: "application/zip" }) }),
   startImport: (source) => authenticatedAdminRequest({ method: "POST", path: IMPORTS, body: source }),
-  completeImportOwner: ({ importId, adminPassword }) =>
+  completeImportOwner: ({ importId, adminPassword, savedKeysPassword }) =>
     authenticatedAdminRequest({
       method: "POST",
       path: `${IMPORTS}/${encodeURIComponent(importId)}/owner`,
-      body: new Blob([new URLSearchParams({ adminPassword }).toString()], { type: "application/x-www-form-urlencoded" }),
+      body: new Blob([new URLSearchParams({ adminPassword, ...(savedKeysPassword ? { savedKeysPassword } : {}) }).toString()], { type: "application/x-www-form-urlencoded" }),
     }),
 };
 
@@ -97,6 +119,8 @@ export const defaultSiteTransferPort: SiteTransferPort = {
 export function createFakeSiteTransferPort(overrides: Partial<SiteTransferPort> = {}): SiteTransferPort {
   const unexpected = (name: string) => () => Promise.reject(new Error(`${name} was not expected`));
   return {
+    savedKeysAccess: async () => ({ isOwner: false }),
+    revealSharePassword: unexpected("revealSharePassword"),
     listShares: () => Promise.resolve({ shares: [] }),
     createShare: unexpected("createShare"),
     staticExportOptions: async () => ({ activeThemeId: "", themes: [] }),
