@@ -57,3 +57,23 @@ it.each(["bar", "line"] as const)("a %s chart with fractional values keeps fract
   const ticks = await yTicks(kind, [0.2, 0.5, 0.9]);
   expect(ticks.some((tick) => tick.includes(".")), ticks.join(", ")).toBe(true);
 });
+
+// Owner bug 11-01 (ui-look-4): whole counts with a small maximum still got Recharts' default 5 ticks,
+// so a posts chart with max 1 had a 0–4 axis and quarter-height bars. Whole counts get at most
+// max+1 ticks (never more than 5), so the axis ends at the data.
+it.each(["bar", "line"] as const)("a %s chart of small whole counts ends its y axis at the largest count", async (kind) => {
+  expect(await yTicks(kind, [1, 0])).toEqual(["0", "1"]);
+  expect(await yTicks(kind, [2, 1, 0])).toEqual(["0", "1", "2"]);
+});
+
+it.each(["bar", "line"] as const)("a %s chart of all-zero counts still draws whole-number ticks", async (kind) => {
+  const ticks = await yTicks(kind, [0, 0]);
+  expect(ticks.length).toBeGreaterThan(0);
+  expect(ticks.every((tick) => /^\d+$/.test(tick)), ticks.join(", ")).toBe(true);
+});
+
+it.each(["bar", "line"] as const)("a %s chart of large whole counts keeps at most 5 ticks", async (kind) => {
+  const ticks = await yTicks(kind, [12, 40, 7]);
+  expect(ticks.length).toBeLessThanOrEqual(5);
+  expect(ticks.every((tick) => /^\d+$/.test(tick)), ticks.join(", ")).toBe(true);
+});

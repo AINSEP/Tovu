@@ -11,7 +11,7 @@ export const RECHARTS_BROWSER_APPROVAL: BundledBrowserProviderApproval = {
   browserProviders: [{ id: "plugin.recharts", kind: "chart", contractVersion: 1,
     kinds: ["bar", "line", "pie"], javascript: "client/provider.js", stylesheet: "client/styles.css" }],
   integrity: {
-    "client/provider.js": "sha256-aa71561c8197a6348862ae9581cedbdee9186cd55f546b001c57de480e116f69",
+    "client/provider.js": "sha256-7b901a5705992a36c45ac716dae7f836c27fd6b243c0ac1198d548ea5ca9db67",
     "client/styles.css": "sha256-bf1945d4c9ea2f3c8e2d99ac0e96429e486f408a72135c39b25a0da855ca4a1b",
     "server/index.mjs": "sha256-8b150b05c97bd91c5fa0015b7cdc88add7435e1b08ea7665ded2960b13c5ba85",
   },
