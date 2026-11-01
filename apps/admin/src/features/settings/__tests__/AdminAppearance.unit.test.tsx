@@ -116,14 +116,36 @@ describe("Appearance moved to Admin UI", () => {
     const appearance = slice({ value: { ...DEFAULT_APPEARANCE, theme: "system" } });
     render(<AdminAppearance useAppearanceHook={() => appearance} {...themePicker()} />);
     const group = screen.getByRole("radiogroup", { name: "Accent color" });
-    await userEvent.click(within(group).getByRole("radio", { name: "#059669" }));
+    await userEvent.click(within(group).getByRole("radio", { name: "Green" }));
     expect(appearance.onChange).toHaveBeenLastCalledWith({ theme: "system", accentColor: "#059669" });
-    await userEvent.click(within(group).getByRole("radio", { name: "#ffba3e" }));
+    await userEvent.click(within(group).getByRole("radio", { name: "Gold" }));
     expect(appearance.onChange).toHaveBeenLastCalledWith({ theme: "system", accentColor: "#ffba3e" });
-    await userEvent.click(within(group).getByRole("radio", { name: DEFAULT_ACCENT_COLOR }));
+    await userEvent.click(within(group).getByRole("radio", { name: "Charcoal" }));
     expect(appearance.onChange).toHaveBeenLastCalledWith({ ...DEFAULT_APPEARANCE, theme: "system", accentColor: DEFAULT_ACCENT_COLOR });
     await userEvent.click(within(group).getByRole("radio", { name: "Default accent color" }));
     expect(appearance.onChange).toHaveBeenLastCalledWith({ ...DEFAULT_APPEARANCE, theme: "system" });
+  });
+
+  it("names every preset swatch by colour, not by hex, and keeps the hex in its tooltip", () => {
+    render(<AdminAppearance useAppearanceHook={() => slice()} {...themePicker()} />);
+    const radios = within(screen.getByRole("radiogroup", { name: "Accent color" })).getAllByRole("radio");
+    const names = radios.map((radio) => radio.getAttribute("aria-label"));
+    expect(names).toEqual(["Default accent color", "Charcoal", "Clay", "Violet", "Green", "Red", "Amber", "Teal", "Pink", "Gold"]);
+    expect(radios.map((radio) => radio.getAttribute("title"))).toEqual([
+      expect.stringMatching(/^#[0-9a-f]{6}$/i), DEFAULT_ACCENT_COLOR, "#c96442", "#7c3aed", "#059669", "#dc2626", "#d97706", "#0891b2", "#db2777", "#ffba3e",
+    ]);
+  });
+
+  it.each(["es", "id", "de", "zh-CN", "zh-TW", "pt-BR", "ru", "fa", "ar", "ja", "ko", "pl", "hu", "fr", "uk", "tr", "th", "it", "hi", "ur", "bn"])("translates the swatch colour names for %s", (locale) => {
+    vi.mocked(useAdminLocale).mockReturnValue(locale);
+    render(<AdminAppearance useAppearanceHook={() => slice()} {...themePicker()} />);
+    const names = within(document.querySelector(".jini-accent-swatches") as HTMLElement).getAllByRole("radio").slice(1).map((radio) => radio.getAttribute("aria-label"));
+    // Words that ARE the native colour name (German "Pink"/"Gold", French "Violet") are allowed.
+    const sameWord: Record<string, string[]> = { de: ["Pink", "Gold"], fr: ["Violet"] };
+    const english = ["Charcoal", "Clay", "Violet", "Green", "Red", "Amber", "Teal", "Pink", "Gold"].filter((name) => !sameWord[locale]?.includes(name));
+    for (const name of english) expect(names).not.toContain(name);
+    expect(names.filter((name) => !name || name.startsWith("#"))).toEqual([]);
+    expect(new Set(names).size).toBe(names.length);
   });
 
   it.each([["classic", "light"], ["classic", "dark"], ["glass", "light"], ["glass", "dark"]] as const)("selects %s's resolved %s default, saves through the real adapter, and reloads with no override", async (themeId, scheme) => {

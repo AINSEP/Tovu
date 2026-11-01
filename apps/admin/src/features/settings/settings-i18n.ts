@@ -26,4 +26,30 @@ const SETTINGS_DICT: Record<string, Record<string, string>> = {
   bn: { "Loading appearance…": "চেহারা লোড হচ্ছে…", "Loading settings…": "সেটিংস লোড হচ্ছে…", "Could not load saved settings (": "সংরক্ষিত সেটিংস লোড করা যায়নি (", "). Showing defaults — edits will still save.": ")। ডিফল্ট মান দেখানো হচ্ছে — সম্পাদনাগুলি তবুও সংরক্ষিত হবে।", "Skills": "দক্ষতা", "Info": "তথ্য", "Saved": "সংরক্ষিত", "Saving…": "সংরক্ষণ করা হচ্ছে…" },
 };
 
-export const t = createDictionaryTranslator({ featureDictionary: SETTINGS_DICT }, { commonDictionary: COMMON_I18N });
+/** Admin UI > Appearance accent preset names (`rules.ts`'s `ACCENT_SWATCH_NAMES`): each swatch's
+ *  accessible name, so a screen reader hears a colour rather than a hex code. */
+const ACCENT_NAME_DICT: Record<string, Record<string, string>> = {
+  es: { "Charcoal": "Carbón", "Clay": "Arcilla", "Violet": "Violeta", "Green": "Verde", "Red": "Rojo", "Amber": "Ámbar", "Teal": "Verde azulado", "Pink": "Rosa", "Gold": "Dorado" },
+  id: { "Charcoal": "Arang", "Clay": "Tanah liat", "Violet": "Ungu", "Green": "Hijau", "Red": "Merah", "Amber": "Kuning amber", "Teal": "Hijau kebiruan", "Pink": "Merah muda", "Gold": "Emas" },
+  de: { "Charcoal": "Anthrazit", "Clay": "Ton", "Violet": "Violett", "Green": "Grün", "Red": "Rot", "Amber": "Bernstein", "Teal": "Petrol", "Pink": "Pink", "Gold": "Gold" },
+  "zh-CN": { "Charcoal": "炭灰", "Clay": "陶土", "Violet": "紫罗兰", "Green": "绿色", "Red": "红色", "Amber": "琥珀色", "Teal": "青色", "Pink": "粉色", "Gold": "金色" },
+  "zh-TW": { "Charcoal": "炭灰", "Clay": "陶土", "Violet": "紫羅蘭", "Green": "綠色", "Red": "紅色", "Amber": "琥珀色", "Teal": "青色", "Pink": "粉紅色", "Gold": "金色" },
+  "pt-BR": { "Charcoal": "Carvão", "Clay": "Argila", "Violet": "Violeta", "Green": "Verde", "Red": "Vermelho", "Amber": "Âmbar", "Teal": "Azul-petróleo", "Pink": "Rosa", "Gold": "Dourado" },
+  ru: { "Charcoal": "Угольный", "Clay": "Глиняный", "Violet": "Фиолетовый", "Green": "Зелёный", "Red": "Красный", "Amber": "Янтарный", "Teal": "Бирюзовый", "Pink": "Розовый", "Gold": "Золотой" },
+  fa: { "Charcoal": "زغالی", "Clay": "سفالی", "Violet": "بنفش", "Green": "سبز", "Red": "قرمز", "Amber": "کهربایی", "Teal": "سبزآبی", "Pink": "صورتی", "Gold": "طلایی" },
+  ar: { "Charcoal": "فحمي", "Clay": "طيني", "Violet": "بنفسجي", "Green": "أخضر", "Red": "أحمر", "Amber": "كهرماني", "Teal": "أزرق مخضر", "Pink": "وردي", "Gold": "ذهبي" },
+  ja: { "Charcoal": "チャコール", "Clay": "クレイ", "Violet": "バイオレット", "Green": "グリーン", "Red": "レッド", "Amber": "アンバー", "Teal": "ティール", "Pink": "ピンク", "Gold": "ゴールド" },
+  ko: { "Charcoal": "차콜", "Clay": "클레이", "Violet": "바이올렛", "Green": "초록", "Red": "빨강", "Amber": "호박색", "Teal": "청록", "Pink": "분홍", "Gold": "금색" },
+  pl: { "Charcoal": "Grafitowy", "Clay": "Gliniany", "Violet": "Fioletowy", "Green": "Zielony", "Red": "Czerwony", "Amber": "Bursztynowy", "Teal": "Morski", "Pink": "Różowy", "Gold": "Złoty" },
+  hu: { "Charcoal": "Grafit", "Clay": "Agyag", "Violet": "Ibolya", "Green": "Zöld", "Red": "Piros", "Amber": "Borostyán", "Teal": "Kékeszöld", "Pink": "Rózsaszín", "Gold": "Arany" },
+  fr: { "Charcoal": "Anthracite", "Clay": "Argile", "Violet": "Violet", "Green": "Vert", "Red": "Rouge", "Amber": "Ambre", "Teal": "Bleu canard", "Pink": "Rose", "Gold": "Or" },
+  uk: { "Charcoal": "Вугільний", "Clay": "Глиняний", "Violet": "Фіолетовий", "Green": "Зелений", "Red": "Червоний", "Amber": "Бурштиновий", "Teal": "Бірюзовий", "Pink": "Рожевий", "Gold": "Золотий" },
+  tr: { "Charcoal": "Kömür", "Clay": "Kil", "Violet": "Mor", "Green": "Yeşil", "Red": "Kırmızı", "Amber": "Kehribar", "Teal": "Camgöbeği", "Pink": "Pembe", "Gold": "Altın" },
+  th: { "Charcoal": "ถ่าน", "Clay": "ดินเผา", "Violet": "ม่วง", "Green": "เขียว", "Red": "แดง", "Amber": "อำพัน", "Teal": "เขียวน้ำทะเล", "Pink": "ชมพู", "Gold": "ทอง" },
+  it: { "Charcoal": "Antracite", "Clay": "Argilla", "Violet": "Viola", "Green": "Verde", "Red": "Rosso", "Amber": "Ambra", "Teal": "Verde acqua", "Pink": "Rosa", "Gold": "Oro" },
+  hi: { "Charcoal": "चारकोल", "Clay": "मिट्टी", "Violet": "बैंगनी", "Green": "हरा", "Red": "लाल", "Amber": "एम्बर", "Teal": "हरित-नील", "Pink": "गुलाबी", "Gold": "सुनहरा" },
+  ur: { "Charcoal": "کوئلہ", "Clay": "مٹی", "Violet": "بنفشی", "Green": "سبز", "Red": "سرخ", "Amber": "کہربائی", "Teal": "نیلگوں سبز", "Pink": "گلابی", "Gold": "سنہری" },
+  bn: { "Charcoal": "কয়লা", "Clay": "মাটি", "Violet": "বেগুনি", "Green": "সবুজ", "Red": "লাল", "Amber": "অ্যাম্বার", "Teal": "নীলচে সবুজ", "Pink": "গোলাপি", "Gold": "সোনালি" },
+};
+
+export const t = createDictionaryTranslator({ featureDictionary: Object.fromEntries(Object.entries(SETTINGS_DICT).map(([locale, entries]) => [locale, { ...entries, ...ACCENT_NAME_DICT[locale] }])) }, { commonDictionary: COMMON_I18N });

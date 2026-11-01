@@ -8,8 +8,8 @@ import { adminThemeAccent, withAdminThemeAccent } from "../../lib/settings-tabs"
 import { AdminThemeSchemeControl } from "../admin-themes";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { useAdminAppearanceSettings } from "./hooks/use-admin-appearance-settings.hooks";
-import { describeSaveStatus } from "./rules";
-import { t } from "./settings-i18n";
+import { accentSwatchName, describeSaveStatus } from "./rules";
+import { t as settingsT } from "./settings-i18n";
 
 /** Admin UI composes the compact scheme picker and Jini-backed accent fields.
  * @complexity O(1): a fixed palette; persistence stays in the existing controllers. */
@@ -24,7 +24,7 @@ export function AdminAppearance({ useAppearanceHook = useAdminAppearanceSettings
   const { themeId, scheme } = useAdminThemeState({}, { root });
   const appearance = useAppearanceHook({}, { root });
   // Loading precedes the dialog provider, so use the settings-shell translator here.
-  if (!appearance.value) return <p role="status">{t({ locale, key: "Loading appearance…" })}</p>;
+  if (!appearance.value) return <p role="status">{settingsT({ locale, key: "Loading appearance…" })}</p>;
   const value = appearance.value;
   const preview = findAdminTheme({ id: themeId }).preview[scheme]!;
   return (
@@ -36,7 +36,7 @@ export function AdminAppearance({ useAppearanceHook = useAdminAppearanceSettings
           {/* The admin shell owns the document scheme. The compact picker persists the same
               core.appearance.theme value; accent preview stays in the existing settings slice. */}
           <AdminThemeSchemeControl port={port} env={env} />
-          <AdminAccentFields accentColor={adminThemeAccent({ appearance: value, themeId }, {})} {...adminThemeAccentDefaults(preview)} onChange={(accentColor) => appearance.onChange(withAdminThemeAccent({ appearance: value, themeId, accentColor }, {}))} />
+          <AdminAccentFields accentColor={adminThemeAccent({ appearance: value, themeId }, {})} {...adminThemeAccentDefaults(preview)} onChange={(accentColor) => appearance.onChange(withAdminThemeAccent({ appearance: value, themeId, accentColor }, {}))} locale={locale} />
         </section>
         <p className={`settings-ui-save is-${appearance.saveState.status}`} role={appearance.saveState.status === "error" ? "alert" : "status"}>
           {describeSaveStatus(appearance.saveState)}
@@ -50,7 +50,7 @@ export function AdminAppearance({ useAppearanceHook = useAdminAppearanceSettings
 const TOVU_ACCENT_SWATCHES = ["#ffba3e"] as const;
 
 /** Host composition of Jini's palette/validation. Default clears the override; CSS is preview-only. */
-function AdminAccentFields({ accentColor, defaultAccent, defaultPickerAccent, onChange }: { accentColor: string | undefined; defaultAccent: string; defaultPickerAccent: string; onChange: (color: string | undefined) => void }) {
+function AdminAccentFields({ accentColor, defaultAccent, defaultPickerAccent, onChange, locale }: { accentColor: string | undefined; defaultAccent: string; defaultPickerAccent: string; onChange: (color: string | undefined) => void; locale: string }) {
   const t = useT();
   const resolvedAccent = resolveAccentColor({ value: accentColor ?? defaultPickerAccent });
   const swatches = [...new Set([defaultAccent, ...ACCENT_SWATCHES, ...TOVU_ACCENT_SWATCHES])];
@@ -60,7 +60,8 @@ function AdminAccentFields({ accentColor, defaultAccent, defaultPickerAccent, on
       <span className="jini-field-label">{t("Accent color")}</span>
       <div className="jini-accent-swatches" role="radiogroup" aria-label={t("Accent color")}>
         {swatches.map((color, index) => {
-          const label = color === defaultAccent ? t("Default accent color") : color;
+          // A colour name, not the hex (owner bug 11-01); the hex stays in the tooltip below.
+          const label = color === defaultAccent ? t("Default accent color") : settingsT({ locale, key: accentSwatchName(color) });
           const selected = color === defaultAccent ? accentColor === undefined : accentColor !== undefined && resolvedAccent === color;
           return (
             <button
@@ -68,6 +69,7 @@ function AdminAccentFields({ accentColor, defaultAccent, defaultPickerAccent, on
               type="button"
               role="radio"
               aria-label={label}
+              title={color === defaultAccent ? defaultPickerAccent : color}
               aria-checked={selected}
               className={`jini-accent-swatch${selected ? " active" : ""}`}
               style={{ background: color }}

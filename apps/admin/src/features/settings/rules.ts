@@ -466,3 +466,26 @@ export function externalMcpNeedsSignIn(
   const status = source.fields.oauthStatus;
   return resolveExternalMcpEffectiveAuthMode(source.fields) === "oauth" && status !== undefined && status !== "connected";
 }
+
+/**
+ * Plain colour names for Admin UI > Appearance's accent presets — Jini's `ACCENT_SWATCHES` plus
+ * Tovu gold. They are each swatch's accessible name (a screen reader used to hear "#7c3aed"); the
+ * hex stays in the swatch's tooltip. Keys are lower-case hex. Translated in `settings-i18n.ts`.
+ */
+export const ACCENT_SWATCH_NAMES: Readonly<Record<string, string>> = {
+  "#363636": "Charcoal",
+  "#c96442": "Clay",
+  "#7c3aed": "Violet",
+  "#059669": "Green",
+  "#dc2626": "Red",
+  "#d97706": "Amber",
+  "#0891b2": "Teal",
+  "#db2777": "Pink",
+  "#ffba3e": "Gold",
+};
+
+/** A preset's English colour name, or the colour itself for a hex this table doesn't know (a new
+ *  upstream preset still gets a usable, if technical, name). @complexity O(1). */
+export function accentSwatchName(color: string): string {
+  return ACCENT_SWATCH_NAMES[color.toLowerCase()] ?? color;
+}
