@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import {
@@ -40,7 +41,7 @@ function sendPutSiteCredentialError(res: Response, err: unknown): void {
     });
     return;
   }
-  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/assistant/put-site-credential", code: "INTERNAL_ERROR" });
 }
 
 /**

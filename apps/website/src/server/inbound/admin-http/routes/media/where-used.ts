@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from 'express';
 import { findMediaWhereUsed } from '#src/features/media/index';
 import { getAuthedPrincipal } from '#src/server/inbound/admin-http/dev-auth';
@@ -17,8 +18,8 @@ export function registerAdminMediaWhereUsedRoute({ app, deps }: { app: Express; 
       if (!media) { res.status(404).json({ error: 'media was not found' }); return; }
       const whereUsed = await findMediaWhereUsed({ deps, input: { workspaceId: deps.workspaceId, mediaId: media.id, slug: media.slug } });
       res.json({ mediaId: media.id, whereUsed });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/media/where-used", code: "INTERNAL_ERROR" });
     }
   });
 }

@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService, type SeoMeta } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
@@ -137,7 +138,7 @@ test("get-entry: unexpected repo error returns 500 (INTERNAL_ERROR)", async (t) 
   });
   const { status, json } = await get(t, app);
   assert.equal(status, 500);
-  assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 for (const source of ["library", "external", "override"] as const) {
@@ -181,7 +182,7 @@ for (const source of ["library", "external", "override"] as const) {
     assert.equal(meta.openGraph.image, source === "library" ? "https://seo.example.com/m/body/og.v1/image.jpg?v=body-sha" : source === "override" ? override : external);
     assert.equal(meta.openGraph.imageSource, source === "override" ? "override" : "content");
     assert.equal("imageOverridden" in meta.openGraph, source === "override");
-    assert.deepEqual(await postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), before);
+    assertAdminResponse({ actual: await postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), expected: before });
   });
 }
 

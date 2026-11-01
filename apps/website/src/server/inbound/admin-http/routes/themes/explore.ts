@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { requestThemePreviewRefresh } from "#src/features/theme/index";
 import { setThemePagePublished, ThemePagePublicationError } from "#src/features/theme/index";
 import type { Response } from "express";
@@ -144,7 +145,7 @@ function sendThemeFileError(res: Response, err: unknown): void {
     res.status(400).json({ error: err.message, code: "INVALID_THEME_PATH" });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/themes/explore", code: "INTERNAL_ERROR" });
 }
 
 /**
@@ -571,8 +572,8 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
         files,
         hasOriginal,
       });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/themes/explore", code: "INTERNAL_ERROR" });
     }
   });
 };

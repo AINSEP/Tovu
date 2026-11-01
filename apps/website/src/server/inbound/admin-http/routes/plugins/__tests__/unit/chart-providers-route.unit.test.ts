@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import test, { type TestContext } from "node:test";
@@ -75,7 +76,7 @@ test("chart providers: a runtime that failed to become ready is the fixed 500 en
   for (const path of [BASE, `${BASE}/assets/p/1.0.0/sha256-x/index.js`]) {
     const response = await get(path);
     assert.equal(response.status, 500, path);
-    assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+    assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   }
 });
 
@@ -97,7 +98,7 @@ test("chart providers: a snapshot port that throws is the fixed 500 envelope, no
   const { get } = await boot(t, deps);
   const response = await get(BASE);
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("chart providers: with no browser-provider port composed, every asset URL is 404", async (t) => {

@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import test, { type TestContext } from "node:test";
@@ -109,13 +110,13 @@ test("a principal without admin.plugins.read gets the standard 403 and no invent
 
 test("a route reached without a signed-in principal answers the opaque 500", async (t) => {
   const h = await boot(t, { principal: "none" });
-  assert.deepEqual(await h.get(), INTERNAL);
+  assertAdminResponse({ actual: await h.get(), expected: INTERNAL });
   assert.equal(h.discoveries(), 0);
 });
 
 test("a discovery failure answers the opaque 500 without leaking its message", async (t) => {
   const h = await boot(t, { discover: async () => { throw new Error("/private/install/dir unreadable"); } });
-  assert.deepEqual(await h.get(), INTERNAL);
+  assertAdminResponse({ actual: await h.get(), expected: INTERNAL });
 });
 
 test("installSources is empty when the source policy keeps local installs off", async (t) => {

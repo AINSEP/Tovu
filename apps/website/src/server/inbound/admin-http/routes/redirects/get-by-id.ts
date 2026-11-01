@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/inbound/admin-http/http/redirects";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
@@ -35,8 +36,8 @@ export const registerAdminRedirectGetRoute: RedirectRouteRegistrar = (app, deps)
         return;
       }
       res.json(toAdminRedirectResponse(rule));
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/redirects/get-by-id", code: "INTERNAL_ERROR" });
     }
   });
 };

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 /** Quick wins A: an admin adapter over the same guarded fetch and upload pipeline as the tool. */
 import type { Express } from "express";
 import { buildImportFilename, MediaImportValidationError } from "@jini-ai/cms/media/import";
@@ -75,7 +76,7 @@ export function registerAdminMediaImportUrlRoute(
       } else if (error instanceof MediaImportValidationError || error instanceof MediaValidationError) {
         res.status(400).json({ error: error.message });
       } else {
-        res.status(500).json({ error: "internal error" });
+        sendAdminFailure({ res, error }, { operation: "routes/media/import-url", code: "INTERNAL_ERROR" });
       }
     }
   });

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import { executeCommand, ForbiddenError } from "@jini-ai/cms/core";
@@ -69,7 +70,7 @@ function sendSetPluginEnabledError(res: Response, err: unknown): void {
     res.status(500).json({ error: err.message, code: "PLUGIN_LOAD_FAILED", details: { pluginId: err.pluginId, reason: err.reason } });
     return;
   }
-  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/plugins/set-enabled", code: "INTERNAL_ERROR" });
 }
 
 /**

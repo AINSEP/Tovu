@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { isDocumentOnlyBlob } from "@jini-ai/cms/media";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
@@ -118,8 +119,8 @@ export const registerPublishContentBlobGetRoute: PublishContentRouteRegistrar = 
       }
 
       res.status(200).json({ sha256, dataBase64: Buffer.from(bytes).toString("base64") });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/publish-content/blob-get", code: "INTERNAL_ERROR" });
     }
   });
 };

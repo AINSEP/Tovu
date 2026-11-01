@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 /** Admin page transport for the same visitor-tools service that assistant chat uses. */
 import type { Express, Request, Response } from "express";
 import { ForbiddenError, ValueValidationFailedError } from "@jini-ai/core/settings";
@@ -23,7 +24,7 @@ function respondError({ error, res }: { error: unknown; res: Response }, _option
     res.status(400).json({ error: error.message, code: "VISITOR_TOOLS_VALIDATION_ERROR" });
     return;
   }
-  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+  sendAdminFailure({ res, error }, { operation: "routes/assistant/visitor-tools", code: "INTERNAL_ERROR" });
 }
 
 /** Single workspace/session boundary; auth and fresh revision checks remain service-owned. */

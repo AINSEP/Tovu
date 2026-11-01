@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -177,7 +178,7 @@ test("an unexpected failure (a throwing authorizer) is a generic 500 that names 
 
   const res = await fetch(`${server}${BASE}`);
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
 });
 
 test("direct invoke: a missing :workspaceId param (unreachable through Express routing) falls back to \"\" and 404s", async () => {

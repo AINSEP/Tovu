@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -107,7 +108,7 @@ test("mail-activity/:activityId returns the detail, 404 when absent, 403 masked,
   console.error = () => {};
   try {
     const fault = await call(deps(["mail.activity.read"], { mailActivity: { list: async () => { throw new Error("db"); }, get: async () => null } }), LIST);
-    assert.deepEqual([fault.statusCode, fault.jsonBody], [500, { error: "internal error", code: "INTERNAL_ERROR" }]);
+    assertAdminResponse({ actual: [fault.statusCode, fault.jsonBody], expected: [500, { error: "internal error", code: "INTERNAL_ERROR" }] });
   } finally {
     console.error = original;
   }
@@ -142,13 +143,16 @@ test("mail-suppressions/remove previews without confirmed: true, removes with it
 test("feedback dependency failures are safe HTTP errors without partial receiving rows", async (t) => {
   const logged: unknown[][] = []; t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
   for (const override of [
-    { mailProviderControl: { describe: async () => { throw new Error("secret-describe"); } } },
-    { customCredentialSetRepo: { listByWorkspace: async () => { throw new Error("secret-credentials"); } } },
-    { mailSuppressionAdmin: { lastFeedbackEvent: async () => { throw new Error("secret-inbox"); } } },
+    { mailProviderControl: { describe: async () => { throw new Error("describe unavailable ghp_" + "x".repeat(36)); } } },
+    { customCredentialSetRepo: { listByWorkspace: async () => { throw new Error("credentials unavailable ghp_" + "x".repeat(36)); } } },
+    { mailSuppressionAdmin: { lastFeedbackEvent: async () => { throw new Error("inbox unavailable ghp_" + "x".repeat(36)); } } },
   ]) {
     const provider = { id: "fake", label: "Fake", lanes: ["transactional"], capabilities: { feedback: true } };
     const d = deps(["admin.forms.manage"], { mailProviderControl: { describe: async () => ({ providers: [provider] }) } as never, customCredentialSetRepo: { listByWorkspace: async () => [] } as never, ...override } as never);
-    const response = await call(d, FEEDBACK); assert.deepEqual([response.statusCode, response.jsonBody], [500, { error: "internal error", code: "INTERNAL_ERROR" }]);
+    const response = await call(d, FEEDBACK); assertAdminResponse({ actual: [response.statusCode, response.jsonBody], expected: [500, { error: "internal error", code: "INTERNAL_ERROR" }] });
   }
-  assert.doesNotMatch(JSON.stringify(logged), /secret-/);
+  assert.doesNotMatch(JSON.stringify(logged), /ghp_/);
+  assert.match(JSON.stringify(logged), /describe unavailable/);
+  assert.match(JSON.stringify(logged), /credentials unavailable/);
+  assert.match(JSON.stringify(logged), /inbox unavailable/);
 });

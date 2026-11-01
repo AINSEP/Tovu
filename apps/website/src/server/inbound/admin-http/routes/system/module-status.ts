@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { getReadinessSnapshot } from "#src/server/runtime/lifecycle/readiness-state";
@@ -49,8 +50,7 @@ export function registerAdminModuleStatusRoute(app: Express, deps: AdminModuleSt
       const snapshot = getReadinessSnapshot();
       res.status(snapshot.ok ? 200 : 503).json(snapshot);
     } catch (err) {
-      console.error("[system/module-status] unexpected error", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/module-status", code: "INTERNAL_ERROR" });
     }
   });
 }

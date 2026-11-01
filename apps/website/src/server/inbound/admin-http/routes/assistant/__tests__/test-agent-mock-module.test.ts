@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -179,5 +180,5 @@ test("test-agent: an authenticated CLI offering the requested model reports ok:t
   detectionFails = true;
   const failed = await post(baseUrl, TEST_AGENT_PATH, { agentId: "mocked-cli" });
   assert.equal(failed.status, 500);
-  assert.deepEqual(await failed.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await failed.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });

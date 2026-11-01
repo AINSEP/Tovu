@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import {
   ADMIN_ASSISTANT_PERMISSION,
   PublicAssistantSettingsValidationError,
@@ -57,7 +58,7 @@ export const registerAdminAssistantPutSettingsRoute: AssistantSettingsRouteRegis
         res.status(400).json({ error: err.message, code: "ASSISTANT_SETTINGS_VALIDATION_ERROR" });
         return;
       }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/assistant/put-settings", code: "INTERNAL_ERROR" });
     }
   });
 };

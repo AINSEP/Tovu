@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { stageBundle, PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES } from "#src/features/publish-content/bundle-staging";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
 import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
@@ -225,8 +226,8 @@ export const registerPublishContentBundleCreateRoute: PublishContentRouteRegistr
         );
 
         res.status(201).json({ bundleId, expiresAt });
-      } catch {
-        res.status(500).json({ error: "internal error" });
+      } catch (error) {
+        sendAdminFailure({ res, error }, { operation: "routes/publish-content/bundle-create", code: "INTERNAL_ERROR" });
       }
     }
   );

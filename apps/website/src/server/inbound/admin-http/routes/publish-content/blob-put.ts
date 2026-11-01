@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { bytesMatchSha256, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { decodeStrictBase64 } from "#src/contracts/core/index";
@@ -84,8 +85,8 @@ export const registerPublishContentBlobPutRoute: PublishContentRouteRegistrar = 
 
       const { written } = await deps.blobStore.putIfAbsent({ workspaceId: deps.workspaceId, sha256: claimedSha256, bytes });
       res.status(200).json({ sha256: claimedSha256, written });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/publish-content/blob-put", code: "INTERNAL_ERROR" });
     }
   });
 };

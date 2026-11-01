@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
@@ -81,7 +82,7 @@ for (const scenario of scenarios) {
       const method = suffix === "" || suffix.startsWith("/file?") ? "GET" : "POST";
       const result = await dispatchJsonRequest(app, method, base + suffix, { path: "pages/about.html", name: "renamed.html" });
       assert.equal(faultReached, true, "the injected failure must reach the filesystem operation");
-      assert.deepEqual(result, { status: 500, body: { error: "internal error" } });
+      assertAdminResponse({ actual: result, expected: { status: 500, body: { error: "internal error" } } });
     } finally {
       injected.mock.restore();
       syncBuiltinESMExports();

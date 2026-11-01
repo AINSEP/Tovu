@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { redactSecrets } from "@jini-ai/core";
 import type { Express, Request, Response } from "express";
 
@@ -150,9 +151,8 @@ export function registerAdminBrowserTelemetryRoute(app: Express, deps: AdminBrow
       }
       forwardBrowserTelemetry(deps, { event: parsed.event, principalId });
       res.status(204).end();
-    } catch {
-      console.error("[telemetry] browser telemetry route failed");
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/system/browser-telemetry", code: "INTERNAL_ERROR" });
     }
   });
 }

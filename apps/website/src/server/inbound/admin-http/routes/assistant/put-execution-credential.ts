@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import {
   ExecutionCredentialSecretStoreUnconfiguredError,
   ExecutionCredentialValidationError,
@@ -100,7 +101,7 @@ export const registerAdminAssistantPutExecutionCredentialRoute: AssistantSetting
         });
         return;
       }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/assistant/put-execution-credential", code: "INTERNAL_ERROR" });
     }
   });
 };

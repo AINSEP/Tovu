@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -81,13 +82,13 @@ for (const route of routes) {
 
   test(`${label}: readiness rejection preserves the fixed 500 without disclosing its message`, async () => {
     const fixture = harness(route, { ready: Promise.reject(new Error("private readiness diagnostic")) });
-    assert.deepEqual(await fixture.request(), { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: await fixture.request(), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
     assert.deepEqual(fixture.calls, []);
   });
 
   test(`${label}: missing session principal remains a fixed 500`, async () => {
     const fixture = harness(route, { principal: false });
-    assert.deepEqual(await fixture.request(), { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: await fixture.request(), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
     assert.deepEqual(fixture.calls, []);
   });
 

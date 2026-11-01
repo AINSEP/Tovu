@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
@@ -26,7 +27,7 @@ test('publish preview logs registry refusals and redacts credential metadata rea
   }));
   const { res, capture } = createCapturingResponse(); res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'get', `${ROOT}/publish/preview`)({ params: { workspaceId: 'ws' }, query: { target: 'fixture' } }, res);
-  assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } } });
   assert.equal(reads, 1);
   assert.deepEqual(warnings.mock.calls.map(call => call.arguments), [['[publish-site] private plugin path refused']]);
 });

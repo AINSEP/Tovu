@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -215,7 +216,7 @@ test("widgets.diagnose refuses a caller without widgets.read 403, and an index f
   const h = harness();
   t.mock.method(h.entryRepo, "findById", async () => { throw new Error("entries table unavailable"); });
   const failed = await h.invoke("get", `${B}/widgets/tools/diagnose/:widgetInstanceId`, { params });
-  assert.deepEqual({ statusCode: failed.statusCode, jsonBody: failed.jsonBody }, { statusCode: 500, jsonBody: { error: "internal error" } });
+  assertAdminResponse({ actual: { statusCode: failed.statusCode, jsonBody: failed.jsonBody }, expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
   assert.equal(logged.length, 1);
 });
 
@@ -277,6 +278,6 @@ test("a region whose area entry carries a corrupted payload answers the generic 
   const area = await h.entryRepo.findById({ workspaceId: "ws-1", id: binding!.areaEntryId });
   await h.entryRepo.save({ ...area!, fieldsJson: { notExt: true } });
   const result = await h.invoke("get", `${B}/widgets/regions/:regionKey`, { params: { workspaceId: "ws-1", regionKey: "corrupt" } });
-  assert.deepEqual({ statusCode: result.statusCode, jsonBody: result.jsonBody }, { statusCode: 500, jsonBody: { error: "internal error" } });
+  assertAdminResponse({ actual: { statusCode: result.statusCode, jsonBody: result.jsonBody }, expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
   assert.equal(logged.length, 1);
 });

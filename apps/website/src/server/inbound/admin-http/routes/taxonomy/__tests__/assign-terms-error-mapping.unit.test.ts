@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
@@ -30,11 +31,11 @@ test("assigned-terms maps workspace and content-type mismatches to 400 VALIDATIO
   }
 });
 
-test("assigned-terms maps a non-Error failure to a generic 500 and an Error to its own message", async () => {
-  assert.deepEqual(await readAssigned(async () => { throw "authz offline"; }), {
+test("assigned-terms maps Error and non-Error failures to private correlated 500s", async () => {
+  assertAdminResponse({ actual: await readAssigned(async () => { throw "authz offline"; }), expected: {
     statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
-  });
-  assert.deepEqual(await readAssigned(async () => { throw new Error("db closed"); }), {
-    statusCode: 500, jsonBody: { error: "db closed", code: "INTERNAL_ERROR" },
-  });
+  } });
+  assertAdminResponse({ actual: await readAssigned(async () => { throw new Error("db closed"); }), expected: {
+    statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
+  } });
 });

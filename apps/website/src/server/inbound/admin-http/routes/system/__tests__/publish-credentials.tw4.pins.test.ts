@@ -1,3 +1,4 @@
+import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -83,35 +84,36 @@ test("publish update invalidates cached compatibility only when worksFor changes
   const key = { workspaceId: "ws", target: "fixture" };
   const result = { status: "valid" as const, message: "cached", checkedAt: "2026-10-20T00:00:00.000Z" };
   f.cache.set(key, result);
-  await f.put({ body: { label: "Rename" } }); assert.deepEqual(f.cache.get(key), result);
+  await f.put({ body: { label: "Rename" } }); assertAdminResponse({ actual: f.cache.get(key), expected: result });
   await f.put({ body: { worksFor: [] } }); assert.equal(f.cache.get(key), undefined);
 });
 
 
-test("account-label healing failure returns 500 after saving and logs only a safe code", async t => {
+test("account-label healing failure returns 500 after saving and logs a redacted diagnostic", async t => {
   const f = await fixture({ accountLabel: "fixture-account" });
   const failure = new Error("provider token=private-token; email=private@example.test");
   t.mock.method(f.repo, "updateAccountLabel", async () => { throw failure; });
   const logs: unknown[][] = [];
   t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
   const token = ["fixture", "saved-before-heal"].join("-");
-  assert.deepEqual(await f.put({ body: { connection: { providerId: "fixture", token } } }), {
+  assertAdminResponse({ actual: await f.put({ body: { connection: { providerId: "fixture", token } } }), expected: {
     statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
-  });
+  } });
   assert.equal((await f.resolve())?.connection.token, token);
-  assert.deepEqual(logs, [["[publish-credentials]", "INTERNAL_ERROR"]]);
+  assertAdminDiagnostics({ calls: logs, operation: "[routes/system/publish-credentials]", diagnostics: [/provider token=/] });
+  assert.equal(JSON.stringify(logs).includes("private-token"), false);
 });
 
 const collection = "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials";
 
-test("publish list and delete map an unexpected store failure to a fixed 500 that logs only a safe code", async t => {
+test("publish list and delete map an unexpected store failure to a fixed 500 that logs a redacted diagnostic", async t => {
   const f = await fixture();
   const logged = t.mock.method(console, "error", () => {});
   const fault = async () => { throw new Error("vault unreachable at /private/vault.db"); };
   t.mock.method(f.repo.vault, "list", fault);
-  assert.deepEqual(await f.call("get", collection), { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } });
-  assert.deepEqual(await f.call("delete", path, { params: { workspaceId: "ws", id: f.saved.id } }), { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } });
-  assert.deepEqual(logged.mock.calls.map(c => c.arguments), [["[publish-credentials]", "INTERNAL_ERROR"], ["[publish-credentials]", "INTERNAL_ERROR"]]);
+  assertAdminResponse({ actual: await f.call("get", collection), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminResponse({ actual: await f.call("delete", path, { params: { workspaceId: "ws", id: f.saved.id } }), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assertAdminDiagnostics({ calls: logged.mock.calls.map(c => c.arguments), operation: "[routes/system/publish-credentials]", diagnostics: [/vault unreachable at \/private\/vault.db/, /vault unreachable at \/private\/vault.db/] });
 });
 
 test("publish list still answers when the after-response account-label heal cannot load deploy targets", async t => {

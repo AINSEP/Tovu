@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { deploymentRefusal } from '#src/features/consent/service';
 import { listPublishContentPeers } from "#src/features/publish-content/peers";
 import { getPublishTrustContext, publishTrustAuthorizeFor } from "#src/server/inbound/admin-http/publish-trust-auth";
@@ -28,7 +29,6 @@ import type { RouteDeps } from "#src/server/routes/types";
 
 const WORKSPACE_NOT_FOUND = "workspace was not found";
 const SITE_PUBLISH_ENTITY = "site-publish";
-const INTERNAL_ERROR_MESSAGE = "internal error";
 
 /**
  * @file Admin Deployment panel → publish-to-a-static-host backend.
@@ -316,8 +316,8 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       // synchronously-awaited in this one try; `startPublishRun` itself is deliberately NOT awaited
       // (see its own call site comment) so a failure inside the run it starts can never reach this
       // catch — only a failure BEFORE that point can, e.g. `deps.authorize` itself throwing.
-      console.error("[publish-site] unexpected error triggering a publish", err);
-      res.status(500).json({ error: INTERNAL_ERROR_MESSAGE, code: "INTERNAL_ERROR" });
+
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" });
     }
   });
 
@@ -339,8 +339,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
 
       res.status(200).json(getPublishRunSnapshot());
     } catch (err) {
-      console.error("[publish-site] unexpected error polling publish status", err);
-      res.status(500).json({ error: INTERNAL_ERROR_MESSAGE, code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" });
     }
   });
 
@@ -393,8 +392,8 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         res.status(400).json({ error: err.message, code: "PROVIDER_INSPECTION_FAILED" });
         return;
       }
-      console.error("[publish-site] unexpected error building a publish preview", err);
-      res.status(500).json({ error: INTERNAL_ERROR_MESSAGE, code: "INTERNAL_ERROR" });
+
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" });
     }
   });
 
@@ -428,8 +427,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         peers,
       }));
     } catch (err) {
-      console.error("[publish-site] unexpected error listing publish destinations", err);
-      res.status(500).json({ error: INTERNAL_ERROR_MESSAGE, code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" });
     }
   });
 
@@ -467,8 +465,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
         })),
       });
     } catch (err) {
-      console.error("[publish-site] unexpected error listing publish targets", err);
-      res.status(500).json({ error: INTERNAL_ERROR_MESSAGE, code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/publish-site", code: "INTERNAL_ERROR" });
     }
   });
 }

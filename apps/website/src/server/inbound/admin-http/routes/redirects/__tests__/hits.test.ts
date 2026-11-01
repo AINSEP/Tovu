@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -155,5 +156,5 @@ test("redirect hits: 500 when unexpected error occurs", async (t) => {
 
   const body = await res.json();
   assert.equal(body.code, "INTERNAL_ERROR");
-  assert.equal(body.error, "internal error");
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
 });

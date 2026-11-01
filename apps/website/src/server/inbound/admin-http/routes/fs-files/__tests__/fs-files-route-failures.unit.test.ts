@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -28,7 +29,7 @@ test('custom root: an unexpected persistence failure is a private internal error
   t.after(() => rmSync(join(blocked, '..'), { recursive: true, force: true }));
   writeFileSync(blocked, 'a file cannot be a site directory');
   const { app } = fixture(registerAdminFsFilesCustomRootRoutes, { siteBinding: { dir: blocked }, storeOptional: undefined });
-  assert.deepEqual(await dispatchJsonRequest(app, 'PUT', `${BASE}/fs-files/custom-root`, { path: tmpdir() }), { status: 500, body: INTERNAL_CODE });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'PUT', `${BASE}/fs-files/custom-root`, { path: tmpdir() }), expected: { status: 500, body: INTERNAL_CODE } });
 });
 
 for (const body of [undefined, {}, { path: '' }, { path: 42 }]) {

@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 
@@ -171,7 +172,7 @@ test("AGENT_PLUGIN_FILES: layout I/O failure returns a fixed error without discl
   const fault = t.mock.method(deps.agentPluginLayout, "forWorkspace", () => { throw new Error("private /secret/plugins"); });
   const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/agent-plugins/${PLUGIN_ID}/files`, { headers: { cookie } });
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   assert.equal(fault.mock.callCount(), 1);
 });
 

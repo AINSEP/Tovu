@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
@@ -65,7 +66,7 @@ test("list repository failures return generic 500 without leaking storage detail
   const fail = async () => { throw new Error("private storage detail"); };
   const invoke = harness({ policyRepo: { list: fail, findById: async () => ({ id: "policy-7" }) }, roleRepo: { list: fail }, policyPermissionRepo: { listByPolicyId: fail } });
   for (const suffix of ["/roles", "/policies", "/policies/:policyId/permissions"]) {
-    assert.deepEqual(await invoke(suffix), { statusCode: 500, jsonBody: { error: "internal error" } });
+    assertAdminResponse({ actual: await invoke(suffix), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
   }
 });
 test("wrong workspace returns 404 before any repository access", async () => {

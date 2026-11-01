@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
@@ -44,7 +45,7 @@ test("missing settings or an unknown stored theme leaves every theme inactive", 
   }
 });
 test("presentation read failure returns a generic error without leaking details", async () => {
-  assert.deepEqual(await invoke([], null, true), { statusCode: 500, jsonBody: { error: "internal error" } });
+  assertAdminResponse({ actual: await invoke([], null, true), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
 });
 // Route-param guard (`String(req.params.workspaceId ?? "")`) and the theme.set gate, before any read.
 test("an absent or foreign workspace 404s and a caller without theme.set gets 403, both before reading settings", async () => {

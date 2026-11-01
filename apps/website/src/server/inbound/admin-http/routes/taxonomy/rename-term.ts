@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
@@ -49,8 +50,8 @@ export function registerAdminTaxonomyRenameTermRoute(app: Express, deps: Taxonom
         res.status(404).json({ error: err.message, code: "TERM_NOT_FOUND" });
         return;
       }
-      const message = err instanceof Error ? err.message : "internal error";
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+
+      sendAdminFailure({ res, error: err }, { operation: "routes/taxonomy/rename-term", code: "INTERNAL_ERROR" });
     }
   });
 }

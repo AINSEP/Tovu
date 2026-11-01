@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
@@ -36,7 +37,7 @@ function sendUserEnableError({ res, err }: { res: Response; err: unknown }, _opt
     res.status(409).json({ error: err.message, code: "OWNER_REQUIRED" });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/users/enable", code: "INTERNAL_ERROR" });
 }
 
 /**

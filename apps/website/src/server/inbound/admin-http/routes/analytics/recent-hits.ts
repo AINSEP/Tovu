@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { respondToApiError } from "#src/server/error-mapping/respond";
 // Jini owns LocalBufferSink via the host adapter.
 import type { Express } from "express";
@@ -96,8 +97,7 @@ export function registerAdminAnalyticsRecentHitsRoute(app: Express, deps: AdminA
       const hits = (await deps.analyticsSink.list({ limit })).map(toAdminAnalyticsHitResponse);
       res.json({ hits });
     } catch (err) {
-      console.error("[analytics/recent-hits] unexpected error", err);
-      respondToApiError({ res, code: "INTERNAL_ERROR", message: "internal error" });
+      sendAdminFailure({ res, error: err });
     }
   });
 }

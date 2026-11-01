@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -240,7 +241,7 @@ test("moderation-queue: a repository failure that is not a ToolInputError is a 5
   const consoleError = t.mock.method(console, "error", () => undefined);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/comments/queue`);
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   assert.equal(consoleError.mock.callCount(), 1);
-  assert.equal(consoleError.mock.calls[0]?.arguments[0], "[comments/moderation-queue] unexpected error");
+  assert.equal(consoleError.mock.calls[0]?.arguments[0], "[routes/comments/moderation-queue]");
 });

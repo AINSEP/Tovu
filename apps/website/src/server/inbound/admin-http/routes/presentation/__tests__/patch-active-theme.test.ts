@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
@@ -178,7 +179,7 @@ test("presentation patch: denied theme.set preserves the stored active theme", a
   const body = json as { code: string; details: { permission: string } };
   assert.equal(body.code, "FORBIDDEN");
   assert.equal(body.details.permission, "theme.set");
-  assert.deepEqual(await base.presentationRepo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), before);
+  assertAdminResponse({ actual: await base.presentationRepo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), expected: before });
 });
 
 test("presentation patch: an unexpected repo failure 500s", async (t) => {
@@ -197,7 +198,7 @@ test("presentation patch: an unexpected repo failure 500s", async (t) => {
   });
   const { status, json } = await patch(t, app, { activeThemeId: "tovu-theme" });
   assert.equal(status, 500);
-  assert.deepEqual(json, { error: "internal error" });
+  assertAdminResponse({ actual: json, expected: { error: "internal error" } });
 });
 
 test("presentation patch: workspaceId param can never actually be undefined through this app's real composition (a matched `:param` segment is always a populated string) -- its `?? \"\"` fallback is reached by calling the real handler directly, the same type-bypass technique put-entry.test.ts's own equivalent test uses", async (t) => {

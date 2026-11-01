@@ -1,3 +1,4 @@
+import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -51,7 +52,7 @@ test("a request with no workspaceId param at all is refused 404 by get, update a
     });
   }
   assert.equal(h.authorizeCalls(), 0);
-  assert.deepEqual(await repo.findById({ id: "ws-7" }), own);
+  assertAdminResponse({ actual: await repo.findById({ id: "ws-7" }), expected: own });
 });
 
 test("a caller without workspace.manage is refused 403 by create, get, update and delete without touching storage", async () => {
@@ -65,9 +66,9 @@ test("a caller without workspace.manage is refused 403 by create, get, update an
       details: { permission: "workspace.manage", reason: "no-grant" },
     },
   };
-  assert.deepEqual(await h.invoke("post", base, { body: { name: "New", slug: "new" } }), forbidden);
+  assertAdminResponse({ actual: await h.invoke("post", base, { body: { name: "New", slug: "new" } }), expected: forbidden });
   for (const method of ["get", "patch", "delete"] as const) {
-    assert.deepEqual(await h.invoke(method, `${base}/:workspaceId`, { params: { workspaceId: "ws-7" }, body: { name: "Renamed" } }), forbidden);
+    assertAdminResponse({ actual: await h.invoke(method, `${base}/:workspaceId`, { params: { workspaceId: "ws-7" }, body: { name: "Renamed" } }), expected: forbidden });
   }
   assert.equal(h.authorizeCalls(), 4);
   assert.deepEqual(await repo.list(), [own]);
@@ -88,7 +89,7 @@ test("update with no JSON body at all leaves both fields untouched and is refuse
   const result = await h.invoke("patch", `${base}/:workspaceId`, { params: { workspaceId: "ws-7" }, body: undefined });
   assert.equal(result.statusCode, 400);
   assert.equal((result.jsonBody as { code: string }).code, "VALIDATION_ERROR");
-  assert.deepEqual(await repo.findById({ id: "ws-7" }), own);
+  assertAdminResponse({ actual: await repo.findById({ id: "ws-7" }), expected: own });
 });
 
 test("deleting the bound workspace over HTTP is refused BOUND_WORKSPACE (INV-05) and the row survives", async () => {
@@ -137,24 +138,21 @@ test("deleteWorkspaceUnlessBound refuses to run without a transaction port", asy
 });
 
 test("sendDeleteWorkspaceError logs a non-Error throw and an Error without a stack, answering a message-free 500", (t) => {
-  const logged: string[] = [];
-  t.mock.method(console, "error", (line: string) => { logged.push(line); });
+  const logged: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
   const stackless = new Error("stackless failure");
   stackless.stack = undefined;
   for (const err of ["plain string failure", stackless]) {
     const { res, capture } = createCapturingResponse();
     sendDeleteWorkspaceError(res, err);
-    assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: "internal error" } });
+    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
   }
-  assert.deepEqual(logged, [
-    "admin workspace delete route failed: plain string failure",
-    "admin workspace delete route failed: stackless failure",
-  ]);
+  assertAdminDiagnostics({ calls: logged, operation: "[routes/workspace/delete]", diagnostics: [/^plain string failure$/, /^stackless failure$/] });
 });
 
 test("an authorization backend failure on the delete route is answered by the opaque 500 mapping, not thrown", async (t) => {
-  const logged: string[] = [];
-  t.mock.method(console, "error", (line: string) => { logged.push(line); });
+  const logged: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
   const repo = new InMemoryWorkspaceRepo({}, { initialRows: [own, other] });
   const app = express();
   registerAdminWorkspaceDeleteRoute(app, {
@@ -164,7 +162,7 @@ test("an authorization backend failure on the delete route is answered by the op
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-7" };
   await extractRouteHandler(app, "delete", `${base}/:workspaceId`)({ params: { workspaceId: "ws-7" } }, res);
-  assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: "internal error" } });
-  assert.deepEqual(logged, ["admin workspace delete route failed: authorizer offline"]);
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+  assertAdminDiagnostics({ calls: logged, operation: "[routes/workspace/delete]", diagnostics: [/^authorizer offline$/] });
   assert.deepEqual(await repo.list(), [own, other]);
 });

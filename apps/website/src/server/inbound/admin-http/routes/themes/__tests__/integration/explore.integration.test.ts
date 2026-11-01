@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -122,7 +123,7 @@ test("explore: an unreadable theme directory 500s via the detail route's generic
   try {
     const res = await fetch(`${baseUrl}${BASE}`, { headers: { cookie } });
     assert.equal(res.status, 500);
-    assert.deepEqual(await res.json(), { error: "internal error" });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
     assert.equal(failureReached, true);
   } finally {
     injected.mock.restore();
@@ -171,7 +172,7 @@ test("explore: filesystem I/O failures return 500 through the composed app witho
         ...(scenario.body ? { body: JSON.stringify(scenario.body) } : {}),
       });
       assert.equal(response.status, 500, `${scenario.method} ${scenario.url}`);
-      assert.deepEqual(await response.json(), { error: "internal error" });
+      assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } });
       assert.equal(failedOperationReached, true, `${scenario.operation} must cause this failure`);
     } finally {
       mocked.mock.restore();
@@ -1066,7 +1067,7 @@ test("explore: reset with an unreadable catalog file 500s via the route's outer 
   }
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assert.equal(body.error, "internal error");
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
 });
 
 // --- handleGeneratedTreeReset's own catch-and-rethrow -----------------------------------------------
@@ -1095,7 +1096,7 @@ test("explore: reset of a built theme with an unreadable catalog generated file 
   }
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assert.equal(body.error, "internal error");
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
 });
 
 // --- RENAME's remaining branches --------------------------------------------------------------------
@@ -1273,5 +1274,5 @@ test("reloadTheme: an id absent from deps.themes is a silent no-op -- the early 
 
   reloadTheme(deps, "does-not-exist-in-deps-themes");
 
-  assert.deepEqual(deps.themes, before);
+  assertAdminResponse({ actual: deps.themes, expected: before });
 });

@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import express from "express";
@@ -57,7 +58,7 @@ test("lifecycle gates retain workspace, capability, binding, authorization and h
 
 test("lifecycle catches principal/auth failures and sanitizes typed and opaque effect errors", async (t) => {
   const missingPrincipal = await fixture({ t }, { principal: false });
-  assert.deepEqual(await missingPrincipal.request(), { status: 500, body: { code: "INTERNAL_ERROR", error: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: await missingPrincipal.request(), expected: { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } } });
   assert.deepEqual(missingPrincipal.calls, []);
   const failures: [unknown, number, string][] = [
     [new Error("private connection details"), 500, "INTERNAL_ERROR"], ["opaque", 500, "INTERNAL_ERROR"],
@@ -67,9 +68,10 @@ test("lifecycle catches principal/auth failures and sanitizes typed and opaque e
   ];
   for (const [error, status, code] of failures) {
     const f = await fixture({ t }, { overrides: { authorize: async () => { throw error; } } });
-    assert.deepEqual(await f.request(), { status, body: { code, error: code } }); assert.deepEqual(f.calls, []);
+    const body = error instanceof LocalSiteError ? { code, error: code } : { code: "INTERNAL_ERROR", error: "internal error" };
+    assertAdminResponse({ actual: await f.request(), expected: { status, body } }); assert.deepEqual(f.calls, []);
     const effect = await fixture({ t }, { overrides: { afterTrash: () => { throw error; } } });
-    assert.deepEqual(await effect.request({ suffix: "/alpha/trash", body: { confirmed: true } }), { status, body: { code, error: code } });
+    assertAdminResponse({ actual: await effect.request({ suffix: "/alpha/trash", body: { confirmed: true } }), expected: { status, body } });
   }
 });
 

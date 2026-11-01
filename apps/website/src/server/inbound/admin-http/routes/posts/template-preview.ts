@@ -1,3 +1,4 @@
+import { adminFailureResponse } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import express, { type RequestHandler } from "express";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
@@ -226,7 +227,8 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
         res.status(404).type(PLAIN_TEXT).send(err.message);
         return;
       }
-      res.status(500).type(PLAIN_TEXT).send("preview render failed");
+      const failure = adminFailureResponse({ error: err, tracker: res.locals.adminFailureTracker }, { message: "preview render failed" });
+      res.status(failure.status).type(PLAIN_TEXT).send(failure.body.error);
     }
   };
 

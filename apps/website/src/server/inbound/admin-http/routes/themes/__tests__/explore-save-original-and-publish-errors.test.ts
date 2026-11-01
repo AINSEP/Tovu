@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
@@ -32,6 +33,6 @@ test("save-as-original refuses a caller without theme.set with the standard 403"
 test("save-as-original and page publish hide an unexpected failure behind a bare 500", async () => {
   const offline: ContentRouteDeps["authorize"] = async () => { throw new Error("SECRET authorizer detail"); };
   for (const suffix of ["/original", "/page/publish"] as const) {
-    assert.deepEqual(await invoke(offline, suffix), { statusCode: 500, jsonBody: { error: "internal error" } });
+    assertAdminResponse({ actual: await invoke(offline, suffix), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
   }
 });

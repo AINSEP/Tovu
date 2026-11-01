@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
@@ -136,12 +137,12 @@ test("put-settings: valid patch returns updated settings (200)", async (t) => {
     return (await response.json() as { data: unknown }).data;
   };
   const expected = { ...patch, twitterSite: "@untouched" };
-  assert.deepEqual(body.data, expected);
-  assert.deepEqual(await read(), expected);
+  assertAdminResponse({ actual: body.data, expected: expected });
+  assertAdminResponse({ actual: await read(), expected: expected });
   const cleared = await put(t, app, { defaultDescription: null, defaultOgImage: null, twitterSite: null });
   assert.equal(cleared.status, 200);
   const { defaultDescription, defaultOgImage, ...remaining } = patch;
-  assert.deepEqual(await read(), remaining);
+  assertAdminResponse({ actual: await read(), expected: remaining });
   for (const invalid of [
     { titleTemplate: "%s | Should not persist", defaultRobots: { noindex: "yes", nofollow: true } },
     { titleTemplate: "%s | Should not persist", robotsRules: [{ userAgent: "" }] },
@@ -149,7 +150,7 @@ test("put-settings: valid patch returns updated settings (200)", async (t) => {
     const rejected = await put(t, app, invalid);
     assert.equal(rejected.status, 400);
     assert.equal((rejected.json as { code: string }).code, "SEO_SETTINGS_VALIDATION_ERROR");
-    assert.deepEqual(await read(), remaining, "invalid patch must make no partial writes");
+    assertAdminResponse({ actual: await read(), expected: remaining }, { message: "invalid patch must make no partial writes" });
   }
 });
 
@@ -158,7 +159,7 @@ test("put-settings: unexpected error returns 500 (INTERNAL_ERROR)", async (t) =>
   const app = buildApp({ settingsRepo });
   const { status, json } = await put(t, app, { sitemapEnabled: true });
   assert.equal(status, 500);
-  assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   assert.ok(settingsRepo.calls > 0, "the 500 must come from the injected settings failure");
 });
 

@@ -1,3 +1,4 @@
+import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError, type AgentPluginSearchCandidate } from "@jini-ai/agent-plugins/lifecycle";
 import { AgentPluginInstallError, type AgentPluginInstallErrorCode } from "../../../../../features/agent-plugins/lifecycle.js";
 import { AgentPluginUploadError, type AgentPluginUploadErrorCode } from "#src/features/agent-plugins/install-upload";
@@ -76,7 +77,7 @@ function installErrorRefusal(error: AgentPluginInstallError): InstallRefusal {
  * with the lifecycle owner's own code and plain message, which never carries a host path.
  * @complexity O(1).
  */
-export function installErrorResponse(error: unknown): InstallRefusal {
+export function installErrorResponse(error: unknown, options: AdminFailurePorts = {}): InstallRefusal {
   if (error instanceof AgentPluginUpdateError || error instanceof AgentPluginHostIncompatibleError) return { status: 409, body: { code: error.code, error: error.message } };
   if (error instanceof AgentPluginUploadError) return uploadErrorRefusal(error);
   if (error instanceof AgentPluginInstallError) return installErrorRefusal(error);
@@ -87,7 +88,7 @@ export function installErrorResponse(error: unknown): InstallRefusal {
       warning: `[agent-plugins] upload refused — ${error.message}`,
     };
   }
-  return { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } };
+  return adminFailureResponse({ error: error, tracker: options.tracker }, { operation: "routes/agent-plugins/install-response" });
 }
 
 /**

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import {
@@ -41,7 +42,7 @@ function sendChangeSetRevertError(res: Response, err: unknown): void {
     res.status(422).json({ error: err.message, code: "REVERT_NOT_POSSIBLE" });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/change-sets/revert", code: "INTERNAL_ERROR" });
 }
 
 /**

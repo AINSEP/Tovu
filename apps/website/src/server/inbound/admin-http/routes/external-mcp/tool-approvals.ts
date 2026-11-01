@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 
@@ -24,8 +25,8 @@ export const registerAdminExternalMcpToolApprovalsRoutes: ExternalMcpRouteRegist
         .map(({ serverId, toolName, grantedByPrincipalId, grantedAt }) => ({ serverId, toolName, grantedByPrincipalId, grantedAt }))
         .sort((a, b) => a.serverId.localeCompare(b.serverId) || a.toolName.localeCompare(b.toolName));
       res.json({ approvals });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/external-mcp/tool-approvals", code: "INTERNAL_ERROR" });
     }
   });
 
@@ -43,8 +44,8 @@ export const registerAdminExternalMcpToolApprovalsRoutes: ExternalMcpRouteRegist
         return;
       }
       res.json({ removed: true });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/external-mcp/tool-approvals", code: "INTERNAL_ERROR" });
     }
   });
 };

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { createMenu, MenuConflictError, MenuValidationError } from "#src/features/navigation/index";
 import type { MenuHtmlAuthoring, NavItemNode } from "#src/features/navigation/index";
 import { authorizeMenuHtmlOrRespond, parseMenuHtmlAuthoring, toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
@@ -81,7 +82,7 @@ export const registerAdminMenuCreateRoute: MenuRouteRegistrar = (app, deps) => {
         res.status(409).json({ error: err.message });
         return;
       }
-      res.status(500).json({ error: "internal error" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/menus/create", code: "INTERNAL_ERROR" });
     }
   });
 };

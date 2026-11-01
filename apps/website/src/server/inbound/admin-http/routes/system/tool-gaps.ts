@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from 'express';
 import { getAuthedPrincipal } from '#src/server/inbound/admin-http/dev-auth';
 import type { ToolGapsToolDeps } from '#src/assistant/host-ports';
@@ -11,9 +12,8 @@ export function registerAdminToolGapsRoute(app: Express, deps: ToolGapsToolDeps)
       if (principal.id !== await deps.ownerPrincipalId) { res.status(403).json({ error: 'Only the owner can read tool gaps.', code: 'FORBIDDEN' }); return; }
       if (!deps.toolGaps) { res.status(503).json({ error: 'Tool gap audit storage is unavailable.' }); return; }
       res.json({ entries: await deps.toolGaps.list({ workspaceId: deps.workspaceId, principalId: principal.id }, {}) });
-    } catch {
-      console.error('[tool-gaps] audit read failed');
-      res.status(500).json({ error: 'Could not read tool gaps.', code: 'INTERNAL_ERROR' });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/system/tool-gaps", code: 'INTERNAL_ERROR', message: 'Could not read tool gaps.' });
     }
   });
 }

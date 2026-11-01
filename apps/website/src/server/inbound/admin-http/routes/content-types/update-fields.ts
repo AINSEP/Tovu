@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -44,6 +45,7 @@ export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: Co
       const fields = parseContentTypeFieldDefs({ value: body.fields });
       if (!fields.ok) {
         const { status, code } = contentTypeWriteErrorStatus({ error: fields.error });
+        if (status === 500) { sendAdminFailure({ res, error: fields.error }, { code }); return; }
         res.status(status).json({ error: fields.error.message, code });
         return;
       }
@@ -70,13 +72,13 @@ export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: Co
 
       if (!result.ok) {
         const { status, code } = contentTypeWriteErrorStatus({ error: result.error });
+        if (status === 500) { sendAdminFailure({ res, error: result.error }, { code }); return; }
         res.status(status).json({ error: result.error.message, code });
         return;
       }
       res.json(result.value);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "internal error";
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/content-types/update-fields", code: "INTERNAL_ERROR" });
     }
   });
 }

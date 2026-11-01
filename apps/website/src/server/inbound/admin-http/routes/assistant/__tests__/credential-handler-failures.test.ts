@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -64,7 +65,7 @@ async function invoke(
 }
 
 function assertInternalError(capture: unknown) {
-  assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
 }
 
 const fail = async () => { throw new Error("db failed at /private/credentials.db; secret=do-not-leak"); };
@@ -187,7 +188,7 @@ for (const [field, value, message] of [
     const before = structuredClone(await deps.adminExecutionCredentialRepo.findByWorkspaceAndPrincipal({ workspaceId: "ws-7", principalId: "admin-9" }));
     const result = await invoke(registerAdminAssistantPutExecutionCredentialRoute, deps, "put", "execution-credential", { [field]: value });
     assert.deepEqual(result, { statusCode: 400, jsonBody: { error: message, code: "EXECUTION_CREDENTIAL_VALIDATION_ERROR" } });
-    assert.deepEqual(await deps.adminExecutionCredentialRepo.findByWorkspaceAndPrincipal({ workspaceId: "ws-7", principalId: "admin-9" }), before);
+    assertAdminResponse({ actual: await deps.adminExecutionCredentialRepo.findByWorkspaceAndPrincipal({ workspaceId: "ws-7", principalId: "admin-9" }), expected: before });
   });
 }
 

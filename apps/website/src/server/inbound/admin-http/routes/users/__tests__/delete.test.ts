@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
@@ -345,7 +346,7 @@ test("DELETE_USER route: 500 internal error when an unexpected error is thrown",
   const res = await fetch(`${baseUrl}${urlFor("any-id")}`, { method: "DELETE" });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assert.equal(body.error, "internal error");
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
 });
 
 test("DELETE_USER route: 400 VALIDATION_ERROR when the target is a system principal", async (t) => {

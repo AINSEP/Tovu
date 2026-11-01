@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { CommentsSettingsValidationError, setCommentsSettings } from "#src/features/comments/index";
@@ -51,7 +52,7 @@ export const registerAdminCommentsPutSettingsRoute = (app: Express, deps: Commen
         res.status(400).json({ error: err.message, code: "COMMENTS_SETTINGS_VALIDATION_ERROR" });
         return;
       }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/comments/put-settings", code: "INTERNAL_ERROR" });
     }
   });
 };

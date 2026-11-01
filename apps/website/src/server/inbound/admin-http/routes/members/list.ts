@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Request } from "express";
 
 import type { MemberRecord } from "#src/features/members/index";
@@ -65,8 +66,8 @@ export const registerAdminMemberListRoute: RouteRegistrar = (app, routeDeps) => 
         ...parseMembersListQuery(req.query),
       });
       res.json({ members: members.map(toAdminMemberResponse) });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/members/list", code: "INTERNAL_ERROR" });
     }
   });
 };

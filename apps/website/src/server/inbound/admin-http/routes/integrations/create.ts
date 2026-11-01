@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Request } from "express";
 
 import { createSubscription, WebhookSubscriptionValidationError } from "#src/features/webhooks/index";
@@ -65,7 +66,7 @@ export const registerAdminIntegrationsCreateRoute: IntegrationsRouteRegistrar = 
         return;
       }
 
-      res.status(500).json({ error: "internal error" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/integrations/create", code: "INTERNAL_ERROR" });
     }
   });
 };

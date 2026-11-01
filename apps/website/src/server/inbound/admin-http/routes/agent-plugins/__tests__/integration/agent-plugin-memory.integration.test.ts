@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import '../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
@@ -51,14 +52,14 @@ test('admin memory round-trips a user note, refuses learned writes/traversal, an
     const packageBody = await files.json() as { files: Array<{ relativePath: string }> };
     assert.deepEqual(packageBody.files.map(file => file.relativePath).sort(), ['plugin.json', 'skills/example/SKILL.md']);
     const fresh = await fetch(`${prefix}/memory`, { headers: { cookie } });
-    assert.deepEqual((await fresh.json() as { notes: unknown[] }).notes, body.notes);
+    assertAdminResponse({ actual: (await fresh.json() as { notes: unknown[] }).notes, expected: body.notes });
     // Malformed notes must not replace the note that was already persisted.
     for (const invalid of [[], {}, { text: 'missing path' }, { entryPath: 7, text: 'wrong path type' }, { entryPath: 'project.md' }, { entryPath: 'project.md', text: false }]) {
       const refused = await put(invalid);
       assert.equal(refused.status, 400);
       assert.deepEqual(await refused.json(), { error: 'entryPath and text are required', code: 'VALIDATION_ERROR' });
     }
-    assert.deepEqual((await (await fetch(`${prefix}/memory`, { headers: { cookie } })).json()).notes, body.notes);
+    assertAdminResponse({ actual: (await (await fetch(`${prefix}/memory`, { headers: { cookie } })).json()).notes, expected: body.notes });
     for (const method of ['GET', 'PUT']) {
       const wrongWorkspace = await fetch(`${prefix.replace('/workspace-local/', '/other/')}/memory`, { method, headers: { cookie } });
       assert.equal(wrongWorkspace.status, 404);
@@ -77,7 +78,7 @@ test('admin memory round-trips a user note, refuses learned writes/traversal, an
     const fault = t.mock.method(deps.agentPluginLayout, 'forWorkspace', () => { throw new Error('private /secret/plugins'); });
     const failed = await fetch(`${prefix}/memory`, { headers: { cookie } });
     assert.equal(failed.status, 500);
-    assert.deepEqual(await failed.json(), { error: 'internal error', code: 'INTERNAL_ERROR' });
+    assertAdminResponse({ actual: await failed.json(), expected: { error: 'internal error', code: 'INTERNAL_ERROR' } });
     assert.equal(fault.mock.callCount(), 1);
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR; else process.env.TOVU_AGENT_PLUGINS_DIR = previous;

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
@@ -46,13 +47,15 @@ function statusForCode(code: string): number {
  *  orchestrator's own short-circuits) always sets one -- so the `?? error.code` fallback is only
  *  observable by handing this a contract-valid, message-less payload directly. */
 export function sendRecoveryError(res: import("express").Response, error: RecoveryErrorPayload): void {
-  res.status(statusForCode(error.code)).json({ error: error.message ?? error.code, code: error.code });
+  const status = statusForCode(error.code);
+  if (status === 500) { sendAdminFailure({ res, error: new Error(error.message ?? error.code) }, { operation: "routes/recovery/restore", code: error.code }); return; }
+  res.status(status).json({ error: error.message ?? error.code, code: error.code });
 }
 
 /** The one 500 shape all three ceremony routes share for anything thrown outside the gateway's own
  *  `Result` wrapping (a missing session principal, a throwing `dbOps`/`authorize` port). */
 function sendInternalError(res: import("express").Response, err: unknown): void {
-  res.status(500).json({ error: err instanceof Error ? err.message : "internal error", code: "INTERNAL_ERROR" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/recovery/restore", code: "INTERNAL_ERROR" });
 }
 
 export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps): void {

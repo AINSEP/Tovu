@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Request, Response } from "express";
 import { ToolInputError } from "@jini-ai/core";
 
@@ -61,8 +62,8 @@ function fail(res: Response, err: unknown): void {
   } else if (err instanceof MailActivityUnavailableError || err instanceof MailSuppressionsUnavailableError) {
     res.status(503).json({ error: err.message, code: "MAIL_ACTIVITY_UNAVAILABLE" });
   } else {
-    console.error("[system/mail-activity] unexpected error");
-    res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+
+    sendAdminFailure({ res, error: err }, { operation: "routes/system/mail-activity", code: "INTERNAL_ERROR" });
   }
 }
 

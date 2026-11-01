@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import { updateWorkspace, WorkspaceConflictError, WorkspaceNotFoundError, WorkspaceValidationError } from "#src/features/workspace/index";
@@ -30,7 +31,7 @@ function sendWorkspaceUpdateError(res: Response, err: unknown): void {
     res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/workspace/update", code: "INTERNAL_ERROR" });
 }
 
 /**

@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
@@ -237,7 +238,7 @@ test("PUT over an existing file past the 1 MB text-read limit, without overwrite
     body: JSON.stringify({ path: "css/huge.css", content: "body{}" }),
   });
   assert.equal(res.status, 400);
-  assert.deepEqual(await res.json(), OVERSIZED_OVERWRITE_REFUSAL);
+  assertAdminResponse({ actual: await res.json(), expected: OVERSIZED_OVERWRITE_REFUSAL });
   assert.equal(fs.readFileSync(target, "utf8"), original);
 });
 
@@ -253,7 +254,7 @@ test("PUT over an oversized file with overwriteOversized as the STRING 'true' is
     body: JSON.stringify({ path: "css/huge.css", content: "body{}", overwriteOversized: "true" }),
   });
   assert.equal(res.status, 400);
-  assert.deepEqual(await res.json(), OVERSIZED_OVERWRITE_REFUSAL);
+  assertAdminResponse({ actual: await res.json(), expected: OVERSIZED_OVERWRITE_REFUSAL });
   assert.equal(fs.readFileSync(target, "utf8"), original);
 });
 
@@ -314,7 +315,7 @@ test("PUT that fails for a reason OTHER than ThemePathError 500s via sendThemeFi
     });
     assert.equal(reached, true, "the real atomic writer must reach the failed rename");
     assert.equal(res.status, 500);
-    assert.deepEqual(await res.json(), { error: "internal error" });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
     assert.equal(fs.readFileSync(target, "utf8"), original);
     assert.deepEqual(fs.readdirSync(path.dirname(target)).filter((name) => name.startsWith(".logo.svg.")), []);
   } finally {

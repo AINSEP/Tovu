@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { isNoopObservabilityPort } from "#src/platform/observability/index";
@@ -60,8 +61,7 @@ export function registerAdminObservabilityStatusRoute(app: Express, deps: AdminO
         permission: "system.write", workspaceId: deps.workspaceId, entityType: "observability" }) : undefined;
       res.status(200).json(observabilityStatusBody({ deps, enabled, testAccess }));
     } catch (err) {
-      console.error("[system/observability-status] unexpected error", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/observability-status", code: "INTERNAL_ERROR" });
     }
   });
   app.post("/api/admin/v1/workspaces/:workspaceId/system/observability/test-error", async (req, res) => {
@@ -78,7 +78,7 @@ export function registerAdminObservabilityStatusRoute(app: Express, deps: AdminO
       res.status(200).json(await deps.sendTelemetryTest({}));
     } catch (error) {
       deps.tracker.error({ error: error instanceof Error ? error : new Error("telemetry test failed") }, { context: { operation: "telemetry.test_action" } });
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error }, { operation: "routes/system/observability-status", code: "INTERNAL_ERROR" });
     }
   });
 }

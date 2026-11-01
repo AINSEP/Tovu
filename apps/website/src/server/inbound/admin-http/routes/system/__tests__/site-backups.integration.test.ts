@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -54,7 +55,7 @@ test("site-backup routes gate, map errors and run the shared plan/push service",
   authorizeThrows = true;
   const broken = await post("/plan", { owner: "o", repo: "r" });
   assert.equal(broken.status, 500);
-  assert.deepEqual(await broken.json(), { code: "BACKUP_FAILED", message: "Git backup failed. Try again." });
+  assertAdminResponse({ actual: await broken.json(), expected: { code: "BACKUP_FAILED", message: "Git backup failed. Try again." } });
   authorizeThrows = false;
 
   const running = await (await post("/push", { planId: "running-plan" })).json();

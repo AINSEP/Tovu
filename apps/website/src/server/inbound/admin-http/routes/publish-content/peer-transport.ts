@@ -107,7 +107,7 @@ function respondWithError(res: Response, err: unknown): void {
     res.status(502).json({ error: err.message, code: err.code });
     return;
   }
-  sendRefusal(res, mappedErrorResponse(err, PEER_ACTION_ERRORS));
+  sendRefusal(res, mappedErrorResponse(err, PEER_ACTION_ERRORS, { tracker: res.locals?.adminFailureTracker }));
 }
 
 /** The per-request transport bag: the guarded client plus the opened credential.

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { setSeoSettings } from "#src/features/seo/index";
 import { SeoSettingsValidationError } from "@jini-ai/cms/seo";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -47,7 +48,7 @@ export const registerAdminSeoPutSettingsRoute: SeoRouteRegistrar = (app, deps) =
         res.status(400).json({ error: err.message, code: "SEO_SETTINGS_VALIDATION_ERROR" });
         return;
       }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/seo/put-settings", code: "INTERNAL_ERROR" });
     }
   });
 };

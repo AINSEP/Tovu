@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
@@ -88,18 +89,18 @@ test("installs are refused unless the env opt-in is exactly 1 and an installer i
 test("replace must be a boolean (JSON) or 'true'/'false' (query), and install needs a sha256 digest", async t => {
   const h = await boot(t);
   const source = { kind: "folder", path: "/srv/plugin" };
-  assert.deepEqual(await read(await h.json("/preview", { source, replace: "true" })), INVALID_OPTIONS);
-  assert.deepEqual(await read(await h.zip("/zip/preview?replace=yes")), INVALID_OPTIONS);
+  assertAdminResponse({ actual: await read(await h.json("/preview", { source, replace: "true" })), expected: INVALID_OPTIONS });
+  assertAdminResponse({ actual: await read(await h.zip("/zip/preview?replace=yes")), expected: INVALID_OPTIONS });
   for (const expectedDigest of [undefined, 7, "sha256-" + "A".repeat(64), "sha512-" + "a".repeat(64), DIGEST + "0"]) {
-    assert.deepEqual(await read(await h.json("", { source, expectedDigest })), INVALID_OPTIONS, String(expectedDigest));
+    assertAdminResponse({ actual: await read(await h.json("", { source, expectedDigest })), expected: INVALID_OPTIONS }, { message: String(expectedDigest) });
   }
-  assert.deepEqual(await read(await h.zip("?expectedDigest=nope")), INVALID_OPTIONS);
+  assertAdminResponse({ actual: await read(await h.zip("?expectedDigest=nope")), expected: INVALID_OPTIONS });
   assert.deepEqual(h.calls, []);
 });
 
 test("a folder route mounted without its JSON body parser refuses the request instead of crashing", async t => {
   const h = await boot(t, { jsonParser: false });
-  assert.deepEqual(await read(await h.json("/preview", { source: { kind: "folder", path: "/srv/plugin" } })), INVALID_OPTIONS);
+  assertAdminResponse({ actual: await read(await h.json("/preview", { source: { kind: "folder", path: "/srv/plugin" } })), expected: INVALID_OPTIONS });
   assert.deepEqual(h.calls, []);
 });
 
@@ -141,7 +142,7 @@ test("installer errors map to 409 conflicts, 500 recovery, 400 other refusals an
   ];
   for (const [error, status, body] of cases) {
     const h = await boot(t, { installer: () => { throw error; } });
-    assert.deepEqual(await read(await h.json("/preview", { source: { kind: "folder", path: "/srv/plugin" } })), { status, body }, body.code);
+    assertAdminResponse({ actual: await read(await h.json("/preview", { source: { kind: "folder", path: "/srv/plugin" } })), expected: { status, body } }, { message: body.code });
   }
 });
 
@@ -172,7 +173,7 @@ test("each install route asks authorize() for admin.plugins.enable on this works
 
 test("a route reached without a signed-in principal answers the opaque 500 and never inspects the source", async t => {
   const h = await boot(t, { principal: "none" });
-  assert.deepEqual(await read(await h.json("/preview", { source: { kind: "folder", path: "/srv/plugin" } })), { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } });
+  assertAdminResponse({ actual: await read(await h.json("/preview", { source: { kind: "folder", path: "/srv/plugin" } })), expected: { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } } });
   assert.deepEqual(h.authorizations, []);
   assert.deepEqual(h.calls, []);
 });

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { toAdminRedirectHitStatsResponse, type RedirectRouteRegistrar } from "#src/server/inbound/admin-http/http/redirects";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
@@ -43,8 +44,8 @@ export const registerAdminRedirectHitsRoute: RedirectRouteRegistrar = (app, deps
       const stats = await deps.redirectHitSink.getStats({ workspaceId: deps.workspaceId, redirectId: id });
       const effective = stats ?? { redirectId: id, workspaceId: deps.workspaceId, hitCount: 0, lastHitAt: undefined };
       res.json(toAdminRedirectHitStatsResponse(effective));
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/redirects/hits", code: "INTERNAL_ERROR" });
     }
   });
 };

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { getCommentsSettings } from "#src/features/comments/index";
@@ -37,8 +38,8 @@ export const registerAdminCommentsGetSettingsRoute = (app: Express, deps: Commen
 
       const settings = await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
       res.json({ data: settings });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/comments/get-settings", code: "INTERNAL_ERROR" });
     }
   });
 };

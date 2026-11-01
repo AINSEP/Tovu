@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -128,7 +129,7 @@ test("LIST_REDIRECTS route: 500 on unexpected repository error", async (t) => {
   const res = await fetch(`${baseUrl}${URL_BASE}`);
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
-  assert.equal(body.error, "internal error");
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
   assert.equal(body.code, "INTERNAL_ERROR");
 });
 

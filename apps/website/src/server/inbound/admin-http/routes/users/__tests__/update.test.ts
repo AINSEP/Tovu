@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -29,8 +30,8 @@ test("UPDATE_USER maps a missing host audit binding to 500 and leaves the userna
   res.locals.principal = { id: ownerId };
   await handler({ params: { workspaceId: WORKSPACE_ID, principalId: user.principalId }, body: { username: "after" } }, res);
   assert.equal(capture.statusCode, 500);
-  assert.deepEqual(capture.jsonBody, { error: "internal error" });
-  assert.deepEqual(await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: user.principalId }), user);
+  assertAdminResponse({ actual: capture.jsonBody, expected: { error: "internal error" } });
+  assertAdminResponse({ actual: await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: user.principalId }), expected: user });
 });
 
 function urlFor(principalId: string) {
@@ -264,7 +265,7 @@ test("UPDATE_USER route: 500 internal error when an unexpected error is thrown",
   });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assert.equal(body.error, "internal error");
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
 });
 
 test("UPDATE_USER route: 409 USER_IN_TRASH when the target is currently in the Trash — OWNER DECISION 2026-09-24", async (t) => {
@@ -285,7 +286,7 @@ test("UPDATE_USER route: 409 USER_IN_TRASH when the target is currently in the T
   const body = (await res.json()) as { code: string; error: string };
   assert.equal(body.code, "USER_IN_TRASH");
   assert.equal(body.error, "this user is in the Trash; restore them first");
-  assert.deepEqual(await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: target.id }), before);
+  assertAdminResponse({ actual: await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: target.id }), expected: before });
 });
 
 async function patchUsername(app: express.Express, callerId: string, principalId: string, body: unknown) {

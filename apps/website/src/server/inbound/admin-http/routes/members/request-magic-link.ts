@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { SenderIdentityNotConfiguredError } from "#src/platform/mail/index";
 import type { Response } from "express";
 
@@ -113,5 +114,5 @@ function sendMagicLinkError({ res, err }: { res: Response; err: unknown }, _opti
     res.status(400).json({ error: err.message });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/members/request-magic-link", code: "INTERNAL_ERROR" });
 }

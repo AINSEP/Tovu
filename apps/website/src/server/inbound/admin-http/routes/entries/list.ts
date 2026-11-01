@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { listEntries } from "#src/features/entries/index";
@@ -31,8 +32,7 @@ export function registerAdminEntryListRoute(app: Express, deps: ContentTypesRout
       const result = await listEntries({ repo: deps.entryRepo, workspaceId: deps.workspaceId }, { type });
       res.json(result);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "internal error";
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/entries/list", code: "INTERNAL_ERROR" });
     }
   });
 }

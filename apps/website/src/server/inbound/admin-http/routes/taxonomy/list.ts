@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { listTaxonomiesWithTerms } from "#src/features/taxonomy/index";
@@ -32,8 +33,7 @@ export function registerAdminTaxonomyListRoute(app: Express, deps: TaxonomyRoute
       const result = await listTaxonomiesWithTerms({ taxonomies: deps.taxonomyRepo, terms: deps.termRepo });
       res.json(result);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "internal error";
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/taxonomy/list", code: "INTERNAL_ERROR" });
     }
   });
 }

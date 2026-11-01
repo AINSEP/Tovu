@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { randomUUID } from "node:crypto";
 import type { Express, Response } from "express";
 import { ToolInputError } from "@jini-ai/core";
@@ -71,8 +72,8 @@ export function registerAdminMailTestSendRoute(app: Express, deps: AdminMailTest
         res.status(400).json({ error: err.message, code: "INVALID_INPUT" });
         return;
       }
-      console.error("[system/mail-test-send] unexpected error", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/mail-test-send", code: "INTERNAL_ERROR" });
     }
   });
 }

@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -35,19 +36,19 @@ const cases = [
 ];
 for (const { name, error, status, body } of cases) {
   test(`newsletter ${name} maps to its exact HTTP contract`, () => {
-    assert.deepEqual(newsletterErrorToResponse(error), { status, body });
+    assertAdminResponse({ actual: newsletterErrorToResponse(error), expected: { status, body } });
     const { res, capture } = createCapturingResponse();
     mapNewsletterErrorToResponse(error, res);
-    assert.deepEqual(capture, { statusCode: status, jsonBody: body });
+    assertAdminResponse({ actual: capture, expected: { statusCode: status, jsonBody: body } });
   });
 }
 
 test("unknown newsletter failures redact internal details, including non-Error throws", () => {
   for (const error of [new Error("secret /db/path"), { message: "secret", code: "NEWSLETTER_CONFLICT" }, null, "secret"]) {
-    assert.deepEqual(newsletterErrorToResponse(error), { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: newsletterErrorToResponse(error), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } });
     const { res, capture } = createCapturingResponse();
     mapNewsletterErrorToResponse(error, res);
-    assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
   }
 });
 

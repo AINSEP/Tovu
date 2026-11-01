@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import { test, mock } from 'node:test';
 import express from 'express';
@@ -30,7 +31,7 @@ for (const [error, status, body] of [
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: 'operator' };
     await extractRouteHandler(app, 'post', PATH)({ params: { workspaceId: 'ws' }, body: { email: ' Person@Example.com ', redirectPath: '/account' } }, res);
-    assert.deepEqual(capture, { statusCode: status, jsonBody: body });
+    assertAdminResponse({ actual: capture, expected: { statusCode: status, jsonBody: body } });
     assert.deepEqual(order, [
       { principalId: 'operator', permission: 'member.manage', workspaceId: 'ws', entityType: 'member' },
       { key: 'person@example.com' },

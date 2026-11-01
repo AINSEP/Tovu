@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { toAdminWorkspaceResponse } from "#src/server/inbound/admin-http/http/workspace";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -27,8 +28,8 @@ export const registerAdminWorkspaceListRoute: WorkspaceRouteRegistrar = (app, de
       // composition root seeds it before any request can be served) — not an expected runtime path.
       const workspaces = own ? [toAdminWorkspaceResponse(own)] : [];
       res.json({ workspaces });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/workspace/list", code: "INTERNAL_ERROR" });
     }
   });
 };

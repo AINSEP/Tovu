@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
@@ -49,9 +50,9 @@ for (const route of ROUTES) {
       error: `principal 'owner' is not authorized for '${permission}' (denied)`, code: "FORBIDDEN", details: { permission, reason: "denied" },
     } });
     const missingPrincipal = await fixture({ t }, { principal: false });
-    assert.deepEqual(await missingPrincipal.request(route), { status: 500, body: {
-      error: "getAuthedPrincipal: no principal on res.locals — requireAdminSession must run before this route",
-    } }); assert.deepEqual(missingPrincipal.permissions, []);
+    assertAdminResponse({ actual: await missingPrincipal.request(route), expected: { status: 500, body: {
+      error: route.suffix === "/home" ? "Could not save sites home." : "Could not read sites settings.", code: "INTERNAL_ERROR",
+    } } }); assert.deepEqual(missingPrincipal.permissions, []);
     const success = await fixture({ t });
     const body = route.suffix === "/home" ? { path: success.root } : {};
     assert.equal((await success.request({ ...route, body })).status, 200); assert.deepEqual(success.permissions, [permission]);
@@ -62,19 +63,20 @@ for (const route of ROUTES) {
 }
 
 for (const { label, error, readMessage, saveMessage, homeMessage } of [
-  { label: "Error", error: new Error("private failure detail"), readMessage: "private failure detail", saveMessage: "private failure detail", homeMessage: "private failure detail" },
+  // 500s are private and correlated; the 400 save refusal keeps its pre-existing diagnosis.
+  { label: "Error", error: new Error("private failure detail"), readMessage: "Could not read sites settings.", saveMessage: "private failure detail", homeMessage: "Could not save sites home." },
   { label: "opaque", error: "opaque", readMessage: "Could not read sites settings.", saveMessage: "Could not save sites settings.", homeMessage: "Could not save sites home." },
 ]) {
   test(`settings routes retain ${label} boundaries and fallback messages`, async (t) => {
     const read = await fixture({ t }, { workspaceOverrides: { config: () => { throw error; } } });
-    assert.deepEqual(await read.request({ method: "get" }), { status: 500, body: { error: readMessage } });
+    assertAdminResponse({ actual: await read.request({ method: "get" }), expected: { status: 500, body: { error: readMessage, code: "INTERNAL_ERROR" } } });
     const save = await fixture({ t }, { workspaceOverrides: { updateConfig: () => { throw error; } } });
     assert.deepEqual(await save.request(), { status: 400, body: { error: saveMessage } });
     const home = await fixture({ t }, { workspaceOverrides: { setHome: () => { throw error; } } });
-    assert.deepEqual(await home.request({ suffix: "/home", body: { path: home.root } }), { status: 500, body: { error: homeMessage } });
+    assertAdminResponse({ actual: await home.request({ suffix: "/home", body: { path: home.root } }), expected: { status: 500, body: { error: homeMessage, code: "INTERNAL_ERROR" } } });
     for (const route of ROUTES) {
       const auth = await fixture({ t }, { overrides: { authorize: async () => { throw error; } } });
-      assert.deepEqual(await auth.request(route), { status: 500, body: { error: route.suffix === "/home" ? homeMessage : readMessage } });
+      assertAdminResponse({ actual: await auth.request(route), expected: { status: 500, body: { error: route.suffix === "/home" ? homeMessage : readMessage, code: "INTERNAL_ERROR" } } });
     }
   });
 }
@@ -112,7 +114,7 @@ test("directory probe errors keep their original message or route-specific fallb
   }
 });
 
-test("settings expose raw Error details (reported, not fixed)", async (t) => {
+test("settings hide raw storage details behind a correlated error", async (t) => {
   const f = await fixture({ t }, { workspaceOverrides: { config: () => { throw new Error("private storage location"); } } });
-  assert.deepEqual(await f.request({ method: "get" }), { status: 500, body: { error: "private storage location" } });
+  assertAdminResponse({ actual: await f.request({ method: "get" }), expected: { status: 500, body: { error: "Could not read sites settings.", code: "INTERNAL_ERROR" } } });
 });

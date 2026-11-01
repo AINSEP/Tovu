@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Request, Response } from "express";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "../../dev-auth.js";
 import { authorizeOrRespond } from "../../authorize-guard.js";
@@ -42,9 +43,9 @@ export function registerAdminCredentialCopyRoutes({ app, deps }: { app: Express;
     try {
       if (await admitted({ req, res, deps })) await action(req, res);
     } catch (error) {
-      // Never serialize a driver/crypto exception or include it in a diagnostic log.
+      // Never serialize raw driver/crypto exceptions; logs receive only the shared redacted diagnostic.
       if (error instanceof LocalCredentialCopyError) res.status(409).json({ reasonCode: error.reasonCode, message: error.message });
-      else res.status(500).json({ reasonCode: "copy-failed", message: "Copying keys failed. Try again." });
+      else sendAdminFailure({ res, error }, { operation: "routes/system/credential-copy", code: "INTERNAL_ERROR", field: "message", message: "Copying keys failed. Try again.", details: { reasonCode: "copy-failed" } });
     }
   };
   app.get(BASE, handle(async (_req, res) => {

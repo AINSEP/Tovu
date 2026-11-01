@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Request, Response } from "express";
 
 import {
@@ -60,8 +61,8 @@ function sendError(res: Response, err: unknown): void {
     res.status(known[1]).json({ error: known[2], code: known[2] });
     return;
   }
-  console.error("[system/mail-providers] unexpected error");
-  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+
+  sendAdminFailure({ res, error: err }, { operation: "routes/system/mail-providers", code: "INTERNAL_ERROR" });
 }
 
 /** The body's credential parts; any non-string part is refused rather than coerced. */

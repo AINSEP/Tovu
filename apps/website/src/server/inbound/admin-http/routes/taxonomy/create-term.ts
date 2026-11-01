@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
@@ -25,7 +26,7 @@ function statusFor(err: unknown): { status: number; code: string; message: strin
   ) {
     return { status: 400, code: "VALIDATION_ERROR", message: err.message };
   }
-  return { status: 500, code: "INTERNAL_ERROR", message: err instanceof Error ? err.message : "internal error" };
+  return { status: 500, code: "INTERNAL_ERROR", message: "internal error" };
 }
 
 /**
@@ -66,6 +67,7 @@ export function registerAdminTaxonomyCreateTermRoute(app: Express, deps: Taxonom
       res.status(201).json({ term });
     } catch (err) {
       const { status, code, message } = statusFor(err);
+      if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
       res.status(status).json({ error: message, code });
     }
   });

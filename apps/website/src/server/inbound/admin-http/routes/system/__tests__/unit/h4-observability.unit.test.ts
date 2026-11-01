@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
@@ -22,7 +23,7 @@ for (const failure of [new Error('private exporter failure'), 'opaque exporter f
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: 'owner' };
     await extractRouteHandler(app, 'post', `${ROOT}/observability/test-error`)({ params: { workspaceId: 'ws' } }, res);
-    assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } });
+    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } } });
     assert.equal(reports.length, 1);
     const [{ error }, context] = reports[0] as [{ error: Error }, unknown];
     assert.equal(error.message, failure instanceof Error ? failure.message : 'telemetry test failed');
@@ -67,5 +68,5 @@ test('browser telemetry answers a fixed 500 if its limiter rejects, without forw
   res.locals.principal = { id: 'owner' };
   res.locals.authCredentialKind = 'session';
   await extractRouteHandler(app, 'post', '/api/admin/v1/telemetry')({ headers: {}, body: { type: 'pageview', route: '/admin' } }, res);
-  assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' } } });
 });

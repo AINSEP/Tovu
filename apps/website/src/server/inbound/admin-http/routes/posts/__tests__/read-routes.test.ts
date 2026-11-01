@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -57,11 +58,11 @@ test("post read routes: a repository failure is a generic 500 on both routes, ne
 
   const list = await get(`/api/admin/v1/workspaces/${WS}/posts`);
   assert.equal(list.status, 500);
-  assert.deepEqual(await list.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await list.json(), expected: { error: "internal error" } });
 
   const one = await get(`/api/admin/v1/workspaces/${WS}/posts/post-home`);
   assert.equal(one.status, 500);
-  assert.deepEqual(await one.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await one.json(), expected: { error: "internal error" } });
 });
 
 /** Express guarantees matched `:workspaceId`/`:postId` segments, so each `?? ""` fallback is only

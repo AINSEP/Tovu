@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -26,7 +27,7 @@ test('menu get: lookup failure is private, missing slug falls back to the unnorm
     findBySlug: async (input: unknown) => { lookups.push(input); return null; },
     findById: async (input: unknown) => { lookups.push(input); throw new Error('private storage details'); },
   } });
-  assert.deepEqual(await dispatchJsonRequest(app, 'GET', `${BASE}/menus/Menu-ID`), { status: 500, body: INTERNAL });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/menus/Menu-ID`), expected: { status: 500, body: INTERNAL } });
   assert.deepEqual(lookups, [{ workspaceId: WS, slug: 'menu-id' }, { workspaceId: WS, id: 'Menu-ID' }]);
 });
 

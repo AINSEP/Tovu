@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -74,5 +75,5 @@ test("test-connection answers an unexpected failure with a private 500, never th
   res.locals.principal = { id: "principal-test" };
   await run({ params: { workspaceId: "workspace-test" }, body: {} }, res);
   assert.equal(capture.statusCode, 500);
-  assert.deepEqual(capture.jsonBody, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: capture.jsonBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });

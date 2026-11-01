@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { getAdminPostByIdOrSlug, PostNotFoundError } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -85,7 +86,7 @@ export const registerAdminPageGetRoute: ContentRouteRegistrar = (app, deps) => {
         return;
       }
 
-      res.status(500).json({ error: "internal error" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/pages/get-by-id", code: "INTERNAL_ERROR" });
     }
   });
 };

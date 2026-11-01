@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Response } from 'express';
 import { DocumentTextExtractionError, MediaNotFoundError, MediaValidationError, readDocumentText } from '@jini-ai/cms/media';
 import { getAuthedPrincipal } from '#src/server/inbound/admin-http/dev-auth';
@@ -42,5 +43,6 @@ function sendTextReadFailure({ res, error }: { res: Response; error: unknown }):
   if (error instanceof MediaNotFoundError) status = 404;
   else if (error instanceof MediaValidationError) status = 400;
   else status = 500;
-  res.status(status).json({ error: status === 500 ? 'internal error' : (error as Error).message });
+  if (status === 500) { sendAdminFailure({ res, error }); return; }
+  res.status(status).json({ error: (error as Error).message });
 }

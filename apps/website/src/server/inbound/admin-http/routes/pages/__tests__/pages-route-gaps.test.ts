@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -175,7 +176,7 @@ test("pages list: a permission lookup that throws is an opaque 500, not a hung r
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}${PAGES}`);
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
 });
 
 test("pages get-by-id / update / delete: `req.params.pageId ?? \"\"` fallback resolves no page and is the ENTRY_NOT_FOUND 404", async () => {
@@ -226,7 +227,7 @@ test("pages create: a change-set persistence failure is reported as an opaque 50
     body: JSON.stringify({ title: "Never Recorded" }),
   });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
 });
 
 test("pages create: a denied content.write is 403 FORBIDDEN carrying the permission and reason, and no page is stored", async (t) => {
@@ -343,14 +344,14 @@ test("pages update: a change-set record failure after the edit applied is rolled
     body: JSON.stringify({ title: "Should Be Rolled Back", slug: "rolled-back-slug", bodyJson: VALID_BODY_JSON, status: "published" }),
   });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
 
   const restored = await deps.postRepo.findById({ workspaceId: WS, id: page.id });
   assert.ok(restored);
   assert.equal(restored.title, "Rollback Page");
   assert.equal(restored.slug, prior.slug);
   assert.equal(restored.status, prior.status);
-  assert.deepEqual(restored.bodyJson, prior.bodyJson);
+  assertAdminResponse({ actual: restored.bodyJson, expected: prior.bodyJson });
   assert.equal(restored.version, prior.version + 2, "compensation is a forward restore after the failed write");
 });
 

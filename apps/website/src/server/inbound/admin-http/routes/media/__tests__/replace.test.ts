@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
@@ -61,7 +62,7 @@ test('replace preserves identity/editorial metadata and atomically switches the 
   assert.equal(result.json.media.contentType, 'image/png');
   const renditions = await deps.assetRenditionRepo.listByAsset({ workspaceId: deps.workspaceId, assetId: media.id });
   assert.equal(renditions.length, 1); assert.equal(renditions[0].transformName, 'original');
-  assert.deepEqual(Buffer.from(await deps.blobStore.get({ storageKey: renditions[0].storageKey })), replacement);
+  assertAdminResponse({ actual: Buffer.from(await deps.blobStore.get({ storageKey: renditions[0].storageKey })), expected: replacement });
   assert.equal((await deps.mediaContentTypeStore.getMany({ workspaceId: deps.workspaceId, sha256s: [hash] })).get(hash), 'image/png');
   // Other assets may still reference the old content-addressed blob. Replacement never purges it.
   const oldBlob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: media.source.sha256 });
@@ -78,7 +79,7 @@ test('replace authorizes media.update for the exact entity before any file write
     details: { permission: 'media.update', reason: 'no_grant' },
   } });
   assert.deepEqual(seen, { principalId: 'u1', permission: 'media.update', workspaceId: deps.workspaceId, entityType: 'media', entityId: media.id });
-  assert.deepEqual(await deps.assetRenditionRepo.listByAsset({ workspaceId: deps.workspaceId, assetId: media.id }), before);
+  assertAdminResponse({ actual: await deps.assetRenditionRepo.listByAsset({ workspaceId: deps.workspaceId, assetId: media.id }), expected: before });
   assert.equal((await deps.assetBlobRepo.list({ workspaceId: deps.workspaceId })).length, 1);
 });
 
@@ -92,7 +93,7 @@ for (const [input, error] of [
   test(`replace refuses invalid upload: ${error}`, async t => {
     const { deps, media } = await fixture(t);
     assert.deepEqual(await invoke({ deps, id: media.id, input }), { status: 400, json: { error } });
-    assert.deepEqual(await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: media.id }), media);
+    assertAdminResponse({ actual: await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: media.id }), expected: media });
     assert.equal((await deps.assetBlobRepo.list({ workspaceId: deps.workspaceId })).length, 1);
   });
 }
@@ -102,7 +103,7 @@ test('replace enforces the host upload size cap before writing', async t => {
   const large = Buffer.alloc(TOVU_MAX_UPLOAD_BYTES + 1); Buffer.from(png, 'base64').copy(large);
   assert.deepEqual(await invoke({ deps, id: media.id, input: { ...body, dataBase64: large.toString('base64') } }),
     { status: 400, json: { error: 'uploaded file exceeds the 50 MB size cap' } });
-  assert.deepEqual(await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: media.id }), media);
+  assertAdminResponse({ actual: await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: media.id }), expected: media });
 });
 
 test('replace sanitizes SVG before switching its source and preserves the media identity', async t => {
@@ -146,7 +147,7 @@ test('replace reports the stored size of a sanitized SVG, and null when that siz
 test('replace fails closed on wrong workspace, missing principal, missing asset, trash and missing transaction capability', async t => {
   const { deps, media } = await fixture(t);
   assert.deepEqual(await invoke({ deps, id: media.id, workspaceId: 'other' }), { status: 404, json: { error: 'workspace was not found' } });
-  assert.deepEqual(await invoke({ deps, id: media.id, principal: false }), { status: 500, json: { error: 'internal error' } });
+  assertAdminResponse({ actual: await invoke({ deps, id: media.id, principal: false }), expected: { status: 500, json: { error: 'internal error' } } });
   assert.deepEqual(await invoke({ deps, id: 'missing' }), { status: 404, json: { error: "media 'missing' was not found" } });
   await deps.mediaRepo.save({ ...media, status: 'trashed' });
   assert.deepEqual(await invoke({ deps, id: media.id }), { status: 409, json: { error: 'trashed media cannot be replaced', code: 'ENTITY_IN_TRASH' } });
@@ -165,16 +166,16 @@ test('replace detects a concurrent edit without erasing metadata or previews', a
   };
   assert.deepEqual(await invoke({ deps, id: media.id }), { status: 409, json: { error: 'media changed while replacing its file', code: 'MEDIA_REPLACE_CONFLICT' } });
   assert.deepEqual(await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: media.id }), { ...media, title: 'concurrent edit', version: media.version + 1 });
-  assert.deepEqual(await deps.assetRenditionRepo.listByAsset({ workspaceId: deps.workspaceId, assetId: media.id }), before);
+  assertAdminResponse({ actual: await deps.assetRenditionRepo.listByAsset({ workspaceId: deps.workspaceId, assetId: media.id }), expected: before });
 });
 
 test('replace rolls back the source change and preview invalidation if the original rendition insert fails', async t => {
   const { deps, media, before } = await fixture(t);
   await deps.assetRenditionRepo.save({ ...before[0], id: 'occupied', assetId: 'another-asset' });
   deps.idGen = { newId: () => 'occupied' };
-  assert.deepEqual(await invoke({ deps, id: media.id }), { status: 500, json: { error: 'internal error' } });
-  assert.deepEqual(await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: media.id }), media);
-  assert.deepEqual(await deps.assetRenditionRepo.listByAsset({ workspaceId: deps.workspaceId, assetId: media.id }), before);
+  assertAdminResponse({ actual: await invoke({ deps, id: media.id }), expected: { status: 500, json: { error: 'internal error' } } });
+  assertAdminResponse({ actual: await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: media.id }), expected: media });
+  assertAdminResponse({ actual: await deps.assetRenditionRepo.listByAsset({ workspaceId: deps.workspaceId, assetId: media.id }), expected: before });
 });
 
 test('an old metadata draft cannot undo an already committed file replacement', async t => {

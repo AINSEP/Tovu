@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { listAdminPosts } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -29,8 +30,8 @@ export const registerAdminPostListRoute: ContentRouteRegistrar = (app, deps) => 
         input: { workspaceId: deps.workspaceId },
       });
       res.json({ posts: result.posts.map(toAdminPostResponse) });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/posts/list", code: "INTERNAL_ERROR" });
     }
   });
 };

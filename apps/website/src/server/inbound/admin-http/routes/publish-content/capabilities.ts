@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { buildPublishContentCatalog } from "#src/features/publish-content/type-registry";
 import { backstopGrantAllows, isBackstopEntityType } from "#src/features/publish-trust/grant";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -72,8 +73,8 @@ export const registerPublishContentCapabilitiesRoute: PublishContentRouteRegistr
       // — the same "older peer answers without a field it doesn't know" reading `entityTypes` itself
       // already relies on for a pre-S-F1 destination's plain 404.
       res.status(200).json({ entityTypes, schemaVersions, features: ["overwrite-live"] });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/publish-content/capabilities", code: "INTERNAL_ERROR" });
     }
   });
 };

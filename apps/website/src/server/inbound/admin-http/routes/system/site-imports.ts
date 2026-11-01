@@ -4,6 +4,7 @@ import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/i
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { parseSiteImportInput } from "#src/features/site-backup/import-backend";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { sendAdminFailure } from "./site-share-errors.js";
 
 type Deps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteImportBackend" | "tracker">;
 
@@ -25,14 +26,20 @@ export function registerAdminSiteImportRoutes(
   const root = "/api/admin/v1/workspaces/:workspaceId/site-imports";
   let uploadBusy = false;
   const fail = (res: Response, error: unknown) => {
-    const known = error instanceof SiteShareRefusal;
-    const tooLarge = (error as { type?: string })?.type === "entity.too.large";
-    const fallbackStatus = tooLarge ? 413 : 400;
-    const fallbackCode = tooLarge ? "LIMIT_EXCEEDED" : "IMPORT_FAILED";
-    const fallbackMessage = tooLarge ? "ZIP upload exceeds the 300 MiB cap." : "Import operation failed. No existing site was changed.";
-    res.status(known && error.code === "NOT_FOUND" ? 404 : fallbackStatus).json({
-      code: known ? error.code : fallbackCode, message: known ? error.message : fallbackMessage,
-    });
+    if (error instanceof SiteShareRefusal) {
+      res.status(error.code === "NOT_FOUND" ? 404 : 400).json({ code: error.code, message: error.message });
+      return;
+    }
+    const type = (error as { type?: string })?.type;
+    const tooLarge = type === "entity.too.large";
+    // Parser refusals are bad uploads; a backend failure is an internal incident, never a 400.
+    const refusedUpload = ["encoding.unsupported", "entity.parse.failed", "request.aborted", "request.size.invalid"].includes(type ?? "");
+    if (tooLarge || refusedUpload) {
+      res.status(tooLarge ? 413 : 400).json({ code: tooLarge ? "LIMIT_EXCEEDED" : "IMPORT_FAILED",
+        message: tooLarge ? "ZIP upload exceeds the 300 MiB cap." : "Import operation failed. No existing site was changed." });
+      return;
+    }
+    sendAdminFailure({ res, error, tracker: deps.tracker }, { operation: "site-import", code: "IMPORT_FAILED", message: "Import operation failed. No existing site was changed.", field: "message" });
   };
   const gate = async (req: Request, res: Response, permission: string) => {
     res.set({ "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer" });

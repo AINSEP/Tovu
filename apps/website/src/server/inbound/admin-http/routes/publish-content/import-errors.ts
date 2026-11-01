@@ -1,3 +1,4 @@
+import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { ForbiddenError, PlanStaleError } from "#src/contracts/core/gated-mutations/gateway";
 import { PluginHookFailedError } from "#src/contracts/core/plugin-hook-failed-error";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
@@ -26,7 +27,7 @@ export interface ImportErrorResponse {
  *
  * @complexity O(1).
  */
-export function importErrorResponse(err: unknown): ImportErrorResponse {
+export function importErrorResponse(err: unknown, options: AdminFailurePorts = {}): ImportErrorResponse {
   const error = err instanceof Error ? err.message : "internal error";
   if (err instanceof ForbiddenError) return { status: 403, body: { error, code: err.reasonCode } };
   if (err instanceof PlanStaleError) return { status: 409, body: { error, code: "PLAN_STALE" } };
@@ -37,7 +38,5 @@ export function importErrorResponse(err: unknown): ImportErrorResponse {
   // Same envelope as the posts routes' `sendPluginHookFailedError`, so a client tells a plugin's
   // refusal apart from any other internal error — and the same fixed text, never the plugin's own.
   if (err instanceof PluginHookFailedError) return { status: 500, body: pluginHookFailedBody(err) };
-  // eslint-disable-next-line no-console
-  console.error("[publish-content] import failed:", err);
-  return { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } };
+  return adminFailureResponse({ error: err, tracker: options.tracker }, { operation: "routes/publish-content/import-errors" });
 }

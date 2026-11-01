@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -233,9 +234,9 @@ test("delete that fails for a reason OTHER than ThemePathError 500s via the rout
   try {
     const res = await del(baseUrl, "plain", "pages/about.html");
     assert.equal(res.status, 500);
-    assert.deepEqual(await res.json(), { error: "internal error" });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
     assert.equal(failureReached, true);
-    assert.deepEqual(fs.readFileSync(target), originalBytes);
+    assertAdminResponse({ actual: fs.readFileSync(target), expected: originalBytes });
   } finally {
     injected.mock.restore();
     syncBuiltinESMExports();

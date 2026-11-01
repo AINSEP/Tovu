@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 /** Admin-only chart metadata and immutable bytes; installed/custom browser providers never enter this port. */
 import type { Express } from "express";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
@@ -26,16 +27,16 @@ export function registerChartProviderRoutes(
       if (!(await authorizeOrRespond(res, deps.authorize, { principalId: principal.id, permission: ADMIN_ASSISTANT_PERMISSION, workspaceId: deps.workspaceId }))) return;
       await Promise.all([deps.pluginRuntimeReady, deps.siteTitleReady]);
       next();
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/plugins/chart-providers", code: "INTERNAL_ERROR" });
     }
   });
   app.get(base, async (_req, res) => {
     try {
       const data = await deps.chartProviderSnapshot?.({}) ?? { generation: "core", siteProvider: "plugin.recharts", providers: [] };
       res.set("Cache-Control", "no-store").json({ data });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/plugins/chart-providers", code: "INTERNAL_ERROR" });
     }
   });
   app.get(`${base}/assets/:pluginId/:version/:digest/:asset`, (req, res) => {

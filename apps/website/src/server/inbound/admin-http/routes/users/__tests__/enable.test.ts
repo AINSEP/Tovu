@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -207,7 +208,7 @@ test("ENABLE_PRINCIPAL route: 500 internal error when an unexpected error is thr
   const res = await fetch(`${baseUrl}${urlFor("any-id")}`, { method: "POST" });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assert.equal(body.error, "internal error");
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
 });
 
 test("ENABLE_PRINCIPAL route: 409 USER_IN_TRASH when the target is currently in the Trash — OWNER DECISION 2026-09-24", async (t) => {
@@ -224,7 +225,7 @@ test("ENABLE_PRINCIPAL route: 409 USER_IN_TRASH when the target is currently in 
   const body = (await res.json()) as { code: string; error: string };
   assert.equal(body.code, "USER_IN_TRASH");
   assert.equal(body.error, "this user is in the Trash; restore them first");
-  assert.deepEqual(await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: targetId }), before);
+  assertAdminResponse({ actual: await deps.principalRepo.findById({ workspaceId: WORKSPACE_ID, id: targetId }), expected: before });
 });
 
 // Pin the route's complete error envelope independently of domain transition preconditions.
@@ -245,7 +246,7 @@ for (const { error, status, body } of [
     res.locals.principal = { id: ownerId };
     await handler({ params: { workspaceId: WORKSPACE_ID, principalId: "target" } }, res);
     assert.equal(capture.statusCode, status);
-    assert.deepEqual(capture.jsonBody, body);
+    assertAdminResponse({ actual: capture.jsonBody, expected: body });
   });
 }
 

@@ -1,3 +1,4 @@
+import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import type { AuthorizeFn } from "@jini-ai/cms/core";
@@ -154,11 +155,11 @@ const WIDGET_ERROR_MAPPERS: ReadonlyArray<
  * review fix, 2026-07-21, Finding D) that needs to merge extra fields into the body before sending,
  * since a `Response` can only be finalized once.
  */
-export function widgetErrorToResponse(err: unknown): WidgetErrorResponse {
+export function widgetErrorToResponse(err: unknown, options: AdminFailurePorts = {}): WidgetErrorResponse {
   for (const [ErrorClass, mapper] of WIDGET_ERROR_MAPPERS) {
     if (err instanceof ErrorClass) return mapper(err as never);
   }
-  return { status: 500, body: { error: "internal error" } };
+  return adminFailureResponse({ error: err, tracker: options.tracker }, { operation: "http/widgets" });
 }
 
 /**
@@ -167,16 +168,6 @@ export function widgetErrorToResponse(err: unknown): WidgetErrorResponse {
  * function never throws.
  */
 export function mapWidgetErrorToResponse(err: unknown, res: Response): void {
-  const { status, body } = widgetErrorToResponse(err);
-  // Every branch in `widgetErrorToResponse` above is a KNOWN, typed domain error and self-documents
-  // via its own `code`. Anything that falls through to the generic 500 is, by definition, something
-  // this mapping doesn't recognize — worth a server-side trace on its own, since the client only
-  // ever sees `{error: "internal error"}` with no detail. This started as a TEMP-DIAGNOSTIC line
-  // (2026-08-03) while chasing a real bug that reached exactly this branch with zero trace anywhere
-  // else in the request path (see `ADS-memory/.local-artifacts/agent-reports/
-  // 20260803-widget-delete-outbox-bug.md`); promoted to permanent since the same blind spot would
-  // recur for the next unrecognized error otherwise.
-  // Only the fallback has no `code` (a mapped 500, the plugin hook refusal, is recognized).
-  if (status === 500 && body.code === undefined) console.error("[widgets] unrecognized error reaching mapWidgetErrorToResponse:", err);
+  const { status, body } = widgetErrorToResponse(err, { tracker: res.locals?.adminFailureTracker });
   res.status(status).json(body);
 }

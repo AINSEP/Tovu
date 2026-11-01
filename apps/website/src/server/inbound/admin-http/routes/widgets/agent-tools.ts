@@ -246,7 +246,7 @@ const registerCreateTool: RouteRegistrar = (app, deps) => {
         // (especially a retrying AI agent) sees only an error, has no way to know the instance
         // already exists, and mints a duplicate via a second `widgets.create` call instead of
         // retrying placement with `widgets.place`.
-        const { status, body: errorBody } = widgetErrorToResponse(placeErr);
+        const { status, body: errorBody } = widgetErrorToResponse(placeErr, { tracker: res.locals?.adminFailureTracker });
         res.status(status).json({ tool: "widgets.create", widget: toAdminWidgetResponse(instance).widget, placementFailed: true, ...errorBody });
       }
     } catch (err) {

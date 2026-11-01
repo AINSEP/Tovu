@@ -1,3 +1,4 @@
+import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
@@ -301,12 +302,11 @@ test("AGENT_PLUGIN_INSTALL_ZIP: a host layout failure returns a redacted interna
   const archive = await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]);
   const response = await upload(baseUrl, cookie, archive);
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { code: "INTERNAL_ERROR", error: "internal error" });
+  assertAdminResponse({ actual: await response.json(), expected: { code: "INTERNAL_ERROR", error: "internal error" } });
   assert.equal(fault.mock.callCount(), 1);
   // Redacted for the client, so the operator's log is the only place the cause survives.
   assert.equal(logged.mock.callCount(), 1);
-  assert.equal(logged.mock.calls[0]!.arguments[0], "[agent-plugins] install/update request failed");
-  assert.match(String((logged.mock.calls[0]!.arguments[1] as Error).message), /private \/secret\/layout/);
+  assertAdminDiagnostics({ calls: logged.mock.calls.map(c => c.arguments), operation: "[routes/agent-plugins/install-response]", diagnostics: [/private \/secret\/layout/] });
 });
 
 for (const oversized of ["file", "entries"] as const) {
@@ -366,7 +366,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: a missing expectedSha256 is a validation error",
   const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
   const response = await post(baseUrl, cookie, "");
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), DIGEST_MESSAGE);
+  assertAdminResponse({ actual: await response.json(), expected: DIGEST_MESSAGE });
 });
 
 test("AGENT_PLUGIN_INSTALL_ZIP: a repeated expectedSha256 is a validation error", async (t) => {
@@ -374,14 +374,14 @@ test("AGENT_PLUGIN_INSTALL_ZIP: a repeated expectedSha256 is a validation error"
   const digest = "a".repeat(64);
   const response = await post(baseUrl, cookie, `?expectedSha256=${digest}&expectedSha256=${digest}`);
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), DIGEST_MESSAGE);
+  assertAdminResponse({ actual: await response.json(), expected: DIGEST_MESSAGE });
 });
 
 test("AGENT_PLUGIN_INSTALL_ZIP: an uppercase expectedSha256 is a validation error", async (t) => {
   const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
   const response = await post(baseUrl, cookie, `?expectedSha256=${"A".repeat(64)}`);
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), DIGEST_MESSAGE);
+  assertAdminResponse({ actual: await response.json(), expected: DIGEST_MESSAGE });
 });
 
 test("AGENT_PLUGIN_INSTALL_ZIP: permission is checked before any input validation", async (t) => {
@@ -397,7 +397,7 @@ test("AGENT_PLUGIN_INSTALL_ZIP: the digest is checked before the content type", 
   const { baseUrl, cookie } = await bootAuthenticated(buildTestApp(), t);
   const response = await post(baseUrl, cookie, "?expectedSha256=bad", { contentType: "text/plain" });
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), DIGEST_MESSAGE);
+  assertAdminResponse({ actual: await response.json(), expected: DIGEST_MESSAGE });
 });
 
 test("AGENT_PLUGIN_INSTALL_ZIP: the content type is checked before replace", async (t) => {
@@ -552,7 +552,7 @@ test("AGENT_PLUGIN_UPDATE_ZIP: the upload digest is still checked like an instal
     const next = await buildZipFixture([{ path: "plugin.json", content: manifest("1.1.0") }]);
     const malformed = await postUpdate(baseUrl, cookie, next, { expectedOldDigest: digest, expectedSha256: "nope" });
     assert.equal(malformed.status, 400);
-    assert.deepEqual(await malformed.json(), DIGEST_MESSAGE);
+    assertAdminResponse({ actual: await malformed.json(), expected: DIGEST_MESSAGE });
     const damaged = await postUpdate(baseUrl, cookie, next, { expectedOldDigest: digest, expectedSha256: "b".repeat(64) });
     assert.equal(damaged.status, 400);
     assert.equal(((await damaged.json()) as { code: string }).code, "AGENT_PLUGIN_DIGEST_MISMATCH");
@@ -580,7 +580,7 @@ test("AGENT_PLUGIN_UPDATE_ZIP: a host without the settings snapshot owner answer
     const digest = await installedDigest(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.0.0") }]));
     const response = await postUpdate(baseUrl, cookie, await buildZipFixture([{ path: "plugin.json", content: manifest("1.1.0") }]), { expectedOldDigest: digest });
     assert.equal(response.status, 500);
-    assert.deepEqual(await response.json(), { code: "INTERNAL_ERROR", error: "internal error" });
+    assertAdminResponse({ actual: await response.json(), expected: { code: "INTERNAL_ERROR", error: "internal error" } });
     assert.equal((await loadAgentPluginSearchCandidates(deps)).find((entry) => entry.pluginId === PLUGIN_ID)?.archiveDigest, digest);
   });
 });

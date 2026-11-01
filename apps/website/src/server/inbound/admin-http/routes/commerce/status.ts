@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { readCommerceStatus } from "@jini-ai/commerce";
@@ -55,9 +56,9 @@ export function registerAdminCommerceStatusRoute(
           resolvePaymentRuntime: () => deps.lipay ?? null,
         })
       );
-    } catch {
+    } catch (error) {
       // Adapter exceptions may contain secrets; return only the fixed error response.
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error }, { operation: "routes/commerce/status", code: "INTERNAL_ERROR" });
     }
   });
 }

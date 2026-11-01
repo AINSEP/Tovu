@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { MemberNotFoundError } from "#src/features/members/index";
 import { toAdminMemberResponse } from "#src/server/inbound/admin-http/http/members";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -61,7 +62,7 @@ export const registerAdminMemberGetRoute: RouteRegistrar = (app, routeDeps) => {
         return;
       }
 
-      res.status(500).json({ error: "internal error" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/members/get-by-id", code: "INTERNAL_ERROR" });
     }
   });
 };

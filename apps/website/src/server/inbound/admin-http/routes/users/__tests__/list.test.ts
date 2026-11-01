@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -196,7 +197,7 @@ test("LIST_USERS route: 500 internal error when an unexpected error is thrown", 
   const res = await fetch(`${baseUrl}${URL_BASE}`);
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assert.equal(body.error, "internal error");
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
 });
 
 test("LIST_USERS route: a trashed (disabled + indexed) user is dropped from the list — OWNER DECISION 2026-09-24", async (t) => {

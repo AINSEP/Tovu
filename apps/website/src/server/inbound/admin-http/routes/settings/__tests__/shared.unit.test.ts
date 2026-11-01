@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -100,5 +101,5 @@ test("respondToSettingsError: an unmapped error is a fixed 500 that never echoes
     { matches: (e) => e instanceof FirstError, status: 404, code: "FIRST" },
   ]);
   assert.equal(capture.statusCode, 500);
-  assert.deepEqual(capture.jsonBody, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: capture.jsonBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });

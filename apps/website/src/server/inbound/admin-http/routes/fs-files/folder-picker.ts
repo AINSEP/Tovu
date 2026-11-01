@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Request, Response } from "express";
 
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -57,9 +58,9 @@ export function registerAdminFsFilesFolderPickerRoutes({ app, deps }: { app: Exp
     picking = true;
     try {
       res.json({ path: await deps.folderPicker.pick() });
-    } catch {
+    } catch (error) {
       // Never echo the chooser's stderr: it can carry local paths and account names.
-      res.status(500).json({ reasonCode: "picker-failed" });
+      sendAdminFailure({ res, error }, { operation: "routes/fs-files/folder-picker", code: "INTERNAL_ERROR", details: { reasonCode: "picker-failed" } });
     } finally {
       picking = false;
     }

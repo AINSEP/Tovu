@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
@@ -44,8 +45,8 @@ export function registerAdminTaxonomyCreateRoute(app: Express, deps: TaxonomyRou
         res.status(403).json({ error: err.message, code: "FORBIDDEN" });
         return;
       }
-      const message = err instanceof Error ? err.message : "internal error";
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+
+      sendAdminFailure({ res, error: err }, { operation: "routes/taxonomy/create-taxonomy", code: "INTERNAL_ERROR" });
     }
   });
 }

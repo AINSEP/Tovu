@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 /**
  * @file `GET /api/admin/v1/workspaces/:ws/themes/:themeId/preview` — a Themes card's picture of the
  * theme's OWN render.
@@ -123,8 +124,7 @@ export function registerAdminThemePreviewRoute(
       if (fallback === null) { res.status(404).json({ code: "THEME_PREVIEW_NOT_FOUND", error: "no preview" }); return; }
       res.redirect(302, fallback);
     } catch (err) {
-      console.error("[themes] unexpected error serving a theme preview", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/themes/preview", code: "INTERNAL_ERROR" });
     }
   });
 }

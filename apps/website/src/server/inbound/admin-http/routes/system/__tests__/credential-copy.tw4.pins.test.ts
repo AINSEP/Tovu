@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -91,7 +92,7 @@ test("a transfer refusal is a 409 carrying its own reason, and any other failure
   });
   const crashed = fixture();
   crashed.deps.localCredentialCopy.list = async () => { throw new Error("sqlite: cannot open /private/source/vault.db with key material"); };
-  assert.deepEqual(await crashed.request({ method: "get" }), {
-    statusCode: 500, jsonBody: { reasonCode: "copy-failed", message: "Copying keys failed. Try again." },
-  });
+  assertAdminResponse({ actual: await crashed.request({ method: "get" }), expected: {
+    statusCode: 500, jsonBody: { reasonCode: "copy-failed", code: "INTERNAL_ERROR", message: "Copying keys failed. Try again." },
+  } });
 });

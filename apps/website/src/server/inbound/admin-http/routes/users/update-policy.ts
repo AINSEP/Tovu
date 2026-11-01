@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError } from "@jini-ai/user-management";
@@ -30,7 +31,7 @@ function sendPolicyUpdateError(res: Response, err: unknown): void {
     res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/users/update-policy", code: "INTERNAL_ERROR" });
 }
 
 /**

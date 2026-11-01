@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { trashMember, MemberConflictError, MemberNotFoundError, MemberValidationError } from "#src/features/members/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -25,7 +26,7 @@ export const registerAdminMemberDeleteRoute: RouteRegistrar = (app, routeDeps) =
       if (error instanceof MemberNotFoundError) { res.status(404).json({ error: error.message }); return; }
       if (error instanceof MemberConflictError) { res.status(409).json({ error: error.message }); return; }
       if (error instanceof MemberValidationError) { res.status(400).json({ error: error.message }); return; }
-      res.status(500).json({ error: "internal error" });
+      sendAdminFailure({ res, error }, { operation: "routes/members/delete", code: "INTERNAL_ERROR" });
     }
   });
 };

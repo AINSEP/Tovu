@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 /** Admin Sites card previews: which running sites can be captured, and the image route.
  * The capture policy lives in `features/sites/site-preview/site-preview-service.ts`. */
 import type { Express, Request } from "express";
@@ -70,8 +71,7 @@ export function registerSitePreviewRoutes({ app, deps }: { app: Express; deps: S
         "X-Content-Type-Options": "nosniff",
       }).send(bytes);
     } catch (err) {
-      console.error("[system/sites] unexpected error reading a site preview", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/sites/site-previews", code: "INTERNAL_ERROR" });
     }
   });
 }

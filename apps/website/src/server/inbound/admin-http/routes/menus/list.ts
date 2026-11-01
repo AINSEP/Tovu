@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { toAdminMenuListResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
@@ -41,8 +42,8 @@ export const registerAdminMenuListRoute: MenuRouteRegistrar = (app, deps) => {
 
       const menus = await deps.menuRepo.list({ workspaceId: deps.workspaceId });
       res.json(toAdminMenuListResponse(menus));
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/menus/list", code: "INTERNAL_ERROR" });
     }
   });
 };

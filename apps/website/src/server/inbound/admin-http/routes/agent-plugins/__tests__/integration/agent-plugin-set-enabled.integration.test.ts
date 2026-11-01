@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createNoopObservabilityPort, createNoopTracker } from "@jini-ai/diagnostics/observability";
@@ -261,7 +262,7 @@ test("AGENT_PLUGIN_SET_ENABLED: an uninstalled plugin is 404 even when the activ
       error: "agent plugin 'never-installed' is not installed in this workspace",
       code: "AGENT_PLUGIN_NOT_FOUND",
     });
-    assert.deepEqual(await readAgentPluginActivations({ workspaceRoot }), before);
+    assertAdminResponse({ actual: await readAgentPluginActivations({ workspaceRoot }), expected: before });
   });
 });
 
@@ -431,7 +432,7 @@ test("AGENT_PLUGIN_SET_ENABLED: disabling a plugin never touches its already-fed
     const rowsAfterDisable = await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A);
     const rowAfterDisable = rowsAfterDisable.find((row) => row.label?.startsWith("higgsfield-fixture"));
     assert.ok(rowAfterDisable, "the row must still exist — disabling a plugin never deletes its federated row");
-    assert.deepEqual(rowAfterDisable, rowBeforeDisable, "disabling must leave the row byte-identical, not merely still present");
+    assertAdminResponse({ actual: rowAfterDisable, expected: rowBeforeDisable }, { message: "disabling must leave the row byte-identical, not merely still present" });
   });
 });
 
@@ -508,7 +509,7 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling adopts an operator's pre-existing row a
     assert.deepEqual(JSON.parse(row?.allowedToolNames ?? "[]"), ["generate_image"]);
     assert.deepEqual(JSON.parse(row?.writeAllowedToolNames ?? "[]"), ["generate_image"]);
     assert.equal(row?.provisionedByPluginId, "higgsfield-fixture", "the association is recorded even though the row itself was untouched");
-    assert.deepEqual({ ...row, provisionedByPluginId: before.provisionedByPluginId }, before);
+    assertAdminResponse({ actual: { ...row, provisionedByPluginId: before.provisionedByPluginId }, expected: before });
   });
 });
 
@@ -541,8 +542,8 @@ test("AGENT_PLUGIN_SET_ENABLED: a signed-in principal without enable permission 
     const body = await res.json();
     assert.equal(body.code, "FORBIDDEN");
     assert.equal(body.details.permission, "admin.plugins.enable");
-    assert.deepEqual(await readAgentPluginActivations({ workspaceRoot: workspaceRoot }), before);
-    assert.deepEqual(await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A), mcpBefore);
+    assertAdminResponse({ actual: await readAgentPluginActivations({ workspaceRoot: workspaceRoot }), expected: before });
+    assertAdminResponse({ actual: await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A), expected: mcpBefore });
   });
 });
 
@@ -561,7 +562,7 @@ test("AGENT_PLUGIN_SET_ENABLED: an MCP-store failure preserves the successful ac
     assert.equal((await res.json()).agentPlugin.enabled, true);
     assert.equal(attempts, 1, "the declared server must reach the failing provisioning boundary");
     assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins["mcp-failure-fixture"]?.enabled, true);
-    assert.deepEqual(await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A), before);
+    assertAdminResponse({ actual: await baseDeps.externalMcpServerRepo.listByWorkspaceId(WORKSPACE_A), expected: before });
   });
 });
 
@@ -575,7 +576,7 @@ for (const failure of [new Error("private activation failure"), "private activat
       const { baseUrl, cookie } = await bootAuthenticated(app, t);
       const response = await patch(baseUrl, cookie, "site-compliance", { enabled: false });
       assert.equal(response.status, 500);
-      assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+      assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
       assert.equal(writes, 1);
     });
   });
@@ -593,7 +594,7 @@ test("AGENT_PLUGIN_SET_ENABLED: a package removed after discovery is still a 404
     const response = await patch(baseUrl, cookie, "site-compliance", { enabled: false });
     assert.equal(response.status, 404);
     assert.deepEqual(await response.json(), { error: "agent plugin 'site-compliance' is not installed in this workspace", code: "AGENT_PLUGIN_NOT_FOUND" });
-    assert.deepEqual(await readAgentPluginActivations({ workspaceRoot }), before);
+    assertAdminResponse({ actual: await readAgentPluginActivations({ workspaceRoot }), expected: before });
   });
 });
 

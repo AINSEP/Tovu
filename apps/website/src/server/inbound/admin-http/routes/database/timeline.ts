@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { ToolInputError } from "@jini-ai/core";
 import type { Express, Response } from "express";
 
@@ -30,8 +31,9 @@ function parseTimelineFilter(query: Record<string, unknown>) {
  *  @complexity O(1). */
 function sendTimelineError(res: Response, err: unknown): void {
   const isValidationError = err instanceof ToolInputError || (err instanceof Error && err.name === "TimelineValidationError");
-  const message = err instanceof Error ? err.message : "internal error";
-  res.status(isValidationError ? 400 : 500).json({
+  if (!isValidationError) { sendAdminFailure({ res, error: err }); return; }
+  const message = err instanceof Error ? err.message : "Invalid timeline query.";
+  res.status(400).json({
     error: message,
     code: isValidationError ? "VALIDATION_ERROR" : "INTERNAL_ERROR",
   });

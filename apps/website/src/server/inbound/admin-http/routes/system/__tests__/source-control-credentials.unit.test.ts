@@ -1,3 +1,4 @@
+import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { portFake, type PortFake } from "#src/server/__tests__/helpers/port-fake";
@@ -66,16 +67,16 @@ test("providers list optional credential/i18n fields only when declared, names s
   assert.deepEqual(warned, ["[source-control-providers] plugin 'broken' refused: bad manifest"]);
 });
 
-test("unexpected store or loader failures answer a generic 500 and log without the detail", async (t) => {
-  const logged: unknown[] = [];
-  t.mock.method(console, "error", (message: unknown) => { logged.push(message); });
+test("unexpected store or loader failures answer a private 500 and log a correlated diagnostic", async (t) => {
+  const logged: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
   const invoke = harness();
-  assert.deepEqual(await invoke("get", PROVIDERS), internal);
-  assert.deepEqual(await invoke("get", BASE), internal);
-  assert.deepEqual(await invoke("post", BASE, { body: { label: "valid", connection: { providerId: "example-git", token: "fixture-secret" } } }), internal);
-  assert.deepEqual(await invoke("put", `${BASE}/:id`, { body: { isDefault: true } }), internal);
-  assert.deepEqual(await invoke("delete", `${BASE}/:id`), internal);
-  assert.deepEqual(logged, Array(5).fill("[source-control-credentials] unexpected store error"));
+  assertAdminResponse({ actual: await invoke("get", PROVIDERS), expected: internal });
+  assertAdminResponse({ actual: await invoke("get", BASE), expected: internal });
+  assertAdminResponse({ actual: await invoke("post", BASE, { body: { label: "valid", connection: { providerId: "example-git", token: "fixture-secret" } } }), expected: internal });
+  assertAdminResponse({ actual: await invoke("put", `${BASE}/:id`, { body: { isDefault: true } }), expected: internal });
+  assertAdminResponse({ actual: await invoke("delete", `${BASE}/:id`), expected: internal });
+  assertAdminDiagnostics({ calls: logged, operation: "[routes/system/source-control-credentials]", diagnostics: Array(5).fill(/SECRET repo detail/) });
 });
 
 test("an absent request body is read as {} on create (validation 400) and update (not-found 404)", async () => {
@@ -116,7 +117,7 @@ test('new credentials use neutral declared fields; unlisted saved rows remain vi
   const before = await repo.vault!.find({ workspaceId: 'ws-1', id: 'cred-1' });
   const renamed = await invoke('put', `${BASE}/:id`, { params: { workspaceId: 'ws-1', id: 'cred-1' }, body: { label: 'retained', connection: { providerId: 'example-paired', token: '' }, isDefault: true } });
   assert.equal(renamed.statusCode, 200);
-  assert.deepEqual((await repo.vault!.find({ workspaceId: 'ws-1', id: 'cred-1' }))?.sealed, before?.sealed);
+  assertAdminResponse({ actual: (await repo.vault!.find({ workspaceId: 'ws-1', id: 'cred-1' }))?.sealed, expected: before?.sealed });
   const refused = await invoke('post', BASE, { body: input });
   assert.equal(refused.statusCode, 400);
   assert.equal(JSON.stringify(listed).includes('operator'), false);

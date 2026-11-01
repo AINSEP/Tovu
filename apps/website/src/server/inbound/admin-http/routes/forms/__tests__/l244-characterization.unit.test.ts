@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -43,7 +44,7 @@ for (const body of [undefined, null, {}, { name: 7, fields: {}, ignored: true }]
     const result = await invoke({ register: registerAdminFormsAuthoringRoute, deps,
       params: { workspaceId: WS, formId: definition.id }, body });
     assert.equal(result.status, 200);
-    assert.deepEqual(await deps.formDefinitionRepo.findById({ workspaceId: WS, id: definition.id }), before);
+    assertAdminResponse({ actual: await deps.formDefinitionRepo.findById({ workspaceId: WS, id: definition.id }), expected: before });
   });
 }
 
@@ -66,8 +67,8 @@ test(`L244 authoring: supplied builder values and key ${JSON.stringify(key)} rea
   assert.equal(result.status, 200);
   const saved = await deps.formDefinitionRepo.findById({ workspaceId: WS, id: definition.id });
   assert.equal(saved?.name, 'Feedback');
-  assert.deepEqual(saved?.fields, updatedFields);
-  assert.deepEqual(saved?.notify, notify);
+  assertAdminResponse({ actual: saved?.fields, expected: updatedFields });
+  assertAdminResponse({ actual: saved?.notify, expected: notify });
   assert.deepEqual(keys, [key || undefined]);
 });
 }
@@ -143,6 +144,6 @@ for (const register of [registerAdminFormsAuthoringRoute, registerAdminFormsDele
     const { deps } = fixture(() => {});
     const result = await invoke({ register, deps: { ...deps, authorize: async () => { throw new Error('private'); } },
       params: { workspaceId: WS, formId: 'form', submissionId: 'sub' } });
-    assert.deepEqual(result, { status: 500, body: { error: 'internal error', code: 'INTERNAL_ERROR' }, ended: false });
+    assertAdminResponse({ actual: result, expected: { status: 500, body: { error: 'internal error', code: 'INTERNAL_ERROR' }, ended: false } });
   });
 }

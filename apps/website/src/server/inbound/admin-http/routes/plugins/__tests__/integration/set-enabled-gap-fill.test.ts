@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
@@ -216,7 +217,7 @@ test("set-enabled: a record-persistence failure AFTER a successful first-time en
     body: JSON.stringify({ enabled: true }),
   });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 
   // rollbackPluginActivation: no priorActivation existed -> the row this request just wrote is
   // deleted, and the compensating side effect is onPluginDisabled (priorActivation?.enabled is

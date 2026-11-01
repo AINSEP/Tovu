@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -58,8 +59,8 @@ export function registerAdminDatabaseSchemaStateRoute(app: Express, deps: Databa
     } catch (err) {
       // No `status` field on this envelope, deliberately: a caller that cannot read a status must
       // see the read FAIL, not receive a clean-looking one. See this file's header.
-      const message = err instanceof Error ? err.message : "internal error";
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+
+      sendAdminFailure({ res, error: err }, { operation: "routes/database/schema-state", code: "INTERNAL_ERROR" });
     }
   });
 }

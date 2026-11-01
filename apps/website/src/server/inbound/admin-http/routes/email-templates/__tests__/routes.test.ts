@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
@@ -129,7 +130,7 @@ test("trash between a successful lookup and real Pages store access returns not-
 
 test("an unexpected listing failure is a bare 500", async (t) => {
   const broken = await boot(t, { override: { postRepo: { listHtmlByKind: async () => { throw new Error("disk"); } } as never } });
-  assert.deepEqual(await broken.send("GET", BASE), { status: 500, json: { error: "internal error" } });
+  assertAdminResponse({ actual: await broken.send("GET", BASE), expected: { status: 500, json: { error: "internal error" } } });
 });
 
 test("PATCH renames behind pages.edit_html: the title changes, the HTML does not, a stale version is 409", async (t) => {

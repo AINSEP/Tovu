@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -65,5 +66,5 @@ test("upload: an unexpected persistence error remains a redacted 500", async () 
   const base = createRouteDeps();
   base.mediaRepo.save = async () => { throw new Error("private database details"); };
   const action = uploadAction({ deps: { ...base, authorize: async () => ({ allowed: true, reason: "matched" }) } });
-  assert.deepEqual(await action(), { status: 500, body: { error: "internal error" } });
+  assertAdminResponse({ actual: await action(), expected: { status: 500, body: { error: "internal error" } } });
 });

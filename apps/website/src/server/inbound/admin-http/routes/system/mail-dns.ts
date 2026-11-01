@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Request, Response } from "express";
 
 import { mailDnsPorts, readMailDnsStatus, verifyMailDnsStatus, type DnsChangeToolDeps, type MailDnsStatus } from "#src/features/domain-dns/index";
@@ -38,8 +39,7 @@ function handler(deps: AdminMailDnsDeps, permission: string, operation: Operatio
       }
       res.status(200).json(await operation({}, mailDnsPorts(deps.dns)));
     } catch (err) {
-      console.error("[system/mail-dns] unexpected error", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/mail-dns", code: "INTERNAL_ERROR" });
     }
   };
 }

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { toChangeSetHeaderResponse } from "#src/server/inbound/admin-http/http/change-sets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -33,8 +34,8 @@ export const registerAdminChangeSetListRoute: ContentRouteRegistrar = (app, deps
 
       const changeSets = await deps.changeSets.listByWorkspace({ workspaceId: deps.workspaceId });
       res.json({ changeSets: changeSets.map(toChangeSetHeaderResponse) });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/change-sets/list", code: "INTERNAL_ERROR" });
     }
   });
 };

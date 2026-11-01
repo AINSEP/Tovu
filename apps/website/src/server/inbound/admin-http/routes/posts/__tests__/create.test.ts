@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -77,7 +78,7 @@ test("create post: an unexpected repository failure is a generic 500 that leaks 
   };
   const res = await create({ title: "Boom" });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
 });
 
 test("create post: a body without a title creates an \"Untitled\" draft (the route's `?? \"\"` default, then createPost's own), not a 400", async (t) => {

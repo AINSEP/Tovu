@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -62,7 +63,7 @@ test("permission removal hides storage failures, retains the row on failure, and
     await handler({ params: { workspaceId: deps.workspaceId, policyId: policy.id, policyPermissionId: permission.id } }, res);
     return capture;
   };
-  assert.deepEqual(await invoke(), { statusCode: 500, jsonBody: { error: "internal error" } });
+  assertAdminResponse({ actual: await invoke(), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
   assert.deepEqual(await read(), [permission]);
   assert.deepEqual(await invoke(), { statusCode: 204, jsonBody: undefined });
   assert.deepEqual(sentBodies, [undefined]);
@@ -71,5 +72,5 @@ test("permission removal hides storage failures, retains the row on failure, and
     { workspaceId: deps.workspaceId, id: "b07-permission" },
     { workspaceId: deps.workspaceId, id: "b07-permission" },
   ]);
-  assert.deepEqual(await deps.policyRepo.findById({ workspaceId: deps.workspaceId, id: policy.id }), policy);
+  assertAdminResponse({ actual: await deps.policyRepo.findById({ workspaceId: deps.workspaceId, id: policy.id }), expected: policy });
 });

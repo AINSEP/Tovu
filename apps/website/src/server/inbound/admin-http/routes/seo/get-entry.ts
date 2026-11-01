@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { getEntryMeta, SeoEntryNotFoundError } from "@jini-ai/cms/seo";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { withContentImageSource, withCoverReadDeps } from "#src/features/seo/index";
@@ -45,7 +46,7 @@ export const registerAdminSeoGetEntryRoute: SeoRouteRegistrar = (app, deps) => {
         res.status(404).json({ error: err.message, code: "SEO_ENTRY_NOT_FOUND" });
         return;
       }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/seo/get-entry", code: "INTERNAL_ERROR" });
     }
   });
 };

@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
@@ -23,7 +24,7 @@ for (const [failure, status, body] of [
     const headers: Record<string, string> = {};
     res.set = ((key: string, value: string) => { headers[key] = value; return res; }) as typeof res.set;
     await extractRouteHandler(app, 'get', PATH)({ params: { workspaceId: 'ws', mediaId: 'document' }, query: {} }, res);
-    assert.deepEqual(capture, { statusCode: status, jsonBody: body });
+    assertAdminResponse({ actual: capture, expected: { statusCode: status, jsonBody: body } });
     assert.deepEqual(headers, { 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' });
   });
 }

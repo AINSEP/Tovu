@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { tombstoneRedirect } from "@jini-ai/cms/redirects";
 import { RedirectNotFoundError } from "@jini-ai/cms/redirects";
 import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/inbound/admin-http/http/redirects";
@@ -43,7 +44,7 @@ export const registerAdminRedirectTombstoneRoute: RedirectRouteRegistrar = (app,
         res.status(404).json({ error: err.message, code: "REDIRECT_NOT_FOUND" });
         return;
       }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/redirects/tombstone", code: "INTERNAL_ERROR" });
     }
   });
 };

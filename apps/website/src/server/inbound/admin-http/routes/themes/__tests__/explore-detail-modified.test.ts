@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -206,7 +207,7 @@ test("detail listing: a same-size file that cannot be read returns 500", async (
 
   const response = await fetch(`${baseUrl}${BASE("moddy")}`);
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } });
 });
 
 test("copy response: the new copy has no catalog counterpart, so resettable: false, modified: null", async (t) => {
@@ -306,7 +307,7 @@ test("detail comparison returns 500 for injected live and original read errors o
     try {
       const response = await fetch(`${baseUrl}${BASE("moddy")}`);
       assert.equal(response.status, 500, target);
-      assert.deepEqual(await response.json(), { error: "internal error" });
+      assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } });
       assert.deepEqual(reached, [target], "the selected comparison read must cause the failure");
     } finally {
       injected.mock.restore();

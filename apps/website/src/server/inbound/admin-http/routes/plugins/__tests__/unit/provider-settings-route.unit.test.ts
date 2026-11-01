@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import test, { type TestContext } from "node:test";
@@ -38,8 +39,8 @@ test('project key use reports a typed unknown-key refusal as 400 and keeps opaqu
       permissionFor: async () => { throw failure; }, use: async () => { writes++; assert.fail('missing key cannot be attached'); },
     } });
     const reply = await call('PUT', `${WS}/project-keys/missing/use`, { use: true });
-    assert.deepEqual([reply.status, reply.json], failure instanceof ToolInputError
-      ? [400, { error: 'Unknown project key' }] : [500, { error: 'internal error', code: 'INTERNAL_ERROR' }]);
+    assertAdminResponse({ actual: [reply.status, reply.json], expected: failure instanceof ToolInputError
+      ? [400, { error: 'Unknown project key' }] : [500, { error: 'internal error', code: 'INTERNAL_ERROR' }] });
     assert.equal(writes, 0);
   }
 });

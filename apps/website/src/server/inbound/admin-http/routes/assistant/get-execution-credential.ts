@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { getExecutionCredential } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AssistantSettingsRouteRegistrar } from "./deps.js";
@@ -24,8 +25,8 @@ export const registerAdminAssistantGetExecutionCredentialRoute: AssistantSetting
         { workspaceId: deps.workspaceId, principalId: principal.id }
       );
       res.json({ data: view });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/assistant/get-execution-credential", code: "INTERNAL_ERROR" });
     }
   });
 };

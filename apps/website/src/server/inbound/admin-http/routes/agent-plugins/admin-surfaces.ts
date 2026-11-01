@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Request, Response } from "express";
 
 import {
@@ -90,7 +91,7 @@ function contextFor(res: Response, deps: AgentPluginsRouteDeps, surface: LoadedA
 
 /** Runs a handler body; any throw becomes a generic 500 that names no server detail. */
 async function guarded(res: Response, body: () => Promise<void>): Promise<void> {
-  try { await body(); } catch { res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" }); }
+  try { await body(); } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/agent-plugins/admin-surfaces", code: "INTERNAL_ERROR" }); }
 }
 
 export const registerAgentPluginAdminSurfaceRoutes: AgentPluginsRouteRegistrar = (app: Express, deps) => {

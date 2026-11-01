@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { mayActOnEntityType, TRASH_READ_PERMISSION } from "#src/features/trash/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { MAX_TRASH_SELECTION, type TrashRouteRegistrar } from "./deps.js";
@@ -67,8 +68,8 @@ export const registerAdminTrashPurgeRoute: TrashRouteRegistrar = (app, deps) => 
       });
 
       res.json({ purged: report.purged, results: report.results });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/trash/purge", code: "INTERNAL_ERROR" });
     }
   });
 };

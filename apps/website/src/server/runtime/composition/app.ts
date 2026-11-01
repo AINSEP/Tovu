@@ -1933,6 +1933,8 @@ function registerAdminSpa({ app, routeDeps }: { app: Express; routeDeps: RouteDe
 
 export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps(), options: CreateAppOptions = {}) {
   const app = express();
+  // All admin error mappers share this request-scoped diagnostic port, including narrow route deps.
+  app.use("/api/admin", (_req, res, next) => { res.locals.adminFailureTracker = routeDeps.tracker; next(); });
   const internalRouter = express.Router();
   applyPublicMiddleware({ app, routeDeps, internalRouter }, options);
   registerPluginContributionRoutes({ app, deps: routeDeps, auth: createPluginRouteAuthPorts({ deps: routeDeps }) });

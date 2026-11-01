@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
@@ -33,10 +34,9 @@ export function testRouteFailureMatrix(routes: readonly RouteFailureCase[]): voi
   for (const route of routes) {
     test(`${route.name}: authorization failure is private and does not become a success`, async () => {
       const { app } = fixture(route.register, { authorize: async () => { throw new Error('private credential'); } });
-      assert.deepEqual(await dispatchJsonRequest(app, route.method, route.path, route.body), {
-        status: 500,
-        body: route.name.startsWith('entries') ? { error: 'private credential', code: 'INTERNAL_ERROR' } : route.coded ? INTERNAL_CODE : INTERNAL,
-      });
+      assertAdminResponse({ actual: await dispatchJsonRequest(app, route.method, route.path, route.body), expected: {
+        status: 500, body: INTERNAL_CODE,
+      } });
     });
     test(`${route.name}: denied permission stops before reaching repositories`, async () => {
       let calls = 0;

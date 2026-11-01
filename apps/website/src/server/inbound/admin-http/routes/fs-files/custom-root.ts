@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Request, Response } from "express";
 
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -100,7 +101,7 @@ export function registerAdminFsFilesCustomRootRoutes(app: Express, deps: AdminFs
         res.status(400).json({ error: err.message, code: "INVALID_PATH" });
         return;
       }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/fs-files/custom-root", code: "INTERNAL_ERROR" });
     }
   });
 

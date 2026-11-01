@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -143,6 +144,6 @@ test("registerAdminWidgetRegionBindRoute: validation, authorization, binding and
     const res = createMockRes();
     await routeHandler({ params: { workspaceId: "ws-1" }, body: { regionKey: "header" } }, res);
     assert.equal(res.statusCode, 500);
-    assert.deepEqual(res.body, { error: "internal error" });
+    assertAdminResponse({ actual: res.body, expected: { error: "internal error" } });
   }
 });

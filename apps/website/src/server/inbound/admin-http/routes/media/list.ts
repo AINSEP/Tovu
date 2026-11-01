@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { listMedia } from "#src/features/media/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -48,8 +49,8 @@ export const registerAdminMediaListRoute: MediaRouteRegistrar = (app, deps) => {
         resolveMediaByteSizes({ deps, media: visible }),
       ]);
       res.json(toAdminMediaListResponse({ media: visible, contentTypesBySha256: contentTypes, publicUrlsById: publicUrls, byteSizesBySha256: byteSizes }));
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/media/list", code: "INTERNAL_ERROR" });
     }
   });
 };

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { MenuConflictError, MenuNotFoundError } from "#src/features/navigation/index";
 import { trashMenu } from "#src/features/navigation/index";
 import { toAdminTrashMenuResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
@@ -37,7 +38,7 @@ export const registerAdminMenuDeleteRoute: MenuRouteRegistrar = (app, deps) => {
     } catch (err) {
       if (err instanceof MenuNotFoundError) { res.status(404).json({ error: err.message }); return; }
       if (err instanceof MenuConflictError) { res.status(409).json({ error: err.message }); return; }
-      res.status(500).json({ error: "internal error" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/menus/delete", code: "INTERNAL_ERROR" });
     }
   });
 };

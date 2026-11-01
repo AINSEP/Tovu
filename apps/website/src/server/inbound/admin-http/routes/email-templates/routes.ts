@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Request, Response } from "express";
 
 import {
@@ -59,7 +60,7 @@ function sendError(res: Response, err: unknown): void {
     res.status(409).json({ error: err.message, code: "CONCURRENT_EDIT" });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/email-templates/routes", code: "INTERNAL_ERROR" });
 }
 
 /** The request body as a record; a missing or non-object body reads as `{}` so validation names the field. */

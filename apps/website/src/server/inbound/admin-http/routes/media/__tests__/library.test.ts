@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 /** L1 step 3: RED on old code (documents rejected, no text route, no kind isolation). */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -53,7 +54,7 @@ test('Library HTTP: allowed formats ignore MIME labels, list/download/rename/tex
     const renamed = await post(base, `${root}/${media.id}`, { title: 'New name' }, 'PATCH'); assert.equal(renamed.status, 200);
     assert.equal((await renamed.json()).media.sha256, media.sha256);
     const download = await fetch(`${base}${root}/${media.id}/original`);
-    assert.equal(download.status, 200); assert.deepEqual(Buffer.from(await download.arrayBuffer()), bytes);
+    assert.equal(download.status, 200); assertAdminResponse({ actual: Buffer.from(await download.arrayBuffer()), expected: bytes });
     assert.equal(download.headers.get('cache-control'), 'private, no-store');
     assert.equal(download.headers.get('x-content-type-options'), 'nosniff');
     assert.match(download.headers.get('content-disposition')!, /attachment;.*filename\*=UTF-8''New%20name\./);
@@ -83,7 +84,7 @@ test('Library HTTP: configured text extraction returns its page; typed failures 
   const bytes = Buffer.from('%PDF-1.7\n%%EOF');
   const text = 'Extracted PDF text';
   const extractor = { contentType: 'application/pdf', async extract(input: { bytes: Uint8Array; limits: { maxPages: number; maxCharacters: number } }, _optional = {}) {
-    assert.deepEqual(Buffer.from(input.bytes), bytes);
+    assertAdminResponse({ actual: Buffer.from(input.bytes), expected: bytes });
     assert.deepEqual(input.limits, { maxPages: 100, maxCharacters: 1_000_000 });
     return { text, truncated: false, pagesRead: 1, totalPages: 1 };
   } };
@@ -102,7 +103,7 @@ test('Library HTTP: configured text extraction returns its page; typed failures 
   extractor.extract = async () => { throw new Error('private parser details'); };
   const unexpected = await fetch(`${base}${root}/${media.id}/text`);
   assert.equal(unexpected.status, 500);
-  assert.deepEqual(await unexpected.json(), { error: 'internal error' });
+  assertAdminResponse({ actual: await unexpected.json(), expected: { error: 'internal error' } });
 });
 
 test('Library HTTP: 64 KiB pages, Trash exclusion, wrong workspace and denied principals fail before blob I/O', async t => {

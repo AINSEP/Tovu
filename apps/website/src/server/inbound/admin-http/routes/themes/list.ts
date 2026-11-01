@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { findStoredTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -93,8 +94,8 @@ export const registerAdminThemesListRoute: ContentRouteRegistrar = (app, deps) =
       }));
 
       res.json({ themes });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/themes/list", code: "INTERNAL_ERROR" });
     }
   });
 };

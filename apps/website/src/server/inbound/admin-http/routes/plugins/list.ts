@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { toAdminPluginResponse } from "#src/server/inbound/admin-http/http/plugins";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -57,8 +58,8 @@ export const registerPluginsListRoute = (app: Express, deps: PluginsListRouteDep
       );
 
       res.json({ plugins, installSources: localPluginInstaller(deps) ? ["folder", "zip"] : [] });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/plugins/list", code: "INTERNAL_ERROR" });
     }
   });
 };

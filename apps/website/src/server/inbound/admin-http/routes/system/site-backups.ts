@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Request, Response } from "express";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { ToolInputError } from "@jini-ai/core";
@@ -23,7 +24,7 @@ export const PUSH_POLL_WAIT_MS = 1500;
 function fail(res: Response, error: unknown): void {
   if (error instanceof ForbiddenError) { res.status(403).json({ code: "FORBIDDEN", message: "You do not have permission to back up this site." }); return; }
   if (error instanceof CustomCredentialValidationError || error instanceof ToolInputError) { res.status(400).json({ code: "INVALID_INPUT", message: error.message }); return; }
-  res.status(500).json({ code: "BACKUP_FAILED", message: "Git backup failed. Try again." });
+  sendAdminFailure({ res, error }, { operation: "routes/system/site-backups", code: "BACKUP_FAILED", field: "message", message: "Git backup failed. Try again." });
 }
 
 /**

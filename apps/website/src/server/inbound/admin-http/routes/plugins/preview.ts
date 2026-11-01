@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { PluginHookFailedError } from "@jini-ai/plugins/host";
 import { pluginHookFailedBody } from "#src/server/inbound/admin-http/http/plugin-hook-error";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -44,7 +45,7 @@ function sendPluginPreviewError(res: Response, err: unknown): void {
     res.status(422).json(pluginHookFailedBody(err, { publicText: `a site plugin (${err.pluginId}) failed on this draft; nothing was saved` }));
     return;
   }
-  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/plugins/preview", code: "INTERNAL_ERROR" });
 }
 
 /**

@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -79,7 +80,7 @@ for (const reason of ['not-found', 'version-changed']) {
 
 test('forms list: repository rejection is an internal error', async () => {
   const { app } = fixture(registerAdminFormsListRoute, { formDefinitionRepo: { list: async () => { throw new Error('private'); } } });
-  assert.deepEqual(await dispatchJsonRequest(app, 'GET', `${BASE}/forms`), { status: 500, body: INTERNAL_CODE });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/forms`), expected: { status: 500, body: INTERNAL_CODE } });
 });
 
 test('forms update: ignored fields read the existing definition, missing definition maps to 404', async () => {
@@ -116,9 +117,9 @@ test('forms create: unexpected command failure is private and leaves no definiti
   let attempts = 0;
   const { app, deps } = fixture(registerAdminFormsCreateRoute, { executeCommand: async () => { attempts++; throw new Error('private'); } });
   // Builder forms require a field before the command gateway can be reached.
-  assert.deepEqual(await dispatchJsonRequest(app, 'POST', `${BASE}/forms`, {
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', `${BASE}/forms`, {
     name: 'Contact', slug: 'contact', fields: [{ id: 'message', type: 'text', label: 'Message', required: false }],
-  }), { status: 500, body: INTERNAL_CODE });
+  }), expected: { status: 500, body: INTERNAL_CODE } });
   assert.equal(attempts, 1);
   assert.deepEqual(await deps.formDefinitionRepo.list({ workspaceId: WS }), []);
 });

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import { IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
@@ -32,7 +33,7 @@ function sendUserDeleteError(res: Response, err: unknown): void {
     res.status(501).json({ error: err.message, code: "NOT_SUPPORTED" });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/users/delete", code: "INTERNAL_ERROR" });
 }
 
 /**

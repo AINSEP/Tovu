@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { toAdminFormDefinitionListResponse } from "#src/server/inbound/admin-http/http/forms";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
@@ -29,8 +30,8 @@ export const registerAdminFormsListRoute: FormsRouteRegistrar = (app, deps) => {
 
       const definitions = await deps.formDefinitionRepo.list({ workspaceId: deps.workspaceId });
       res.json(toAdminFormDefinitionListResponse(definitions));
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/forms/list", code: "INTERNAL_ERROR" });
     }
   });
 };

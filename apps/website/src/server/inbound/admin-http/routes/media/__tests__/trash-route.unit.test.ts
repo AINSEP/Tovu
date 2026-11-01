@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -46,7 +47,7 @@ test('media trash: an unknown stored size and public URL are reported as null', 
 test('media trash: an unexpected repository failure is a private 500', async (t) => {
   const { app, deps } = mediaApp(registerAdminMediaTrashRoute);
   t.mock.method(deps.mediaRepo, 'findById', async () => { throw new Error('private store failure'); });
-  assert.deepEqual(await dispatchJsonRequest(app, 'POST', `${BASE}/media/asset-1/trash`), { status: 500, body: INTERNAL });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', `${BASE}/media/asset-1/trash`), expected: { status: 500, body: INTERNAL } });
 });
 
 test('media trash: a hand-built request with no params falls back to an empty workspace id and 404s', async () => {

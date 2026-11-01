@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import {
@@ -147,8 +148,8 @@ export function registerAdminExportSiteRoutes(app: Express, deps: AdminExportSit
       // `startExportRun` itself is not awaited (the run continues in the background, polled via
       // `GET` below), so a failure inside the run it starts can never reach this catch — only a
       // failure BEFORE that point can, e.g. `deps.authorize` itself throwing.
-      console.error("[export-site] unexpected error triggering an export", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/export-site", code: "INTERNAL_ERROR" });
     }
   });
 
@@ -177,8 +178,7 @@ export function registerAdminExportSiteRoutes(app: Express, deps: AdminExportSit
 
       res.status(200).json(getExportRunSnapshot());
     } catch (err) {
-      console.error("[export-site] unexpected error polling export status", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/export-site", code: "INTERNAL_ERROR" });
     }
   });
 }

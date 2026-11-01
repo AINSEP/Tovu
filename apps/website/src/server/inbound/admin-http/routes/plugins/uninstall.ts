@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { PluginNotFoundError } from "@jini-ai/plugins/host";
 import { PluginAlreadyInTrashError, PluginEnabledError, PluginNotUninstallableError, uninstallPlugin } from "@jini-ai/plugins/host";
 import { PluginUninstallPathError } from "#src/server/runtime/composition/plugin-runtime";
@@ -34,7 +35,7 @@ function sendPluginUninstallError(res: Response, err: unknown): void {
     return;
   }
 
-  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/plugins/uninstall", code: "INTERNAL_ERROR" });
 }
 
 /**

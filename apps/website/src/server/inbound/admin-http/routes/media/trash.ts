@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import type { MediaRecord } from "#src/features/media/index";
@@ -61,8 +62,8 @@ export const registerAdminMediaTrashRoute: MediaRouteRegistrar = (app, deps) => 
         return;
       }
       res.json({ media: await toTrashedMediaResponse({ deps, media }) });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/media/trash", code: "INTERNAL_ERROR" });
     }
   });
 };

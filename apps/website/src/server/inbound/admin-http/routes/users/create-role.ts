@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { IdentityForbiddenError, IdentityValidationError } from "@jini-ai/user-management";
 import { createRole } from "@jini-ai/user-management/server";
 import { toAdminRoleResponse } from "#src/server/inbound/admin-http/http/users";
@@ -40,7 +41,7 @@ export const registerAdminRoleCreateRoute: UsersRouteRegistrar = (app, deps) => 
         return;
       }
 
-      res.status(500).json({ error: "internal error" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/users/create-role", code: "INTERNAL_ERROR" });
     }
   });
 };

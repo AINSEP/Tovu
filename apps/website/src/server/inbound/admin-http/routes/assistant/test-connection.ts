@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { testProviderConnection, type ConnectionTestResponse } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -144,8 +145,8 @@ export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteR
       }
 
       res.json(await fetchTestConnectionResponse(protocol as SupportedExecutionProtocol, credential, model, apiVersion, deps));
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/assistant/test-connection", code: "INTERNAL_ERROR" });
     }
   });
 };

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { computeDisclosure } from "#src/features/recovery/disclosure";
@@ -52,8 +53,7 @@ export function registerAdminRecoveryDisclosureRoute(app: Express, deps: Databas
 
       res.json(disclosure);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "internal error";
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/recovery/disclosure", code: "INTERNAL_ERROR" });
     }
   });
 }

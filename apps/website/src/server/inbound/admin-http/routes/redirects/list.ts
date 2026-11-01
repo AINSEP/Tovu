@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { listRedirects } from "@jini-ai/cms/redirects";
 import { toAdminRedirectListResponse, type RedirectRouteRegistrar } from "#src/server/inbound/admin-http/http/redirects";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -48,8 +49,8 @@ export const registerAdminRedirectListRoute: RedirectRouteRegistrar = (app, deps
         },
       });
       res.json(toAdminRedirectListResponse(rules));
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/redirects/list", code: "INTERNAL_ERROR" });
     }
   });
 };

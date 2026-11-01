@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
@@ -93,7 +94,7 @@ test("PLUGIN_UNINSTALL: an unmapped discovery failure is the opaque 500 INTERNAL
   const baseUrl = await listen(t, appWith(deps));
   const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/plugins/alpha`, { method: "DELETE" });
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   assert.equal(calls.remove, 0);
 });
 
@@ -121,7 +122,7 @@ test("PLUGIN_FILES: an unmapped listing failure is the opaque 500 INTERNAL_ERROR
   const baseUrl = await listen(t, appWith(deps));
   const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/plugins/alpha/files`);
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("PLUGIN_FILES: `req.params.workspaceId ?? \"\"` fallback, via a hand-built request with no params, is the workspace 404", async () => {

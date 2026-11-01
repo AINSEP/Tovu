@@ -1,3 +1,4 @@
+import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { MediaConflictError, MediaNotFoundError, MediaValidationError, updateMediaMetadata } from "#src/features/media/index";
 import { resolveMediaPublicUrls } from "#src/features/media/public-urls";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -73,7 +74,7 @@ interface MediaUpdateErrorResponse {
  *
  * @complexity O(1) — four `instanceof` checks.
  */
-function mapMediaUpdateError(err: unknown): MediaUpdateErrorResponse {
+function mapMediaUpdateError(err: unknown, options: AdminFailurePorts = {}): MediaUpdateErrorResponse {
   const live = entityNotLiveResponse(err);
   if (live) return live;
   if (err instanceof MediaNotFoundError) return { status: 404, body: { error: err.message } };
@@ -83,7 +84,7 @@ function mapMediaUpdateError(err: unknown): MediaUpdateErrorResponse {
   // same `MediaConflictError` so this route needs only one branch regardless of which layer
   // caught it. 409, not 400: the request is well-formed, it just collides with existing state.
   if (err instanceof MediaConflictError) return { status: 409, body: { error: err.message } };
-  return { status: 500, body: { error: "internal error" } };
+  return adminFailureResponse({ error: err, tracker: options.tracker }, { operation: "routes/media/update" });
 }
 
 /**
@@ -131,7 +132,7 @@ export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) =>
       ]);
       res.json({ media: toAdminMediaResponse({ media, contentType, publicUrl, byteSize: byteSizes.get(media.source.sha256) ?? null }) });
     } catch (err) {
-      const { status, body } = mapMediaUpdateError(err);
+      const { status, body } = mapMediaUpdateError(err, { tracker: res.locals?.adminFailureTracker });
       res.status(status).json(body);
     }
   });

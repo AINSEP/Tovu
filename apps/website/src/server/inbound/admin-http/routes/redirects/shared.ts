@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import { EntityNotLiveError } from "@jini-ai/cms/core";
@@ -28,13 +29,14 @@ export interface RedirectErrorMapping {
  */
 export function respondToRedirectError(res: Response, err: unknown, mappings: readonly RedirectErrorMapping[]): void {
   const message = err instanceof Error ? err.message : String(err);
+
   for (const mapping of mappings) {
     if (mapping.matches(err)) {
       res.status(mapping.status).json({ error: message, code: mapping.code });
       return;
     }
   }
-  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/redirects/shared", code: "INTERNAL_ERROR" });
 }
 
 /** The write-chokepoint errors both `create.ts` and `update.ts` map identically. */

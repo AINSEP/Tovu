@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { ToolInputError } from "@jini-ai/core";
 import { invalidatePublishCredentialCompatibility } from "#src/features/deployments/publish-credentials/index";
 import type { Express, Request, Response } from "express";
@@ -71,8 +72,8 @@ function sendStoreError(res: Response, err: unknown): void {
     res.status(503).json({ error: "SECRET_STORE_UNCONFIGURED", detail: err.message });
     return;
   }
-  console.error("[custom-credentials] unexpected store error");
-  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+
+  sendAdminFailure({ res, error: err }, { operation: "routes/system/custom-credentials", code: "INTERNAL_ERROR" });
 }
 
 /**

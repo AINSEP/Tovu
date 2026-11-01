@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -153,7 +154,7 @@ test("pause-campaign: generic unexpected error maps to 500", async (t) => {
     `/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/camp-1/pause`
   );
   assert.equal(status, 500);
-  assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("pause-campaign: undefined workspaceId fallback via direct handler invocation", async () => {

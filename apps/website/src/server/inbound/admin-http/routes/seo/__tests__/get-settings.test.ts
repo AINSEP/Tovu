@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
@@ -117,7 +118,7 @@ test("get-settings: returns workspace seo settings (200)", async (t) => {
   assert.ok(body.data, "expected settings data");
   assert.ok(typeof body.data?.titleTemplate === "string");
   assert.ok(typeof body.data?.sitemapEnabled === "boolean");
-  assert.deepEqual(body.data, expected);
+  assertAdminResponse({ actual: body.data, expected: expected });
 });
 
 test("get-settings: unexpected error returns 500 (INTERNAL_ERROR)", async (t) => {
@@ -125,7 +126,7 @@ test("get-settings: unexpected error returns 500 (INTERNAL_ERROR)", async (t) =>
   const app = buildApp({ settingsRepo });
   const { status, json } = await get(t, app);
   assert.equal(status, 500);
-  assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   assert.ok(settingsRepo.calls > 0, "the 500 must come from the injected settings failure");
 });
 

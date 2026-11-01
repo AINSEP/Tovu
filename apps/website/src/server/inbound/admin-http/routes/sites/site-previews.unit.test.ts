@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -89,7 +90,7 @@ test("a read that throws is a 500 without the error text", async () => {
   const original = console.error;
   console.error = () => {};
   try {
-    assert.deepEqual(await r.get("alpha"), { status: 500, json: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: await r.get("alpha"), expected: { status: 500, json: { error: "internal error", code: "INTERNAL_ERROR" } } });
   } finally {
     console.error = original;
   }

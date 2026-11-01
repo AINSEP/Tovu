@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Request, Response } from "express";
 
 import { EntityNotLiveError, ForbiddenError } from "@jini-ai/cms/core";
@@ -29,7 +30,7 @@ function statusFor(err: unknown): { status: number; code: string; message: strin
   ) {
     return { status: 400, code: "VALIDATION_ERROR", message: err.message };
   }
-  return { status: 500, code: "INTERNAL_ERROR", message: err instanceof Error ? err.message : "internal error" };
+  return { status: 500, code: "INTERNAL_ERROR", message: "internal error" };
 }
 
 const TAXONOMY_PERMISSION = "admin.taxonomy.manage";
@@ -64,6 +65,7 @@ function readAssignmentBody(req: Request, res: Response): { contentType: string;
 
 function sendError(res: Response, err: unknown): void {
   const { status, code, message } = statusFor(err);
+  if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
   res.status(status).json({ error: message, code });
 }
 

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Request, Response } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 import { getAuthedPrincipal, rejectUnlessSessionCredential } from "#src/server/inbound/admin-http/dev-auth";
@@ -231,7 +232,7 @@ export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = (app,
       if (!(await backstopActorId(res, deps))) return;
       const audit = await readyAudit(toPublishContentDeps(deps).backstop?.audit);
       res.json({ allowed: true, installed: audit !== null });
-    } catch { res.status(500).json({ error: "Manual publishing availability could not be read." }); }
+    } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/publish-content/backstop", code: "INTERNAL_ERROR", message: "Manual publishing availability could not be read." }); }
   });
   app.get(`${base}/runs/:runId/backstop`, async (req, res) => {
     if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
@@ -242,7 +243,7 @@ export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = (app,
       const log = await audit.get({ workspaceId: deps.workspaceId, id: String(req.params.runId) });
       if (!log || log.direction !== "destination") { res.status(404).json({ error: "This send was not found on this site." }); return; }
       res.json({ runId: log.runId, reason: log.reason, items: log.items.map(({ entityType, id }) => ({ entityType, id })), canUndo: hasUndo(log) });
-    } catch { res.status(500).json({ error: "This send could not be read." }); }
+    } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/publish-content/backstop", code: "INTERNAL_ERROR", message: "This send could not be read." }); }
   });
   app.post(`${base}/backstop`, async (req, res) => {
     if (rejectForeignWorkspace(req, res, deps.workspaceId)) return;
@@ -259,7 +260,7 @@ export const registerPublishBackstopRoutes: PublishContentRouteRegistrar = (app,
       if (!allowed.allowed) { res.status(403).json({ error: "Publishing history is not available to this account." }); return; }
       const audit = await readyAudit(toPublishContentDeps(deps).backstop?.audit);
       res.json({ gaps: audit ? await audit.gaps({ workspaceId: deps.workspaceId }) : [] });
-    } catch { res.status(500).json({ error: "Publishing history could not be read." }); }
+    } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/publish-content/backstop", code: "INTERNAL_ERROR", message: "Publishing history could not be read." }); }
   });
 
   app.post(`${base}/runs/:runId/undo-backstop`, async (req, res) => {

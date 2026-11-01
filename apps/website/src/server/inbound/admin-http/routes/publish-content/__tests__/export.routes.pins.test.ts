@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -32,7 +33,7 @@ test("GET .../export with no principal (requireAdminSession did not run) is the 
   const server = await startTestServer(routeApp(registerPublishContentExportRoute, routeDeps()), t);
   const response = await fetch(`${server}${BASE}/export`, { headers: { "x-principal": "none" } });
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } });
 });
 
 /** A publishing grant that holds `publish_content.read`, the permission the route-level gate asks for. */

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { MediaNotFoundError, MediaStillReferencedError, purgeMedia } from "#src/features/media/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -63,5 +64,5 @@ function sendPurgeFailure({ res, err }: { res: Response; err: unknown }): void {
     res.status(404).json({ error: err.message });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/media/delete", code: "INTERNAL_ERROR" });
 }

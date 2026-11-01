@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -298,8 +299,8 @@ export function registerAdminSiteKeyRoutes(app: Express, deps: AdminSiteKeyDeps,
         res.status(409).json({ error: "ALREADY_EXISTS", detail: err.message });
         return;
       }
-      console.error("[site-key] unexpected error", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/site-key", code: "INTERNAL_ERROR" });
     }
   });
 
@@ -327,8 +328,7 @@ async function respondWithRecovery(res: Response, run: () => Promise<RouteResult
     const result = await run();
     res.status(result.status).json({ ...result.body, runtimeMode: resolveRuntimeMode() });
   } catch (err) {
-    console.error("[site-key] recovery failed", err);
-    res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    sendAdminFailure({ res, error: err }, { operation: "routes/system/site-key", code: "INTERNAL_ERROR" });
   }
 }
 

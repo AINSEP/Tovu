@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 /** Local creation-home setting, authorized at the same boundary as Sites mutations. */
 import fs from "node:fs";
 import path from "node:path";
@@ -34,7 +35,7 @@ export function registerSitesHomeRoutes({ app, deps, workspace }: { app: Express
         res.json(workspace.updateConfig({ patch }));
       }
       catch (error) { res.status(400).json({ error: error instanceof Error ? error.message : "Could not save sites settings." }); }
-    } catch (error) { res.status(500).json({ error: error instanceof Error ? error.message : "Could not read sites settings." }); }
+    } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/sites/sites-home", code: "INTERNAL_ERROR", message: "Could not read sites settings." }); }
   });
   app.put("/api/admin/v1/workspaces/:workspaceId/system/sites/home", async (req, res) => {
     if (!admitSettingsRequest({ req, res, deps })) return;
@@ -50,7 +51,7 @@ export function registerSitesHomeRoutes({ app, deps, workspace }: { app: Express
       const home = workspace.setHome({ path: selected });
       res.json({ home });
     } catch (error) {
-      res.status(500).json({ error: error instanceof Error ? error.message : "Could not save sites home." });
+      sendAdminFailure({ res, error }, { operation: "routes/sites/sites-home", code: "INTERNAL_ERROR", message: "Could not save sites home." });
     }
   });
 }

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SeoRouteRegistrar } from "./deps.js";
 
@@ -29,8 +30,8 @@ export const registerAdminSeoPostSitemapRegenerateRoute: SeoRouteRegistrar = (ap
 
       await deps.sitemapService.regenerateSitemapCache({ workspaceId: deps.workspaceId }, {});
       res.status(202).json({ data: { accepted: true } });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/seo/post-sitemap-regenerate", code: "INTERNAL_ERROR" });
     }
   });
 };

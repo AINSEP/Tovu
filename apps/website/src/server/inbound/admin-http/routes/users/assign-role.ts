@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, OwnerRequiredError } from "@jini-ai/user-management";
@@ -27,7 +28,7 @@ function sendAssignRoleError(res: Response, err: unknown): void {
     res.status(409).json({ error: err.message, code: "OWNER_REQUIRED" });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/users/assign-role", code: "INTERNAL_ERROR" });
 }
 
 /**

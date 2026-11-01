@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { Response } from "express";
@@ -62,7 +63,7 @@ test("respondToRedirectError: falls back to 500 when error does not match any ma
   const err = new Error("unknown database crash");
   respondToRedirectError(res, err, REDIRECT_WRITE_ERROR_MAPPINGS);
   assert.equal(result.status, 500);
-  assert.deepEqual(result.body, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: result.body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("respondToRedirectError: handles non-Error thrown objects with custom mappings", () => {

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { listProviderModels } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -150,8 +151,8 @@ export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegis
       }
 
       res.json(await fetchListModelsResponse(protocol as SupportedExecutionProtocol, credential, apiVersion, deps));
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/assistant/list-models", code: "INTERNAL_ERROR" });
     }
   });
 };

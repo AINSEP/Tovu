@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { duplicateThemeIds, rescanThemes, validThemeIds } from "#src/features/theme/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -56,8 +57,8 @@ export const registerAdminThemeRescanRoute: ContentRouteRegistrar = (app, deps) 
         // because a rescan is exactly when a colliding theme most likely just arrived.
         duplicateIds: duplicateThemeIds(deps.themes),
       });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/presentation/rescan-themes", code: "INTERNAL_ERROR" });
     }
   });
 };

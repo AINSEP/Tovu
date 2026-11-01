@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { createTempSiteLayoutFixture, testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { mkdir, writeFile, symlink } from "node:fs/promises";
@@ -53,7 +54,7 @@ test("lists an installed disabled skill's files using the plugin response shape 
   assert.equal(res.code, 200);
   assert.equal(res.body.toolId, "skill_example");
   assert.equal(res.body.truncated, false);
-  assert.deepEqual(res.body.limits, PLUGIN_PACKAGE_FILE_LIMITS);
+  assertAdminResponse({ actual: res.body.limits, expected: PLUGIN_PACKAGE_FILE_LIMITS });
   assert.deepEqual(res.body.files.find((file: any) => file.relativePath === "SKILL.md"), { relativePath: "SKILL.md", sizeBytes: Buffer.byteLength(markdown), content: markdown, omitted: null });
   assert.equal(res.body.files.find((file: any) => file.relativePath === "references/check.md").content, "Check ownership.");
 }));
@@ -112,5 +113,5 @@ test("an unexpected failure returns the generic 500 without its internal message
   // block, and the response must carry only the fixed refusal.
   const res = await call("skill_example", "workspace-local", { locals: {} });
   assert.equal(res.code, 500);
-  assert.deepEqual(res.body, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: res.body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 }, true, 0));

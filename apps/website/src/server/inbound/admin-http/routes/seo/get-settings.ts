@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { getSeoSettings } from "#src/features/seo/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SeoRouteRegistrar } from "./deps.js";
@@ -30,8 +31,8 @@ export const registerAdminSeoGetSettingsRoute: SeoRouteRegistrar = (app, deps) =
 
       const settings = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
       res.json({ data: settings });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/seo/get-settings", code: "INTERNAL_ERROR" });
     }
   });
 };

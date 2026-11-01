@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { WebhookDeliveryRecord } from "#src/features/webhooks/index";
 import { toAdminSubscriptionResponse } from "#src/server/inbound/admin-http/http/integrations";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -61,8 +62,8 @@ export const registerAdminIntegrationsListRoute: IntegrationsRouteRegistrar = (a
       );
 
       res.json({ subscriptions: subscriptionResponses });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/integrations/list", code: "INTERNAL_ERROR" });
     }
   });
 };

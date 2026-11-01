@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -25,5 +26,5 @@ test("chat attachment handler redacts unexpected read errors while passing the a
     deps: { uploadDirectory: "/test-owned/uploads" },
     input: { ref: "attachment:11111111-2222-3333-4444-555555555555", ownerId: "uploader-7" },
   }]);
-  assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: "internal error" } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
 });

@@ -1,3 +1,5 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
+import { assertAdminDiagnostics } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -60,19 +62,24 @@ for (const [cause, detail] of [[stackError, 'private stack'], [messageError, 'pr
     const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { formSubmissionsPull: port });
     const result = await dispatchJsonRequest(app, 'POST', PATH);
     assert.equal(result.status, 500);
-    const body = result.body as { error: string; code: string };
+    const body = result.body as { error: string; code: string; errorId: string };
     const reference = /report reference ([0-9a-f-]{36}) /.exec(body.error)?.[1];
     assert.ok(reference);
-    assert.deepEqual(body, { error: `pulling form submissions failed before any host was read; try again, and if it fails again report reference ${reference} (the site's server log has the details)`, code: 'INTERNAL_ERROR' });
-    assert.deepEqual(logged.mock.calls.map(call => call.arguments), [[`[forms] pulling form submissions failed, reference ${reference}: ${detail}`]]);
+    assert.deepEqual(body, { error: `pulling form submissions failed before any host was read; try again, and if it fails again report reference ${reference} (the site's server log has the details)`, code: 'INTERNAL_ERROR', errorId: reference });
+    assertAdminDiagnostics({ calls: logged.mock.calls.map(call => call.arguments), operation: "[forms-pull]", diagnostics: [new RegExp(detail)] });
   });
 }
 
-test('pull characterization: logger failure falls back to the private outer error', async (t) => {
-  t.mock.method(console, 'error', () => { throw new Error('private logger failure'); });
+test('pull characterization: logger failure cannot prevent the private error response', async (t) => {
+  const logged = t.mock.method(console, 'error', () => { throw new Error('private logger failure'); });
   const port: NonNullable<FormsRouteDeps['formSubmissionsPull']> = { pull: async () => { throw new Error('private pull failure'); } };
   const { app } = fixture(registerAdminFormsPullSubmissionsRoute, { formSubmissionsPull: port });
-  assert.deepEqual(await dispatchJsonRequest(app, 'POST', PATH), { status: 500, body: INTERNAL_CODE });
+  const result = await dispatchJsonRequest(app, 'POST', PATH);
+  const body = result.body as { error: string; code: string; errorId: string };
+  assert.equal(result.status, 500);
+  assert.match(body.errorId, /^[0-9a-f-]{36}$/);
+  assert.deepEqual(body, { error: `pulling form submissions failed before any host was read; try again, and if it fails again report reference ${body.errorId} (the site's server log has the details)`, code: 'INTERNAL_ERROR', errorId: body.errorId });
+  assert.equal(logged.mock.callCount(), 1);
 });
 
 test('pull characterization: missing principal falls back before authorization', async () => {
@@ -81,6 +88,6 @@ test('pull characterization: missing principal falls back before authorization',
     app.use((_req, res, next) => { delete res.locals.principal; next(); });
     registerAdminFormsPullSubmissionsRoute(app, deps);
   }, { authorize: async () => { authorizations++; return { allowed: true }; } });
-  assert.deepEqual(await dispatchJsonRequest(app, 'POST', PATH), { status: 500, body: INTERNAL_CODE });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', PATH), expected: { status: 500, body: INTERNAL_CODE } });
   assert.equal(authorizations, 0);
 });

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { ToolInputError } from "@jini-ai/core";
 import type { Express, Request, Response } from "express";
 
@@ -154,8 +155,8 @@ function sendStoreError({ res, err }: { res: Response; err: unknown }, _options 
     res.status(503).json({ error: "SECRET_STORE_UNCONFIGURED", detail: err.message });
     return;
   }
-  console.error("[publish-credentials]", "INTERNAL_ERROR");
-  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+
+  sendAdminFailure({ res, error: err }, { operation: "routes/system/publish-credentials", code: "INTERNAL_ERROR" });
 }
 
 export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminPublishCredentialsDeps): void {

@@ -1,3 +1,4 @@
+import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -107,13 +108,9 @@ test("publish-targets and destinations: a registry load failure is a fixed 500 t
   const { app, deps, register } = setup({ loadDeployTargets: async () => { throw cause; } });
   register();
   for (const path of ["/publish-targets", "/publish/destinations"]) {
-    assert.deepEqual(await direct(app, path, { params: { workspaceId: deps.workspaceId } }),
-      { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } }, path);
+    assertAdminResponse({ actual: await direct(app, path, { params: { workspaceId: deps.workspaceId } }), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { message: path });
   }
-  assert.deepEqual(logged.mock.calls.map((c) => c.arguments), [
-    ["[publish-site] unexpected error listing publish targets", cause],
-    ["[publish-site] unexpected error listing publish destinations", cause],
-  ]);
+  assertAdminDiagnostics({ calls: logged.mock.calls.map(c => c.arguments), operation: "[routes/system/publish-site]", diagnostics: [/plugin directory unreadable at \/private\/plugins/, /plugin directory unreadable at \/private\/plugins/] });
 });
 
 test("publish destinations: a publishing-grant request reads peers through its grant, not the session authorizer", async () => {

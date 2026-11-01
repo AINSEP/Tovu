@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Response } from "express";
 
 import type { CommentWriteService, CommentStatus, ModerationAction } from "@jini-ai/cms/comments";
@@ -108,8 +109,7 @@ export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCom
 
         respondToModerationResult(res, result);
       } catch (err) {
-        console.error(`[comments/moderate] unexpected error applying '${spec.action}'`, err);
-        res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+        sendAdminFailure({ res, error: err }, { operation: "routes/comments/moderate", code: "INTERNAL_ERROR" });
       }
     });
   }
@@ -152,8 +152,7 @@ export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCom
       }
       res.status(204).end();
     } catch (err) {
-      console.error("[comments/moderate] unexpected error purging a comment", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/comments/moderate", code: "INTERNAL_ERROR" });
     }
   });
 }

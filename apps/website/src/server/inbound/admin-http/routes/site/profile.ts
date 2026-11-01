@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import {
@@ -189,8 +190,7 @@ export function registerAdminSiteProfileRoute(app: Express, deps: AdminSiteProfi
       const profile = await buildSiteProfile(toSiteProfileDeps(deps), { principalId: principal.id }, { sections, pageLimit });
       res.status(200).json(profile);
     } catch (err) {
-      console.error("[site/profile] unexpected error", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/site/profile", code: "INTERNAL_ERROR" });
     }
   });
 }

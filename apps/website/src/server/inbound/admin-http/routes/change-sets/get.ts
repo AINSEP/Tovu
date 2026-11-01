@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import {
   toChangeSetHeaderResponse,
   toChangeSetItemResponse,
@@ -50,8 +51,8 @@ export const registerAdminChangeSetGetRoute: ContentRouteRegistrar = (app, deps)
         changeSet: toChangeSetHeaderResponse(found.changeSet),
         items: found.items.map(toChangeSetItemResponse),
       });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/change-sets/get", code: "INTERNAL_ERROR" });
     }
   });
 };

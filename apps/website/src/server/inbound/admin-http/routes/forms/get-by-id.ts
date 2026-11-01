@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { toAdminFormDefinitionResponse } from "#src/server/inbound/admin-http/http/forms";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
@@ -45,8 +46,8 @@ export const registerAdminFormsGetRoute: FormsRouteRegistrar = (app, deps) => {
         return;
       }
       res.json(toAdminFormDefinitionResponse(definition));
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/forms/get-by-id", code: "INTERNAL_ERROR" });
     }
   });
 };

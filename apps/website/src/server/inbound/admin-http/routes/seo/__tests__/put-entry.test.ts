@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService, type SeoMeta } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
@@ -91,7 +92,7 @@ test("put-entry: forbidden 403s", async (t) => {
   const app = buildApp({ postRepo: base.postRepo, authorize: async () => ({ allowed: false, reason: "no grant" }) });
   const { status } = await put(t, app, { title: "x" });
   assert.equal(status, 403);
-  assert.deepEqual(await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), before);
+  assertAdminResponse({ actual: await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), expected: before });
 });
 
 test("put-entry: an unregistered field 400s (SEO_FIELD_VALIDATION_ERROR)", async (t) => {
@@ -129,7 +130,7 @@ test("put-entry: a trashed entry returns 409 ENTITY_IN_TRASH without changing it
     error: `ENTITY_IN_TRASH: post '${ENTRY_ID}' is in the Trash. Restore it from the Trash before changing it.`,
     code: "ENTITY_IN_TRASH",
   });
-  assert.deepEqual(await postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), before);
+  assertAdminResponse({ actual: await postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), expected: before });
 });
 
 test("put-entry: a valid patch succeeds (200) and the meta reflects it", async (t) => {
@@ -194,7 +195,7 @@ for (const source of ["library", "external"] as const) {
     assert.ok(saved);
     assert.deepEqual(JSON.parse(saved.seoExtJson!), { title: "New SEO Title" });
     assert.equal(saved.featuredMediaId, before.featuredMediaId);
-    assert.deepEqual(saved.bodyJson, before.bodyJson);
+    assertAdminResponse({ actual: saved.bodyJson, expected: before.bodyJson });
   });
 }
 
@@ -270,9 +271,9 @@ test("put-entry: an unexpected repo failure 500s", async (t) => {
   const app = buildApp({ postRepo: base.postRepo });
   const { status, json } = await put(t, app, { title: "x" });
   assert.equal(status, 500);
-  assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   assert.equal(reached, true, "the conditional write must be the failing operation");
-  assert.deepEqual(await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), before);
+  assertAdminResponse({ actual: await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), expected: before });
 });
 
 test("put-entry: losing the row to another writer on every merge attempt 409s (SEO_CONCURRENT_WRITE) without writing", async (t) => {
@@ -289,5 +290,5 @@ test("put-entry: losing the row to another writer on every merge attempt 409s (S
     code: "SEO_CONCURRENT_WRITE",
   });
   assert.equal(lostRace.mock.callCount(), 3, "the merge retries until MAX_MERGE_ATTEMPTS reads all lose the row");
-  assert.deepEqual(await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), before);
+  assertAdminResponse({ actual: await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), expected: before });
 });

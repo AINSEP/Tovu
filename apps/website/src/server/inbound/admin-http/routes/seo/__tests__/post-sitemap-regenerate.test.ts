@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
@@ -122,9 +123,9 @@ test("post-sitemap-regenerate: returns 202 on successful regeneration", async (t
   sitemapService.invalidateSitemapCache({ workspaceId: WORKSPACE_ID }, {});
   t.after(() => sitemapService.invalidateSitemapCache({ workspaceId: WORKSPACE_ID }, {}));
   const before = [{ loc: "https://sitemap.example.com/before-regeneration", lastmod: original.updatedAt }];
-  assert.deepEqual(await sitemapService.buildSitemap({ workspaceId: WORKSPACE_ID }, {}), before);
+  assertAdminResponse({ actual: await sitemapService.buildSitemap({ workspaceId: WORKSPACE_ID }, {}), expected: before });
   await postRepo.save({ ...original, slug: "after-regeneration", updatedAt: "2026-09-30T00:00:00.000Z", version: 2 });
-  assert.deepEqual(await sitemapService.buildSitemap({ workspaceId: WORKSPACE_ID }, {}), before, "control: cache is stale before regeneration");
+  assertAdminResponse({ actual: await sitemapService.buildSitemap({ workspaceId: WORKSPACE_ID }, {}), expected: before }, { message: "control: cache is stale before regeneration" });
   const app = buildApp({ postRepo, settingsRepo: base.settingsRepo, seoReady: base.seoReady, originRegistry, seoDeps, sitemapService });
   const { status, json } = await post(t, app);
   assert.equal(status, 202);
@@ -142,7 +143,7 @@ test("post-sitemap-regenerate: unexpected authorization error returns 500", asyn
   });
   const { status, json } = await post(t, app);
   assert.equal(status, 500);
-  assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("post-sitemap-regenerate: error when regenerateSitemapCache rejects returns 500", async (t) => {
@@ -150,7 +151,7 @@ test("post-sitemap-regenerate: error when regenerateSitemapCache rejects returns
   const app = buildApp({ settingsRepo });
   const { status, json } = await post(t, app);
   assert.equal(status, 500);
-  assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   assert.ok(settingsRepo.calls > 0, "the 500 must come from the injected settings failure");
 });
 

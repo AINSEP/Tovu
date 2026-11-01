@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -322,7 +323,7 @@ test("GET destination: an unexpected failure reading the peer list is a generic 
   };
   const res = await fetch(`${h.url}${BASE}`);
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("POST connect: when recording the peer fails after the grant was written, the grant is reversed and the failure is a generic 500", async (t) => {
@@ -333,7 +334,7 @@ test("POST connect: when recording the peer fails after the grant was written, t
   };
   const res = await post(`${h.url}${BASE}/connect`, { siteUrl: "https://live.example" });
   assert.equal(res.status, 500);
-  assert.deepEqual(res.body, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: res.body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   assert.deepEqual(h.provisioningCalls, ["connect remote-workspace", "disconnect"], "the written grant must be compensated");
 });
 

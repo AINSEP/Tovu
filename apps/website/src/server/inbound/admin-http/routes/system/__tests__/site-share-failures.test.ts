@@ -7,6 +7,7 @@ import type { Socket } from "node:net";
 import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminSiteShareRoutes } from "../site-shares.js";
 import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { sendSiteShareFailure } from "../site-share-errors.js";
 
 const root = "/api/admin/v1/workspaces/ws/site-shares";
 
@@ -82,4 +83,19 @@ test("share refusals retain their public diagnosis and do not log an internal in
   assert.equal(response.status, 403);
   assert.deepEqual(response.body, { code: "FORBIDDEN", message: "Only the site owner can export saved keys." });
   assert.deepEqual(logs, []);
+});
+
+test("shared diagnostics remain correlated without a telemetry provider", t => {
+  const logs: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => logs.push(args));
+  let status = 0, body: any;
+  const res = { status: (value: number) => { status = value; return { json: (value: unknown) => { body = value; } }; } };
+  sendSiteShareFailure({ res: res as any, error: "storage unavailable" });
+  assert.equal(status, 500);
+  assert.equal(body.code, "SHARE_FAILED");
+  assert.equal(typeof body.errorId, "string");
+  assert.ok(body.message.includes(body.errorId));
+  assert.equal(logs.length, 1);
+  assert.ok(JSON.stringify(logs).includes(body.errorId));
+  assert.equal(body.message.includes("storage unavailable"), false);
 });

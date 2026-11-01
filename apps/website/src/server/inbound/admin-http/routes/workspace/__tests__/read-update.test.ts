@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -50,7 +51,7 @@ test("name-only and slug-only PATCH preserve the other field in storage and subs
 test("unexpected repository failure maps to generic 500 in list, get and update", async () => {
   const invoke = harness({ findById: async () => { throw new Error("private database details"); } });
   for (const [method, path] of [["get", base], ["get", base + "/:workspaceId"], ["patch", base + "/:workspaceId"]] as const) {
-    assert.deepEqual(await invoke(method, path, { name: "Renamed" }), { statusCode: 500, jsonBody: { error: "internal error" } });
+    assertAdminResponse({ actual: await invoke(method, path, { name: "Renamed" }), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
   }
 });
 
@@ -62,10 +63,10 @@ test("empty PATCH maps validation to 400 and slug collision maps conflict to 409
     assert.deepEqual(await invoke("patch", base + "/:workspaceId", body), { statusCode: 400, jsonBody: {
       error: "at least one of name or slug is required", code: "VALIDATION_ERROR",
     } });
-    assert.deepEqual(await repo.findById({ id: "ws-7" }), own);
+    assertAdminResponse({ actual: await repo.findById({ id: "ws-7" }), expected: own });
   }
   assert.deepEqual(await invoke("patch", base + "/:workspaceId", { slug: "taken-slug" }), { statusCode: 409, jsonBody: {
     error: "slug 'taken-slug' already exists", code: "RESOURCE_CONFLICT", details: { field: "slug" },
   } });
-  assert.deepEqual(await repo.findById({ id: "ws-7" }), own);
+  assertAdminResponse({ actual: await repo.findById({ id: "ws-7" }), expected: own });
 });

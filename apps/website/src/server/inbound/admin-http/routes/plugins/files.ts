@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { PLUGIN_PACKAGE_FILE_LIMITS, PluginPackagePathError } from "@jini-ai/plugins/host/node";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -13,7 +14,7 @@ function sendPluginFilesError(res: Response, err: unknown): void {
     return;
   }
 
-  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/plugins/files", code: "INTERNAL_ERROR" });
 }
 
 /**

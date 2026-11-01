@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -97,7 +98,7 @@ test("comments settings: an unexpected failure is a 500 INTERNAL_ERROR on GET an
 
   const getRes = await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`);
   assert.equal(getRes.status, 500);
-  assert.deepEqual(await getRes.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await getRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 
   const putRes = await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`, {
     method: "PUT",
@@ -105,7 +106,7 @@ test("comments settings: an unexpected failure is a 500 INTERNAL_ERROR on GET an
     body: JSON.stringify({ requireModeration: false }),
   });
   assert.equal(putRes.status, 500);
-  assert.deepEqual(await putRes.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await putRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("comments settings: a PUT with no request body is an empty patch — it echoes the stored settings unchanged", async (t) => {
@@ -119,7 +120,7 @@ test("comments settings: a PUT with no request body is an empty patch — it ech
   // No content-type and no body: express.json() skips it and hands the route an empty object.
   const putRes = await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`, { method: "PUT" });
   assert.equal(putRes.status, 200);
-  assert.deepEqual(((await putRes.json()) as { data: unknown }).data, stored.data);
+  assertAdminResponse({ actual: ((await putRes.json()) as { data: unknown }).data, expected: stored.data });
 });
 
 test("comments settings: a host that mounts PUT without any JSON parser still gets an empty patch, not a 500", async (t) => {
@@ -141,7 +142,7 @@ test("comments settings: a host that mounts PUT without any JSON parser still ge
   });
   assert.equal(putRes.status, 200);
   // The unparsed body is never read as a patch: the stored settings come back unchanged.
-  assert.deepEqual(((await putRes.json()) as { data: unknown }).data, stored.data);
+  assertAdminResponse({ actual: ((await putRes.json()) as { data: unknown }).data, expected: stored.data });
 });
 
 /**
@@ -175,7 +176,7 @@ test("comments settings: a principal without comments.configure is a coded 403 o
 
   const getRes = await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`);
   assert.equal(getRes.status, 403);
-  assert.deepEqual(await getRes.json(), expected);
+  assertAdminResponse({ actual: await getRes.json(), expected: expected });
 
   const putRes = await fetch(`${baseUrl}${PATH(WORKSPACE_ID)}`, {
     method: "PUT",
@@ -183,7 +184,7 @@ test("comments settings: a principal without comments.configure is a coded 403 o
     body: JSON.stringify({ requireModeration: false }),
   });
   assert.equal(putRes.status, 403);
-  assert.deepEqual(await putRes.json(), expected);
+  assertAdminResponse({ actual: await putRes.json(), expected: expected });
 });
 
 test("comments settings: a PUT whose patch fails validation is a coded 400 carrying the validator's message, not a 500", async (t) => {

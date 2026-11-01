@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { assertActiveOwnerFloor, principalHoldsOwnerWildcard } from "#src/features/identity/delete-user-service";
 import type { Response } from "express";
 
@@ -31,7 +32,7 @@ function sendRemovePolicyPermissionError(res: Response, err: unknown): void {
     res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/users/remove-policy-permission", code: "INTERNAL_ERROR" });
 }
 
 /**

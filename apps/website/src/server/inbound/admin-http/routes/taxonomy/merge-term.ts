@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { confirm, execute, ForbiddenError, PlanStaleError, plan, type GatedMutationHooks } from "#src/contracts/core/gated-mutations/gateway";
@@ -74,6 +75,7 @@ export function registerAdminTaxonomyMergeTermRoutes(app: Express, deps: RouteDe
       res.json(result);
     } catch (err) {
       const { status, code } = statusFor(err);
+      if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
       res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
     }
   });
@@ -115,6 +117,7 @@ export function registerAdminTaxonomyMergeTermRoutes(app: Express, deps: RouteDe
       res.json({ confirmationToken: token });
     } catch (err) {
       const { status, code } = statusFor(err);
+      if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
       res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
     }
   });
@@ -155,6 +158,7 @@ export function registerAdminTaxonomyMergeTermRoutes(app: Express, deps: RouteDe
       res.json(result);
     } catch (err) {
       const { status, code } = statusFor(err);
+      if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
       res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
     }
   });

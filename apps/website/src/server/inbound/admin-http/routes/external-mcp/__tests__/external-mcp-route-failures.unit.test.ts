@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -30,7 +31,7 @@ for (const method of ['GET', 'DELETE']) {
     const fail = async () => { throw new Error('private fingerprint'); };
     const { app } = fixture(registerAdminExternalMcpToolApprovalsRoutes, { externalMcpToolApprovalRepo: { listByWorkspaceId: fail, delete: fail } });
     const path = method === 'GET' ? `${BASE}/mcp-servers/tool-approvals` : `${BASE}/mcp-servers/server/tool-approvals/tool`;
-    assert.deepEqual(await dispatchJsonRequest(app, method, path), { status: 500, body: INTERNAL_CODE });
+    assertAdminResponse({ actual: await dispatchJsonRequest(app, method, path), expected: { status: 500, body: INTERNAL_CODE } });
   });
 }
 
@@ -38,7 +39,7 @@ test('MCP probe: repository failure is a private 500 rather than an unreachable-
   const { app } = fixture((app, deps) => registerAdminExternalMcpProbeRoute(app, deps, limiter), {
     externalMcpServerRepo: { findByServerId: async () => { throw new Error('secret'); } },
   });
-  assert.deepEqual(await dispatchJsonRequest(app, 'POST', `${BASE}/mcp-servers/server/probe`), { status: 500, body: INTERNAL_CODE });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', `${BASE}/mcp-servers/server/probe`), expected: { status: 500, body: INTERNAL_CODE } });
 });
 
 test('MCP probe limiter uses the shared outbound call budget and restores it after the window', async () => {
@@ -133,7 +134,7 @@ for (const [method, path, repo] of [
   test(`MCP ${method}: storage failure is a private 500`, async () => {
     const register = method === 'GET' ? registerAdminExternalMcpListRoute : method === 'DELETE' ? registerAdminExternalMcpDeleteRoute : registerAdminExternalMcpPutRoute;
     const { app } = fixture(register, { externalMcpServerRepo: repo });
-    assert.deepEqual(await dispatchJsonRequest(app, method, path, { command: 'node' }), { status: 500, body: INTERNAL_CODE });
+    assertAdminResponse({ actual: await dispatchJsonRequest(app, method, path, { command: 'node' }), expected: { status: 500, body: INTERNAL_CODE } });
   });
 }
 
@@ -142,7 +143,7 @@ for (const thrown of ['secret upstream body', new Error('secret upstream body')]
     const { app } = fixture((app, deps) => registerAdminExternalMcpOAuthDisconnectRoute(app, {
       ...deps, externalMcpOAuth: { disconnect: async () => { throw thrown; } },
     } as any));
-    assert.deepEqual(await dispatchJsonRequest(app, 'DELETE', `${BASE}/mcp-servers/server/oauth`), { status: 500, body: INTERNAL_CODE });
+    assertAdminResponse({ actual: await dispatchJsonRequest(app, 'DELETE', `${BASE}/mcp-servers/server/oauth`), expected: { status: 500, body: INTERNAL_CODE } });
   });
 }
 

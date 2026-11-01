@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -110,6 +111,6 @@ test("one dialog at a time: a second pick while one is open is a 409", async () 
 
 test("a chooser failure is a fixed 500 that never echoes the cause, and frees the slot", async () => {
   const f = fixture({ pick: async () => { throw new Error("osascript: secret detail /Users/la"); } });
-  assert.deepEqual(await f.request(), { statusCode: 500, jsonBody: { reasonCode: "picker-failed" } });
+  assertAdminResponse({ actual: await f.request(), expected: { statusCode: 500, jsonBody: { reasonCode: "picker-failed", error: "internal error", code: "INTERNAL_ERROR" } } });
   assert.equal((await f.request()).statusCode, 500);
 });

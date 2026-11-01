@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -100,7 +101,7 @@ test("installErrorResponse: a held activation lock is 409 busy and logs the real
 });
 
 test("installErrorResponse: an unrecognised error is a redacted 500 with no warning", () => {
-  assert.deepEqual(installErrorResponse(new Error("private /secret/layout")), { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } });
+  assertAdminResponse({ actual: installErrorResponse(new Error("private /secret/layout")), expected: { status: 500, body: { code: "INTERNAL_ERROR", error: "internal error" } } });
 });
 
 const candidate: AgentPluginSearchCandidate = {

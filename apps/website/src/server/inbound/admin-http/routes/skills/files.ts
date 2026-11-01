@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import path from "node:path";
 import { loadInstalledSkillToolSources } from "#src/features/skills/tool-registrations";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
@@ -34,9 +35,9 @@ export const registerSkillFilesRoute: SkillsRouteRegistrar = (app, deps) => {
       // Install records are server bookkeeping, including copies in nested skill folders.
       const visibleFiles = files.filter(file => path.posix.basename(file.relativePath) !== ".tovu-install.json");
       res.json({ toolId, files: visibleFiles, truncated, limits: PLUGIN_PACKAGE_FILE_LIMITS });
-    } catch {
+    } catch (error) {
       // Path errors can contain private server paths; match the plugin files refusal.
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error }, { operation: "routes/skills/files", code: "INTERNAL_ERROR" });
     }
   });
 };

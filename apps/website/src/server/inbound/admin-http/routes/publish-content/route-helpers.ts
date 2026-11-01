@@ -1,3 +1,4 @@
+import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -72,11 +73,11 @@ export type MappedErrorClass = readonly [errorClass: abstract new (...args: neve
  * Anything not in `table` is a 500 with fixed text: a raw driver error's message is never echoed.
  * @complexity O(t) in the table length.
  */
-export function mappedErrorResponse(err: unknown, table: readonly MappedErrorClass[]): RouteRefusal {
+export function mappedErrorResponse(err: unknown, table: readonly MappedErrorClass[], options: AdminFailurePorts = {}): RouteRefusal {
   for (const [errorClass, status, code] of table) {
     if (err instanceof errorClass) return { status, body: { error: err.message, code } };
   }
-  return { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } };
+  return adminFailureResponse({ error: err, tracker: options.tracker }, { operation: "routes/publish-content/route-helpers" });
 }
 
 /** Sends a {@link RouteRefusal}. @complexity O(1). */

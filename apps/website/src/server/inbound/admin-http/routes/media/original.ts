@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { documentContentType, documentDisplayFilename, MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import type { Request, Response } from "express";
 
@@ -209,13 +210,13 @@ export const registerAdminMediaOriginalRoute: MediaRouteRegistrar = (app, deps) 
       }
       const sendOriginal = resolved.media.kind === "document" ? sendDocumentOriginal : sendInlineOriginal;
       await sendOriginal({ req, res, deps, ...resolved });
-    } catch {
+    } catch (error) {
       // No typed domain error is thrown on this route's own read path — `media`/`assetBlobRepo`
       // not-found is handled explicitly above via the `null` checks, not by catching an error type
       // (unlike the write routes, which call `media-service.ts` functions that throw
       // `MediaNotFoundError`). Anything reaching here is a genuine unexpected failure (e.g. the
       // blob store's `get()` rejecting, or the "data-integrity gap" throw above).
-      res.status(500).json({ error: "internal error" });
+      sendAdminFailure({ res, error }, { operation: "routes/media/original", code: "INTERNAL_ERROR" });
     }
   });
 };

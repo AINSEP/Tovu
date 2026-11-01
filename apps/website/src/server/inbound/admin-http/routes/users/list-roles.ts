@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { toAdminRoleResponse } from "#src/server/inbound/admin-http/http/users";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -29,8 +30,8 @@ export const registerAdminRoleListRoute: UsersRouteRegistrar = (app, deps) => {
 
       const roles = await deps.roleRepo.list({ workspaceId: deps.workspaceId });
       res.json({ roles: roles.map(toAdminRoleResponse) });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/users/list-roles", code: "INTERNAL_ERROR" });
     }
   });
 };

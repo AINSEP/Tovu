@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
@@ -238,7 +239,7 @@ test("AGENT_PLUGINS_LIST: discovery failure is redacted", async (t) => {
   const fault = t.mock.method(agentPluginsDeps.agentPluginLayout, "forWorkspace", () => { throw new Error("private /secret/packages"); });
   const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_A}/agent-plugins`, { headers: { cookie } });
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   assert.equal(fault.mock.callCount(), 1);
 });
 

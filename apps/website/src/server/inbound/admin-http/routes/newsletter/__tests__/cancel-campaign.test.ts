@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -153,7 +154,7 @@ test("cancel-campaign: generic unexpected error maps to 500", async (t) => {
     `/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/camp-1/cancel`
   );
   assert.equal(status, 500);
-  assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 for (const [initial, allowed] of [
@@ -173,8 +174,8 @@ for (const [initial, allowed] of [
       assert.equal(stored?.status, "canceled");
     } else {
       assert.equal((json as { code: string }).code, "NEWSLETTER_CAMPAIGN_NOT_EDITABLE");
-      assert.deepEqual(stored, campaign);
-      assert.deepEqual(await deps.newsletterCampaignRepo.listRevisions({ workspaceId: WORKSPACE_ID, campaignId: campaign.id }), revisionsBefore);
+      assertAdminResponse({ actual: stored, expected: campaign });
+      assertAdminResponse({ actual: await deps.newsletterCampaignRepo.listRevisions({ workspaceId: WORKSPACE_ID, campaignId: campaign.id }), expected: revisionsBefore });
     }
   });
 }

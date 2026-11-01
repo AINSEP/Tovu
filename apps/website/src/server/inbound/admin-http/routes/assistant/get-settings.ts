@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { ADMIN_ASSISTANT_PERMISSION, getPublicAssistantSettings } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AssistantSettingsRouteRegistrar } from "./deps.js";
@@ -47,8 +48,8 @@ export const registerAdminAssistantGetSettingsRoute: AssistantSettingsRouteRegis
         { workspaceId: deps.workspaceId }
       );
       res.json({ data: settings, adminAssistantEnabled: deps.adminAssistantEnabled });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/assistant/get-settings", code: "INTERNAL_ERROR" });
     }
   });
 };

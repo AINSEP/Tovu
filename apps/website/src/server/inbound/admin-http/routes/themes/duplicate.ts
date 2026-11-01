@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { DuplicateThemeError, duplicateDiscoveredTheme, requestThemePreviewRefresh, validThemeIds, type DuplicateThemeErrorCode } from "#src/features/theme/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -80,7 +81,7 @@ export const registerAdminThemeDuplicateRoute: ContentRouteRegistrar = (app, dep
         res.status(DUPLICATE_ERROR_STATUS[err.code]).json({ error: err.message, code: err.code });
         return;
       }
-      res.status(500).json({ error: "internal error" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/themes/duplicate", code: "INTERNAL_ERROR" });
     }
   });
 };

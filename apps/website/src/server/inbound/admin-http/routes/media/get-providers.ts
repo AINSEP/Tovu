@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { getMediaProviderCredentials } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { MediaProviderRouteRegistrar } from "./deps.js";
@@ -43,8 +44,8 @@ export const registerAdminMediaGetProvidersRoute: MediaProviderRouteRegistrar = 
         { workspaceId: deps.workspaceId }
       );
       res.json(providers);
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/media/get-providers", code: "INTERNAL_ERROR" });
     }
   });
 };

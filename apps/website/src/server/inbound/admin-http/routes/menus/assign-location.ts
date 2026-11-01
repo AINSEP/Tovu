@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 import { assignLocation, MenuConflictError, MenuNotFoundError, MenuVersionConflictError } from "#src/features/navigation/index";
 import { toAdminAssignLocationResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
@@ -36,7 +37,7 @@ function sendAssignLocationError(
     res.status(409).json({ error: err.message });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/menus/assign-location", code: "INTERNAL_ERROR" });
 }
 
 /**

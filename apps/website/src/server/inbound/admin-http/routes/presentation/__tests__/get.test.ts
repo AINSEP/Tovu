@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import assert from "node:assert/strict";
@@ -132,7 +133,7 @@ test("presentation get: an unexpected repo failure 500s", async (t) => {
   });
   const { status, json } = await get(t, app);
   assert.equal(status, 500);
-  assert.deepEqual(json, { error: "internal error" });
+  assertAdminResponse({ actual: json, expected: { error: "internal error" } });
 });
 
 test("presentation get: workspaceId param can never actually be undefined through this app's real composition (a matched `:param` segment is always a populated string) -- its `?? \"\"` fallback is reached by calling the real handler directly, the same type-bypass technique put-entry.test.ts's own equivalent test uses", async (t) => {
@@ -212,7 +213,7 @@ test("presentation get: kind filters templates without changing catalog order or
   ] as const) {
     const { status, json } = await get(t, app, `${PATH}${query}`);
     assert.equal(status, 200);
-    assert.deepEqual((json as { activeThemeTemplates: string[] }).activeThemeTemplates, expected);
+    assertAdminResponse({ actual: (json as { activeThemeTemplates: string[] }).activeThemeTemplates, expected: expected });
   }
 });
 
@@ -273,7 +274,7 @@ test("presentation get: active-theme response uses current metadata and preserve
         assert.deepEqual(body.settings, { ...stored, activeThemeId: found ? "tovu-theme" : storedId });
         assert.deepEqual(body.activeThemeTemplates, found ? templates : []);
         assert.deepEqual(body.activeThemeStaticPageIds, found ? ["home", "about"] : []);
-        assert.deepEqual(await repo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), stored);
+        assertAdminResponse({ actual: await repo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), expected: stored });
       });
     }
   }

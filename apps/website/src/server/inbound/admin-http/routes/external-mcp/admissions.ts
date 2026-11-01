@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { ensureAssistantDaemonReady } from "../../../../runtime/lifecycle/daemon-supervisor.js";
 import { fetchDaemonAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
@@ -56,8 +57,8 @@ export const registerAdminExternalMcpAdmissionsRoute: ExternalMcpRouteRegistrar 
       res
         .status(200)
         .json(result.configFailures !== undefined ? { connections: result.connections, configFailures: result.configFailures } : { connections: result.connections });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/external-mcp/admissions", code: "INTERNAL_ERROR" });
     }
   });
 };

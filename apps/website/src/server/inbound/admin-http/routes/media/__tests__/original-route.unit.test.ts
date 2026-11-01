@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -45,7 +46,7 @@ test('media original: a blob store failure is a private 500', async (t) => {
   const { app, deps } = mediaApp(registerAdminMediaOriginalRoute);
   const id = await seedPng(app);
   t.mock.method(deps.blobStore, 'get', async () => { throw new Error('private disk failure'); });
-  assert.deepEqual(await dispatchJsonRequest(app, 'GET', `${BASE}/media/${id}/original`), { status: 500, body: INTERNAL });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/media/${id}/original`), expected: { status: 500, body: INTERNAL } });
 });
 
 test('media original: a media row whose source blob is missing is a data-integrity 500, not a 404', async (t) => {
@@ -53,7 +54,7 @@ test('media original: a media row whose source blob is missing is a data-integri
   const id = await seedPng(app);
   t.mock.method(deps.assetBlobRepo, 'findByHash', async () => null);
   const get = t.mock.method(deps.blobStore, 'get');
-  assert.deepEqual(await dispatchJsonRequest(app, 'GET', `${BASE}/media/${id}/original`), { status: 500, body: INTERNAL });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/media/${id}/original`), expected: { status: 500, body: INTERNAL } });
   assert.equal(get.mock.callCount(), 0);
 });
 

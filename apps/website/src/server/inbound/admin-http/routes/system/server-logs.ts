@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { processServerLogSource } from "#src/features/server-logs/process-source";
@@ -50,8 +51,8 @@ export function registerAdminServerLogsRoute(app: Express, deps: AdminServerLogs
         res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
         return;
       }
-      console.error("[system/server-logs] unexpected error", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/server-logs", code: "INTERNAL_ERROR" });
     }
   });
 }

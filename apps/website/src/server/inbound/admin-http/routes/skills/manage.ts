@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { SkillInstallInput } from "@jini-ai/agentic/skills/install";
 import type { Request, Response } from "express";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -41,7 +42,7 @@ export const registerSkillsManagementRoutes = (
       await work(req, res);
     } catch (error) {
       if (error instanceof SkillInputError) res.status(400).json({ error: error.message, code: "VALIDATION_ERROR" });
-      else { console.error("[skills] request failed", error); res.status(500).json({ error: "Could not change skills. Try again.", code: "INTERNAL_ERROR" }); }
+      else {  sendAdminFailure({ res, error }, { operation: "routes/skills/manage", code: "INTERNAL_ERROR", message: "Could not change skills. Try again." }); }
     }
   };
   app.post(base, guarded(async (req, res) => {

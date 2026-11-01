@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { mayActOnEntityType, TRASH_READ_PERMISSION } from "#src/features/trash/index";
 import type { RestoreOutcome } from "@jini-ai/cms/trash";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -74,8 +75,8 @@ export const registerAdminTrashRestoreRoute: TrashRouteRegistrar = (app, deps) =
       }
 
       res.json({ restored: results.filter((r) => r.outcome === "restored").length, results });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/trash/restore", code: "INTERNAL_ERROR" });
     }
   });
 };

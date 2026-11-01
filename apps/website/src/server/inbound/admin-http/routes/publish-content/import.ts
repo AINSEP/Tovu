@@ -179,7 +179,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
         ...(backstopPreview === undefined ? {} : { backstopPreview }),
       });
     } catch (err) {
-      sendRefusal(res, importErrorResponse(err));
+      sendRefusal(res, importErrorResponse(err, { tracker: res.locals?.adminFailureTracker }));
     }
   });
 
@@ -210,7 +210,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
 
       res.json({ confirmationToken: record.confirmationToken });
     } catch (err) {
-      sendRefusal(res, importErrorResponse(err));
+      sendRefusal(res, importErrorResponse(err, { tracker: res.locals?.adminFailureTracker }));
     }
   });
 
@@ -276,7 +276,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       const applyReport = await readBackstopApplyReport({ audit: toPublishContentDeps(deps).backstop?.audit, workspaceId: deps.workspaceId, runId: result.runId });
       res.json({ ...result, ...applyReport });
     } catch (err) {
-      sendRefusal(res, importErrorResponse(err));
+      sendRefusal(res, importErrorResponse(err, { tracker: res.locals?.adminFailureTracker }));
     }
   });
 
@@ -296,7 +296,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       }
       res.json(status);
     } catch (err) {
-      sendRefusal(res, importErrorResponse(err));
+      sendRefusal(res, importErrorResponse(err, { tracker: res.locals?.adminFailureTracker }));
     }
   });
 };

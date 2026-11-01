@@ -1,3 +1,4 @@
+import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import {
   getEntryMeta,
   setEntrySeoOverrides,
@@ -14,7 +15,7 @@ import type { SeoRouteRegistrar } from "./deps.js";
 
 /** Maps `setEntrySeoOverrides`/`getEntryMeta`'s known thrown error types to this route's documented
  *  4xx response shapes; any other error (including a real bug) falls through to a generic 500. */
-function seoPutEntryErrorResponse(err: unknown): { status: number; body: { error: string; code: string } } {
+function seoPutEntryErrorResponse(err: unknown, options: AdminFailurePorts = {}): { status: number; body: { error: string; code: string } } {
   const live = entityNotLiveResponse(err);
   if (live) return live;
   if (err instanceof SeoFieldValidationError) {
@@ -32,7 +33,7 @@ function seoPutEntryErrorResponse(err: unknown): { status: number; body: { error
   if (err instanceof SeoConcurrentWriteError) {
     return { status: 409, body: { error: err.message, code: "SEO_CONCURRENT_WRITE" } };
   }
-  return { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } };
+  return adminFailureResponse({ error: err, tracker: options.tracker }, { operation: "routes/seo/put-entry" });
 }
 
 /**
@@ -84,7 +85,7 @@ export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = (app, deps) => {
       }, {});
       res.json({ data: withContentImageSource({ meta, rawPost: read.rawPost }) });
     } catch (err) {
-      const { status, body } = seoPutEntryErrorResponse(err);
+      const { status, body } = seoPutEntryErrorResponse(err, { tracker: res.locals?.adminFailureTracker });
       res.status(status).json(body);
     }
   });

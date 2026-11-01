@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -55,7 +56,7 @@ for (const [route, body] of Object.entries(SEND_BODIES)) {
   test(`${route} answers an untyped or unmapped error with the fixed 500`, async () => {
     for (const error of [new Error("ECONNRESET 10.0.0.5"), new PublishContentPeerValidationError("label is required")]) {
       const app = routeApp(registerPublishContentPeerTransportRoutes, routeDeps({ publishContentPeerRepo: new FailingPeerRepo(error) }));
-      assert.deepEqual(await dispatchJsonRequest(app, "POST", `${PEER}/${route}`, body), { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } });
+      assertAdminResponse({ actual: await dispatchJsonRequest(app, "POST", `${PEER}/${route}`, body), expected: { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } } });
     }
   });
 

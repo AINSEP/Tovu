@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
@@ -150,7 +151,7 @@ test("get-entry-analyze: unexpected repo error returns 500 (INTERNAL_ERROR)", as
   });
   const { status, json } = await get(t, app);
   assert.equal(status, 500);
-  assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("get-entry-analyze: workspaceId and entryId undefined fallbacks via direct handler execution", async () => {

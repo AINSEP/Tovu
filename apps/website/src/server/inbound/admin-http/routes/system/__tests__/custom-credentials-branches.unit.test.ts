@@ -1,3 +1,4 @@
+import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -110,9 +111,9 @@ test("custom-credentials: an unexpected store failure on list or delete is a fix
   t.mock.method(deps.customCredentialSetRepo, "findById", fault);
   const send = await client(t, app, deps.workspaceId);
   for (const [method, suffix] of [["GET", ""], ["DELETE", "/some-id"]] as const) {
-    assert.deepEqual(await send(method, suffix), { status: 500, json: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: await send(method, suffix), expected: { status: 500, json: { error: "internal error", code: "INTERNAL_ERROR" } } });
   }
-  assert.deepEqual(logged.mock.calls.map((c) => c.arguments), [["[custom-credentials] unexpected store error"], ["[custom-credentials] unexpected store error"]]);
+  assertAdminDiagnostics({ calls: logged.mock.calls.map(c => c.arguments), operation: "[routes/system/custom-credentials]", diagnostics: [/vault corrupted at \/private\/vault.db/, /vault corrupted at \/private\/vault.db/] });
 });
 
 test("custom-credentials: with a project store, keys save to the project unless scope is site; the unused Share route is removed", async (t) => {

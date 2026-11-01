@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { filterVisibleTrashItems, trashDaysRemaining, TRASH_READ_PERMISSION } from "#src/features/trash/index";
 import type { TrashItem } from "@jini-ai/cms/trash";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -52,8 +53,8 @@ export const registerAdminTrashListRoute: TrashRouteRegistrar = (app, deps) => {
         items: visible.map((item) => toAdminTrashResponse(item, now, usernameByPrincipalId)),
         nextCursor: page.nextCursor,
       });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/trash/list", code: "INTERNAL_ERROR" });
     }
   });
 };

@@ -1,3 +1,5 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { Request, Response } from "express";
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginHostIncompatibleError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
@@ -154,7 +156,7 @@ async function provisionAgentPluginMcpServersBestEffort(
     }
   } catch (error) {
     console.warn(
-      `[agent-plugins] '${input.pluginId}': MCP provisioning could not run — ${error instanceof Error ? error.message : String(error)}`,
+      `[agent-plugins] '${input.pluginId}': MCP provisioning could not run — ${redactSecretShapes({ text: String((error as { message?: unknown } | null)?.message ?? error) }).text}`,
     );
   }
 }
@@ -217,7 +219,7 @@ function sendSetEnabledError(res: Response, pluginId: string, error: unknown): v
     });
     return;
   }
-  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+  sendAdminFailure({ res, error }, { operation: "routes/agent-plugins/set-enabled", code: "INTERNAL_ERROR" });
 }
 
 /**

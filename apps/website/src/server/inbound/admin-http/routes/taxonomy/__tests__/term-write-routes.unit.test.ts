@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { portFake, type PortFake } from "#src/server/__tests__/helpers/port-fake";
@@ -69,16 +70,16 @@ test("create-term maps a parent on a flat taxonomy to 400 VALIDATION_ERROR", asy
 
 test("create-term maps a non-Error throw to a generic 500", async () => {
   const invoke = harness({ taxonomyRepo: { findById: async () => { throw "storage offline"; } } });
-  assert.deepEqual(await invoke("post", createPath, { params: { taxonomyId: "tax-1" }, body: { name: "News" } }), {
+  assertAdminResponse({ actual: await invoke("post", createPath, { params: { taxonomyId: "tax-1" }, body: { name: "News" } }), expected: {
     statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
-  });
+  } });
 });
 
-test("create-term passes an Error's own message through on an unexpected 500", async () => {
+test("create-term keeps an Error's own message private on an unexpected 500", async () => {
   const invoke = harness({ taxonomyRepo: { findById: async () => { throw new Error("db closed"); } } });
-  assert.deepEqual(await invoke("post", createPath, { params: { taxonomyId: "tax-1" }, body: { name: "News" } }), {
-    statusCode: 500, jsonBody: { error: "db closed", code: "INTERNAL_ERROR" },
-  });
+  assertAdminResponse({ actual: await invoke("post", createPath, { params: { taxonomyId: "tax-1" }, body: { name: "News" } }), expected: {
+    statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
+  } });
 });
 
 test("delete-taxonomy and delete-term answer 409 TRASH_VERSION_CHANGED when the Trash write loses its version check", async () => {
@@ -102,8 +103,8 @@ test("delete-taxonomy and delete-term hide storage failures behind a generic 500
   const fail = async () => { throw new Error("private storage detail"); };
   const invoke = harness({ taxonomyRepo: { findForTrash: fail }, termRepo: { findForTrash: fail } });
   for (const path of ["/api/admin/v1/taxonomy/:id", "/api/admin/v1/taxonomy/terms/:id"]) {
-    assert.deepEqual(await invoke("delete", path, { params: { id: "x-1" } }), {
+    assertAdminResponse({ actual: await invoke("delete", path, { params: { id: "x-1" } }), expected: {
       statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
-    });
+    } });
   }
 });

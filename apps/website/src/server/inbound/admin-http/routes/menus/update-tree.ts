@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import {
   MenuConflictError,
   MenuNotFoundError,
@@ -72,8 +73,8 @@ function sendUpdateMenuTreeError(res: Response, err: unknown): void {
     res.status(404).json({ error: err.message });
     return;
   }
-  console.error(`admin menu update-tree route failed: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
-  res.status(500).json({ error: "internal error" });
+
+  sendAdminFailure({ res, error: err }, { operation: "routes/menus/update-tree", code: "INTERNAL_ERROR" });
 }
 
 /**

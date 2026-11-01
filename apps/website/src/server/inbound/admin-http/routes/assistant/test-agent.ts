@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { detectAgents, type DetectedAgent } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -91,8 +92,8 @@ export const registerAdminAssistantTestAgentRoute: AssistantExecutionRouteRegist
 
       const agents = await (deps.detectAgents ?? deps.assistantAgentInventory?.runtime.detectAgents ?? detectAgents)({}, { force: true });
       res.json(detectedTestAgentOutcome({ agents, agentId, model }));
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/assistant/test-agent", code: "INTERNAL_ERROR" });
     }
   });
 };

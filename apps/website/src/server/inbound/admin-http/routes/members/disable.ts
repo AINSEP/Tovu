@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { disableMember, MemberNotFoundError, MemberValidationError } from "#src/features/members/index";
 import { toAdminMemberResponse } from "#src/server/inbound/admin-http/http/members";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -60,7 +61,7 @@ export const registerAdminMemberDisableRoute: RouteRegistrar = (app, routeDeps) 
         return;
       }
 
-      res.status(500).json({ error: "internal error" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/members/disable", code: "INTERNAL_ERROR" });
     }
   });
 };

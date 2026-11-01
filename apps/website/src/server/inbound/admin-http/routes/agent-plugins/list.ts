@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { loadAgentPluginSearchCandidates } from "#src/features/agent-plugins/tool-registrations";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -69,8 +70,8 @@ export const registerAgentPluginsListRoute: AgentPluginsRouteRegistrar = (app, d
           mcpServerIds: candidate.mcpServerIds,
         })),
       });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/agent-plugins/list", code: "INTERNAL_ERROR" });
     }
   });
 };

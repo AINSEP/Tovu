@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { trashTaxonomy } from "#src/features/taxonomy/index";
@@ -45,8 +46,8 @@ export function registerAdminTaxonomyDeleteRoute(app: Express, deps: TaxonomyRou
         return;
       }
       res.status(200).json({ trashed: true, id: taxonomyId, version: outcome.version });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/taxonomy/delete-taxonomy", code: "INTERNAL_ERROR" });
     }
   });
 }

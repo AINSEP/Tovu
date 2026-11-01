@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { isOperationInFlight } from "#src/contracts/core/operation-lock";
@@ -63,8 +64,7 @@ export function registerAdminRecoveryStatusRoute(app: Express, deps: DatabaseRec
 
       res.json({ costClass: capabilities.restorePoint.costClass, banner });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "internal error";
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/recovery/status", code: "INTERNAL_ERROR" });
     }
   });
 }

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { ExternalMcpReauthRequiredError } from "../../../../../features/external-mcp/external-mcp-oauth.js";
@@ -83,9 +84,7 @@ function sendExternalMcpOAuthError(res: import("express").Response, error: unkno
     });
     return;
   }
-  // eslint-disable-next-line no-console
-  console.error(`external-mcp oauth route failed: ${error instanceof Error ? error.message : String(error)}`);
-  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+  sendAdminFailure({ res, error }, { operation: "routes/external-mcp/oauth", code: "INTERNAL_ERROR" });
 }
 
 /** Answers the shared limiter check, writing the 429 itself. `Retry-After` is set so a client can

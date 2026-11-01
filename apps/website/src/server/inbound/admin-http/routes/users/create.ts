@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import { IdentityConflictError, IdentityForbiddenError, IdentityValidationError } from "@jini-ai/user-management";
@@ -37,7 +38,7 @@ function sendUserCreateError(res: Response, err: unknown): void {
     res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/users/create", code: "INTERNAL_ERROR" });
 }
 
 /**

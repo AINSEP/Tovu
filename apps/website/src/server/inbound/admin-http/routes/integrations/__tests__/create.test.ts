@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -191,6 +192,6 @@ test("create: an unexpected repo failure (not a validation/not-found error) 500s
   const { status, json } = await post(t, app, { label: "x", targetUrl: "https://example.com/hook", topics: ["a"] });
   assert.equal(insertReached, true);
   assert.equal(status, 500);
-  assert.deepEqual(json, { error: "internal error" });
+  assertAdminResponse({ actual: json, expected: { error: "internal error" } });
   assert.deepEqual(await base.webhookSubscriptionRepo.listByWorkspace({ workspaceId: WORKSPACE_ID }), []);
 });

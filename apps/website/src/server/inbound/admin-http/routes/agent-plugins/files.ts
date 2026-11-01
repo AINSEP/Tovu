@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "../../../../../features/agent-plugins/lifecycle.js";
 import { listInstalledPlugins } from "../../../../../features/agent-plugins/lifecycle.js";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";
@@ -57,9 +58,9 @@ export const registerAgentPluginFilesRoute: AgentPluginsRouteRegistrar = (app, d
         input: { rootDir: plugin.packageRoot, containerDir: workspaceLayout.pluginPackagesDir({ pluginId }) },
       });
       res.json({ pluginId, files, truncated, limits: PLUGIN_PACKAGE_FILE_LIMITS });
-    } catch {
+    } catch (error) {
       // Includes `PluginPackagePathError`, whose message names server paths — never echoed.
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error }, { operation: "routes/agent-plugins/files", code: "INTERNAL_ERROR" });
     }
   });
 };

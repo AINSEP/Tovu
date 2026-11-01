@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { toAdminWorkspaceResponse } from "#src/server/inbound/admin-http/http/workspace";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -35,8 +36,8 @@ export const registerAdminWorkspaceGetRoute: WorkspaceRouteRegistrar = (app, dep
       }
 
       res.json({ workspace: toAdminWorkspaceResponse(workspace) });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/workspace/get", code: "INTERNAL_ERROR" });
     }
   });
 };

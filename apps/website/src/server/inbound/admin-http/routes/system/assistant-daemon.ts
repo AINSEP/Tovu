@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { restartAssistantDaemon as restartAssistantDaemonReal, type RestartAssistantDaemonResult } from "#src/server/runtime/lifecycle/daemon-supervisor";
@@ -84,8 +85,7 @@ export function registerAdminAssistantDaemonRoutes(app: Express, deps: AdminAssi
       }
       res.status(200).json({ ok: true });
     } catch (err) {
-      console.error("[system/assistant-daemon] unexpected error restarting the agent daemon", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/assistant-daemon", code: "INTERNAL_ERROR" });
     }
   });
 }

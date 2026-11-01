@@ -1,3 +1,4 @@
+import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import type { AuthorizeFn } from "@jini-ai/cms/core";
@@ -146,16 +147,16 @@ const NEWSLETTER_ERROR_MAPPERS: ReadonlyArray<
  * surface `NEWSLETTER_LIST_NOT_FOUND` via `campaign-write-service.ts`'s `requireEditableListId`
  * even though that endpoint's own api.spec.md row doesn't separately enumerate it).
  */
-export function newsletterErrorToResponse(err: unknown): NewsletterErrorResponse {
+export function newsletterErrorToResponse(err: unknown, options: AdminFailurePorts = {}): NewsletterErrorResponse {
   for (const [ErrorClass, mapper] of NEWSLETTER_ERROR_MAPPERS) {
     if (err instanceof ErrorClass) return mapper(err as never);
   }
-  return { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } };
+  return adminFailureResponse({ error: err, tracker: options.tracker }, { operation: "http/newsletter" });
 }
 
 /** Maps every typed `newsletter` domain error to its HTTP response; falls through to a generic 500. */
 export function mapNewsletterErrorToResponse(err: unknown, res: Response): void {
-  const { status, body } = newsletterErrorToResponse(err);
+  const { status, body } = newsletterErrorToResponse(err, { tracker: res.locals?.adminFailureTracker });
   res.status(status).json(body);
 }
 

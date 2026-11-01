@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -153,7 +154,7 @@ test("registerAdminWidgetUpdateRoute", async (t) => {
       error: "config for widget type 'text' failed schema validation: config.body: required field is missing. Expected config keys: body (required)", code: "WIDGETS_CONFIG_VALIDATION_ERROR",
       details: { fieldErrors: [{ field: "config.body", reason: "required field is missing" }] },
     });
-    assert.deepEqual(await entryRepo.findById({ workspaceId: "ws-1", id: "w-1" }), before);
+    assertAdminResponse({ actual: await entryRepo.findById({ workspaceId: "ws-1", id: "w-1" }), expected: before });
   });
 
   // 5. Error handling path
@@ -168,7 +169,7 @@ test("registerAdminWidgetUpdateRoute", async (t) => {
       res
     );
     assert.equal(res.statusCode, 500);
-    assert.deepEqual(res.body, { error: "internal error" });
+    assertAdminResponse({ actual: res.body, expected: { error: "internal error" } });
   });
 
   await t.test("an unknown widget is mapped to the real 404 response", async () => {

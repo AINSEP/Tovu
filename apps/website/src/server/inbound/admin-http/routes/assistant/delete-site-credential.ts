@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { ADMIN_ASSISTANT_PERMISSION, deleteSiteAssistantCredential } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AssistantSettingsRouteRegistrar } from "./deps.js";
@@ -38,8 +39,8 @@ export const registerAdminAssistantDeleteSiteCredentialRoute: AssistantSettingsR
         { workspaceId: deps.workspaceId }
       );
       res.json({ data: view });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/assistant/delete-site-credential", code: "INTERNAL_ERROR" });
     }
   });
 };

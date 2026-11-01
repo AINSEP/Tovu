@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { toAdminPolicyResponse } from "#src/server/inbound/admin-http/http/users";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -29,8 +30,8 @@ export const registerAdminPolicyListRoute: UsersRouteRegistrar = (app, deps) => 
 
       const policies = await deps.policyRepo.list({ workspaceId: deps.workspaceId });
       res.json({ policies: policies.map(toAdminPolicyResponse) });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/users/list-policies", code: "INTERNAL_ERROR" });
     }
   });
 };

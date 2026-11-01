@@ -5,7 +5,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { createSkillFileReader, type SkillFileReader } from "@jini-ai/agent-plugins/lifecycle";
 import path from "node:path";
 
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, optionalString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { ToolInputError, buildDomainRegistrations, indexCatalogById, requireInputRecord, optionalString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
 
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
 
@@ -267,10 +267,10 @@ async function resolveSkillEntry(input: {
 
   const priorDir = seenDirById.get(id);
   if (priorDir !== undefined) {
-    throw new Error(
+    throw new ToolInputError({ message:
       `skills: '${frontmatter.name}' is declared by more than one installed skill folder ('${priorDir}' and '${entry.name}') — ` +
         `both would register the same tool id '${id}'; rename one skill's frontmatter 'name' to disambiguate`,
-    );
+    });
   }
   seenDirById.set(id, entry.name);
 
@@ -284,7 +284,7 @@ async function resolveSkillEntry(input: {
  * Loads every installed standalone Agent Skill for one workspace, resolved into one tool-ready
  * source per skill folder.
  *
- * @throws {Error} If two installed skill folders declare the same frontmatter `name` — see
+ * @throws {ToolInputError} If two installed skill folders declare the same frontmatter `name` — see
  * {@link resolveSkillEntry}.
  * @complexity O(d * f) in installed skill-folder count times average bundled-file count per skill.
  */

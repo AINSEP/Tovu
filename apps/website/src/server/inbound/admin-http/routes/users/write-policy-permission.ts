@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Request, Response } from "express";
 
 import { GrantExceedsIssuerError, IdentityForbiddenError, IdentityNotFoundError, IdentityValidationError, PermissionUnknownError } from "@jini-ai/user-management";
@@ -37,7 +38,7 @@ function sendWritePolicyPermissionError(res: Response, req: Request, err: unknow
     res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/users/write-policy-permission", code: "INTERNAL_ERROR" });
 }
 
 /** Coerce the HTTP payload while leaving grant validation to the identity service. */

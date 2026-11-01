@@ -1,3 +1,4 @@
+import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import {
   PresentationSettingsNotFoundError,
   PresentationSettingsValidationError,
@@ -36,14 +37,14 @@ function readActiveThemeId(body: unknown): string {
  * points that add to cyclomatic complexity without adding nesting, so moving them here is a pure
  * complexity-gate fix — still the same 400/404/500 statuses and bodies as before.
  */
-function presentationPatchErrorResponse(err: unknown): { status: number; body: { error: string } } {
+function presentationPatchErrorResponse(err: unknown, options: AdminFailurePorts = {}): { status: number; body: { error: string } } {
   if (err instanceof PresentationSettingsValidationError) {
     return { status: 400, body: { error: err.message } };
   }
   if (err instanceof PresentationSettingsNotFoundError) {
     return { status: 404, body: { error: err.message } };
   }
-  return { status: 500, body: { error: "internal error" } };
+  return adminFailureResponse({ error: err, tracker: options.tracker }, { operation: "routes/presentation/patch-active-theme" });
 }
 
 export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, deps) => {
@@ -114,7 +115,7 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
         })
       );
     } catch (err) {
-      const { status, body } = presentationPatchErrorResponse(err);
+      const { status, body } = presentationPatchErrorResponse(err, { tracker: res.locals?.adminFailureTracker });
       res.status(status).json(body);
     }
   });

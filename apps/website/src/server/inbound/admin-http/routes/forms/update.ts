@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/inbound/admin-http/http/forms";
 import {
   FormDefinitionNotFoundError,
@@ -109,7 +110,7 @@ export const registerAdminFormsUpdateRoute: FormsRouteRegistrar = (app, deps) =>
       res.json(toAdminFormDefinitionResponse(definition));
     } catch (err) {
       if (mapFormsWriteError(err, res)) return;
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/forms/update", code: "INTERNAL_ERROR" });
     }
   });
 };

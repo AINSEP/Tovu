@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { describeExternalMcpOwnership } from "#src/features/external-mcp/built-in-connections";
 import { listExternalMcpServerViews } from "../../../../../features/external-mcp/external-mcp-store.js";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
@@ -22,8 +23,8 @@ export const registerAdminExternalMcpListRoute: ExternalMcpRouteRegistrar = (app
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
       const servers = await listExternalMcpServerViews({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, deps.workspaceId);
       res.json({ servers: servers.map(server => describeExternalMcpOwnership({ server, ids: deps.builtInExternalMcpServerIds })) });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/external-mcp/list", code: "INTERNAL_ERROR" });
     }
   });
 };

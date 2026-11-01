@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Request, Response } from "express";
 
 import { MediaValidationError } from "#src/features/media/index";
@@ -76,5 +77,5 @@ export function sendValidationOrInternalError({ res, error }: { res: Response; e
     res.status(400).json({ error: error.message });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error }, { operation: "routes/media/route-guards", code: "INTERNAL_ERROR" });
 }

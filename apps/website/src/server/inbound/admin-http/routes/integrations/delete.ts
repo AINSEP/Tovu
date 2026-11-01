@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { deleteSubscription, WebhookSubscriptionNotFoundError } from "#src/features/webhooks/index";
 import { toAdminSubscriptionResponse } from "#src/server/inbound/admin-http/http/integrations";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -55,7 +56,7 @@ export const registerAdminIntegrationsDeleteRoute: IntegrationsRouteRegistrar = 
           return;
         }
 
-        res.status(500).json({ error: "internal error" });
+        sendAdminFailure({ res, error: err }, { operation: "routes/integrations/delete", code: "INTERNAL_ERROR" });
       }
     }
   );

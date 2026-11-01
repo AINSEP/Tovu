@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -182,7 +183,7 @@ for (const [status, providerBody, expected] of [
     t.after(() => dispatcher.close());
     dispatcher.get("http://127.0.0.1:4321").intercept({ path: "/v1/chat/completions", method: "POST" }).reply(status, providerBody);
     const body = await probe(registerAdminAssistantTestConnectionRoute, "http://127.0.0.1:4321", { probeRequestInit: { dispatcher } });
-    assert.deepEqual(body, expected);
+    assertAdminResponse({ actual: body, expected: expected });
     dispatcher.assertNoPendingInterceptors();
   });
 }
@@ -213,8 +214,8 @@ test("list-models redacts an authorization-store failure as a generic 500 before
   const body = await probe(registerAdminAssistantListModelsRoute, "http://provider.invalid", {
     authorize: async () => { throw new Error("policy store at /private/policies.db is down"); },
   }, { body: { protocol: "openai", baseUrl: "http://provider.invalid", apiKey: "sk-fake" }, expectedStatus: 500 });
-  assert.deepEqual(body, { error: "internal error", code: "INTERNAL_ERROR" });
-  assert.deepEqual({ transportCalls, lookups: lookups.length }, before, "a failed permission check must never reach DNS or the provider");
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: { transportCalls, lookups: lookups.length }, expected: before }, { message: "a failed permission check must never reach DNS or the provider" });
 });
 
 /**
@@ -252,6 +253,6 @@ for (const [label, registrar] of [
 
     assert.deepEqual({ status, body }, { status: 404, body: { error: "workspace was not found" } });
     assert.deepEqual(authorizations, []);
-    assert.deepEqual({ transportCalls, lookups: lookups.length }, before);
+    assertAdminResponse({ actual: { transportCalls, lookups: lookups.length }, expected: before });
   });
 }

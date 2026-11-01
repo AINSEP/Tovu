@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -61,16 +62,16 @@ for (const { error, status, body } of failures) {
   test(`assign-location: preserves ${error.name} response (${JSON.stringify(body)})`, async () => {
     const { app, deps } = fixture(registerAdminMenuAssignLocationRoute);
     deps.menuRepo.findById = async () => { throw error; };
-    assert.deepEqual(await dispatchJsonRequest(app, 'POST', path, { locationKey: 'primary' }), { status, body });
+    assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', path, { locationKey: 'primary' }), expected: { status, body } });
   });
 }
 
 test('assign-location: authorization failures remain opaque', async () => {
   const authorize: MenuRouteDeps['authorize'] = async () => { throw new Error('private authorization detail'); };
   const { app } = fixture(registerAdminMenuAssignLocationRoute, { authorize });
-  assert.deepEqual(await dispatchJsonRequest(app, 'POST', path, { locationKey: 'primary' }), {
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', path, { locationKey: 'primary' }), expected: {
     status: 500, body: { error: 'internal error' },
-  });
+  } });
 });
 
 for (const locationKey of [' primary ', 0, false]) {

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { describeExternalMcpOwnership } from "#src/features/external-mcp/built-in-connections";
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, saveExternalMcpServer } from "../../../../../features/external-mcp/external-mcp-store.js";
 import { notifyExternalMcpRosterChanged } from "../../../../../assistant/index.js";
@@ -167,7 +168,7 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app,
         res.status(503).json({ error: err.message, code: "SECRET_STORE_UNCONFIGURED" });
         return;
       }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/external-mcp/put", code: "INTERNAL_ERROR" });
     }
   });
 };

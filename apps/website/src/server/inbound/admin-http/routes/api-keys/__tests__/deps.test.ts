@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -48,6 +49,6 @@ for (const { name, error, status, body } of cases) {
   test(`API-key ${name} sends its exact status and safe error envelope`, () => {
     const { res, capture } = createCapturingResponse();
     sendApiKeyError(res, error);
-    assert.deepEqual(capture, { statusCode: status, jsonBody: body });
+    assertAdminResponse({ actual: capture, expected: { statusCode: status, jsonBody: body } });
   });
 }

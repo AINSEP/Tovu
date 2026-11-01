@@ -187,7 +187,10 @@ test("route (direct invoke): an unexpected repository failure is a plain 500 'pr
     throw new Error('sqlite: disk I/O error at /private/path');
   };
   const invoke = previewHandler(deps);
-  assert.deepEqual(await invoke({ params: { workspaceId: 'w', postId: 'draft-1' }, query: {}, body: {} }), { status: 500, text: 'preview render failed' });
+  const response = await invoke({ params: { workspaceId: 'w', postId: 'draft-1' }, query: {}, body: {} });
+  assert.equal(response.status, 500);
+  assert.match(response.text, /^preview render failed \(error [0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\)$/);
+  assert.deepEqual(Object.keys(response).sort(), ["status", "text"]);
 });
 
 test("assigned menu links match in editor preview and the public template pipeline used by export", async () => {

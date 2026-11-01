@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { deleteWorkspace, WorkspaceLastRemainingError, WorkspaceNotFoundError } from "#src/features/workspace/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -27,8 +28,8 @@ export function sendDeleteWorkspaceError(res: Response, err: unknown): void {
     return;
   }
 
-  console.error(`admin workspace delete route failed: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
-  res.status(500).json({ error: "internal error" });
+
+  sendAdminFailure({ res, error: err }, { operation: "routes/workspace/delete", code: "INTERNAL_ERROR" });
 }
 
 /**

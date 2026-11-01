@@ -1,3 +1,4 @@
+import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -83,7 +84,7 @@ test("listing and create keep workspace, permission and exception responses", as
     const denied = fixture({ authorize: async () => ({ allowed: false, reason: "denied" }) });
     assert.equal((await denied.request({ method, body: { name: "new" } })).statusCode, 403);
     const broken = fixture({ authorize: async () => { throw new Error("pin"); } });
-    assert.deepEqual(await broken.request({ method }), { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assertAdminResponse({ actual: await broken.request({ method }), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
   }
 });
 
@@ -143,9 +144,9 @@ test("create forwards checked tokens and the new site's key to the explicit seal
 
 test("create reports unexpected creation errors as internal", async () => {
   const f = fixture({ createSite: async () => { throw new Error("pin creation failure"); } });
-  assert.deepEqual(await f.request({ method: "post", body: { name: "new" } }), {
+  assertAdminResponse({ actual: await f.request({ method: "post", body: { name: "new" } }), expected: {
     statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
-  });
+  } });
 });
 
 /** Invoke any sites route on a fixture's app with a hand-built request. */
@@ -168,16 +169,16 @@ test("token sign-in plugins and activate 404 an absent workspace param; activate
 });
 
 test("token sign-in plugins and activate hide unexpected failures behind a logged generic 500", async (t) => {
-  const logged: unknown[] = [];
-  t.mock.method(console, "error", (message: unknown) => { logged.push(message); });
+  const logged: unknown[][] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => { logged.push(args); });
   const { app } = fixture({
     listTokenSignInPlugins: async () => { throw new Error("SECRET plugin detail"); },
     listSites: () => { throw new Error("SECRET disk detail"); },
   });
   const internal = { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } };
-  assert.deepEqual(await invokeOn(app, "get", "/token-sign-in-plugins", { params: { workspaceId: "ws" } }), internal);
-  assert.deepEqual(await invokeOn(app, "post", "/:name/activate", { params: { workspaceId: "ws", name: "other" }, body: {} }), internal);
-  assert.deepEqual(logged, ["[system/sites] unexpected error listing token sign-in plugins", "[system/sites] unexpected error activating a site"]);
+  assertAdminResponse({ actual: await invokeOn(app, "get", "/token-sign-in-plugins", { params: { workspaceId: "ws" } }), expected: internal });
+  assertAdminResponse({ actual: await invokeOn(app, "post", "/:name/activate", { params: { workspaceId: "ws", name: "other" }, body: {} }), expected: internal });
+  assertAdminDiagnostics({ calls: logged, operation: "[routes/system/sites]", diagnostics: [/SECRET plugin detail/, /SECRET disk detail/] });
 });
 
 test("trashing the persisted next-launch site re-points the default at the served site; any other site leaves it", async () => {

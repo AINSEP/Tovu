@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { containAgentPluginStatePath } from "#src/features/agent-plugins/lifecycle";
 import type { Request, Response } from "express";
 
@@ -63,7 +64,7 @@ export const registerAgentPluginMemoryRoutes: AgentPluginsRouteRegistrar = (app,
       if (write && !(await writeNoteOrRespond({ body: req.body, memory, res }))) return;
       const [learned, notes] = await Promise.all([memory.list({ kind: "learned" }), memory.list({ kind: "notes" })]);
       res.json({ pluginId, learned, notes, limits: DEFAULT_PLUGIN_MEMORY_LIMITS });
-    } catch { res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" }); }
+    } catch (error) { sendAdminFailure({ res, error }, { operation: "routes/agent-plugins/memory", code: "INTERNAL_ERROR" }); }
   };
   app.get(url, handle(false));
   app.put(url, handle(true));

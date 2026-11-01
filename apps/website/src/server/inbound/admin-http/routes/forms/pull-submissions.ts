@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { adminFailureResponse, sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -28,10 +28,9 @@ async function respondWithPullReport(
   } catch (error) {
     // One host's failure is already a per-destination report; this is a failure before any host
     // was read (the vault, the plugin registry). Log the cause under a reference the reply repeats.
-    const reference = randomUUID();
-    // eslint-disable-next-line no-console
-    console.error(`[forms] pulling form submissions failed, reference ${reference}: ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
-    res.status(500).json({ error: `pulling form submissions failed before any host was read; try again, and if it fails again report reference ${reference} (the site's server log has the details)`, code: "INTERNAL_ERROR" });
+    const failure = adminFailureResponse({ error, tracker: res.locals.adminFailureTracker }, { operation: "forms-pull" });
+    const reference = failure.body.errorId;
+    res.status(failure.status).json({ ...failure.body, error: `pulling form submissions failed before any host was read; try again, and if it fails again report reference ${reference} (the site's server log has the details)` });
   }
 }
 
@@ -65,8 +64,8 @@ export const registerAdminFormsPullSubmissionsRoute: FormsRouteRegistrar = (app,
         return;
       }
       await respondWithPullReport({ pull: deps.formSubmissionsPull, workspaceId: deps.workspaceId, targetId: parsed.targetId, res });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/forms/pull-submissions", code: "INTERNAL_ERROR" });
     }
   });
 };

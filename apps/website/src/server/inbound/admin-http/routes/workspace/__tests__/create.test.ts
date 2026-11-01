@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -129,7 +130,7 @@ test("create: returns 500 on unexpected error", async (t) => {
   });
   assert.equal(res.status, 500);
   const body = await res.json();
-  assert.equal(body.error, "internal error");
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
 });
 
 test("create: a failed event delivery returns 201 and retains the event for retry", async (t) => {

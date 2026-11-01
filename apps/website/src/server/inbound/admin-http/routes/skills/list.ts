@@ -1,3 +1,5 @@
+import { ToolInputError } from "@jini-ai/core";
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { createHash } from "node:crypto";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -15,11 +17,8 @@ import type { SkillsRouteRegistrar } from "./deps.js";
  * `admin.assistant.use` (D-3): the same permission the skill tools themselves declare
  * (`tool-registrations.ts:333`), granted to the seeded owner's wildcard policy.
  *
- * One deliberate divergence from `plugins/list.ts`'s catch block: that route collapses every throw
- * into a generic `"internal error"` string. This route's contract (C-001) requires the duplicate-
- * frontmatter-name throw's message (`tool-registrations.ts:280-289`, naming both offending skill
- * folders) to reach the response VERBATIM — it is the operator's only actionable signal, and
- * swallowing it would turn a one-line fix into a blind guess.
+ * Unexpected discovery failures are logged with a public error ID. Raw filesystem or provider
+ * exceptions must never be returned verbatim.
  */
 export const registerSkillsListRoute: SkillsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/skills", async (req, res) => {
@@ -51,10 +50,9 @@ export const registerSkillsListRoute: SkillsRouteRegistrar = (app, deps) => {
       }
       res.type("json").send(body);
     } catch (error) {
-      // Verbatim surfacing is the contract (C-001) — see this file's header for why this diverges
-      // from the generic "internal error" string `plugins/list.ts`'s own catch block uses.
-      const message = error instanceof Error ? error.message : String(error);
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+      // C-001 requires the named duplicate folders; only the discovery owner marks this safe.
+      if (error instanceof ToolInputError) { res.status(500).json({ error: error.message, code: "INTERNAL_ERROR" }); return; }
+      sendAdminFailure({ res, error }, { operation: "routes/skills/list", code: "INTERNAL_ERROR" });
     }
   });
 };

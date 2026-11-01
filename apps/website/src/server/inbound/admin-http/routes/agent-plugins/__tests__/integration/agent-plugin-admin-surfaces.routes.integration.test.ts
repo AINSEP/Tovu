@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 
 import assert from "node:assert/strict";
@@ -149,7 +150,7 @@ test("list: a source fault is a generic 500 that names no server detail", async 
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const response = await fetch(listUrl(baseUrl), { headers: { cookie } });
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("bootstrap: with no host bound, the surface starts with null data", async (t) => {
@@ -179,7 +180,7 @@ test("bootstrap: a host fault is a generic 500 that names no server detail", asy
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const response = await post(surfaceUrl(baseUrl, "bootstrap"), { cookie, origin: baseUrl }, {});
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("actions: with no host bound, a declared action answers action-unavailable", async (t) => {

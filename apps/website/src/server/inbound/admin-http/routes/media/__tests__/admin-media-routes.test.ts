@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -410,7 +411,7 @@ test("update: an unexpected repo failure surfaces as the generic 500 (sendPostUp
       body: JSON.stringify({ caption: "will not persist" }),
     });
     assert.equal(res.status, 500);
-    assert.deepEqual(await res.json(), { error: "internal error" });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
   } finally {
     deps.mediaRepo.save = originalSave;
   }
@@ -576,7 +577,7 @@ test("admin media routes: delete returns 404 for wrong workspace id and non-exis
       headers: { cookie: ownerCookie },
     });
     assert.equal(errorRes.status, 500);
-    assert.deepEqual(await errorRes.json(), { error: "internal error" });
+    assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error" } });
   } finally {
     deps.mediaRepo.findById = originalFind;
   }
@@ -706,6 +707,6 @@ test('hard purge refuses indexed references even with force permission, and look
   t.mock.method(deps.entryRefsRepo, 'findByTarget', async () => { throw new Error('private reference store failure'); });
   const failed = await remove();
   assert.equal(failed.status, 500);
-  assert.deepEqual(await failed.json(), { error: 'internal error' });
+  assertAdminResponse({ actual: await failed.json(), expected: { error: 'internal error' } });
   assert.ok(await deps.mediaRepo.findById(input));
 });

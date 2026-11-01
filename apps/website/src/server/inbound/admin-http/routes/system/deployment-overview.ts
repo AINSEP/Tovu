@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { homedir } from "node:os";
 import { siteKeySources } from "#src/features/webhooks/index";
 import type { Express } from "express";
@@ -195,8 +196,7 @@ export function registerAdminDeploymentOverviewRoute(app: Express, deps: AdminDe
         })
       );
     } catch (err) {
-      console.error("[system/deployment-overview] unexpected error", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/deployment-overview", code: "INTERNAL_ERROR" });
     }
   });
 }

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 
 import { PUBLISH_CONTENT_BLOB_PROBE_MAX_SHAS, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
@@ -79,8 +80,8 @@ export const registerPublishContentBlobsProbeRoute: PublishContentRouteRegistrar
         }
 
         res.status(200).json({ missing });
-      } catch {
-        res.status(500).json({ error: "internal error" });
+      } catch (error) {
+        sendAdminFailure({ res, error }, { operation: "routes/publish-content/blobs-probe", code: "INTERNAL_ERROR" });
       }
     }
   );

@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -182,9 +183,9 @@ test("put-entry: an unexpected repo failure 500s", async (t) => {
     body: JSON.stringify({ title: "x" }),
   });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   assert.equal(reached, true, "the conditional write must be the failing operation");
-  assert.deepEqual(await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), before);
+  assertAdminResponse({ actual: await base.postRepo.findById({ workspaceId: WORKSPACE_ID, id: ENTRY_ID }), expected: before });
 });
 
 test("put-entry: `req.body ?? {}` fallback, forced via a direct handler call -- `express.json()` always defaults `req.body` to `{}` on any real request, so the only way to genuinely pass `undefined` through is a forced direct call -- treated as an empty (no-op) patch, still 200s", async () => {

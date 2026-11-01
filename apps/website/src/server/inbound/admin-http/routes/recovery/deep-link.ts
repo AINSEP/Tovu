@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { resolveDeepLinkContext, type DatabaseContextEnvelope } from "#src/features/recovery/deep-link";
@@ -42,8 +43,7 @@ export function registerAdminRecoveryDeepLinkRoute(app: Express, deps: DatabaseR
 
       res.json(result);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "internal error";
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/recovery/deep-link", code: "INTERNAL_ERROR" });
     }
   });
 }

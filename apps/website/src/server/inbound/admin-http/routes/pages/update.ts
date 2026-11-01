@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import { processOutbox } from "#src/contracts/core/events/index";
 import {
@@ -77,7 +78,7 @@ function sendPageUpdateError(res: Response, err: unknown): void {
     res.status(404).json({ error: err.message, code: "ENTRY_NOT_FOUND" });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/pages/update", code: "INTERNAL_ERROR" });
 }
 
 /**

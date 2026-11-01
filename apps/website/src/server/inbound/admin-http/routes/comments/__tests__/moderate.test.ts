@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -459,10 +460,10 @@ test("moderate: an unexpected write-service failure is a 500 INTERNAL_ERROR on t
       body: JSON.stringify({ expectedVersion: 1 }),
     });
     assert.equal(res.status, 500, path);
-    assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" }, path);
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { message: path });
   }
   assert.deepEqual(
     consoleError.mock.calls.map((call) => call.arguments[0]),
-    ["[comments/moderate] unexpected error applying 'approve'", "[comments/moderate] unexpected error purging a comment"]
+    ["[routes/comments/moderate]", "[routes/comments/moderate]"]
   );
 });

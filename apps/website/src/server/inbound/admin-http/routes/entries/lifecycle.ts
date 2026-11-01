@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
@@ -66,6 +67,7 @@ export function registerAdminEntryLifecycleRoute(app: Express, deps: ContentType
 
       if (!result.ok) {
         const { status, code } = entryWriteErrorStatus({ error: result.error });
+        if (status === 500) { sendAdminFailure({ res, error: result.error }, { code }); return; }
         res.status(status).json({ error: result.error.message, code });
         return;
       }
@@ -78,8 +80,7 @@ export function registerAdminEntryLifecycleRoute(app: Express, deps: ContentType
 
       res.json(result.value);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "internal error";
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/entries/lifecycle", code: "INTERNAL_ERROR" });
     }
   });
 }

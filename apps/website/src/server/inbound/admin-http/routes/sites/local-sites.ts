@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 /** Authenticated CMS lifecycle routes. Deployment/binding gates precede all filesystem/process effects. */
 import type { Express, Request, Response } from "express";
 import { authorizeOrRespond } from "../../authorize-guard.js";
@@ -18,7 +19,8 @@ const STATUS: Record<string, number> = { VALIDATION_ERROR: 400, SITE_CONFIRM_REQ
 const PREFIX = "/api/admin/v1/workspaces/:workspaceId/system/sites";
 
 function respondToLifecycleError({ res, error }: { res: Response; error: unknown }, _options = {}): void {
-  const code = error instanceof LocalSiteError ? error.code : "INTERNAL_ERROR";
+  if (!(error instanceof LocalSiteError)) { sendAdminFailure({ res, error }); return; }
+  const code = error.code;
   // Never serialize an effect's raw error: child/connection errors can contain credentials.
   res.status(STATUS[code] ?? 500).json({ code, error: code });
 }

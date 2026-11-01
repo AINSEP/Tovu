@@ -1,3 +1,4 @@
+import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "#src/platform/site-dir/__tests__/helpers/isolated-catalog-home";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -42,22 +43,22 @@ type Register = (app: express.Express, deps: { workspaceId: string; authorize: t
 
 const ROUTES: ReadonlyArray<{ name: string; method: "get" | "post" | "put"; path: string; register: Register; logPrefix: string }> = [
   { name: "mail-status", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/mail-status",
-    register: (app, deps) => registerAdminMailStatusRoute(app, { ...deps, mailer: untouchedMailer }), logPrefix: "[system/mail-status] unexpected error" },
+    register: (app, deps) => registerAdminMailStatusRoute(app, { ...deps, mailer: untouchedMailer }), logPrefix: "[routes/system/mail-status]" },
   { name: "module-status", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/module-status",
-    register: (app, deps) => registerAdminModuleStatusRoute(app, deps), logPrefix: "[system/module-status] unexpected error" },
+    register: (app, deps) => registerAdminModuleStatusRoute(app, deps), logPrefix: "[routes/system/module-status]" },
   { name: "observability-status", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/observability-status",
-    register: (app, deps) => registerAdminObservabilityStatusRoute(app, { ...createRouteDeps(), ...deps }), logPrefix: "[system/observability-status] unexpected error" },
+    register: (app, deps) => registerAdminObservabilityStatusRoute(app, { ...createRouteDeps(), ...deps }), logPrefix: "[routes/system/observability-status]" },
   { name: "server-logs", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/server-logs",
-    register: (app, deps) => registerAdminServerLogsRoute(app, deps), logPrefix: "[system/server-logs] unexpected error" },
+    register: (app, deps) => registerAdminServerLogsRoute(app, deps), logPrefix: "[routes/system/server-logs]" },
   { name: "assistant-daemon restart", method: "post", path: "/api/admin/v1/workspaces/:workspaceId/system/assistant-daemon/restart",
     register: (app, deps) => registerAdminAssistantDaemonRoutes(app, { ...deps, restartAssistantDaemon: () => { throw new Error("must not restart"); } }),
-    logPrefix: "[system/assistant-daemon] unexpected error restarting the agent daemon" },
+    logPrefix: "[routes/system/assistant-daemon]" },
   { name: "dockerfile GET", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/dockerfile",
-    register: (app, deps) => registerAdminDockerfileSourceRoute(app, deps), logPrefix: "[dockerfile-source] unexpected error reading the Dockerfile" },
+    register: (app, deps) => registerAdminDockerfileSourceRoute(app, deps), logPrefix: "[routes/system/dockerfile-source]" },
   { name: "dockerfile PUT", method: "put", path: "/api/admin/v1/workspaces/:workspaceId/system/dockerfile",
-    register: (app, deps) => registerAdminDockerfileSourceRoute(app, deps), logPrefix: "[dockerfile-source] unexpected error writing the Dockerfile" },
+    register: (app, deps) => registerAdminDockerfileSourceRoute(app, deps), logPrefix: "[routes/system/dockerfile-source]" },
   { name: "deployment-overview", method: "get", path: "/api/admin/v1/workspaces/:workspaceId/system/deployment-overview",
-    register: (app, deps) => registerAdminDeploymentOverviewRoute(app, { ...createRouteDeps(), ...deps }), logPrefix: "[system/deployment-overview] unexpected error" },
+    register: (app, deps) => registerAdminDeploymentOverviewRoute(app, { ...createRouteDeps(), ...deps }), logPrefix: "[routes/system/deployment-overview]" },
 ];
 
 function handlerFor(route: (typeof ROUTES)[number], authorize: typeof allow | typeof reject) {
@@ -81,8 +82,8 @@ for (const route of ROUTES) {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "owner" };
     await handlerFor(route, reject)({ params: { workspaceId: WS }, query: {} }, res);
-    assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } });
-    assert.deepEqual(logged.mock.calls.map((c) => c.arguments), [[route.logPrefix, explode]]);
+    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+    assertAdminDiagnostics({ calls: logged.mock.calls.map(c => c.arguments), operation: route.logPrefix, diagnostics: [/authorizer exploded at \/private\/var\/tovu.db/] });
   });
 }
 

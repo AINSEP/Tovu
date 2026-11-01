@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
@@ -57,6 +58,7 @@ export function registerAdminDatabaseMigrateForwardRoutes(app: Express, deps: Ro
       res.json(result);
     } catch (err) {
       const { status, code } = statusFor(err);
+      if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
       res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
     }
   });
@@ -90,6 +92,7 @@ export function registerAdminDatabaseMigrateForwardRoutes(app: Express, deps: Ro
       res.json({ confirmationToken: record.confirmationToken });
     } catch (err) {
       const { status, code } = statusFor(err);
+      if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
       res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
     }
   });
@@ -170,6 +173,7 @@ export function registerAdminDatabaseMigrateForwardRoutes(app: Express, deps: Ro
       res.json(result);
     } catch (err) {
       const { status, code } = statusFor(err);
+      if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
       res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
     }
   });

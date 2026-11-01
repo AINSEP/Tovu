@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -157,7 +158,7 @@ test("a catalog read failure OTHER than ThemePathError, during a per-file reset,
   });
   const body = (await res.json()) as { error?: string; code?: string };
   assert.equal(res.status, 500, `expected a permission-denied catalog read to 500, got ${res.status}: ${JSON.stringify(body)}`);
-  assert.equal(body.error, "internal error");
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
   assert.equal(failures, 1);
   assert.equal(fs.readFileSync(liveTarget, "utf8"), before);
 });
@@ -214,7 +215,7 @@ test("a generated-tree restore failure OTHER than ThemePathError propagates to t
   });
   const body = (await res.json()) as { error?: string; code?: string };
   assert.equal(res.status, 500, `expected a permission-denied generated-tree restore to 500, got ${res.status}: ${JSON.stringify(body)}`);
-  assert.equal(body.error, "internal error");
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
   assert.equal(failures, 1);
   assert.equal(fs.readFileSync(target, "utf8"), before);
 });

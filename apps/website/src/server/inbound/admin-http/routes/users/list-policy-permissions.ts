@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { UsersRouteRegistrar } from "./deps.js";
@@ -45,8 +46,8 @@ export const registerAdminPolicyPermissionListRoute: UsersRouteRegistrar = (app,
         policyId,
       });
       res.json({ policyPermissions });
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/users/list-policy-permissions", code: "INTERNAL_ERROR" });
     }
   });
 };

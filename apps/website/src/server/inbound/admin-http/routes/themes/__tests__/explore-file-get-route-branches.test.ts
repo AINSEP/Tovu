@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -113,6 +114,5 @@ test("GET file where the underlying read throws something OTHER than ThemePathEr
     return;
   }
   assert.equal(res.status, 500, `expected a permission-denied read to 500, got ${res.status}: ${JSON.stringify(body)}`);
-  assert.equal(body.error, "internal error");
-  assert.equal(body.code, undefined, "the 500 branch has no 'code' field, unlike the 400 ThemePathError branch");
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });

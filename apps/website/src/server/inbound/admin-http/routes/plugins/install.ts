@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { PluginInstallError, type PluginInstallerPort } from "@jini-ai/plugins/host/node";
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "#src/features/plugin-runtime/install-archive";
 import { raw, type Express, type Request, type Response } from "express";
@@ -102,7 +103,7 @@ function installErrorStatus(code: string): number {
 
 function respondInstallFailure(res: Response, error: unknown): void {
   if (error instanceof PluginInstallError) { res.status(installErrorStatus(error.code)).json({ code: error.code, error: error.message }); return; }
-  res.status(500).json({ code: "INTERNAL_ERROR", error: "internal error" });
+  sendAdminFailure({ res, error }, { operation: "routes/plugins/install", code: "INTERNAL_ERROR" });
 }
 
 /** Local sources are explicitly opt-in, even for admins. ZIP parsing follows authorization. */

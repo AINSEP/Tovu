@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 /**
  * @file Request-shape and failure arms of `import.ts` the ceremony suites
  * (`publish-content-import-routes.test.ts` and friends) do not reach: the routes mounted on an app
@@ -59,5 +60,5 @@ test("a run-status read whose store fails answers 500 INTERNAL_ERROR with fixed 
   const server = await startTestServer(routeApp({ jsonBody: true, deps: { publishContentRunRepo: failing } }), t);
   const res = await fetch(`${server}${BASE}/runs/run-1`);
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });

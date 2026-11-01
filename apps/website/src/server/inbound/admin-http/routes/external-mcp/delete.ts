@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { isBuiltInExternalMcpServer } from "#src/features/external-mcp/built-in-connections";
 import { deleteExternalMcpServer } from "../../../../../features/external-mcp/external-mcp-store.js";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
@@ -35,8 +36,8 @@ export const registerAdminExternalMcpDeleteRoute: ExternalMcpRouteRegistrar = (a
       }
 
       res.json({ removed: true, restartRequired: true });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/external-mcp/delete", code: "INTERNAL_ERROR" });
     }
   });
 };

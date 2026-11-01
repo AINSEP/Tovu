@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -99,10 +100,10 @@ for (const thrown of [new Error('private fetch failure'), new EgressRefusedError
     const { app, deps } = fixture((app, deps) => registerAdminMediaImportUrlRoute({ app, deps }, { logEgressRefusal: line => logs.push(line) }), {
       mediaImportHttpClient: { send: async () => { throw thrown; } },
     });
-    assert.deepEqual(await dispatchJsonRequest(app, 'POST', `${BASE}/media/import-url`, { url: 'https://example.com/photo.png' }), {
+    assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', `${BASE}/media/import-url`, { url: 'https://example.com/photo.png' }), expected: {
       status: thrown instanceof EgressRefusedError ? 400 : 500,
       body: thrown instanceof EgressRefusedError ? { error: 'Target is not public' } : INTERNAL,
-    });
+    } });
     assert.equal(logs.length, thrown instanceof EgressRefusedError ? 1 : 0);
     if (thrown instanceof EgressRefusedError) assert.match(logs[0]!, /DNS 10\.0\.0\.1/);
     assert.deepEqual(await deps.mediaRepo.list({ workspaceId: WS }), []);
@@ -129,7 +130,7 @@ for (const [label, sizeOf, bytes] of [
     const response = await fetch(`${origin}${BASE}/media/media/original`);
     if (label.startsWith('oversized')) {
       assert.equal(response.status, 500);
-      assert.deepEqual(await response.json(), INTERNAL);
+      assertAdminResponse({ actual: await response.json(), expected: INTERNAL });
       assert.equal(reads, label === 'oversized size' ? 0 : 1);
     } else {
       assert.equal(response.status, 200);
@@ -173,7 +174,7 @@ test('media upload: JSON that cannot be converted to a content-type string retur
   let checks = 0;
   const { app } = fixture(registerAdminMediaUploadRoute, { authorize: async () => { checks++; return { allowed: true }; } });
   const body = { filename: 'file.png', contentType: { toString: null, valueOf: null }, dataBase64: 'YQ==' };
-  assert.deepEqual(await dispatchJsonRequest(app, 'POST', `${BASE}/media`, body), { status: 500, body: INTERNAL });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', `${BASE}/media`, body), expected: { status: 500, body: INTERNAL } });
   assert.equal(checks, 0);
 });
 
@@ -184,7 +185,7 @@ test('document original: a legacy record without an original filename fails priv
     assetBlobRepo: { findByHash: async () => ({ storageKey: 'original' }) },
     blobStore: { get: async () => Buffer.from('legacy') },
   });
-  assert.deepEqual(await dispatchJsonRequest(app, 'GET', `${BASE}/media/media/original`), { status: 500, body: INTERNAL });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'GET', `${BASE}/media/media/original`), expected: { status: 500, body: INTERNAL } });
 });
 
 for (const body of [undefined, { filename: 'file', contentType: 'image/png' }, { filename: 'file', contentType: 1, dataBase64: 'YQ==' },
@@ -255,7 +256,7 @@ test('media text: valid paging of an absent document is 404 and repository failu
     const { app } = fixture((app, deps) => registerAdminMediaTextRoute({ app, deps }), { mediaRepo: { findById } });
     const response = await dispatchJsonRequest(app, 'GET', `${BASE}/media/media/text?offset=0`);
     assert.equal(response.status, status);
-    assert.deepEqual(response.body, status === 500 ? INTERNAL : { error: 'document was not found' });
+    assertAdminResponse({ actual: response.body, expected: status === 500 ? INTERNAL : { error: 'document was not found' } });
   }
 });
 

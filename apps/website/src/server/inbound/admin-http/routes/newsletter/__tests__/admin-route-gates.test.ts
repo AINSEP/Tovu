@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -138,7 +139,7 @@ for (const route of ROUTES) {
     const app = buildApp(route, { newsletterReady: notReady });
     const { status, json } = await call(t, app, route, WORKSPACE_ID);
     assert.equal(status, 500);
-    assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+    assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   });
 
   test(`${route.name}: a hand-built request with no workspaceId param falls back to "" and is 404`, async () => {

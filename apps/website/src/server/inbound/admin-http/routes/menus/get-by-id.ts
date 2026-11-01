@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
@@ -45,8 +46,8 @@ export const registerAdminMenuGetRoute: MenuRouteRegistrar = (app, deps) => {
         return;
       }
       res.json(toAdminMenuResponse(menu));
-    } catch {
-      res.status(500).json({ error: "internal error" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/menus/get-by-id", code: "INTERNAL_ERROR" });
     }
   });
 };

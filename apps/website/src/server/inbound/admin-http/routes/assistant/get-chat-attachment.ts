@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { sniffContentType, readChatAttachmentForOwner } from "#src/features/media/index";
@@ -96,12 +97,12 @@ export function registerAdminChatAttachmentReadRoute(
         safe: forceDownload ? "application/octet-stream" : sniffed,
         forceDownload,
       });
-    } catch {
+    } catch (error) {
       // `readChatAttachmentForOwner` classifies every expected failure as a refusal rather than
       // throwing, so anything reaching here is genuinely unexpected (a filesystem fault between the
       // identity check and the read, say). Reported without detail — a store failure can carry
       // filesystem paths a caller must not see, the same SEC-005 redaction `attachments.ts` applies.
-      res.status(500).json({ error: "internal error" });
+      sendAdminFailure({ res, error }, { operation: "routes/assistant/get-chat-attachment", code: "INTERNAL_ERROR" });
     }
   });
 }

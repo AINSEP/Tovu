@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -42,9 +43,9 @@ test("L255 workspace guards precede auth and body validation on both routes", as
         statusCode: 404, jsonBody: { error: "workspace was not found" },
       });
     }
-    assert.deepEqual(await invoke({ workspaceId: "ws-7", principal: false }), {
+    assertAdminResponse({ actual: await invoke({ workspaceId: "ws-7", principal: false }), expected: {
       statusCode: 500, jsonBody: { error: "internal error" },
-    });
+    } });
   }
 });
 
@@ -89,9 +90,9 @@ test("L255 move maps every owned outcome and blocked message without an entry-sc
         return scenario.outcome;
       } }]]),
     });
-    assert.deepEqual(await invoke({ workspaceId: "ws-7", body: { type: " theme ", id: " i ", ignored: true } }), {
+    assertAdminResponse({ actual: await invoke({ workspaceId: "ws-7", body: { type: " theme ", id: " i ", ignored: true } }), expected: {
       statusCode: scenario.status, jsonBody: scenario.body,
-    });
+    } });
     assert.equal(moves, 1);
   }
 });
@@ -102,9 +103,9 @@ test("L255 move preserves kind denial and masks unexpected failures", async () =
       authorize: async () => { if (throws) throw new Error("private"); return { allowed: false, reason: "no_grant" }; },
       movers: new Map([["theme", { permission: "theme.edit", move: unexpected }]]),
     });
-    assert.deepEqual(await invoke({ workspaceId: "ws-7", body: { type: "theme", id: "i" } }), throws
+    assertAdminResponse({ actual: await invoke({ workspaceId: "ws-7", body: { type: "theme", id: "i" } }), expected: throws
       ? { statusCode: 500, jsonBody: { error: "internal error" } }
-      : { statusCode: 403, jsonBody: { error: "principal 'p-7' is not authorized for 'theme.edit'", code: "FORBIDDEN", details: { permission: "theme.edit" } } });
+      : { statusCode: 403, jsonBody: { error: "principal 'p-7' is not authorized for 'theme.edit'", code: "FORBIDDEN", details: { permission: "theme.edit" } } } });
   }
 });
 

@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import {
   MediaProviderCredentialSecretStoreUnconfiguredError,
   MediaProviderCredentialValidationError,
@@ -73,7 +74,7 @@ export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = 
         });
         return;
       }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/media/put-providers", code: "INTERNAL_ERROR" });
     }
   });
 };

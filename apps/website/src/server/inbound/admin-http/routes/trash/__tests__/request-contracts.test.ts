@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -85,7 +86,7 @@ test("purge accepts 200 ids, preserves duplicates, and returns every port outcom
   const results = [{ id: "row-0", outcome: "purged" }, ...Array.from({ length: 198 }, (_, n) => ({ id: `row-${n + 1}`, outcome: "not-found" })), { id: "row-0", outcome: "already-gone" }];
   let writes = 0;
   const invoke = harness({ trash: { purgeSelected: async (input: any) => {
-    writes++; assert.equal(input.workspaceId, "ws-7"); assert.deepEqual(input.ids, ids);
+    writes++; assert.equal(input.workspaceId, "ws-7"); assertAdminResponse({ actual: input.ids, expected: ids });
     assert.deepEqual(input.actor, { principalId: "principal-7" });
     assert.equal(await input.authorizeItem({ item: { entityType: "post", entityId: "post-8" } }), true);
     assert.equal(await input.authorizeItem({ item: { entityType: "unregistered", entityId: "unknown" } }), false);
@@ -168,7 +169,7 @@ test("unexpected failures on every trash route return generic 500 without detail
   const invoke = harness({ authorize: async () => { throw new Error("private evaluator details"); },
     registry: new Map([["form", { permission: "admin.forms.manage" }]]) });
   for (const [method, suffix, body] of [["get", "", undefined], ["post", "/purge", { ids: ["row-7"] }], ["post", "/restore", { items: [{ entityType: "post", entityId: "post-8" }] }], ["post", "/items", { type: "form", id: "form-7" }]] as const) {
-    assert.deepEqual(await invoke(method, suffix, body), { statusCode: 500, jsonBody: { error: "internal error" } });
+    assertAdminResponse({ actual: await invoke(method, suffix, body), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
   }
 });
 // Route-param guards (`String(req.params.workspaceId ?? "")`) and the foreign-workspace 404 run before any port.
@@ -199,8 +200,8 @@ test("trash list and purge answer the standard 403 when content.read is denied",
     error: "principal 'principal-7' is not authorized for 'content.read' (no grant)", code: "FORBIDDEN",
     details: { permission: "content.read", reason: "no grant" },
   } };
-  assert.deepEqual(await invoke("get", ""), forbidden);
-  assert.deepEqual(await invoke("post", "/purge", { ids: ["trash-1"] }), forbidden);
+  assertAdminResponse({ actual: await invoke("get", ""), expected: forbidden });
+  assertAdminResponse({ actual: await invoke("post", "/purge", { ids: ["trash-1"] }), expected: forbidden });
 });
 test("trash row projection sends a null actorUsername for an unknown actor and flags the system actor", () => {
   const item: TrashItem = { id: "trash-1", workspaceId: "ws-7", entityType: "post", entityId: "post-1", displayTitle: "T", displaySubtitle: null,

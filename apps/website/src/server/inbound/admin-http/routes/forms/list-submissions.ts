@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Request } from "express";
 
 import { toAdminFormSubmissionListResponse } from "#src/server/inbound/admin-http/http/forms";
@@ -89,8 +90,8 @@ export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = (app,
         limit: parsedQuery.limit,
       }, { cursor: parsedQuery.cursor });
       res.json(toAdminFormSubmissionListResponse(page));
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/forms/list-submissions", code: "INTERNAL_ERROR" });
     }
   });
 };

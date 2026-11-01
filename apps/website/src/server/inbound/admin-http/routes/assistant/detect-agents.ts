@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import {
   type DetectedAgent as RuntimeDetectedAgent,
   type RuntimeModelOption,
@@ -191,8 +192,8 @@ export const registerAdminAssistantDetectAgentsRoute: AssistantExecutionRouteReg
       const input = { force: req.body?.force === true };
       const { agents, discoveryPending } = await readDetectionSnapshot({ inventory, deps, input });
       res.json({ data: agents.map(agent => ({ ...toExecutionTabAgent(agent), discoveryPending })) });
-    } catch {
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    } catch (error) {
+      sendAdminFailure({ res, error }, { operation: "routes/assistant/detect-agents", code: "INTERNAL_ERROR" });
     }
   });
 };

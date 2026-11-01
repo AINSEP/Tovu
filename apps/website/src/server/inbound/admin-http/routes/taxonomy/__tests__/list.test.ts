@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -87,7 +88,7 @@ test("list: returns 403 when principal is not authorized", async (t) => {
   assert.equal(body.details.reason, "permission denied");
 });
 
-test("list: returns 500 when error is an instance of Error", async (t) => {
+test("list: an Error is a private, correlated 500 that never leaks its message", async (t) => {
   const app = buildApp({
     taxonomyRepo: {
       list: async () => {
@@ -99,9 +100,7 @@ test("list: returns 500 when error is an instance of Error", async (t) => {
   const res = await fetch(`${baseUrl}/api/admin/v1/taxonomy`);
   assert.equal(res.status, 500);
 
-  const body = await res.json();
-  assert.equal(body.code, "INTERNAL_ERROR");
-  assert.equal(body.error, "db connection broken");
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("list: returns 500 when a non-Error is thrown", async (t) => {
@@ -118,5 +117,5 @@ test("list: returns 500 when a non-Error is thrown", async (t) => {
 
   const body = await res.json();
   assert.equal(body.code, "INTERNAL_ERROR");
-  assert.equal(body.error, "internal error");
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
 });

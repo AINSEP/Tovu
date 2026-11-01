@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -328,7 +329,7 @@ test("DISABLE_PRINCIPAL route: 500 internal error when an unexpected error is th
   const res = await fetch(`${baseUrl}${urlFor("any-id")}`, { method: "POST" });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assert.equal(body.error, "internal error");
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
 });
 
 test("DISABLE_PRINCIPAL route: an IdentityValidationError from the transaction maps to 400 VALIDATION_ERROR", async (t) => {

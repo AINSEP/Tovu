@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -268,6 +269,6 @@ test("an unexpected error is a 500 INTERNAL_ERROR on every route, never the raw 
   ];
   for (const res of responses) {
     assert.equal(res.status, 500);
-    assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   }
 });

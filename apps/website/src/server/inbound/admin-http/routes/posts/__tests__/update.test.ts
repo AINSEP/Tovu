@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -288,7 +289,7 @@ test("PUT posts/:postId: a change-set record failure AFTER the mutation applied 
       body: JSON.stringify({ title: "Should be rolled back", slug: "failed-new-slug", bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Failed new document" }] }] }, status: "published" }),
     });
     assert.equal(res.status, 500);
-    assert.deepEqual(await res.json(), { error: "internal error" });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
   } finally {
     deps.changeSets.insert = originalInsert;
   }
@@ -301,7 +302,7 @@ test("PUT posts/:postId: a change-set record failure AFTER the mutation applied 
   assert.equal(restored.status, "draft", "the rollback must restore the exact pre-edit status");
   assert.deepEqual(restored.ext, { "some-plugin": { note: "pre-edit value" } }, "the rollback must restore the exact pre-edit ext bag");
   assert.equal(restored.slug, prior.slug);
-  assert.deepEqual(restored.bodyJson, prior.bodyJson);
+  assertAdminResponse({ actual: restored.bodyJson, expected: prior.bodyJson });
   // Compensation is a forward restore: preserve the failed write and append an auditable restore.
   assert.equal(restored.version, prior.version + 2);
   const revisionsAfter = await deps.postRepo.listRevisions({ workspaceId: WS, postId: id });
@@ -309,7 +310,7 @@ test("PUT posts/:postId: a change-set record failure AFTER the mutation applied 
   const restore = revisionsAfter.at(-1);
   assert.equal(restore?.op, "restore");
   assert.equal(restore?.seq, restored.version);
-  assert.deepEqual(restore?.stateJson, restored);
+  assertAdminResponse({ actual: restore?.stateJson, expected: restored });
 });
 
 /**
@@ -585,7 +586,7 @@ test("PUT posts/:postId: when the row was invisible to captureInverse but presen
     body: JSON.stringify({ title: "Uncompensated edit", slug: "racing-update", bodyJson: { type: "doc", content: [] }, status: "draft" }),
   });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error" } });
   const stored = await realFindById({ workspaceId: WS, id });
   assert.equal(stored?.title, "Uncompensated edit", "with no captured prior row, rollback must not fabricate a restore");
 });

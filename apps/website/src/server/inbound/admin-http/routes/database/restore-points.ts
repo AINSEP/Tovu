@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Response } from "express";
 import { randomUUID } from "node:crypto";
 
@@ -100,8 +101,8 @@ function sendRestorePointCreateError(res: Response, err: unknown): void {
     res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
     return;
   }
-  const message = err instanceof Error ? err.message : "internal error";
-  res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+
+  sendAdminFailure({ res, error: err }, { operation: "routes/database/restore-points", code: "INTERNAL_ERROR" });
 }
 
 /**
@@ -132,8 +133,7 @@ export function registerAdminDatabaseRestorePointsListRoute(app: Express, deps: 
       const result = await listRestorePoints({ repo: deps.restorePointsRepo });
       res.json(result);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "internal error";
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/database/restore-points", code: "INTERNAL_ERROR" });
     }
   });
 }

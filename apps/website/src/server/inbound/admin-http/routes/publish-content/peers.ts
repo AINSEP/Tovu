@@ -88,7 +88,7 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
       const peers = await listPublishContentPeers({ repo: deps.publishContentPeerRepo }, { workspaceId: deps.workspaceId });
       res.json({ peers });
     } catch (err) {
-      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS));
+      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS, { tracker: res.locals?.adminFailureTracker }));
     }
   });
 
@@ -106,7 +106,7 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
       });
       res.status(201).json({ peer });
     } catch (err) {
-      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS));
+      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS, { tracker: res.locals?.adminFailureTracker }));
     }
   });
 
@@ -121,7 +121,7 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
       });
       res.json({ peer });
     } catch (err) {
-      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS));
+      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS, { tracker: res.locals?.adminFailureTracker }));
     }
   });
 
@@ -137,7 +137,7 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (a
       });
       res.status(204).end();
     } catch (err) {
-      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS));
+      sendRefusal(res, mappedErrorResponse(err, PEER_ERRORS, { tracker: res.locals?.adminFailureTracker }));
     }
   });
 };

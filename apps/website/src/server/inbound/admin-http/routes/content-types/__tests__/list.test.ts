@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -75,7 +76,7 @@ test("list: returns 403 when principal is not authorized for admin.collections.r
   assert.equal(body.details.reason, "insufficient_permissions");
 });
 
-test("list: returns 500 when error is an instance of Error", async (t) => {
+test("list: an Error is a private, correlated 500 that never leaks its message", async (t) => {
   const app = buildApp({
     contentTypeRepo: {
       listByWorkspace: async () => {
@@ -87,9 +88,7 @@ test("list: returns 500 when error is an instance of Error", async (t) => {
   const res = await fetch(`${baseUrl}/api/admin/v1/content-types`);
   assert.equal(res.status, 500);
 
-  const body = await res.json();
-  assert.equal(body.code, "INTERNAL_ERROR");
-  assert.equal(body.error, "connection failure");
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("list: returns 500 when non-Error is thrown", async (t) => {
@@ -106,5 +105,5 @@ test("list: returns 500 when non-Error is thrown", async (t) => {
 
   const body = await res.json();
   assert.equal(body.code, "INTERNAL_ERROR");
-  assert.equal(body.error, "internal error");
+  assertAdminResponse({ actual: body, expected: { error: "internal error" } });
 });

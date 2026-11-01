@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { PluginEmbedValidationError } from "#src/features/agent-plugins/exports/diagnostics";
 import type { Response } from "express";
 
@@ -73,7 +74,7 @@ function sendStoreError(res: Response, err: unknown): void {
     res.status(409).json({ error: err.message, code: "CONCURRENT_EDIT" });
     return;
   }
-  res.status(500).json({ error: "internal error" });
+  sendAdminFailure({ res, error: err }, { operation: "routes/pages/update-html", code: "INTERNAL_ERROR" });
 }
 
 /** Attach safe editor warnings without changing ordinary saves' response shape. */

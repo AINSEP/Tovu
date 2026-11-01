@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { toAdminDeliveryResponse } from "#src/server/inbound/admin-http/http/integrations";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { IntegrationsRouteRegistrar } from "./deps.js";
@@ -70,8 +71,8 @@ export const registerAdminIntegrationsDeliveriesRoute: IntegrationsRouteRegistra
         // Newest-first for the log view — the repo orders before limiting (with id breaking ties).
         // Sorting here after LIMIT would leave the wrong rows on the "most recent" page (F1761).
         res.json({ deliveries: deliveries.map(toAdminDeliveryResponse) });
-      } catch {
-        res.status(500).json({ error: "internal error" });
+      } catch (error) {
+        sendAdminFailure({ res, error }, { operation: "routes/integrations/deliveries", code: "INTERNAL_ERROR" });
       }
     }
   );

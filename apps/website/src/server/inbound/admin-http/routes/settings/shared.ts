@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express, Response } from "express";
 import { defineJsonRoute, mountJsonRoute, ok, type HttpMethod, type JsonRouteAuthorize, type RouteInputContext } from "@jini-ai/http-kit";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -139,6 +140,7 @@ export async function resolveUserLayerReadTarget(
  * narrowing buys nothing here.
  */
 export function respondToSettingsError(res: Response, err: unknown, mappings: readonly SettingsErrorMapping[]): void {
+  if (!mappings.some(mapping => mapping.matches(err))) { sendAdminFailure({ res, error: err }); return; }
   respondToCmsSettingsError({ response: res, error: err, mappings });
 }
 

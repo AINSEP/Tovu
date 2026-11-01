@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Response } from "express";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -121,13 +122,13 @@ export const registerPublishContentExportRoute: PublishContentRouteRegistrar = (
         return;
 
       await streamExportBundle(res, deps, principal.id);
-    } catch {
+    } catch (error) {
       // The envelope's opening brace may already be flushed by the time a contributor's pack()
       // throws mid-stream — a second `res.status().json()` on a headers-sent response would itself
       // throw, so this only sends a fresh error body when nothing has gone out yet, and otherwise
       // just ends the connection rather than emitting a byte stream a client could half-parse as
       // valid JSON.
-      if (!res.headersSent) res.status(500).json({ error: "internal error" });
+      if (!res.headersSent) sendAdminFailure({ res, error }, { operation: "routes/publish-content/export", code: "INTERNAL_ERROR" });
       else res.end();
     }
   });

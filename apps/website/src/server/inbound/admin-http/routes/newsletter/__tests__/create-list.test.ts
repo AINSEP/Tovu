@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -157,7 +158,7 @@ test("create-list: unexpected error maps to 500", async (t) => {
     { name: "List", slug: "slug" }
   );
   assert.equal(status, 500);
-  assert.deepEqual(json, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("create-list: undefined workspaceId fallback via direct handler invocation", async () => {
@@ -190,6 +191,6 @@ test("create-list: empty and whitespace-only fields are refused without storing 
     const body = await res.json();
     assert.equal(body.code, "NEWSLETTER_VALIDATION_ERROR");
     assert.equal(body.error, `${field} must not be empty`);
-    assert.deepEqual(await deps.newsletterListRepo.list({ workspaceId: WORKSPACE_ID }), before);
+    assertAdminResponse({ actual: await deps.newsletterListRepo.list({ workspaceId: WORKSPACE_ID }), expected: before });
   }
 });

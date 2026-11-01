@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { listContentTypes } from "#src/features/content-types/index";
@@ -33,8 +34,7 @@ export function registerAdminContentTypeListRoute(app: Express, deps: ContentTyp
       const result = await listContentTypes({ repo: deps.contentTypeRepo, workspaceId: deps.workspaceId });
       res.json(result);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "internal error";
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/content-types/list", code: "INTERNAL_ERROR" });
     }
   });
 }

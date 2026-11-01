@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -64,7 +65,7 @@ test("library filters type, treats only literal true as includeInactive, and emi
     const result = await invoke("get", "", { query });
     assert.equal(result.statusCode, 200);
     const body = result.jsonBody as any;
-    assert.deepEqual(body.widgets.map((w: any) => w.id), ids);
+    assertAdminResponse({ actual: body.widgets.map((w: any) => w.id), expected: ids });
     assert.equal(body.skippedCount, 1);
     assert.deepEqual(body.skippedIds, ["corrupt"]);
   }
@@ -114,8 +115,8 @@ test("create rejects missing title or type with the validation envelope and no e
 test("list and get repository failures map to generic 500", async () => {
   const fail = async () => { throw new Error("private db detail"); };
   const { invoke } = harness({ entryRepo: { listByWorkspace: fail, findBySlug: fail } });
-  assert.deepEqual(await invoke("get"), { statusCode: 500, jsonBody: { error: "internal error" } });
-  assert.deepEqual(await invoke("get", "/:id"), { statusCode: 500, jsonBody: { error: "internal error" } });
+  assertAdminResponse({ actual: await invoke("get"), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
+  assertAdminResponse({ actual: await invoke("get", "/:id"), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
 });
 
 // F1.2/F4.1: a count-only diagnostic can hide dropped or misidentified source locations.
@@ -182,7 +183,7 @@ test("region placement write preserves disabled state and order, strips extra pr
   assert.equal(stale.statusCode, 409);
   assert.equal((stale.jsonBody as any).code, "WIDGETS_AREA_CONFLICT");
   assert.deepEqual((stale.jsonBody as any).details, { currentVersion: areaEntry.version + 1 });
-  assert.deepEqual(await deps.entryRepo.findById({ workspaceId: "ws-7", id: areaEntry.id }), beforeStaleWrite);
+  assertAdminResponse({ actual: await deps.entryRepo.findById({ workspaceId: "ws-7", id: areaEntry.id }), expected: beforeStaleWrite });
 });
 
 // F1.2/F2.5: echoing the pre-trash version (3) instead of the port's version must fail.
@@ -228,7 +229,7 @@ test("regions list retains binding metadata and counts disabled placements while
 test("regions list returns a generic 500 if an area repository read fails", async () => {
   const { deps, invoke } = harness({ entryRepo: { findById: async () => { throw new Error("private area database detail"); } } });
   await deps.widgetBindingRepo.upsert({ workspaceId: "ws-7", regionKey: "footer", areaEntryId: "area-7", updatedAt: "2026-09-29T14:00:00Z" });
-  assert.deepEqual(await invoke("get", "/regions"), { statusCode: 500, jsonBody: { error: "internal error" } });
+  assertAdminResponse({ actual: await invoke("get", "/regions"), expected: { statusCode: 500, jsonBody: { error: "internal error" } } });
 });
 
 // F4.4/F6.2: a real binding isolates the missing-area guard from the unbound-region guard.
@@ -241,7 +242,7 @@ test("remove tool returns WIDGETS_AREA_NOT_FOUND for a binding whose area no lon
   } }), { statusCode: 404, jsonBody: {
     error: "region area entry for 'footer' was not found", code: "WIDGETS_AREA_NOT_FOUND",
   } });
-  assert.deepEqual(await deps.widgetBindingRepo.findByRegion({ workspaceId: "ws-7", regionKey: "footer" }), binding);
+  assertAdminResponse({ actual: await deps.widgetBindingRepo.findByRegion({ workspaceId: "ws-7", regionKey: "footer" }), expected: binding });
   assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: "ws-7" }, { type: "widget_area" }), []);
   assert.deepEqual(await deps.entryRepo.listByWorkspace({ workspaceId: "ws-7" }), [], "a missing area must leave no entries of any type");
 });

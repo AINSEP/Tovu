@@ -119,9 +119,9 @@ export const registerAgentPluginInstallRoute: AgentPluginsRouteRegistrar = (app,
       const status = result.alreadyInstalled || target.update ? 200 : 201;
       res.status(status).json({ alreadyInstalled: result.alreadyInstalled, warnings: result.warnings ?? [], agentPlugin: installedAgentPluginRow(candidate) });
     } catch (error) {
-      const refusal = installErrorResponse(error);
-      // A 500 is redacted for the client, so the operator's log is the only place its cause survives.
-      if (refusal.status === 500) console.error("[agent-plugins] install/update request failed", error);
+      // A 500 is redacted for the client, so the operator's log is the only place its cause survives:
+      // installErrorResponse logs it (secret-redacted) under the errorId the reply carries.
+      const refusal = installErrorResponse(error, { tracker: res.locals?.adminFailureTracker });
       sendRefusal(res, refusal);
     }
     return undefined;

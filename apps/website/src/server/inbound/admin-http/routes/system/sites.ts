@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { composePluginCredentials } from "#src/server/runtime/composition/agent-plugin-service-ports";
 import { registerSitesHomeRoutes } from "../sites/sites-home.js";
@@ -338,8 +339,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       res.status(200).json(siteListing({ req, deps, listSites, isSiteSwitcherEnabled,
         readPersistedActiveSite, localSiteSupervisor, devRestart, sitePreviews, sitesWorkspace }));
     } catch (err) {
-      console.error("[system/sites] unexpected error listing sites", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/sites", code: "INTERNAL_ERROR" });
     }
   });
 
@@ -360,8 +360,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       const plugins = await (deps.listTokenSignInPlugins ?? (() => listNewSiteAgentPluginTokenSignInPlugins({ bundledSourceRoot: bundledAgentPluginsDir() })))(deps.workspaceId);
       res.status(200).json({ plugins });
     } catch (err) {
-      console.error("[system/sites] unexpected error listing token sign-in plugins", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/sites", code: "INTERNAL_ERROR" });
     }
   });
 
@@ -401,8 +400,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       }
       res.status(201).json({ site: created.site, agentPluginTokens: created.agentPluginTokens });
     } catch (err) {
-      console.error("[system/sites] unexpected error creating a site", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/sites", code: "INTERNAL_ERROR" });
     }
   });
 
@@ -441,8 +439,7 @@ export function registerAdminSitesRoutes(app: Express, deps: AdminSitesDeps): vo
       }
       res.status(200).json(activated);
     } catch (err) {
-      console.error("[system/sites] unexpected error activating a site", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/sites", code: "INTERNAL_ERROR" });
     }
   });
 }

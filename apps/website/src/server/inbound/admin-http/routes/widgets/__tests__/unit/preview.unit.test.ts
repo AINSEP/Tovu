@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { JsonObject } from '@jini-ai/core/primitives';
@@ -119,5 +120,5 @@ test('resolver failure keeps the public placeholder and unknown server failures 
   const output = await renderWidgetPreview({ deps: previewDeps(), input: { widgetType: 'text', content: { body: 'Draft' } } }, { resolve: async () => new Map() });
   assert.equal(output.html, renderWidgetIr({ componentId: 'widget-placeholder', props: {} }));
   const h = harness({ render: async () => { throw new Error('private detail'); } });
-  assert.deepEqual(await h.invoke(), { statusCode: 500, jsonBody: { error: 'internal error' } });
+  assertAdminResponse({ actual: await h.invoke(), expected: { statusCode: 500, jsonBody: { error: 'internal error' } } });
 });

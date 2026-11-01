@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -56,8 +57,8 @@ test('entries POST: a request with no body at all is a 400 naming the required s
 
 test('entries POST: a non-Error throw is a 500 with the generic message', async () => {
   const { app } = fixture(registerAdminEntryCreateRoute, { authorize: async () => { throw 'string failure'; } });
-  assert.deepEqual(await dispatchJsonRequest(app, 'POST', '/api/admin/v1/entries', { type: 'recipe', slug: 'eggs', title: 'Eggs' }), {
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'POST', '/api/admin/v1/entries', { type: 'recipe', slug: 'eggs', title: 'Eggs' }), expected: {
     status: 500,
     body: { error: 'internal error', code: 'INTERNAL_ERROR' },
-  });
+  } });
 });

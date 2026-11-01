@@ -1,3 +1,4 @@
+import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Express, Request, Response } from 'express';
@@ -37,6 +38,6 @@ test('Tool gaps audit read failures return a generic 500 and log without the sto
   const logged: unknown[][] = [];
   t.mock.method(console, 'error', (...args: unknown[]) => { logged.push(args); });
   const failing: ToolGapsToolDeps['toolGaps'] = { list: async () => { throw new Error('private storage detail'); } };
-  assert.deepEqual(await invoke('owner', 'w', failing), { status: 500, body: { error: 'Could not read tool gaps.', code: 'INTERNAL_ERROR' }, reads: 0 });
-  assert.deepEqual(logged, [['[tool-gaps] audit read failed']]);
+  assertAdminResponse({ actual: await invoke('owner', 'w', failing), expected: { status: 500, body: { error: 'Could not read tool gaps.', code: 'INTERNAL_ERROR' }, reads: 0 } });
+  assertAdminDiagnostics({ calls: logged, operation: "[routes/system/tool-gaps]", diagnostics: [/private storage detail/] });
 });

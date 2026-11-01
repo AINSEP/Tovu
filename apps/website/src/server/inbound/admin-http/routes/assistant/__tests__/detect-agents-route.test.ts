@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -178,7 +179,7 @@ test("detect-agents redacts an authorization failure as a generic 500 without pr
   await handler(true, { authorize: async () => { throw new Error("policy store at /private/policies.db is down"); } })(
     { params: { workspaceId: "workspace-test" } }, res);
   assert.equal(calls, 0);
-  assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
 });
 
 test("an injected detector seeds its first snapshot from the composition inventory's runtime, not process.env", async (t) => {

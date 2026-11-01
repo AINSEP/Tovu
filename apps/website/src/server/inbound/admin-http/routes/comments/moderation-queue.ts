@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { optionalOneOf, optionalString, readToolLimit, ToolInputError } from "@jini-ai/core";
 import type { Express } from "express";
 
@@ -62,8 +63,8 @@ export function registerAdminCommentsModerationQueueRoute(app: Express, deps: Ad
         res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
         return;
       }
-      console.error("[comments/moderation-queue] unexpected error", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+
+      sendAdminFailure({ res, error: err }, { operation: "routes/comments/moderation-queue", code: "INTERNAL_ERROR" });
     }
   });
 }

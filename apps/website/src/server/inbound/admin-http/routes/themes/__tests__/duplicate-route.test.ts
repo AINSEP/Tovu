@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -85,7 +86,7 @@ test("duplicate: a traversal newId is a 400 INVALID_ID and writes nothing", asyn
   const { status, json } = await post(t, app, { body: { newName: "X", newId: "../../escape" } });
   assert.equal(status, 400);
   assert.equal(json.code, "INVALID_ID");
-  assert.deepEqual(fs.readdirSync(path.join(root, "declarative")), before);
+  assertAdminResponse({ actual: fs.readdirSync(path.join(root, "declarative")), expected: before });
   assert.deepEqual(fs.readdirSync(root), ["declarative"]);
 });
 
@@ -143,7 +144,7 @@ test("duplicate: an unexpected failure is a bare 500", async (t) => {
   } as unknown as ContentRouteDeps);
   const { status, json } = await post(t, failing, { body: { newName: "X" } });
   assert.equal(status, 500);
-  assert.deepEqual(json, { error: "internal error" });
+  assertAdminResponse({ actual: json, expected: { error: "internal error" } });
 });
 
 for (const newId of [undefined, "", null, 42]) {

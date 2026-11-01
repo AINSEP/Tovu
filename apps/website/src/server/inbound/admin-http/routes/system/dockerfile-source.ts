@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import {
@@ -102,8 +103,7 @@ export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDock
       res.setHeader("ETag", snapshot.etag);
       res.status(200).json(toResponseBody(snapshot));
     } catch (err) {
-      console.error("[dockerfile-source] unexpected error reading the Dockerfile", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/dockerfile-source", code: "INTERNAL_ERROR" });
     }
   });
 
@@ -164,8 +164,7 @@ export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDock
       res.setHeader("ETag", result.snapshot.etag);
       res.status(200).json(toResponseBody(result.snapshot));
     } catch (err) {
-      console.error("[dockerfile-source] unexpected error writing the Dockerfile", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/dockerfile-source", code: "INTERNAL_ERROR" });
     }
   });
 }

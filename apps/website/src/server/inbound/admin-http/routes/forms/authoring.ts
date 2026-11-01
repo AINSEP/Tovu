@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { updateFormDefinition } from "#src/features/forms/index";
 import type { FieldDescriptor, NotifyConfig } from "@jini-ai/cms/forms";
 import type { FormAuthoring } from "@jini-ai/cms/forms/html";
@@ -52,7 +53,7 @@ export const registerAdminFormsAuthoringRoute: FormsRouteRegistrar = (app, deps)
       res.json(toAdminFormDefinitionResponse(definition));
     } catch (error) {
       if (mapFormsWriteError(error, res)) return;
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error }, { operation: "routes/forms/authoring", code: "INTERNAL_ERROR" });
     }
   });
 };

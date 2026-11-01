@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import {
   getPresentationSettings,
   PresentationSettingsNotFoundError,
@@ -129,7 +130,7 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
         return;
       }
 
-      res.status(500).json({ error: "internal error" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/presentation/get", code: "INTERNAL_ERROR" });
     }
   });
 };

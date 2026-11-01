@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { createWorkspace, WorkspaceConflictError, WorkspaceValidationError } from "#src/features/workspace/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -41,7 +42,7 @@ export const registerAdminWorkspaceCreateRoute: WorkspaceRouteRegistrar = (app, 
         return;
       }
 
-      res.status(500).json({ error: "internal error" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/workspace/create", code: "INTERNAL_ERROR" });
     }
   });
 };

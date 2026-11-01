@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
@@ -175,7 +176,7 @@ test("capture lookup errors retain the internal-error response", async (t) => {
   };
   const got = await route({ service })("editorial-rose");
   assert.equal(got.status, 500);
-  assert.deepEqual(got.json, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: got.json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("a host that wires neither a preview service nor a site binding serves the shipped screenshot", async () => {

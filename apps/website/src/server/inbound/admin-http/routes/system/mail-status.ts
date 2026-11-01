@@ -1,3 +1,4 @@
+import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Express } from "express";
 
 import { isMailDeliveryAvailable } from "#src/platform/mail/index";
@@ -56,8 +57,7 @@ export function registerAdminMailStatusRoute(app: Express, deps: AdminMailStatus
       const status = deps.mailStatus ? await deps.mailStatus({ refresh }) : {};
       res.status(200).json({ mailDeliveryAvailable: isMailDeliveryAvailable(deps.mailer), ...status });
     } catch (err) {
-      console.error("[system/mail-status] unexpected error", err);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendAdminFailure({ res, error: err }, { operation: "routes/system/mail-status", code: "INTERNAL_ERROR" });
     }
   });
 }

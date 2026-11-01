@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import Database from "better-sqlite3";
@@ -66,7 +67,7 @@ test("POST .../bundles with no principal (requireAdminSession did not run) is th
   const server = await startTestServer(routeApp(registerPublishContentBundleCreateRoute, routeDeps()), t);
   const response = await fetch(`${server}${BUNDLES}`, { method: "POST", headers: { "content-type": "application/json", "x-principal": "none" }, body: JSON.stringify(envelope()) });
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error" } });
 });
 
 /** A bundle repo whose save fails, as a full disk would. */
@@ -78,7 +79,7 @@ class FailingBundleRepo extends InMemoryPublishContentBundleRepo {
 
 test("POST .../bundles answers a failing stage with the fixed 500, never the store's message", async () => {
   const app = routeApp(registerPublishContentBundleCreateRoute, routeDeps({ publishContentBundleRepo: new FailingBundleRepo() }));
-  assert.deepEqual(await dispatchJsonRequest(app, "POST", BUNDLES, envelope()), { status: 500, body: { error: "internal error" } });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, "POST", BUNDLES, envelope()), expected: { status: 500, body: { error: "internal error" } } });
 });
 
 test("POST .../bundles stages an empty bundle for a human session and answers 201", async () => {

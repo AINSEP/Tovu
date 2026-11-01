@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 /** Approved round17 B: principal/session/Origin setup boundary, raw authenticated upload.
  * Baseline RED: route family and needs-owner handoff absent. Never executes source markup.
  */
@@ -98,8 +99,8 @@ test("import routes preserve principal/source contracts and sanitize failures ac
   for (const fault of [new Error("SECRET private disk path"), new SiteShareRefusal({ code: "NOT_FOUND", message: "Import not found." }), new SiteShareRefusal({ code: "INVALID_INPUT", message: "Bad archive" })]) {
     failure = fault;
     for (const response of [await fetch(root), await post("", view.source), await fetch(root + owner), await post(owner, { adminPassword: "new-password" }), await fetch(root + "/uploads", { method: "POST", headers: { "content-type": "application/zip" }, body: "PK zip" })]) {
-      assert.equal(response.status, fault instanceof SiteShareRefusal && fault.code === "NOT_FOUND" ? 404 : 400);
-      assert.deepEqual(await response.json(), fault instanceof SiteShareRefusal ? { code: fault.code, message: fault.message } : { code: "IMPORT_FAILED", message: "Import operation failed. No existing site was changed." });
+      assert.equal(response.status, fault instanceof SiteShareRefusal ? (fault.code === "NOT_FOUND" ? 404 : 400) : 500);
+      assertAdminResponse({ actual: await response.json(), expected: fault instanceof SiteShareRefusal ? { code: fault.code, message: fault.message } : { code: "IMPORT_FAILED", message: "Import operation failed. No existing site was changed." } });
     }
   }
 });
@@ -219,8 +220,8 @@ test("upload admission failures and a refused owner gate on POST answer without 
   registerAdminSiteImportRoutes({ app, deps: { workspaceId: "ws", tracker: createNoopTracker({}), authorize: async () => { throw new Error("authorizer down at /private/db"); }, siteImportBackend: unexpectedBackend } });
   const origin = await startTestServer(app, t), root = origin + "/api/admin/v1/workspaces/ws/site-imports";
   const upload = await fetch(root + "/uploads", { method: "POST", headers: { "content-type": "application/zip" }, body: "zip" });
-  assert.equal(upload.status, 400);
-  assert.deepEqual(await upload.json(), { code: "IMPORT_FAILED", message: "Import operation failed. No existing site was changed." });
+  assert.equal(upload.status, 500);
+  assertAdminResponse({ actual: await upload.json(), expected: { code: "IMPORT_FAILED", message: "Import operation failed. No existing site was changed." } });
   const machine = await fetch(root + "/00000000-0000-4000-8000-000000000001/owner", { method: "POST", headers: { origin, "x-kind": "api_key", "content-type": "application/x-www-form-urlencoded" }, body: "adminPassword=x" });
   assert.equal(machine.status, 403);
 });

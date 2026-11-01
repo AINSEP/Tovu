@@ -1,3 +1,4 @@
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -48,7 +49,7 @@ test('media delete: an unknown asset is 404 with the domain message', async () =
 test('media delete: an unexpected repository failure is a private 500', async (t) => {
   const { app, deps } = mediaApp(register);
   t.mock.method(deps.mediaRepo, 'findById', async () => { throw new Error('private store failure'); });
-  assert.deepEqual(await dispatchJsonRequest(app, 'DELETE', `${BASE}/media/asset-1`), { status: 500, body: INTERNAL });
+  assertAdminResponse({ actual: await dispatchJsonRequest(app, 'DELETE', `${BASE}/media/asset-1`), expected: { status: 500, body: INTERNAL } });
 });
 
 test('media delete: a hand-built request with no params falls back to an empty workspace id and 404s', async () => {
