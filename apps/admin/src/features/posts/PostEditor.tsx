@@ -1774,9 +1774,9 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
  * record this repeats, and `2026-08-11-template-preview-render-bug.md` has the template-preview fix
  * below). Three branches, evaluated in this order:
  *
- * 1. **Live site** (`status === "published" && !dirty`): iframes the real public URL (`siteUrl`, the
- *    same helper the "view ↗" link already uses) — the exact response a visitor gets,
- *    template/theme CSS/nav/footer/widget resolution and all.
+ * 1. **Saved content** (`status === "published" && !dirty`): GETs the authenticated preview URL.
+ *    The shared renderer keeps theme CSS/nav/footer/widgets; consent is excluded because the
+ *    opaque-origin sandbox cannot save a choice.
  * 2. **Template preview** (2026-08-11 fix) (`status === "published" && !contentDirty`, i.e.
  *    title/slug/status/body/`overridesThemePage` all match what's saved and the post IS published —
  *    only `templateChoice` is pending): `GET`s `templatePreviewUrl` — `usePostEditor`'s pre-built URL
@@ -1897,9 +1897,9 @@ function PostPreview({
 
   const pane = (
     <>
-      {/* No notice line above the frame (owner, 2026-10-10: "remove that and move the preview up"
-          for the unsaved-edits line, then "remove this" for the newly-selected-template one). */}
       <div className="editor-shell post-editor-pane">
+        {/* Keep the note inside the pane: its negative top margin would cover a preceding sibling. */}
+        <p className="field-hint">{t("Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.")}</p>
         <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth} expanded={expanded}>
           <PostPreviewFrame
             canShowLiveSite={canShowLiveSite}
@@ -2017,15 +2017,16 @@ function PostPreviewFrame({
 }) {
   const iframeRef = usePostPreviewIframeEscape(expanded, onCollapse);
   const fresh = useThemePreviewFrame({
-    liveUrl: siteUrl(`/${slug}`),
+    // Reuse the authenticated route's consent exclusion; keep the sandbox opaque.
+    liveUrl: templatePreviewUrl,
     templateUrl: templatePreviewUrl,
     canShowLiveSite,
-  });
+  }, { navigation: "entry" });
   if (fresh.canShowLiveSite) {
     return (
       <iframe
         ref={iframeRef}
-        key={fresh.liveUrl}
+        key={`${fresh.liveUrl}-${slug}`}
         src={fresh.liveUrl}
         title={t("Post preview")}
         className="page-preview-iframe"

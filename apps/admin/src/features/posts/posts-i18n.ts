@@ -2854,4 +2854,32 @@ Object.assign(
   ),
 );
 
+// Shared Page/Post preview copy stays in the existing editor dictionary.
+const PREVIEW_CONSENT_TRANSLATIONS: Record<string, string> = {
+  "es": "El aviso de cookies está oculto en la vista previa. Es posible que los vídeos incrustados no se reproduzcan aquí; abre la página para comprobarlo.",
+  "de": "Das Cookie-Banner ist in der Vorschau ausgeblendet. Eingebettete Videos werden hier möglicherweise nicht abgespielt; öffne die Seite zur Überprüfung.",
+  "it": "Il banner dei cookie è nascosto nell’anteprima. I video incorporati potrebbero non essere riprodotti qui; apri la pagina per verificarlo.",
+  "zh-CN": "预览中已隐藏 Cookie 横幅。嵌入的视频可能无法在此播放；请打开页面检查。",
+  "zh-TW": "預覽中已隱藏 Cookie 橫幅。嵌入的影片可能無法在此播放；請開啟頁面檢查。",
+  "ar": "شريط ملفات تعريف الارتباط مخفي في المعاينة. قد لا تعمل مقاطع الفيديو المضمّنة هنا؛ افتح الصفحة للتحقق.",
+  "fa": "بنر کوکی در پیش‌نمایش پنهان است. ویدیوهای جاسازی‌شده ممکن است اینجا پخش نشوند؛ برای بررسی صفحه را باز کنید.",
+  "ru": "Баннер cookie скрыт в предпросмотре. Встроенные видео могут здесь не воспроизводиться; откройте страницу для проверки.",
+  "ja": "プレビューでは Cookie バナーを非表示にしています。埋め込み動画はここでは再生されない場合があります。ページを開いて確認してください。",
+  "id": "Banner cookie disembunyikan dalam pratinjau. Video tersemat mungkin tidak dapat diputar di sini; buka halaman untuk memeriksanya.",
+  "pt-BR": "O banner de cookies está oculto na prévia. Os vídeos incorporados podem não ser reproduzidos aqui; abra a página para conferir.",
+  "ko": "미리 보기에서는 쿠키 배너가 숨겨집니다. 삽입된 동영상이 여기에서 재생되지 않을 수 있으니 페이지를 열어 확인하세요.",
+  "pl": "Baner plików cookie jest ukryty w podglądzie. Osadzone filmy mogą się tutaj nie odtwarzać; otwórz stronę, aby to sprawdzić.",
+  "hu": "A cookie-sáv rejtve van az előnézetben. A beágyazott videók itt nem feltétlenül játszhatók le; ellenőrzéshez nyisd meg az oldalt.",
+  "fr": "La bannière de cookies est masquée dans l’aperçu. Les vidéos intégrées peuvent ne pas fonctionner ici ; ouvrez la page pour vérifier.",
+  "uk": "Банер cookie приховано в попередньому перегляді. Вбудовані відео можуть тут не відтворюватися; відкрийте сторінку для перевірки.",
+  "tr": "Çerez başlığı önizlemede gizlenir. Gömülü videolar burada oynatılamayabilir; kontrol etmek için sayfayı açın.",
+  "th": "แบนเนอร์คุกกี้ถูกซ่อนในตัวอย่าง วิดีโอที่ฝังไว้อาจเล่นที่นี่ไม่ได้ โปรดเปิดหน้าเว็บเพื่อตรวจสอบ",
+  "hi": "पूर्वावलोकन में कुकी बैनर छिपा हुआ है। एम्बेड किए गए वीडियो यहाँ नहीं चल सकते; जाँचने के लिए पेज खोलें।",
+  "ur": "پیش نظارے میں کوکی بینر چھپا ہوا ہے۔ شامل کردہ ویڈیوز شاید یہاں نہ چلیں؛ جانچنے کے لیے صفحہ کھولیں۔",
+  "bn": "প্রিভিউতে কুকি ব্যানার লুকানো আছে। এম্বেড করা ভিডিও এখানে নাও চলতে পারে; পরীক্ষা করতে পেজটি খুলুন।"
+};
+for (const [locale, message] of Object.entries(PREVIEW_CONSENT_TRANSLATIONS)) {
+  POSTS_DICT[locale]["Cookie banner hidden in preview. Embedded videos may not play here; open the page to check."] = message;
+}
+
 export const t = createDictionaryTranslator({ featureDictionary: POSTS_DICT }, { commonDictionary: COMMON_I18N });

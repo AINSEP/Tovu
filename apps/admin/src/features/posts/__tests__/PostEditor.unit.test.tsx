@@ -2,6 +2,7 @@ import { render, screen, waitFor, within, fireEvent, act } from "@/__tests__/fet
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { publishThemePreviewRefresh } from "../../themes/theme-preview-refresh";
 import { PostEditor } from "../PostEditor";
 import { useWiredPostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
 import { api, type AdminPost } from "@/lib/api";
@@ -1182,14 +1183,31 @@ describe("Edit/Preview toolbar", () => {
     expect(document.querySelector('[data-agent-element="post-body"]')).not.toBeInTheDocument();
   });
 
-  // 2026-08-11: mirrors `PageEditor.tsx`'s own live-vs-fallback preview rule (see `PostPreview`'s
-  // doc comment in `PostEditor.tsx`) — a published, un-dirtied post iframes its real public URL;
-  // anything else falls back to a rendering of the editor buffer with a notice explaining why.
-  it("preview iframes the real public URL when the post is published and has no unsaved changes", () => {
+  // Clean content also uses the authenticated route: a public URL would reintroduce consent UI.
+  it("clean published preview uses the authenticated render path, where consent is excluded", () => {
     renderPostEditor({ view: "preview", status: "published", dirty: false, contentDirty: false, slug: "hello-world" });
     const preview = screen.getByTitle("Post preview");
-    expect(preview).toHaveAttribute("src", expect.stringContaining("/hello-world"));
+    expect(preview).toHaveAttribute("src", expect.stringContaining("/p1/template-preview"));
     expect(screen.queryByText(/preview them with the theme/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps pending post content on the authenticated route after tool navigation", () => {
+    const { container } = renderPostEditor({ view: "preview", dirty: true, contentDirty: true });
+    act(() => publishThemePreviewRefresh({ revision: "post-consent-refresh", path: "/public-page" }));
+    expect(screen.getByTitle("Post preview")).not.toHaveAttribute("src");
+    expect(container.querySelector("form")).toHaveAttribute("action", expect.stringContaining("/p1/template-preview"));
+    expect(container.querySelector('input[name="bodyJson"]')).not.toBeNull();
+  });
+
+  it("shows one translated muted consent note only in preview", () => {
+    const note = "Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.";
+    const { unmount } = renderPostEditor({ view: "preview", t: (key: string) => `T:${key}` });
+    expect(screen.getAllByText(`T:${note}`)).toHaveLength(1);
+    expect(screen.getByText(`T:${note}`)).toHaveClass("field-hint");
+    expect(screen.getByText(`T:${note}`).closest(".post-editor-pane")).not.toBeNull();
+    unmount();
+    renderPostEditor({ view: "edit", t: (key: string) => `T:${key}` });
+    expect(screen.queryByText(`T:${note}`)).toBeNull();
   });
 
   // Owner-reported bug (2026-09-11): "the preview should always show the css and template and all

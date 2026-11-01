@@ -37,7 +37,6 @@ import {
   PAGE_EXTERNAL_CHANGE_MESSAGE,
   pageAutosaveStaleBasisMessage,
   pageEditorSurface,
-  pageLivePreviewPath,
   pagePickerValue,
   pagePublicPath,
   PAGE_PREVIEW_IFRAME_SANDBOX,
@@ -1153,8 +1152,8 @@ function PageEditorPane({
  * would drift from `src/server/routes/site/pages.ts`'s real one), it shares the real pipeline
  * instead of one, through two branches:
  *
- * 1. **Live site** (`status === "published" && !dirty`, i.e. nothing pending at all): iframes the
- *    real public URL (`siteUrl`) directly — the exact same response a visitor gets.
+ * 1. **Saved content** (`status === "published" && !dirty`): GETs the authenticated template-preview
+ *    endpoint. Consent is excluded there because this opaque-origin sandbox cannot save a choice.
  * 2. **Template preview** (everything else — a draft, or a published page with a pending
  *    `templateChoice` and/or edited content): a hidden `<form method="post" target="{iframe name}">`
  *    POSTs the working-copy `html` into `templatePreviewUrl` (`usePageEditor`'s pre-built URL,
@@ -1183,16 +1182,9 @@ function PageEditorPane({
  *    below: its negation needs no name of its own. (`draftHtml`'s own textarea
  *    still exists on the HTML tab for hand-editing raw markup; nothing about that tab changed here.)
  *
- * The public URL and the template-preview endpoint are both cross-origin from the admin in dev
- * (`:5173` vs. `:3000`) — by design for branch 1 (it has to be the real site, not a re-hosted copy);
- * branch 2 goes through the SAME `/api` dev-proxy rule (`apps/admin/vite.config.ts`) every other
- * admin API call already uses, so the `tovu_session` cookie (`SameSite=Strict`) travels with it the
- * same way — see `template-preview.ts`'s own file header for why a real URL (not `srcDoc`) is
- * required for the theme's `/theme-assets/...` CSS to resolve at all. `<iframe src>`/a form's
- * `target` navigation does not require CORS (only script-driven cross-origin reads do), and this
- * codebase sets no `X-Frame-Options`/`frame-ancestors` anywhere that would block it (checked
- * `src/server/app.ts`). The cross-origin document's `contentDocument` is therefore unreachable from
- * here — nothing in this component depends on reaching into it.
+ * Both branches use the existing authenticated API route (and its dev proxy), so the parent can
+ * navigate the iframe with its session. The document itself remains sandboxed in an opaque origin;
+ * it cannot read the admin document or save consent. A real URL preserves theme asset resolution.
  *
  * Preview fullscreen (2026-09-16). Expanding widens the PANE, never the previewed page: the
  * Desktop/Tablet/Mobile choice (`DEVICE_PREVIEW_WIDTHS`, the `page-preview-width-*` buttons) is the
@@ -1276,8 +1268,7 @@ function PagePreview({
   return (
     <div className={expanded ? "page-preview-expanded" : "page-preview-host"}>
       <div className="page-preview-surface">
-        {/* No notice line above the frame any more (owner, 2026-10-10: "remove this" — the
-            "previewing your saved content / unsaved edits / this draft" lines). */}
+        <p className="field-hint">{t("Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.")}</p>
         <div className="page-preview-stage">
           {/* Collapsed vs. expanded frame/scaler heights: see `devicePreviewFrameStyles`. */}
           <DevicePreviewFrame width={width} frameRef={frameRef} paneWidth={paneWidth} expanded={expanded}>
@@ -1378,13 +1369,7 @@ function PagePreviewFrame({
 }: {
   canShowLiveSite: boolean;
   slug: string;
-  /**
-   * Cache-busts the live-site `src` (2026-09-16): the public route serves
-   * `Cache-Control: public, max-age=60, stale-while-revalidate=300`
-   * (`apps/website/src/server/inbound/public-http/routes/site/pages.ts`), so an unchanged `src`
-   * after an assistant write can keep showing the pre-write HTML for up to a minute. `_v` is never
-   * read server-side — it exists purely to change the URL. See `pageLivePreviewPath` (`rules.ts`).
-   */
+  /** Remount the no-store authenticated GET after an assistant saves a new version. */
   version: number;
   html: string;
   /** Pre-built by `usePageEditor` — see `PagePreview`'s own doc, branch 2. */
@@ -1397,14 +1382,15 @@ function PagePreviewFrame({
   t: Translate;
 }) {
   const fresh = useThemePreviewFrame({
-    liveUrl: siteUrl(pageLivePreviewPath(slug, version)),
+    // Opaque-origin previews cannot save consent; the authenticated route already excludes its gate.
+    liveUrl: templatePreviewUrl,
     templateUrl: templatePreviewUrl,
     canShowLiveSite,
-  });
+  }, { navigation: "entry" });
   if (fresh.canShowLiveSite) {
     return (
       <iframe
-        key={fresh.liveUrl}
+        key={`${fresh.liveUrl}-${slug}-${version}`}
         src={fresh.liveUrl}
         title={t("Page preview")}
         className="page-preview-iframe"

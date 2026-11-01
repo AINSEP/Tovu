@@ -57,24 +57,6 @@ export function pagePublicPath(slug: string): string {
   return slug === "/" ? "/" : `/${slug}`;
 }
 
-/**
- * The public preview URL for the CURRENT stored version — cache-busted, so a background refresh
- * (2026-09-16, `use-external-entry-refresh.hooks.ts`) can force the live-preview iframe to reload
- * even though its `slug` did not change.
- *
- * The public route serves `Cache-Control: public, max-age=60, stale-while-revalidate=300`
- * (`apps/website/src/server/inbound/public-http/routes/site/pages.ts`), so an unchanged `src` can
- * keep showing the pre-write HTML for up to a minute after an assistant tool saves a new one. The
- * `_v` param is never read server-side (the route's only `req.query` use is
- * `decodeFormSubmissionResultFromQuery`, which looks at form-result keys only) — it exists purely to
- * change the URL, which is what actually busts the browser cache.
- *
- * @complexity O(1).
- */
-export function pageLivePreviewPath(slug: string, version: number): string {
-  return `${pagePublicPath(slug)}?_v=${version}`;
-}
-
 /** The subset of a page {@link pageAdminPath} reads — kept narrow, same reasoning as
  *  {@link SavablePage} below, so a collision record (`ThemePageSlugCollision`/
  *  `ThemeExploreSlugCollision`, both `{ id, slug, title, kind }`) satisfies it structurally with no
@@ -614,9 +596,9 @@ export function pagePreviewFormTarget(page: AdminPost | null): string {
  * never navigate the admin tab itself by `target="_top"` links or `top.location`, and `allow-modals`.
  * Link clicks inside the frame still navigate the frame, which needs no flag.
  *
- * Deliberately absent since 2026-10-05: `allow-same-origin`. Both branches load documents from the
- * admin's own origin (the template-preview route always; the live site in production, where `siteUrl`
- * returns a root-relative path), and a same-origin document holding `allow-scripts allow-same-origin`
+ * Deliberately absent since 2026-10-05: `allow-same-origin`. Both branches load the template-preview
+ * route from the admin's own origin (the saved-content branch too since 2026-10-31: an opaque origin
+ * cannot store a cookie-consent choice, and that route renders without the consent gate), and a same-origin document holding `allow-scripts allow-same-origin`
  * can reach `parent.document`, call `/api/admin/*` with the owner's session, and strip its own sandbox.
  * Without it the preview runs in an opaque origin, the same isolation Theme Studio's preview already
  * uses. What that costs, accepted on purpose:

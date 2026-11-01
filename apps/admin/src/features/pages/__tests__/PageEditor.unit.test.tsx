@@ -1,7 +1,8 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { publishThemePreviewRefresh } from "../../themes/theme-preview-refresh";
 import { PageEditor } from "../PageEditor";
 import type { PageEditorController } from "../hooks/use-page-editor.hooks";
 import { api, type AdminPost } from "@/lib/api";
@@ -698,33 +699,41 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
 
   // 2026-08-11 fix: the preview used to always show the raw stored body in a sandboxed iframe with
   // no theme CSS (`ADS-memory/reports/implementation/2026-08-11-basic-page-template.md`'s own "Risks"
-  // section flagged this as a real gap, not a regression). A published, un-dirtied page now iframes
-  // the real public URL instead, so a visitor sees exactly what the operator sees.
-  it("preview iframes the real public URL when the page is published and has no unsaved changes", () => {
+  // section flagged this as a real gap, not a regression). The authenticated render endpoint
+  // preserves the theme while excluding consent UI that cannot work in an opaque sandbox.
+  it("clean published preview uses the authenticated render path, where consent is excluded", () => {
     renderEditor({ view: "preview", status: "published", dirty: false, contentDirty: false, slug: "about" });
     const preview = screen.getByTitle("Page preview");
-    expect(preview).toHaveAttribute("src", expect.stringContaining("/about"));
+    expect(preview).toHaveAttribute("src", expect.stringContaining("/pg1/template-preview"));
     expect(screen.queryByText(/preview them with the theme/i)).not.toBeInTheDocument();
   });
 
-  // Regression (2026-09-03) — same root-slug bug as the "view live" link above, for the "Live site"
-  // preview branch (`PagePreviewFrame`'s `canShowLiveSite` case). Before the fix this rendered
-  // `src=".../{origin}//"`, which the site served as "Cannot GET //" instead of the Home page.
-  // Cache-busting (2026-09-16) appended `?_v=<version>` to this src, so the root-slug regression
-  // check can no longer assert "ends in a single slash" — the query string now occupies the end of
-  // the string. Re-pointed at the slash immediately BEFORE `?_v=`, which is exactly the character
-  // the original "//" bug doubled; `not.toMatch(/\/\/\?/)` keeps guarding that regression directly.
-  it("preview iframe's live-site src renders a single '/' before the query string for the root-slug page, not '//'", () => {
-    renderEditor({ view: "preview", status: "published", dirty: false, contentDirty: false, slug: "/", page: { ...BASE_PAGE, slug: "/", version: 5 } });
-    const preview = screen.getByTitle("Page preview");
-    const src = preview.getAttribute("src")!;
-    // `siteUrl` in this test environment returns the bare path with no origin prefixed, so the
-    // slash is the FIRST character, not one preceded by a domain — accept either that start-of-
-    // string form or a real "somechar/?_v=" form (what a real `siteUrl` origin produces). The theme
-    // preview refresh (2026-10-06) appends its own `&__tovu_preview=<revision>` after `_v`.
-    expect(src).toMatch(/(?:[^/]|^)\/\?_v=\d+&__tovu_preview=[\w-]+$/);
-    expect(src).not.toMatch(/\/\/\?/);
-    expect(src).toContain("?_v=5");
+  // Remounting the no-store admin response keeps assistant writes fresh, including the root page.
+  it("refreshes the authenticated preview when a saved page version changes", () => {
+    const { ctrl, rerender } = renderEditor({ view: "preview", status: "published", dirty: false, contentDirty: false, slug: "/", page: { ...BASE_PAGE, version: 5 } });
+    const before = screen.getByTitle("Page preview");
+    expect(before).toHaveAttribute("src", expect.stringContaining("/pg1/template-preview"));
+    ctrl.page = { ...BASE_PAGE, version: 6 };
+    rerender(<PageEditor slug="pg1" usePageEditorHook={() => ctrl} />);
+    expect(screen.getByTitle("Page preview")).not.toBe(before);
+  });
+
+  it("keeps pending page content on the authenticated route after tool navigation", () => {
+    const { container } = renderEditor({ view: "preview", dirty: true, contentDirty: true, html: "<p>Pending</p>" });
+    act(() => publishThemePreviewRefresh({ revision: "page-consent-refresh", path: "/public-page" }));
+    expect(screen.getByTitle("Page preview")).not.toHaveAttribute("src");
+    expect(container.querySelector("form")).toHaveAttribute("action", expect.stringContaining("/pg1/template-preview"));
+    expect(container.querySelector('input[name="bodyHtml"]')).toHaveValue("<p>Pending</p>");
+  });
+
+  it("shows one translated muted consent note only in preview", () => {
+    const note = "Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.";
+    const { ctrl, rerender } = renderEditor({ view: "preview", t: (key: string) => `T:${key}` });
+    expect(screen.getAllByText(`T:${note}`)).toHaveLength(1);
+    expect(screen.getByText(`T:${note}`)).toHaveClass("field-hint");
+    ctrl.view = "html";
+    rerender(<PageEditor slug="pg1" usePageEditorHook={() => ctrl} />);
+    expect(screen.queryByText(`T:${note}`)).toBeNull();
   });
 
   // Both preview branches carry `sandbox` with the shared flag set (`PAGE_PREVIEW_IFRAME_SANDBOX`'s
@@ -1036,7 +1045,7 @@ describe("external-change notice", () => {
     expect(ctrl.dismissExternalChange).toHaveBeenCalledTimes(1);
   });
 
-  it("preview iframes the live URL with the page version, so a new version cannot come from browser cache", () => {
+  it("saved preview uses the authenticated route even after an external write", () => {
     renderEditor({
       view: "preview",
       status: "published",
@@ -1046,7 +1055,7 @@ describe("external-change notice", () => {
       page: { ...BASE_PAGE, slug: "about", version: 9 },
     });
     const preview = screen.getByTitle("Page preview");
-    expect(preview.getAttribute("src")).toContain("/about?_v=9");
+    expect(preview.getAttribute("src")).toContain("/pg1/template-preview");
   });
 });
 

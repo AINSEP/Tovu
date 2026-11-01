@@ -20,7 +20,6 @@ import {
   pageDirtyGuardBaseline,
   pageEditableHtml,
   pageEditorSurface,
-  pageLivePreviewPath,
   pagePartialSaveMessage,
   PAGE_PREVIEW_IFRAME_SANDBOX,
   pagePickerValue,
@@ -683,16 +682,6 @@ describe("pageEditableHtml", () => {
 
   it("returns \"\" for a null bodyHtml on an html-format page", () => {
     expect(pageEditableHtml(page({ bodyFormat: "html", bodyHtml: null }))).toBe("");
-  });
-});
-
-describe("pageLivePreviewPath", () => {
-  it("appends the version to an ordinary slug", () => {
-    expect(pageLivePreviewPath("landing", 7)).toBe("/landing?_v=7");
-  });
-
-  it("keeps the root slug a single slash before the query string", () => {
-    expect(pageLivePreviewPath("/", 7)).toBe("/?_v=7");
   });
 });
 

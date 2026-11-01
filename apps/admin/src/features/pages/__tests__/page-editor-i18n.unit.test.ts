@@ -134,3 +134,10 @@ describe("scriptblocks translated host copy", () => {
     expect(t("es", "Edit HTML")).toBe("Editar HTML");
   });
 });
+
+it("translates the preview consent note in every admin locale", () => {
+  const key = "Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.";
+  for (const locale of Object.keys(PAGE_EDITOR_DICT)) {
+    expect(t(locale, key), locale).not.toBe(key);
+  }
+});

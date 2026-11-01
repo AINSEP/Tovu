@@ -55,7 +55,9 @@ export function useThemePreviewReloadButton(
   return { label: t({ locale: locale, key: "Reload preview" }), reload: onReload, error };
 }
 
-/** Keeps dirty content on the POST path; a tool's explicit navigation chooses a public GET. */
+/** Keeps dirty content on the POST path. Entry previews stay on their authenticated render route:
+ * a tool-selected public path would restore consent UI that cannot work inside the sandbox.
+ * Site previews retain explicit tool navigation. @complexity O(URL length), no I/O. */
 export function useThemePreviewFrame(
   {
     liveUrl,
@@ -63,13 +65,14 @@ export function useThemePreviewFrame(
     canShowLiveSite,
     makeRevision,
   }: { liveUrl: string; templateUrl: string; canShowLiveSite: boolean; makeRevision?: () => string },
-  _optional: Record<string, never> = {},
+  { navigation = "site" }: { navigation?: "site" | "entry" } = {},
 ) {
   const refreshed = useThemePreviewRefresh({ url: canShowLiveSite ? liveUrl : templateUrl, makeRevision });
+  const path = navigation === "site" ? refreshed.path : undefined;
   return {
-    liveUrl: freshPreviewUrl({ url: liveUrl, revision: refreshed.revision, path: refreshed.path }),
+    liveUrl: freshPreviewUrl({ url: liveUrl, revision: refreshed.revision, path }),
     templateUrl: freshPreviewUrl({ url: templateUrl, revision: refreshed.revision }),
     revision: refreshed.revision,
-    canShowLiveSite: canShowLiveSite || refreshed.path !== undefined,
+    canShowLiveSite: canShowLiveSite || path !== undefined,
   };
 }

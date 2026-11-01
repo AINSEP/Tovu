@@ -84,3 +84,10 @@ describe("POSTS_DICT: t() falls back to COMMON_I18N", () => {
     expect(t({ locale: "de", key: "Delete permanently" })).toBe(COMMON_I18N.de["Delete permanently"]);
   });
 });
+
+it("translates the preview consent note in every admin locale", () => {
+  const key = "Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.";
+  for (const locale of Object.keys(POSTS_DICT)) {
+    expect(t({ locale, key }), locale).not.toBe(key);
+  }
+});

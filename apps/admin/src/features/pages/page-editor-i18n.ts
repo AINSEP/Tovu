@@ -46,6 +46,7 @@ const pageEditorMarkupTranslations: Record<string, Record<string, string>> = {
 // and Posts diverge in meaning for `""` now). Posts still show it unchanged, via `posts-i18n.ts`'s own
 // key — untouched, this set only routes Page-editor copy.
 const postEditorKeys = new Set([
+  "Cookie banner hidden in preview. Embedded videos may not play here; open the page to check.",
   "Back", "Pages", "Content", "Edit page", "Draft", "Published", "Publish", "Restore", "Discard",
   "Save anyway", "Keep editing", "Template", "View Template", "No templates for this theme",
   "Loading editor…", "URL slug", "view ↗", "Move to trash?", "Move to trash",

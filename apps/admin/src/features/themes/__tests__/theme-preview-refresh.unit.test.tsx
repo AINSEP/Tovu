@@ -256,3 +256,16 @@ it("interleaved POST results and SSE echoes publish each durable revision only o
   expect(seen).toEqual(["first", "second"]);
   dispose();
 });
+
+
+it("entry preview refresh never navigates to a public path or drops pending content", async () => {
+  const { useThemePreviewFrame } = await import("../hooks/use-theme-preview-refresh.hooks");
+  const url = "/api/admin/v1/workspaces/workspace-local/posts/p/template-preview?templateChoice=";
+  const { result } = renderHook(() => useThemePreviewFrame({
+    liveUrl: url, templateUrl: url, canShowLiveSite: false, makeRevision: () => "initial",
+  }, { navigation: "entry" }));
+  act(() => publishThemePreviewRefresh({ revision: "navigate-entry", path: "/about" }));
+  expect(result.current.canShowLiveSite).toBe(false);
+  expect(result.current.liveUrl).toBe(`${url}&__tovu_preview=navigate-entry`);
+  expect(result.current.templateUrl).toBe(`${url}&__tovu_preview=navigate-entry`);
+});
