@@ -83,7 +83,7 @@ test("packaged peer discovery follows transitive and required peer edges, but no
 
 test('desktop model discovery declares its integrations runtime library', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'apps', 'desktop', 'package.json'), 'utf8'));
-  assert.equal(manifest.dependencies['@jini-ai/integrations'], '^0.6.16');
+  assert.equal(manifest.dependencies['@jini-ai/integrations'], '^0.6.17');
 });
 
 /** Source inputs only: build output, tests and fixtures are not shipped runtime modules. */
