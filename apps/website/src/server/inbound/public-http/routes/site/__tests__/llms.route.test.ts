@@ -82,13 +82,7 @@ test("GET /llms.txt: a published, publicly-visible page appears, linked with an 
   const res = await fetch(`${baseUrl}/llms.txt`);
   assert.equal(res.status, 200);
   const body = await res.text();
-  // `createRouteDeps()` seeds a verified `dev-capability` origin (`http://localhost:3000`,
-  // same fixture `robots.route.test.ts`/`pages.route.test.ts` rely on) — so the default deps here
-  // already exercise the absolute-URL path.
-  assert.match(
-    body,
-    /- \[Guide To Everything\]\(http:\/\/localhost:3000\/guide-to-everything\): A real page about real things\./
-  );
+  assert.ok(body.includes(`- [Guide To Everything](${baseUrl}/guide-to-everything): A real page about real things.`));
 });
 
 test("GET /llms.txt: titles sort independently of insertion order and empty bodies have no fabricated description", async (t) => {
@@ -101,9 +95,9 @@ test("GET /llms.txt: titles sort independently of insertion order and empty bodi
   const res = await fetch(`${baseUrl}/llms.txt`);
   assert.equal(res.status, 200);
   assert.deepEqual((await res.text()).split("\n").filter((line) => line.startsWith("- ")), [
-    "- [Alpha Guide](/alpha)",
-    "- [Middle Guide](/middle): A real page about real things.",
-    "- [Zebra Guide](/zebra): A real page about real things.",
+    `- [Alpha Guide](${baseUrl}/alpha)`,
+    `- [Middle Guide](${baseUrl}/middle): A real page about real things.`,
+    `- [Zebra Guide](${baseUrl}/zebra): A real page about real things.`,
   ]);
 });
 
@@ -159,7 +153,7 @@ test("GET /llms.txt: a trashed page that still carries status: 'published' does 
   );
 });
 
-test("GET /llms.txt: with NO verified origin registered, the page URL degrades to the bare relative path (disclosed fallback, no fabricated origin)", async (t) => {
+test("GET /llms.txt: with NO verified origin registered, the page URL still uses the serving origin", async (t) => {
   const postRepo = new InMemoryPostRepo([pagePost()]);
   const app = buildLlmsOnlyApp({ postRepo, originRegistry: new NoOriginRegistry() });
   const baseUrl = await startTestServer(app, t);
@@ -167,8 +161,8 @@ test("GET /llms.txt: with NO verified origin registered, the page URL degrades t
   const res = await fetch(`${baseUrl}/llms.txt`);
   assert.equal(res.status, 200);
   const body = await res.text();
-  assert.match(body, /- \[Guide To Everything\]\(\/guide-to-everything\):/);
-  assert.doesNotMatch(body, /localhost:3000/, "no verified origin means no origin may be fabricated");
+  assert.ok(body.includes(`- [Guide To Everything](${baseUrl}/guide-to-everything):`));
+  assert.doesNotMatch(body, /localhost:3000/, "stored development origin must not be used");
 });
 
 test("GET /llms.txt: a post-read failure is caught and reported as a plain-text 500, not an uncaught rejection", async (t) => {

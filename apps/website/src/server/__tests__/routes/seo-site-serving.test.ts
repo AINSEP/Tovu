@@ -129,16 +129,16 @@ test("GET /llms.txt is reachable through the real running app, unauthenticated, 
   const body = await res.text();
   assert.match(body, /^# Tovu\n/, "llmstxt.org requires an H1 as the very first line");
   assert.match(body, /^## Pages$/m);
-  // Present in the seeded fixture (seed.ts) -> must be linked, with an absolute URL
-  // (`createRouteDeps()` seeds a verified `dev-capability` origin, `http://localhost:3000`) and a
-  // real, non-empty description sourced from that page's own resolved SEO meta.
-  assert.match(body, /- \[How Themes Work\]\(http:\/\/localhost:3000\/how-themes-work\): .+/);
-  assert.match(body, /- \[How Plugins Work\]\(http:\/\/localhost:3000\/how-plugins-work\): .+/);
-  assert.match(body, /- \[The Plugin API\]\(http:\/\/localhost:3000\/plugin-api\): .+/);
+  // Normalize only the transport address so descriptions must still be nonempty.
+  const normalized = body.replaceAll(baseUrl, "REQUEST_ORIGIN");
+  assert.match(normalized, /- \[How Themes Work\]\(REQUEST_ORIGIN\/how-themes-work\): .+/);
+  assert.match(normalized, /- \[How Plugins Work\]\(REQUEST_ORIGIN\/how-plugins-work\): .+/);
+  assert.match(normalized, /- \[The Plugin API\]\(REQUEST_ORIGIN\/plugin-api\): .+/);
   // No longer a curated allowlist -- every published, publicly visible page in the seed is listed,
   // not just the former 6 "docs" slugs.
-  assert.match(body, /- \[Home\]\(http:\/\/localhost:3000\/\): .+/);
-  assert.match(body, /- \[Welcome to Tovu\]\(http:\/\/localhost:3000\/welcome\): .+/);
+  assert.match(normalized, /- \[Home\]\(REQUEST_ORIGIN\/\): .+/);
+  assert.match(normalized, /- \[Welcome to Tovu\]\(REQUEST_ORIGIN\/welcome\): .+/);
+  assert.doesNotMatch(body, /localhost:3000/);
 });
 
 // REGRESSION: fails if the head contributor stops supplying the configured home title to getEntryMeta.

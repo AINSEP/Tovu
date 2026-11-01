@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { checkTreePath } from "../publish-content/file-tree-policy.js";
-import { SiteShareRefusal, SHARE_LIMITS, addShareOmission } from "./share-policy.js";
+import { SiteShareRefusal, SHARE_LIMITS, addShareOmission, archiveRefusalName } from "./share-policy.js";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 /** The seven-segment root of an installed plugin package payload (matched against the lowercased path). */
@@ -79,7 +79,7 @@ export function excludedSharePath(required: { path: string }, optional: { notice
     return suspiciousSharePart({ part });
   });
   if (unsafe) {
-    throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses suspicious required path '${required.path}'. Remove it before sharing.` });
+    throw new SiteShareRefusal({ code: "UNSAFE_FILE", message: `Share refuses suspicious required path '${archiveRefusalName({ name: required.path })}'. Remove it before sharing.` });
   }
   return false;
 }
@@ -127,8 +127,10 @@ export function validateSharePath(required: { path: string }, _optional: Record<
   const structural = p.split("/").map(part => secretSharePath({ path: part }) ? "x".repeat(part.length) : part).join("/");
   const reason = ["database/content.db", "content.db"].includes(p) ? null : checkTreePath(structural);
   if (reason || hasUnportableSpelling({ path: p })) {
-    const suffix = reason ? `: ${reason}` : ".";
-    throw new SiteShareRefusal({ code: "UNSAFE_PATH", message: `Share path '${p}' is unsafe${suffix}` });
+    const shownPath = archiveRefusalName({ name: p });
+    // A callback treats archive '$&'/'$`' spellings as text, never replacement tokens.
+    const suffix = reason ? `: ${reason.replaceAll(structural, () => shownPath)}` : ".";
+    throw new SiteShareRefusal({ code: "UNSAFE_PATH", message: `Share path '${shownPath}' is unsafe${suffix}` });
   }
 }
 

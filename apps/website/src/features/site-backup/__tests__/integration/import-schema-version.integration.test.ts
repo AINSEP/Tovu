@@ -89,3 +89,26 @@ for (const [label, ddl, name] of [
     return true;
   });
 });
+
+// Archive-controlled identifiers can be huge and contain invisible direction changes.
+// Check both schema-object and populated-table refusals through the real ZIP/worker path.
+for (const kind of ["view", "table"] as const) {
+  for (const suffix of ["short", "x".repeat(1000)]) {
+    test(`import ${kind} refusal bounds and sanitizes ${suffix.length}-character names`, async t => {
+      const name = `hostile\u0001\n\u0085\u061c\u200e\u202e\u2066\u2069_${suffix}`;
+      const ddl = kind === "view" ? `CREATE VIEW "${name}" AS SELECT 1`
+        : `CREATE TABLE "${name}"(payload TEXT); INSERT INTO "${name}" VALUES ('data')`;
+      const archive = await zip(await snapshot(t, ddl));
+      await assert.rejects(verifySiteImport({ archive, reader: createShareArchiveReader({ yauzl }), schema, sanitize: rebuildImportDatabase }), error => {
+        const refusal = error as Error & { code: string };
+        assert.equal(refusal.code, "INVALID_DATABASE");
+        assert.match(refusal.message, /hostile/);
+        assert.doesNotMatch(refusal.message, /[\p{Cc}\p{Cf}]|\\u0001|\\n/u);
+        assert.ok(refusal.message.length < 400, `refusal length: ${refusal.message.length}`);
+        if (suffix.length > 120) assert.match(refusal.message, /…/);
+        else assert.match(refusal.message, /hostile_short/);
+        return true;
+      });
+    });
+  }
+}

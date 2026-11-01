@@ -12,7 +12,7 @@ import { listColumns } from "#src/platform/db/kernel/dialect";
 import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, type SqliteSchemaObject } from "#src/platform/db/kernel/sqlite-only";
 import type { StorageKernel } from "#src/platform/db/kernel/port";
 import { sanitizeShareDatabase, prepareSharePluginTables, refuseUnknownShareTables } from "#src/features/site-backup/share-database/repo.sqlite";
-import { SHARE_TABLES, IMPORT_SCHEMA_MISMATCH_EXIT_CODE, IMPORT_REFUSAL_EXIT_CODE, SHARE_VERSION_MISMATCH_MESSAGE, SiteShareRefusal } from "#src/features/site-backup/share-policy";
+import { SHARE_TABLES, IMPORT_SCHEMA_MISMATCH_EXIT_CODE, IMPORT_REFUSAL_EXIT_CODE, SHARE_VERSION_MISMATCH_MESSAGE, SiteShareRefusal, archiveRefusalName } from "#src/features/site-backup/share-policy";
 import { readTemplate } from "#src/platform/site-dir/index";
 import { computeBlobStorageKey } from "#src/features/media/index";
 
@@ -23,7 +23,7 @@ type ImportKernel = StorageKernel<Record<string, Record<string, unknown>>>;
  */
 function refuseSchemaObject(required: { object: SqliteSchemaObject }, _options = {}): never {
   const { object } = required;
-  throw new SiteShareRefusal({ code: "INVALID_DATABASE", message: `Unsupported schema ${object.type} ${JSON.stringify(object.name)}.` });
+  throw new SiteShareRefusal({ code: "INVALID_DATABASE", message: `Unsupported schema ${object.type} ${JSON.stringify(archiveRefusalName({ name: object.name }))}.` });
 }
 
 /** Ordinary column differences can be version drift. Hidden/generated columns

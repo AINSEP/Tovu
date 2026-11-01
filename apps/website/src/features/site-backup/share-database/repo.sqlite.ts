@@ -7,10 +7,11 @@ import path from "node:path";
 import { sql } from "kysely";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { validateValueAgainstSchema, type SettingValueSchema } from "@jini-ai/core/settings";
+import { createConsoleLogger, type Logger } from "@jini-ai/core/primitives";
 import type { JsonValue } from "@jini-ai/core/primitives";
 import { PUBLISHABLE_SETTINGS } from "#src/features/settings/contracts";
 import { backfillPostSearchIndex } from "#src/features/post/index";
-import { SHARE_TABLES, SHARE_LEGACY_PRIVATE_TABLES, SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseProjection, addShareOmission } from "#src/features/site-backup/share-policy";
+import { SHARE_TABLES, SHARE_LEGACY_PRIVATE_TABLES, SHARE_LIMITS, SiteShareRefusal, type ShareDatabaseProjection, addShareOmission, archiveRefusalName } from "#src/features/site-backup/share-policy";
 import { computeBlobStorageKey, documentContentType } from "#src/features/media/index";
 import { listColumns, listTables, listIndexes } from "../../../platform/db/kernel/dialect.js";
 import { openSqliteFileKernel, sqliteKernel, sqliteClientOf, sqliteConnectionOf, closeSqliteConnection } from "../../../platform/db/kernel/drivers/sqlite.js";
@@ -30,14 +31,14 @@ export type StagingSpacePort = (path: string) => Promise<{ bavail: number; bsize
  * `modules` is the trusted bundled registry; tests pass their own typed declarations.
  * @throws SiteShareRefusal if the trusted declaration cannot be installed.
  */
-export async function prepareSharePluginTables(required: { target: Kernel; present: ReadonlySet<string>; modules: readonly DataModuleDecl[] }, _optional: Record<string, never> = {}): Promise<{ portable: Set<string>; private: Set<string> }> {
+export async function prepareSharePluginTables(required: { target: Kernel; present: ReadonlySet<string>; modules: readonly DataModuleDecl[] }, optional: { logger?: Pick<Logger, "error"> } = {}): Promise<{ portable: Set<string>; private: Set<string> }> {
   const portable = new Set<string>();
   const privateTables = new Set<string>();
   for (const decl of required.modules) {
     const plan = sharePluginPlan({ decl, present: required.present });
     plan.portable.forEach(name => portable.add(name));
     plan.private.forEach(name => privateTables.add(name));
-    if (plan.tables.length) await declarePortableTables({ target: required.target, decl, tables: plan.tables });
+    if (plan.tables.length) await declarePortableTables({ target: required.target, decl, tables: plan.tables }, optional);
   }
   return { portable, private: privateTables };
 }
@@ -68,10 +69,16 @@ function portableColumnsOnly(required: { name: string; table: TableDecl; columns
 }
 
 /** Installs the trimmed portable tables through `declareDataModule`, the trusted DDL owner.
- * @throws SiteShareRefusal carrying the declaration error when the owner refuses. */
-async function declarePortableTables(required: { target: Kernel; decl: DataModuleDecl; tables: TableDecl[] }, _options: Record<string, never> = {}): Promise<void> {
+ * Logs the redacted declaration diagnostic; only the fixed refusal crosses the worker boundary.
+ * @throws SiteShareRefusal when the owner refuses. O(declaration + diagnostic bytes). */
+async function declarePortableTables(required: { target: Kernel; decl: DataModuleDecl; tables: TableDecl[] }, { logger = createConsoleLogger({ prefix: "[site-share]" }) }: { logger?: Pick<Logger, "error"> } = {}): Promise<void> {
   const result = await declareDataModule({ db: required.target, dbPath: ":memory:", decl: { ...required.decl, tables: required.tables } });
-  if (!result.ok) throw new SiteShareRefusal({ code: "UNSUPPORTED_SCHEMA", message: `Cannot build portable plugin schema for '${required.decl.pluginId}': ${result.error?.message}` });
+  if (result.ok) return;
+  // A typed refusal is written verbatim to refusal.txt, so native error text belongs only in logs.
+  logger.error({ message: "Cannot build portable plugin schema" }, {
+    meta: { diagnostic: redactSecretShapes({ text: result.error?.message ?? "Declaration refused" }).text },
+  });
+  throw new SiteShareRefusal({ code: "UNSUPPORTED_SCHEMA", message: `Cannot build portable plugin schema for '${required.decl.pluginId}': the bundled portable-data declaration could not be installed.` });
 }
 
 /** Refuse populated undeclared tables by name before any portable-row projection.
@@ -84,7 +91,7 @@ export async function refuseUnknownShareTables({ source, trusted }: { source: Ke
   for (const table of await listTables(source)) {
     if (trusted.has(table) || SHARE_LEGACY_PRIVATE_TABLES.has(table) || CHAT_TABLE_NAMES.includes(table) || table.startsWith("_vault_backup_")) continue;
     const rows = await source.query<{ found: number }>(sql`SELECT 1 AS found FROM ${sql.id(table)} LIMIT 1`);
-    if (rows.length) throw new SiteShareRefusal({ code: "UNSUPPORTED_DATA", message: `Cannot share unsupported nonempty table '${table}'. Add an approved portable-data policy for this table first.` });
+    if (rows.length) throw new SiteShareRefusal({ code: "UNSUPPORTED_DATA", message: `Cannot share unsupported nonempty table '${archiveRefusalName({ name: table })}'. Add an approved portable-data policy for this table first.` });
   }
 }
 
@@ -485,7 +492,7 @@ async function archiveMediaSources({ target }: { target: Kernel }): Promise<Arch
   const publics = new Map(renditions.map(row => [ownerKey(row.workspace_id, [row.asset_id, row.version]), row]));
   return rows.map(row => {
     const blob = byHash.get(ownerKey(row.workspace_id, row.source_sha256));
-    if (!blob) throw new SiteShareRefusal({ code: "MISSING_MEDIA", message: `Media '${row.id}' has no source blob.` });
+    if (!blob) throw new SiteShareRefusal({ code: "MISSING_MEDIA", message: `Media '${archiveRefusalName({ name: String(row.id) })}' has no source blob.` });
     const definition = definitions.get(String(row.workspace_id));
     const rendition = definition && publics.get(ownerKey(row.workspace_id, [row.id, definition.version]));
     return { id: String(row.id), workspaceId: String(row.workspace_id), slug: String(row.slug ?? row.id), kind: String(row.kind),

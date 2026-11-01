@@ -64,7 +64,7 @@ function absoluteValues(xml: string, tag: string): string[] {
 }
 
 for (const origin of ["http://localhost:3000", "http://127.0.0.1:4000", "http://live.example"]) {
-  test(`live sitemap, feed and canonical follow ${origin}`, async () => {
+  test(`live sitemap, robots, canonical, feed and llms follow ${origin}`, async () => {
     const deps = site(), app = createApp(deps, { themeIdOverride: "none" });
     for (const [route, tag] of [["/sitemap.xml", "loc"], ["/feed.xml", "link"]]) {
       const response = await dispatch(app, origin + route), body = await response.text();
@@ -78,6 +78,10 @@ for (const origin of ["http://localhost:3000", "http://127.0.0.1:4000", "http://
     assert.ok(html.includes(`href="${origin}/feed.xml"`));
     const robots = await (await dispatch(app, origin + "/robots.txt")).text();
     assert.ok(robots.includes(`Sitemap: ${origin}/sitemap.xml`), robots);
+    const llms = await (await dispatch(app, origin + "/llms.txt")).text();
+    const links = [...llms.matchAll(/^- \[[^\n]*\]\(([^)]+)\)/gm)].map(match => match[1]!);
+    assert.ok(links.length > 0, llms);
+    assert.ok(links.every(link => link.startsWith(origin + "/")), llms);
   });
 }
 
@@ -110,7 +114,7 @@ test("trusted proxy origin includes forwarded port; untrusted forwarding is igno
 
 test("a malformed Host header renders with the stored-origin fallback instead of failing", async () => {
   const app = createApp(site(), { themeIdOverride: "none" });
-  for (const route of ["/", "/feed.xml", "/sitemap.xml", "/robots.txt"]) {
+  for (const route of ["/", "/feed.xml", "/sitemap.xml", "/robots.txt", "/llms.txt"]) {
     const response = await dispatch(app, "http://localhost:3000" + route, { host: "bad.example:99999" });
     assert.equal(response.status, 200, route);
     assert.ok(!(await response.text()).includes("bad.example"), route);
@@ -123,12 +127,19 @@ for (const publicUrl of [undefined, "https://download.example", "https://user.gi
     const copy = await captureStaticSite({ render: input => exportSite({ ...input, routeDeps: deps, includeThemePreviews: false }),
       context: async () => ({ name: "Site", slug: "site", theme: "none" }), now: () => new Date("2026-10-31T00:00:00Z") }, { publicUrl });
     assert.ok(!("reason" in copy), JSON.stringify(copy));
+    const renderedLlms = copy.files.find(file => file.path === "llms.txt")!.content.toString();
+    const renderedBase = publicUrl?.replace(/\/$/, "") ?? "";
+    assert.ok(renderedLlms.includes(`](${renderedBase}/how-themes-work)`), renderedLlms);
     const files = new Map(staticDownloadLayout({ copy }).map(file => [path.posix.basename(file.path), file.content.toString()]));
+    // The download-layout owner makes local content links relative for offline viewing.
+    assert.ok(files.get("llms.txt")!.includes("](how-themes-work)"), files.get("llms.txt"));
     if (!publicUrl) {
       assert.ok(!files.has("sitemap.xml")); assert.ok(!files.has("feed.xml"));
       assert.match(files.get("README.txt")!, /sitemap.xml was left out/);
       assert.doesNotMatch(files.get("robots.txt")!, /Sitemap:/);
       assert.doesNotMatch(files.get("index.html")!, /rel="canonical"|application\/rss\+xml/);
+      assert.match(files.get("llms.txt")!, /^- \[.+\]\((?!https?:)\S+\)/m);
+      assert.doesNotMatch(files.get("llms.txt")!, /https?:\/\/(?:saved\.example|render-\d+\.invalid|localhost)/);
     } else {
       const base = publicUrl.replace(/\/$/, "");
       for (const [file, tag] of [["sitemap.xml", "loc"], ["feed.xml", "link"]]) {
@@ -154,6 +165,7 @@ test(`publishing discovery uses ${publicUrl} and derives its prefix from that de
     assert.ok(urls.length > 0); assert.ok(urls.every(url => url.startsWith(publicUrl) && !url.includes("/repo/repo/")), files.get(file!));
   }
   const html = files.get("index.html")!;
+  assert.ok(files.get("llms.txt")!.includes(`](${publicUrl}how-themes-work)`), files.get("llms.txt"));
   assert.ok(html.includes(`href="${publicUrl}"`));
   assert.ok(html.includes(`href="${publicUrl}feed.xml"`));
   assert.ok(html.includes(`href="${new URL(publicUrl).pathname}"`), "navigation must use the resolved destination's prefix too");

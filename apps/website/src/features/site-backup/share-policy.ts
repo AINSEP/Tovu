@@ -38,13 +38,24 @@ export class SiteShareRefusal extends Error {
   constructor(required: { code: string; message: string }, _optional: Record<string, never> = {}) { super(required.message); this.code = required.code; this.name = "SiteShareRefusal"; }
 }
 
+/** Display an archive-controlled name in a refusal, never use this value for lookup.
+ * Strip invisible controls before quoting, and bound each name to 120 UTF-16 units so a
+ * hostile ZIP cannot flood or visually reorder a refusal. Pure; O(name.length) time/space.
+ */
+export function archiveRefusalName({ name }: { name: string }, _options = {}): string {
+  const clean = name.replace(/[\p{Cc}\p{Cf}]/gu, "");
+  if (clean.length <= 120) return clean;
+  // Do not split an astral character at the truncation boundary.
+  return clean.slice(0, 119).replace(/[\uD800-\uDBFF]$/, "") + "…";
+}
+
 /** Reject before allocating or uploading. No required content is silently skipped. O(n). */
 export function checkShareLimits(required: { files: readonly { path: string; bytes: number }[]; totalBytes?: number }, _optional: Record<string, never> = {}): void {
   if (required.files.length > SHARE_LIMITS.maxFiles) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Share exceeds the 2,000-file cap. Reduce the site or wait for streaming exports." });
   const total = required.files.reduce((sum, file) => sum + file.bytes, 0);
   if (Math.max(total, required.totalBytes ?? 0) > SHARE_LIMITS.maxExpandedBytes) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: "Share exceeds the 300 MiB expanded cap. Reduce the site or wait for streaming exports." });
   const large = required.files.find(file => file.path !== "database/content.db" && file.path !== "content.db" && file.bytes > SHARE_LIMITS.maxFileBytes);
-  if (large) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: `Share file '${large.path}' exceeds the 64 MiB ordinary-file cap.` });
+  if (large) throw new SiteShareRefusal({ code: "LIMIT_EXCEEDED", message: `Share file '${archiveRefusalName({ name: large.path })}' exceeds the 64 MiB ordinary-file cap.` });
 }
 
 /** Snapshot-owned metadata, never a read from mutable live media repositories. */

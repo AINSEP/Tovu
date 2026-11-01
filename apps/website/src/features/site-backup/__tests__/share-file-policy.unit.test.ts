@@ -13,6 +13,7 @@ import { gzipSync } from "node:zlib";
 import { packAgentPluginDirectory } from "../../agent-plugins/lifecycle.js";
 import { readBundledImportPluginIds, readBundledPackageFiles } from "../package-file-inventory.js";
 import { claimSharePath, excludedSharePath, requireShareSecretFree, sharePathAlias, validateSharePath, type PackageFileInventory } from "../share-file-policy.js";
+import { archiveRefusalName } from "../share-policy.js";
 
 const HEX = "a".repeat(64);
 const PACKAGE_ROOT = `agent-plugins/ws/w/p/package/sha256/${HEX}`;
@@ -25,6 +26,38 @@ const sha256 = (text: string): string => createHash("sha256").update(text).diges
 /** An inventory in which this build ships `files` (package-relative path -> text) under {@link HEX}. */
 const shipped = (files: Record<string, string>): PackageFileInventory => new Map([[HEX, new Map(Object.entries(files).map(([name, text]) => [name, sha256(text)]))]]);
 const LABELS = `"API token": "Token de API"`;
+
+test("archive refusal names preserve ordinary text and truncate without splitting astral characters", () => {
+  assert.equal(archiveRefusalName({ name: "" }), "");
+  assert.equal(archiveRefusalName({ name: "schema_普通😀" }), "schema_普通😀");
+  assert.equal(archiveRefusalName({ name: "x".repeat(120) }), "x".repeat(120));
+  assert.equal(archiveRefusalName({ name: "x".repeat(121) }), "x".repeat(119) + "…");
+  assert.equal(archiveRefusalName({ name: "x".repeat(118) + "😀tail" }), "x".repeat(118) + "…");
+});
+
+test("unsafe archive-path refusals bound names and strip invisible controls", () => {
+  const path = "themes/hostile\u0001\n\u202e\u2066" + "x".repeat(1000) + "/../file";
+  assert.throws(() => validateSharePath({ path }), error => {
+    const refusal = error as Error & { code: string };
+    assert.equal(refusal.code, "UNSAFE_PATH");
+    assert.match(refusal.message, /hostile.*…/);
+    assert.doesNotMatch(refusal.message, /[\p{Cc}\p{Cf}]/u);
+    assert.ok(refusal.message.length < 400, `refusal length: ${refusal.message.length}`);
+    return true;
+  });
+});
+
+test("archive names containing replacement tokens cannot re-expand raw names in a refusal", () => {
+  const path = "themes/$&hostile\u0001\u202e" + "x".repeat(1000);
+  assert.throws(() => validateSharePath({ path }), error => {
+    const refusal = error as Error & { code: string };
+    assert.equal(refusal.code, "UNSAFE_PATH");
+    assert.match(refusal.message, /\$&hostile.*…/);
+    assert.doesNotMatch(refusal.message, /[\p{Cc}\p{Cf}]/u);
+    assert.ok(refusal.message.length < 400, `refusal length: ${refusal.message.length}`);
+    return true;
+  });
+});
 
 for (const path of [
   // Site plugin paths are not here: the share walks only Jini's package listing (share-site-plugin-versions).
@@ -82,7 +115,7 @@ for (const name of ["certs/tls.pem", "keys/deploy.key", ".git/config", "node_mod
   test(`every other suspicious-name rule still refuses below a package root (${name})`, { timeout: 10_000 }, () => {
     const path = `${PACKAGE_ROOT}/${name}`;
     if (["certs/tls.pem", "keys/deploy.key", "id_rsa", ".mcp.json"].includes(name)) assert.equal(excludedSharePath({ path }), true);
-    else assert.throws(() => excludedSharePath({ path }), suspicious(path));
+    else assert.throws(() => excludedSharePath({ path }), suspicious(name === "node_modules/x/index.js" ? `${PACKAGE_ROOT}/node_modules/x/ind…` : path));
   });
 }
 
@@ -195,25 +228,31 @@ test("an ordinary portable path passes", { timeout: 10_000 }, () => {
   assert.equal(validateSharePath({ path: "themes/site/Index Page.html" }), undefined);
 });
 
-for (const [path, reason] of [
+for (const [path, reason, display = path] of [
   ["themes/content.db", `"themes/content.db" has a '.db' extension, which is never published`],
   ["themes\\a.txt", `"themes\\a.txt" contains a backslash, which is never allowed in a tree path`],
-  ["themes/\u0000", `"themes/\u0000" contains a NUL byte`],
+  ["themes/\u0000", `"themes/" contains a NUL byte`, "themes/"],
   ["themes/" + Array(33).fill("x").join("/"), `"themes/${Array(33).fill("x").join("/")}" is nested deeper than the 16-level limit`],
 ] as const) {
   test(`a tree-path refusal is reported with its reason (${JSON.stringify(path).slice(0, 24)})`, { timeout: 10_000 }, () => {
-    assert.throws(() => validateSharePath({ path }), unsafe(path, reason));
+    assert.throws(() => validateSharePath({ path }), unsafe(display, reason));
   });
 }
 
 for (const path of [
-  "themes/a:b", "themes/100%", "themes/a\u0001", "themes/a\u007f", "themes/é", "themes/ﬁle",
+  "themes/a:b", "themes/100%", "themes/é", "themes/ﬁle",
   "themes/a<b", "themes/a>b", "themes/a\"b", "themes/a|b", "themes/a?b", "themes/a*b",
   "themes/con", "themes/CON.txt", "themes/prn", "themes/aux.md", "themes/nul", "themes/com1", "themes/lpt9.x",
   "themes/x.", "themes/x /y",
 ]) {
   test(`a spelling some recipient filesystem rejects or aliases is unsafe (${JSON.stringify(path)})`, { timeout: 10_000 }, () => {
     assert.throws(() => validateSharePath({ path }), unsafe(path));
+  });
+}
+
+for (const path of ["themes/a\u0001", "themes/a\u007f"]) {
+  test(`control characters refuse without being echoed (${JSON.stringify(path)})`, () => {
+    assert.throws(() => validateSharePath({ path }), unsafe("themes/a"));
   });
 }
 

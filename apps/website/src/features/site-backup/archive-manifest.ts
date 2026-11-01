@@ -1,4 +1,4 @@
-import { SHARE_LIMITS, SHARE_VERSION_MISMATCH_MESSAGE, SiteShareRefusal } from "./share-policy.js";
+import { SHARE_LIMITS, SHARE_VERSION_MISMATCH_MESSAGE, SiteShareRefusal, archiveRefusalName } from "./share-policy.js";
 import { claimSharePath, SHARED_PLUGIN_MEMORY } from "./share-file-policy.js";
 import type { SiteBackupInclude } from "./sources.js";
 import { isStaticSitePath, type StaticSiteMetadata } from "./static-copy.js";
@@ -161,7 +161,7 @@ function validateIdentity({ manifest: m }: { manifest: any }, _options = {}): vo
  */
 function validateSchemaVersion({ identity, schema }: { identity: ArchiveManifest["schema"]; schema: ArchiveManifest["schema"] }, _options = {}): void {
   if (identity.index === schema.index && identity.tag === schema.tag) return;
-  if (!isBundledSchemaIdentity({ schema: identity })) throw new SiteShareRefusal({ code: "INVALID_ARCHIVE", message: `Unknown archive schema identity ${JSON.stringify(identity)}.` });
+  if (!isBundledSchemaIdentity({ schema: identity })) throw new SiteShareRefusal({ code: "INVALID_ARCHIVE", message: `Unknown archive schema identity ${JSON.stringify({ index: identity.index, tag: archiveRefusalName({ name: identity.tag }) })}.` });
   throw new SiteShareRefusal({ code: "INVALID_ARCHIVE", message: SHARE_VERSION_MISMATCH_MESSAGE });
 }
 

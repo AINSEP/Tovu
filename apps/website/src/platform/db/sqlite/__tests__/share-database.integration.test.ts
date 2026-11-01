@@ -160,16 +160,26 @@ test("empty unknown tables and populated legacy-private, chat and vault-backup t
   for (const name of ["stray_empty", "site_assistant_credentials", "ai_chats", "_vault_backup_custom"]) assert.equal(tables.includes(name), false, name);
 });
 
-test("credential-shaped bytes anywhere in the projected database refuse with SECRET_IN_CONTENT", async t => {
+// Since 2933fbb3f (owner-approved) a credential-shaped value no longer refuses the share: the projection
+// blanks that value before insertion and names table.column + row in a notice instead.
+test("credential-shaped text inside a projected value is blanked with a notice naming table.column and row", async t => {
   const { sql } = sourceDb(t);
-  sql.prepare("UPDATE workspaces SET name = ?").run(`Site ${"ghp_" + "x".repeat(36)} name`);
-  await assert.rejects(sanitizeShareDatabase({ snapshot: sql.serialize() }), refusal("SECRET_IN_CONTENT", "Share refused: 'database/content.db' contains credential-shaped content. Remove the secret before sharing."));
+  const secret = "ghp_" + "x".repeat(36);
+  sql.prepare("UPDATE workspaces SET name = ?").run(`Site ${secret} name`);
+  const { projection, rows } = await share(t, sql);
+  assert.equal(rows("workspaces")[0]!.name, "");
+  assert.deepEqual(projection.notices, ["Saved content that looked like a key was left out: workspaces.name row ws."]);
+  assert.equal(projection.bytes.includes(secret), false, "the secret must not survive anywhere in the projected bytes");
 });
 
-test("a credential glued to the previous column's text is refused by the projected-value scan", async t => {
+test("a value that is entirely a credential is blanked and never survives in the projected bytes", async t => {
   const { sql } = sourceDb(t);
-  sql.prepare("UPDATE workspaces SET name = ?").run("ghp_" + "x".repeat(36));
-  await assert.rejects(sanitizeShareDatabase({ snapshot: sql.serialize() }), refusal("SECRET_IN_CONTENT", "Share refused: 'database/content.db' contains credential-shaped content. Remove the secret before sharing."));
+  const secret = "ghp_" + "x".repeat(36);
+  sql.prepare("UPDATE workspaces SET name = ?").run(secret);
+  const { projection, rows } = await share(t, sql);
+  assert.equal(rows("workspaces")[0]!.name, "");
+  assert.ok(projection.notices?.includes("Saved content that looked like a key was left out: workspaces.name row ws."));
+  assert.equal(projection.bytes.includes(secret), false);
 });
 
 // ---------------------------------------------------------------- copyTable: trusted schema
@@ -436,8 +446,24 @@ test("plugin tables: a portable policy naming an undeclared column refuses with 
   await assert.rejects(prepareSharePluginTables({ target, present: new Set(["p_fixture__notes"]), modules }), refusal("UNSUPPORTED_SCHEMA", "Invalid portable columns for 'p_fixture__notes': its portability policy names a column the table does not declare."));
 });
 
-test("plugin tables: a declaration the trusted DDL owner rejects refuses with UNSUPPORTED_SCHEMA and its reason", async t => {
+test("plugin tables: a rejected declaration keeps a specific refusal without echoing its inner error", async t => {
   const target = await pluginTarget(t);
   const modules = [fixtureModule([{ name: "notes", columns: [{ name: "bad name", type: "TEXT" }], portability: { kind: "portable", columns: ["bad name"] } }])];
-  await assert.rejects(prepareSharePluginTables({ target, present: new Set(["p_fixture__notes"]), modules }), refusal("UNSUPPORTED_SCHEMA", "Cannot build portable plugin schema for 'fixture': invalid column name: bad name"));
+  await assert.rejects(prepareSharePluginTables({ target, present: new Set(["p_fixture__notes"]), modules }), refusal("UNSUPPORTED_SCHEMA", "Cannot build portable plugin schema for 'fixture': the bundled portable-data declaration could not be installed."));
+});
+
+test("plugin schema failures keep kernel diagnostics private and log them with secrets redacted", async t => {
+  const target = await pluginTarget(t);
+  const secret = "ghp_" + "x".repeat(36);
+  const diagnostic = `SQLITE_ERROR /private/site/content.db SELECT private_column token=${secret}`;
+  t.mock.method(target, "query", async () => { throw new Error(diagnostic); });
+  const logs: unknown[][] = [];
+  const logger = { error: (...args: unknown[]) => { logs.push(args); } };
+  const modules = [fixtureModule([{ name: "notes", columns: NOTES_COLUMNS, portability: { kind: "portable", columns: ["id", "body"] } }])];
+  await assert.rejects(prepareSharePluginTables({ target, present: new Set(["p_fixture__notes"]), modules }, { logger }), refusal("UNSUPPORTED_SCHEMA", "Cannot build portable plugin schema for 'fixture': the bundled portable-data declaration could not be installed."));
+  const logged = JSON.stringify(logs);
+  assert.match(logged, /SQLITE_ERROR/);
+  assert.match(logged, /private_column/);
+  assert.ok(!logged.includes(secret), "credential-shaped text must never enter logs");
+  assert.match(logged, /REDACTED/);
 });

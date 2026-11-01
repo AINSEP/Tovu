@@ -1,4 +1,5 @@
 import { computeIndexableEntries, type IndexableEntry } from "@jini-ai/cms/seo";
+import { seoForRequest } from "../../http/site/seo-render-context.js";
 import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
 
 /**
@@ -50,11 +51,12 @@ function renderLlmsTxt(entries: readonly IndexableEntry[]): string {
 }
 
 export const registerLlmsTxtRoute: SeoRouteRegistrar = (app, deps) => {
-  app.get("/llms.txt", async (_req, res) => {
+  app.get("/llms.txt", async (req, res) => {
     try {
       await deps.seoReady;
       const entries = await computeIndexableEntries({
-        deps: deps.seoDeps,
+        // Share sitemap/feed's serving origin; the exporter rewrites it for its destination.
+        deps: seoForRequest({ req, deps: deps.seoDeps }),
         input: { workspaceId: deps.workspaceId },
       }, {});
       res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("text/markdown").send(renderLlmsTxt(entries));

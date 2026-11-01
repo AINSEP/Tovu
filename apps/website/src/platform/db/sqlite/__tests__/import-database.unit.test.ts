@@ -4,6 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 import { importWorkerLaunch, rebuildImportDatabase, type RebuildImportDatabaseOptions } from "#src/server/runtime/composition/site-portability";
 
@@ -14,6 +16,13 @@ import { importWorkerLaunch, rebuildImportDatabase, type RebuildImportDatabaseOp
  */
 
 const plenty = async () => ({ bavail: 1024 * 1024, bsize: 4096 });
+
+test("the isolated worker's redacted diagnostic reaches server stderr without entering the public refusal", async () => {
+  const { stdout, stderr } = await promisify(execFile)(process.execPath, ["--import", "tsx", fileURLToPath(new URL("./import-database-logging.fixture.ts", import.meta.url))]);
+  assert.match(stderr, /Portable schema diagnostic \[REDACTED\]/);
+  assert.equal(stdout.trim(), "Import database refused: Cannot build portable plugin schema.");
+  assert.doesNotMatch(stdout, /diagnostic/);
+});
 
 /** A forked helper stand-in: runs `behave` with the disposable root, then reports `exit`. */
 class FakeHelper extends EventEmitter {
@@ -38,6 +47,8 @@ function writeOutputs(root: string, { bytes = Buffer.from("rebuilt") }: { bytes?
   fs.writeFileSync(path.join(root, "output.db"), bytes);
   fs.writeFileSync(path.join(root, "media.json"), JSON.stringify([{ storageKey: "blobs/a" }]));
   fs.writeFileSync(path.join(root, "documents.json"), JSON.stringify([]));
+  // The real worker always writes notices.json beside its outputs (empty when nothing was left out).
+  fs.writeFileSync(path.join(root, "notices.json"), JSON.stringify(["Saved content that looked like a key was left out: workspaces.name row ws."]));
 }
 
 test("the helper launch runs the TypeScript source through tsx and a build's JavaScript directly, both with a heap ceiling", () => {
@@ -59,7 +70,7 @@ test("an oversized snapshot and a staging area without room are refused before a
 test("a successful helper's rebuilt database and manifests are returned and its staging root is removed", async () => {
   const { fork, roots } = forkThat(({ root, child }) => { writeOutputs(root); child.emit("close", 0); });
   const result = await rebuildImportDatabase({ snapshot: Buffer.from("input") }, { statfs: plenty, fork });
-  assert.deepEqual(result, { bytes: Buffer.from("rebuilt"), media: [{ storageKey: "blobs/a" }], documents: [] });
+  assert.deepEqual(result, { bytes: Buffer.from("rebuilt"), media: [{ storageKey: "blobs/a" }], documents: [], notices: ["Saved content that looked like a key was left out: workspaces.name row ws."] });
   assert.equal(fs.existsSync(roots[0]!), false);
 });
 

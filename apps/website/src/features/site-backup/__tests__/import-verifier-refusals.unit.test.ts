@@ -80,6 +80,22 @@ test("invented schema identities retain the exact identity without version advic
     await refuses(entries(manifest({ schema: identity })), INVALID(`Unknown archive schema identity ${JSON.stringify(identity)}.`));
   }
 });
+test("archive schema tags are bounded and stripped of control and bidi characters in refusals", async () => {
+  const tag = "forged\u0001\n\u202e\u2066" + "x".repeat(1000);
+  await assert.rejects(verify(entries(manifest({ schema: { index: 8, tag } }))), error => {
+    const refusal = error as Error & { code: string };
+    assert.equal(refusal.code, "INVALID_ARCHIVE");
+    assert.match(refusal.message, /Unknown archive schema identity/);
+    assert.match(refusal.message, /forged.*…/);
+    assert.doesNotMatch(refusal.message, /[\p{Cc}\p{Cf}]|\\u0001|\\n/u);
+    assert.ok(refusal.message.length < 250, `refusal length: ${refusal.message.length}`);
+    return true;
+  });
+});
+test("schema refusals echo only the identity fields, never extra archive metadata", async () => {
+  await refuses(entries(manifest({ schema: { index: 8, tag: "forged", extra: "private\u202e" + "x".repeat(1000) } })),
+    INVALID('Unknown archive schema identity {"index":8,"tag":"forged"}.'));
+});
 test("unlisted, missing, self-listed and duplicate files refuse", { timeout: 120000 }, async () => {
   await refuses([...entries(), file("themes/site/extra.txt", Buffer.from("x"))], INVENTORY_DIFFERS);
   await refuses(entries().filter(entry => entry.entryPath !== "settings.json"), INVENTORY_DIFFERS);

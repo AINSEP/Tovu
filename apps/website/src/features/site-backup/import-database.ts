@@ -58,7 +58,9 @@ export async function rebuildImportDatabase(required: { snapshot: Buffer; module
     const code = await new Promise<number | null>((resolve, reject) => {
       const child = fork(helper, [root], {
         execArgv,
-        stdio: ["ignore", "ignore", "ignore", "ipc"],
+        // Trusted code logs redacted diagnostics to stderr; keep them in server logs,
+        // independently of the fixed public refusal written to refusal.txt.
+        stdio: ["ignore", "ignore", "inherit", "ipc"],
         // No inherited deployment credentials, startup injection or archived executable input.
         env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, TMPDIR: root, TMP: root, TEMP: root,
           HOME: root, USERPROFILE: root, TOVU_DESKTOP_USER_DATA_DIR: path.join(root, "profile"),
