@@ -105,3 +105,52 @@ describe("media grid tiles fit the asset instead of cropping it", () => {
     expect(card.querySelector(".media-card-preview")!.contains(size)).toBe(false);
   });
 });
+
+describe("media toolbar: tab-aware upload icon button and the Size select", () => {
+  beforeEach(() => window.localStorage.clear());
+
+  it("the upload button is an icon with a tooltip and name that follow the tab, and the picker accepts only that kind", async () => {
+    const user = userEvent.setup();
+    window.history.pushState({}, "", "/admin/media");
+    render(<FetchQueryProvider><Media tabId="images" /></FetchQueryProvider>);
+    const upload = await screen.findByRole("button", { name: "Upload image" });
+    expect(upload).toHaveAttribute("title", "Upload image");
+    expect(upload.textContent).toBe("");
+    await user.click(upload);
+    expect(screen.getByLabelText("File to upload").getAttribute("accept")).not.toMatch(/video/);
+  });
+
+  it("All says image or video; Videos says video and accepts only video; Import keeps its name", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<FetchQueryProvider><Media tabId="videos" /></FetchQueryProvider>);
+    await user.click(await screen.findByRole("button", { name: "Upload video" }));
+    expect(screen.getByLabelText("File to upload").getAttribute("accept")).toBe("video/mp4,video/webm");
+    expect(screen.getByRole("button", { name: "Import from URL" })).toHaveAttribute("title", "Import from URL");
+    unmount();
+    render(<FetchQueryProvider><Media /></FetchQueryProvider>);
+    expect(await screen.findByRole("button", { name: "Upload image or video" })).toBeInTheDocument();
+  });
+
+  it("the Size select defaults to Large, resizes the grid and is remembered", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<FetchQueryProvider><Media /></FetchQueryProvider>);
+    const select = await screen.findByLabelText("Size");
+    const grid = () => document.querySelector(".media-grid") as HTMLElement;
+    await waitFor(() => expect(grid()).not.toBeNull());
+    expect(select).toHaveValue("large");
+    expect(grid().dataset.size).toBe("large");
+    await user.selectOptions(select, "small");
+    expect(grid().dataset.size).toBe("small");
+    expect(window.localStorage.getItem("tovu.admin.media.cardSize")).toBe("small");
+    unmount();
+    render(<FetchQueryProvider><Media /></FetchQueryProvider>);
+    expect(await screen.findByLabelText("Size")).toHaveValue("small");
+  });
+
+  it("the stylesheet moves only the column minimum per size", () => {
+    const css = readFileSync(path.resolve(__dirname, "../../../styles/media.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(css).toMatch(/\.media-grid\[data-size="small"\]\s*{\s*--media-card-min:\s*\d+px/);
+    expect(css).toMatch(/\.media-grid\[data-size="xl"\]\s*{\s*--media-card-min:\s*\d+px/);
+    expect(css).toMatch(/--media-card-min:\s*280px/);
+  });
+});

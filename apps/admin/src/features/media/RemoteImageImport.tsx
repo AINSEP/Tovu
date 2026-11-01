@@ -11,9 +11,12 @@ export function RemoteImageImport(props: { t: (key: string) => string; dependenc
   const controller = useRemoteImageImport({ t: props.t }, props.dependencies);
   return (
     <>
-      <button type="button" className="btn-secondary" onClick={controller.openDialog}
+      {/* Icon button (owner, 2026-11-01): tooltip and accessible name are the same text. */}
+      <button type="button" className="btn-secondary media-icon-btn" title={props.t("Import from URL")} aria-label={props.t("Import from URL")} onClick={controller.openDialog}
         {...agentHandle({ handle: "media-import-open" }, { role: "button", label: "Open the Import from URL dialog" })}>
-        {props.t("Import from URL")}
+        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+          <path d="M7.5 10.5a3 3 0 0 0 4.2 0l2.6-2.6a3 3 0 0 0-4.2-4.2l-.9.9M10.5 7.5a3 3 0 0 0-4.2 0L3.7 10.1a3 3 0 0 0 4.2 4.2l.9-.9" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
       <Dialog open={controller.open} title={props.t("Import from URL")} pending={controller.pending} onClose={controller.close}
         className="settings-dialog jini-domain-dialog media-import-dialog">

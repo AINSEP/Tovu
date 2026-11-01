@@ -76,7 +76,7 @@ describe("Media copy reaches the active locale", () => {
         // A missing DOMException exercises the local fallback before any HTTP mutation.
         this.onerror?.(new ProgressEvent("error") as ProgressEvent<FileReader>);
       });
-      fireEvent.click(await screen.findByRole("button", { name: translate("Upload image") }));
+      fireEvent.click(await screen.findByRole("button", { name: translate("Upload image or video") }));
       fireEvent.change(screen.getByLabelText(translate("File to upload")), { target: { files: [new File(["broken"], "broken.png", { type: "image/png" })] } });
       fireEvent.click(screen.getByRole("button", { name: translate("Upload"), exact: true }));
       // jsdom's DOMException follows describeApiError's existing non-Error fallback contract.
@@ -87,7 +87,7 @@ describe("Media copy reaches the active locale", () => {
     it(`${copy.locale}: preserves an upload service's specific Error diagnostic`, async () => {
       const { port, translate } = await renderLocalizedMedia();
       vi.spyOn(port, "uploadMedia").mockRejectedValueOnce(new Error("Storage quota reached"));
-      fireEvent.click(await screen.findByRole("button", { name: translate("Upload image") }));
+      fireEvent.click(await screen.findByRole("button", { name: translate("Upload image or video") }));
       fireEvent.change(screen.getByLabelText(translate("File to upload")), { target: { files: [new File(["pixel"], "photo.png", { type: "image/png" })] } });
       fireEvent.click(screen.getByRole("button", { name: translate("Upload"), exact: true }));
       expect(await screen.findByRole("alert")).toHaveTextContent("Storage quota reached");

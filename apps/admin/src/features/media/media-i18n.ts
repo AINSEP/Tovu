@@ -1845,13 +1845,38 @@ const MEDIA_LINK_STRINGS: Record<string, Record<string, string>> = {
   bn: { "That media item wasn't found.": "সেই মিডিয়া আইটেমটি পাওয়া যায়নি।" },
 };
 
+/** Toolbar copy (owner, 2026-11-01): tab-aware upload label and the grid Size select. */
+const MEDIA_TOOLBAR_STRINGS: Record<string, Record<string, string>> = {
+  es: { "Extra large": "Extragrande", "Size": "Tamaño", "Small": "Pequeño", "Medium": "Mediano", "Large": "Grande", "Upload video": "Subir video", "Upload image or video": "Subir imagen o video" },
+  id: { "Extra large": "Ekstra besar", "Size": "Ukuran", "Small": "Kecil", "Medium": "Sedang", "Large": "Besar", "Upload video": "Unggah video", "Upload image or video": "Unggah gambar atau video" },
+  de: { "Extra large": "Extragroß", "Size": "Größe", "Small": "Klein", "Medium": "Mittel", "Large": "Groß", "Upload video": "Video hochladen", "Upload image or video": "Bild oder Video hochladen" },
+  "zh-CN": { "Extra large": "特大", "Size": "大小", "Small": "小", "Medium": "中", "Large": "大", "Upload video": "上传视频", "Upload image or video": "上传图片或视频" },
+  "zh-TW": { "Extra large": "特大", "Size": "大小", "Small": "小", "Medium": "中", "Large": "大", "Upload video": "上傳影片", "Upload image or video": "上傳圖片或影片" },
+  "pt-BR": { "Extra large": "Extragrande", "Size": "Tamanho", "Small": "Pequeno", "Medium": "Médio", "Large": "Grande", "Upload video": "Enviar vídeo", "Upload image or video": "Enviar imagem ou vídeo" },
+  ru: { "Extra large": "Очень большой", "Size": "Размер", "Small": "Малый", "Medium": "Средний", "Large": "Большой", "Upload video": "Загрузить видео", "Upload image or video": "Загрузить изображение или видео" },
+  fa: { "Extra large": "خیلی بزرگ", "Size": "اندازه", "Small": "کوچک", "Medium": "متوسط", "Large": "بزرگ", "Upload video": "بارگذاری ویدیو", "Upload image or video": "بارگذاری تصویر یا ویدیو" },
+  ar: { "Extra large": "كبير جدًا", "Size": "الحجم", "Small": "صغير", "Medium": "متوسط", "Large": "كبير", "Upload video": "رفع فيديو", "Upload image or video": "رفع صورة أو فيديو" },
+  ja: { "Extra large": "特大", "Size": "サイズ", "Small": "小", "Medium": "中", "Large": "大", "Upload video": "動画をアップロード", "Upload image or video": "画像または動画をアップロード" },
+  ko: { "Extra large": "매우 크게", "Size": "크기", "Small": "작게", "Medium": "보통", "Large": "크게", "Upload video": "동영상 업로드", "Upload image or video": "이미지 또는 동영상 업로드" },
+  pl: { "Extra large": "Bardzo duży", "Size": "Rozmiar", "Small": "Mały", "Medium": "Średni", "Large": "Duży", "Upload video": "Prześlij wideo", "Upload image or video": "Prześlij obraz lub wideo" },
+  hu: { "Extra large": "Extra nagy", "Size": "Méret", "Small": "Kicsi", "Medium": "Közepes", "Large": "Nagy", "Upload video": "Videó feltöltése", "Upload image or video": "Kép vagy videó feltöltése" },
+  fr: { "Extra large": "Très grande", "Size": "Taille", "Small": "Petite", "Medium": "Moyenne", "Large": "Grande", "Upload video": "Téléverser une vidéo", "Upload image or video": "Téléverser une image ou une vidéo" },
+  uk: { "Extra large": "Дуже великий", "Size": "Розмір", "Small": "Малий", "Medium": "Середній", "Large": "Великий", "Upload video": "Завантажити відео", "Upload image or video": "Завантажити зображення або відео" },
+  tr: { "Extra large": "Çok büyük", "Size": "Boyut", "Small": "Küçük", "Medium": "Orta", "Large": "Büyük", "Upload video": "Video yükle", "Upload image or video": "Görsel veya video yükle" },
+  th: { "Extra large": "ใหญ่พิเศษ", "Size": "ขนาด", "Small": "เล็ก", "Medium": "กลาง", "Large": "ใหญ่", "Upload video": "อัปโหลดวิดีโอ", "Upload image or video": "อัปโหลดรูปภาพหรือวิดีโอ" },
+  it: { "Extra large": "Extra large", "Size": "Dimensione", "Small": "Piccola", "Medium": "Media", "Large": "Grande", "Upload video": "Carica video", "Upload image or video": "Carica immagine o video" },
+  hi: { "Extra large": "बहुत बड़ा", "Size": "आकार", "Small": "छोटा", "Medium": "मध्यम", "Large": "बड़ा", "Upload video": "वीडियो अपलोड करें", "Upload image or video": "छवि या वीडियो अपलोड करें" },
+  ur: { "Extra large": "بہت بڑا", "Size": "سائز", "Small": "چھوٹا", "Medium": "درمیانہ", "Large": "بڑا", "Upload video": "ویڈیو اپ لوڈ کریں", "Upload image or video": "تصویر یا ویڈیو اپ لوڈ کریں" },
+  bn: { "Extra large": "অতি বড়", "Size": "আকার", "Small": "ছোট", "Medium": "মাঝারি", "Large": "বড়", "Upload video": "ভিডিও আপলোড করুন", "Upload image or video": "ছবি বা ভিডিও আপলোড করুন" },
+};
+
 export const MEDIA_DICT: Record<string, Record<string, string>> = Object.fromEntries(
   Object.entries(MEDIA_TRANSLATIONS).map(([locale, entries]) => [
     locale,
     // Spreading a missing locale's `undefined` contributes nothing, so a locale absent from one of
     // these add-on tables still merges cleanly — no `?? {}` fallback is needed (every current locale
     // is present in every one, which left those fallbacks with no reachable branch).
-    { ...entries, ...MEDIA_AUDIT_STRINGS[locale], ...MEDIA_IMPORT_STRINGS[locale], ...MEDIA_PROVENANCE_STRINGS[locale], ...MEDIA_DIALOG_STRINGS[locale], ...MEDIA_TRASH_STRINGS[locale], ...MEDIA_SHAPE_STRINGS[locale], ...MEDIA_LINK_STRINGS[locale] },
+    { ...entries, ...MEDIA_AUDIT_STRINGS[locale], ...MEDIA_IMPORT_STRINGS[locale], ...MEDIA_PROVENANCE_STRINGS[locale], ...MEDIA_DIALOG_STRINGS[locale], ...MEDIA_TRASH_STRINGS[locale], ...MEDIA_SHAPE_STRINGS[locale], ...MEDIA_LINK_STRINGS[locale], ...MEDIA_TOOLBAR_STRINGS[locale] },
   ]),
 );
 

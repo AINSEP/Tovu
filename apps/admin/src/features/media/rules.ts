@@ -616,6 +616,38 @@ export function mediaShapeBadges(shape: MediaShape): { size: string; duration: s
   };
 }
 
+/** The upload button's text for the tab being viewed (owner, 2026-11-01), and the file kinds its
+ *  picker accepts — kept in step so the label is always true to what the picker lets through. */
+export function mediaUploadLabel(tab: MediaContentTabId): string {
+  if (tab === "images") return "Upload image";
+  return tab === "videos" ? "Upload video" : "Upload image or video";
+}
+
+const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,image/gif,image/avif,image/svg+xml";
+const VIDEO_ACCEPT = "video/mp4,video/webm";
+
+/** The picker's `accept` for a tab. Advisory only: the server still enforces its allowlist. */
+export function mediaUploadAccept(tab: MediaContentTabId): string {
+  if (tab === "images") return IMAGE_ACCEPT;
+  return tab === "videos" ? VIDEO_ACCEPT : `${IMAGE_ACCEPT},${VIDEO_ACCEPT}`;
+}
+
+/** Grid card sizes (owner, 2026-11-01), relative to the original card width: Small 1/3, Medium 2/3,
+ *  Large = unchanged (default), Extra large 1.5x. The choice only moves the grid's column minimum (CSS). */
+export const MEDIA_GRID_SIZES = [
+  { id: "small", label: "Small" },
+  { id: "medium", label: "Medium" },
+  { id: "large", label: "Large" },
+  { id: "xl", label: "Extra large" },
+] as const;
+export type MediaGridSize = (typeof MEDIA_GRID_SIZES)[number]["id"];
+export const MEDIA_GRID_SIZE_STORAGE_KEY = "tovu.admin.media.cardSize";
+
+/** A stored value back to a size id; anything unknown is the default, Large (today's layout). */
+export function parseMediaGridSize(value: string | null): MediaGridSize {
+  return MEDIA_GRID_SIZES.some((size) => size.id === value) ? (value as MediaGridSize) : "large";
+}
+
 /** Landscape shapes (owner design, 2026-11-01) fill the grid preview edge to edge: within this
  *  width:height range `cover` trims at most ~20% of one side of the 16:10 box, so the usual
  *  screen recording or photo shows no gray bands. Anything outside it (a 9:16 video, a tall

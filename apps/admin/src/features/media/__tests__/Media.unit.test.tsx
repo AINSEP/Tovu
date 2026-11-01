@@ -133,7 +133,7 @@ afterEach(() => {
 
 /** Upload moved into a dialog behind the page's "Upload image" button (owner item #9, 2026-10-13). */
 function openUploadDialog() {
-  fireEvent.click(screen.getByRole("button", { name: "Upload image" }));
+  fireEvent.click(screen.getByRole("button", { name: "Upload image or video" }));
 }
 
 function cardFor(container: HTMLElement, title: string): HTMLElement {
@@ -268,7 +268,7 @@ describe("upload and import dialogs (owner item #9, 2026-10-13)", () => {
     const { container } = renderScreen();
 
     await screen.findByRole("heading", { name: "Media" });
-    expect(screen.getByRole("button", { name: "Upload image" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Upload image or video" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Import from URL" })).toBeInTheDocument();
     expect(document.querySelector(".media-upload-dialog")).not.toHaveAttribute("open");
     expect(document.querySelector(".media-import-dialog")).not.toHaveAttribute("open");

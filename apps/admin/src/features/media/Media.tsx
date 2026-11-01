@@ -18,11 +18,17 @@ import {
   MEDIA_ORDER_OPTIONS,
   resolveLightboxItem,
   mediaFillsPreview,
+  mediaUploadAccept,
+  mediaUploadLabel,
+  MEDIA_GRID_SIZES,
+  parseMediaGridSize,
+  type MediaGridSize,
   type MediaShape,
   mediaShapeBadges,
   type MediaOrderBy,
 } from "./rules";
 import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
+import { useMediaGridSize } from "./hooks/use-media-grid-size.hooks";
 import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useMediaCardDetails } from "./hooks/use-media-card-details.hooks";
 import { useWiredEditMediaPanel, type EditMediaPanelController } from "./hooks/use-edit-media-panel.hooks";
@@ -148,6 +154,15 @@ function ExpandIcon() {
   return (
     <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <path d="M6 2H2v4M12 2h4v4M6 16H2v-4M12 16h4v-4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Upload glyph for the toolbar's icon button (tray with an up arrow), same stroke style as the others. */
+function UploadIcon() {
+  return (
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <path d="M9 12V3M5.5 6.5 9 3l3.5 3.5M3 12v2.5h12V12" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -812,18 +827,21 @@ function MediaToolbar({
   closeUpload,
   uploadError,
   canUpload,
+  activeTab,
   t,
-}: Pick<MediaController, "fileInputRef" | "altDraft" | "setAltDraft" | "selectedFileName" | "onFileChange" | "upload" | "uploading"
+}: { activeTab: MediaContentTabId } & Pick<MediaController, "fileInputRef" | "altDraft" | "setAltDraft" | "selectedFileName" | "onFileChange" | "upload" | "uploading"
   | "uploadOpen" | "openUpload" | "closeUpload" | "uploadError" | "canUpload" | "t">) {
   const fileInputId = useId();
+  // Icon button (owner, 2026-11-01): the tooltip and the accessible name are the same tab-aware text.
+  const uploadLabel = t(mediaUploadLabel(activeTab));
 
   return (
     <>
-      <button type="button" onClick={openUpload}
-        {...agentHandle({ handle: "media-upload-open" }, { role: "button", label: "Open the Upload image dialog" })}>
-        {t("Upload image")}
+      <button type="button" className="media-icon-btn" title={uploadLabel} aria-label={uploadLabel} onClick={openUpload}
+        {...agentHandle({ handle: "media-upload-open" }, { role: "button", label: "Open the Upload dialog" })}>
+        <UploadIcon />
       </button>
-      <Dialog open={uploadOpen} title={t("Upload image")} pending={uploading} onClose={closeUpload}
+      <Dialog open={uploadOpen} title={uploadLabel} pending={uploading} onClose={closeUpload}
         className="settings-dialog jini-domain-dialog media-upload-dialog">
         <form
           onSubmit={upload}
@@ -857,7 +875,7 @@ function MediaToolbar({
               // since 2026-08-24 — this attribute drifted out of sync with that until 2026-09-07 (see the
               // regression test pinning this exact set). Advisory only: `port.uploadMedia` still enforces
               // the real allowlist server-side regardless of what this lets past the file picker.
-              accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/svg+xml,video/mp4,video/webm"
+              accept={mediaUploadAccept(activeTab)}
               aria-label={t("File to upload")}
               onChange={onFileChange}
               {...agentHandle({ handle: "media-upload-file" }, {
@@ -918,6 +936,21 @@ function MediaOrderControl({
             {t(option.label)}
           </option>
         ))}
+      </select>
+    </div>
+  );
+}
+
+/** The "Size" dropdown next to "Order by": same markup and styles, moves only the grid's column minimum. */
+function MediaSizeControl({ size, setSize, t }: { size: MediaGridSize; setSize: (value: MediaGridSize) => void; t: (key: string) => string }) {
+  return (
+    <div
+      className="media-order-control"
+      {...agentHandle({ handle: "media-grid-size" }, { role: "field", label: "Set the media grid card size: Small, Medium or Large" })}
+    >
+      <label htmlFor="media-grid-size-select">{t("Size")}</label>
+      <select id="media-grid-size-select" value={size} onChange={(e) => setSize(parseMediaGridSize(e.target.value))}>
+        {MEDIA_GRID_SIZES.map((option) => <option key={option.id} value={option.id}>{t(option.label)}</option>)}
       </select>
     </div>
   );
@@ -1072,6 +1105,7 @@ function MediaGridOrEmpty({
   activeTab,
   visibleMedia,
   mediaExpandHandles,
+  gridSize,
   editingId,
   locale,
   t,
@@ -1082,6 +1116,7 @@ function MediaGridOrEmpty({
   rowSavingId,
   onRequestPurge,
 }: {
+  gridSize: MediaGridSize;
   activeTab: MediaContentTabId;
   visibleMedia: AdminMedia[];
   mediaExpandHandles: string[];
@@ -1112,7 +1147,7 @@ function MediaGridOrEmpty({
   }
 
   return (
-    <div className="media-grid">
+    <div className="media-grid" data-size={gridSize}>
       {visibleMedia.map((item, index) => (
         <MediaCard
           key={item.id}
@@ -1202,6 +1237,7 @@ function MediaLibraryPanel(
     t,
     locale,
   } = props;
+  const [gridSize, setGridSize] = useMediaGridSize();
 
   return (
     <>
@@ -1209,7 +1245,10 @@ function MediaLibraryPanel(
       {/* One row: "Order by" on the left, the two entry points (owner item #9, 2026-10-13) pushed to
           the right edge. Each button owns its dialog. */}
       <div className="toolbar media-order-row">
-        <MediaOrderControl orderBy={orderBy} setOrderBy={setOrderBy} t={t} />
+        <div className="media-order-controls">
+          <MediaOrderControl orderBy={orderBy} setOrderBy={setOrderBy} t={t} />
+          <MediaSizeControl size={gridSize} setSize={setGridSize} t={t} />
+        </div>
         <div className="media-actions">
           <MediaToolbar
             fileInputRef={fileInputRef}
@@ -1224,6 +1263,7 @@ function MediaLibraryPanel(
             closeUpload={closeUpload}
             uploadError={uploadError}
             canUpload={canUpload}
+            activeTab={activeTab}
             t={t}
           />
           <RemoteImageImport t={t} />
@@ -1251,6 +1291,7 @@ function MediaLibraryPanel(
         activeTab={activeTab}
         visibleMedia={visibleMedia}
         mediaExpandHandles={mediaExpandHandles}
+        gridSize={gridSize}
         editingId={editingId}
         locale={locale}
         t={t}

@@ -46,10 +46,32 @@
    row's end. A 280px floor that stretches to fill keeps cards between ~280px and ~375px (an extra
    column appears before a track can pass that), close to the 360px size the two asks above chose. */
 .media-grid {
+  /* The "Size" select (owner, 2026-11-01) moves only this one variable; Large (the default) is the layout above. */
+  --media-card-min: 280px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--media-card-min), 100%), 1fr));
   gap: var(--space-4);
 }
+
+.media-grid[data-size="small"] { --media-card-min: 93px; }
+.media-grid[data-size="medium"] { --media-card-min: 187px; }
+.media-grid[data-size="xl"] { --media-card-min: 420px; }
+/* Small cards are a third of the normal width: the name (ellipsis), the menu and the date are what
+   fits, so the Active tag and the specs are hidden (owner OK'd hiding row 2's specs; the tag goes
+   too). A non-active status still shows. The date ellipsizes rather than wrapping. */
+.media-grid[data-size="small"] .media-card-body { padding: var(--space-2); }
+.media-grid[data-size="small"] .status-active,
+.media-grid[data-size="small"] .media-card-specs { display: none; }
+.media-grid[data-size="small"] .media-card-size { justify-content: flex-end; }
+/* No room for the middle-cut name ("…ter.jpg" alone says nothing): show its start, ellipsis at the end. */
+.media-grid[data-size="small"] .jini-middle-truncate__tail { display: none; }
+.media-grid[data-size="small"] .jini-middle-truncate__head { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.media-grid[data-size="small"] .media-card-title { flex: 1 1 0; }
+/* Smaller overlay cues so they do not cover the whole thumbnail. */
+.media-grid[data-size="small"] .media-card-expand-fill > svg.media-card-play { width: 12px; height: 12px; padding: 7px; }
+.media-grid[data-size="small"] .media-card-edit,
+.media-grid[data-size="small"] .media-card-expand-fill > svg:not(.media-card-play) { display: none; }
+.media-grid[data-size="small"] .media-card-size time { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 .media-card {
   display: flex;
@@ -378,6 +400,10 @@
    (`Media.tsx`). The buttons group in `.media-actions` and sit flush right, vertically centred with
    the dropdown; the row's own `.toolbar` rules supply the wrap and bottom spacing. */
 .media-order-row { justify-content: space-between; }
+.media-order-controls { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+/* The upload and import entry points are square icon buttons (owner, 2026-11-01). */
+.media-icon-btn { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; }
+.media-icon-btn svg { width: 18px; height: 18px; }
 .media-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-left: auto; }
 
 /* The Media page tab bar used to live here as its own pill row (`.media-tabs`/`.media-tab`,
@@ -403,6 +429,7 @@
 @container admin-content (max-width: 620px) {
   .media-actions { margin-left: 0; }
   .media-actions > button { min-height: 44px; max-width: 100%; white-space: normal; }
+  .media-actions > .media-icon-btn { width: 44px; }
 }
 /* Phones: one card per row, full filename (owner, 2026-10-07). The two-column grid below 480px
    (ME-3, 2026-10-06, chosen to shorten the scroll) left ~160px cards: filenames cut to

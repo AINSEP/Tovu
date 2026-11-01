@@ -137,7 +137,7 @@ describe("addressing the media grid", () => {
 describe("driving the upload toolbar through page.* verbs", () => {
   it("the Upload image trigger has its own handle and opens the dialog", async () => {
     const { controller, container } = renderMedia();
-    await screen.findByRole("button", { name: "Upload image" });
+    await screen.findByRole("button", { name: "Upload image or video" });
     const driver = createDomPageDriver({ root: container, pages: {} });
 
     expect(await handlesOf(driver, { role: "button" })).toEqual(expect.arrayContaining(["media-upload-open", "media-import-open"]));
