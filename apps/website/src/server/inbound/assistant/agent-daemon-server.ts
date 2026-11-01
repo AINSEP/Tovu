@@ -97,7 +97,7 @@ import { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLin
 import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
-import { createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
+import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
 import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import { bearerTokenFromHeader } from "@jini-ai/http-kit";
 import type { AdapterContext } from "@jini-ai/http-kit";
@@ -229,6 +229,9 @@ const DEFAULT_AGENT_ID = "claude";
 const assistantRuntime = createNativeAgentRuntime({ env: process.env });
 const assistantInventory = createAssistantAgentInventory({ runtime: assistantRuntime });
 const { getAgentDef, resolveAgentLaunch } = assistantRuntime;
+const resolveAssistantAgentId = createAgentSelectionResolver({ defaultAgentId: DEFAULT_AGENT_ID,
+  onFallback: ({ agentId, defaultAgentId }) => console.warn(`[agent-daemon] unknown agent "${agentId}"; using default "${defaultAgentId}"`),
+}, { getDef: getAgentDef });
 // Chrome guidance and tools follow the same `--help` probe that gates `--chrome` in the argv.
 const probeAssistantChrome = createAssistantChromeProbe({ getDef: getAgentDef, resolveAgentLaunch, capabilities: assistantRuntime.state.capabilities,
   ensureAgentCapabilities: input => ensureAgentCapabilities(input, { state: assistantRuntime.state }), env: assistantRuntime.hostEnv });
@@ -1036,7 +1039,8 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
 
   // One agent id for the whole run: the session subscription, attachment preparation and the
   // session binding below must all key by the same agent.
-  const agentId = request.agentId ?? DEFAULT_AGENT_ID;
+  // Saved selections can outlive an adapter; resolve once before any per-agent state is read.
+  const agentId = resolveAssistantAgentId({ agentId: request.agentId });
   const pluginAbort = new AbortController();
   const unsubscribePluginCancel = runLifecycle.onCancelRequested({ runId: run.id, listener: () => pluginAbort.abort() });
   principalByRunId.set(run.id, principal);

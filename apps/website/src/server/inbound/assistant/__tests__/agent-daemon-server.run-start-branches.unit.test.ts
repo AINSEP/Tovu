@@ -99,6 +99,18 @@ describe("resolveSessionBinding — which stored session a run resumes", () => {
     assert.equal(input.agentId, "claude");
   });
 
+  for (const savedAgentId of ["copilot", "removed-agent"]) {
+    test(`saved ${savedAgentId} starts with the default agent without a user error`, async () => {
+      const run = conversationRun({ stored: "default-agent-session" });
+      const input = await start({ prompt: "continue" }, run, {}, savedAgentId);
+      assert.equal(input.agentId, "claude");
+      assert.equal(input.resumeSessionId, "default-agent-session");
+      assert.deepEqual(run.calls.gets, [{ conversationId: CONVERSATION, agentId: "claude" }]);
+      assert.deepEqual(run.calls.errors, []);
+      assert.deepEqual(run.calls.warnings, [`[agent-daemon] unknown agent "${savedAgentId}"; using default "claude"`]);
+    });
+  }
+
   test("a run outside any conversation never reads or writes a session", async () => {
     const input = await captureDaemonRun({ prompt: "standalone" });
     assert.equal(input.resumeSessionId, undefined);

@@ -25,7 +25,7 @@ import { formatRunEndLogLine, formatRunErrorLogLine } from "../../run-log-lines.
 import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "../../run-start-decisions.js";
 import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings } from "../../assistant-system-overlay.js";
 import { resolveAssistantRuntimeLaunch } from "../../assistant-runtime-guidance.js";
-import { getAgentDef } from "@jini-ai/agent-runtime";
+import { createAgentSelectionResolver, getAgentDef } from "@jini-ai/agent-runtime";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 
 export const daemonSource = ts.createSourceFile(
@@ -121,6 +121,10 @@ export async function captureDaemonRun(
     // Partial fixture ports still need the site directory used by every CLI launch.
     routeDeps: { workspaceId: "ws-daemon-test", tracker: createTracker({}), siteBinding: { dir: tmpdir() }, ...fixtureDeps },
   };
+  // Evaluate the production resolver's wiring with this fixture's registry and warning sink.
+  Object.assign(bindings, { resolveAssistantAgentId: evaluateDaemonExpression(daemonInitializer("resolveAssistantAgentId"), {
+    createAgentSelectionResolver, getAgentDef: bindings.getAgentDef, DEFAULT_AGENT_ID: bindings.DEFAULT_AGENT_ID, console: bindings.console,
+  }) });
   try {
     if (!options.bindings?.routeDeps) assert.equal(context.conversationId, undefined, "session I/O requires explicit fixture ports");
     if (options.terminalFailure) {
