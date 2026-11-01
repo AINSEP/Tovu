@@ -5,6 +5,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isBuiltin } from 'node:module';
+import ts from 'typescript';
+import { createTypeScriptImportReader } from '@jini-ai/devops/packaging/electron/typescript';
+import { load } from 'js-yaml';
 
 import { declaredDependencies, findPackageDir, isExcluded } from "./stage-payload-lib.ts";
 
@@ -80,4 +84,50 @@ test("packaged peer discovery follows transitive and required peer edges, but no
 test('desktop model discovery declares its integrations runtime library', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'apps', 'desktop', 'package.json'), 'utf8'));
   assert.equal(manifest.dependencies['@jini-ai/integrations'], '^0.6.15');
+});
+
+/** Source inputs only: build output, tests and fixtures are not shipped runtime modules. */
+function runtimeSources({ directory }: { directory: string }, _options = {}): string[] {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const file = path.join(directory, entry.name);
+    if (/^(node_modules|dist|build|release|staging|coverage|__tests__|__mocks__|__fixtures__|__measurements__|fixtures|test|tests)$/.test(entry.name)) return [];
+    if (entry.isDirectory()) return runtimeSources({ directory: file });
+    return /\.[cm]?[jt]sx?$/.test(file) && !/\.(test|spec|typecheck|d)\.[cm]?[jt]sx?$/.test(file) ? [file] : [];
+  });
+}
+
+test('runtime source imports declare their packages instead of relying on hoisting', () => {
+  const reader = createTypeScriptImportReader({ compiler: ts });
+  // Root workspaces are staged by stage-payload.ts even without dependency entries.
+  const workspaces = fs.readdirSync(path.join(REPO_ROOT, 'packages')).map(folder =>
+    JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'packages', folder, 'package.json'), 'utf8')).name);
+  const problems: string[] = [];
+  // Bundled browser inputs are checked by their bundlers; this checks Node-loaded app source.
+  for (const folder of ['apps/website/src', 'apps/desktop/src', 'packages']) for (const file of runtimeSources({ directory: path.join(REPO_ROOT, folder) })) {
+    let owner = path.dirname(file);
+    while (!fs.existsSync(path.join(owner, 'package.json'))) owner = path.dirname(owner);
+    const manifest = JSON.parse(fs.readFileSync(path.join(owner, 'package.json'), 'utf8'));
+    // This source-wide guard includes build/test utilities under src; the existing dist/staged
+    // guards additionally require production selection for the files actually loaded after staging.
+    const declared = new Set(Object.keys({ ...manifest.dependencies, ...manifest.optionalDependencies,
+      ...manifest.peerDependencies, ...manifest.devDependencies }));
+    if (owner === REPO_ROOT) for (const workspace of workspaces) declared.add(workspace);
+    for (const specifier of reader.imports({ file, source: fs.readFileSync(file, 'utf8') })) {
+      if (/^[.#/]/.test(specifier) || specifier.startsWith('@/') || isBuiltin(specifier)) continue;
+      const name = specifier.split('/').slice(0, specifier.startsWith('@') ? 2 : 1).join('/');
+      if (!declared.has(name)) problems.push(`${path.relative(REPO_ROOT, file)}: ${name}`);
+    }
+  }
+  assert.equal(problems.join('\n'), '', 'runtime imports must be declared by the package that loads them');
+});
+
+test('desktop terminal opt-in enters the required packaged dependency closure with its helper unpacked', () => {
+  const desktop = path.join(REPO_ROOT, 'apps/desktop');
+  const manifest = JSON.parse(fs.readFileSync(path.join(desktop, 'package.json'), 'utf8'));
+  assert.equal(manifest.dependencies['node-pty'], '^1.1.0', 'an optional daemon peer is not selected for shipping');
+  assert.ok(declaredDependencies(desktop).includes('node-pty'));
+  const config = load(fs.readFileSync(path.join(desktop, 'electron-builder.yml'), 'utf8')) as {
+    asarUnpack: string[];
+  };
+  assert.ok(config.asarUnpack.includes('**/node-pty/**'), 'PTY helper executables must be real disk files too');
 });

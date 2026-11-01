@@ -9,10 +9,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync, readdirSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import vm from "node:vm";
+import ts from 'typescript';
+import { createTypeScriptImportReader } from '@jini-ai/devops/packaging/electron/typescript';
 
 import { assertPackagedOwnerStoreStatus, buildEntryLoadScript, buildSmokeScript, parseEntryLoadOutput, parseSmokeOutput, resolveSmokeTargets } from "./smoke-native.ts";
 
@@ -215,6 +217,43 @@ test("desktop main's source module graph resolves without the test-only TypeScri
   assert.ifError(loaded.error);
   assert.equal(loaded.status, 0, `Desktop main import graph failed:\n${loaded.stdout}\n${loaded.stderr}`);
   assert.deepEqual(parseEntryLoadOutput(loaded.stdout), { ok: true, unresolved: [] });
+});
+
+for (const entry of ['platform/site-dir/sites-home', 'contracts/core/assistant-native-fallbacks']) {
+  test(`shared desktop source ${entry} imports without a test remapper`, () => {
+    const source = new URL(`../../website/src/${entry}.ts`, import.meta.url).href;
+    const child = spawnSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(source)})`], {
+      cwd: tmpdir(), encoding: 'utf8', timeout: 30_000, env: { ...process.env, NODE_OPTIONS: '' },
+    });
+    assert.ifError(child.error);
+    assert.equal(child.status, 0, child.stdout + child.stderr);
+  });
+}
+
+test('every desktop source import has a real JavaScript target or an owning compiler', () => {
+  const desktop = path.resolve(import.meta.dirname, '..');
+  // Renderer/preload inputs legitimately name emitted .js files. Read the actual compiler
+  // inputs so a new native source file cannot silently inherit the test remapper's behavior.
+  const compiled = new Set(['tsconfig.preload.json', 'tsconfig.renderer.json'].flatMap(config => {
+    const { config: settings } = ts.readConfigFile(path.join(desktop, config), ts.sys.readFile);
+    return ts.parseJsonConfigFileContent(settings, ts.sys, desktop).fileNames;
+  }));
+  const sources = ['main.ts', ...['src', 'bin'].flatMap(folder =>
+    readdirSync(path.join(desktop, folder), { recursive: true, withFileTypes: true })
+      .filter(entry => entry.isFile() && /\.[cm]?tsx?$/.test(entry.name) && !/\.(test|d)\.[cm]?tsx?$/.test(entry.name))
+      .map(entry => path.relative(desktop, path.join(entry.parentPath, entry.name))))];
+  const reader = createTypeScriptImportReader({ compiler: ts });
+  const missing: string[] = [];
+  for (const source of sources) {
+    const file = path.join(desktop, source);
+    if (compiled.has(file)) continue;
+    for (const specifier of reader.imports({ file, source: readFileSync(file, 'utf8') })) {
+      if (!specifier.startsWith('.') || !specifier.endsWith('.js')) continue;
+      const target = path.resolve(path.dirname(file), specifier);
+      if (!existsSync(target)) missing.push(`${source}: ${specifier}`);
+    }
+  }
+  assert.deepEqual(missing, [], 'native source launch cannot resolve nonexistent emitted .js paths');
 });
 
 for (const fixture of [

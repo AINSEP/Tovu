@@ -34,6 +34,7 @@
     "@jini-ai/daemon": "^0.6.15",
     "@jini-ai/desktop-host": "^0.6.15",
     "@jini-ai/diagnostics": "^0.6.15",
+    "@jini-ai/db": "^0.6.15",
     "@jini-ai/mcp": "^0.6.15",
     "@jini-ai/platform": "^0.6.15",
     "@mcp-ui/client": "7.1.1",
@@ -47,6 +48,7 @@
     "eventsource": "^3.0.7",
     "express": "^5.2.1",
     "jszip": "^3.10.2",
+    "node-pty": "^1.1.0",
     "recharts": "^3.10.1",
     "undici": "^7.30.0",
     "@jini-ai/integrations": "^0.6.15"

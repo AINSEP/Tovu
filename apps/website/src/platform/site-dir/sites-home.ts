@@ -1,9 +1,9 @@
 /** Tovu's folder/filenames; generic resolution, locking and registry policy belong to Jini. */
-import { desktopProjectPaths } from "./sites-project-references.js";
-import { nestedSitesCompat } from "./nested-sites-root.js";
-import { defaultSourceRoots, desktopProfileDir, ownerStorageOverrides } from "./sites-workspace-options.js";
-import { assertTestHomeIsolation } from "../test-home-isolation.js";
-export { assertTestHomeIsolation } from "../test-home-isolation.js";
+import { desktopProjectPaths } from "#src/platform/site-dir/sites-project-references";
+import { nestedSitesCompat } from "#src/platform/site-dir/nested-sites-root";
+import { defaultSourceRoots, desktopProfileDir, ownerStorageOverrides } from "#src/platform/site-dir/sites-workspace-options";
+import { assertTestHomeIsolation } from "#src/platform/test-home-isolation";
+export { assertTestHomeIsolation } from "#src/platform/test-home-isolation";
 import os from "node:os";
 import path from "node:path";
 import { createNodeDirectoryWorkspace, type DurableJsonPorts } from "@jini-ai/platform/fs";

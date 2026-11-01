@@ -1,5 +1,5 @@
-import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability, type AssistantCliPermissions } from "../headless/index.js";
-import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals, type HostSignalOptions } from "./host-signals.js";
+import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability, type AssistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
+import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals, type HostSignalOptions } from "#src/contracts/core/host-signals";
 
 /** The master supplies defaults except personal MCP, which requires an explicit owner grant
  * (2026-10-23). Inherited MCP configuration stays excluded by default, even with CLI parity;

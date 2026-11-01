@@ -125,11 +125,14 @@ extraResources:
 asar: true
 asarUnpack:
   - "**/*.node"
+  # node-pty execs spawn-helper; unpack the whole package, not just its native addon.
+  - "**/node-pty/**"
 
 # Everything native here is Node-API and loads unmodified under Electron: `better-sqlite3` 13.0.3
 # ships flat N-API `prebuilds/` with `"gypfile": false` and no `build/` directory, `argon2` uses the
 # same prebuildify layout, and `sharp` resolves per-platform `@img/sharp-<platform>-<arch>` optional
-# dependencies. There is nothing to rebuild for Electron's ABI.
+# dependencies, and `node-pty` 1.1 is node-addon-api with darwin/win32 `prebuilds/` (its `spawn-helper`
+# is unpacked above). There is nothing to rebuild for Electron's ABI.
 #
 # Note this CONTRADICTS the comment in Tovu-Runner's own electron-builder.yml, which asserts the
 # staged tree's better-sqlite3 is "a node-gyp build for system Node's ABI". That was true of
