@@ -216,3 +216,6 @@ export { catalog as themePagePublishedAgentToolCatalog, buildRegistrations as bu
 export { createThemePreviewFeed, readThemePreviewRefresh, requestThemePreviewRefresh, validatePreviewPath, type ThemePreviewRefresh } from "./preview-refresh.js";
 // 2026-10-08 — a theme another process created, edited or trashed reaches this process's roster.
 export { syncThemeRoster, themeRosterFingerprint } from "./theme-roster-sync.js";
+
+// Both deletion surfaces share the assistant's restorable file lifecycle.
+export { trashThemeFile, ThemeFileReadOnlyError } from "./asset-operations.js";

@@ -8,6 +8,22 @@ const LOCALES = [
   "ja", "ko", "pl", "pt-BR", "ru", "th", "tr", "uk", "ur", "zh-CN", "zh-TW",
 ];
 
+describe("themes-i18n: restorable file deletion", () => {
+  const key = "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.";
+  it.each(LOCALES)("translates the trash confirmation for locale %s", (locale) => {
+    const translated = t({ locale, key });
+    expect(THEMES_DICT[locale][key]).toBeTruthy();
+    expect(translated).not.toBe(key);
+    expect(translated).toContain("{file}");
+  });
+
+  it.each(LOCALES)("translates the assistant restore guidance for locale %s", (locale) => {
+    const guidance = "Ask the assistant to restore it.";
+    expect(THEMES_DICT[locale][guidance]).toBeTruthy();
+    expect(t({ locale, key: guidance })).not.toBe(guidance);
+  });
+});
+
 /**
  * @file `THEMES_DICT` cross-locale key parity for the theme-preview-modal keys `eacb43fd5` added.
  * That commit put `"Close preview"` and `"{id} theme preview"` in only 18 of the file's 21 locale

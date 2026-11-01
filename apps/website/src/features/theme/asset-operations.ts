@@ -1,7 +1,7 @@
 /** Shared theme file gates and live reload, independent of tool registration. */
 import type { AuthorizeFn } from "@jini-ai/cms/core";
-import { isGeneratedThemePath, resolveThemeFileWriteScope, ThemePathError } from "./theme-files.js";
-import { isInsideCompiledSourceDir, isSourceDirWritableExtension, isTrashedThemePath } from "./file-identity-lock.js";
+import { isGeneratedThemePath, listThemeFiles, renameThemeFile, resolveThemeFileWriteScope, ThemePathError } from "./theme-files.js";
+import { isInsideCompiledSourceDir, isSourceDirWritableExtension, isTrashedThemePath, trashDestinationFor, validateFileIdentityChange } from "./file-identity-lock.js";
 import { loadTheme, type DiscoveredTheme } from "./theme.js";
 import { requestThemePreviewRefresh } from "./preview-refresh.js";
 
@@ -190,3 +190,53 @@ export function reloadThemeInPlace(routeDeps: ThemeToolDeps, theme: DiscoveredTh
   return reloaded;
 }
 
+/**
+ * Move one theme file to restorable trash and refresh the live theme/preview snapshot.
+ * Shared by Explore and the assistant so neither deletion surface can discard bytes.
+ *
+ * @param input - Theme, canonical relative path and the host's mutable theme roster.
+ * @param _options - Reserved optional operation settings.
+ * @returns The restorable trash path and reloaded theme.
+ * @throws ThemePathError for invalid/already-trashed paths; ThemeFileIdentityLockedError for
+ * locked identities; ThemeFileReadOnlyError when the trash destination is generated output.
+ * Filesystem failures propagate before a success is reported.
+ * @complexity O(n + b) time/space for n scanned paths and b bytes loaded by the theme reload.
+ * @example trashThemeFile({ deps, theme, relativePath: "pages/about.html" });
+ */
+export function trashThemeFile(
+  { deps, theme, relativePath }: { deps: ThemeToolDeps; theme: DiscoveredTheme; relativePath: string },
+  _options: Record<string, never> = {},
+): { trashedPath: string; reloaded: DiscoveredTheme } {
+  const themeId = theme.manifest.id;
+  if (isTrashedThemePath(relativePath)) {
+    throw new ThemePathError(`'${relativePath}' was moved to the theme's trash; restore with theme_restore_trashed_file using themeId '${themeId}' and trashedPath '${relativePath}'`);
+  }
+
+  // Soft-delete shares the SAME identity-lock gate rename/hard-delete use — a theme's own
+  // required files, a built theme's generated tree, and script/other-group files stay
+  // un-trashable, for the identical reasons theme_delete_file was never wired at all (see
+  // `agent-tools.ts`'s header — losing a required file still drops the theme to 'invalid',
+  // and nothing tracks what still references a script/other file by its old location).
+  const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath });
+  const lock = validateFileIdentityChange(theme, relativePath, writeScope, "trashed");
+  if (lock) throw new ThemeFileIdentityLockedError(lock.error);
+
+  const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir }));
+  const trashedPath = trashDestinationFor(relativePath, existingPaths);
+  // Defense-in-depth, mirroring performThemeFileRename's own destWriteScope check: `.trash/`
+  // sits at the theme's ROOT, which is only "editable" for an authored theme.
+  // For a COMPILED theme, `.trash/` resolves generated-readonly (it is neither
+  // `theme.json` nor inside `build.sourceDir`) — trashing is refused outright rather than
+  // silently landing an untracked extra inside ADR-020's generated region, where a later
+  // "restore the generated tree" call would wipe it without warning.
+  const trashWriteScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: trashedPath });
+  if (trashWriteScope.kind === "generated-readonly") {
+    throw new ThemeFileReadOnlyError(
+      `'${relativePath}' cannot be trashed: this theme is a built release with no writable location outside build.sourceDir/theme.json to move a trashed file into`
+    );
+  }
+
+  renameThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath: relativePath, destPath: trashedPath });
+  const reloaded = reloadThemeInPlace(deps, theme, themeId);
+  return { trashedPath, reloaded };
+}

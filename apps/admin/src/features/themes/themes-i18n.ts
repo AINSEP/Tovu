@@ -15,8 +15,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "Vista previa del tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Renombrar {file} a {name} cambia su URL pública. Cualquier enlace directo existente tendrá que actualizarse.",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "¿Seguro que quieres eliminar {file}? Esto elimina el archivo de forma permanente. No hay forma de recuperarlo.",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "¿Seguro que quieres eliminar {file}? Esto mueve el archivo a la papelera del tema, desde donde se puede restaurar.",
+    "Ask the assistant to restore it.": "Pídele al asistente que lo restaure.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Esto reemplaza {file} con la versión del tema original. Se perderán los cambios que hayas hecho en este archivo y esto no se puede deshacer.",
     "All themes": "Todos los temas",
@@ -179,8 +180,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "Pratinjau tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Mengganti nama {file} menjadi {name} akan mengubah URL publiknya. Tautan langsung yang sudah ada perlu diperbarui.",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "Anda yakin ingin menghapus {file}? Ini menghapus file secara permanen. Tidak ada cara untuk mendapatkannya kembali.",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "Yakin ingin menghapus {file}? File ini akan dipindahkan ke tempat sampah tema dan dapat dipulihkan dari sana.",
+    "Ask the assistant to restore it.": "Minta asisten untuk memulihkannya.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Ini akan menggantikan {file} dengan versi dari tema asli. Semua perubahan yang telah Anda buat pada file ini akan hilang, dan ini tidak dapat dibatalkan.",
     "All themes": "Semua tema",
@@ -343,8 +345,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "Vorschau des Themas {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Das Umbenennen von {file} in {name} ändert dessen öffentliche URL. Bereits bestehende direkte Links darauf müssen aktualisiert werden.",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "Möchtest du {file} wirklich löschen? Dadurch wird die Datei dauerhaft entfernt. Es gibt keine Möglichkeit, sie wiederherzustellen.",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "Möchtest du {file} wirklich löschen? Die Datei wird in den Papierkorb des Themes verschoben und kann von dort wiederhergestellt werden.",
+    "Ask the assistant to restore it.": "Bitte den Assistenten, sie wiederherzustellen.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Dies ersetzt {file} mit der Version aus dem Original-Design. Alle Änderungen, die du an dieser Datei vorgenommen hast, gehen verloren, und das kann nicht rückgängig gemacht werden.",
     "All themes": "Alle Designs",
@@ -507,8 +510,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "{id} 主题预览",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "将 {file} 重命名为 {name} 会更改其公开网址。任何已直接链接到它的地方都需要更新。",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "确定要删除 {file} 吗？这将永久删除该文件，无法恢复。",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "确定要删除 {file} 吗？文件将移至主题回收站，可以从那里恢复。",
+    "Ask the assistant to restore it.": "请让助手恢复该文件。",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "这将把 {file} 替换为原始主题的版本。你对此文件所做的任何改动都将丢失，且此操作无法撤销。",
     "All themes": "所有主题",
@@ -664,8 +668,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "{id} 佈景主題預覽",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "將 {file} 重新命名為 {name} 會變更其公開網址。任何已直接連結到它的地方都需要更新。",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "確定要刪除 {file} 嗎？這將永久刪除該檔案，無法復原。",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "確定要刪除 {file} 嗎？檔案將移至佈景主題的垃圾桶，可以從那裡還原。",
+    "Ask the assistant to restore it.": "請讓助理還原此檔案。",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "這將把 {file} 取代為原始佈景主題的版本。你對此檔案所做的任何改動都將遺失，且此操作無法復原。",
     "All themes": "所有佈景主題",
@@ -825,8 +830,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "Visualização do tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Renomear {file} para {name} muda sua URL pública. Qualquer link direto já existente precisará ser atualizado.",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "Tem certeza de que deseja excluir {file}? Isso remove o arquivo permanentemente. Não há como recuperá-lo.",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "Tem certeza de que deseja excluir {file}? Isso move o arquivo para a lixeira do tema, de onde ele pode ser restaurado.",
+    "Ask the assistant to restore it.": "Peça ao assistente para restaurá-lo.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Isso substitui {file} pela versão do tema original. Todas as alterações feitas neste arquivo serão perdidas, e isso não pode ser desfeito.",
     "All themes": "Todos os temas",
@@ -989,8 +995,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "Предпросмотр темы {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Переименование {file} в {name} изменяет её публичный URL. Все уже существующие прямые ссылки на неё нужно будет обновить.",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "Вы уверены, что хотите удалить {file}? Это безвозвратно удалит файл. Восстановить его будет невозможно.",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "Вы уверены, что хотите удалить {file}? Файл будет перемещён в корзину темы, откуда его можно восстановить.",
+    "Ask the assistant to restore it.": "Попросите помощника восстановить его.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Это заменит {file} версией из исходной темы. Все изменения, внесённые в этот файл, будут потеряны, и это нельзя отменить.",
     "All themes": "Все темы",
@@ -1153,8 +1160,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "پیش‌نمایش پوسته {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "تغییر نام {file} به {name} نشانی اینترنتی عمومی آن را تغییر می‌دهد. هر پیوند مستقیمی که از قبل به آن اشاره می‌کند باید به‌روزرسانی شود.",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "آیا مطمئن هستید که می‌خواهید {file} را حذف کنید؟ این کار فایل را برای همیشه حذف می‌کند. هیچ راهی برای بازیابی آن وجود ندارد.",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "آیا مطمئنید که می‌خواهید {file} را حذف کنید؟ این کار فایل را به سطل زبالهٔ پوسته منتقل می‌کند و از آنجا می‌توان آن را بازیابی کرد.",
+    "Ask the assistant to restore it.": "از دستیار بخواهید آن را بازیابی کند.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "این {file} را با نسخه پوسته اصلی جایگزین می‌کند. هر تغییری که در این فایل داده‌اید از بین خواهد رفت و این کار قابل بازگشت نیست.",
     "All themes": "همه پوسته‌ها",
@@ -1317,8 +1325,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "معاينة قالب {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "إعادة تسمية {file} إلى {name} تغيّر عنوان URL العام الخاص به. أي روابط مباشرة موجودة بالفعل تحتاج إلى تحديث.",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "هل أنت متأكد أنك تريد حذف {file}؟ سيؤدي هذا إلى حذف الملف نهائيًا. لا توجد طريقة لاستعادته.",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "هل أنت متأكد من حذف {file}؟ سيُنقل الملف إلى سلة مهملات القالب، حيث يمكن استعادته.",
+    "Ask the assistant to restore it.": "اطلب من المساعد استعادته.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "سيستبدل هذا {file} بالنسخة من القالب الأصلي. ستُفقد أي تعديلات أجريتها على هذا الملف، ولا يمكن التراجع عن ذلك.",
     "All themes": "جميع القوالب",
@@ -1481,8 +1490,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "{id}テーマのプレビュー",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file} を {name} に変更すると、公開URLが変わります。すでにそこへ直接リンクしているものは更新が必要です。",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "{file} を本当に削除しますか？ この操作でファイルは完全に削除されます。元に戻す方法はありません。",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "{file} を削除してもよろしいですか？ファイルはテーマのゴミ箱に移動され、そこから復元できます。",
+    "Ask the assistant to restore it.": "復元するにはアシスタントに依頼してください。",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "{file} は元のテーマのバージョンに置き換えられます。このファイルに加えた変更は失われ、元に戻すことはできません。",
     "All themes": "すべてのテーマ",
@@ -1644,8 +1654,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "{id} 테마 미리보기",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file}을 {name}으로 이름을 바꾸면 공개 URL이 변경됩니다. 이미 직접 연결된 링크는 업데이트해야 합니다.",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "{file}을 정말 삭제하시겠습니까? 이 작업은 파일을 영구적으로 삭제합니다. 다시 되돌릴 방법이 없습니다.",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "{file}을(를) 삭제하시겠습니까? 파일이 테마의 휴지통으로 이동되며, 그곳에서 복원할 수 있습니다.",
+    "Ask the assistant to restore it.": "어시스턴트에게 복원을 요청하세요.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "이 작업은 {file}을 원본 테마의 버전으로 대체합니다. 이 파일에 적용한 변경 사항은 모두 사라지며 되돌릴 수 없습니다.",
     "All themes": "모든 테마",
@@ -1807,8 +1818,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "Podgląd motywu {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Zmiana nazwy {file} na {name} zmienia jego publiczny adres URL. Wszelkie istniejące bezpośrednie linki do niego trzeba będzie zaktualizować.",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "Czy na pewno chcesz usunąć {file}? Spowoduje to trwałe usunięcie pliku. Nie ma możliwości jego odzyskania.",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "Czy na pewno chcesz usunąć {file}? Plik zostanie przeniesiony do kosza motywu, skąd można go przywrócić.",
+    "Ask the assistant to restore it.": "Poproś asystenta o jego przywrócenie.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "To zastąpi {file} wersją z oryginalnego motywu. Wszystkie zmiany wprowadzone w tym pliku zostaną utracone, a tej operacji nie można cofnąć.",
     "All themes": "Wszystkie motywy",
@@ -1971,8 +1983,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "{id} téma előnézete",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "A {file} átnevezése {name} névre megváltoztatja a nyilvános URL-jét. Minden meglévő közvetlen hivatkozást frissíteni kell rá.",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "Biztosan törölni szeretnéd a {file} fájlt? Ez véglegesen eltávolítja a fájlt. Nincs mód a visszaszerzésére.",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "Biztosan törölni szeretnéd a(z) {file} fájlt? A fájl a téma kukájába kerül, ahonnan visszaállítható.",
+    "Ask the assistant to restore it.": "Kérd meg az asszisztenst a visszaállítására.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Ez lecseréli a {file} fájlt az eredeti sablon verziójára. Az ezen a fájlon végzett módosítások elvesznek, és ez nem vonható vissza.",
     "All themes": "Összes téma",
@@ -2135,8 +2148,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "Aperçu du thème {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Renommer {file} en {name} change son URL publique. Tout lien direct existant devra être mis à jour.",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "Voulez-vous vraiment supprimer {file} ? Ceci supprime définitivement le fichier. Il n'y a aucun moyen de le récupérer.",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "Voulez-vous vraiment supprimer {file} ? Le fichier sera déplacé dans la corbeille du thème, d’où il pourra être restauré.",
+    "Ask the assistant to restore it.": "Demandez à l’assistant de le restaurer.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Ceci remplace {file} par la version du thème d'origine. Toutes les modifications que vous avez apportées à ce fichier seront perdues, et cette action est irréversible.",
     "All themes": "Tous les thèmes",
@@ -2299,8 +2313,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "Перегляд теми {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Перейменування {file} на {name} змінює її публічну URL-адресу. Усі наявні прямі посилання на неї доведеться оновити.",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "Ви впевнені, що хочете видалити {file}? Це остаточно видалить файл. Відновити його буде неможливо.",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "Ви впевнені, що хочете видалити {file}? Файл буде переміщено до кошика теми, звідки його можна відновити.",
+    "Ask the assistant to restore it.": "Попросіть помічника відновити його.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Це замінить {file} версією з початкової теми. Усі зміни, внесені до цього файлу, буде втрачено, і це неможливо скасувати.",
     "All themes": "Усі теми",
@@ -2463,8 +2478,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "{id} teması önizlemesi",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file} adını {name} olarak değiştirmek, genel URL'sini değiştirir. Ona doğrudan bağlantı veren her şeyin güncellenmesi gerekir.",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "{file} dosyasını silmek istediğinizden emin misiniz? Bu, dosyayı kalıcı olarak kaldırır. Geri alma yöntemi yoktur.",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "{file} dosyasını silmek istediğinizden emin misiniz? Dosya temanın çöp kutusuna taşınır ve oradan geri yüklenebilir.",
+    "Ask the assistant to restore it.": "Asistandan dosyayı geri yüklemesini isteyin.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Bu, {file} dosyasının yerini orijinal temanın sürümüyle değiştirir. Bu dosyada yaptığınız tüm değişiklikler kaybolacak ve bu geri alınamaz.",
     "All themes": "Tüm temalar",
@@ -2627,8 +2643,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "ตัวอย่างธีม {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "การเปลี่ยนชื่อ {file} เป็น {name} จะเปลี่ยน URL สาธารณะของมัน ลิงก์โดยตรงที่มีอยู่แล้วจะต้องอัปเดต",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "แน่ใจหรือไม่ว่าต้องการลบ {file}? การดำเนินการนี้จะลบไฟล์อย่างถาวร ไม่มีทางกู้คืนได้",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "คุณแน่ใจหรือไม่ว่าต้องการลบ {file}? ไฟล์จะถูกย้ายไปยังถังขยะของธีม ซึ่งสามารถกู้คืนได้",
+    "Ask the assistant to restore it.": "ขอให้ผู้ช่วยกู้คืนไฟล์นี้",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "การดำเนินการนี้จะแทนที่ {file} ด้วยเวอร์ชันจากธีมต้นฉบับ การเปลี่ยนแปลงใด ๆ ที่คุณทำกับไฟล์นี้จะสูญหาย และไม่สามารถยกเลิกได้",
     "All themes": "ธีมทั้งหมด",
@@ -2790,8 +2807,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "Anteprima del tema {id}",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "Rinominare {file} in {name} cambia il suo URL pubblico. Qualsiasi link diretto già esistente dovrà essere aggiornato.",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "Sei sicuro di voler eliminare {file}? Questa operazione rimuove definitivamente il file. Non c'è modo di recuperarlo.",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "Vuoi davvero eliminare {file}? Il file verrà spostato nel cestino del tema, da cui potrà essere ripristinato.",
+    "Ask the assistant to restore it.": "Chiedi all’assistente di ripristinarlo.",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "Questo sostituisce {file} con la versione del tema originale. Tutte le modifiche apportate a questo file andranno perse e non sarà possibile annullarle.",
     "All themes": "Tutti i temi",
@@ -2954,8 +2972,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "{id} थीम पूर्वावलोकन",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file} का नाम {name} रखने से इसका सार्वजनिक URL बदल जाता है। इससे पहले से सीधे जुड़े किसी भी लिंक को अपडेट करना होगा।",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "क्या आप वाकई {file} को हटाना चाहते हैं? यह फ़ाइल को स्थायी रूप से हटा देगा। इसे वापस पाने का कोई तरीका नहीं है।",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "क्या आप वाकई {file} हटाना चाहते हैं? इससे फ़ाइल थीम के ट्रैश में चली जाएगी, जहाँ से उसे बहाल किया जा सकता है।",
+    "Ask the assistant to restore it.": "सहायक से इसे बहाल करने के लिए कहें।",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "यह {file} को मूल थीम के संस्करण से बदल देगा। इस फ़ाइल में आपके द्वारा किए गए किसी भी बदलाव को खो दिया जाएगा, और इसे पूर्ववत नहीं किया जा सकता।",
     "All themes": "सभी थीम",
@@ -3118,8 +3137,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "{id} تھیم کا پیش نظارہ",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file} کا نام {name} رکھنے سے اس کا عوامی URL تبدیل ہو جاتا ہے۔ اس سے پہلے سے جڑے ہوئے کسی بھی براہ راست لنک کو اپ ڈیٹ کرنا ہوگا۔",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "کیا آپ واقعی {file} کو حذف کرنا چاہتے ہیں؟ یہ فائل کو مستقل طور پر حذف کر دے گا۔ اسے واپس حاصل کرنے کا کوئی طریقہ نہیں ہے۔",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "کیا آپ واقعی {file} کو حذف کرنا چاہتے ہیں؟ اس سے فائل تھیم کے کوڑے دان میں منتقل ہو جائے گی، جہاں سے اسے بحال کیا جا سکتا ہے۔",
+    "Ask the assistant to restore it.": "اسے بحال کرنے کے لیے اسسٹنٹ سے کہیں۔",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "یہ {file} کو اصل تھیم کے ورژن سے بدل دے گا۔ اس فائل میں آپ کی کی گئی کوئی بھی تبدیلی ضائع ہو جائے گی، اور اسے واپس نہیں لیا جا سکتا۔",
     "All themes": "تمام تھیمز",
@@ -3282,8 +3302,9 @@ export const THEMES_DICT: Record<string, Record<string, string>> = {
     "{id} theme preview": "{id} থিমের প্রিভিউ",
     "Renaming {file} to {name} changes its public URL. Anything already linking to it directly will need updating.":
       "{file}-এর নাম {name} করলে এর পাবলিক URL পরিবর্তিত হবে। এর সাথে ইতিমধ্যে সরাসরি লিঙ্ক করা যেকোনো কিছু আপডেট করতে হবে।",
-    "Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back.":
-      "আপনি কি নিশ্চিতভাবে {file} মুছে ফেলতে চান? এটি স্থায়ীভাবে ফাইলটি মুছে ফেলবে। এটি ফিরে পাওয়ার কোনো উপায় নেই।",
+    "Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.":
+      "আপনি কি নিশ্চিত যে {file} মুছে ফেলতে চান? ফাইলটি থিমের ট্র্যাশে সরানো হবে, যেখান থেকে এটি পুনরুদ্ধার করা যাবে।",
+    "Ask the assistant to restore it.": "এটি পুনরুদ্ধার করতে সহকারীকে বলুন।",
     "This replaces {file} with the version from the original theme. Any changes you have made to this file will be lost, and this cannot be undone.":
       "এটি {file}-কে মূল থিমের সংস্করণ দিয়ে প্রতিস্থাপন করবে। এই ফাইলে আপনার করা যেকোনো পরিবর্তন হারিয়ে যাবে, এবং এটি পূর্বাবস্থায় ফেরানো যাবে না।",
     "All themes": "সব থিম",

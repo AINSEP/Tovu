@@ -8,7 +8,8 @@ import {
   loadTheme,
   type DiscoveredTheme,
   copyThemeFile,
-  deleteThemeFile,
+  trashThemeFile,
+  ThemeFileReadOnlyError,
   isGeneratedThemePath,
   isPageFilePath,
   isPartialFilePath,
@@ -133,14 +134,18 @@ function findThemeOrRespond(
 }
 
 /**
- * Map a containment/size failure to 400 and everything else to 500.
+ * Map containment/size failures to 400, generated trash destinations to 403, and I/O to 500.
  *
- * `ThemePathError` is the one error class here that reflects bad INPUT — a path escaping the theme
+ * `ThemePathError` reflects bad INPUT — a path escaping the theme
  * root, a missing file, an oversized body. Collapsing it into 500 would tell the admin "the server
  * broke" when the honest answer is "that path is not editable", which is the difference between a
  * user fixing their own mistake and filing a bug.
  */
 function sendThemeFileError(res: Response, err: unknown): void {
+  if (err instanceof ThemeFileReadOnlyError) {
+    res.status(403).json({ error: err.message, code: "GENERATED_READONLY" });
+    return;
+  }
   if (err instanceof ThemePathError) {
     res.status(400).json({ error: err.message, code: "INVALID_THEME_PATH" });
     return;
@@ -1169,24 +1174,17 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
 };
 
 /**
- * POST — delete one file inside a theme.
+ * POST — move one file into the theme's restorable trash.
  *
- * DESTRUCTIVE, and unlike Reset or Rename, not recoverable through this screen at all: this repo
- * keeps no theme-file revision history, so a deleted file's bytes are simply gone (a file that still
- * has a catalog original could in principle be re-copied by hand from there, but nothing on this
- * screen offers that as an undo). The confirmation belongs in the UI (`ThemeExplore.tsx`'s own delete
- * `ConfirmDialog`), the same split Reset already uses — a server-side "are you sure" flag would just
- * be a second thing to get wrong.
+ * Removing a file changes the live site, so the UI still confirms the exact target. There is no
+ * theme-file revision history or restore control on this screen; bytes survive in `.trash/` and
+ * the assistant can restore them with `theme_restore_trashed_file`. A server-side confirmation flag
+ * would only duplicate the UI's responsibility.
  *
- * Shares {@link validateFileIdentityChange} with rename (2026-08-29, now also with the agent-tool
- * `theme_rename_file`/`theme_delete_file` handlers — see `file-identity-lock.ts`'s own header): the
- * same three reasons a rename's source might be locked — a
- * {@link import("#src/features/theme/index").requiredThemeFiles} entry, a built theme's generated
- * tree, or an {@link import("#src/features/theme/index").IDENTITY_LOCKED_GROUPS} member — apply at
- * least as strongly to delete, since
- * delete has no "rename it back" undo path at all. See {@link registerAdminThemeFileRenameRoute}'s own
- * doc comment for the fuller reasoning this reuses. Copy and PUT/reset are unaffected — this route
- * only removes a file, it never creates or overwrites one.
+ * Shares the complete trash lifecycle with the assistant through {@link trashThemeFile}, including
+ * identity locks, destination safety and live reload. Keep the HTTP identity-lock and missing-file
+ * checks here to preserve their existing status/code contracts. A compiled release without a safe
+ * trash destination is refused: UI deletion must never discard bytes.
  */
 export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/delete", async (req, res) => {
@@ -1211,12 +1209,7 @@ export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = (app, de
         return;
       }
 
-      deleteThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path });
-
-      // Same boot-time-snapshot problem every other write in this file has — see `reloadTheme`'s doc
-      // comment. Skipping this means the file is gone from disk but the preview and the next GET of
-      // `pages`/`partials` still act as if it exists.
-      reloadTheme(deps, theme.manifest.id);
+      trashThemeFile({ deps, theme, relativePath: path });
 
       res.json({ path, deleted: true });
     } catch (err) {

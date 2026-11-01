@@ -189,15 +189,21 @@ test("delete of a file inside a built theme's generated tree is refused 409 GENE
   assert.equal(fs.existsSync(target), true);
 });
 
-test("delete of a file inside a built theme's sourceDir with an allowed extension succeeds -- isFileIdentityChangeAllowed's isSourceDirWritableExtension branch", async (t) => {
+// Owner 2026-11-01: UI deletes go to the theme trash like the assistant's. A compiled release's
+// `.trash/` sits in its generated region, so an otherwise-deletable sourceDir file has nowhere safe
+// to go: the route refuses rather than discarding the bytes.
+test("delete of an allowed-extension file inside a built theme's sourceDir is refused 403 GENERATED_READONLY and keeps its bytes -- no safe trash destination", async (t) => {
   const themesDir = makeCompiledThemesRoot();
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);
   const target = path.join(themesDir, "static", "compiled", "src", "Header.tsx");
 
   const res = await del(baseUrl, "compiled", "src/Header.tsx");
-  assert.equal(res.status, 200, await res.text());
-  assert.equal(fs.existsSync(target), false);
+  const body = (await res.json()) as { code: string };
+  assert.equal(res.status, 403, JSON.stringify(body));
+  assert.equal(body.code, "GENERATED_READONLY");
+  assert.equal(fs.readFileSync(target, "utf8"), "source");
+  assert.equal(fs.existsSync(path.join(themesDir, "static", "compiled", ".trash")), false);
 });
 
 test("delete of a .js file inside a built theme's sourceDir is STILL refused -- SOURCE_DIR_WRITABLE_EXTENSIONS excludes .js regardless of IDENTITY_LOCKED_GROUPS", async (t) => {
@@ -221,9 +227,10 @@ test("delete that fails for a reason OTHER than ThemePathError 500s via the rout
   const originalBytes = fs.readFileSync(target);
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);
-  const original = fs.rmSync;
+  // The delete is a move into `.trash/`; fail that move to reach the generic catch.
+  const original = fs.renameSync;
   let failureReached = false;
-  const injected = t.mock.method(fs, "rmSync", (...args: Parameters<typeof fs.rmSync>) => {
+  const injected = t.mock.method(fs, "renameSync", (...args: Parameters<typeof fs.renameSync>) => {
     if (String(args[0]) === target) {
       failureReached = true;
       throw Object.assign(new Error("injected I/O failure"), { code: "EIO" });

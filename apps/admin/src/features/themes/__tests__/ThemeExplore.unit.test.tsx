@@ -974,10 +974,9 @@ describe("delete confirmation", () => {
     );
     expect(screen.getByText(/are you sure you want to delete/i)).toBeInTheDocument();
     expect(screen.getByText("pages/about.html")).toBeInTheDocument();
-    // Deliberately NOT "cannot be undone" — Reset's own dialog body owns that exact phrase, and both
-    // dialogs render unconditionally (see `DeleteFileWarningBody`'s own comment for why the wording
-    // is distinct despite the same meaning).
-    expect(screen.getByText(/no way to get it back/i)).toBeInTheDocument();
+    expect(screen.getByText(/moves the file to the theme's trash.*can be restored/i)).toBeInTheDocument();
+    expect(screen.getByText(/ask the assistant to restore it/i)).toBeInTheDocument();
+    expect(screen.queryByText(/permanently removes|no way to get it back/i)).not.toBeInTheDocument();
   });
 
   it("confirming calls confirmDelete; cancelling calls closeDeleteConfirm without it", async () => {

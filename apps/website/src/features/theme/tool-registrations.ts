@@ -1,7 +1,7 @@
 export { contributeImportThemeFileTools } from "./import-theme-file-tool.js";
 export { assertThemeFileWritable, findThemeOrThrow, reloadThemeInPlace, isShapeRejection } from "./asset-operations.js";
 export type { ThemeToolDeps } from "./asset-operations.js";
-import { assertThemeFileWritable, findThemeOrThrow, reloadThemeInPlace, isShapeRejection, ThemeFileReadOnlyError, ThemeFileEditMatchError, ThemeFileNoOriginalError, ThemeOriginalLayoutMismatchError, ThemeFileIdentityLockedError, type ThemeToolDeps } from "./asset-operations.js";
+import { trashThemeFile, assertThemeFileWritable, findThemeOrThrow, reloadThemeInPlace, isShapeRejection, ThemeFileReadOnlyError, ThemeFileEditMatchError, ThemeFileNoOriginalError, ThemeOriginalLayoutMismatchError, ThemeFileIdentityLockedError, type ThemeToolDeps } from "./asset-operations.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
 export { contributeSetActiveThemeTools, type SetActiveThemeToolDeps } from "./set-active-theme-tool.js";
 export { contributePreviewSwitcherTools, type PreviewSwitcherToolDeps } from "./preview-switcher-tools.js";
@@ -80,7 +80,6 @@ import {
   fileExtension,
   isTrashedThemePath,
   originalPathFromTrashedPath,
-  trashDestinationFor,
   validateFileIdentityChange,
 } from "./file-identity-lock.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
@@ -875,36 +874,7 @@ export function buildThemesRegistrations(
       return withSchemaOnRejection({ toolId: "theme_trash_file", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection(error), fn: async () => {
         const theme = findThemeOrThrow(routeDeps, themeId);
 
-        if (isTrashedThemePath(relativePath)) {
-          throw new ThemePathError(`'${relativePath}' was moved to the theme's trash; restore with theme_restore_trashed_file using themeId '${themeId}' and trashedPath '${relativePath}'`);
-        }
-
-        // Soft-delete shares the SAME identity-lock gate rename/hard-delete use — a theme's own
-        // required files, a built theme's generated tree, and script/other-group files stay
-        // un-trashable, for the identical reasons theme_delete_file was never wired at all (see
-        // `agent-tools.ts`'s header — losing a required file still drops the theme to 'invalid',
-        // and nothing tracks what still references a script/other file by its old location).
-        const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath });
-        const lock = validateFileIdentityChange(theme, relativePath, writeScope, "trashed");
-        if (lock) throw new ThemeFileIdentityLockedError(lock.error);
-
-        const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: routeDeps.themesDir }));
-        const trashedPath = trashDestinationFor(relativePath, existingPaths);
-        // Defense-in-depth, mirroring performThemeFileRename's own destWriteScope check: `.trash/`
-        // sits at the theme's ROOT, which is only "editable" for an authored theme (every theme on
-        // disk today). For a COMPILED theme, `.trash/` resolves generated-readonly (it is neither
-        // `theme.json` nor inside `build.sourceDir`) — trashing is refused outright rather than
-        // silently landing an untracked extra inside ADR-020's generated region, where a later
-        // "restore the generated tree" call would wipe it without warning.
-        const trashWriteScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: trashedPath });
-        if (trashWriteScope.kind === "generated-readonly") {
-          throw new ThemeFileReadOnlyError(
-            `'${relativePath}' cannot be trashed: this theme is a built release with no writable location outside build.sourceDir/theme.json to move a trashed file into`
-          );
-        }
-
-        renameThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath: relativePath, destPath: trashedPath });
-        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+        const { trashedPath, reloaded } = trashThemeFile({ deps: routeDeps, theme, relativePath });
 
         return {
           trashed: true,

@@ -46,10 +46,9 @@ import { useThemeExploreFileGroups, type ThemeExploreFileGroupsController } from
  * banner says, and it is why ordinary editing here needs no confirmation at all.
  *
  * Reset and Delete are the exceptions, and both confirm: restoring a file to its original overwrites
- * the working copy with no backup, and removing a file outright is even more final — this repo keeps
- * no theme-file revision history, so a delete cannot be recovered from at all, not even by re-copying
- * a catalog original the way Reset does. These are the only two actions on this screen that can
- * destroy work (2026-08-29: Delete added to Copy/Rename's ⋮ menu, owner ask).
+ * the working copy with no backup, and deleting a file changes the live theme. Delete preserves
+ * bytes in the theme's trash; ask the assistant to restore them because this screen has no restore
+ * control. Neither action should change the live theme without naming its exact target first.
  *
  * The preview is an `<iframe src>` pointed at the SITE server, not `srcDoc`. A rendered theme page
  * references `/theme-assets/<id>/css/...`, which only the site server serves — a `srcDoc` iframe
@@ -712,19 +711,18 @@ function PageRenameWarningBody({
  * @complexity O(1).
  */
 function DeleteFileWarningBody({ deleteTarget, t }: { deleteTarget: string | null; t: Translate }) {
-  // One whole sentence with a `{file}` placeholder — see `PageRenameWarningBody`'s comment for why
-  // this replaced two fragments split around the `<code>` element.
-  const [before, after] = splitOnPlaceholders({ template: t("Are you sure you want to delete {file}? This permanently removes the file. There is no way to get it back."), tokens: ["{file}"] }
-  );
+  // Keep `{file}` inside the translated confirmation so locales can place it naturally around
+  // the `<code>` element — see `PageRenameWarningBody`'s comment for the same sentence contract.
+  const [before, after] = splitOnPlaceholders({
+    template: t("Are you sure you want to delete {file}? This moves the file to the theme's trash, where it can be restored.") + " " + t("Ask the assistant to restore it."),
+    tokens: ["{file}"],
+  });
   return (
     <p>
       {before}
       <code>{deleteTarget}</code>
-      {/* Deliberately NOT the literal phrase "cannot be undone" — the Reset dialog above already
-          owns that exact wording, and both dialogs' body markup renders unconditionally regardless
-          of `open` (`ConfirmDialog`'s own behavior), so identical phrasing across two simultaneously-
-          mounted dialogs would make `getByText` ambiguous for either one. Same meaning, distinct
-          wording — see `ThemeExplore.unit.test.tsx`'s "delete confirmation" describe block. */}
+      {/* Keep the recovery instructions with the named file: Delete moves it to trash while
+          Reset overwrites it, so their confirmations must describe different consequences. */}
       {after}
     </p>
   );
