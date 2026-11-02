@@ -234,10 +234,12 @@ class FakeWindow extends EventEmitter {
 
 const UNDECIDED: ProductTelemetryPreference = { crashes: false, usage: false, installationId: null, decidedAt: null };
 
-function consentHarness({ response = 0, decided = false, launch = LAUNCH as DesktopProductTelemetry["launch"],
-  failWrite = false, failDialog = false }: {
+function consentHarness(options: {
   response?: number; decided?: boolean; launch?: DesktopProductTelemetry["launch"]; failWrite?: boolean; failDialog?: boolean;
 } = {}) {
+  const { response = 0, decided = false, failWrite = false, failDialog = false } = options;
+  // An explicit `launch: undefined` is the inactive product; a destructuring default would swap LAUNCH back in.
+  const launch = "launch" in options ? options.launch : LAUNCH;
   const app = fakeApp();
   const { product, consents } = fakeProduct({ launch });
   const state = { product };
