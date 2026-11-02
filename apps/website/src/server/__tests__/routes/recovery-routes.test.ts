@@ -14,6 +14,7 @@ import { registerAdminRecoveryDeepLinkRoute } from "../../inbound/admin-http/rou
 import { registerAdminRecoveryStatusRoute } from "../../inbound/admin-http/routes/recovery/status.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file design-spec.md §4.8 backend-gap closure — route-level tests for Recovery's restore-points
@@ -121,7 +122,7 @@ test("recovery routes: disclosure is 400 VALIDATION_ERROR when restorePointId is
   assert.deepEqual(await noBody.json(), { error: "'restorePointId' (string) is required", code: "VALIDATION_ERROR" });
 });
 
-test("recovery routes: disclosure 500s with the thrown message when the watermark source explodes", async (t) => {
+test("recovery routes: disclosure 500s with the concealed incident envelope (no thrown message) when the watermark source explodes", async (t) => {
   const deps: RouteDeps = createRouteDeps();
   deps.disclosureWatermarkSource.getBaseline = async () => {
     throw new Error("watermark source unreachable");
@@ -139,7 +140,7 @@ test("recovery routes: disclosure 500s with the thrown message when the watermar
     body: JSON.stringify({ restorePointId: "rp-1" }),
   });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "watermark source unreachable", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("recovery routes: disclosure 500s with a generic message when a non-Error is thrown", async (t) => {
@@ -161,7 +162,7 @@ test("recovery routes: disclosure 500s with a generic message when a non-Error i
     body: JSON.stringify({ restorePointId: "rp-1" }),
   });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("recovery routes: disclosure renders real counts once the watermark baseline is usable", async (t) => {
@@ -269,7 +270,7 @@ test("recovery routes: deep-link rejects a missing envelope, and a non-object en
   assert.equal(((await wrongType.json()) as { code: string }).code, "VALIDATION_ERROR");
 });
 
-test("recovery routes: deep-link surfaces a thrown error as 500 INTERNAL_ERROR with the error's own message", async (t) => {
+test("recovery routes: deep-link surfaces a thrown error as 500 INTERNAL_ERROR behind the concealed incident envelope", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -284,7 +285,7 @@ test("recovery routes: deep-link surfaces a thrown error as 500 INTERNAL_ERROR w
   });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
-  assert.deepEqual(body, { error: "boom", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("recovery routes: deep-link surfaces a non-Error thrown value as 500 INTERNAL_ERROR with a generic message (the `err instanceof Error ? ... : \"internal error\"` ternary's false branch)", async (t) => {
@@ -305,7 +306,7 @@ test("recovery routes: deep-link surfaces a non-Error thrown value as 500 INTERN
   });
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
-  assert.deepEqual(body, { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 /**
@@ -438,7 +439,7 @@ test("recovery restore-points list refuses a signed-in caller without backup.rea
   assert.equal(body.items, undefined, "a refused caller must see no restore points");
 });
 
-test("recovery restore-points list and status surface a thrown error as 500 INTERNAL_ERROR (its message, or a generic one for a non-Error)", async (t) => {
+test("recovery restore-points list and status surface a thrown error as 500 INTERNAL_ERROR (the concealed incident envelope, Error or non-Error)", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -448,7 +449,7 @@ test("recovery restore-points list and status surface a thrown error as 500 INTE
     };
     const errorRes = await fetch(`${baseUrl}${path}`, { headers: { cookie } });
     assert.equal(errorRes.status, 500, path);
-    assert.deepEqual(await errorRes.json(), { error: "authorizer offline", code: "INTERNAL_ERROR" }, path);
+    assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { message: path });
 
     deps.authorize = async () => {
       // eslint-disable-next-line @typescript-eslint/only-throw-error
@@ -456,6 +457,6 @@ test("recovery restore-points list and status surface a thrown error as 500 INTE
     };
     const nonErrorRes = await fetch(`${baseUrl}${path}`, { headers: { cookie } });
     assert.equal(nonErrorRes.status, 500, path);
-    assert.deepEqual(await nonErrorRes.json(), { error: "internal error", code: "INTERNAL_ERROR" }, path);
+    assertAdminResponse({ actual: await nonErrorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { message: path });
   }
 });

@@ -11,6 +11,7 @@ import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-htt
 import { registerAdminRecoveryRestoreRoutes, sendRecoveryError } from "../../inbound/admin-http/routes/recovery/restore.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { InMemoryMigrationRunsRepo } from "#src/features/database/repo.memory";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * Registers a principal with a login but no role/policy grants at all — mirrors
@@ -465,7 +466,7 @@ test("recovery restore: a body-less request (no req.body at all) is a 400 VALIDA
   }
 });
 
-test("recovery restore: plan surfaces a throwing dbOps capability probe as 500 INTERNAL_ERROR (its message, or a generic one for a non-Error)", async (t) => {
+test("recovery restore: plan surfaces a throwing dbOps capability probe as 500 INTERNAL_ERROR (the concealed incident envelope, Error or non-Error)", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const restorePointId = await seedRestorePoint(deps);
@@ -475,7 +476,7 @@ test("recovery restore: plan surfaces a throwing dbOps capability probe as 500 I
   };
   const errorRes = await postJson(baseUrl, cookie, "plan", { restorePointId });
   assert.equal(errorRes.status, 500);
-  assert.deepEqual(await errorRes.json(), { error: "capabilities probe failed", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 
   deps.dbOps.getCapabilities = async () => {
     // eslint-disable-next-line @typescript-eslint/only-throw-error
@@ -483,7 +484,7 @@ test("recovery restore: plan surfaces a throwing dbOps capability probe as 500 I
   };
   const nonErrorRes = await postJson(baseUrl, cookie, "plan", { restorePointId });
   assert.equal(nonErrorRes.status, 500);
-  assert.deepEqual(await nonErrorRes.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await nonErrorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("recovery restore: a gateway error whose code has no mapped status (INTERNAL_ERROR from a throwing restore-points repo) is a 500", async (t) => {
@@ -495,20 +496,23 @@ test("recovery restore: a gateway error whose code has no mapped status (INTERNA
 
   const res = await postJson(baseUrl, cookie, "plan", { restorePointId: "rp-1" });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "restore-points ledger unreadable", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
-test("recovery restore: confirm reached without a session principal (requireAdminSession not mounted) is a 500 INTERNAL_ERROR naming the miswiring", async () => {
+test("recovery restore: confirm reached without a session principal (requireAdminSession not mounted) is a 500 INTERNAL_ERROR whose redacted log names the miswiring", async (t) => {
   const { app } = buildTestApp();
   const handler = extractRouteHandler(app, "post", "/api/admin/v1/recovery/restore/confirm");
   const { res, capture } = createCapturingResponse();
+  const logged = t.mock.method(console, "error", () => {});
 
   await handler({ body: { planId: "p-1", planHash: "h-1", disclosureAcknowledged: true } }, res);
 
-  assert.equal(capture.statusCode, 500);
-  const body = capture.jsonBody as { error: string; code: string };
-  assert.equal(body.code, "INTERNAL_ERROR");
-  assert.match(body.error, /no principal on res\.locals/);
+  // 88f429c25: the reply is the concealed incident envelope; the miswiring diagnosis moved to the
+  // redacted log line carrying the same incident id, so an operator can still find it.
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  const errorId = (capture.jsonBody as { errorId: string }).errorId;
+  const diagnostics = logged.mock.calls.map((call) => call.arguments[1] as { errorId?: string; diagnostic?: string });
+  assert.ok(diagnostics.some((entry) => entry?.errorId === errorId && /no principal on res\.locals/.test(entry.diagnostic ?? "")));
 });
 
 test("recovery restore: execute surfaces a throwing instance-authorization port as 500 INTERNAL_ERROR before any lock is taken", async (t) => {
@@ -520,7 +524,7 @@ test("recovery restore: execute surfaces a throwing instance-authorization port 
 
   const res = await postJson(baseUrl, cookie, "execute", { confirmationToken: "tok", restorePointId: "rp-1" });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "instance authorizer offline", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("sendRecoveryError: a contract-valid payload with no message falls back to its code as the error text", () => {
