@@ -25,10 +25,10 @@
  * `npm run lint` and catches exactly that mistake.
  *
  * Each hook family now lives in its own module (`use-<thing>.hooks.ts`, plus the pure
- * `sites-home-view.ts` and the shared `bridge-lookup.ts` type); this file only re-exports them
+ * `sites-home-view.ts` and the shared `BridgeLookup` type in `runner-api.ts`); this file only re-exports them
  * under their original names so every existing `./App.hooks.js` import keeps working unchanged.
  */
-export type { BridgeLookup } from './bridge-lookup.js';
+export type { BridgeLookup } from './runner-api.js';
 export { countRunningSites, useApplySiteRecord, useSiteRescan, useSitesPolling } from './use-sites-inventory.hooks.js';
 export { navLinkClick, useRunnerNavigation, useSectionNav, type SectionNavState } from './use-section-nav.hooks.js';
 export { useProjectTabs, type ProjectTabsState } from './use-project-tabs.hooks.js';
