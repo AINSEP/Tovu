@@ -91,3 +91,49 @@ test("no new raw SQLite outside the storage kernel (ratchet: the baseline only s
     "Raw SQLite went down — lock it in: rerun this test with UPDATE_RAW_SQLITE_BASELINE=1 and commit the baseline."
   );
 });
+
+
+test("prepare calls distinguish SQL statements from the export writer's two-object lifecycle", () => {
+  const writer = `import { createNodeArtifactWriter as makeWriter } from "@jini-ai/devops/static-export/node";
+    const writer = makeWriter({}, {}); writer.prepare(required, optional); writer["prepare"](input, options);`;
+  assert.deepEqual(countRawSqlite(writer), {});
+  assert.deepEqual(countRawSqlite(writer + 'function shadow(writer) { writer.prepare(query, extra); }'), { prepare: 1 });
+  assert.deepEqual(countRawSqlite(writer + 'try {} catch (writer) { writer.prepare(query); }'), { prepare: 1 });
+  assert.deepEqual(countRawSqlite(writer + 'for (const writer of connections) { writer.prepare(query); }'), { prepare: 1 });
+  assert.deepEqual(countRawSqlite('import { createNodeArtifactWriter } from "other-package"; const writer = createNodeArtifactWriter(); writer.prepare(query);'), { prepare: 1 });
+  assert.deepEqual(countRawSqlite('db.prepare(query); db["prepare"](query); db?.prepare?.(sql);'), { prepare: 3 });
+});
+
+for (const binding of ['{ nested: { value: NAME } }', '[, [NAME]]', '{ ...NAME }', '[...NAME]', '{ value: NAME = fallback }']) {
+  for (const target of ['writer', 'makeWriter']) {
+    const pattern = binding.replace('NAME', target);
+    const call = target === 'writer' ? 'writer.prepare(query);' : 'const local = makeWriter({}, {}); local.prepare(query);';
+    for (const scope of [
+      `function inspect(${pattern}) { CALL }`,
+      `{ const ${pattern} = connection; CALL }`,
+      // A destructured const initialized by the canonical factory is still not the writer itself.
+      `{ const ${pattern} = makeWriter({}, {}); CALL }`,
+      `try {} catch (${pattern}) { CALL }`,
+      `for (const ${pattern} of connections) { CALL }`,
+      `for (let ${pattern} = connection; ready; next()) { CALL }`,
+      `for (const ${pattern} in connections) { CALL }`,
+    ]) {
+      test(`destructured ${target} shadows the outer writer exemption: ${scope}`, () => {
+        const source = `import { createNodeArtifactWriter as makeWriter } from "@jini-ai/devops/static-export/node";
+          const writer = makeWriter({}, {}); ${scope.replace('CALL', call)}`;
+        assert.deepEqual(countRawSqlite(source), { prepare: 1 });
+      });
+    }
+  }
+}
+
+test("writer resolution uses binding identifiers and stops at the nearest declaration", () => {
+  const source = `import { createNodeArtifactWriter as makeWriter } from "@jini-ai/devops/static-export/node";
+    const writer = makeWriter({}, {});
+    function propertyOnly({ writer: connection }) { writer.prepare(query); }
+    function shadow({ writer }) {
+      writer.prepare(query);
+      { const writer = makeWriter({}, {}); writer.prepare(query); }
+    }`;
+  assert.deepEqual(countRawSqlite(source), { prepare: 1 });
+});

@@ -45,7 +45,7 @@ export function sqliteConnectionOf<DB>(kernel: StorageKernel<DB>): Database.Data
 }
 
 /** Host-owned native opener reused by content/chat bootstraps; Jini owns the opener contract. */
-export const openNativeSqlite: (filePath: string, options?: Database.Options) => Database.Database = (filePath, options = {}) => new Database(filePath, options);
+export const openNativeSqlite: (filePath: string | Buffer, options?: Database.Options) => Database.Database = (filePath, options = {}) => new Database(filePath, options);
 
 /** Bind the existing transfer snapshot contract at the native driver seam. No lifecycle is duplicated.
  * @complexity O(snapshot bytes), delegated to the SQLite deserializer. Native open errors propagate. */

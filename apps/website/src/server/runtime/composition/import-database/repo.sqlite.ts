@@ -9,7 +9,7 @@ import path from "node:path";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { sqliteKernel, closeSqliteConnection, openNativeSqlite, openSqliteFileKernel, sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";
 import { listColumns } from "#src/platform/db/kernel/dialect";
-import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, type SqliteSchemaObject } from "#src/platform/db/kernel/sqlite-only";
+import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, sqliteTableExtendedInfo, type SqliteSchemaObject } from "#src/platform/db/kernel/sqlite-only";
 import type { StorageKernel } from "#src/platform/db/kernel/port";
 import { sanitizeShareDatabase, prepareSharePluginTables, refuseUnknownShareTables } from "#src/features/site-backup/share-database/repo.sqlite";
 import { SHARE_TABLES, IMPORT_SCHEMA_MISMATCH_EXIT_CODE, IMPORT_REFUSAL_EXIT_CODE, SHARE_VERSION_MISMATCH_MESSAGE, SiteShareRefusal, archiveRefusalName } from "#src/features/site-backup/share-policy";
@@ -31,8 +31,8 @@ function refuseSchemaObject(required: { object: SqliteSchemaObject }, _options =
  * Reads metadata only; O(columns) time/space, bounded by the worker's byte/deadline caps.
  */
 async function requireOrdinaryColumnChange(required: { source: ImportKernel; target: ImportKernel; object: SqliteSchemaObject }, _options = {}): Promise<void> {
-  const actual = await required.source.query<{ hidden: number }>(sql`SELECT * FROM pragma_table_xinfo(${required.object.name})`);
-  const expected = await required.target.query(sql`SELECT * FROM pragma_table_xinfo(${required.object.name})`);
+  const actual = await sqliteTableExtendedInfo({ kernel: required.source, table: required.object.name });
+  const expected = await sqliteTableExtendedInfo({ kernel: required.target, table: required.object.name });
   if (actual.some(column => column.hidden !== 0) || JSON.stringify(actual) === JSON.stringify(expected)) refuseSchemaObject(required);
 }
 

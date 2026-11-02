@@ -120,21 +120,86 @@ export function stripComments(fileName: string, text: string): string {
   return chars.join("");
 }
 
+/** Loop declarations shadow the outer writer throughout the loop body; no module loading. */
+function loopBindings({ scope }: { scope: ts.ForStatement | ts.ForOfStatement | ts.ForInStatement }, _options = {}): readonly ts.NamedDeclaration[] {
+  return scope.initializer && ts.isVariableDeclarationList(scope.initializer) ? [...scope.initializer.declarations] : [];
+}
+
+/** Lexical declarations relevant to resolving a named receiver/factory; no module loading. */
+function scopeBindings(scope: ts.Node): readonly ts.NamedDeclaration[] {
+  if (ts.isFunctionLike(scope)) return [...scope.parameters];
+  if (ts.isCatchClause(scope)) return scope.variableDeclaration ? [scope.variableDeclaration] : [];
+  if (ts.isForStatement(scope) || ts.isForOfStatement(scope) || ts.isForInStatement(scope)) {
+    return loopBindings({ scope });
+  }
+  if (!ts.isBlock(scope) && !ts.isSourceFile(scope)) return [];
+  return scope.statements.flatMap<ts.NamedDeclaration>(statement => {
+    if (ts.isVariableStatement(statement)) return [...statement.declarationList.declarations];
+    if (ts.isFunctionDeclaration(statement) || ts.isClassDeclaration(statement)) return [statement];
+    if (ts.isImportDeclaration(statement)) {
+      const names = statement.importClause?.namedBindings;
+      return names && ts.isNamedImports(names) ? [...names.elements] : [];
+    }
+    return [];
+  });
+}
+
+/** Match bound identifiers, not property keys; array holes are not bindings.
+ * O(n) in binding-pattern nodes; no module loading or initializer evaluation. */
+function bindsName({ bindingName, name }: { bindingName: ts.BindingName; name: string }, _options = {}): boolean {
+  if (ts.isIdentifier(bindingName)) return bindingName.text === name;
+  return bindingName.elements.some(element => ts.isBindingElement(element) && bindsName({ bindingName: element.name, name }));
+}
+
+/** Resolve nearest lexical binding so a nested SQL receiver cannot inherit a writer exemption. */
+function resolveBinding({ node, name }: { node: ts.Node; name: string }): ts.NamedDeclaration | undefined {
+  for (let scope = node.parent; scope; scope = scope.parent) {
+    const binding = scopeBindings(scope).find(entry => entry.name && ts.isBindingName(entry.name) && bindsName({ bindingName: entry.name, name }));
+    if (binding) return binding;
+  }
+  return undefined;
+}
+
+function isArtifactWriterFactory(binding: ts.NamedDeclaration | undefined): boolean {
+  if (!binding || !ts.isImportSpecifier(binding)) return false;
+  if ((binding.propertyName ?? binding.name).text !== "createNodeArtifactWriter") return false;
+  const declaration = binding.parent.parent.parent;
+  return ts.isImportDeclaration(declaration) && ts.isStringLiteral(declaration.moduleSpecifier) &&
+    declaration.moduleSpecifier.text === "@jini-ai/devops/static-export/node";
+}
+
+/** Only a const created by the canonical writer factory owns a non-SQL prepare lifecycle.
+ * Unknown receivers, import lookalikes and shadowed parameters retain the SQL guard. */
+function isArtifactWriterReceiver(receiver: ts.Expression): boolean {
+  if (!ts.isIdentifier(receiver)) return false;
+  const binding = resolveBinding({ node: receiver, name: receiver.text });
+  if (!binding || !ts.isVariableDeclaration(binding) || !ts.isIdentifier(binding.name)) return false;
+  if (!(ts.getCombinedNodeFlags(binding) & ts.NodeFlags.Const)) return false;
+  const call = binding.initializer;
+  if (!call || !ts.isCallExpression(call) || !ts.isIdentifier(call.expression)) return false;
+  return isArtifactWriterFactory(resolveBinding({ node: call.expression, name: call.expression.text }));
+}
+
+function prepareReceiver(call: ts.CallExpression): ts.Expression | undefined {
+  const member = call.expression;
+  if (ts.isPropertyAccessExpression(member) && member.name.text === "prepare") return member.expression;
+  if (!ts.isElementAccessExpression(member)) return undefined;
+  const key = member.argumentExpression;
+  return (ts.isStringLiteral(key) || ts.isNoSubstitutionTemplateLiteral(key)) && key.text === "prepare" ? member.expression : undefined;
+}
+
 export function countRawSqlite(text: string): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const rule of RULES) {
+    if (rule.id === "prepare") continue; // AST below covers dot, computed and optional calls alike.
     const hits = text.match(rule.pattern)?.length ?? 0;
     if (hits > 0) counts[rule.id] = hits;
   }
-  // Literal computed access is the same call as `.prepare(sql)`; parse it so
-  // comments, quote styles and optional calls cannot hide the statement.
   const source = ts.createSourceFile("probe.ts", text, ts.ScriptTarget.Latest, true);
   const visit = (node: ts.Node) => {
-    if (ts.isCallExpression(node) && node.arguments.length > 0 && ts.isElementAccessExpression(node.expression)) {
-      const key = node.expression.argumentExpression;
-      if ((ts.isStringLiteral(key) || ts.isNoSubstitutionTemplateLiteral(key)) && key.text === "prepare") {
-        counts.prepare = (counts.prepare ?? 0) + 1;
-      }
+    if (ts.isCallExpression(node) && node.arguments.length > 0 && !ts.isObjectLiteralExpression(node.arguments[0]!)) {
+      const receiver = prepareReceiver(node);
+      if (receiver && !isArtifactWriterReceiver(receiver)) counts.prepare = (counts.prepare ?? 0) + 1;
     }
     ts.forEachChild(node, visit);
   };

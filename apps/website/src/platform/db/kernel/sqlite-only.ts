@@ -27,6 +27,13 @@ export interface SqliteTableColumn {
   readonly notnull: number;
 }
 
+/** Exact table_xinfo metadata; generated and virtual-table columns must not disappear in archive validation. */
+export interface SqliteExtendedTableColumn extends SqliteTableColumn {
+  readonly cid: number;
+  readonly dflt_value: string | null;
+  readonly hidden: number;
+}
+
 /** One `PRAGMA foreign_key_check` row. */
 export interface SqliteForeignKeyViolation {
   readonly table: string;
@@ -46,6 +53,18 @@ function requireSqlite<DB>(kernel: StorageKernel<DB>, operation: string): void {
   if (kernel.dialect !== "sqlite") {
     throw new Error(`${operation} is SQLite-only; this kernel is ${kernel.dialect}`);
   }
+}
+
+/** Read exact archive column metadata through the existing SQLite boundary, including hidden columns.
+ * Kept here until Jini publishes this primitive; the installed driver has no such export.
+ * @throws {Error} On another dialect or a failed read. No writes; table names are bound values.
+ * @complexity O(columns) time and space.
+ */
+export async function sqliteTableExtendedInfo<DB>(
+  { kernel, table }: { kernel: StorageKernel<DB>; table: string }, _options = {},
+): Promise<SqliteExtendedTableColumn[]> {
+  requireSqlite(kernel, "sqliteTableExtendedInfo");
+  return kernel.query<SqliteExtendedTableColumn>(sql`SELECT * FROM pragma_table_xinfo(${table}) ORDER BY cid`);
 }
 
 /**

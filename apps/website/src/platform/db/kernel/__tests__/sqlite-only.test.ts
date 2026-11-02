@@ -6,7 +6,7 @@ import { sql } from "kysely";
 
 import { openPgliteKernel } from "../drivers/pglite.js";
 import { sqliteKernel } from "../drivers/sqlite.js";
-import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, sqliteTableInfo } from "../sqlite-only.js";
+import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, sqliteTableInfo, sqliteTableExtendedInfo } from "../sqlite-only.js";
 
 /**
  * @file The SQLite-only kernel primitives publish's "send by hand" ships across peers: the exact
@@ -19,6 +19,20 @@ function kernelWith(ddl: string) {
   client.exec(ddl);
   return { client, kernel: sqliteKernel<unknown>(client) };
 }
+
+test("archive schema inspection preserves generated/hidden columns and exact metadata with the installed Jini driver", async () => {
+  const { client, kernel } = kernelWith(`CREATE TABLE source (id INTEGER PRIMARY KEY, name TEXT NOT NULL DEFAULT 'kept', derived TEXT GENERATED ALWAYS AS (name || '!') VIRTUAL, stored TEXT GENERATED ALWAYS AS (name) STORED)`);
+  try {
+    assert.deepEqual(await sqliteTableExtendedInfo({ kernel, table: "source" }), [
+      { cid: 0, name: "id", type: "INTEGER", notnull: 0, dflt_value: null, pk: 1, hidden: 0 },
+      { cid: 1, name: "name", type: "TEXT", notnull: 1, dflt_value: "'kept'", pk: 0, hidden: 0 },
+      { cid: 2, name: "derived", type: "TEXT", notnull: 0, dflt_value: null, pk: 0, hidden: 2 },
+      { cid: 3, name: "stored", type: "TEXT", notnull: 0, dflt_value: null, pk: 0, hidden: 3 },
+    ]);
+    assert.deepEqual(await sqliteTableExtendedInfo({ kernel, table: `source'); DROP TABLE source; --` }), []);
+    assert.equal((await sqliteTableExtendedInfo({ kernel, table: "source" })).length, 4);
+  } finally { client.close(); }
+});
 
 test("sqliteSchemaObjects keeps exact DDL, internal indexes, views and triggers in catalog order", async () => {
   const ddl = "CREATE TABLE t (id TEXT PRIMARY KEY, note TEXT CHECK (note <> '  '))";
@@ -95,6 +109,7 @@ test("sqliteForeignKeyCheckedTransaction: deferral lets work insert a child befo
 test("SQLite primitives refuse a non-SQLite kernel before touching it", async () => {
   const kernel = openPgliteKernel<unknown>();
   try {
+    await assert.rejects(sqliteTableExtendedInfo({ kernel, table: "t" }), { message: "sqliteTableExtendedInfo is SQLite-only; this kernel is postgres" });
     await assert.rejects(sqliteTableInfo({ kernel, table: "t" }), { message: "sqliteTableInfo is SQLite-only; this kernel is postgres" });
     await assert.rejects(sqliteSchemaObjects({ kernel }), { message: "sqliteSchemaObjects is SQLite-only; this kernel is postgres" });
     await assert.rejects(
