@@ -4,6 +4,7 @@ import { parse, type DefaultTreeAdapterTypes } from "parse5";
 
 import { renderStaticPage, renderStaticPartial, scanMenuEmbedIds, type StaticMenuItem } from "../static-render.js";
 import type { DiscoveredTheme } from "../theme.js";
+import { withoutVisitorToolMarks } from "./visitor-tool-marks.fixture.js";
 
 /**
  * @file `renderMenuTree`'s tree-variant rendering, plus the malformed-config and label-escaping
@@ -32,6 +33,15 @@ function findElement(node: DefaultTreeAdapterTypes.Node, tag: string): DefaultTr
     }
   }
   return undefined;
+}
+
+/**
+ * `renderStaticPage` minus the visitor tool marks (see `visitor-tool-marks.fixture.ts`), so the
+ * byte-exact assertions below keep pinning the menu's own markup. Raw output is used where the marks
+ * themselves are under test.
+ */
+function renderMarkup(args: Parameters<typeof renderStaticPage>[0]): string | null {
+  return withoutVisitorToolMarks(renderStaticPage(args));
 }
 
 const HEADER_ID = "menu-header-nav";
@@ -71,7 +81,7 @@ function treeTheme(fallback = ""): DiscoveredTheme {
 }
 
 test("a marker WITHOUT the tree variant still gets flat <a> output, byte-identical", () => {
-  const html = renderStaticPage({
+  const html = renderMarkup({
     theme: flatTheme(),
     pageId: "index",
     menus: { [HEADER_ID]: items({ label: "Docs", href: "/docs" }) },
@@ -81,7 +91,7 @@ test("a marker WITHOUT the tree variant still gets flat <a> output, byte-identic
 });
 
 test("the tree variant emits nested <ul>/<li> with depth classes", () => {
-  const html = renderStaticPage({
+  const html = renderMarkup({
     theme: treeTheme(),
     pageId: "index",
     menus: {
@@ -114,7 +124,7 @@ test("the tree variant emits nested <ul>/<li> with depth classes", () => {
 });
 
 test("isCurrent and isActive become distinct class hooks", () => {
-  const html = renderStaticPage({
+  const html = renderMarkup({
     theme: treeTheme(),
     pageId: "index",
     menus: {
@@ -132,7 +142,7 @@ test("isCurrent and isActive become distinct class hooks", () => {
 });
 
 test("an unavailable BRANCH stays as inert text so its children survive", () => {
-  const html = renderStaticPage({
+  const html = renderMarkup({
     theme: treeTheme(),
     pageId: "index",
     menus: {
@@ -149,7 +159,7 @@ test("an unavailable BRANCH stays as inert text so its children survive", () => 
 });
 
 test("an unavailable LEAF is omitted entirely, never a dead link", () => {
-  const html = renderStaticPage({
+  const html = renderMarkup({
     theme: treeTheme(),
     pageId: "index",
     menus: {
@@ -161,7 +171,7 @@ test("an unavailable LEAF is omitted entirely, never a dead link", () => {
 });
 
 test("authored cssClass, description and icon reach the markup", () => {
-  const html = renderStaticPage({
+  const html = renderMarkup({
     theme: treeTheme(),
     pageId: "index",
     menus: {
@@ -178,7 +188,7 @@ test("authored cssClass, description and icon reach the markup", () => {
 });
 
 test("authored rel and openInNewTab reach the <a> tag — previously read nowhere despite being declared on NavItemAttrs alongside cssClass/description/icon", () => {
-  const html = renderStaticPage({
+  const html = renderMarkup({
     theme: treeTheme(),
     pageId: "index",
     menus: {
@@ -193,7 +203,7 @@ test("authored rel and openInNewTab reach the <a> tag — previously read nowher
 });
 
 test("the FLAT variant honors authored rel and openInNewTab too — the admin menu editor's 'Open in new tab' must not silently do nothing on a flat nav/footer", () => {
-  const html = renderStaticPage({
+  const html = renderMarkup({
     theme: flatTheme(),
     pageId: "index",
     menus: {
@@ -211,7 +221,7 @@ test("the FLAT variant honors authored rel and openInNewTab too — the admin me
 });
 
 test("an item with no attrs at all still renders the plain <a>, no stray rel/target/class", () => {
-  const html = renderStaticPage({
+  const html = renderMarkup({
     theme: treeTheme(),
     pageId: "index",
     menus: { [HEADER_ID]: items({ label: "Plain", href: "/plain" }) },
@@ -220,7 +230,7 @@ test("an item with no attrs at all still renders the plain <a>, no stray rel/tar
 });
 
 test("a tree that renders to nothing leaves the marker's authored fallback alone", () => {
-  const html = renderStaticPage({
+  const html = renderMarkup({
     theme: treeTheme("FALLBACK"),
     pageId: "index",
     menus: { [HEADER_ID]: items({ label: "Gone", href: null, available: false }) },
@@ -229,7 +239,7 @@ test("a tree that renders to nothing leaves the marker's authored fallback alone
 });
 
 test("menu link labels and hrefs are HTML-escaped", () => {
-  const html = renderStaticPage({
+  const html = renderMarkup({
     theme: flatTheme(),
     pageId: "index",
     menus: { [HEADER_ID]: items({ label: "<script>alert(1)</script>", href: '/x"y' }) },
@@ -260,22 +270,25 @@ test("tree path (menuItemBody): label/description (body sinks) and href/icon/rel
   const href = '/x"><script>alert("href")</script>';
   const rel = 'noopener"><script>alert("rel")</script>';
 
-  const html = renderStaticPage({
+  const raw = renderStaticPage({
     theme: treeTheme(),
     pageId: "index",
     menus: {
       [HEADER_ID]: items({ label, href, attrs: { description, icon, rel } }),
     },
   });
+  // The visitor tool mark is one more attribute sink for the label: it must be escaped too.
+  assert.ok(raw?.includes(' data-tooldescription="&lt;script&gt;alert(&quot;label&quot;)&lt;/script&gt;" data-tool-action="navigate"'), raw ?? "null");
+  const html = withoutVisitorToolMarks(raw);
 
   // Negative check first, independent of the exact-string assertion below: none of the raw payloads
   // may survive unescaped ANYWHERE on the page — this catches a leak even if the positive assertion
   // below has a typo.
-  assert.ok(!html?.includes('<script>alert("label")</script>'), "label must not reach the page as a live <script> tag");
-  assert.ok(!html?.includes("<img src=x onerror=alert('description')>"), "description must not reach the page as a live <img> tag");
-  assert.ok(!html?.includes("<svg onload=alert(1)>"), "icon's data-icon value must not break out of its attribute into a live <svg> tag");
-  assert.ok(!html?.includes('<script>alert("href")</script>'), "href must not break out of its attribute into a live <script> tag");
-  assert.ok(!html?.includes('<script>alert("rel")</script>'), "rel must not break out of its attribute into a live <script> tag");
+  assert.ok(!raw?.includes('<script>alert("label")</script>'), "label must not reach the page as a live <script> tag");
+  assert.ok(!raw?.includes("<img src=x onerror=alert('description')>"), "description must not reach the page as a live <img> tag");
+  assert.ok(!raw?.includes("<svg onload=alert(1)>"), "icon's data-icon value must not break out of its attribute into a live <svg> tag");
+  assert.ok(!raw?.includes('<script>alert("href")</script>'), "href must not break out of its attribute into a live <script> tag");
+  assert.ok(!raw?.includes('<script>alert("rel")</script>'), "rel must not break out of its attribute into a live <script> tag");
 
   // Positive check: the exact escaped bytes `escapeHtml()` must produce, reconstructed in place —
   // proves correct encoding, not merely absence of the raw payload.
@@ -296,7 +309,7 @@ test("tree path (menuItemBody): label/description (body sinks) and href/icon/rel
  * own `docs-pager-*` hook — so a `"` in it closed the class attribute and injected a live handler.
  */
 test("tree path (menuItemClasses): authored cssClass is HTML-escaped inside the <li> class attribute", () => {
-  const html = renderStaticPage({
+  const html = renderMarkup({
     theme: treeTheme(),
     pageId: "index",
     menus: {
@@ -321,12 +334,12 @@ test("tree and flat paths escape the SAME label/href value byte-identically — 
   const label = '<script>alert(1)</script>';
   const href = '/x"y';
 
-  const flatHtml = renderStaticPage({
+  const flatHtml = renderMarkup({
     theme: flatTheme(),
     pageId: "index",
     menus: { [HEADER_ID]: items({ label, href }) },
   });
-  const treeHtml = renderStaticPage({
+  const treeHtml = renderMarkup({
     theme: treeTheme(),
     pageId: "index",
     menus: { [HEADER_ID]: items({ label, href }) },
@@ -363,7 +376,7 @@ const LEGITIMATE_HREFS: readonly string[] = ["/about", "https://example.com", "m
 
 test("flat path (renderMenuLinks): every malicious href scheme collapses to '#', never reaches the page", () => {
   for (const hostileHref of MALICIOUS_HREF_SCHEMES) {
-    const html = renderStaticPage({
+    const html = renderMarkup({
       theme: flatTheme(),
       pageId: "index",
       menus: { [HEADER_ID]: items({ label: "X", href: hostileHref }) },
@@ -375,7 +388,7 @@ test("flat path (renderMenuLinks): every malicious href scheme collapses to '#',
 
 test("flat path (renderMenuLinks): every legitimate href passes through unchanged", () => {
   for (const href of LEGITIMATE_HREFS) {
-    const html = renderStaticPage({
+    const html = renderMarkup({
       theme: flatTheme(),
       pageId: "index",
       menus: { [HEADER_ID]: items({ label: "X", href }) },
@@ -385,7 +398,7 @@ test("flat path (renderMenuLinks): every legitimate href passes through unchange
 });
 
 test("flat path (renderMenuLinks): a root-relative href the URL parser rejects ('//a b') collapses to '#' instead of throwing", () => {
-  const html = renderStaticPage({
+  const html = renderMarkup({
     theme: flatTheme(),
     pageId: "index",
     menus: { [HEADER_ID]: items({ label: "X", href: "//a b" }) },
@@ -395,7 +408,7 @@ test("flat path (renderMenuLinks): a root-relative href the URL parser rejects (
 
 test("tree path (menuItemBody): every malicious href scheme collapses to '#', never reaches the page", () => {
   for (const hostileHref of MALICIOUS_HREF_SCHEMES) {
-    const html = renderStaticPage({
+    const html = renderMarkup({
       theme: treeTheme(),
       pageId: "index",
       menus: { [HEADER_ID]: items({ label: "X", href: hostileHref }) },
@@ -407,7 +420,7 @@ test("tree path (menuItemBody): every malicious href scheme collapses to '#', ne
 
 test("tree path (menuItemBody): every legitimate href passes through unchanged", () => {
   for (const href of LEGITIMATE_HREFS) {
-    const html = renderStaticPage({
+    const html = renderMarkup({
       theme: treeTheme(),
       pageId: "index",
       menus: { [HEADER_ID]: items({ label: "X", href }) },
@@ -427,7 +440,7 @@ test("a marker with syntactically invalid data-embed-config degrades to its auth
   // Widened on purpose: a plain `= null` narrows `html` to `null`, since TS ignores the closure's assignment.
   let html = null as string | null;
   assert.doesNotThrow(() => {
-    html = renderStaticPage({ theme, pageId: "index", menus: { [HEADER_ID]: items({ label: "X", href: "/x" }) } });
+    html = renderMarkup({ theme, pageId: "index", menus: { [HEADER_ID]: items({ label: "X", href: "/x" }) } });
   });
   assert.ok(html?.includes("FALLBACK"), "an unparseable marker is left exactly as authored, not blanked or crashed");
 });
@@ -442,7 +455,7 @@ test("menu ids are discovered from pages and partials before supplying render da
     "footer-nav": items({ label: "Footer", href: "/footer" }),
   };
   const menus = Object.fromEntries(scanMenuEmbedIds(theme).map((id) => [id, data[id]]));
-  const html = renderStaticPage({ theme, pageId: "index", menus });
+  const html = renderMarkup({ theme, pageId: "index", menus });
   assert.ok(html?.includes('<a href="/docs">Docs</a>'));
 });
 
@@ -478,7 +491,7 @@ const DROPDOWN_MENU = items(
 );
 
 test("the dropdown variant: root carries data-jini-dropdown; a linked parent gets a split toggle whose aria-controls is its child <ul>'s id", () => {
-  const html = renderStaticPage({ theme: dropdownTheme(), pageId: "index", menus: { [HEADER_ID]: DROPDOWN_MENU } });
+  const html = renderMarkup({ theme: dropdownTheme(), pageId: "index", menus: { [HEADER_ID]: DROPDOWN_MENU } });
   assert.ok(html);
   const root = findElement(findElement(parse(html), "nav")!, "ul")!;
   assert.equal(attr(root, "data-jini-dropdown"), "");
@@ -503,7 +516,7 @@ test("the dropdown variant: root carries data-jini-dropdown; a linked parent get
 });
 
 test("the dropdown variant: an unresolved parent renders as a label toggle", () => {
-  const html = renderStaticPage({
+  const html = renderMarkup({
     theme: dropdownTheme(),
     pageId: "index",
     menus: { [HEADER_ID]: items({ label: "Gone", href: null, children: items({ label: "Kid", href: "/kid" }) }) },
@@ -512,19 +525,36 @@ test("the dropdown variant: an unresolved parent renders as a label toggle", () 
 });
 
 test("two dropdown markers on one page get unique submenu ids", () => {
-  const html = renderStaticPage({ theme: dropdownTheme(2), pageId: "index", menus: { [HEADER_ID]: DROPDOWN_MENU } }) ?? "";
+  const html = renderMarkup({ theme: dropdownTheme(2), pageId: "index", menus: { [HEADER_ID]: DROPDOWN_MENU } }) ?? "";
   const ids = [...html.matchAll(/ id="(jini-submenu-\d+)"/g)].map((m) => m[1]);
   assert.equal(ids.length, 4);
   assert.equal(new Set(ids).size, 4);
 });
 
 test("the dropdown script is injected once with the dropdown variant and never with tree or flat", () => {
-  const dropdown = renderStaticPage({ theme: dropdownTheme(2), pageId: "index", menus: { [HEADER_ID]: DROPDOWN_MENU } }) ?? "";
+  const dropdown = renderMarkup({ theme: dropdownTheme(2), pageId: "index", menus: { [HEADER_ID]: DROPDOWN_MENU } }) ?? "";
   assert.equal(dropdown.split("<script data-jini-menu-dropdown-script>").length, 2);
   assert.ok(dropdown.indexOf("data-jini-menu-dropdown-script") < dropdown.indexOf("</body>"));
   for (const theme of [treeTheme(), flatTheme()]) {
-    const html = renderStaticPage({ theme, pageId: "index", menus: { [HEADER_ID]: DROPDOWN_MENU } }) ?? "";
+    const html = renderMarkup({ theme, pageId: "index", menus: { [HEADER_ID]: DROPDOWN_MENU } }) ?? "";
     assert.ok(!html.includes("data-jini-menu-dropdown-script"));
     assert.ok(!html.includes("jini-menu-toggle"));
   }
+});
+
+// The other side of `withoutVisitorToolMarks`: stripping must never be what hides a missing or
+// unescaped mark. Every control kind the renderer emits (flat link, tree link, inert label, dropdown
+// toggle) carries its visitor handle, with the label escaped in the mark exactly as in the body.
+test("every rendered menu control carries its visitor tool mark, label escaped", () => {
+  const hostile = 'A"<b>';
+  const escaped = "A&quot;&lt;b&gt;";
+  const flat = renderStaticPage({ theme: flatTheme(), pageId: "index", menus: { [HEADER_ID]: items({ label: hostile, href: "/a" }) } }) ?? "";
+  assert.match(flat, new RegExp(`<a href="/a" data-toolname="menu_[^"<>]+" data-tooldescription="${escaped}" data-tool-action="navigate">${escaped}</a>`));
+  const tree = renderStaticPage({ theme: treeTheme(), pageId: "index", menus: { [HEADER_ID]: items(
+    { label: hostile, href: "/a" }, { label: "Gone", available: false, children: items({ label: "Kid", href: "/kid" }) }) } }) ?? "";
+  assert.match(tree, new RegExp(`<a href="/a" data-toolname="menu_[^"<>]+" data-tooldescription="${escaped}" data-tool-action="navigate">`));
+  assert.match(tree, /<span class="menu-item-label" data-toolname="menu_[^"<>]+" data-tooldescription="Gone" data-tool-action="read">Gone<\/span>/);
+  const dropdown = renderStaticPage({ theme: dropdownTheme(), pageId: "index", menus: { [HEADER_ID]: items(
+    { label: "Gone", children: items({ label: "Kid", href: "/kid" }) }) } }) ?? "";
+  assert.match(dropdown, /<button data-toolname="jini-submenu-\d+" data-tooldescription="Gone submenu" data-tool-action="menu" type="button"/);
 });
