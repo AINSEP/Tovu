@@ -18,12 +18,12 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
  * Every plugin id Tovu ships: Tovu's own `content/agent-plugins` plus `SELECTED_AGENT_PLUGIN_PACKAGES`.
  * Each cutover edits this list in the same commit as its selection rows and deletions. Since the
  * plugins wave (11-02) only how-tovu-works and tovu-theme stay in content; every other id, the
- * charts-recharts face included, comes from `@jini-ai/agent-plugins/<id>`.
+ * charts-recharts face and slide-design included, comes from `@jini-ai/agent-plugins/<id>`.
  */
 const EXPECTED_BUNDLED_AGENT_PLUGIN_IDS = [
   'charts-recharts', 'cloudflare', 'composio', 'fly', 'github', 'github-pages', 'google-login', 'google-workspace',
   'higgsfield-media', 'how-tovu-works', 'jev', 'meilisearch', 'netlify', 'opentelemetry', 'posthog',
-  'railway', 'render', 'resend', 's3-compatible', 'sentry', 'site-compliance', 'site-import', 'supabase',
+  'railway', 'render', 'resend', 's3-compatible', 'sentry', 'site-compliance', 'site-import', 'slide-design', 'supabase',
   'tovu-theme', 'ui-ux-design', 'vercel', 'wordpress',
 ];
 

@@ -31,14 +31,14 @@ const JINI_AGENT_PLUGINS = "@jini-ai/agent-plugins";
  * Every row is `@jini-ai/agent-plugins/<id>` (`<id>/plugin.json` via the package's `./<id>/*` export).
  * Vendor plugins may ship by default as long as each installs on its own (owner Q1, 11-02).
  * `charts-recharts` is the agent face of the default chart provider, whose runtime comes from
- * `@jini-ai/provider-plugins` (`charts-recharts-source.ts`). Not selected: `slide-design` and
- * `charts-echarts` (Jini ships them; Tovu does not bundle them by default).
+ * `@jini-ai/provider-plugins` (`charts-recharts-source.ts`). Not selected: `charts-echarts`
+ * (Jini ships it; Tovu does not bundle it by default).
  *
  * Keep this file import-free and type-erasable: `build-server.mjs` loads it with Node's type
  * stripping, which cannot follow `./x.js` imports or compile enums.
  */
 export const SELECTED_AGENT_PLUGIN_PACKAGES: ReadonlyMap<string, string> = new Map([
-  "jev", "site-compliance", "site-import", "wordpress", "ui-ux-design",
+  "jev", "site-compliance", "site-import", "wordpress", "ui-ux-design", "slide-design",
   "cloudflare", "netlify", "vercel", "github-pages", "s3-compatible", "fly", "render", "railway",
   "github", "resend", "meilisearch", "google-login", "composio", "supabase", "higgsfield-media",
   "posthog", "sentry", "opentelemetry", "google-workspace", "charts-recharts",
