@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { ALL_MANIFESTS } from "@jini-ai/ui/interactive-ui/manifests";
 
-import { buildComponentCatalogQuery, chartCatalogManifests, serverSideChartProviders } from "../component-catalog-query.js";
+import { buildComponentCatalogQuery, chartCatalogManifests } from "../component-catalog-query.js";
 
 /**
  * @file Tests this module's own wiring — scoring/ranking over `ALL_MANIFESTS` and converting a
@@ -83,12 +83,34 @@ test("describe returns the full entry, including a JSON-Schema propsSchema, for 
   assert.ok(entry.propsSchema !== null);
 });
 
-test("server-side chart providers keep each id/kind but refuse to load provider code", async () => {
-  const providers = serverSideChartProviders({ snapshot: { generation: "1", siteProvider: "plugin.pie", providers: [
-    { id: "plugin.pie", kinds: ["pie"], javascript: "/pie.js" },
+test("the live catalog lists chart.spec once, describable as JSON Schema, with and without providers", () => {
+  for (const providers of [[], [{ id: "plugin.recharts", kinds: ["bar", "line", "pie"], javascript: "/recharts.js" }]]) {
+    const manifests = chartCatalogManifests({ snapshot: { generation: "1", siteProvider: "plugin.recharts", providers } });
+    assert.equal(manifests.filter(({ id }) => id === "chart.spec").length, 1, JSON.stringify(providers));
+    const catalog = buildComponentCatalogQuery({ getManifests: () => manifests });
+    const entry = catalog.describe({ id: "chart.spec" });
+    assert.ok(entry);
+    assert.deepEqual(entry.capabilities, ["chart", "chart-spec"]);
+    assert.equal(entry.provider, providers.length ? "plugin.recharts" : "core.table");
+    // zodToJsonSchema walks the refined, recursive spec schema into a plain object.
+    assert.equal(typeof entry.propsSchema, "object");
+    assert.ok(entry.propsSchema !== null);
+    assert.ok(catalog.search({ query: "chart spec" }).some(({ id }) => id === "chart.spec"));
+  }
+});
+
+test("the live catalog keeps every non-chart manifest and adds per-provider entries next to the legacy ids", () => {
+  const manifests = chartCatalogManifests({ snapshot: { generation: "1", siteProvider: "plugin.charts", providers: [
+    { id: "plugin.charts", kinds: ["bar", "scatter"], javascript: "/charts.js" },
   ] } });
-  assert.deepEqual(providers.map(({ id, kinds, enabled }) => ({ id, kinds, enabled })), [{ id: "plugin.pie", kinds: ["pie"], enabled: true }]);
-  await assert.rejects(providers[0]!.load(), /chart providers load in the browser only/);
+  const ids = manifests.map(({ id }) => id);
+  for (const manifest of ALL_MANIFESTS.filter(({ capabilities }) => !capabilities.includes("chart"))) assert.ok(ids.includes(manifest.id), manifest.id);
+  for (const id of ["recharts.bar-chart", "recharts.line-chart", "recharts.pie-chart", "plugin.charts.bar-chart", "plugin.charts.scatter-chart"]) assert.ok(ids.includes(id), id);
+  assert.equal(new Set(ids).size, ids.length, "no id is listed twice");
+  // Legacy wire schemas are shared by reference, so saved surfaces keep validating.
+  for (const legacy of ALL_MANIFESTS.filter(({ capabilities }) => capabilities.includes("chart"))) {
+    assert.equal(manifests.find(({ id }) => id === legacy.id)?.propsSchema, legacy.propsSchema, legacy.id);
+  }
 });
 
 test("a manifest with no description is searchable by its other fields and is projected without a description key", () => {

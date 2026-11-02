@@ -1,6 +1,6 @@
 import type { ComponentCatalogEntry, ComponentCatalogQuery, ComponentCatalogSearchHit } from "@jini-ai/daemon/http";
 import { ALL_MANIFESTS, type InteractiveComponentManifest } from "@jini-ai/ui/interactive-ui/manifests";
-import { chartProvidersByKind, createChartProviderRegistry } from "@jini-ai/ui/charts";
+import { chartCatalogManifests as jiniChartCatalogManifests } from "@jini-ai/ui/charts";
 import type { AdminChartProviderSnapshot } from "#src/contracts/headless/index";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
@@ -60,41 +60,26 @@ function toEntry(manifest: InteractiveComponentManifest): ComponentCatalogEntry 
   };
 }
 
+/** Everything in the shipped manifest list except charts; Jini's headless owner supplies those. */
+const NON_CHART_MANIFESTS = ALL_MANIFESTS.filter((manifest) => !manifest.capabilities.includes("chart"));
+
 /**
- * The admin's live chart aliases without React: the same wire IDs and schemas, each reporting the
- * provider Jini's headless `chartProvidersByKind` picks (what admin renders), or `core.table`.
+ * The live catalog for the admin's chart snapshot, without React: the non-chart manifests plus
+ * Jini's chart entries (`@jini-ai/ui/charts` `chartCatalogManifests`), i.e. the legacy `recharts.*`
+ * wire ids with unchanged schemas reporting the provider admin renders (or `core.table`), one
+ * `<provider>.<kind>-chart` entry per admitted provider and kind, and `chart.spec`, which is listed
+ * even with no provider so a saved chart still has a describable entry after its provider is disabled.
  * The server cannot import `@jini-ai/ui/charts/react` or `@jini-ai/ui/interactive-ui` — both pull
  * React and its UI peers, which the website's production install does not carry.
- * @complexity O(m + p) per snapshot (m manifests, p admitted providers); callers cache by generation.
+ * @complexity O(m + k * p) per snapshot (m manifests, k kinds, p admitted providers); callers cache by generation.
  * @example chartCatalogManifests({ snapshot });
  */
-/**
- * Projects the admin snapshot into the chart-provider registry's provider shape for server-side
- * selection only. Every `load` refuses: chart provider code is a browser bundle, and the server only
- * needs ids/kinds to pick which provider a manifest advertises.
- *
- * @complexity O(p) in snapshot providers.
- */
-export function serverSideChartProviders(
-  { snapshot }: { snapshot: AdminChartProviderSnapshot },
-  _options: Record<string, never> = {},
-) {
-  return snapshot.providers.map(({ id, kinds }) => ({
-    id, kinds, enabled: true, load: () => Promise.reject(new Error("chart providers load in the browser only")),
-  }));
-}
-
 export function chartCatalogManifests(
   { snapshot }: { snapshot: AdminChartProviderSnapshot },
   _options: Record<string, never> = {},
 ): readonly InteractiveComponentManifest[] {
-  const registry = createChartProviderRegistry({ providers: serverSideChartProviders({ snapshot }) });
-  return ALL_MANIFESTS.map((manifest) => {
-    const capability = manifest.capabilities.includes("chart") ? manifest.capabilities.find((c) => c.endsWith("-chart")) : undefined;
-    if (!capability) return manifest;
-    const [selected] = chartProvidersByKind({ registry, kind: capability.slice(0, -"-chart".length) }, { siteProvider: snapshot.siteProvider });
-    return selected ? { ...manifest, provider: selected.id } : manifest;
-  });
+  const providers = snapshot.providers.map(({ id, kinds }) => ({ id, kinds }));
+  return [...NON_CHART_MANIFESTS, ...jiniChartCatalogManifests({ providers }, { siteProvider: snapshot.siteProvider })];
 }
 
 /**
