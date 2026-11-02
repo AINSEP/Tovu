@@ -124,7 +124,7 @@ function snapshot({ root, fs }: { root: string; fs: StagingFilesystem }): [strin
  * Materialize only explicitly chosen installed agent packages into a separate bundled-source tree.
  * Existing differing output is preserved and rejected, so callers cannot select uploaded/edited copies
  * as the chosen npm payload. Use a fresh outputRoot for a changed selection or package version.
- * This never installs or activates plugins, or reconciles content/agent-plugins/ui-ux-design wording.
+ * This only stages package payloads; installation, activation and host overlay composition belong to callers.
  * @param required Host resolution root, explicit package or subpath names (empty selects none), dedicated output root.
  * @param optional Filesystem, npm listing and subprocess ports; no package-manager lifecycle scripts run.
  * @returns A source root for the existing seeder and sorted plugin IDs, only after the complete tree is ready.

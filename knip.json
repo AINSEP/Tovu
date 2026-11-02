@@ -64,6 +64,7 @@
         "development/e2e/**/*.{spec,test,journey}.ts",
         "development/playwright*.config.ts",
         "content/agent-plugins/**/__tests__/*.test.mjs",
+        "content/agent-plugin-overlays/**/__tests__/**/*.mjs",
         "content/agent-plugins/*/scripts/*.mjs",
         "apps/website/src/cli/__tests__/fixtures/**/*.mjs",
         "apps/website/src/features/deployments/deploy-ops/__tests__/fixtures/**/*.mjs"
