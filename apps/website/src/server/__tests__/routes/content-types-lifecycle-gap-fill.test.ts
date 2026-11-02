@@ -10,6 +10,7 @@ import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-htt
 import { registerAdminContentTypeRegisterRoute } from "../../inbound/admin-http/routes/content-types/register.js";
 import { registerAdminContentTypeLifecycleRoute } from "../../inbound/admin-http/routes/content-types/lifecycle.js";
 import type { RouteDeps } from "../../routes/types.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file Coverage-gap-fill for `content-types/lifecycle.ts` (deprecate/reactivate/tombstone,
@@ -213,5 +214,7 @@ test("lifecycle: 500s (generic) when the repo explodes on an otherwise-valid req
 
   const { status, json } = await lifecycle(baseUrl, cookie, "explode_type", "deprecate", 1);
   assert.equal(status, 500);
-  assert.deepEqual(json, { error: "db exploded", code: "INTERNAL_ERROR" });
+  // 88f429c25 stopped echoing err.message: the shared envelope conceals the cause behind an incident id.
+  assertAdminResponse({ actual: json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assert.doesNotMatch(JSON.stringify(json), /db exploded/);
 });
