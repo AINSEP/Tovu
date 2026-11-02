@@ -75,7 +75,7 @@ function todayIso(): string {
  */
 function runGate(gate: GateEntry & { id: string; run: string }): GateExitCode {
   process.stdout.write(`\n${"=".repeat(66)}\n>>> GATE: ${gate.id}\n${"=".repeat(66)}\n`);
-  const result = spawnSync(gate.run, { cwd: DESKTOP_ROOT, shell: true, stdio: ["ignore", "pipe", "pipe"], encoding: "utf8", maxBuffer: 64_000_000 });
+  const result = spawnSync(gate.run, { cwd: DESKTOP_ROOT, shell: true, stdio: ["ignore", "pipe", "pipe"], encoding: "utf8", maxBuffer: 1_000_000 });
   if (result.stdout) process.stdout.write(sanitizeUntrustedText({ text: redactLocalText({ text: result.stdout }) }, { maxLength: 2_000 }) + "\n");
   if (result.stderr) process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: result.stderr }) }, { maxLength: 2_000 }) + "\n");
   if (result.error) {
@@ -86,18 +86,7 @@ function runGate(gate: GateEntry & { id: string; run: string }): GateExitCode {
     process.stderr.write(`check-gates: gate "${gate.id}" was killed by ${result.signal} — treating as FAILURE.\n`);
     return null;
   }
-  if (result.status !== 0) writeFailureTail(gate.id, `${result.stdout ?? ""}\n${result.stderr ?? ""}`);
   return result.status;
-}
-
-/** A failing gate's own failure summary (node:test's "failing tests" block, tsc's errors) comes at the
- *  END of its output, which the 2,000-character head above cuts off — the desktop 0.1.26 release
- *  run failed with no failing-test name visible at all. Print the redacted tail too, on failure only.
- *  @complexity O(n) in the output length. */
-function writeFailureTail(gateId: string, output: string): void {
-  const tail = output.slice(-6_000);
-  process.stderr.write(`\n--- check-gates: last ${tail.length} characters of failing gate "${gateId}" ---\n`);
-  process.stderr.write(sanitizeUntrustedText({ text: redactLocalText({ text: tail }) }, { maxLength: 6_000 }) + "\n");
 }
 
 /** Prints the manifest problems and returns whether any were found. Kept separate so `main` stays
