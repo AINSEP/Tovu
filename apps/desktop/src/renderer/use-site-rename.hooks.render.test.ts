@@ -84,6 +84,33 @@ test('a rejected save keeps the overlay open with main\'s sentence and stops the
   assert.equal(hook.current().renameError, null, 'reopening starts clean');
 });
 
+test('after a rejected save the draft is kept and Save offered again; a retry clears the old sentence at once and resends the same draft', async (t) => {
+  const fake = renameBridge();
+  const renamed: SiteRecord[] = [];
+  const hook = renderHook(t, () => useSiteRename((record) => renamed.push(record), { getBridge: fake.getBridge }));
+  act(() => hook.current().startRename(SITE));
+  act(() => hook.current().setDraft('New name'));
+  const first = hook.current().submitRename(SITE.id);
+  fake.next().reject(new Error('Folder is unavailable'));
+  await first;
+  await settle();
+  assert.equal(hook.current().draft, 'New name', 'the typed name survives the failure');
+  assert.equal(hook.current().renameError, 'Folder is unavailable');
+  assert.equal(hook.current().canSave, true, 'Save is offered again');
+  assert.deepEqual(renamed, []);
+  const second = hook.current().submitRename(SITE.id);
+  await settle();
+  assert.equal(hook.current().renameError, null, 'the retry clears the old failure at once');
+  assert.equal(hook.current().saving, true);
+  const record = { ...SITE, displayName: 'New name' };
+  fake.next().resolve(record);
+  await second;
+  await settle();
+  assert.equal(hook.current().renamingId, null);
+  assert.equal(renamed[0], record, 'main\'s own record is handed over, not a copy');
+  assert.deepEqual(fake.sent, [{ id: SITE.id, name: 'New name' }, { id: SITE.id, name: 'New name' }]);
+});
+
 test('refusals never reach the bridge and never show a spinner', async (t) => {
   const fake = renameBridge();
   const invalid = renderHook(t, () => useSiteRename(undefined, { getBridge: fake.getBridge }));
