@@ -42,7 +42,7 @@
 #
 #   typecheck (root) -> check:boundaries -> check:architecture -> check:inventory ->
 #   check:src-complexity-drift -> check:seed-content-drift -> check:admin-screens-drift ->
-#   complexity (eslint) -> typecheck (admin) -> admin:build
+#   check:test-safety -> complexity (eslint) -> typecheck (admin) -> admin:build
 #
 # The first 8 mirror the `build-and-test` job in ci.yml, same order. `check:seed-content-
 # drift` (added 2026-08-21, see that script's own header for why -- src/server/seed.ts
@@ -183,6 +183,7 @@ run_gate "check:inventory"             npm run check:inventory
 run_gate "check:src-complexity-drift"  npm run check:src-complexity-drift
 run_gate "check:seed-content-drift"    npm run check:seed-content-drift
 run_gate "check:admin-screens-drift"   npm run check:admin-screens-drift
+run_gate "check:test-safety"           npm run check:test-safety
 run_gate "complexity (eslint)"         npm run complexity
 run_gate "typecheck (admin)"           npm --prefix apps/admin run typecheck
 run_gate "admin:build"                 npm run admin:build

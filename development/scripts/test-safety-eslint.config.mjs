@@ -1,8 +1,11 @@
 import tseslint from 'typescript-eslint';
 
-// A focused guard the coordinator can run without the repo's unrelated complexity backlog.
+// A focused guard, run on the diff by check:test-safety (check-test-safety-diff.ts), separate from the
+// repo's unrelated complexity backlog.
 export default [{
-  files: ['apps/website/**/__tests__/**/*.ts', 'apps/website/**/*.test.ts', 'development/scripts/__tests__/**/*.ts'],
+  // Every TypeScript root `npm run test:ci` runs under tsx; check:test-safety applies it to changed files only.
+  files: ['apps/website', 'apps/site-chat', 'packages/*/src', 'development/scripts', 'development/eslint-rules']
+    .flatMap(root => [`${root}/**/__tests__/**/*.ts`, `${root}/**/*.test.ts`]),
   languageOptions: { parser: tseslint.parser },
   linterOptions: { noInlineConfig: true },
   rules: {

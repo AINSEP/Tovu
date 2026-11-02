@@ -71,6 +71,7 @@
     "check:admin-screens-drift": "cd apps/admin && npx vitest run src/lib/__tests__/admin-screens-manifest.unit.test.ts",
     "check:route-coverage-floor": "tsx development/scripts/check-route-coverage-floor.ts",
     "check:route-coverage-diff": "tsx development/scripts/check-route-coverage-diff.ts",
+    "check:test-safety": "tsx development/scripts/check-test-safety-diff.ts",
     "check:route-test-baseline": "tsx development/scripts/check-test-baseline.ts development/scripts/route-test-failure-baseline.json",
     "check:jini-registry-drift": "node development/scripts/check-jini-registry-drift.mjs",
     "check:openapi-contract": "tsx development/scripts/check-openapi-contract.ts",

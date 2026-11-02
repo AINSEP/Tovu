@@ -66,6 +66,10 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          # check:test-safety diffs against the push's `before` SHA / the PR base, which a
+          # depth-1 clone does not contain.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -283,6 +287,16 @@ jobs:
         continue-on-error: true
         run: npm run check:default-credential
 
+      - name: Check test assertion messages (diff ratchet)
+        # A failing message-less assert.ok in a tsx-run test can pin a CPU for 20+ min and
+        # --test-timeout cannot stop it (open-bugs 10-31). Changed test files may not gain such
+        # assertions vs their merge-base copy; untouched historical ones never fail this step.
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+        id: gate-test-safety
+        continue-on-error: true
+        run: npm run check:test-safety
+
       - name: Hardwiring audit guards (exact occurrence debt ratchet)
         id: gate-hardwiring
         continue-on-error: true
@@ -385,6 +399,7 @@ jobs:
           check "${{ steps.gate-coverage-integrity.outcome }}" "check:coverage-integrity"
           check "${{ steps.gate-seal-aad.outcome }}"           "check:seal-aad"
           check "${{ steps.gate-default-credential.outcome }}" "check:default-credential"
+          check "${{ steps.gate-test-safety.outcome }}"       "check:test-safety (assertion messages)"
           check "${{ steps.gate-eslint-boundaries.outcome }}"  "complexity (ESLint import boundaries)"
           # Keep hardwiring informational until devops publishes the guard exports
           # and the coordinator updates the installed version and lockfile.
