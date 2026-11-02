@@ -4,7 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 /**
- * @file Tovu's overlay for the shared `ui-ux-design` plugin (`@jini-ai/plugin-ui-ux-design`).
+ * @file Tovu's overlay for the shared `ui-ux-design` plugin (`@jini-ai/agent-plugins/ui-ux-design`).
  * The shared skills are host-neutral; Tovu's chat rules (no shell or installers from chat, tool
  * discovery, an honest note when shadcn MCP is missing) were deliberate (46a03a47d) and now ride
  * this overlay. These are the source-text pins that `content/agent-plugins/ui-ux-design/__tests__`

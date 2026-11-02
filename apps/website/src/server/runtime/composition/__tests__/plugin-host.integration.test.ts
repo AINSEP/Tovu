@@ -7,7 +7,6 @@ import { withExtensionApprovalPolicy } from "../../../../assistant/assistant-too
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtemp, mkdir, rm, readFile, writeFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import { readPluginIdentity } from '@jini-ai/core/plugin-directory';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -27,6 +26,7 @@ import { WORD_COUNT_MANIFEST } from '#src/features/plugin-runtime/built-ins/word
 import { CONTENT_ANALYZER_MANIFEST } from '#src/features/plugin-runtime/built-ins/content-analyzer/index';
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, recordBundledAgentPluginDigests } from '#src/features/agent-plugins/lifecycle';
 import { bundledContributionSources } from '#src/features/agent-plugins/bundled-contribution-sources';
+import { composedBundledSourceRoot } from '#src/features/agent-plugins/__tests__/fixtures/bundled-source-root';
 import { buildPluginsRegistrations, type PluginsToolDeps } from '#src/features/plugin-runtime/tool-registrations';
 import { loadEnabledPluginCapabilityToolSources, buildPluginCapabilityToolRegistrations } from '#src/features/plugin-runtime/capability-tool-registrations';
 import { requiredPostReader } from '#src/features/plugin-runtime/__tests__/fixtures/plugin-post-read';
@@ -176,10 +176,15 @@ test('search_tools indexes a site plugin keyword and provides capability', async
 });
 
 
-test('every bundled agent and site package declares a distinct publisher identity and discovery terms', async () => {
-  const base = new URL('../../../../../../../content/agent-plugins/', import.meta.url);
+// Shared plugins published by Jini carry Jini's publisher id; every other bundled plugin is Tovu's.
+const JINI_PUBLISHED_IDENTITIES: ReadonlyMap<string, string> = new Map([['ui-ux-design', 'jini/ui-ux-design'], ['charts-recharts', 'jini/charts-recharts-agent']]);
+
+test('every bundled agent and site package declares a distinct publisher identity and discovery terms', async (t) => {
+  // The shipped bundle: Tovu's content/agent-plugins plus each selected @jini-ai/agent-plugins/<id>.
+  const bundle = await composedBundledSourceRoot();
+  t.after(() => bundle.dispose());
   const ids: string[] = [];
-  const packages = bundledContributionSources({ sourceRoot: fileURLToPath(base), filename: 'plugin.json' });
+  const packages = bundledContributionSources({ sourceRoot: bundle.root, filename: 'plugin.json' });
   assert.ok(packages.length > 0);
   for (const pluginId of BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED) {
     assert.ok(packages.some(entry => entry.pluginId === pluginId), `${pluginId}: bundled manifest must exist`);
@@ -187,7 +192,7 @@ test('every bundled agent and site package declares a distinct publisher identit
   for (const entry of packages) {
     const value = JSON.parse(await readFile(path.join(entry.packageRoot, 'plugin.json'), 'utf8'));
     const identity = readPluginIdentity({ manifest: value, namespace: 'tovu' });
-    assert.equal(identity.id, entry.pluginId === 'ui-ux-design' ? 'jini/ui-ux-design' : 'tovu/' + value.name);
+    assert.equal(identity.id, JINI_PUBLISHED_IDENTITIES.get(entry.pluginId) ?? 'tovu/' + value.name);
     assert.ok(identity.keywords.length > 0);
     assert.ok(identity.provides.length > 0);
     assert.deepEqual(identity.warnings, []);
