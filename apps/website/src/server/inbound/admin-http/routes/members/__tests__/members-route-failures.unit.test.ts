@@ -2,10 +2,11 @@ import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { dispatchJsonRequest } from '#src/server/__tests__/helpers/in-process-http';
+import { assertAdminResponse } from '#src/server/inbound/admin-http/http/__tests__/assert-admin-response';
 import { registerAdminMemberGetRoute } from '../get-by-id.js';
 import { registerAdminMemberListRoute } from '../list.js';
 import { registerAdminMemberRequestMagicLinkRoute } from '../request-magic-link.js';
-import { WS, BASE, INTERNAL, allowed, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
+import { WS, BASE, INTERNAL_CODE, allowed, fixture, invokeRouteDirectly, testRouteFailureMatrix, type RouteFailureCase } from '#src/server/__tests__/helpers/admin-route-failures';
 import { registerAdminMemberDisableRoute } from '../disable.js';
 
 const routes: RouteFailureCase[] = [
@@ -19,10 +20,13 @@ testRouteFailureMatrix(routes);
 test('member get: a missing record is 404; an unavailable repository is 500', async () => {
   for (const [findById, expected] of [
     [async () => null, { status: 404, body: { error: "member 'member' was not found" } }],
-    [async () => { throw new Error('database details'); }, { status: 500, body: INTERNAL }],
+    [async () => { throw new Error('database details'); }, { status: 500, body: INTERNAL_CODE }],
   ] as const) {
     const { app } = fixture(registerAdminMemberGetRoute, { memberRepo: { findById } });
-    assert.deepEqual(await dispatchJsonRequest(app, 'GET', `${BASE}/members/member`), expected);
+    // The 404 stays an exact snapshot; the 500 is the shared incident envelope without the cause.
+    const actual = await dispatchJsonRequest(app, 'GET', `${BASE}/members/member`);
+    assertAdminResponse({ actual, expected });
+    assert.doesNotMatch(JSON.stringify(actual), /database details/);
   }
 });
 
