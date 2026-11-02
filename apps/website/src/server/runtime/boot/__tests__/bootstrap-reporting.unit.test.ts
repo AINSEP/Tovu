@@ -7,11 +7,21 @@ const lifecycle = await import("#src/features/agent-plugins/lifecycle");
 const tokens = await import("#src/features/agent-plugins/import-access-token");
 const renames = await import("#src/features/agent-plugins/apply-tool-renames");
 const faces = await import("#src/features/agent-plugins/provider-plugin-link");
+const catalog = await import("#src/features/agent-plugins/bundled-catalog");
 const calls: string[] = [];
 let report: SeedBundledAgentPluginsResult = { sourceRoot: "bundled", outcomes: [], retirements: [] };
+// Boot-warning inputs (plugins plan v2 §3.4): mutated per case, read by bootstrap at call time.
+const selection = new Map<string, string>();
+let activations: { schemaVersion: 1; plugins: Record<string, { enabled: boolean }> } = { schemaVersion: 1, plugins: {} };
+let activationsFailure: Error | undefined;
+let installed: { pluginId: string }[] = [];
 mock.module("#src/features/agent-plugins/lifecycle", { namedExports: { ...lifecycle,
   seedBundledAgentPlugins: async () => { calls.push("seed"); return report; },
+  listInstalledPlugins: async () => installed,
+  explicitRootAgentPluginActivations: { ...lifecycle.explicitRootAgentPluginActivations,
+    readAgentPluginActivations: async () => { if (activationsFailure) throw activationsFailure; return activations; } },
 } });
+mock.module("#src/features/agent-plugins/bundled-catalog", { namedExports: { ...catalog, SELECTED_AGENT_PLUGIN_PACKAGES: selection } });
 mock.module("#src/features/agent-plugins/import-access-token", { namedExports: { ...tokens,
   importAgentPluginAccessTokensFromEnv: async () => { calls.push("tokens"); },
 } });
@@ -21,13 +31,21 @@ mock.module("#src/features/agent-plugins/apply-tool-renames", { namedExports: { 
 mock.module("#src/features/agent-plugins/provider-plugin-link", { namedExports: { ...faces,
   syncProviderFaces: async () => { calls.push("faces"); },
 } });
-const { buildBootModules } = await import("../bootstrap.js");
+const { buildBootModules, bundledAgentPluginBootWarnings } = await import("../bootstrap.js");
 // Only the bundled prepare step runs; its collaborators are replaced above.
-const bundledDeps = { workspaceId: "test-workspace" } satisfies Pick<NewsletterRouteDeps, "workspaceId">;
+const bundledDeps = { workspaceId: "test-workspace", agentPluginLayout: { forWorkspace: (_workspaceId: string) => ({ root: "/workspace" }) } };
 const deps = bundledDeps as NewsletterRouteDeps;
+
+function resetWarningInputs(): void {
+  selection.clear();
+  activations = { schemaVersion: 1, plugins: {} };
+  activationsFailure = undefined;
+  installed = [];
+}
 
 test("TW2: bundled preparation reports failures and retirements in order before tokens and renames", async (t) => {
   calls.length = 0;
+  resetWarningInputs();
   t.mock.method(console, "warn", (line: string) => { calls.push(`warn:${line}`); });
   t.mock.method(console, "info", (line: string) => { calls.push(`info:${line}`); });
   report = { sourceRoot: "bundled", ledgerFailure: "ledger unavailable", outcomes: [
@@ -56,4 +74,63 @@ test("TW2: bundled preparation reports failures and retirements in order before 
   report = { sourceRoot: "bundled", outcomes: [], retirements: [] };
   await bundled.prepare();
   assert.deepEqual(calls, ["seed", "faces", "tokens", "renames"]);
+});
+
+const SEEDED_NOTHING = "warn:[bundled-agent-plugins] this build selects 2 plugin packages (jev, site-import) but no bundled plugin was found in bundled; rebuild Tovu (in development: npm run agent-plugins:compose, then restart)";
+
+test("D0a: boot warns, never refuses, when the bundled folder seeded nothing although packages are selected", async (t) => {
+  calls.length = 0;
+  resetWarningInputs();
+  t.mock.method(console, "warn", (line: string) => { calls.push(`warn:${line}`); });
+  selection.set("jev", "@jini-ai/plugin-jev").set("site-import", "@jini-ai/plugin-site-import");
+  report = { sourceRoot: "bundled", outcomes: [], retirements: [] };
+  const bundled = buildBootModules(deps, { useMemory: true, defaultContentDbPath: () => ":memory:" }).find(module => module.name === "bundled-agent-plugins");
+  assert.ok(bundled);
+  await bundled.prepare();
+  assert.deepEqual(calls, ["seed", SEEDED_NOTHING, "faces", "tokens", "renames"]);
+});
+
+test("D0a: an enabled plugin with neither a bundled source nor an installed package is named once; present ones are not", async (t) => {
+  calls.length = 0;
+  resetWarningInputs();
+  t.mock.method(console, "warn", (line: string) => { calls.push(`warn:${line}`); });
+  report = { sourceRoot: "bundled", outcomes: [
+    { pluginId: "seeded", status: "seeded", archiveDigest: "digest", activationRecorded: true },
+    { pluginId: "broken", status: "failed", reason: "bad package" },
+  ], retirements: [] };
+  activations = { schemaVersion: 1, plugins: { seeded: { enabled: true }, broken: { enabled: true }, uploaded: { enabled: true }, gone: { enabled: true }, off: { enabled: false } } };
+  installed = [{ pluginId: "uploaded" }];
+  const bundled = buildBootModules(deps, { useMemory: true, defaultContentDbPath: () => ":memory:" }).find(module => module.name === "bundled-agent-plugins");
+  assert.ok(bundled);
+  await bundled.prepare();
+  assert.deepEqual(calls, [
+    "seed",
+    "warn:[bundled-agent-plugins] 'broken' could not be seeded: bad package",
+    "warn:[bundled-agent-plugins] 'gone' is turned on, but this build does not ship it and it is not installed; add its package to the build, or turn it off in Agent Plugins",
+    "faces", "tokens", "renames",
+  ]);
+});
+
+test("D0a: an unreadable activations file costs only the enabled-plugin check; the seeded-nothing warning and boot continue", async (t) => {
+  calls.length = 0;
+  resetWarningInputs();
+  t.mock.method(console, "warn", (line: string) => { calls.push(`warn:${line}`); });
+  selection.set("jev", "@jini-ai/plugin-jev").set("site-import", "@jini-ai/plugin-site-import");
+  activationsFailure = new Error("activations.json is unreadable");
+  report = { sourceRoot: "bundled", outcomes: [], retirements: [] };
+  const bundled = buildBootModules(deps, { useMemory: true, defaultContentDbPath: () => ":memory:" }).find(module => module.name === "bundled-agent-plugins");
+  assert.ok(bundled);
+  await bundled.prepare();
+  assert.deepEqual(calls, [
+    "seed",
+    "warn:[bundled-agent-plugins] could not compare enabled plugins with this build: activations.json is unreadable",
+    SEEDED_NOTHING,
+    "faces", "tokens", "renames",
+  ]);
+});
+
+test("D0a: no selection and an empty folder is quiet; an id both seeded and enabled is quiet", () => {
+  assert.deepEqual(bundledAgentPluginBootWarnings({ sourceRoot: "bundled", seededIds: [], selectedIds: [], enabledIds: [], installedIds: [] }), []);
+  assert.deepEqual(bundledAgentPluginBootWarnings({ sourceRoot: "bundled", seededIds: ["fly"], selectedIds: ["fly"], enabledIds: ["fly"], installedIds: [] }), []);
+  assert.deepEqual(bundledAgentPluginBootWarnings({ sourceRoot: "bundled", seededIds: ["fly"], selectedIds: [], enabledIds: ["a", "b"], installedIds: ["b"] }).length, 1);
 });
