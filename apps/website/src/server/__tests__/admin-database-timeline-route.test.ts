@@ -6,6 +6,7 @@ import express from "express";
 import { ToolInputError } from "@jini-ai/core";
 
 import { bootAuthenticated } from "./helpers/http-test-server.js";
+import { assertAdminResponse } from "../inbound/admin-http/http/__tests__/assert-admin-response.js";
 import { InMemoryDatabaseLedgerRepo } from "../../features/database/repo.memory.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
@@ -162,7 +163,10 @@ for (const failure of [new Error("ledger unavailable"), "private ledger failure"
     const read = t.mock.method(deps.databaseLedgerRepo, "query", async () => { throw failure; });
     const response = await fetch(`${baseUrl}/api/admin/v1/database/timeline`, { headers: { cookie } });
     assert.equal(response.status, 500);
-    assert.deepEqual(await response.json(), { error: failure instanceof Error ? failure.message : "internal error", code: "INTERNAL_ERROR" });
+    // The shared admin failure envelope conceals the cause (Error or not) behind a correlatable id.
+    const body = await response.json();
+    assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assert.doesNotMatch(JSON.stringify(body), /ledger (unavailable|failure)/);
     assert.equal(read.mock.callCount(), 1);
   });
 }
