@@ -18,7 +18,7 @@ import { after, before, beforeEach, test } from 'node:test';
 
 import { loadPluginContributionsFromSource } from '../../../../apps/website/src/features/agent-plugins/lifecycle.ts';
 import { createOAuthDeliverySite, FORM_ID } from '../../../../apps/website/src/server/runtime/composition/__tests__/form-delivery-oauth.fixture.ts';
-import { SPREADSHEET_MIME_TYPE } from '../lib/picker-selection.mjs';
+import { SPREADSHEET_MIME_TYPE } from '@jini-ai/agent-plugins/google-workspace/lib/picker-selection.mjs';
 import { startFakeGoogle } from './fake-google-http.mjs';
 import { installSheetsGrid } from './fake-sheets-grid.mjs';
 import { PLUGIN_ROOT } from './sheets-admin-harness.mjs';

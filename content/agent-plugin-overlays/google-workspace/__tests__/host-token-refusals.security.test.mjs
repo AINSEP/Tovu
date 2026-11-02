@@ -11,8 +11,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { ConnectionBudgetExceededError } from '../../../../apps/website/src/features/api-connections/budgets.ts';
-import { createGoogleClient } from '../lib/http.mjs';
-import { MAX_INLINE_WAIT_MS } from '../lib/request-policy.mjs';
+import { createGoogleClient } from '@jini-ai/agent-plugins/google-workspace/lib/http.mjs';
+import { MAX_INLINE_WAIT_MS } from '@jini-ai/agent-plugins/google-workspace/lib/request-policy.mjs';
 
 const REQUEST = { connectionRef: 'conn-1', url: 'https://sheets.googleapis.com/v4/spreadsheets/sheet-1/values/A1:append', method: 'POST', body: { values: [['x']] }, kind: 'write' };
 

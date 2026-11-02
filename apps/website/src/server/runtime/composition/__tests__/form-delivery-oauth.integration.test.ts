@@ -9,7 +9,7 @@
  * port (written to `core.forms/deliveryBindings` as the admin) and that binding delivers; the host
  * refuses an adapter the plugin declares but does not contribute, and never lets the surface reach
  * another adapter's binding. The
- * google-workspace plugin's twin is `content/agent-plugins/google-workspace/__tests__/
+ * google-workspace plugin's twin is `content/agent-plugin-overlays/google-workspace/__tests__/
  * form-delivery.e2e.test.mjs`. Only the fake's hosts resolve (127.0.0.1); any other host throws.
  */
 import assert from "node:assert/strict";

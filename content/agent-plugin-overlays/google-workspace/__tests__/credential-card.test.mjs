@@ -1,3 +1,4 @@
+import path from 'node:path';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -5,11 +6,14 @@ import { parsePluginCredentialCards } from '../../../../apps/website/src/feature
 import { buildAgentPluginConnectCard } from '../../../../apps/website/src/features/agent-plugins/connect-card-ui.ts';
 import { buildPluginCredentialForm } from "../../../../apps/website/src/contracts/core/plugin-credential-card.js";
 import { readPluginCredentialValues } from "../../../../apps/website/src/features/custom-credentials/plugin-credential-card.js";
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
-const raw = readFileSync(new URL('../plugin.json', import.meta.url), 'utf8');
-const skill = readFileSync(new URL('../skills/google-workspace/SKILL.md', import.meta.url), 'utf8');
-const connection = JSON.parse(readFileSync(new URL('../tovu-connections.json', import.meta.url), 'utf8')).connections[0];
-const products = JSON.parse(readFileSync(new URL('../products.json', import.meta.url), 'utf8'));
+// Moved from content/agent-plugins/google-workspace (D-W8): the plugin ships as @jini-ai/agent-plugins/google-workspace.
+const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'google-workspace' });
+
+const raw = readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8');
+const connection = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'tovu-connections.json'), 'utf8')).connections[0];
+const products = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'products.json'), 'utf8'));
 
 test('Google sign-in card matches the existing OAuth connection and its selected-file permission', () => {
   const parsed = parsePluginCredentialCards({ raw });
@@ -55,18 +59,13 @@ test('Google own-client card fills the existing client-ID and secret slots witho
 });
 
 test('Google guidance chooses sign-in and keeps the own-client fallback on its own card', () => {
-  assert.deepEqual(JSON.parse(readFileSync(new URL('../mcp.json', import.meta.url), 'utf8')).mcpServers, {});
-  assert.ok(skill.includes('agent_plugin_connect { pluginId: "google-workspace" }'));
-  assert.ok(skill.includes('credential_save { kind: "plugin-provider", target: "google-workspace-oauth-client" }'));
-  assert.match(skill, /never ask the person to pick between sign-in and a key/);
-  assert.match(skill, /Never offer to replace a working sign-in or saved app unless asked/);
-  const reference = readFileSync(new URL('../skills/google-workspace/references/connection.md', import.meta.url), 'utf8');
-  assert.ok(reference.includes('target: "google-workspace-oauth-client"'));
-  assert.doesNotMatch(reference, /custom_credential_create/);
+  assert.deepEqual(JSON.parse(readFileSync(path.join(PLUGIN_ROOT, 'mcp.json'), 'utf8')).mcpServers, {});
+  // The Tovu tool names in SKILL.md / connection.md moved to the overlay GUIDANCE.md (D-W8);
+  // google-workspace-overlay.test.mjs pins them.
 });
 
 test('every credential card parses its task purposes', () => {
-  const parsed = parsePluginCredentialCards({ raw: readFileSync(new URL('../plugin.json', import.meta.url), 'utf8') });
+  const parsed = parsePluginCredentialCards({ raw: readFileSync(path.join(PLUGIN_ROOT, 'plugin.json'), 'utf8') });
   assert.equal(parsed.ok, true);
   assert.deepEqual(parsed.descriptors.map(({ providerId, usedFor }) => ({ providerId, usedFor })), [
     {

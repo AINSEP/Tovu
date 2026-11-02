@@ -1,3 +1,4 @@
+import path from 'node:path';
 /**
  * @file OAuth contract for the Google Workspace plugin: the plugin's real connection declaration
  * (`tovu-connections.json`) and hooks (`lib/auth.mjs`) run inside the real Jini API-connection
@@ -20,10 +21,14 @@ import { AesGcmSecretSealer } from '@jini-ai/platform/secrets';
 import { InMemoryKeyring } from '@jini-ai/platform/secrets/testing';
 import { InMemoryVaultRepo, SecretsVaultService, createVaultMetaParsers } from '@jini-ai/platform/secrets/credential-sets';
 
-import hooksModule, { GOOGLE_REVOCATION_ENDPOINT } from '../lib/auth.mjs';
-import { createGoogleClient } from '../lib/http.mjs';
-import accountInfo from '../tools/account-info.mjs';
+import hooksModule, { GOOGLE_REVOCATION_ENDPOINT } from '@jini-ai/agent-plugins/google-workspace/lib/auth.mjs';
+import { createGoogleClient } from '@jini-ai/agent-plugins/google-workspace/lib/http.mjs';
+import accountInfo from '@jini-ai/agent-plugins/google-workspace/tools/account-info.mjs';
 import { startFakeGoogle } from './fake-google-http.mjs';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
+
+// Moved from content/agent-plugins/google-workspace (D-W8): the plugin ships as @jini-ai/agent-plugins/google-workspace.
+const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'google-workspace' });
 
 const DRIVE_FILE = 'https://www.googleapis.com/auth/drive.file';
 const WS = 'ws-1';
@@ -43,7 +48,7 @@ beforeEach(() => { fake.reset(); });
 
 /** The plugin's declaration, split the way the host loader splits it. */
 async function declaredDescriptor() {
-  const file = JSON.parse(await readFile(new URL('../tovu-connections.json', import.meta.url), 'utf8'));
+  const file = JSON.parse(await readFile(path.join(PLUGIN_ROOT, 'tovu-connections.json'), 'utf8'));
   const { id, module: _module, clients: _clients, ...descriptor } = file.connections[0];
   return parseApiConnectionDescriptor({ value: { ...descriptor, pluginId: 'google-workspace', connectionId: id } });
 }

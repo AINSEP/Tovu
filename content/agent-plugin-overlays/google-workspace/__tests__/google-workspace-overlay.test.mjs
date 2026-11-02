@@ -7,7 +7,7 @@ import { nativeToolMetadata } from '../../../../apps/website/src/contracts/core/
 
 /**
  * @file Tovu's overlay for the portable `google-workspace` plugin (now
- * `@jini-ai/plugin-google-workspace`). The plugin's skill names jobs; this overlay names Tovu's
+ * `@jini-ai/agent-plugins/google-workspace`). The plugin's skill names jobs; this overlay names Tovu's
  * tools, screens and OAuth callback route for them. The skill pins that lived in the plugin's
  * `credential-card.test.mjs` (connect call, own-client card call, no `custom_credential_create`)
  * run here now, plus a drift guard: a renamed native tool would leave the guidance telling every

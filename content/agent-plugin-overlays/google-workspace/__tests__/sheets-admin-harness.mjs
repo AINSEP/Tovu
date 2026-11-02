@@ -22,8 +22,10 @@ import { createIssuedTokenMemories, defineAgentPluginToolContribution } from '@j
 import { applyToolApprovalPolicy } from '../../../../apps/website/src/assistant/tool-approval-policy.ts';
 import { withExtensionApprovalPolicy } from '../../../../apps/website/src/assistant/assistant-tool-approval-policy.ts';
 import { registerAgentPluginExecutableTools } from '../../../../apps/website/src/features/agent-plugins/executable-tools/register.ts';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
-export const PLUGIN_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// The plugin ships as @jini-ai/agent-plugins/google-workspace (D-W8); Tovu's harness boots it from there.
+export const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'google-workspace' });
 export const PLUGIN = 'google-workspace';
 export const WORKSPACE = 'ws-1';
 export const CONNECTION = 'conn-google-1';
@@ -44,7 +46,7 @@ export async function loadPluginTools() {
 
 /** The host's `apiOrigins` port, answered from the plugin's own `tovu-connections.json` (what the real host reads). */
 async function declaredApiOrigins() {
-  const declared = JSON.parse(await readFile(new URL('../tovu-connections.json', import.meta.url), 'utf8'));
+  const declared = JSON.parse(await readFile(path.join(PLUGIN_ROOT, 'tovu-connections.json'), 'utf8'));
   return declared.connections.flatMap((connection) => connection.apiOrigins ?? []);
 }
 
