@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { chmod, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { after, before } from "node:test";
 
 
 import { currentToolIdFor } from "#src/assistant/content-read-tool";
@@ -23,13 +23,15 @@ import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveAgentPluginRefs, listInstalledPlugins } from "#src/features/agent-plugins/lifecycle";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, seedBundledAgentPlugins } from "#src/features/agent-plugins/lifecycle";
 import { loadAgentPluginSearchCandidates, loadInstalledAgentPluginToolSources, registerInstalledAgentPluginTools } from "#src/features/agent-plugins/tool-registrations";
+import { composedBundledSourceRoot, type DisposableSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 
 /**
  * @file The end-to-end proof that "bundled but inactive" is a real, enforced condition — not a
  * comment.
  *
- * Seeds the REAL `content/agent-plugins/site-compliance/` package (the bytes that ship with the
- * product, not a fixture) into a temp workspace, then asserts it is simultaneously:
+ * Seeds the REAL bundle, composed the way the build composes it (Tovu's `content/agent-plugins/`
+ * plus each selected package, so `site-compliance` comes from `@jini-ai/plugin-site-compliance`
+ * since D-W1), into a temp workspace, then asserts the `site-compliance` package is simultaneously:
  *
  * - **installed** — present on disk, indexable, so an operator can inspect and enable it; and
  * - **absent from both consumption surfaces** — tool registration and run-start prompt injection.
@@ -42,7 +44,9 @@ import { loadAgentPluginSearchCandidates, loadInstalledAgentPluginToolSources, r
  */
 
 const WORKSPACE_ID = "33333333-3333-4333-8333-333333333333";
-const BUNDLED_SOURCE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
+let bundle: DisposableSourceRoot;
+before(async () => { bundle = await composedBundledSourceRoot(); });
+after(() => bundle.dispose());
 const PLUGIN_ID = "site-compliance";
 
 /** `install.ts` freezes published trees to 0o555, so a plain `rm -rf` of a temp install root fails
@@ -69,7 +73,7 @@ async function withSeededWorkspace<T>(
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
   try {
     const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
-    const result = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: BUNDLED_SOURCE_ROOT });
+    const result = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: bundle.root });
 
     const failures = result.outcomes.filter((outcome) => outcome.status === "failed");
     assert.deepEqual(failures, [], `bundled plugins must seed cleanly, got: ${JSON.stringify(failures)}`);
@@ -192,14 +196,14 @@ test("re-seeding is idempotent — same digest, no duplicate install, decision p
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "test:operator" });
 
     const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() });
-    const second = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: BUNDLED_SOURCE_ROOT });
+    const second = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: bundle.root });
 
     const outcome = second.outcomes.find((entry) => entry.pluginId === PLUGIN_ID);
     assert.ok(outcome && outcome.status === "seeded");
     assert.equal(outcome.activationRecorded, false, "a boot after the operator enabled it must not rewrite their decision");
 
     // Scoped to PLUGIN_ID, not a raw count of `packages/sha256/*`: that directory is shared by
-    // EVERY bundled plugin in this workspace (everything under `content/agent-plugins/`), so a bare
+    // EVERY bundled plugin in this workspace (the whole composed bundle), so a bare
     // digest count grows with the bundle and
     // re-breaks this assertion on the next addition. `listInstalledPlugins` already does the
     // digest -> pluginId walk (same one `test 1` above uses) — filtering its result to PLUGIN_ID is
@@ -222,7 +226,7 @@ test("every core, public and bundled guide tool pointer resolves to a currently 
     const { registry } = await realToolCatalog();
     await registerInstalledAgentPluginTools(registry, { withExtensionApprovalPolicy, workspaceId: WORKSPACE_ID, agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) });
     const ids = new Set(registry.list({}).map(tool => tool.id));
-    const parsed = resolveSiteGuideEngine({}).parseGuideTopics({ raw: await readFile(path.join(BUNDLED_SOURCE_ROOT, "how-tovu-works", "tovu-site-guide.json"), "utf8") });
+    const parsed = resolveSiteGuideEngine({}).parseGuideTopics({ raw: await readFile(path.join(bundle.root, "how-tovu-works", "tovu-site-guide.json"), "utf8") });
     if (!parsed.ok) throw new Error(parsed.reason);
     const cards = [...TOVU_CAPABILITY_CARDS, ...parsed.descriptors];
     const visitor = createSiteCapabilityRegistry({ workspaceId: WORKSPACE_ID, postRepo: new InMemoryPostRepo(), listPublishedPosts, memberAccess: anonymousMemberAccess() });

@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { appendFile, chmod, cp, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { after, before } from "node:test";
 
 
 import { resolveAgentPluginLayout } from "../../layout.js";
@@ -16,10 +16,11 @@ import { listInstalledPlugins, resolveAgentPluginRefs } from "../../lifecycle.js
 import { resolveAgentPluginMcpServers } from "../../federate-mcp.js";
 import { seedBundledAgentPlugins } from "../../lifecycle.js";
 import { loadAgentPluginSearchCandidates, loadInstalledAgentPluginToolSources } from "../../tool-registrations.js";
+import { selectedPluginSourceRoot, type DisposableSourceRoot } from "../fixtures/bundled-source-root.js";
 
 /**
  * @file The upgrade path `seed-bundled.ts` claims to support, driven end to end against the REAL
- * bundled `content/agent-plugins/site-compliance/` bytes.
+ * bundled `site-compliance` bytes (its selected package, `@jini-ai/plugin-site-compliance`, since D-W1).
  *
  * Seeding was content-addressed without retiring a digest, so shipping a NEW VERSION of an
  * already-installed bundled plugin used to land it ALONGSIDE the old one — and both consumption
@@ -32,13 +33,18 @@ import { loadAgentPluginSearchCandidates, loadInstalledAgentPluginToolSources } 
  * — the plugin keeps working across the upgrade and serves the NEW content — rather than the
  * ledger's file format, so it stays honest about the product behaviour and not the mechanism.
  *
- * Successful publication now prunes superseded package bytes. The ledger still names a build's
- * authoritative revision in retained legacy stores; these upgrades also assert pruning.
+ * Bundled seeding never prunes a superseded revision (Jini A1, 2026-11-02: seeding passes
+ * `pruneSupersededRevisions: false`), so retained digests are normal and the ledger is what names
+ * the build's authoritative revision; these upgrades assert both digests stay and the new one wins.
  */
 
 const WORKSPACE_ID = "44444444-4444-4444-8444-444444444444";
-const BUNDLED_SOURCE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
 const PLUGIN_ID = "site-compliance";
+
+/** The shipped bundle: only {@link PLUGIN_ID}, copied from the package this host selects. */
+let shipped: DisposableSourceRoot;
+before(async () => { shipped = await selectedPluginSourceRoot({ pluginIds: [PLUGIN_ID] }); });
+after(() => shipped.dispose());
 
 /** Content unique enough that finding it in a prompt prefix or a registered tool's skill markdown
  *  can only mean the UPGRADED package was the one resolved. */
@@ -73,7 +79,7 @@ async function forceRemove(target: string): Promise<void> {
  *  digest. Returns the new source root. */
 async function buildUpgradedBundle(): Promise<string> {
   const upgraded = await mkdtemp(path.join(tmpdir(), "tovu-bundled-upgrade-source-"));
-  await cp(BUNDLED_SOURCE_ROOT, upgraded, { recursive: true });
+  await cp(shipped.root, upgraded, { recursive: true });
   await appendFile(path.join(upgraded, PLUGIN_ID, "skills", PLUGIN_ID, "SKILL.md"), `\n\n## Upgrade\n\n${UPGRADE_MARKER}\n`, "utf8");
 
   const manifestPath = path.join(upgraded, PLUGIN_ID, "plugin.json");
@@ -120,7 +126,7 @@ async function withUpgradeScenario<T>(
 
 test("a bundled upgrade of an ENABLED plugin keeps its tool registered, on the NEW digest", async () => {
   await withUpgradeScenario(async ({ workspaceRoot, upgradedSourceRoot, seedFrom }) => {
-    const firstDigest = await seedFrom(BUNDLED_SOURCE_ROOT);
+    const firstDigest = await seedFrom(shipped.root);
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "operator:test" });
 
     const beforeUpgrade = await loadInstalledAgentPluginToolSources(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }));
@@ -146,7 +152,7 @@ test("a bundled upgrade of an ENABLED plugin keeps its tool registered, on the N
 
 test("a bundled upgrade of an ENABLED plugin keeps run-start injection working, with the NEW content", async () => {
   await withUpgradeScenario(async ({ workspaceRoot, upgradedSourceRoot, seedFrom }) => {
-    await seedFrom(BUNDLED_SOURCE_ROOT);
+    await seedFrom(shipped.root);
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "operator:test" });
     await seedFrom(upgradedSourceRoot);
 
@@ -165,8 +171,8 @@ test("an edited bundled SKILL.md refreshes the site's installed copy even with N
   await withUpgradeScenario(async ({ workspaceRoot, seedFrom }) => {
     const editedOnly = await mkdtemp(path.join(tmpdir(), "tovu-bundled-skill-edit-"));
     try {
-      await cp(BUNDLED_SOURCE_ROOT, editedOnly, { recursive: true });
-      const firstDigest = await seedFrom(BUNDLED_SOURCE_ROOT);
+      await cp(shipped.root, editedOnly, { recursive: true });
+      const firstDigest = await seedFrom(shipped.root);
       await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "operator:test" });
       await appendFile(path.join(editedOnly, PLUGIN_ID, "skills", PLUGIN_ID, "SKILL.md"), `\n\n${UPGRADE_MARKER}\n`, "utf8");
 
@@ -185,9 +191,9 @@ test("an edited bundled SKILL.md refreshes the site's installed copy even with N
   });
 });
 
-test("successful upgrade prunes superseded bytes and keeps the newly published digest", async () => {
+test("an upgrade keeps the superseded bytes and the newly published digest; the ledger names the new one", async () => {
   await withUpgradeScenario(async ({ upgradedSourceRoot, seedFrom }) => {
-    const firstDigest = await seedFrom(BUNDLED_SOURCE_ROOT);
+    const firstDigest = await seedFrom(shipped.root);
     const secondDigest = await seedFrom(upgradedSourceRoot);
 
     const layout = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_ID);
@@ -197,7 +203,10 @@ test("successful upgrade prunes superseded bytes and keeps the newly published d
       .sort();
 
     assert.notEqual(firstDigest, secondDigest);
-    assert.deepEqual(digestsOnDisk, [secondDigest], "only the accepted revision remains installed after publication");
+    assert.deepEqual(digestsOnDisk, [firstDigest, secondDigest].sort(), "bundled seeding retains the superseded revision");
+    const listed = (await loadAgentPluginSearchCandidates(testSiteLayoutContext({ workspaceId: WORKSPACE_ID })))
+      .filter((candidate) => candidate.pluginId === PLUGIN_ID);
+    assert.deepEqual(listed.map((candidate) => candidate.version), [UPGRADED_VERSION], "one listing row, for the revision the ledger names");
   });
 });
 
@@ -206,7 +215,7 @@ test("the admin listing reports the version the RUNNING build ships, in EITHER s
    *  once per entry of `order`, each boot against that bundle. */
   const listedVersionAfter = async (order: readonly ("shipped" | "upgraded")[]): Promise<string | undefined> =>
     withUpgradeScenario(async ({ upgradedSourceRoot, seedFrom }) => {
-      for (const which of order) await seedFrom(which === "shipped" ? BUNDLED_SOURCE_ROOT : upgradedSourceRoot);
+      for (const which of order) await seedFrom(which === "shipped" ? shipped.root : upgradedSourceRoot);
       return (await loadAgentPluginSearchCandidates(testSiteLayoutContext({ workspaceId: WORKSPACE_ID }))).find((candidate) => candidate.pluginId === PLUGIN_ID)?.version;
     });
 
@@ -226,7 +235,7 @@ test("MCP federation reads the RUNNING build's package, in EITHER seeding order"
    *  booting once per entry of `order`. */
   const serverKeysAfter = async (order: readonly ("shipped" | "upgraded")[]): Promise<readonly string[]> =>
     withUpgradeScenario(async ({ upgradedSourceRoot, seedFrom }) => {
-      for (const which of order) await seedFrom(which === "shipped" ? BUNDLED_SOURCE_ROOT : upgradedSourceRoot);
+      for (const which of order) await seedFrom(which === "shipped" ? shipped.root : upgradedSourceRoot);
       return Object.keys(await resolveAgentPluginMcpServers(testSiteLayoutContext({ workspaceId: WORKSPACE_ID, pluginId: PLUGIN_ID })));
     });
 
@@ -241,7 +250,7 @@ test("MCP federation reads the RUNNING build's package, in EITHER seeding order"
 
 test("a bundled upgrade preserves an operator's disabled decision and keeps both gates closed", async () => {
   await withUpgradeScenario(async ({ workspaceRoot, upgradedSourceRoot, seedFrom }) => {
-    const original = await seedFrom(BUNDLED_SOURCE_ROOT);
+    const original = await seedFrom(shipped.root);
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: false, actor: "operator:test" });
     const before = (await readAgentPluginActivations({ workspaceRoot })).plugins[PLUGIN_ID];
     const upgraded = await seedFrom(upgradedSourceRoot);

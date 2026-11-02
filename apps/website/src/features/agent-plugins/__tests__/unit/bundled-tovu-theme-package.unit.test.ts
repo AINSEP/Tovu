@@ -3,6 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 import { RETIRED_READ_TOOL_TO_CARD } from "../../../../assistant/content-read-tool.js";
 import { nativeToolMetadata } from "../../../../contracts/core/tool-metadata/index.js";
 
@@ -18,11 +19,18 @@ import { nativeToolMetadata } from "../../../../contracts/core/tool-metadata/ind
  * - the theme is rebuilt (container, header partial, page shell, fonts), not recoloured;
  * - site-import delegates instead of carrying its own duplicate-and-tweak recipe;
  * - no ownership / right-to-copy gate anywhere (owner order: copy anything).
+ *
+ * site-import ships as `@jini-ai/plugin-site-import` (D-W1) and names capabilities, not Tovu
+ * plugins or tools; Tovu's names for its hand-offs live in its overlay, so those pins read the
+ * overlay and the portable pins read the selected package.
  */
 
 const PLUGINS_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
 const THEME_SKILL_DIR = path.join(PLUGINS_ROOT, "tovu-theme", "skills", "tovu-theme");
-const IMPORT_SKILL_DIR = path.join(PLUGINS_ROOT, "site-import", "skills", "site-import");
+const IMPORT_SKILL_DIR = path.join(agentPluginSourceDir({ pluginId: "site-import" }), "skills", "site-import");
+const IMPORT_OVERLAY_DIR = path.resolve(PLUGINS_ROOT, "../agent-plugin-overlays/site-import");
+const importGuidance = () => readFile(path.join(IMPORT_OVERLAY_DIR, "GUIDANCE.md"), "utf8");
+const importHostMapping = () => readFile(path.join(IMPORT_OVERLAY_DIR, "host", "content-mapping.md"), "utf8");
 
 async function readSkillTree(dir: string): Promise<Array<{ name: string; text: string }>> {
   const references = (await readdir(path.join(dir, "references"))).filter((name) => name.endsWith(".md"));
@@ -62,12 +70,14 @@ function unknownToolIds(name: string, ids: Iterable<string>, declared: ReadonlyS
 const themeSkill = () => readFile(path.join(THEME_SKILL_DIR, "SKILL.md"), "utf8");
 
 test("tovu-theme and site-import load ui-ux-design before designing themes or writing page layouts", async () => {
-  for (const dir of [THEME_SKILL_DIR, IMPORT_SKILL_DIR]) {
-    const skill = await readFile(path.join(dir, "SKILL.md"), "utf8");
-    const instruction = '**Load design first.** Before designing a theme or writing page layouts, call `agent_plugin_ui_ux_design({"skill":"ui-ux-design"})`';
-    const position = skill.indexOf(instruction);
-    assert.ok(position >= 0 && position < skill.indexOf("\n## "), `${dir}: load design before the procedure`);
-  }
+  const skill = await themeSkill();
+  const instruction = '**Load design first.** Before designing a theme or writing page layouts, call `agent_plugin_ui_ux_design({"skill":"ui-ux-design"})`';
+  const position = skill.indexOf(instruction);
+  assert.ok(position >= 0 && position < skill.indexOf("\n## "), "tovu-theme: load design before the procedure");
+  // site-import's skill says "the plugin that provides `ui-design`"; Tovu's overlay names it.
+  const guidance = await importGuidance();
+  const designCall = guidance.indexOf('`agent_plugin_ui_ux_design({"skill":"ui-ux-design"})` before designing');
+  assert.ok(designCall >= 0 && designCall < guidance.indexOf("\n## "), "site-import's Tovu guidance: load design before the procedure");
   const guide = await readFile(path.join(PLUGINS_ROOT, "how-tovu-works", "skills", "how-tovu-works", "SKILL.md"), "utf8");
   assert.ok(guide.includes('Before creating pages or themes, load the design guidance first with `agent_plugin_ui_ux_design({"skill":"ui-ux-design"})`'));
   const topics = JSON.parse(await readFile(path.join(PLUGINS_ROOT, "how-tovu-works", "tovu-site-guide.json"), "utf8"));
@@ -134,16 +144,21 @@ test("the header menu is wired by the menu marker's id, the way static themes re
 test("site-import hands its theme step to tovu-theme and keeps no duplicate-and-tweak recipe", async () => {
   const skill = await readFile(path.join(IMPORT_SKILL_DIR, "SKILL.md"), "utf8");
   const extraction = await readFile(path.join(IMPORT_SKILL_DIR, "references", "theme-extraction.md"), "utf8");
-  assert.match(skill, /`agent_plugin_tovu_theme`/);
-  assert.match(skill, /content\/agent-plugins\/tovu-theme\/skills\/tovu-theme\/SKILL\.md/);
-  assert.match(extraction, /Part C/);
+  const theme = JSON.parse(await readFile(path.join(PLUGINS_ROOT, "tovu-theme", "plugin.json"), "utf8"));
+  // The hand-off resolves by capability: site-import asks for `theme-authoring` and its
+  // "match a reference site" procedure; tovu-theme provides both, and Tovu's overlay names it.
+  assert.ok(theme.extensions.tovu.provides.includes("theme-authoring"));
+  assert.match(skill, /provides\s+`theme-authoring`/);
+  assert.match(extraction, /"match a reference site" procedure/);
+  assert.match(await themeSkill(), /# Part C — Match a reference site/);
+  assert.match(await importGuidance(), /`agent_plugin_tovu_theme` and follow its Part C/);
   assert.doesNotMatch(extraction, /Restyle only the copy/);
   assert.doesNotMatch(extraction, /font files with `media_import_from_url`/, "media_import_from_url refuses font files");
 });
 
 test("importing the homepage also imports the main menu and the header call-to-action", async () => {
   const skill = await readFile(path.join(IMPORT_SKILL_DIR, "SKILL.md"), "utf8");
-  const mapping = await readFile(path.join(IMPORT_SKILL_DIR, "references", "content-mapping.md"), "utf8");
+  const mapping = await importHostMapping();
   assert.match(skill, /homepage[^.]*main menu[^.]*header call-to-action/i);
   assert.match(mapping, /"type":"menu","id":"<menu id>"/);
 });
@@ -192,9 +207,9 @@ test("the compare loop sees the theme copy through themeId, never by activating 
   }
   assert.doesNotMatch(partC, /needs the copy active|Switch the site to the new theme while I compare|kept the copy inactive/, "activating the copy is no longer how Part C sees it");
   assert.match(partC.slice(partC.indexOf("## C5")), /`savedFiles`/, "C5 cites the saved capture paths");
-  const importSkill = await readFile(path.join(IMPORT_SKILL_DIR, "SKILL.md"), "utf8");
-  assert.match(importSkill, /`web_screenshot_page` with `themeId`/);
-  assert.match(importSkill, /savedFiles/);
+  const guidance = await importGuidance();
+  assert.match(guidance, /`web_screenshot_page` \([^|]*`themeId`/);
+  assert.match(guidance, /savedFiles/);
 });
 
 /**
@@ -227,11 +242,12 @@ test("copying a site is modular: every header and footer link list is a menu ren
 test("site-import builds the footer link columns as menus too and hands their slugs to the theme step", async () => {
   const skill = await readFile(path.join(IMPORT_SKILL_DIR, "SKILL.md"), "utf8");
   const mapping = await readFile(path.join(IMPORT_SKILL_DIR, "references", "content-mapping.md"), "utf8");
+  const hostMapping = await importHostMapping();
   const extraction = await readFile(path.join(IMPORT_SKILL_DIR, "references", "theme-extraction.md"), "utf8");
   assert.match(skill, /footer link column[^.]*menu/i);
-  const menuSection = mapping.slice(mapping.indexOf("## 9. Menu"), mapping.indexOf("## 10."));
-  assert.match(menuSection, /menus_create_menu \{\s*title: "Footer — [^"]+", slug: "footer-/, "a footer column example");
-  assert.match(menuSection, /never hard-code/i);
+  const section = (text: string) => text.slice(text.indexOf("## 9. Menu"), text.indexOf("## 10."));
+  assert.match(section(hostMapping), /menus_create_menu \{\s*title: "Footer — [^"]+", slug: "footer-/, "a footer column example");
+  assert.match(section(mapping), /never hard-code/i);
   assert.match(extraction, /footer menus'? slugs/i);
 });
 
@@ -262,7 +278,7 @@ test("Tovuize reuses local Media and shared Page mapping with matching family sh
   const partB = skill.slice(skill.indexOf("# Part B"), skill.indexOf("# Part C"));
   const editable = partB.slice(partB.indexOf("## B2"), partB.indexOf("## B3"));
   const staticBranch = partB.slice(partB.indexOf("## B3"), partB.indexOf("## B4"));
-  for (const contract of ["media_import_local_file", "content_post_create", "pages_write_html", "data-agent-element", "data-agent-role", "content_post_update", "expectedVersion", '"type":"content"', "content/agent-plugins/site-import/skills/site-import/references/content-mapping.md"]) {
+  for (const contract of ["media_import_local_file", "content_post_create", "pages_write_html", "data-agent-element", "data-agent-role", "content_post_update", "expectedVersion", '"type":"content"', "`agent_plugin_site_import`", '`file: "host/content-mapping.md"`']) {
     assert.ok(editable.includes(contract), "editable branch must reuse " + contract);
   }
   assert.match(editable, /Activate it with `theme_set_active` before assigning/);
@@ -273,7 +289,9 @@ test("Tovuize reuses local Media and shared Page mapping with matching family sh
   assert.match(partB, /collisions reversibly/);
   assert.match(partB, /desktop\/mobile/);
   assert.doesNotMatch(skill, /This produces a THEME|no agent-tool path into a theme|cannot go through\s+any agent tool today|binary asset\s+copy, at minimum/);
-  const mapping = await readFile(path.join(IMPORT_SKILL_DIR, "references", "content-mapping.md"), "utf8");
+  // Tovu's local-folder write shapes live in site-import's Tovu overlay (the repo root is refused to site agents).
+  assert.doesNotMatch(skill, /content\/agent-plugins\/site-import/);
+  const mapping = await importHostMapping();
   assert.match(mapping, /Local-folder sources/);
   assert.match(mapping, /media_import_local_file/);
   assert.match(mapping, /source-path →/);

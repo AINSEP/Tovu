@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
 
 /**
@@ -26,7 +27,8 @@ import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
  *    liability", above the packaging question it was nominally about — so it gets a test.
  */
 
-const PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/site-compliance");
+// The plugin ships as `@jini-ai/plugin-site-compliance` (D-W1); this host still checks the bytes it seeds.
+const PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "site-compliance" });
 const SKILL_DIR = path.join(PACKAGE_ROOT, "skills", "site-compliance");
 
 async function readPackageFile(relativePath: string): Promise<string> {

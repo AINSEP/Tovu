@@ -67,7 +67,9 @@ for (const initial of ["new site", "untouched disabled seed", "operator disabled
   });
 }
 
-test("ui-ux-design seeding supersedes a manual install with different version/digest and stays singular across boots", async (t) => {
+// Bundled seeding never prunes a same-name revision (Jini A1, 2026-11-02): the manual install's
+// digest stays on disk, and the seeded digest is the one selected — one tool, across boots.
+test("ui-ux-design seeding selects its bundled revision over a manual install, keeps the manual digest, and stays singular across boots", async (t) => {
   const siteDir = await mkdtemp(path.join(tmpdir(), "tovu-design-manual-"));
   t.after(() => forceRemove(siteDir));
   const layout = resolveAgentPluginLayout({ siteDir: siteDir }, { env: {} });
@@ -92,7 +94,7 @@ test("ui-ux-design seeding supersedes a manual install with different version/di
     assert.equal(seeded.ledgerFailure, undefined);
     assert.notEqual(outcome.archiveDigest, manual.archiveDigest);
     const installed = (await lifecycle.listInstalledPlugins(workspaceRoot)).filter((plugin) => plugin.pluginId === PLUGIN_ID);
-    assert.deepEqual(installed.map((plugin) => plugin.archiveDigest), [outcome.archiveDigest]);
+    assert.deepEqual(installed.map((plugin) => plugin.archiveDigest).sort(), [outcome.archiveDigest, manual.archiveDigest].sort());
     const sources = (await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID, agentPluginLayout: layout }))
       .filter((source) => source.pluginId === PLUGIN_ID);
     assert.equal(sources.length, 1);

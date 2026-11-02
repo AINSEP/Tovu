@@ -18,6 +18,7 @@ import { resolveAgentPluginLayout } from "../../layout.js";
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
 import { seedBundledAgentPlugins } from "../../lifecycle.js";
+import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED } from "../../bundled-catalog.js";
 import { DEPLOY_TARGETS_FILENAME, loadDeployTargetRegistry } from "#src/features/deployments/deploy-targets/registry";
 
 /**
@@ -161,7 +162,10 @@ test("seeded by the real seeder, hosts start disabled, explicit enable loads tar
     const activations = await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root });
     assert.equal(activations.plugins.fly?.enabled, false, "server hosting requires explicit enable");
     for (const host of HOST_PLUGINS) assert.equal(activations.plugins[host.pluginId]?.enabled, false, `${host.pluginId}: hosting requires explicit enable`);
-    assert.equal(activations.plugins["site-compliance"]?.enabled, false, "every other bundled plugin still seeds disabled");
+    // Any plugin, not a named one: named plugins leave this folder for Jini packages wave by wave.
+    for (const outcome of seeded.outcomes.filter((item) => item.status === "seeded" && !BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED.has(item.pluginId))) {
+      assert.equal(activations.plugins[outcome.pluginId]?.enabled, false, `${outcome.pluginId}: every other bundled plugin still seeds disabled`);
+    }
     const inactive = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
     assert.deepEqual(inactive.list(), []);
     for (const host of HOST_PLUGINS) {
@@ -198,8 +202,9 @@ test("upgrade: a site holding an OLDER bundled host digest serves the new one af
 
       await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot });
       // Layout B (852d711e6): each plugin's digests live under <workspace>/<pluginId>/package/sha256.
+      // Bundled seeding keeps the superseded digest (Jini A1, 2026-11-02); the ledger picks the new one.
       const packages = await readdir(layout.forWorkspace(WORKSPACE_ID).pluginPackagesDir({ pluginId: owner }));
-      assert.equal(packages.length, 1, "successful publication prunes the superseded digest");
+      assert.equal(packages.length, 2, "bundled seeding retains the superseded digest");
 
       const registry = await loadDeployTargetRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }) }, { bundledSourceRoot: bundledAgentPluginsDir() }).loadPluginContributions });
       assert.deepEqual(registry.refusals, []);

@@ -2,15 +2,20 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import test from 'node:test';
+import test, { after, before } from 'node:test';
 import { createAutomaticAgentPluginUse, parseAgentPluginManifest } from '@jini-ai/agent-plugins/lifecycle';
 import { rankInstalledAgentPlugins, type AgentPluginSearchCandidate } from '../../lifecycle.js';
 import { formatPluginToolPointer } from '../../bundled-catalog.js';
+import { composedBundledSourceRoot, type DisposableSourceRoot } from '../fixtures/bundled-source-root.js';
 
-const bundledRoot = path.resolve(import.meta.dirname, '../../../../../../../content/agent-plugins');
+// The shipped set as the build composes it: Tovu's own plugins plus the selected packages (D-W1).
+let bundle: DisposableSourceRoot;
+before(async () => { bundle = await composedBundledSourceRoot(); });
+after(() => bundle.dispose());
 
 // Read every shipped manifest: hand-picked synthetic metadata missed the shared site/deploy words.
 async function bundledCandidates(): Promise<AgentPluginSearchCandidate[]> {
+  const bundledRoot = bundle.root;
   const entries = await readdir(bundledRoot, { withFileTypes: true });
   // Deleted packages can leave empty folders behind on disk (git does not track them).
   const packages = entries.filter(entry => entry.isDirectory() && existsSync(path.join(bundledRoot, entry.name, 'plugin.json')));
