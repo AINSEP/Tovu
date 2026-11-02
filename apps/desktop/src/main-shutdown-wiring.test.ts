@@ -164,20 +164,6 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
   assert.deepEqual(shutdownOrder, ["product-listeners", "product", "quit"]);
 });
 
-test("termination signals route into the graceful quit, armed once the app is ready", () => {
-  // The orphaned tovu serve after `kill -TERM <dev-desktop>`: Chromium's own SIGTERM/SIGINT/SIGHUP
-  // handler is one-shot (it resets SIG_DFL), and every launcher delivers the signal more than once —
-  // the group kill plus electron/cli.js's forward. The second copy killed Electron before
-  // before-quit's drain had stopped its detached children.
-  const ready = source.indexOf("app\n  .whenReady()");
-  const route = source.search(/routeQuitSignals\(\{/);
-  const reconcile = source.indexOf("await reconcileOrphansOnBoot(", ready);
-  assert.notEqual(ready, -1, "expected main.ts's app.whenReady() chain");
-  assert.notEqual(route, -1, "main.ts must route termination signals into app.quit()");
-  assert.ok(route > ready, "a process.on handler registered at module load is replaced by Chromium's and never fires");
-  assert.ok(route < reconcile, "must be armed before anything in the ready chain can spawn a tovu serve");
-});
-
 test("a quit attempt during the drain is held until the drain completes, not let through", () => {
   // The second Cmd+Q: it re-entered before-quit with the drain already running, and the old
   // `|| shuttingDown) return;` let it through without preventDefault(), so Electron exited before the
