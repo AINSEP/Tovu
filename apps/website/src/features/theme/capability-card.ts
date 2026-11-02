@@ -5,7 +5,7 @@ export const capabilityCard = {
   "id": "themes",
   "title": "Themes",
   "summary": "Themes render content with layouts, regions and data-embed-config markers.",
-  "explanation": "Consult the live marker types and theme layout. Duplicate a theme before editing; preview it before switching the active theme.",
+  "explanation": "Consult the live marker types and theme layout. Duplicate a theme before editing; preview it before switching the active theme. The header and footer render the site menus through menu markers (links written inside a marker are only its fallback), not the page list: change navigation with menus_update_menu_tree and describe it from menus_list_menus.",
   "permissions": [
     "theme.set"
   ],

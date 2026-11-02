@@ -890,7 +890,8 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
       "When publicUrl is present, link to it first in your reply. adminUrl is an optional secondary edit link; never make a UUID admin URL the main published-content link. " +
       "Optional publishAt schedules it; featuredImage sets its lead image. A scheduled result has scheduled:true and publicUrl " +
       "null: tell the user when it will be published. A published result also has publishedWhere: whether it is on this local " +
-      "site only or on the live site — never call a local-only publish live.",
+      "site only or on the live site — never call a local-only publish live. A new page is not added to the site header: the header " +
+      "shows the site menu, so link the page with menus_update_menu_tree and describe the header only from menus_list_menus.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "content.write" },
     inputSchema: {
