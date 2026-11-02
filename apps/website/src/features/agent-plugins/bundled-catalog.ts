@@ -19,6 +19,31 @@
  */
 export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["github", "site-import", "tovu-theme", "how-tovu-works", "ui-ux-design"]);
 
+/** Agent plugins ship as subpaths of ONE Jini package (owner, 11-02: no per-plugin npm packages). */
+const JINI_AGENT_PLUGINS = "@jini-ai/agent-plugins";
+
+/**
+ * Bundled plugin id -> the npm specifier its payload ships under (plugins plan v2 §3.3). The build
+ * composes these payloads with Tovu's own `content/agent-plugins` into one bundled root
+ * (`development/scripts/compose-bundled-agent-plugins.mjs`); an id must never be in both places.
+ * Tovu's host rules for these plugins live in `content/agent-plugin-overlays/<id>`.
+ *
+ * Every row is `@jini-ai/agent-plugins/<id>` (`<id>/plugin.json` via the package's `./<id>/*` export).
+ * Vendor plugins may ship by default as long as each installs on its own (owner Q1, 11-02).
+ * `charts-recharts` is the agent face of the default chart provider, whose runtime comes from
+ * `@jini-ai/provider-plugins` (`charts-recharts-source.ts`). Not selected: `slide-design` and
+ * `charts-echarts` (Jini ships them; Tovu does not bundle them by default).
+ *
+ * Keep this file import-free and type-erasable: `build-server.mjs` loads it with Node's type
+ * stripping, which cannot follow `./x.js` imports or compile enums.
+ */
+export const SELECTED_AGENT_PLUGIN_PACKAGES: ReadonlyMap<string, string> = new Map([
+  "jev", "site-compliance", "site-import", "wordpress", "ui-ux-design",
+  "cloudflare", "netlify", "vercel", "github-pages", "s3-compatible", "fly", "render", "railway",
+  "github", "resend", "meilisearch", "google-login", "composio", "supabase", "higgsfield-media",
+  "posthog", "sentry", "opentelemetry", "google-workspace", "charts-recharts",
+].map((pluginId): [string, string] => [pluginId, `${JINI_AGENT_PLUGINS}/${pluginId}`]));
+
 /**
  * Retired bundled plugin id -> the bundled plugin(s) that absorbed it. `seed-bundled.ts` never seeds a
  * retired id, even if a stale build still carries its directory.

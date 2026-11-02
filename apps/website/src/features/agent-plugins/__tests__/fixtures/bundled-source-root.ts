@@ -9,7 +9,7 @@ import { forceRemove } from "./force-remove.js";
 /**
  * @file Bundled source roots for tests that seed REAL bundled bytes.
  *
- * Plugins moved to per-plugin Jini packages (D-W1 onward) are no longer under
+ * Plugins moved to Jini (`@jini-ai/agent-plugins/<id>`, D-W1 onward) are no longer under
  * `content/agent-plugins/`. The build composes Tovu's own plugins plus each selected package
  * (`compose-bundled-agent-plugins.mjs`, which stages through npm); tests build the same set from
  * `agentPluginSourceDir`, so they need no npm and never pin a plugin to a folder it has left.

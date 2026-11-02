@@ -82,7 +82,7 @@ test("D0a: boot warns, never refuses, when the bundled folder seeded nothing alt
   calls.length = 0;
   resetWarningInputs();
   t.mock.method(console, "warn", (line: string) => { calls.push(`warn:${line}`); });
-  selection.set("jev", "@jini-ai/plugin-jev").set("site-import", "@jini-ai/plugin-site-import");
+  selection.set("jev", "@jini-ai/agent-plugins/jev").set("site-import", "@jini-ai/agent-plugins/site-import");
   report = { sourceRoot: "bundled", outcomes: [], retirements: [] };
   const bundled = buildBootModules(deps, { useMemory: true, defaultContentDbPath: () => ":memory:" }).find(module => module.name === "bundled-agent-plugins");
   assert.ok(bundled);
@@ -115,7 +115,7 @@ test("D0a: an unreadable activations file costs only the enabled-plugin check; t
   calls.length = 0;
   resetWarningInputs();
   t.mock.method(console, "warn", (line: string) => { calls.push(`warn:${line}`); });
-  selection.set("jev", "@jini-ai/plugin-jev").set("site-import", "@jini-ai/plugin-site-import");
+  selection.set("jev", "@jini-ai/agent-plugins/jev").set("site-import", "@jini-ai/agent-plugins/site-import");
   activationsFailure = new Error("activations.json is unreadable");
   report = { sourceRoot: "bundled", outcomes: [], retirements: [] };
   const bundled = buildBootModules(deps, { useMemory: true, defaultContentDbPath: () => ":memory:" }).find(module => module.name === "bundled-agent-plugins");

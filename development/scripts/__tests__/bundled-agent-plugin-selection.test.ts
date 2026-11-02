@@ -16,9 +16,9 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 
 /**
  * Every plugin id Tovu ships: Tovu's own `content/agent-plugins` plus `SELECTED_AGENT_PLUGIN_PACKAGES`.
- * Each cutover (D-W*, D-charts) edits this list in the same commit as its selection rows and deletions.
- * 0.6.19: jev, site-compliance, site-import, wordpress (D-W1) and the charts-recharts face (D-charts)
- * come from packages; the provider faces posthog/sentry/opentelemetry leave at D-W7 (not selected, §3.1).
+ * Each cutover edits this list in the same commit as its selection rows and deletions. Since the
+ * plugins wave (11-02) only how-tovu-works and tovu-theme stay in content; every other id, the
+ * charts-recharts face included, comes from `@jini-ai/agent-plugins/<id>`.
  */
 const EXPECTED_BUNDLED_AGENT_PLUGIN_IDS = [
   'charts-recharts', 'cloudflare', 'composio', 'fly', 'github', 'github-pages', 'google-login', 'google-workspace',
@@ -51,12 +51,12 @@ test('every selected package resolves to a payload whose plugin.json names its s
 test('the source helper reads a selected plugin from its package payload and any other id from content', t => {
   const repoRoot = fs.realpathSync(fs.mkdtempSync(path.join(tmpdir(), 'tovu-agent-plugin-source-')));
   t.after(() => fs.rmSync(repoRoot, { recursive: true, force: true }));
-  const packageRoot = path.join(repoRoot, 'node_modules/@jini-ai/plugin-jev');
+  const packageRoot = path.join(repoRoot, 'node_modules/@jini-ai/agent-plugins');
   fs.mkdirSync(path.join(packageRoot, 'jev'), { recursive: true });
-  fs.writeFileSync(path.join(packageRoot, 'package.json'), JSON.stringify({ name: '@jini-ai/plugin-jev', exports: { './plugin.json': './jev/plugin.json' } }));
+  fs.writeFileSync(path.join(packageRoot, 'package.json'), JSON.stringify({ name: '@jini-ai/agent-plugins', exports: { './jev': './jev/plugin.json', './jev/*': './jev/*' } }));
   fs.writeFileSync(path.join(packageRoot, 'jev/plugin.json'), JSON.stringify({ name: 'jev' }));
-  const selection = new Map([['jev', '@jini-ai/plugin-jev'], ['gone', '@jini-ai/plugin-gone']]);
+  const selection = new Map([['jev', '@jini-ai/agent-plugins/jev'], ['gone', '@jini-ai/agent-plugins/gone']]);
   assert.equal(agentPluginSourceDir({ pluginId: 'jev' }, { selection, repoRoot }), path.join(packageRoot, 'jev'));
   assert.equal(agentPluginSourceDir({ pluginId: 'tovu-theme' }, { selection, repoRoot }), path.join(repoRoot, 'content/agent-plugins/tovu-theme'));
-  assert.throws(() => agentPluginSourceDir({ pluginId: 'gone' }, { selection, repoRoot }), /plugin-gone/);
+  assert.throws(() => agentPluginSourceDir({ pluginId: 'gone' }, { selection, repoRoot }), /gone\/plugin\.json/);
 });

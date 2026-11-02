@@ -2,7 +2,7 @@
  * Where a Tovu test reads a bundled agent plugin's source (plugins plan v2 §3.3). A plugin selected
  * from a Jini package (`SELECTED_AGENT_PLUGIN_PACKAGES`) is read from that installed package's payload;
  * every other id from Tovu's own `content/agent-plugins/<id>`. Tests need no composition step.
- * A linked Jini checkout must have assembled the package (`pnpm --filter @jini-ai/plugin-<id> build`).
+ * Selected plugins ship as `@jini-ai/agent-plugins/<id>`; a linked Jini checkout serves its source folders as is.
  */
 import { createRequire } from 'node:module';
 import path from 'node:path';

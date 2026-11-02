@@ -8,8 +8,8 @@
  * - Production: `build-server.mjs` composes into `dist/content/agent-plugins` (Fly/Docker, the desktop
  *   payload and `--assets-only` all read that path).
  * - Development: `dev-server.mjs` composes into `.generated/bundled-agent-plugins` (gitignored) and
- *   points `TOVU_BUNDLED_AGENT_PLUGINS_DIR` at it. After re-assembling a Jini plugin package
- *   (`pnpm --filter @jini-ai/plugin-<id> build`) or editing how-tovu-works / tovu-theme, run
+ *   points `TOVU_BUNDLED_AGENT_PLUGINS_DIR` at it. After editing a plugin in Jini's
+ *   `packages/agent-plugins/<id>` (shipped as `@jini-ai/agent-plugins/<id>`) or how-tovu-works / tovu-theme, run
  *   `node development/scripts/compose-bundled-agent-plugins.mjs` (`npm run agent-plugins:compose`)
  *   and restart the API. Restarting dev does the same. There is deliberately no watcher.
  *
