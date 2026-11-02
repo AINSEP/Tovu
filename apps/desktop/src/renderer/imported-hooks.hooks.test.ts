@@ -1,8 +1,6 @@
 /**
- * The three settings/version hooks rendered from their real modules under jsdom, so the coverage
- * gate has a record for them. Their sibling tests (`use-app-version.hooks.test.ts`,
- * `use-site-folders.hooks.test.ts`) evaluate the hook SOURCE through `sourceFunction`, which lcov
- * cannot attribute to the file. Ports are injected (bridge, action hook, folders hook); no module mocks.
+ * The three settings/version hooks rendered from their real modules under jsdom. Ports are injected
+ * (bridge, action hook, folders hook); no module mocks.
  * The default action hook (Jini's useAsyncAction) is not rendered here: in a dev tree Jini is linked
  * and brings its own React copy, so its hooks see a null dispatcher.
  */
@@ -130,6 +128,7 @@ test('useSiteFolders: a missing bridge or method and a failed load surface reada
   const none = renderHook(t, () => useSiteFolders({}, { getBridge: noBridge, useAction: useFakeAction }));
   await settle();
   assert.equal(none.current().error, 'Sites folders settings are unavailable in this desktop version.');
+  assert.equal(none.current().busy, false, 'an older preload is not left loading');
   for (const [action, message] of [
     ['addFolder', 'Sites folders settings are unavailable in this desktop version.'],
     ['removeFolder', 'Sites folders settings are unavailable in this desktop version.'],
@@ -200,4 +199,93 @@ test('useSiteStorageSettings: drafts follow the folders, the dialog clears error
   assert.equal(hook.current().roots, '');
   assert.equal(hook.current().databases, 'inSite');
   assert.equal(hook.current().warningError, null);
+});
+
+test('useSiteFolders: busy while a folder is added; a failed automatic scan keeps the added folder and shows its exact remedy', async (t) => {
+  const message = 'Sites discovery timed out. Disconnect unavailable volumes or choose smaller sites folders and try again.';
+  const added: SiteFolders = { ...FOLDERS, extraRoots: ['/extra', '/added'] };
+  let finishAdd!: (folders: SiteFolders) => void;
+  const { bridge } = foldersBridge({
+    addSiteFolder: () => new Promise<SiteFolders>((resolve) => { finishAdd = resolve; }),
+    rescanSites: async () => { throw new Error(message); },
+  });
+  const getBridge = () => bridge as never;
+  const hook = renderHook(t, () => useSiteFolders({}, { getBridge, useAction: useFakeAction }));
+  await settle();
+  let adding!: Promise<void>;
+  act(() => { adding = hook.current().addFolder(); });
+  assert.equal(hook.current().busy, true);
+  await act(async () => { finishAdd(added); await adding; });
+  // Admission was validated before saving; the rescan after it can still fail if the disk changes,
+  // so the saved root stays and the operator can retry or remove it.
+  assert.deepEqual(hook.current().folders, added);
+  assert.equal(hook.current().error, message);
+  assert.equal(hook.current().busy, false);
+});
+
+test("useSiteFolders: a refused add, remove or save keeps the saved folders and shows main's exact message", async (t) => {
+  const { bridge } = foldersBridge({
+    addSiteFolder: async () => { throw new Error('EACCES: permission denied, realpath /external'); },
+    removeSiteFolder: async () => { throw new Error('Could not save sites folders settings.'); },
+  });
+  const getBridge = () => bridge as never;
+  const hook = renderHook(t, () => useSiteFolders({}, { getBridge, useAction: useFakeAction }));
+  await settle();
+  await act(() => hook.current().addFolder());
+  assert.equal(hook.current().error, 'EACCES: permission denied, realpath /external');
+  assert.deepEqual(hook.current().folders, FOLDERS);
+  assert.equal(hook.current().busy, false);
+  await act(() => hook.current().removeFolder({ root: '/extra' }));
+  assert.equal(hook.current().error, 'Could not save sites folders settings.');
+  assert.deepEqual(hook.current().folders, FOLDERS);
+
+  await act(() => hook.current().saveSettings({ databases: 'appData' }));
+  assert.equal(hook.current().folders.databases, 'appData');
+  bridge.saveSiteSettings = async () => { throw new Error('TOVU_SITE_ROOTS overrides this setting.'); };
+  await act(() => hook.current().saveSettings({ databases: 'inSite' }));
+  assert.equal(hook.current().error, 'TOVU_SITE_ROOTS overrides this setting.');
+  assert.equal(hook.current().folders.databases, 'appData', 'a refused save keeps the last saved placement');
+});
+
+test('useSiteStorageSettings over the real useSiteFolders: an action failure stays in the open dialog, and closing clears it', async (t) => {
+  const { bridge } = foldersBridge({
+    listSiteFolders: async () => ({ roots: [], extraRoots: [] }),
+    addSiteFolder: async () => { throw new Error("Error invoking remote method 'runner:sites:folders:add': Error: Choose a smaller folder."); },
+  });
+  const getBridge = () => bridge as never;
+  const useFolders: typeof useSiteFolders = (required = {}) => useSiteFolders(required, { getBridge, useAction: useFakeAction });
+  const hook = renderHook(t, () => useSiteStorageSettings({}, { useFolders }));
+  await settle();
+  act(() => hook.current().show());
+  await act(() => hook.current().addFolder());
+  // Electron's IPC wrapper is stripped: the operator reads main's own sentence.
+  assert.equal(hook.current().error, 'Choose a smaller folder.');
+  assert.equal(hook.current().warningError, null, 'with no provider warning the failure belongs to the open dialog alone');
+  // Closing is a real hook action, not an unmount that would accidentally hide stale state.
+  act(() => hook.current().close());
+  assert.equal(hook.current().open, false);
+  assert.equal(hook.current().error, null);
+  act(() => hook.current().show());
+  assert.equal(hook.current().error, null);
+});
+
+test('useSiteStorageSettings over the real useSiteFolders: a failed warning fix keeps the dialog closed and shows its failure on the warning', async (t) => {
+  const warning = { provider: 'OneDrive', message: 'Sync warning', localHome: '/local' };
+  for (const [action, message] of [['useAppData', 'Settings write failed.'], ['useLocalHome', 'Folder change failed.']] as const) {
+    const { bridge } = foldersBridge({
+      listSiteFolders: async () => ({ home: '/sync', roots: ['/sync'], extraRoots: [], warning }),
+      saveSiteSettings: async () => { throw new Error('Settings write failed.'); },
+      setSitesHome: async () => { throw new Error('Folder change failed.'); },
+    });
+    const getBridge = () => bridge as never;
+    const useFolders: typeof useSiteFolders = (required = {}) => useSiteFolders(required, { getBridge, useAction: useFakeAction });
+    const hook = renderHook(t, () => useSiteStorageSettings({}, { useFolders }));
+    await settle();
+    await act(() => hook.current()[action]());
+    assert.equal(hook.current().open, false, `${action} never opens the dialog`);
+    assert.equal(hook.current().warningError, message);
+    act(() => hook.current().show());
+    assert.equal(hook.current().warningError, null);
+    assert.equal(hook.current().error, null);
+  }
 });
