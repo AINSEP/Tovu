@@ -15,6 +15,7 @@ import { registerAdminIntegrationsDeliveriesRoute } from "../inbound/admin-http/
 import type { IntegrationsRouteDeps } from "../inbound/admin-http/routes/integrations/deps.js";
 import { registerAdminIntegrationsListRoute } from "../inbound/admin-http/routes/integrations/list.js";
 import { registerAdminIntegrationsPauseRoute } from "../inbound/admin-http/routes/integrations/pause.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file Route-level tests for the integrations admin HTTP API (ADR-036 admin wiring).
@@ -247,7 +248,10 @@ test("integrations routes: pause surfaces an unexpected repo failure as 500 (gen
     { method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({}) }
   );
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  // Shared admin failure envelope: a correlatable id, never the repository's cause.
+  const body: unknown = await res.json();
+  assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assert.doesNotMatch(JSON.stringify(body), /boom/);
 });
 
 test("integrations routes: pause's workspaceId/subscriptionId params can never actually be undefined through real routing (Express only invokes a matched `:param` handler with populated segments) -- their `?? \"\"` fallbacks are reached by calling the real handler directly, the same type-bypass technique a `default: throw` exhaustiveness guard would need", async (t) => {
