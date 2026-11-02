@@ -711,7 +711,7 @@ feature. Don't build a vendor-specific widget. Verified 2026-09-21 by a read-onl
 - **Vendor side, for later:** Calendly runs an official hosted MCP at `https://mcp.calendly.com` (OAuth 2.1 + PKCE +
   dynamic client registration; scopes `mcp:scheduling:read`/`write`; https://developer.calendly.com/calendly-mcp-server).
   A Calendly agent plugin would likely be just an `mcp.json` entry with `tovuAuthMode: "oauth"` plus a skill, like
-  `content/agent-plugins/supabase` (unverified; their docs don't state the transport, and Tovu supports streamable-http
+  `@jini-ai/agent-plugins/supabase` (Jini `packages/agent-plugins/supabase/`; unverified; their docs don't state the transport, and Tovu supports streamable-http
   only).
 - **Side findings, unfixed:**
   - ~~Page-editor preview iframes had no `sandbox`.~~ DONE 10-04: both carry `PAGE_PREVIEW_IFRAME_SANDBOX`

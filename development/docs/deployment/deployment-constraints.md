@@ -82,7 +82,7 @@ JS and admin authority are incompatible trust levels. The admin needs a **separa
 **4.4 — The Supabase MCP PAT is not a database credential.** It is an account-level *management*
 credential, explicitly distinct from project data-plane credentials: the Supabase agent plugin's
 token is an account access token checked against the Management API
-(`content/agent-plugins/supabase/mcp.json:8-11`, `tovuTokenAuth.helpUrl` / `probeUrl`; the old
+(`@jini-ai/agent-plugins/supabase/mcp.json`, Jini `packages/agent-plugins/supabase/mcp.json:8-11`, `tovuTokenAuth.helpUrl` / `probeUrl`; read at runtime from `bundledAgentPluginsDir()`; the old
 env preset `supabase-mcp-plugin.ts` was removed in ec07d7d6e). Postgres connectivity needs real
 connection credentials.
 

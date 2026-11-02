@@ -4,9 +4,9 @@ Binding inputs: `google-login-design.md` amended by `OPUS-REVIEW.md`, plus the o
 
 ## S4 preset
 
-`providers.ts` reads the shape currently shipped in `content/agent-plugins/google-login/tovu-login-providers.json`: `{schemaVersion:1, providers:[{id,label,issuer,authorizationEndpoint,tokenEndpoint,jwksUri,scopes,signingAlgorithm,clientAuthentication,pkce,credentialLabel,credentialCardTarget,authoritativeEmailDomains,hostedDomainClaim}]}`. S256, RS256, client_secret_post and exactly openid/email/profile are required in v1. Domain authority stays plugin data. The pinned issuer's nonempty hosted-domain claim establishes Workspace mailbox authority, including email aliases.
+`providers.ts` reads the shape currently shipped in `@jini-ai/agent-plugins/google-login/tovu-login-providers.json` (Jini `packages/agent-plugins/google-login/`): `{schemaVersion:1, providers:[{id,label,issuer,authorizationEndpoint,tokenEndpoint,jwksUri,scopes,signingAlgorithm,clientAuthentication,pkce,credentialLabel,credentialCardTarget,authoritativeEmailDomains,hostedDomainClaim}]}`. S256, RS256, client_secret_post and exactly openid/email/profile are required in v1. Domain authority stays plugin data. The pinned issuer's nonempty hosted-domain claim establishes Workspace mailbox authority, including email aliases.
 
-`loadBundledLoginProviders({sourceRoot})` must receive the product-owned `content/agent-plugins` root. `loadLoginProviders({workspaceId,loadContributions,bundledProviders})` requires the boot-bound lifecycle loader; it explicitly requires activation and compares installed presets with shipped pins. No installed/workspace root may be passed as `sourceRoot`.
+`loadBundledLoginProviders({sourceRoot})` must receive the product-owned bundled root from `bundledAgentPluginsDir()` (`platform/site-dir/product-root.ts`), the composed tree of Tovu content plus the selected `@jini-ai/agent-plugins/<id>` payloads; never join `content/agent-plugins` by hand. `loadLoginProviders({workspaceId,loadContributions,bundledProviders})` requires the boot-bound lifecycle loader; it explicitly requires activation and compares installed presets with shipped pins. No installed/workspace root may be passed as `sourceRoot`.
 
 ## S3 protocol and linking
 
