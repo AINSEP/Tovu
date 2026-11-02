@@ -85,6 +85,7 @@ test("BYOK: search_tools finds theme_duplicate and describe_tool returns its reg
   assert.notEqual(described.isError, true);
   assert.deepEqual(
     JSON.parse(textOf(described)).inputSchema,
-    surface.registry.list({}).find((tool) => tool.id === "theme_duplicate")?.inputSchema
+    // Compare what describe_tool publishes; Symbol batch metadata stays in process (87a7e2e39).
+    JSON.parse(JSON.stringify(surface.registry.list({}).find((tool) => tool.id === "theme_duplicate")?.inputSchema))
   );
 });

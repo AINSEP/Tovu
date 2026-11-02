@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { JSDOM } from 'jsdom';
 import { buildToolIndex, handleToolCall, type McpToolDef } from '@jini-ai/mcp';
 
 import { ASK_CHOICE_ANSWER_TICKET_PARAM, ASK_CHOICE_TOOL_ID, buildAskChoiceRegistrations } from '../ask-choice-tool.js';
@@ -84,7 +85,10 @@ for (const scenario of realInputs) {
     const html = cardHtml({ reply: await fixture.invoke({ input: scenario.input }) });
     assert.deepEqual(fixture.gateInputs, [scenario.input], 'typed validation must pass the input to the gate');
     assert.ok(html.includes(`<h1 class="mcpui-title">${scenario.title}</h1>`));
-    assert.ok(html.includes(`<legend class="mcpui-label">${scenario.label}<`));
+    // The accessible legend stays present when Jini hides a duplicate of the title.
+    const dom = new JSDOM(html);
+    assert.equal(dom.window.document.querySelector('legend.mcpui-label')?.textContent?.replace(/\s*\*$/, ''), scenario.label);
+    dom.window.close();
     for (const label of scenario.labels) assert.ok(html.includes(`>${label}</label>`));
     assert.deepEqual([...html.matchAll(/<input[^>]*type="radio"[^>]*value="([^"]+)"/g)].map(match => match[1]), scenario.values);
     const ticket = html.match(/__askChoiceAnswerTicket"\s*:\s*"([^"]+)"/)?.[1];
@@ -124,7 +128,9 @@ test('typed MCP + gate: an explicit false multiple flag renders radios using the
     question: 'Pick one destination', multiple: false, options: publishOptions,
   } }) });
   assert.ok(html.includes('<h1 class="mcpui-title">Pick one destination</h1>'));
-  assert.ok(html.includes('<legend class="mcpui-label">Pick one destination<'));
+  const dom = new JSDOM(html);
+  assert.equal(dom.window.document.querySelector('legend.mcpui-label')?.textContent?.replace(/\s*\*$/, ''), 'Pick one destination');
+  dom.window.close();
   assert.deepEqual([...html.matchAll(/<input[^>]*type="radio"[^>]*value="([^"]+)"/g)].map(match => match[1]), ['publish', 'hold']);
   assert.doesNotMatch(html, /type="checkbox"/);
 });

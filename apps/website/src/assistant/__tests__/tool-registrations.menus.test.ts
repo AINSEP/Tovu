@@ -153,7 +153,8 @@ test("every wired Menus registration publishes its catalog entry's inputSchema a
     // The one sanctioned difference: the collapse points the catalog's mentions of the retired
     // menus_list_menus/menus_get_menu at content_read.menu (`createRetiredReadToolIdRewriter`).
     const expected = rewriteRetiredMenuReads({ ...registration, descriptor: publishedCatalogDescriptor({ registration, entry: catalogEntry(id) }) }).descriptor;
-    assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
+    // Jini batch metadata uses Symbols; the published contract is the JSON wire schema (87a7e2e39).
+    assert.deepEqual(JSON.parse(JSON.stringify(registration.descriptor.inputSchema)), JSON.parse(JSON.stringify(expected.inputSchema)), `${id}'s published schema must be its catalog entry's, not a second copy`);
     assert.equal(registration.descriptor.description, expected.description);
   }
 });
@@ -164,7 +165,7 @@ test("no published Menus tool names the retired menus_list_menus/menus_get_menu;
   const assign = registrations.get("menus_assign_location");
   assert.ok(assign);
   const menuId = (assign.descriptor.inputSchema as { properties: { menuId: { description: string } } }).properties.menuId;
-  assert.equal(menuId.description, "The menu's id, as returned by content_read.menu, or menus_create_menu.");
+  assert.equal(menuId.description, "Required for a single call (or set it in each item). The menu's id, as returned by content_read.menu, or menus_create_menu.");
   for (const [id, registration] of registrations) {
     assert.ok(registration.descriptor.description, `${id} must publish a description`);
     const text = `${registration.descriptor.description.split(KEYWORD_MARKER)[0]} ${JSON.stringify(registration.descriptor.inputSchema)}`;

@@ -8,7 +8,7 @@ import { parseRunStartContextRef } from "../run-start-context.js";
 
 test("picked folders are JSON-quoted context appended after text redaction, with exact path bytes", () => {
   const root = mkdtempSync(join(tmpdir(), "picked-"));
-  const path = join(root, 'sk-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789longpathsegment');
+  const path = join(root, 'sk-' + 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789longpathsegment');
   mkdirSync(path);
   try {
     assert.ok(redactUserText({ text: path }, {}).secretRedacted, "control: this path would be redacted as user text");

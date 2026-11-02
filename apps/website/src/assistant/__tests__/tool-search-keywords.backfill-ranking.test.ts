@@ -165,7 +165,7 @@ test("backfilled ids remain wired except explicitly unwired tools and the merged
     "workspace_delete",
   ].filter(id => after.describe({ id }) === null).sort();
   assert.deepEqual(missing, [
-    "collections_execute_cleanup", "collections_plan_cleanup", "database_get_restore_guidance", "external_mcp_list",
+    "collections_execute_cleanup", "collections_plan_cleanup", "database_get_restore_guidance",
     "settings_register_definitions", "settings_reset", "workspace_create", "workspace_delete",
   ]);
   assert.ok(after.describe({ id: "content_read.external_mcp" }), "external_mcp_list's merged replacement must be wired");

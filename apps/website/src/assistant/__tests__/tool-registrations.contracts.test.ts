@@ -431,7 +431,8 @@ test("every wired registration publishes the inputSchema from its catalog entry 
     // load_agent_plugin is run-scoped: both roots append it after the assembly's batch pass.
     const [batchable] = id === "load_agent_plugin" ? [] : resolveBatchableTools({ registrations: [{ ...registration, descriptor: catalogDescriptor }] });
     const expected = rewrite({ ...registration, descriptor: batchable ? batchDescriptorFor({ descriptor: catalogDescriptor, tool: batchable }) : catalogDescriptor }).descriptor;
-    assert.deepEqual(registration.descriptor.inputSchema, expected.inputSchema, `${id}'s published schema must be its catalog entry's, not a second copy`);
+    // Jini batch metadata uses Symbols; the published contract is the JSON wire schema (87a7e2e39).
+    assert.deepEqual(JSON.parse(JSON.stringify(registration.descriptor.inputSchema)), JSON.parse(JSON.stringify(expected.inputSchema)), `${id}'s published schema must be its catalog entry's, not a second copy`);
     assert.equal(registration.descriptor.description, expected.description);
   }
 });
