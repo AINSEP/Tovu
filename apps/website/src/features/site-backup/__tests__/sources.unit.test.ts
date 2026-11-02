@@ -507,7 +507,8 @@ test("absent scope folders and settings files produce an empty backup", async (t
   for (const name of ["themes", "uploads", "skills", "agent-plugins", "config.json", ".site-meta.json"]) {
     rmSync(path.join(site.root, name), { recursive: true, force: true });
   }
-  assert.deepEqual(await collectSiteBackupFiles({ sources: site.sources, include: ALL }, {}), { files: [], skipped: [], scopeNotes: {} });
+  // 2933fbb3f made collection always return `notices` (share omissions); a plain backup has none.
+  assert.deepEqual(await collectSiteBackupFiles({ sources: site.sources, include: ALL }, {}), { files: [], skipped: [], scopeNotes: {}, notices: [] });
 });
 
 test("settings links and directories are reported instead of read as regular files", async (t) => {
@@ -520,7 +521,7 @@ test("settings links and directories are reported instead of read as regular fil
   symlinkSync(path.join(site.root, "content.db"), config);
   mkdirSync(meta);
   assert.deepEqual(await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, settings: true } }), {
-    files: [], scopeNotes: {}, skipped: [
+    files: [], scopeNotes: {}, notices: [], skipped: [
       { path: "settings/config.json", reason: "a symbolic link — never followed, so nothing outside the site can ride along" },
       { path: "settings/.site-meta.json", reason: "not a regular file" },
     ],
@@ -670,7 +671,7 @@ test("share directory lstat failures propagate while a directory removed during 
   const failure = Object.assign(new Error("cannot inspect directory"), { code: "EIO" });
   await assert.rejects(collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } }, { profile: "share", fileSystem: { ...walkFileSystem, lstat: async () => { throw failure; } } }), error => error === failure);
   const result = await collectSiteBackupFiles({ sources: site.sources, include: { ...NONE, themes: true } }, { profile: "share", fileSystem: { ...walkFileSystem, lstat: async () => { throw Object.assign(new Error("gone"), { code: "ENOENT" }); } } });
-  assert.deepEqual(result, { files: [], skipped: [], scopeNotes: {} });
+  assert.deepEqual(result, { files: [], skipped: [], scopeNotes: {}, notices: [] }); // `notices` since 2933fbb3f
 });
 test("share plugin root lstat failures are never hidden as missing installations", async t => {
   const site = makeSite(); t.after(site.cleanup);
