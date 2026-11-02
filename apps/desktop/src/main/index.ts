@@ -1,5 +1,5 @@
-import { migrateNestedSitesHome } from "./src/nested-sites-migration.ts";
-import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from "./src/shared-sites.ts";
+import { migrateNestedSitesHome } from "../nested-sites-migration.ts";
+import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from "../shared-sites.ts";
 /**
  * @file `apps/desktop` — an Electron shell around the SAME Tovu that `npm run dev` boots, now
  * multi-site: several sites can be open, each in its own window, each spawning its own `tovu serve`.
@@ -14,7 +14,7 @@ import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from 
  * 0. **Sites Home** — the DEFAULT since 2026-09-06. Opens Tovu-Runner's ported renderer
  *    (`src/renderer/`, built to `dist/renderer/index.html`) instead of any site's admin — its
  *    Projects screen, now the app's actual front page. Opening a project embeds it as a TAB in this
- *    SAME window, in a `<webview>` (`App.tsx`'s `SiteWorkspace`), rather than popping it into its
+ *    SAME window, in a `<webview>` (`renderer/app/SiteWorkspace.tsx`), rather than popping it into its
  *    own `BrowserWindow` — matching Tovu-Runner's own tabbed UI, which is the reference this was
  *    built against. `list`/`create`/`delete`/`open-external`/`start` are real (`src/project-ipc.ts`),
  *    `start` routing a tab's first open through `openSiteServer`'s `serializer`-guarded spawn-or-reuse
@@ -46,7 +46,7 @@ import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from 
  * - Each open site gets its own `BrowserWindow`, titled with the site's own name — Electron's native
  *   `role: "windowMenu"` (macOS) then lists every open window and switches between them for free.
  *   That IS the site switcher: no custom panel was needed, every open site is just another window.
- *   The sites home UI's own switcher is its tab strip instead (`App.tsx`'s `TabStrip`) — one window, N tabs.
+ *   The sites home UI's own switcher is its tab strip instead (`renderer/app/TabStrip.tsx`) — one window, N tabs.
  * - "Open Site…" (File menu) runs the folder picker for a NEW site, independent of whichever sites
  *   are already open. "Open Recent" lists `site-dir-store.ts`'s existing MRU.
  * - `keyed-serializer.ts` serializes opens PER SITE DIR, so a fast double-click on the same recent-
@@ -108,83 +108,85 @@ import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen,
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createElectronUrlCapturePool } from "@jini-ai/desktop-host/electron";
 
-import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "./src/tovu-server.ts";
-import { startDesktopCaptureBridge } from "./src/desktop-capture.ts";
-import { writeNodeToolchain, buildNodeToolchainEnv } from "./src/node-toolchain.ts";
-import { resolveAdminDevProxyUrl } from "./src/admin-dev-proxy.ts";
+import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "../tovu-server.ts";
+import { startDesktopCaptureBridge } from "../desktop-capture.ts";
+import { writeNodeToolchain, buildNodeToolchainEnv } from "../node-toolchain.ts";
+import { resolveAdminDevProxyUrl } from "../admin-dev-proxy.ts";
 // Launch-time env decisions (boot mode, CLI mode, pinned site dirs, the rejected-default clause)
 // live in `startup-env.ts`, where they are tested; this file passes `process.env` to them.
-import { isSupervisedSiteUrl } from "./src/supervised-site-url.ts";
-import { readSiteName as readSiteNameIn } from "./src/site-name.ts";
-import { isUnattendedSiteLaunch as isUnattendedSiteLaunchIn, resolveCliMode as resolveCliModeIn, sitesUiRequested as sitesUiRequestedIn, type CliMode, type RejectedDefault } from "./src/startup-env.ts";
-import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "./src/site-dir-store.ts";
-import { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "./src/site-process-registry.ts";
-import { createExternalSiteStopper } from "./src/external-site-stop.ts";
-import { createKeyedSerializer } from "./src/keyed-serializer.ts";
-import { createSiteSupervisor } from "./src/site-supervisor.ts";
-import { createSiteTransitions } from "./src/site-transitions.ts";
+import { isSupervisedSiteUrl } from "../supervised-site-url.ts";
+import { readSiteName as readSiteNameIn } from "../site-name.ts";
+import { isUnattendedSiteLaunch as isUnattendedSiteLaunchIn, resolveCliMode as resolveCliModeIn, sitesUiRequested as sitesUiRequestedIn, type CliMode, type RejectedDefault } from "../startup-env.ts";
+import { resolveSiteDir, resolveOrInitSiteDir, adoptSiteDir, classifySiteDirSafely, stateFilePath, existingRecentSiteDirs, SiteDirSelectionCancelled } from "../site-dir-store.ts";
+import { registryDirPath, reconcileOrphans, recordSiteOpened, recordSiteClosed, readRegistry, isLiveServeRow } from "../site-process-registry.ts";
+import { createExternalSiteStopper } from "../external-site-stop.ts";
+import { createKeyedSerializer } from "../keyed-serializer.ts";
+import { createSiteSupervisor } from "../site-supervisor.ts";
+import { createSiteTransitions } from "../site-transitions.ts";
 // Shared shutdown rules and their rationale now live in Jini's desktop-host/shutdown modules.
 // Teardown rationale: Jini packages/desktop-host/src/shutdown/shutdown-tracker.ts.
 // Signal rationale: Jini packages/desktop-host/src/shutdown/quit-signals.ts.
 import { createShutdownTracker, routeQuitSignals, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
 // Repeated-quit/drain rationale: Jini/packages/desktop-host/src/shutdown/quit-drain-gate.ts.
-import { isShellPageUrl } from "./src/window-navigation-policy.ts";
-import { registerSpeechIpc } from "./src/speech/speech-ipc.ts";
-import { registerFindInPageIpc, relayFindResults } from "./src/find-in-page-ipc.ts";
-import { registerRunnerIpcStubs } from "./src/runner-ipc-stubs.ts";
-import { registerAppVersionIpc } from "./src/app-version-ipc.ts";
-import { createDesktopResources } from "./src/desktop-resources.ts";
-import { reportDesktopServerExit } from './src/product-telemetry.ts';
-import { registerResourcesIpc } from "./src/resources-ipc.ts";
-import { runOwnerStoreCli } from "./src/owner-store-cli.ts";
-import { createOwnerStoreController, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from "./src/owner-store-ipc.ts";
+import { isShellPageUrl } from "../window-navigation-policy.ts";
+import { registerSpeechIpc } from "../speech/speech-ipc.ts";
+import { registerFindInPageIpc, relayFindResults } from "../find-in-page-ipc.ts";
+import { registerRunnerIpcStubs } from "../runner-ipc-stubs.ts";
+import { registerAppVersionIpc } from "../app-version-ipc.ts";
+import { createDesktopResources } from "../desktop-resources.ts";
+import { reportDesktopServerExit } from '../product-telemetry.ts';
+import { registerResourcesIpc } from "../resources-ipc.ts";
+import { runOwnerStoreCli } from "../owner-store-cli.ts";
+import { createOwnerStoreController, importConfirmation, registerOwnerStoreIpc, settleLegacyOwnerStore } from "../owner-store-ipc.ts";
 import { listProcessUsage } from "@jini-ai/platform/process";
 import { totalmem } from "node:os";
-import { createUpdateCheckNow, registerUpdateCheckIpc } from "./src/update-check-now.ts";
-import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "./src/desktop-auth.ts";
-import { sitesFilePath, seedDevFallbackSite, retireDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "./src/tracked-sites.ts";
-import { writeSiteName } from "./src/site-config.ts";
-import { readPreviewVersion, readPreviewDataUrl, writePreview, deletePreview, sweepOrphanedPreviews } from "./src/site-preview-store.ts";
-import { createSiteThemePreviewSubscriptions, openSiteThemePreviewStream } from "./src/site-theme-preview.ts";
-import { registerSiteThemePreviewIpc } from "./src/site-theme-preview-ipc.ts";
-import { createSitePreviewScheduler } from "./src/site-preview-scheduler.ts";
-import { registerSiteIpcHandlers, rescanSites } from "./src/project-ipc.ts";
-import { createSiteFolders } from "./src/site-folders.ts";
-import { discoverDesktopSites, startDesktopSiteDiscovery } from "./src/site-discovery.ts";
-import { addSitePointer } from "./src/add-site-pointer.ts";
-import { registerSitesMcpServer, writeSitesMcpLauncher } from "./src/sites-mcp-registration.ts";
+import { createUpdateCheckNow, registerUpdateCheckIpc } from "../update-check-now.ts";
+import { armDesktopOwnerSignIn, redeemBootSession, sitePartition, ensureSiteSession, endSiteSession } from "../desktop-auth.ts";
+import { sitesFilePath, seedDevFallbackSite, retireDevFallbackSite, migrateLegacyDismissals, readTrackedSites } from "../tracked-sites.ts";
+import { writeSiteName } from "../site-config.ts";
+import { readPreviewVersion, readPreviewDataUrl, writePreview, deletePreview, sweepOrphanedPreviews } from "../site-preview-store.ts";
+import { createSiteThemePreviewSubscriptions, openSiteThemePreviewStream } from "../site-theme-preview.ts";
+import { registerSiteThemePreviewIpc } from "../site-theme-preview-ipc.ts";
+import { createSitePreviewScheduler } from "../site-preview-scheduler.ts";
+import { registerSiteIpcHandlers, rescanSites } from "../project-ipc.ts";
+import { createSiteFolders } from "../site-folders.ts";
+import { discoverDesktopSites, startDesktopSiteDiscovery } from "../site-discovery.ts";
+import { addSitePointer } from "../add-site-pointer.ts";
+import { registerSitesMcpServer, writeSitesMcpLauncher } from "../sites-mcp-registration.ts";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { resolveDesktopRoots } from "./src/packaged-paths.ts";
-import { sitesHomeMenuTemplate } from "./src/site-history-menu.ts";
-import { readWindowBounds, writeWindowBounds } from "./src/window-bounds-store.ts";
-import { registerSpellCheckContextMenu } from "./src/spellcheck-menu.ts";
-import { readAutomaticUpdates, writeAutomaticUpdates } from "./src/desktop-update-preference.ts";
-import { presenceDirPath } from "./src/instance-presence.ts";
+import { resolveDesktopRoots } from "../packaged-paths.ts";
+import { sitesHomeMenuTemplate } from "../site-history-menu.ts";
+import { readWindowBounds, writeWindowBounds } from "../window-bounds-store.ts";
+import { registerSpellCheckContextMenu } from "../spellcheck-menu.ts";
+import { readAutomaticUpdates, writeAutomaticUpdates } from "../desktop-update-preference.ts";
+import { presenceDirPath } from "../instance-presence.ts";
 // Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
 // Restore the removed prompt imports, helper and call from git history, then re-enable wiring tests.
 import type { MenuItemConstructorOptions } from "electron";
 import type { QuitPhase } from "@jini-ai/desktop-host/shutdown";
-import type { SelftestTracker } from "./src/selftest-tracker.ts";
-// The decisions this file wires live in src/main/: windows/ (window and navigation policy), boot/
+import type { SelftestTracker } from "../selftest-tracker.ts";
+// The decisions this file wires live beside it in src/main/: windows/ (window and navigation policy), boot/
 // (site spawn, previews, boot steps and failures), updates/ (updater, Settings menu, notices, telemetry).
-import { promptForSiteDir as promptForSiteFolder } from "./src/main/windows/site-folder-prompt.ts";
-import { createAppWindow } from "./src/main/windows/app-window.ts";
-import { openSitesHomeWindow as openSitesHomeWindowWith } from "./src/main/windows/sites-home-window.ts";
-import { openSiteWindow as openSiteWindowWith } from "./src/main/windows/site-window.ts";
-import { installWebviewGuestPolicy } from "./src/main/windows/guest-navigation.ts";
-import { adoptAndOpenSite as adoptAndOpenSiteWith, promptAndOpenNewSite as promptAndOpenNewSiteWith, type SiteOpenActionPorts } from "./src/main/windows/site-open-actions.ts";
-import { applyDockIcon as applyDockIconWith } from "./src/main/windows/dock-icon.ts";
-import { createDesktopUpdater, desktopUpdaterSkipReason } from "./src/main/updates/desktop-updater.ts";
-import { explainOthersOpen, promptUpdateReady, showDesktopNotice as showNativeNotice, type DesktopNotice } from "./src/main/updates/native-notices.ts";
-import { desktopPreferencesPath as preferencesPathIn, desktopSettingsMenu, ownServerMenuTemplate } from "./src/main/updates/settings-menu.ts";
-import { armFirstProductConsent, createDesktopProductState, initializeDesktopProductTelemetry as initializeProductTelemetryIn } from "./src/main/updates/product-telemetry-boot.ts";
-import { createSiteBackend } from "./src/main/boot/site-backend.ts";
-import { createSitePreviewCapture, createPreviewTargetResolver, createListedPreviewRequests, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS } from "./src/main/boot/site-preview.ts";
-import { reportBootFailure as reportBootFailureIn, buildSelftestTracker as buildSelftestTrackerIn } from "./src/main/boot/boot-failure.ts";
-import { resolveStartupSiteDirs as resolveStartupSiteDirsIn, reconcileOrphansOnBoot as reconcileOrphansOnBootIn, bootOwnServerMode as bootOwnServerModeIn } from "./src/main/boot/own-server-boot.ts";
-import { applyUserDataDir, prepareNodeToolchainEnv, settleDevFallbackRows, createSiteDiscoveryLanes, settleLegacyOwnerStoreOnStart as settleLegacyOwnerStoreOnStartIn } from "./src/main/boot/boot-steps.ts";
+import { promptForSiteDir as promptForSiteFolder } from "./windows/site-folder-prompt.ts";
+import { createAppWindow } from "./windows/app-window.ts";
+import { openSitesHomeWindow as openSitesHomeWindowWith } from "./windows/sites-home-window.ts";
+import { openSiteWindow as openSiteWindowWith } from "./windows/site-window.ts";
+import { installWebviewGuestPolicy } from "./windows/guest-navigation.ts";
+import { adoptAndOpenSite as adoptAndOpenSiteWith, promptAndOpenNewSite as promptAndOpenNewSiteWith, type SiteOpenActionPorts } from "./windows/site-open-actions.ts";
+import { applyDockIcon as applyDockIconWith } from "./windows/dock-icon.ts";
+import { createDesktopUpdater, desktopUpdaterSkipReason } from "./updates/desktop-updater.ts";
+import { explainOthersOpen, promptUpdateReady, showDesktopNotice as showNativeNotice, type DesktopNotice } from "./updates/native-notices.ts";
+import { desktopPreferencesPath as preferencesPathIn, desktopSettingsMenu, ownServerMenuTemplate } from "./updates/settings-menu.ts";
+import { armFirstProductConsent, createDesktopProductState, initializeDesktopProductTelemetry as initializeProductTelemetryIn } from "./updates/product-telemetry-boot.ts";
+import { createSiteBackend } from "./boot/site-backend.ts";
+import { createSitePreviewCapture, createPreviewTargetResolver, createListedPreviewRequests, sweepSitePreviewsOnBoot as sweepSitePreviewsOnBootIn, PREVIEW_CAPTURE_DEBOUNCE_MS } from "./boot/site-preview.ts";
+import { reportBootFailure as reportBootFailureIn, buildSelftestTracker as buildSelftestTrackerIn } from "./boot/boot-failure.ts";
+import { resolveStartupSiteDirs as resolveStartupSiteDirsIn, reconcileOrphansOnBoot as reconcileOrphansOnBootIn, bootOwnServerMode as bootOwnServerModeIn } from "./boot/own-server-boot.ts";
+import { applyUserDataDir, prepareNodeToolchainEnv, settleDevFallbackRows, createSiteDiscoveryLanes, settleLegacyOwnerStoreOnStart as settleLegacyOwnerStoreOnStartIn } from "./boot/boot-steps.ts";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+/** `apps/desktop` (the `.asar` root when packaged). This file lives two levels below it, in
+ *  `src/main/`; every bundled path below — preloads, renderer, icon, MCP bridge — is resolved from here. */
+const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 
 /** A resolved {@link startTovuServer} handle. `tovu-server.ts` does not export the type. */
@@ -226,28 +228,28 @@ interface SiteOpenOptions {
  *  runs neither TypeScript nor ESM, so `npm run build:preload` (`tsconfig.preload.json`) emits it
  *  here, the same way {@link SITES_PRELOAD_PATH} is built. `npm run desktop` and `npm run package`
  *  both run that build first. */
-const SPEECH_PRELOAD_PATH = path.join(__dirname, "dist", "speech", "preload-speech.cjs");
+const SPEECH_PRELOAD_PATH = path.join(DESKTOP_ROOT, "dist", "speech", "preload-speech.cjs");
 
 /** The built sites home renderer. `npm run build:renderer` produces it; `openSitesHomeWindow` reports its
  *  absence rather than opening a blank window on a source-only checkout. */
-const SITES_RENDERER_PATH = path.join(__dirname, "dist", "renderer", "index.html");
+const SITES_RENDERER_PATH = path.join(DESKTOP_ROOT, "dist", "renderer", "index.html");
 
 /** Preload for the SITES HOME window only. A native-ESM preload, which Electron 43 supports solely in an
  *  unsandboxed renderer — hence `sandbox: false` in {@link openSitesHomeWindow}, and hence site-admin
  *  windows keeping {@link SPEECH_PRELOAD_PATH} and `sandbox: true` untouched. It exposes BOTH
  *  `window.tovuRunner` and `window.tovuVoice`; see its own header on why the mic bridge had to be
  *  duplicated rather than shared. */
-const SITES_PRELOAD_PATH = path.join(__dirname, "dist", "preload", "preload.mjs");
+const SITES_PRELOAD_PATH = path.join(DESKTOP_ROOT, "dist", "preload", "preload.mjs");
 
 /** The Tovu mark for the macOS dock tile — see {@link applyDockIcon}. Copied into this directory
  *  from the tovu-theme theme rather than referenced out of `sites/tovu-dev/`, which is a user's live
  *  site folder and not an asset source this app may depend on. */
-const APP_ICON_PATH = path.join(__dirname, "src", "renderer", "public", "brand", "tovu-app-icon.png");
+const APP_ICON_PATH = path.join(DESKTOP_ROOT, "src", "renderer", "public", "brand", "tovu-app-icon.png");
 
 /** The MCP bridge the generated launcher execs — see `site-backend.ts`'s desktop-tools announce. */
-const MCP_BRIDGE_PATH = path.join(__dirname, "bin", "mcp-bridge.ts");
+const MCP_BRIDGE_PATH = path.join(DESKTOP_ROOT, "bin", "mcp-bridge.ts");
 
-const REPO_ROOT = path.resolve(__dirname, "..", "..");
+const REPO_ROOT = path.resolve(DESKTOP_ROOT, "..", "..");
 
 /**
  * Every root that differs between a checkout and a packaged `.app`, resolved once. See
@@ -826,7 +828,7 @@ app
         // The preview cache's three operations, bound to THIS launch's userData at the same call
         // site every other consumer resolves it from — an independently-resolved userData here
         // would write E2E previews into the real operator's profile (see `site-preview-store.ts`'s
-        // own header, and `main.ts`'s own doc on `TOVU_DESKTOP_USER_DATA_DIR`).
+        // own header, and `applyUserDataDir`'s doc on `TOVU_DESKTOP_USER_DATA_DIR`).
         readPreviewVersion: (siteDir: string) => readPreviewVersion(app.getPath("userData"), siteDir),
         readPreviewDataUrl: (siteDir: string) => readPreviewDataUrl(app.getPath("userData"), siteDir),
         deletePreview: (siteDir: string) => deletePreview(app.getPath("userData"), siteDir),

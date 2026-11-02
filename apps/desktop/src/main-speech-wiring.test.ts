@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const MAIN_PATH = path.join(__dirname, "..", "main.ts");
+const MAIN_PATH = path.join(__dirname, "main", "index.ts");
 const source = fs.readFileSync(MAIN_PATH, "utf8");
 
 test("main.ts imports registerSpeechIpc from speech-ipc.ts", () => {

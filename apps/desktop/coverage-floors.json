@@ -53,10 +53,6 @@
   ],
   "excluded": [
     {
-      "file": "main.ts",
-      "why": "The Electron entry at the desktop root, until the 2026-11-02 refactor moves it to src/main/index.ts, where the main-process area covers it. No test loads it: it requires \"electron\" at module scope, which outside a real Electron process resolves to a path string rather than the module, so its main-*-wiring tests read it as SOURCE TEXT instead. Real coverage needs the extract-and-test path already in motion (desktop-auth.ts, shutdown-tracker.ts, speech-ipc.ts are why the main-process area reads as high as it does), not a new runner; that refactor is what moves this file. Delete this entry in the same commit that moves the file: once main.ts is gone this entry is stale and FAILS the gate."
-    },
-    {
       "file": "vite.config.mts",
       "why": "Vite build configuration for the renderer bundle. It runs only at build time and never ships in the app."
     }

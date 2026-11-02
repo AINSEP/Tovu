@@ -45,7 +45,7 @@ function withoutComments(source: string) {
 // failed on its own replacement comment first time out.
 const appTsx = withoutComments(appShellSource());
 const appCss = withoutComments(read("app.css"));
-const mainJs = withoutComments(read("..", "..", "main.ts"));
+const mainJs = withoutComments(read("..", "main", "index.ts"));
 
 // THE load-bearing assertion, and the negative one. "No `DisabledChatFab`" would pass again the
 // moment someone re-adds a host FAB under any other name — including by rendering

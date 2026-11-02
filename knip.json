@@ -146,7 +146,7 @@
     },
     "apps/desktop": {
       "entry": [
-        "main.ts",
+        "src/main/index.ts",
         "src/preload/preload.mts",
         "src/speech/preload-speech.cts",
         "src/renderer/index.html",

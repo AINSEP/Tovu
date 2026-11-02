@@ -242,7 +242,7 @@ test("production extraResources copies Electron notices, npm CLIs, dependencies 
 });
 
 test("production files includes every shell runtime entry point", () => {
-  for (const filename of ["main.ts", "bin/mcp-bridge.ts", "src/sites-mcp-registration.ts", "src/tovu-server.ts",
+  for (const filename of ["src/main/index.ts", "bin/mcp-bridge.ts", "src/sites-mcp-registration.ts", "src/tovu-server.ts",
     "dist/preload/preload.mjs", "dist/speech/preload-speech.cjs", "dist/contracts/project.js", "dist/renderer/index.html"]) {
     assert.equal(shipsPath(configuredFilePatterns(), filename), true, `${filename} must ship`);
   }

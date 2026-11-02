@@ -53,7 +53,7 @@ function sharedImports(files: readonly string[]): string[] {
   return [...shared].sort();
 }
 
-const sources = [path.join(DESKTOP_ROOT, "main.ts"), ...shellSources(path.join(DESKTOP_ROOT, "src")), ...shellSources(path.join(DESKTOP_ROOT, "bin"))];
+const sources = [...shellSources(path.join(DESKTOP_ROOT, "src")), ...shellSources(path.join(DESKTOP_ROOT, "bin"))];
 const entryPoints = sharedImports(sources);
 fs.rmSync(OUT_DIR, { recursive: true, force: true });
 fs.mkdirSync(OUT_DIR, { recursive: true });

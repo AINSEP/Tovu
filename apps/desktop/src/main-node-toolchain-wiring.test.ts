@@ -23,7 +23,7 @@ import ts from "typescript";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const rawSource = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+const rawSource = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
 
 /** `main.ts` with every comment stripped — same helper as `main-mcp-announce-wiring.test.ts`, so a
  *  hazard named only in a comment (e.g. this file's own doc quoted back into main.ts) never

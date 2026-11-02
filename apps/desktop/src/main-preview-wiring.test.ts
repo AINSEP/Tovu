@@ -19,7 +19,7 @@ import { startDesktopSiteDiscovery } from "./site-discovery.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const MAIN_PATH = path.join(__dirname, "..", "main.ts");
+const MAIN_PATH = path.join(__dirname, "main", "index.ts");
 const source = fs.readFileSync(MAIN_PATH, "utf8");
 
 /** One function's own body, from its `function name(` header to the next top-level `function `. */

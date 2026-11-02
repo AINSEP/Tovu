@@ -238,7 +238,7 @@ test('every desktop source import has a real JavaScript target or an owning comp
     const { config: settings } = ts.readConfigFile(path.join(desktop, config), ts.sys.readFile);
     return ts.parseJsonConfigFileContent(settings, ts.sys, desktop).fileNames;
   }));
-  const sources = ['main.ts', ...['src', 'bin'].flatMap(folder =>
+  const sources = [...['src', 'bin'].flatMap(folder =>
     readdirSync(path.join(desktop, folder), { recursive: true, withFileTypes: true })
       .filter(entry => entry.isFile() && /\.[cm]?tsx?$/.test(entry.name) && !/\.(test|d)\.[cm]?tsx?$/.test(entry.name))
       .map(entry => path.relative(desktop, path.join(entry.parentPath, entry.name))))];

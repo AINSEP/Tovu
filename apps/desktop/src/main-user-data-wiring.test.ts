@@ -13,7 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const MAIN_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "main.ts");
+const MAIN_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "main", "index.ts");
 const source = fs.readFileSync(MAIN_PATH, "utf8");
 
 /** Top-level (column-0) `setPath("userData", …)` calls; comment lines start with ` *` or `//`. */

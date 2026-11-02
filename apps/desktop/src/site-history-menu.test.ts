@@ -76,7 +76,7 @@ test("the preload subscribes to that channel", () => {
 function sitesHomeBootStatements() {
   // The real entry point remains ../main.ts. Inspect its AST so extending the menu (Settings)
   // or formatting the call cannot invalidate the guard, and comments cannot satisfy it.
-  const main = ts.createSourceFile("main.ts", read("..", "main.ts"), ts.ScriptTarget.Latest, true);
+  const main = ts.createSourceFile("main.ts", read("main", "index.ts"), ts.ScriptTarget.Latest, true);
   const branches: ts.IfStatement[] = [];
   const visit = (node: ts.Node) => {
     if (ts.isIfStatement(node) && node.expression.getText(main) === "sitesUiRequested()") branches.push(node);

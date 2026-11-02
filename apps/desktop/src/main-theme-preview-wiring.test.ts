@@ -6,7 +6,7 @@ import ts from 'typescript';
 import { createSiteThemePreviewSubscriptions } from './site-theme-preview.ts';
 import { sourceFunction } from './renderer/source-test-harness.ts';
 
-const source = readFileSync(new URL('../main.ts', import.meta.url), 'utf8');
+const source = readFileSync(new URL('./main/index.ts', import.meta.url), 'utf8');
 const sf = ts.createSourceFile('main.ts', source, ts.ScriptTarget.Latest, true);
 function evaluate<T>(expression: string, deps: Record<string, unknown>): T {
   const js = ts.transpile(`const value = ${expression};`, { target: ts.ScriptTarget.ES2022 });

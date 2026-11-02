@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Electron shell around the same Tovu the web mode serves. Additive: nothing outside this directory knows it exists.",
-  "main": "main.ts",
+  "main": "src/main/index.ts",
   "scripts": {
     "predev": "npm --prefix ../../packages/contracts run build",
     "prebuild": "npm --prefix ../../packages/contracts run build",

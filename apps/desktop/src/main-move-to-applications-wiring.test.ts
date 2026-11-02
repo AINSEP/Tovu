@@ -19,7 +19,7 @@ function withoutComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 }
 
-const source = withoutComments(fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8"));
+const source = withoutComments(fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8"));
 
 test.skip("the prompt runs inside whenReady, before the auto-updater starts", () => {
   const ready = source.indexOf(".whenReady()");

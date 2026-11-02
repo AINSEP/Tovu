@@ -5,7 +5,7 @@ import ts from 'typescript';
 
 // Electron cannot import under node. Execute the actual registered callbacks with native effects
 // injected, like main-quickwins-wiring.test.ts, so an unconditional quit/stop cannot pass.
-const source = fs.readFileSync(new URL('../main.ts', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('./main/index.ts', import.meta.url), 'utf8');
 const sf = ts.createSourceFile('main.ts', source, ts.ScriptTarget.Latest, true);
 function handler(event: string, functionName?: string): string {
   let result: string | undefined;

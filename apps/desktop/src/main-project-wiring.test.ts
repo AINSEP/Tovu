@@ -27,7 +27,7 @@ import { describeRejectedDefault } from "./startup-env.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const MAIN_PATH = path.join(__dirname, "..", "main.ts");
+const MAIN_PATH = path.join(__dirname, "main", "index.ts");
 const rawSource = fs.readFileSync(MAIN_PATH, "utf8");
 const source = rawSource.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
 const parsedMain = ts.createSourceFile(MAIN_PATH, rawSource, ts.ScriptTarget.Latest, true);

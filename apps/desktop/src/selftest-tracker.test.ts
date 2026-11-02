@@ -77,7 +77,7 @@ test("two windows, added one at a time: the FIRST window finishing before the SE
 
 // F2.4/F3.5: execute main's actual createWindow body; a load may complete immediately.
 test("createWindow registers the tracker before navigation can finish", () => {
-  const source = fs.readFileSync(new URL("../main.ts", import.meta.url), "utf8");
+  const source = fs.readFileSync(new URL("./main/index.ts", import.meta.url), "utf8");
   const parsed = ts.createSourceFile("main.ts", source, ts.ScriptTarget.Latest, true);
   const declaration = parsed.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "createWindow");
   assert.ok(declaration);

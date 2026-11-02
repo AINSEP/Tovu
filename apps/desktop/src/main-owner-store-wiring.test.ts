@@ -11,7 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const MAIN = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "main.ts"), "utf8");
+const MAIN = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "main", "index.ts"), "utf8");
 
 test("a site start never calls the owner-store CLI: the sync-on-start path is gone", () => {
   for (const removed of ["syncOnStart", "finishStartedSite", "listSites"]) assert.equal(MAIN.includes(removed), false, removed);

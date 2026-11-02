@@ -10,7 +10,7 @@ import vm from "node:vm";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createShutdownTracker, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
 
-const source = fs.readFileSync(new URL("../main.ts", import.meta.url), "utf8");
+const source = fs.readFileSync(new URL("./main/index.ts", import.meta.url), "utf8");
 
 test("desktop app creates one runtime outside window/site callbacks", async () => {
   const declarations = source.match(/^const desktopAgentRuntime = createNativeAgentRuntime\(.+\);$/gm) ?? [];

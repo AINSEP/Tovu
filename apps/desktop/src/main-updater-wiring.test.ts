@@ -12,7 +12,7 @@ import ts from "typescript";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
 
 function block(anchor: string, end: string): string {
   const start = source.indexOf(anchor);

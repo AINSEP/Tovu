@@ -81,7 +81,7 @@ test('the preload forwards getAppVersion with no renderer-supplied payload', asy
 });
 
 test('main registers the version adapter with Electron before opening the sites home renderer', () => {
-  const file = sourceFile('../main.ts');
+  const file = sourceFile('./main/index.ts');
   const registration = findNode(file, (node): node is ts.CallExpression =>
     ts.isCallExpression(node) && node.expression.getText(file) === 'registerAppVersionIpc');
   const handlers = new Map<string, () => string | Promise<string>>();

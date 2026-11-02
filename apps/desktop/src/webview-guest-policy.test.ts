@@ -61,7 +61,7 @@ test("main.ts routes will-attach-webview through this policy, with the speech pr
   // Source text: `main.ts` requires "electron" at module scope and cannot be required under plain
   // node --test (see `main-speech-wiring.test.ts`). Without this, the policy above could be correct
   // and simply not called.
-  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
   assert.match(source, /from "\.\/src\/webview-guest-policy\.ts"/);
   assert.match(
     source,
@@ -131,7 +131,7 @@ test("a predicate that throws refuses the attach instead of throwing out of Elec
 });
 
 test("main.ts checks the guest's src against the supervised sites before applying its preferences", () => {
-  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
   assert.match(
     source,
     /on\("will-attach-webview", \(event, webPreferences, params\) => \{\s*if \(!admitGuestSource\(event, params, \{ isAllowedSource: isSupervisedGuestUrl \}\)\) return;\s*applyGuestWebPreferences\(webPreferences, \{ preloadPath: SPEECH_PRELOAD_PATH \}\);/,
@@ -140,7 +140,7 @@ test("main.ts checks the guest's src against the supervised sites before applyin
 
 
 test("the sites-home attach registration executes the admission check before granting the preload", () => {
-  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
   const ast = ts.createSourceFile("main.ts", source, ts.ScriptTarget.Latest, true);
   const home = ast.statements.find((node): node is ts.FunctionDeclaration =>
     ts.isFunctionDeclaration(node) && node.name?.text === "openSitesHomeWindow");

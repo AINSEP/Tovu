@@ -12,12 +12,12 @@ const imports = createTypeScriptImportReader({ compiler: ts });
 const resolver = createNodeRuntimeResolver({});
 /** Both closures are mandatory; a missing stage is a failure, never an empty successful walk. */
 function check({ payload, resources, app }: { payload: string; resources: string; app: string }): void {
-  for (const entry of [path.join(payload, 'dist'), path.join(app, 'main.ts')]) {
+  for (const entry of [path.join(payload, 'dist'), path.join(app, 'src', 'main', 'index.ts')]) {
     if (!existsSync(entry)) throw new Error(`staged closure input missing: ${entry}`);
   }
   const inputs = [
     { root: payload, scan: [path.join(payload, 'dist')], hostModules: new Set<string>() },
-    { root: resources, packageRoots: [app], scan: [path.join(app, 'main.ts'), path.join(app, 'bin')], hostModules: new Set(['electron']) },
+    { root: resources, packageRoots: [app], scan: [path.join(app, 'src', 'main', 'index.ts'), path.join(app, 'bin')], hostModules: new Set(['electron']) },
   ];
   const results = inputs.map(input => auditStagedClosure({ ...input, fs, imports, resolver }));
   for (const result of results) {

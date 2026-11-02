@@ -21,7 +21,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
 
 /** `startSiteBackend`'s body. */
 function startSiteBackendBody() {

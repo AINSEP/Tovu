@@ -23,7 +23,7 @@ import { sitesFilePath, trackSite } from "./tracked-sites.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
 
 function deferred() {
   let resolve!: () => void;

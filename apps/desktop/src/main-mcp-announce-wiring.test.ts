@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const rawSource = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+const rawSource = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
 
 /**
  * `main.ts` with every comment stripped. Load-bearing here specifically: `announceDesktopToolsToSite`'s

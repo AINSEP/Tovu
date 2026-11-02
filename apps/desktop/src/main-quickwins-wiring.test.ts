@@ -20,7 +20,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const MAIN_PATH = path.join(__dirname, "..", "main.ts");
+const MAIN_PATH = path.join(__dirname, "main", "index.ts");
 const source = fs.readFileSync(MAIN_PATH, "utf8");
 
 const sf = ts.createSourceFile("main.ts", source, ts.ScriptTarget.Latest, true);

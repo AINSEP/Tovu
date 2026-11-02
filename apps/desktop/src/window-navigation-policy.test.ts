@@ -33,7 +33,7 @@ const APP_ORIGIN = "http://127.0.0.1:4567";
 /** Execute the actual main-process function with injected Electron dependencies, without booting
  * the side-effecting main module. AST selection fails explicitly if the function is renamed. */
 function mainFunction(name: string, globals: Record<string, unknown>) {
-  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
   const parsed = ts.createSourceFile("main.ts", source, ts.ScriptTarget.Latest, true);
   const declaration = parsed.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === name);
   assert.ok(declaration, `expected main.ts function ${name}`);
@@ -279,7 +279,7 @@ test("guest popup: a throwing openExternal never escapes the handler — a guest
 test("main.ts installs this policy on every createWindow window, against the loaded URL's parsed origin", () => {
   // Source text: `main.ts` imports "electron" at module scope and cannot load under plain node --test
   // (see `main-speech-wiring.test.ts`). Without this, the policy above could be correct and unused.
-  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
   assert.match(source, /from "\.\/src\/window-navigation-policy\.ts"/);
   const createWindow = source.slice(source.indexOf("function createWindow("), source.indexOf("function openSitesHomeWindow("));
   assert.match(
@@ -316,7 +316,7 @@ test("createWindow installs its boundary before loading in both packaged and dev
 });
 
 test("the webview guest's popup handler is wired through installGuestWindowOpenPolicy, not a second copy", () => {
-  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
   const guestPolicy = source.slice(source.indexOf("function registerGuestNavigationPolicy("), source.indexOf("async function adoptAndOpenSite("));
   assert.match(
     guestPolicy,
@@ -326,14 +326,14 @@ test("the webview guest's popup handler is wired through installGuestWindowOpenP
 });
 
 test("the webview guest's will-navigate uses the same origin primitive, not a second copy", () => {
-  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
   const guestPolicy = source.slice(source.indexOf("function registerGuestNavigationPolicy("), source.indexOf("async function adoptAndOpenSite("));
   assert.match(guestPolicy, /will-navigate[\s\S]{0,200}?isSameOrigin\(url, contents\.getURL\(\)\)/);
   assert.doesNotMatch(guestPolicy, /new URL\(/, "the guest policy must not carry its own origin parse");
 });
 
 test("the webview guest refuses a main-frame redirect to anything but a supervised site", () => {
-  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
   const guestPolicy = source.slice(source.indexOf("function registerGuestNavigationPolicy("), source.indexOf("async function adoptAndOpenSite("));
   assert.match(
     guestPolicy,
@@ -399,7 +399,7 @@ test("isShellPageUrl refuses foreign pages and garbage without throwing", () => 
 });
 
 test("main.ts registers the speech channels with the shell-page sender check", () => {
-  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
   assert.match(source, /registerSpeechIpc\(\{ ipcMain, isTrustedSender: isShellPage \}\)/);
   const shellPage = source.slice(source.indexOf("function isShellPage("), source.indexOf("function registerGuestNavigationPolicy("));
   assert.match(
@@ -447,7 +447,7 @@ test("sites home: a remote popup is denied and handed to the OS browser; a main-
 });
 
 test("main.ts installs the sites home policy on openSitesHomeWindow's window, against the renderer's own file url", () => {
-  const source = fs.readFileSync(path.join(__dirname, "..", "main.ts"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
   const sitesHome = source.slice(source.indexOf("function openSitesHomeWindow("), source.indexOf("window.loadFile(SITES_RENDERER_PATH)"));
   assert.match(
     sitesHome,
