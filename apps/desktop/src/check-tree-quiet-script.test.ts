@@ -14,14 +14,13 @@ import { fileURLToPath } from "node:url";
 import { runTreeQuietCheck, snapshot } from "../scripts/check-tree-quiet.ts";
 import type { ExecPort } from "../scripts/check-tree-quiet.ts";
 
-/** A temp checkout holding the verified surface: src/ (nested), bin/, and main.ts. */
+/** A temp checkout holding the verified surface: src/ (nested) and bin/. */
 function checkout(): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-tree-quiet-"));
   fs.mkdirSync(path.join(root, "apps", "desktop", "src", "nested"), { recursive: true });
   fs.mkdirSync(path.join(root, "apps", "desktop", "bin"));
   fs.writeFileSync(path.join(root, "apps", "desktop", "src", "a.ts"), "a");
   fs.writeFileSync(path.join(root, "apps", "desktop", "src", "nested", "b.ts"), "b");
-  fs.writeFileSync(path.join(root, "apps", "desktop", "main.ts"), "main");
   return root;
 }
 
@@ -54,7 +53,7 @@ test("a quiet checkout passes, having asked pgrep, git (scoped to the verified s
   assert.equal(runTreeQuietCheck({ exec, ...io.io }, { repoRoot }), 0);
   assert.deepEqual(io.out, ["check-tree-quiet: OK — apps/desktop is quiet\n"]);
   assert.deepEqual(calls.map(([file]) => file), ["pgrep", "git", "sleep"]);
-  assert.deepEqual(calls[1]![1], ["-C", repoRoot, "status", "--porcelain", "--", "apps/desktop/src", "apps/desktop/bin", "apps/desktop/main.ts"]);
+  assert.deepEqual(calls[1]![1], ["-C", repoRoot, "status", "--porcelain", "--", "apps/desktop/src", "apps/desktop/bin"]);
 });
 
 test("a live vite watcher, git-dirty paths, and a write inside the window are each reported", () => {
@@ -99,10 +98,11 @@ test("snapshot fingerprints a missing path, a file, and a tree (symlinks are not
   const repoRoot = checkout();
   const src = path.join(repoRoot, "apps", "desktop", "src");
   fs.symlinkSync(path.join(src, "a.ts"), path.join(src, "link.ts"));
-  const fileStat = fs.statSync(path.join(repoRoot, "apps", "desktop", "main.ts"));
+  const file = path.join(src, "a.ts");
+  const fileStat = fs.statSync(file);
 
   assert.deepEqual(snapshot(path.join(repoRoot, "nope")), { exists: false, fileCount: 0, newestMtimeMs: 0 });
-  assert.deepEqual(snapshot(path.join(repoRoot, "apps", "desktop", "main.ts")), { exists: true, fileCount: 1, newestMtimeMs: fileStat.mtimeMs });
+  assert.deepEqual(snapshot(file), { exists: true, fileCount: 1, newestMtimeMs: fileStat.mtimeMs });
   const tree = snapshot(src);
   assert.equal(tree.exists, true);
   assert.equal(tree.fileCount, 2);

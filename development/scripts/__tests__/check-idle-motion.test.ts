@@ -69,9 +69,9 @@ test("an autoplaying or looping video in UI markup fails", () => {
   assert.deepEqual(found.map((v) => v.rule), ["media-autoplay", "media-autoplay"]);
 });
 
-test("turning off Electron background throttling fails", () => {
-  const found = planted({ "apps/desktop/main.ts": "new BrowserWindow({ webPreferences: { backgroundThrottling: false } });\n" });
-  assert.deepEqual(found.map((v) => v.rule), ["background-throttling"]);
+test("turning off Electron background throttling in the main-process entry fails, reported once", () => {
+  const found = planted({ "apps/desktop/src/main/index.ts": "new BrowserWindow({ webPreferences: { backgroundThrottling: false } });\n" });
+  assert.deepEqual(found.map((v) => [v.rule, v.file]), [["background-throttling", "apps/desktop/src/main/index.ts"]]);
 });
 
 test("a bare setInterval in UI code fails; one in a comment does not", () => {

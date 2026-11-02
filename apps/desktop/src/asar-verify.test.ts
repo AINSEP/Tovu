@@ -55,9 +55,14 @@ test("collects nested files under a directory prefix", () => {
   assert.deepEqual(filesUnderPrefixes(header, ["src"]).sort(), ["src/a.js", "src/sub/b.js"]);
 });
 
-test("a prefix naming a FILE directly (main.ts) is included as-is, not walked", () => {
-  const header = { "main.ts": { size: 4, offset: "0" } };
-  assert.deepEqual(filesUnderPrefixes(header, ["main.ts"]), ["main.ts"]);
+test("a prefix naming a FILE directly (the nested Electron entry) is included as-is, not walked", () => {
+  const header = { src: { files: { main: { files: { "index.ts": { size: 4, offset: "0" } } } } } };
+  assert.deepEqual(filesUnderPrefixes(header, ["src/main/index.ts"]), ["src/main/index.ts"]);
+});
+
+test("an entry-file prefix inside a directory prefix adds no second copy of that file", () => {
+  const header = { src: { files: { "a.js": { size: 1, offset: "0" }, main: { files: { "index.ts": { size: 4, offset: "1" } } } } } };
+  assert.deepEqual(filesUnderPrefixes(header, ["src", "src/main/index.ts"]).sort(), ["src/a.js", "src/main/index.ts"]);
 });
 
 test("symlinks are excluded — they carry no bytes of their own to compare", () => {
@@ -67,7 +72,7 @@ test("symlinks are excluded — they carry no bytes of their own to compare", ()
 
 test("a prefix absent from the archive is silently skipped, not an error", () => {
   const header = { src: { files: {} } };
-  assert.deepEqual(filesUnderPrefixes(header, ["src", "bin", "main.ts"]), []);
+  assert.deepEqual(filesUnderPrefixes(header, ["src", "bin", "src/main/index.ts"]), []);
 });
 
 test("only the requested prefixes are walked — an unrelated top-level entry (node_modules) never appears", () => {
@@ -90,19 +95,20 @@ test("the report names every mismatched file individually and explains the failu
 // --- verifyAsarAgainstSource: real archive, built and torn down per test -------------------------
 
 /** Builds a small real fixture tree + packed .asar mirroring apps/desktop's own layout
- *  (src/, bin/, main.ts at the archive root), and returns paths for the test to use. Content is
+ *  (src/ holding the Electron entry at src/main/index.ts, bin/), and returns paths for the test to use. Content is
  *  made long and distinctive enough that `Buffer#indexOf` cannot find a spurious second match
  *  elsewhere in the packed archive (the asar header JSON, or another file's bytes). */
 async function buildFixture() {
   const root = mkdtempSync(path.join(os.tmpdir(), "tovu-asar-verify-"));
   mkdirSync(path.join(root, "src", "sub"), { recursive: true });
+  mkdirSync(path.join(root, "src", "main"), { recursive: true });
   mkdirSync(path.join(root, "bin"), { recursive: true });
 
   const files = {
     "src/a.js": "// fixture file A ".repeat(20) + "UNIQUE-MARKER-AAAA\n",
     "src/sub/b.js": "// fixture file B ".repeat(20) + "UNIQUE-MARKER-BBBB\n",
     "bin/c.mjs": "// fixture bin C ".repeat(20) + "UNIQUE-MARKER-CCCC\n",
-    "main.ts": "// fixture main ".repeat(20) + "UNIQUE-MARKER-MMMM\n",
+    "src/main/index.ts": "// fixture main ".repeat(20) + "UNIQUE-MARKER-MMMM\n",
   };
   for (const [rel, content] of Object.entries(files)) {
     writeFileSync(path.join(root, rel), content);
@@ -138,7 +144,7 @@ test("an entry the header lists but extractFile cannot read is reported as a rea
 test("a clean archive matches source on every file, byte-for-byte", async () => {
   const { root, asarPath, files } = await buildFixture();
   try {
-    const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "main.ts"]);
+    const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "src/main/index.ts"]);
     assert.equal(checkedCount, Object.keys(files).length);
     assert.deepEqual(mismatches, []);
   } finally {
@@ -164,7 +170,7 @@ test("DELIBERATE CORRUPTION: one entry rewritten in place, same length, differen
     archiveBuf.set(corrupted, at);
     writeFileSync(asarPath, archiveBuf);
 
-    const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "main.ts"]);
+    const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "src/main/index.ts"]);
     assert.equal(checkedCount, Object.keys(files).length, "corruption must not change which files are checked");
     assert.equal(mismatches.length, 1, "exactly one file was corrupted — exactly one mismatch must be reported");
     assert.equal(mismatches[0]!.relPath, target, "the gate must name the actual corrupted file");
@@ -178,8 +184,27 @@ test("a checked prefix with NOTHING shipped under it is a mismatch, not a partia
   // bridge. `src` alone still yields a non-zero checkedCount, so only a per-prefix check catches it.
   const { root, asarPath } = await buildFixture();
   try {
-    const { mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "main.ts", "dist"]);
+    const { mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "src/main/index.ts", "dist"]);
     assert.deepEqual(mismatches, [{ relPath: "dist", reason: "nothing under this checked prefix is in app.asar" }]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the entry prefix is checked on its own: an archive shipping src/ WITHOUT src/main/index.ts is a mismatch, not a pass on src's count", async () => {
+  // `package.json`'s `main` names src/main/index.ts, so an archive missing it cannot launch even though
+  // every other file under src/ is present and `src` alone yields a non-zero checkedCount.
+  const root = mkdtempSync(path.join(os.tmpdir(), "tovu-asar-verify-no-entry-"));
+  try {
+    const payload = path.join(root, "payload");
+    mkdirSync(path.join(payload, "src"), { recursive: true });
+    writeFileSync(path.join(payload, "src", "a.js"), "// fixture file A without the entry\n");
+    const asarPath = path.join(root, "app.asar"); // sibling to `payload`, never inside the tree being packed
+    await packArchive(payload, asarPath);
+
+    const { checkedCount, mismatches } = verifyAsarAgainstSource(asarPath, payload, ["src", "src/main/index.ts"]);
+    assert.equal(checkedCount, 1);
+    assert.deepEqual(mismatches, [{ relPath: "src/main/index.ts", reason: "nothing under this checked prefix is in app.asar" }]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -189,7 +214,7 @@ test("a file present in the archive but deleted from source is reported as missi
   const { root, asarPath, files } = await buildFixture();
   try {
     rmSync(path.join(root, "bin", "c.mjs"));
-    const { mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "main.ts"]);
+    const { mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "src/main/index.ts"]);
     assert.equal(mismatches.length, 1);
     assert.equal(mismatches[0]!.relPath, "bin/c.mjs");
     assert.match(mismatches[0]!.reason, /missing from the source tree/);
@@ -199,12 +224,12 @@ test("a file present in the archive but deleted from source is reported as missi
 });
 
 // --- dist/ coverage: the compiled preloads (and the contracts they import) ship inside app.asar via
-// electron-builder.yml's `dist/**` entry, exactly like src/bin/main.ts — see VERIFIED_PREFIXES's own doc
+// electron-builder.yml's `dist/**` entry, exactly like src/ and bin/ — see VERIFIED_PREFIXES's own doc
 // comment for why they belong in the same "shell's own code" scope rather than the staged Tovu payload. ------
 
 /** Same file shape as {@link buildFixture} plus a `dist/` tree mirroring apps/desktop's real
  *  compiled-preload layout: `dist/preload/preload.mjs`, `dist/speech/preload-speech.cjs`, and
- *  `dist/contracts/x.js` (a shared module the compiled preload imports at runtime — main.ts:523 loads
+ *  `dist/contracts/x.js` (a shared module the compiled preload imports at runtime — the main process loads
  *  dist/renderer too, but one representative nested dist/ file per real shipped subdirectory is enough
  *  to prove the tree-walk, which is already covered generically by the "nested directory prefix" test
  *  above).
@@ -221,6 +246,7 @@ async function buildFixtureWithDist() {
   const outer = mkdtempSync(path.join(os.tmpdir(), "tovu-asar-verify-dist-"));
   const root = path.join(outer, "payload");
   mkdirSync(path.join(root, "src", "sub"), { recursive: true });
+  mkdirSync(path.join(root, "src", "main"), { recursive: true });
   mkdirSync(path.join(root, "bin"), { recursive: true });
   mkdirSync(path.join(root, "dist", "preload"), { recursive: true });
   mkdirSync(path.join(root, "dist", "speech"), { recursive: true });
@@ -230,7 +256,7 @@ async function buildFixtureWithDist() {
     "src/a.js": "// fixture file A ".repeat(20) + "UNIQUE-MARKER-AAAA\n",
     "src/sub/b.js": "// fixture file B ".repeat(20) + "UNIQUE-MARKER-BBBB\n",
     "bin/c.mjs": "// fixture bin C ".repeat(20) + "UNIQUE-MARKER-CCCC\n",
-    "main.ts": "// fixture main ".repeat(20) + "UNIQUE-MARKER-MMMM\n",
+    "src/main/index.ts": "// fixture main ".repeat(20) + "UNIQUE-MARKER-MMMM\n",
     "dist/preload/preload.mjs": "// fixture compiled preload ".repeat(20) + "UNIQUE-MARKER-PPPP\n",
     "dist/speech/preload-speech.cjs": "// fixture compiled speech preload ".repeat(20) + "UNIQUE-MARKER-SSSS\n",
     "dist/contracts/x.js": "// fixture compiled contract ".repeat(20) + "UNIQUE-MARKER-CCCC2\n",
@@ -245,7 +271,7 @@ async function buildFixtureWithDist() {
 }
 
 test("VERIFIED_PREFIXES includes dist — the compiled preloads and the contracts they import are in scope", () => {
-  assert.ok(VERIFIED_PREFIXES.includes("dist"), "production config must cover dist/, not just src/bin/main.ts");
+  assert.ok(VERIFIED_PREFIXES.includes("dist"), "production config must cover dist/, not just src/ and bin/");
 });
 
 test("a corrupted compiled preload under dist/ IS caught, using the real production prefix list", async () => {
@@ -271,7 +297,7 @@ test("a corrupted compiled preload under dist/ IS caught, using the real product
   }
 });
 
-test("REGRESSION DOCUMENTATION: the pre-fix prefix list (src, bin, main.ts only) misses the same corruption", async () => {
+test("REGRESSION DOCUMENTATION: the pre-fix prefix list (src, bin and the entry only, no dist) misses the same corruption", async () => {
   const { root, asarPath, files, teardown } = await buildFixtureWithDist();
   try {
     const target = "dist/preload/preload.mjs";
@@ -282,10 +308,11 @@ test("REGRESSION DOCUMENTATION: the pre-fix prefix list (src, bin, main.ts only)
     archiveBuf.set(Buffer.alloc(originalContent.length, 0x59), at);
     writeFileSync(asarPath, archiveBuf);
 
-    // This mirrors scripts/verify-package.ts's VERIFIED_PREFIXES value BEFORE this fix. It is a fixed
-    // literal on purpose — it documents the historical gap, not current production wiring (that is the
-    // job of the test above, which imports VERIFIED_PREFIXES directly).
-    const { mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "main.ts"]);
+    // This mirrors scripts/verify-package.ts's VERIFIED_PREFIXES value BEFORE the dist/ fix (the entry
+    // is written at its current path, src/main/index.ts, since the fixture ships no root main.ts). It is
+    // a fixed literal on purpose — it documents the historical gap, not current production wiring (that
+    // is the job of the test above, which imports VERIFIED_PREFIXES directly).
+    const { mismatches } = verifyAsarAgainstSource(asarPath, root, ["src", "bin", "src/main/index.ts"]);
     assert.deepEqual(mismatches, [], "without dist/, the corrupted compiled preload goes undetected");
   } finally {
     teardown();
@@ -362,7 +389,7 @@ test("toArchiveEntryPath is a no-op for POSIX separators (the default on this ho
 
 test("toArchiveEntryPath converts every POSIX segment separator to the given separator (win32 simulation)", () => {
   assert.equal(toArchiveEntryPath("src/sub/b.js", "\\"), "src\\sub\\b.js");
-  assert.equal(toArchiveEntryPath("main.ts", "\\"), "main.ts", "a path with no separator is unchanged either way");
+  assert.equal(toArchiveEntryPath("package.json", "\\"), "package.json", "a path with no separator is unchanged either way");
 });
 
 test("toArchiveEntryPath defaults to the real host path.sep when none is passed", () => {

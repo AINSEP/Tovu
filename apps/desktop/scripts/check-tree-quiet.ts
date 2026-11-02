@@ -39,8 +39,9 @@ const REPO_ROOT = path.resolve(DESKTOP_ROOT, "..", "..");
 
 /** Exactly the surface `scripts/verify-package.ts` checks byte-for-byte after the pack — keeping
  *  the two halves scoped to the same files means a pass here is describing the thing the backstop
- *  will actually verify, not a different guess at what matters. */
-const VERIFIED_RELATIVE_PATHS = ["apps/desktop/src", "apps/desktop/bin", "apps/desktop/main.ts"];
+ *  will actually verify, not a different guess at what matters. The Electron entry
+ *  (`src/main/index.ts`) lives inside `src`, so it needs no path of its own here. */
+const VERIFIED_RELATIVE_PATHS = ["apps/desktop/src", "apps/desktop/bin"];
 
 /** How far apart the two live snapshots are taken. Short enough not to make `npm run gates`
  *  noticeably slower; long enough to catch a write that lands mid-check. This is a SAMPLE, not a

@@ -49,12 +49,13 @@ import { filesUnderPrefixes as files, verifyAsarAgainstSource as verify, toArchi
 import type { AsarHeaderNode, AsarMismatch, AsarVerification } from "@jini-ai/devops/packaging/electron";
 export type { AsarHeaderNode, AsarMismatch, AsarVerification };
 /**
- * What the packaging backstop verifies, matched as TOP-LEVEL `app.asar` entries: the shell's own code —
- * `main.ts`, `src/` (main process + the unsandboxed and sandboxed preload sources), and `dist/` (that same
+ * What the packaging backstop verifies, matched as `app.asar` entries (a top-level directory, or a file path
+ * inside one): the shell's own code — `src/` (main process + the unsandboxed and sandboxed preload sources),
+ * `src/main/index.ts` (the Electron entry, `package.json`'s `main`), and `dist/` (that same
  * preload code, but the COMPILED artifacts electron actually loads: `dist/preload/preload.mjs`,
  * `dist/speech/preload-speech.cjs`, and `dist/contracts/*.js` — shared modules the compiled preload imports
  * at runtime, see `src/preload/preload.mts`'s `../contracts/*.js` imports — plus `dist/renderer/**`, the
- * sites-home window's UI that `main.ts` loads via `loadFile`). `electron-builder.yml`'s `files:` ships both
+ * sites-home window's UI that the main process loads via `loadFile`). `electron-builder.yml`'s `files:` ships both
  * `src/**` and `dist/**` into the same archive, so both are equally exposed to the length-correct/
  * content-wrong packaging race this module exists to catch (see the file header above) — there is no reason
  * to verify one and not the other.
@@ -65,11 +66,16 @@ export type { AsarHeaderNode, AsarMismatch, AsarVerification };
  * covers the whole subtree today AND any subdirectory added under it later, with no enumeration to keep in
  * sync.
  *
+ * `src/main/index.ts` sits inside `src`, so listing it adds no file to the compared set ({@link filesUnderPrefixes}
+ * de-duplicates). It is listed on its own for the per-prefix check in `verifyAsarAgainstSource`: an archive that
+ * ships the rest of `src/` but not the entry `package.json`'s `main` names would still show a non-zero count
+ * for `src`, and only an entry-specific prefix reports the missing entry.
+ *
  * Deliberately NOT covered — a different failure, out of scope here: the staged Tovu payload
  * (`apps/admin/dist`, `apps/site-chat/dist`, the runnable tree under `extraResources`), which has its own
  * freshness guard in `scripts/stage-payload.ts`.
  */
-export const VERIFIED_PREFIXES: string[] = ["src", "bin", "main.ts", "dist"];
+export const VERIFIED_PREFIXES: string[] = ["src", "bin", "src/main/index.ts", "dist"];
 
 /** One mismatch, rendered — every failing path named individually and why. A gate that says
  *  "corrupt" without saying which files sends the next person hunting through a multi-hundred-MB

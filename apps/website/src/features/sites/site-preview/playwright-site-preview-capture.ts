@@ -6,7 +6,7 @@ import type { ImageCodecPort } from "@jini-ai/cms/media";
  * site evidence (`features/site-evidence/tool-registrations.ts`), so the same optional browser is
  * reused here rather than adding a second screenshot stack.
  *
- * Same capture shape as the desktop's `captureSitePreview` (`apps/desktop/main.ts`): the site's
+ * Same capture shape as the desktop's `captureSitePreview` (`apps/desktop/src/main/boot/site-preview.ts`): the site's
  * PUBLIC root at 1280×800, a short settle for late paint, stored at 640px wide.
  *
  * The lazy launch/close lifecycle and the JPEG encode are the shared headless-capture core

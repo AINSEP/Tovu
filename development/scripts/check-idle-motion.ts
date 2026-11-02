@@ -57,7 +57,9 @@ export const INTERVAL_ALLOWLIST: Record<string, string> = {
   "apps/desktop/src/shared-sites.ts": "main-process lease liveness check only while attached to an external server; unref'd 2s timer, removed on exit or detach; no renderer/GPU work",
 };
 
-const ROOTS = ["apps/desktop/main.ts", "apps/desktop/src", "apps/admin/src", "apps/site-chat/src", "content/themes/static"];
+// The Electron entry (`apps/desktop/src/main/index.ts`) is under `apps/desktop/src`; naming it again here would
+// scan it twice and report every offender in it twice, so there is no root of its own for it.
+const ROOTS = ["apps/desktop/src", "apps/admin/src", "apps/site-chat/src", "content/themes/static"];
 const SKIP_DIRS = new Set(["node_modules", "dist", "dist-electron", "coverage", "vendor", "__tests__", "staging", "release"]);
 const CODE_EXT = /\.(?:ts|tsx|mts|cts|js|mjs|cjs)$/;
 const MARKUP_EXT = /\.(?:tsx|jsx|html)$/;

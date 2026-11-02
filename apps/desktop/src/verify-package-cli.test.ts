@@ -203,8 +203,10 @@ function closureArchiveFixture(scratch: string) {
   }
   symlinkSync(path.join(DESKTOP_ROOT, 'node_modules'), path.join(desktop, 'node_modules'), 'junction');
   write('desktop/package.json', { type: 'module' });
-  write('desktop/main.ts', "import '@jini-ai/daemon';");
-  write('tree/main.ts', "import '@jini-ai/daemon';");
+  // The Electron entry, `package.json`'s `main`: both verifiers name it (`VERIFIED_PREFIXES` as a checked
+  // prefix, `verify-staged-closure.ts` as the closure's scan root), so the archive and its source must both ship it.
+  write('desktop/src/main/index.ts', "import '@jini-ai/daemon';");
+  write('tree/src/main/index.ts', "import '@jini-ai/daemon';");
   for (const file of ['src/check.ts', 'bin/check.js', 'dist/check.js']) {
     write(`desktop/${file}`, 'export const ok = true;');
     write(`tree/${file}`, 'export const ok = true;');

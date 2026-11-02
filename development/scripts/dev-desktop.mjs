@@ -19,12 +19,12 @@
  * side by side (closes #2 — a renderer edit then needs only a window reload, Cmd+R, not a rebuild
  * command) and are torn down together on exit.
  *
- * Preload and main-process edits (`main.ts`, `src/tovu-server.ts`) are hand-written TS with no watch
+ * Preload and main-process edits (`src/main/index.ts`, `src/tovu-server.ts`) are hand-written TS with no watch
  * step — those still need this script restarted, same as before. Only the Vite/React renderer gets
  * a live-rebuild loop.
  *
  * It also starts the ADMIN Vite (`apps/admin`), which is a different app from the renderer above:
- * the `/admin` UI inside each site window. `apps/desktop/main.ts` probes for a running admin Vite on
+ * the `/admin` UI inside each site window. `apps/desktop/src/main/boot/site-backend.ts` probes for a running admin Vite on
  * every site spawn and has the site server proxy `/admin/*` to it when one answers
  * (`apps/website/src/server/inbound/admin-http/admin-static.ts`), but until now nothing on this path
  * ever started one — so `npm run desktop` silently served whatever `apps/admin/dist` last held,
@@ -595,7 +595,7 @@ async function main() {
 
   const waitForPlannedAdminVite = async (_required, _options = {}) => {
     // Hold Electron until the admin Vite answers, so a site window opened immediately does not miss
-    // the probe in `apps/desktop/main.ts` and settle onto the static bundle for its whole lifetime.
+    // the probe in `apps/desktop/src/main/boot/site-backend.ts` and settle onto the static bundle for its whole lifetime.
     // In the common case this costs ~0s: Vite booted alongside the renderer build above.
     if (adminVitePlan === "start" && !shuttingDown) {
       const up = await waitForAdminVite(adminVitePort, { signal: adminViteGone.signal });

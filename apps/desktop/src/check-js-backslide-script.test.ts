@@ -20,7 +20,7 @@ function capture() {
 
 test("a TypeScript-only tree (allowlisted exceptions included) passes", () => {
   const io = capture();
-  const code = runJsBackslideCheck({ listPaths: () => ["apps/desktop/main.ts", ...ALLOWLIST], ...io.io });
+  const code = runJsBackslideCheck({ listPaths: () => ["apps/desktop/src/main/index.ts", ...ALLOWLIST], ...io.io });
   assert.equal(code, 0);
   assert.deepEqual(io.out, ["check-js-backslide: OK — apps/desktop is TypeScript-only\n"]);
   assert.deepEqual(io.err, []);
