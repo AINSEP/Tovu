@@ -1,7 +1,11 @@
 /**
- * @file Static-analysis tests for `../main.ts`'s shutdown wiring (D-09) — that a window's `closed`
- * teardown is TRACKED, that `before-quit` waits for it, that the crash-safety row outlives the
- * child, and that an old window's close cannot drop a replacement entry.
+ * @file Static-analysis tests for the Electron entry's (`src/main/index.ts`, formerly `main.ts`)
+ * shutdown wiring (D-09) — that `before-quit` waits for every tracked teardown and holds a repeat
+ * quit during its drain. The window side (a `closed` teardown is TRACKED, the crash-safety row
+ * outlives the child, an old window's close cannot drop a replacement entry, a Stop that cannot
+ * confirm exit keeps its row) is tested through the real module in
+ * `src/main/windows/site-window.test.ts`. The `before-quit` handler has no module yet, so it is
+ * still run here as a cut-out with injected fakes.
  *
  * Source text, for the reason `main-speech-wiring.test.ts` documents at length: `main.ts`
  * requires `"electron"` at module scope, so `require`-ing it under plain `node --test` crashes
@@ -32,17 +36,6 @@ function deferred() {
 }
 
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
-
-/** Just the `window.on("closed", ...)` handler in `openSiteWindow`. Scoped deliberately: the
- *  `createWindow`-failed `catch` above it legitimately calls `recordSiteClosed` before its own
- *  `server.stop()`, and a whole-file assertion would read that as the defect. */
-function closedHandler() {
-  const start = source.indexOf('window.on("closed"');
-  assert.notEqual(start, -1, 'expected a window.on("closed", ...) handler in main.ts');
-  const end = source.indexOf("\n  return window;", start);
-  assert.notEqual(end, -1, "could not find the end of the closed handler");
-  return source.slice(start, end);
-}
 
 /** Just the `app.on("before-quit", ...)` handler, up to its closing `});`. Anchored at a line start:
  *  a doc comment earlier in main.ts mentions `app.on("before-quit")` in prose. */
@@ -194,86 +187,4 @@ test("the drain arms the force-exit deadline itself, so a held quit cannot outli
   assert.notEqual(draining, -1, "expected before-quit to enter the draining phase");
   assert.match(handler.slice(draining), /const drainDeadline = setTimeout\(\(\) => app\.exit\(1\), QUIT_DEADLINE_MS\);\s*drainDeadline\.unref\(\);/);
   assert.match(source, /deadlineMs: QUIT_DEADLINE_MS,/, "a signal and a Cmd+Q must get the same bound");
-});
-
-test("the closed handler tracks its teardown so the drain can find it", () => {
-  assert.match(closedHandler(), /pendingTeardowns\.track\(/);
-});
-
-test("the closed handler drops the crash-safety row only AFTER the child is stopped", async () => {
-  // The row is what lets the NEXT launch reap a child this process left running, so it must outlive
-  // the child. Dropped up front, a hard kill during the stop stranded a tovu serve that
-  // `reconcileOrphans` could never find.
-  const handler = closedHandler();
-  const stopAt = handler.indexOf("server.stop()");
-  const rowAt = handler.indexOf("recordSiteClosed(");
-  assert.notEqual(stopAt, -1, "expected server.stop() in the closed handler");
-  assert.notEqual(rowAt, -1, "expected recordSiteClosed() in the closed handler");
-  assert.ok(stopAt < rowAt, "recordSiteClosed must not run before server.stop()");
-
-  // Run the actual registration fragment with injected dependencies, without loading Electron.
-  const stop = deferred();
-  const pendingTeardowns = createShutdownTracker({});
-  let onClosed!: () => void;
-  let stopCalls = 0;
-  let closedRows = 0;
-  const window = { on: (_event: string, listener: () => void) => { onClosed = listener; } };
-  vm.runInNewContext(handler, {
-    process: { platform: "win32" },
-    quitPhase: "idle",
-    window,
-    sitePreviewScheduler: { cancel: () => {} },
-    siteThemePreviews: { stop: () => {} },
-    openSites: new Map([["/site", { window }]]),
-    siteDir: "/site", partition: "site-partition", ctx: { registryPath: "/registry" },
-    net: {}, session: { fromPartition: () => ({}) },
-    pendingTeardowns,
-    endSiteSession: async () => ({ ok: true }),
-    server: { pid: 123, adminUrl: "http://127.0.0.1:3001/admin/", stop: () => { stopCalls++; return stop.promise; } },
-    recordSiteClosed: () => { closedRows++; },
-  });
-  onClosed();
-  try {
-    await flush();
-    assert.equal(stopCalls, 1);
-    assert.equal(closedRows, 0, "the crash-safety row must outlive a pending server.stop()");
-    assert.equal(pendingTeardowns.size, 1, "the stop must remain tracked until it settles");
-  } finally {
-    stop.resolve();
-    await pendingTeardowns.drain();
-    await flush();
-  }
-  assert.equal(closedRows, 1);
-});
-
-test("closing a window only deletes the entry that window still owns", () => {
-  // A crashed server is removed from `openSites` by `site-supervisor.ts`, and the operator can
-  // re-open the same site from "Open Recent" while the dead window is still on screen. Deleting by
-  // site dir alone then dropped that healthy REPLACEMENT the moment the old window was closed. The
-  // supervisor's own `handleExit` guards by entry identity; this is its missing sibling.
-  const handler = closedHandler();
-  const guardedDelete = /if \(openSites\.get\(siteDir\)\?\.window === window\) \{\s*sitePreviewScheduler\.cancel\(\{ siteDir \}, \{\}\);\s*siteThemePreviews\.stop\(\{ siteDir \}, \{\}\);\s*openSites\.delete\(siteDir\);\s*\}/;
-  assert.match(handler, guardedDelete);
-  assert.doesNotMatch(handler.replace(guardedDelete, ""), /^\s*openSites\.delete\(siteDir\);/m, "an unguarded delete drops a replacement entry");
-});
-
-test("a window Stop that cannot confirm exit reports failure and retains its recovery row", async () => {
-  const pendingTeardowns = createShutdownTracker({});
-  let onClosed!: () => void;
-  let closedRows = 0;
-  const errors: string[] = [];
-  const window = { on: (_event: string, listener: () => void) => { onClosed = listener; } };
-  vm.runInNewContext(closedHandler(), {
-    process: { platform: "win32" }, quitPhase: "idle", window,
-    sitePreviewScheduler: { cancel: () => {} }, siteThemePreviews: { stop: () => {} },
-    openSites: new Map([["/site", { window }]]), siteDir: "/site", partition: "partition",
-    ctx: { registryPath: "/registry" }, net: {}, session: { fromPartition: () => ({}) },
-    pendingTeardowns, endSiteSession: async () => ({ ok: true }),
-    server: { pid: 123, adminUrl: "http://127.0.0.1:4321/admin/", stop: async () => { throw new Error("exit not observed"); } },
-    recordSiteClosed: () => { closedRows++; }, console: { error: (message: string) => { errors.push(message); } },
-  });
-  onClosed();
-  await pendingTeardowns.drain();
-  assert.equal(closedRows, 0, "orphan recovery must still be able to find this child");
-  assert.deepEqual(errors, ["[tovu-desktop] site shutdown failed: exit not observed"]);
 });

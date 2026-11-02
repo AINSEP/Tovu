@@ -1,15 +1,23 @@
 /**
- * @file Static-analysis tests for `../main.ts`'s project-discovery wiring — the boot pass that
- * makes a site on disk appear on the Projects screen without hand-registration.
+ * @file Static-analysis tests for the Electron entry's (`src/main/index.ts`, formerly `main.ts`)
+ * project-discovery wiring — the boot pass that makes a site on disk appear on the Projects screen
+ * without hand-registration.
  *
- * Source text, not behaviour, for the reason `main-speech-wiring.test.ts` documents at length:
- * `main.ts` requires `"electron"` at module scope, which resolves to a path string rather than the
- * real API outside a real Electron process, so `require`-ing it under plain `node --test` crashes
- * before proving anything. The pieces it wires together are behaviourally covered where they live
- * (`tracked-sites.test.ts`, `project-ipc.test.ts`); what only this file can check is that
- * `main.ts` actually CALLS them, and in the one order where the call is correct.
+ * Source text, not behaviour, for the reason `main-speech-wiring.test.ts` documents at length: the
+ * entry requires `"electron"` at module scope, which resolves to a path string rather than the real
+ * API outside a real Electron process, so `require`-ing it under plain `node --test` crashes before
+ * proving anything. The decisions it wires are behaviourally covered where they now live:
+ * `src/main/boot/boot-steps.test.ts` (`settleDevFallbackRows`: the dismissal migration BEFORE the
+ * seed, one dev-fallback dir for both, the safe classifier, nothing at all for a packaged app; and the
+ * discovery lanes that never cancel each other), `src/main/boot/boot-sequence.test.ts` (the handlers
+ * and the boot scan get the SAME deps object), `src/main/boot/site-backend.test.ts` (the owner
+ * sign-in is armed before the session is ensured), `src/main/windows/sites-home-window.test.ts` (the
+ * window's minimum size) and `startup-env.test.ts` / `site-folder-prompt.test.ts`
+ * (`describeRejectedDefault`'s "unreadable" wording). What stays here is only what the entry itself
+ * binds: which constants and which classifier it hands those modules, and the fields of the
+ * sites-home deps literal.
  *
- * That order is the whole point of the first two tests. `migrateLegacyDismissals` is what carries
+ * Why the order mattered (now pinned in boot-steps.test.ts). `migrateLegacyDismissals` is what carries
  * "the operator removed this, never offer it again" across the registry's format change, and it
  * must record that fact BEFORE `seedDevFallbackSite` asks whether to seed. Reversed, the seed
  * reads a file that cannot yet answer, re-adds the card the operator deleted, and the migration
@@ -19,55 +27,38 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import ts from "typescript";
 import { fileURLToPath } from "node:url";
 
 import { resolveDesktopRoots } from "./packaged-paths.ts";
-import { describeRejectedDefault } from "./startup-env.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const MAIN_PATH = path.join(__dirname, "main", "index.ts");
 const rawSource = fs.readFileSync(MAIN_PATH, "utf8");
 const source = rawSource.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
-const parsedMain = ts.createSourceFile(MAIN_PATH, rawSource, ts.ScriptTarget.Latest, true);
 
-function mainFunction(name: string): ts.FunctionDeclaration {
-  const node = parsedMain.statements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === name);
-  assert.ok(node && ts.isFunctionDeclaration(node), `expected ${name}`);
-  return node;
+/** The sites-home deps literal `buildProjectDeps` returns, up to its own closing `};`. */
+function projectDepsBlock(): string {
+  const start = source.indexOf("function buildProjectDeps(");
+  assert.notEqual(start, -1, "expected buildProjectDeps in the entry");
+  const rest = source.slice(start);
+  const end = rest.search(/\n\s*};\n/);
+  assert.notEqual(end, -1, "could not find the end of the deps literal");
+  return rest.slice(0, end);
 }
 
-/** The call site's index, asserted to exist first so a renamed function fails loudly here rather
- *  than making every ordering comparison below vacuously true against two -1s. */
-function callIndex(name: string): number {
-  const index = source.indexOf(`${name}(`);
-  assert.notEqual(index, -1, `expected a ${name}(...) call in main.ts`);
-  return index;
+/** The `settleDevFallbackRows({...})` call, up to its closing `})`. */
+function settleCall(): string {
+  const start = source.indexOf("settleDevFallbackRows({");
+  assert.notEqual(start, -1, "expected a settleDevFallbackRows({...}) call in the entry");
+  return source.slice(start, source.indexOf("})", start));
 }
 
-test("main.ts imports the migration, the seed and the rescan from their own modules", () => {
-  assert.match(source, /migrateLegacyDismissals/);
-  assert.match(source, /seedDevFallbackSite/);
-  assert.match(source, /rescanSites/);
-  assert.match(source, /from ["']\.\/src\/tracked-sites\.ts["']/);
-  assert.match(source, /from ["']\.\/src\/project-ipc\.ts["']/);
-});
-
-test("migrateLegacyDismissals runs BEFORE the seed, or a removed project is re-seeded once", () => {
-  assert.ok(
-    callIndex("migrateLegacyDismissals") < callIndex("seedDevFallbackSite"),
-    "the pre-dismissals registry must be migrated before the seed reads it, or the seed asks a file that cannot yet say the operator removed the dev fallback",
-  );
-});
-
-test("the migration and the seed are handed the SAME dev-fallback directory", () => {
-  // One named constant, checked at both call sites. Two copies of the same `path.join` would pass a
-  // looser test today and silently diverge the moment either moved.
-  assert.match(source, /migrateLegacyDismissals\(sitesCtx\.projectsPath, DEV_FALLBACK_SITE_DIR\)/);
-  // The classifier argument is pinned by its own test above; this one is about the DIRECTORY, so
-  // it matches whichever classifier form is passed rather than restating that decision here.
-  assert.match(source, /seedDevFallbackSite\(sitesCtx\.projectsPath, DEV_FALLBACK_SITE_DIR, classifySiteDir\w*\)/);
+test("the dev-fallback rows are settled against the one resolved dev-fallback directory", () => {
+  // One named constant, from the one resolver. Two copies of the same `path.join` would silently
+  // diverge the moment either moved; `settleDevFallbackRows` then hands this one dir to both the
+  // migration and the seed (boot-steps.test.ts).
+  assert.match(settleCall(), /projectsPath: sitesCtx\.projectsPath, devFallbackDir: DEV_FALLBACK_SITE_DIR,/);
   // The definition moved into `packaged-paths.ts` (2026-09-11) so a packaged app can have NO dev
   // fallback rather than one pointing inside a read-only bundle. Pinned as "main.ts takes it from
   // the one resolver" plus a real-value check on that resolver, instead of re-stating the literal
@@ -79,30 +70,17 @@ test("the migration and the seed are handed the SAME dev-fallback directory", ()
   );
 });
 
-test("the shared deps object the handlers get is the one the boot scan is run against", () => {
-  // Two separately-built deps literals could drift in `projectsPath` or `classifySiteDir` and the
-  // only symptom would be a site that never appears — no error anywhere.
-  assert.match(source, /registerSiteIpcHandlers\(projectDeps\)/);
-  assert.match(source, /rescanSites\(projectDeps\)/);
-});
-
 test("the deps carry the transitions store, or every start and stop reports the state it just left", () => {
   // `project-ipc.ts` takes `transitions` OPTIONALLY, so every existing test bag stays valid — which
   // means a production wiring that forgot it would fail nothing and look fine: cards would simply
   // go on saying `Stopped` for a whole boot and `Running` for a whole drain. This is the only place
   // that omission is visible.
-  const depsStart = source.indexOf("const projectDeps = {");
-  assert.notEqual(depsStart, -1, "expected a projectDeps object in the sites-home branch");
-  const deps = source.slice(depsStart, source.indexOf("};", depsStart));
-  assert.match(deps, /transitions: siteTransitions,/);
+  assert.match(projectDepsBlock(), /transitions: siteTransitions,/);
   assert.match(source, /const siteTransitions = createSiteTransitions\(\);/);
-  assert.match(source, /import \{ createSiteTransitions \} from "\.\/src\/site-transitions\.ts";/);
 });
 
 test("the deps carry a scan root and the recently-opened list for the scan to read", () => {
-  const depsStart = source.indexOf("const projectDeps = {");
-  assert.notEqual(depsStart, -1, "expected a projectDeps object in the sites-home branch");
-  const depsBlock = source.slice(depsStart, source.indexOf("\n      };", depsStart));
+  const depsBlock = projectDepsBlock();
   assert.match(depsBlock, /siteScanRoots: SITE_SCAN_ROOTS/);
   assert.match(depsBlock, /recentSiteDirs: \(\) => existingRecentSiteDirs\(sitesCtx\.statePath, \{ workspace: sharedSites \}\)/);
 });
@@ -115,116 +93,25 @@ test("the scan root is the sites directory the dev fallback already lives in", (
   assert.deepEqual(dev.siteScanRoots, [path.dirname(dev.devFallbackSiteDir!)]); // `!`: a checkout always has a dev fallback; only a packaged app has none.
 });
 
-test("a packaged app has no dev fallback, so the seed and the migration are skipped rather than handed null", () => {
-  // `migrateLegacyDismissals` takes a DIRECTORY and would write a literal `null` into the
-  // `dismissed` array, which is a corrupt row rather than a no-op — so the guard is load-bearing.
-  const packaged = resolveDesktopRoots({ isPackaged: true, resourcesPath: "/res", repoRoot: "/repo", documentsDir: "/docs", appDataDir: "/appdata" });
-  assert.equal(packaged.devFallbackSiteDir, null);
-  assert.match(source, /if \(DEV_FALLBACK_SITE_DIR\) \{[\s\S]*?migrateLegacyDismissals\(/);
-  assert.match(source, /if \(DEV_FALLBACK_SITE_DIR\) \{[\s\S]*?seedDevFallbackSite\(/);
-  const calls: ts.CallExpression[] = [];
-  function visit(node: ts.Node) {
-    if (ts.isCallExpression(node) && ["migrateLegacyDismissals", "seedDevFallbackSite"].includes(node.expression.getText(parsedMain))) calls.push(node);
-    ts.forEachChild(node, visit);
-  }
-  visit(parsedMain);
-  assert.equal(calls.length, 2);
-  for (const call of calls) {
-    let child: ts.Node = call;
-    let contained = false;
-    for (let parent = child.parent; parent; child = parent, parent = parent.parent) {
-      if (ts.isIfStatement(parent) && parent.expression.getText(parsedMain) === "DEV_FALLBACK_SITE_DIR" && child === parent.thenStatement) contained = true;
-    }
-    assert.equal(contained, true, `${call.expression.getText(parsedMain)} must be inside the fallback guard's true arm`);
-  }
-});
-
 test("recentSiteDirs is a thunk over the MRU file, not a snapshot taken at boot", () => {
   // A value would freeze the list at registration time, so a site opened during the session would
   // never be found by a later rescan — the exact staleness the rescan button exists to cure.
   assert.match(source, /recentSiteDirs:\s*\(\)\s*=>\s*existingRecentSiteDirs\(/);
 });
 
-test("the two bulk site scans in the boot chain use the NON-throwing classifier", () => {
+test("the two bulk site scans in the boot chain are handed the NON-throwing classifier", () => {
   // D-01. `classifySiteDir` throws by design, for the operator-picked-folder path where the dialog
   // shows the error. Both boot-time scans run inside the `whenReady()` chain whose only handler is
   // `reportBootFailure`, and before `openSitesHomeWindow()` — so one unreadable candidate used to show
   // a dialog and quit, with no renderer for the Rescan button to live in.
   //
   // Source text rather than behaviour, for this file's stated reason. It is still the check that
-  // matters: `site-dir-store.ts` and `tracked-sites.ts` are behaviourally covered, and what
-  // only main.ts can get wrong is handing them the throwing form.
-  assert.match(source, /seedDevFallbackSite\(\s*sitesCtx\.projectsPath,\s*DEV_FALLBACK_SITE_DIR,\s*classifySiteDirSafely\s*\)/,
-    "seedDevFallbackSite must be given the non-throwing classifier");
-  assert.match(source, /^\s*classifySiteDir: classifySiteDirSafely,$/m,
-    "projectDeps.classifySiteDir (which rescanSites scans with) must be the non-throwing classifier");
-});
-
-test("describeRejectedDefault answers the 'unreadable' verdict the safe classifier can now return", () => {
-  // Moved out of main.ts into `startup-env.ts` (2026-10-21); main.ts must still use that one.
-  assert.match(rawSource, /import \{ describeRejectedDefault,[^}]*\} from "\.\/src\/startup-env\.ts";/);
-  const describe = describeRejectedDefault as (verdict: unknown) => string;
-  assert.equal(describe({ kind: "unreadable", dir: "/unreadable" }), "could not be read (check its permissions, or whether something replaced it)");
-  assert.equal(describe({ kind: "empty", dir: "/empty" }), "has no site in it yet");
-  assert.equal(describe({ kind: "incomplete", dir: "/half", missing: ["config.json"] }), "is missing config.json — it looks like a half-initialized site");
-});
-
-test("the sites home window declares width AND height minimums", () => {
-  // A window with no minimum can be dragged to a width nothing has an answer for.
-  //
-  // What sets the floor CHANGED, so this no longer ties itself to a breakpoint. It used to: the
-  // stylesheet declared exactly one width rule, `@media (max-width: 680px)`, and this asserted the
-  // minimum cleared it. That rule is gone. `.main__head` and `.main__tools` now wrap, so the row
-  // that actually broke first reflows at whatever width it stops fitting rather than at a number,
-  // and the create-website form moved to `@container onboarding (max-width: 520px)` — keyed to its
-  // own width, because the operator chat is a grid COLUMN that narrows the content pane while the
-  // viewport does not move, which is precisely what a viewport media query cannot see.
-  //
-  // So the remaining floor is whatever cannot reflow — chiefly `.topnav`, a `max-width: fit-content`
-  // pill of brand plus icon links that has no wrap. This asserts both minimums exist and clear the
-  // card-column floor, and pins the width to the owner's chosen value below.
-  //
-  // Scoped to `openSitesHomeWindow`'s own body, not the whole file — `createWindow` builds a
-  // second BrowserWindow at the same 1360x900 for a SITE's surfaces, whose responsive behaviour
-  // this shell does not own, and a file-wide match would pass on either one's options.
-  const body = source.slice(source.indexOf("function openSitesHomeWindow()"));
-  const own = body.slice(0, body.indexOf("\nfunction "));
-  assert.match(own, /minWidth: (\d+)/, "openSitesHomeWindow must set a minWidth");
-  assert.match(own, /minHeight: (\d+)/, "openSitesHomeWindow must set a minHeight");
-
-  // `.grid`'s own declared floor, which IS readable from the stylesheet rather than estimated:
-  // one card column at `minmax(214px, 1fr)` plus `.grid`'s 1.75rem side padding (28px each).
-  const minWidth = Number(/minWidth: (\d+)/.exec(own)![1]); // `!`: the assert.match above already proved it matches.
-  assert.ok(minWidth >= 270, `minWidth must fit at least one card column (214 + 2x28), got ${minWidth}`);
-  // Not derived from the stylesheet: the owner chose 480 on 2026-09-12 after 960 worked in the real window.
-  assert.equal(minWidth, 480, `minWidth must be the owner's chosen 480, got ${minWidth}`);
-  assert.ok(Number(/minHeight: (\d+)/.exec(own)![1]) >= 400, "minHeight must leave room for a card row"); // `!`: asserted to match above.
-});
-
-
-
-test("deskfx2 NIT: concurrent validation and rescans never cancel each other", async () => {
-  let initializer: ts.Expression | undefined;
-  function visit(node: ts.Node): void {
-    if (ts.isPropertyAssignment(node) && node.name.getText(parsedMain) === "discoverSites") initializer = node.initializer;
-    ts.forEachChild(node, visit);
-  }
-  visit(parsedMain); assert.ok(initializer);
-  const executable = ts.transpileModule(`const discover = ${initializer.getText(parsedMain)};`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
-  const calls: { signal: AbortSignal; finish: () => void }[] = [];
-  const discover = new Function('discoverDesktopSites', 'PAYLOAD_ROOT', 'REPO_ROOT', 'app', 'path', 'sitesCtx',
-    `let siteDiscoveryAbort; let siteValidationAbort; ${executable}; return discover;`)(
-    (_input: unknown, { signal }: { signal: AbortSignal }) => new Promise<string[]>((resolve) => calls.push({ signal, finish: () => resolve([]) })),
-    '/payload', '/repo', { isPackaged: true }, path, { statePath: '/state' },
-  ) as (input: { scanRoots?: string[] }) => Promise<string[]>;
-  const scan = discover({}), validation = discover({ scanRoots: ['/picked'] });
-  assert.equal(calls[0]!.signal.aborted, false); assert.equal(calls[1]!.signal.aborted, false);
-  const replacementScan = discover({});
-  assert.equal(calls[0]!.signal.aborted, true); assert.equal(calls[1]!.signal.aborted, false);
-  const replacementValidation = discover({ scanRoots: ['/other'] });
-  assert.equal(calls[1]!.signal.aborted, true); assert.equal(calls[2]!.signal.aborted, false);
-  for (const call of calls) call.finish();
-  await Promise.all([scan, validation, replacementScan, replacementValidation]);
+  // matters: `site-dir-store.ts`, `tracked-sites.ts` and `settleDevFallbackRows` are behaviourally
+  // covered, and what only the entry can get wrong is handing them the throwing form.
+  assert.match(settleCall(), /classifySiteDir: classifySiteDirSafely,/,
+    "settleDevFallbackRows (which seeds with it) must be given the non-throwing classifier");
+  assert.match(projectDepsBlock(), /^\s*classifySiteDir: classifySiteDirSafely,$/m,
+    "the deps' classifySiteDir (which rescanSites scans with) must be the non-throwing classifier");
 });
 
 test("deskfx2 SHOULD-1: desktop main explicitly enables catalog recovery", () => {
@@ -232,8 +119,3 @@ test("deskfx2 SHOULD-1: desktop main explicitly enables catalog recovery", () =>
 });
 
 
-test("deskfx2 MUST-1: main arms the site session before probing or loading admin", () => {
-  const body = mainFunction("startSiteBackend").getText(parsedMain);
-  assert.match(body, /armDesktopOwnerSignIn\(\{\s*session: session\.fromPartition\(partition\), adminUrl: server\.adminUrl, capability: server\.ownerSignInCapability/);
-  assert.ok(body.indexOf('armDesktopOwnerSignIn({') < body.indexOf('await ensureSiteSession({'));
-});

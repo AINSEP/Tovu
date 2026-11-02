@@ -105,6 +105,15 @@ test("an unbuilt renderer in a self-test shows no dialog, but still fails and qu
   assert.equal(home.quits(), 1);
 });
 
+// The floor (moved from main-project-wiring.test.ts): a window with no minimum can be dragged to a
+// width nothing has an answer for. It is no longer tied to a breakpoint: `.main__head` and
+// `.main__tools` wrap, and the create-website form reflows on `@container onboarding (max-width:
+// 520px)`, keyed to its own width because the operator chat is a grid COLUMN that narrows the content
+// pane while the viewport does not move. What cannot reflow is chiefly `.topnav`, a fit-content pill
+// with no wrap. Any floor must still fit one card column: `.grid`'s `minmax(214px, 1fr)` plus its
+// 1.75rem side padding (28px each), so at least 270. 480 itself is the owner's choice (2026-09-12),
+// not derived from the stylesheet. `createWindow`'s 1024x700 floor is for a SITE's admin, whose
+// responsive behaviour this shell does not own.
 test("options: unsandboxed sites preload with the webview tag, the owner's 480x600 floor, fallback size with nothing remembered", () => {
   const home = fakeHome();
   assert.deepEqual(sitesHomeWindowOptions({ ports: home.ports, boundsPath: "/user-data/window-bounds.json" }), {
