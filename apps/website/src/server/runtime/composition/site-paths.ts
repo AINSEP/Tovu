@@ -217,3 +217,13 @@ export function resolveSiteStoragePaths(
 export function bundledAgentPluginsDir(_required: Record<string, never> = {}, optional: { env?: NodeJS.ProcessEnv } = {}): string {
   return (optional.env ?? process.env).TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? join(resolveProductRoot(), "content", "agent-plugins");
 }
+
+/**
+ * Tovu's host overlays for portable Agent Plugins: `content/agent-plugin-overlays/<pluginId>/`
+ * (`GUIDANCE.md` plus `host/*.md`), copied to `dist/content/agent-plugin-overlays/` at build time and
+ * resolved package-relative like {@link bundledAgentPluginsDir} above; `TOVU_AGENT_PLUGIN_OVERLAYS_DIR`
+ * overrides. Product-shipped, read-only, never site data. Defined in the feature that reads it
+ * (`features/agent-plugins/host-plugin-guidance.ts`) because the module-level lifecycle binding has no
+ * composition root to receive it from; re-exported here so every product path stays listed in one file.
+ */
+export { agentPluginOverlaysDir } from "#src/features/agent-plugins/host-plugin-guidance";
