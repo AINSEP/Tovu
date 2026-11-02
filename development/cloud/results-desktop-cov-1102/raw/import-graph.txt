@@ -1,0 +1,7 @@
+files 173 edges 176
+main.ts imports 53 local modules
+most-imported: [('src/tracked-sites.ts', 10), ('src/durable-json-file.ts', 9), ('src/site-dir-store.ts', 9), ('src/tovu-server.ts', 8), ('src/shared-sites.ts', 7), ('src/contracts/project.ts', 4), ('src/sites-mcp-tools.ts', 4), ('src/workspace-conversation-store.ts', 3)]
+fan-out: [(53, 'main.ts'), (14, 'src/project-ipc.ts'), (6, 'src/workspace-chat-ipc.ts'), (6, 'src/desktop-chat-main.ts'), (5, 'src/smoke-packaged-chat-gate.ts'), (4, 'src/site-folders.ts'), (4, 'src/site-discovery-scan.ts'), (4, 'src/site-dir-store.ts')]
+cycles (SCCs >1): []
+main.ts imports by area: {'src/*': 51, 'speech': 1, 'renderer': 1}
+lines: main.ts 2041 | src non-renderer non-test .ts 18685

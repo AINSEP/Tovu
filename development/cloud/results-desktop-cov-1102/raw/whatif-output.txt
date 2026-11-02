@@ -1,0 +1,21 @@
+src main-process: files=99 line 94.55% codeonly-line 95.23% branch 99.36% funcs 93.01%  missing-from-lcov=[]
+src renderer+contracts: files=59 line 99.91% codeonly-line 99.89% branch 99.21% funcs 94.87%  missing-from-lcov=[]
+bin: files=2 line 100.00% codeonly-line 100.00% branch 100.00% funcs 100.00%  missing-from-lcov=[]
+ALL CURRENT AREAS: files=160 line 96.28% codeonly-line 96.78% branch 99.32% funcs 93.70%  missing-from-lcov=[]
+EXTRA (main.ts+.tsx+preloads): files=13 line 78.05% codeonly-line 76.27% branch 96.18% funcs 76.01%  missing-from-lcov=['src/renderer/main.tsx', 'src/speech/preload-speech.cts']
+ALL + EXTRA: files=173 line 92.91% codeonly-line 92.28% branch 99.06% funcs 91.58%  missing-from-lcov=['src/renderer/main.tsx', 'src/speech/preload-speech.cts']
+ALL + main.ts only: files=161 line 92.33% codeonly-line 91.49% branch 99.15% funcs 90.86%  missing-from-lcov=[]
+per-file branch<96% current: 9 files: ['src/owner-store-cli.ts', 'src/packaged-gate-isolation.ts', 'src/product-telemetry.ts', 'src/site-directory-identity.ts', 'src/update-check-now.ts', 'src/renderer/SharedKeys.hooks.ts', 'src/renderer/app-render-harness.ts', 'src/renderer/product-telemetry.ts', 'src/renderer/use-update-check.hooks.ts']
+per-file funcs<96% current: 12 files
+per-file code-line<96% current: 9 files: ['src/app-version-ipc.ts', 'src/durable-json-file.ts', 'src/shared-sites.ts', 'src/site-config.ts', 'src/site-dir-store.ts', 'src/site-scan-policy.ts', 'src/tovu-server.ts', 'src/tracked-sites.ts', 'src/renderer/use-update-check.hooks.ts']
+per-file branch<96% with extra: 12 files: ['src/owner-store-cli.ts', 'src/packaged-gate-isolation.ts', 'src/product-telemetry.ts', 'src/site-directory-identity.ts', 'src/update-check-now.ts', 'src/renderer/SharedKeys.hooks.ts', 'src/renderer/app-render-harness.ts', 'src/renderer/product-telemetry.ts', 'src/renderer/use-update-check.hooks.ts', 'main.ts', 'src/renderer/ResourcesPanel.tsx', 'src/renderer/SharedKeys.tsx']
+per-file funcs<96% with extra: 14 files
+per-file code-line<96% with extra: 10 files: ['src/app-version-ipc.ts', 'src/durable-json-file.ts', 'src/shared-sites.ts', 'src/site-config.ts', 'src/site-dir-store.ts', 'src/site-scan-policy.ts', 'src/tovu-server.ts', 'src/tracked-sites.ts', 'src/renderer/use-update-check.hooks.ts', 'main.ts']
+tsx lines 3457 10
+main.ts 2041 in lcov
+src/preload/preload.mts 206 in lcov
+src/speech/preload-speech.cts 75 NOT in lcov
+src/desktop-agent-inventory.ts 63 in lcov
+src/desktop-agent-tools.ts 188 in lcov
+src/desktop-agent.ts 418 in lcov
+src/desktop-chat-main.ts 90 in lcov

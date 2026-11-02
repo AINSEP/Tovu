@@ -1,0 +1,28 @@
+test files that read a source file as TEXT without importing it: 81
+   29  main.ts
+   20  App.tsx
+   10  App.hooks.ts
+    8  SiteGrid.tsx
+    7  preload.mts
+    5  use-site-workspace.hooks.ts
+    4  mcp-bridge.ts
+    4  project.ts
+    4  use-site-power.hooks.ts
+    4  source-test-harness.ts
+    3  project-delete-guard.ts
+    3  preload-speech.cts
+    3  use-site-rename.hooks.ts
+    3  folder-drop.ts
+    3  runner-api.ts
+    2  desktop-auth.ts
+    2  stage-payload.ts
+    2  verify-package.ts
+    2  sites-mcp-registration.ts
+    2  tracked-sites.ts
+    2  sections.ts
+    2  icons.tsx
+    2  WorkspaceChatPane.tsx
+    2  use-add-site.hooks.ts
+    2  CreateWebsiteOnboarding.tsx
+test files using new Function(...): 17
+new Function occurrences: 29
