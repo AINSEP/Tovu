@@ -135,7 +135,11 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
     assert.deepEqual(await repo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), changed, "unchanged listener does not churn its stamp");
   });
 
-  for (const origin of [configuredOrigin(), configuredOrigin("localhost"), seedOrigin()]) {
+  test("configured public origins reject loopback rather than entering the persisted-origin cases", () => {
+    assert.throws(() => configuredOrigin("localhost"), /a loopback host is not a verified public origin/);
+  });
+
+  for (const origin of [configuredOrigin(), seedOrigin()]) {
     test(`dev seed preserves ${origin.source} origin on ${origin.host}`, async () => {
       const kernel = makeKernel();
       await registerConfiguredOriginOn(kernel, WORKSPACE_ID, origin);

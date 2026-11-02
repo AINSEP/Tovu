@@ -243,6 +243,8 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   const originals = await Promise.all([...moduleStubs.keys()].map(url => import(url)));
   let index = 0;
   for (const [url, stub] of moduleStubs) t.mock.module(url, { namedExports: { ...originals[index++], ...stub } });
+  // Node emits module-mocking warnings asynchronously; finish harness setup before observing boot errors.
+  await new Promise(resolve => setImmediate(resolve));
   const once = process.once.bind(process);
   t.mock.method(process, "once", ((event: string, listener: () => void) => {
     if (event === "SIGINT" || event === "SIGTERM") { signals.set(event, listener); return process; }

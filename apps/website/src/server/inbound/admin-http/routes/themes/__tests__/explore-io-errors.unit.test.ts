@@ -22,7 +22,8 @@ import {
 /** n09: fault injection must reach real file I/O and preserve the live theme on failure. */
 const scenarios = [
   { name: "directory listing", operation: "readdirSync", suffix: "" },
-  { name: "file deletion", operation: "rmSync", suffix: "/file/delete" },
+  // Deletion moves bytes to restorable trash; inject at the rename, not the retired hard-delete.
+  { name: "file deletion", operation: "renameSync", suffix: "/file/delete" },
   { name: "file rename", operation: "renameSync", suffix: "/file/rename" },
   { name: "live-file read stat", operation: "statSync", suffix: "/file?path=pages/about.html" },
   { name: "original-file reset stat", operation: "statSync", suffix: "/file/reset", original: true },

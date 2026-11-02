@@ -12,9 +12,9 @@ import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contr
 import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
 import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "../run-start-decisions.js";
 import { resolveAssistantRuntimeLaunch } from "../assistant-runtime-guidance.js";
-import { getAgentDef } from "@jini-ai/agent-runtime";
+import { createAgentSelectionResolver, getAgentDef } from "@jini-ai/agent-runtime";
 import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
-import { withDaemonLifecycle } from "./helpers/daemon-source.js";
+import { daemonInitializer, evaluateDaemonExpression, withDaemonLifecycle } from "./helpers/daemon-source.js";
 
 /**
  * @file Wiring proof for the Defect 1 fix (2026-09-11 chat-lifecycle repair), in the same
@@ -79,6 +79,10 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
     conversationStartLock: createConversationStartLock({}, {}),
     agentAcceptsHostMintedSessionId, resolveHostMintedSessionId, resolveNewSessionField, resolveResumeSessionField,
     durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt,
+    // Execute the real resolver wiring, as the shared daemon-source harness does.
+    resolveAssistantAgentId: evaluateDaemonExpression(daemonInitializer("resolveAssistantAgentId"), {
+      createAgentSelectionResolver, getAgentDef, DEFAULT_AGENT_ID: "claude", console,
+    }),
     randomUUID: () => `minted-${++minted}`, DEFAULT_AGENT_ID: "claude",
     waitForStoppingRuns: async () => {}, STOPPING_RUN_WAIT_MS: 20_000,
     agentCarriesOwnMemory: () => true, wouldForcedColdStartLoseConversationContext: () => false,
