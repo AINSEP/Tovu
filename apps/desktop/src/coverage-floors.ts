@@ -270,7 +270,7 @@ export function formatPerFileBranch({ result, policy }: { result: PerFileBranchR
  * It also loads `scripts/resolve-ts-ext.ts`, so a main test can import a contract or website module
  * whose own relative imports are written `.js`.
  *
- * The tsx pass also runs `src/renderer/**/*.test.tsx`: the `.tsx` components are counted in their
+ * The tsx pass also runs `src/renderer/**\/*.test.tsx`: the `.tsx` components are counted in their
  * own area since 2026-11-02, and a component test written as `.tsx` must run in the suite and the
  * gate alike rather than in neither.
  *
