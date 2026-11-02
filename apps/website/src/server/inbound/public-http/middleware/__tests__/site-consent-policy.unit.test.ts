@@ -8,7 +8,7 @@ import { decoratePreviewPage } from '#src/features/theme/preview-switcher-html';
 import { injectPublishedWebMcp } from '#src/features/webmcp/published-html';
 import { renderLazySiteChatMarkup } from '../../http/site/site-chat-markup.js';
 import { SITE_CONSENT_DEFAULTS } from '#src/features/consent/config';
-import { resolveSiteConsentOrigin } from '../site-consent.js';
+import { hidePreviewConsentBanner, resolveSiteConsentOrigin } from '../site-consent.js';
 
 test('consent origin uses the request\'s own loopback Host alias when the configured origin is loopback', t => {
   const original = process.env.TOVU_PUBLIC_URL;
@@ -110,6 +110,21 @@ for (const variant of ['react', 'vanilla'] as const) test(`${variant}: host chat
       assert.equal(document.querySelector('script[src="/external-chat-proxy.js"]'), null);
       const scripts = [...document.querySelectorAll<HTMLTemplateElement>('template[data-jini-consent-script]')];
       assert.deepEqual(scripts.map(script => script.dataset.category), ['marketing', 'functional']);
+    } finally { dom.window.close(); }
+  }
+});
+
+test('theme preview renders keep optional scripts gated but hide the banner over the design', () => {
+  // Owner 11-02: Themes card thumbnails (captures of /theme-explore) showed the cookie banner.
+  const gated = gateConsentHtml({ html: '<html><head></head><body><h1>Design</h1><script src="https://tracker.example/t.js"></script></body></html>',
+    config: { ...SITE_CONSENT_DEFAULTS, enabled: true }, record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
+  for (const [path, previewed] of [['/', false], ['/theme-explorer', false], ['/theme-explore/ground/index', true], ['/theme-preview/ground/light/', true]] as const) {
+    const dom = new JSDOM(hidePreviewConsentBanner({ html: gated, path }));
+    try {
+      const banner = dom.window.document.getElementById('jini-consent');
+      assert.ok(banner, `${path} keeps the consent runtime`);
+      assert.equal(banner.hidden, previewed, path);
+      assert.equal(dom.window.document.querySelector('script[src="https://tracker.example/t.js"]'), null, path);
     } finally { dom.window.close(); }
   }
 });

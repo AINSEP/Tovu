@@ -126,6 +126,17 @@ async function isDefaultOnlyConsent({ deps }: { deps: RouteDeps }, _options = {}
   return (await resolveSiteConsentActivation({ settingsRepo: deps.settingsRepo, workspaceId: deps.workspaceId })).source === "default";
 }
 
+/** Theme preview renders: the Explore iframe and the Themes card captures of it. */
+const THEME_PREVIEW_PATH = /^\/(?:theme-preview|theme-explore)(?:\/|$)/;
+
+/** A theme preview shows the design, so the banner is hidden there; optional scripts stay gated.
+ * Owner 11-02: Themes card thumbnails captured the banner over the design. Path-based, like the
+ * cookie-consent engine's preview exclusion, so the capture needs no consent knowledge.
+ * @complexity O(html length), one search for the engine's banner root. */
+export function hidePreviewConsentBanner({ html, path }: { html: string; path: string }, _options = {}): string {
+  return THEME_PREVIEW_PATH.test(path) ? html.replace('<section id="jini-consent" ', '<section hidden id="jini-consent" ') : html;
+}
+
 function readHtmlChunk({ chunk, type }: { chunk: unknown; type: string }, _optional = {}): string | undefined {
   if ((typeof chunk === 'string' || Buffer.isBuffer(chunk)) && (!type || type.includes('text/html'))) {
     return Buffer.isBuffer(chunk) ? chunk.toString('utf8') : chunk;
@@ -171,10 +182,10 @@ export function applySiteConsent({ app, deps }: { app: Express; deps: RouteDeps 
       const type = String(res.getHeader('content-type') ?? '');
       const html = readHtmlChunk({ chunk, type });
       if (html !== undefined) {
-        let linked = withSiteConsentSettingsLink({ html });
+        let linked = hidePreviewConsentBanner({ html: withSiteConsentSettingsLink({ html }), path: req.path });
         // Only the delivered consent runtime can release a live-site contribution. Preview,
         // administrative HTML and exports do not inherit the crawling operator's choice.
-        const publicPage = !/^\/(?:admin|api|theme-preview|theme-explore)(?:\/|$)/.test(req.path);
+        const publicPage = !/^\/(?:admin|api)(?:\/|$)/.test(req.path) && !THEME_PREVIEW_PATH.test(req.path);
         if (publicPage && !isStaticExportRequest(req) && !res.locals.tovuRenderThemeIdOverride && html.includes('data-jini-consent-runtime')) {
           linked = injectBrowserAnalytics({ html: linked, contributions: deps.browserAnalytics?.({ surface: 'site' }) ?? [], surface: 'site', delivery: 'live' });
         }
