@@ -565,8 +565,8 @@ the source. Keep activation deferred to B2/B4 under the submitted card's authori
 
 ## B2 — Editable default
 
-Load `content/agent-plugins/site-import/skills/site-import/references/content-mapping.md`
-directly. It owns slug/idempotency rules, Media mapping, Page writes, menus and links.
+Call `agent_plugin_site_import` with `file: "host/content-mapping.md"` and read its
+§ Local-folder sources. It owns slug/idempotency rules, Media mapping, Page writes, menus and links.
 Use its local-folder conventions; do not invoke the public-site crawl or scope questions.
 
 1. Complete the survey and shared bootstrap above; retain the source-path inventory and group

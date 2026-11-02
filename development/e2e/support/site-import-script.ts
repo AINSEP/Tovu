@@ -3,7 +3,8 @@ import { toolResultsIn, type CapturedModelRequest, type FakeToolCall, type FakeT
 
 /**
  * @file The site-import journey's deterministic stand-in for a model following the `site-import`
- * skill (`content/agent-plugins/site-import/skills/site-import/`). Two layers:
+ * skill (`@jini-ai/plugin-site-import`, plus Tovu's tool names in
+ * `content/agent-plugin-overlays/site-import/`). Two layers:
  *
  * 1. **Pure helpers** that mirror the skill's references at fixture grade: robots.txt and sitemap
  *    parsing, URL normalization, classification with the reference's own rule ids, slug derivation,

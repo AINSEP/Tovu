@@ -5,9 +5,20 @@ description: Build or review a Tovu agent plugin: self-contained vendor contribu
 
 # Build an agent plugin
 
-Use this checklist before changing `content/agent-plugins/<id>/`. Read the existing
-behavior and its owning contribution contract first; extend that owner instead of
-creating a parallel implementation. The working example is `resend/`.
+Use this checklist before changing an agent plugin. Read the existing behavior and its
+owning contribution contract first; extend that owner instead of creating a parallel
+implementation. The working example is `resend/`.
+
+Where a plugin lives:
+- A plugin any host can use ships from Jini as `@jini-ai/plugin-<id>` (source:
+  `packages/agent-plugins/<id>/` in the Jini repo) and is written host-neutral. Tovu selects
+  it in `apps/website/src/features/agent-plugins/bundled-catalog.ts`
+  (`SELECTED_AGENT_PLUGIN_PACKAGES`); the build composes it into the bundle.
+- Its Tovu-only text (tool names, routes, product routing) lives in
+  `content/agent-plugin-overlays/<id>/`: `GUIDANCE.md`, read before the plugin's skill, and
+  `host/<name>.md`, read with the plugin's tool and `file: "host/<name>.md"`. Overlay tests
+  sit in its `__tests__/`.
+- A Tovu-only plugin stays in `content/agent-plugins/<id>/`.
 
 - [ ] Keep vendor API calls, permissions, error mapping, help text and tests inside
   this plugin. No vendor names or branches in `apps/website`, `apps/admin` or
