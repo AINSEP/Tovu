@@ -3,7 +3,7 @@ import test from "node:test";
 import { registerSiteAssistantConfirm, SITE_ASSISTANT_CONFIRM_PATH } from "../site-assistant-confirm.js";
 
 /** Registered Express handler with DI fakes; never opens a listener. */
-function fixture(options: { enabled?: boolean; allowed?: boolean; origin?: string | null; fetchSite?: string | null; type?: string; accepted?: boolean; fail?: boolean; budget?: boolean } = {}) {
+function fixture(options: { enabled?: boolean; allowed?: boolean; origin?: string | null; servingOrigin?: string; fetchSite?: string | null; type?: string; accepted?: boolean; fail?: boolean; budget?: boolean } = {}) {
   let handler: (req: unknown, res: unknown) => void;
   let enabledCalls = 0;
   const deliveries: unknown[] = [], errors: unknown[] = [], origins: string[] = [];
@@ -20,9 +20,10 @@ function fixture(options: { enabled?: boolean; allowed?: boolean; origin?: strin
       let status = 200, cache = "";
       const res = { setHeader(_name: string, value: string) { cache = value; }, status(value: number) { status = value; return res; },
         json(value: unknown) { resolve({ status, body: value, cache }); } };
-      const headers = { origin: options.origin === null ? undefined : options.origin ?? "https://site.test",
+      const serving = new URL(options.servingOrigin ?? "https://request.site.test");
+      const headers = { host: serving.host, origin: options.origin === null ? undefined : options.origin ?? "https://site.test",
         "sec-fetch-site": options.fetchSite === null ? undefined : options.fetchSite ?? "same-origin" };
-      handler!({ body, headers, get: (key: keyof typeof headers) => headers[key], is: (type: string) => type === (options.type ?? "application/json"), socket: { remoteAddress: "127.0.0.1" } }, res);
+      handler!({ body, headers, protocol: serving.protocol.slice(0, -1), get: (key: keyof typeof headers) => headers[key], is: (type: string) => type === (options.type ?? "application/json"), socket: { remoteAddress: "127.0.0.1" } }, res);
     });
   } };
 }
@@ -54,10 +55,12 @@ for (const options of [{ origin: "https://evil.test", fetchSite: null }, { origi
   assert.deepEqual(f.deliveries, []);
 });
 
-test("same-origin metadata supplies the browser origin guarantee even without an Origin header", async () => {
+test("same-origin metadata without an Origin header refuses", async () => {
+  // F3b Coordinator decision: Origin is required; metadata can only narrow permission.
   const f = fixture({ origin: null });
-  assert.equal((await f.send()).status, 200);
+  assert.equal((await f.send()).status, 400);
   assert.deepEqual(f.origins, []);
+  assert.deepEqual(f.deliveries, []);
 });
 
 test("disabled/rollback and rate-limited sites refuse without consuming any challenge", async () => {
@@ -82,12 +85,12 @@ test("missing Fetch Metadata is permitted only with a validated Origin; stale/re
 });
 
 for (const origin of ["https://preview.site.test", "http://localhost:5174", "http://127.0.0.1:4100"]) {
-  test(`browser same-origin metadata accepts the actual widget host ${origin} without a canonical lookup`, async () => {
-    const f = fixture({ origin });
+  test(`Origin accepts the actual widget host ${origin} without a canonical lookup`, async () => {
+    const f = fixture({ origin, servingOrigin: origin });
     assert.equal((await f.send()).status, 200);
     assert.deepEqual(f.origins, []);
-    const legacy = fixture({ origin, fetchSite: null });
-    assert.equal((await legacy.send()).status, 400);
-    assert.deepEqual(legacy.origins, [origin]);
+    const legacy = fixture({ origin, servingOrigin: origin, fetchSite: null });
+    assert.equal((await legacy.send()).status, 200);
+    assert.deepEqual(legacy.origins, []);
   });
 }

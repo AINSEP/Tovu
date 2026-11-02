@@ -1,7 +1,7 @@
 import type { FrontendSessionOwner } from '@jini-ai/daemon';
 /** One human-only reply route. No model tool or admin exchange can reach this visitor store. */
 import type { Express, Request, Response } from "express";
-import { type VisitorConfirmations, VISITOR_TOOL_REFUSAL } from "#src/assistant/visitor-services";
+import { type VisitorConfirmations, VISITOR_TOOL_REFUSAL, allowsVisitorRequestOrigin } from "#src/assistant/visitor-services";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 
@@ -24,21 +24,9 @@ function confirmationBody({ value }: { value: unknown }, _options = {}): { chall
   return { challengeId: body.challengeId, allow: body.allow };
 }
 
-/** Fetch metadata alone is spoofable; every confirmation must match the trusted public Origin.
- * It can still only narrow: when a browser itself reports the click as not same-origin
- * (cross-site, same-site, none, empty), refuse even if Origin matches. Metadata never grants.
- */
-async function allowsRequestOrigin({ req, ports }: { req: Request; ports: ConfirmRoutePorts }, _options = {}): Promise<boolean> {
-  const origin = req.get("origin");
-  const site = req.get("sec-fetch-site");
-  if (site !== undefined && site !== "same-origin") return false;
-  if (origin === "null") return false;
-  if (!origin) return false;
-  return ports.allowsOrigin({ origin });
-}
-
 /** Same-origin JSON plus the human-only bearer; malformed/stale/forged/replayed IDs share a refusal.
- * Origin fallback uses trusted configuration, never Host. @complexity O(1) and bounded I/O.
+ * Origin uses the shared visitor policy, including the actual serving host.
+ * @complexity O(Origin length) time/space and bounded I/O.
  */
 async function handle({ req, res, ports }: { req: Request; res: Response; ports: ConfirmRoutePorts }, _options = {}): Promise<void> {
   res.setHeader("Cache-Control", "no-store");
@@ -46,7 +34,7 @@ async function handle({ req, res, ports }: { req: Request; res: Response; ports:
   if (!budget.allowed) { res.status(429).json({ error: VISITOR_TOOL_REFUSAL }); return; }
   if (!await ports.enabled()) { res.status(404).json({ error: VISITOR_TOOL_REFUSAL }); return; }
   const body = confirmationBody({ value: req.body });
-  const sameOrigin = await allowsRequestOrigin({ req, ports });
+  const sameOrigin = await allowsVisitorRequestOrigin({ req, method: req.method, allowsOrigin: ports.allowsOrigin });
   if (!body || !req.is("application/json") || !sameOrigin) { res.status(400).json({ error: VISITOR_TOOL_REFUSAL }); return; }
   const accepted = await confirmForRequest({ req, ports, body });
   res.status(accepted ? 200 : 400).json(accepted ? { accepted: true } : { error: VISITOR_TOOL_REFUSAL });

@@ -5,7 +5,7 @@ import { isSameOrigin, normalizeOriginCandidate, type VerifiedOrigin } from '@ji
 import type { Express, Request } from 'express';
 import type { Clock } from '@jini-ai/core/primitives';
 import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
-import { resolveProtocol } from '#src/server/inbound/public-http/routes/oauth/public-origin';
+import { allowsVisitorRequestOrigin } from './visitor-request-origin.js';
 import { readVisitorPagePublication } from '#src/features/theme/visitor-publication';
 
 export function createVisitorFrontendControl({ workspaceId, enabled, canonicalOrigin, clock }: {
@@ -15,13 +15,10 @@ export function createVisitorFrontendControl({ workspaceId, enabled, canonicalOr
   const scope = createFrontendGuestScope({ workspaceId, cookieName: 'tovu_visitor_frontend', cookiePath: '/api/site-assistant',
     allowsRequest: async ({ req }: { req: Request }) => {
       if (!await enabled()) return false;
-      // Fetch metadata is only a hint. Validate Origin (or GET's Referer) against the
-      // request host/public origin, as public comment submissions do. A forged hint grants nothing.
-      const raw = req.get('origin') ?? req.get('referer') ?? '';
-      const target = normalizeOriginCandidate({ rawUrl: raw });
-      if (!target) return false;
-      if (new URL(raw).origin === `${resolveProtocol(req)}://${req.get('host')}`) return true;
-      return isSameOrigin({ target, canonical: await canonicalOrigin() });
+      return allowsVisitorRequestOrigin({ req, method: req.method, allowsOrigin: async ({ origin }) => {
+        const target = normalizeOriginCandidate({ rawUrl: origin });
+        return target !== null && isSameOrigin({ target, canonical: await canonicalOrigin() });
+      } });
     } });
   const resolveOwner = async ({ req }: { req: Request }) => {
     const owner = await scope.resolveOwner({ req });
