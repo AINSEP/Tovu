@@ -154,7 +154,8 @@ test("a bare Page on a static-tier theme serves only its own HTML, no theme chro
   assert.equal(status, 200);
   assert.ok(html.includes(POST_BODY_TEXT));
   assertNoChrome(html);
-  assert.match(html, /<title>Bare bare-static — /);
+  // INV-06: entry titles have no implicit site-name suffix.
+  assert.match(html, /<title>Bare bare-static<\/title>/);
 });
 
 test("a bare Page on a declarative-tier theme serves the same bare output (tier-independent)", async (t) => {

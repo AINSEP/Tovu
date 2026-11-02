@@ -105,7 +105,7 @@ test("a legacy menu widget and a current menu marker render together through the
     fieldsJson: { ext: { widget: { payload: JSON.stringify({ status: "active", widgetType: "menu", config: { menuRef: "body-menu" } }) } } },
   });
   const widgetHtml = '<nav class="widget widget-menu"><h3 class="widget-menu-title">Body menu</h3><ul><li><a href="/">Journey Home</a></li></ul></nav>';
-  const menuHtml = '<nav data-tovu-menu="body-menu"><ul data-tovu-menu-list data-depth="0"><li data-tovu-menu-item data-depth="0" data-current="true" data-active="true" data-has-children="false"><a href="/" aria-current="page" data-toolname="menu_body-menu_0" data-tooldescription="Journey Home">Journey Home</a></li></ul></nav>';
+  const menuHtml = '<nav data-tovu-menu="body-menu"><ul data-tovu-menu-list data-depth="0"><li data-tovu-menu-item data-depth="0" data-current="true" data-active="true" data-has-children="false"><a href="/" aria-current="page" data-toolname="menu_body-menu_0" data-tooldescription="Journey Home" data-tool-action="navigate">Journey Home</a></li></ul></nav>';
   const html = await finishStaticTierDocument(deps, {
     theme: theme(), pageId: "content-template", currentPath: "/", staticMenus: undefined,
     html: post.bodyHtml!.replace("<p>after</p>", `<div data-embed-config='{"type":"menu","id":"body-menu","mode":"html"}'></div><p>after</p>`),

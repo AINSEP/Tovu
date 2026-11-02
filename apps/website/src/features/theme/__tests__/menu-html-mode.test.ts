@@ -58,7 +58,7 @@ test("missing or empty HTML menus keep authored fallback; default modes keep the
   assert.equal(renderStaticPage({ theme: theme(marker), pageId: "index" }), marker);
   assert.equal(renderStaticPage({ theme: theme(marker), pageId: "index", menus: { docs: [] } }), marker);
   const flat = renderStaticPage({ theme: theme(`<nav data-embed-config='{"type":"menu","id":"docs"}'></nav>`), pageId: "index", menus: { docs: [item()] } })!;
-  assert.match(flat, /<a href="\/docs">Docs<\/a>/);
+  assert.match(flat, /<a href="\/docs" data-toolname="menu_[A-Za-z0-9_-]+" data-tooldescription="Docs" data-tool-action="navigate">Docs<\/a>/);
   assert.doesNotMatch(flat, /<ul/);
   const tree = renderStaticPage({ theme: theme(`<nav data-embed-config='{"type":"menu","id":"docs","variant":"tree"}'></nav>`), pageId: "index", menus: { docs: [item()] } })!;
   assert.match(tree, /class="menu-list depth-0"/);

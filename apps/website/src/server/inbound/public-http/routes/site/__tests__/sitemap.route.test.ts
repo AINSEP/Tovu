@@ -52,7 +52,8 @@ test("GET /sitemap.xml: an entry from a registered seo.sitemap.collect hook with
   const res = await fetch(`${baseUrl}/sitemap.xml`);
   assert.equal(res.status, 200);
   const body = await res.text();
-  assert.match(body, /<url><loc>\/hook-entry<\/loc><\/url>/, "no lastmod present -> no <lastmod> element at all");
+  // Sitemap locations use the serving origin, including entries contributed through hooks.
+  assert.ok(body.includes(`<url><loc>${baseUrl}/hook-entry</loc></url>`), "no lastmod present -> no <lastmod> element at all");
   assert.doesNotMatch(body, /<lastmod>/);
 });
 
@@ -68,8 +69,8 @@ test("GET /sitemap.xml: dated and undated entries retain their own exact lastmod
   const res = await fetch(`${baseUrl}/sitemap.xml`);
   assert.equal(res.status, 200);
   const body = await res.text();
-  assert.match(body, /<url><loc>\/hook-entry<\/loc><\/url>/);
-  assert.match(body, /<url><loc>\/dated-hook\?x=1&amp;y=2<\/loc><lastmod>2026-09-03T12:34:56\.000Z<\/lastmod><\/url>/);
+  assert.ok(body.includes(`<url><loc>${baseUrl}/hook-entry</loc></url>`));
+  assert.ok(body.includes(`<url><loc>${baseUrl}/dated-hook?x=1&amp;y=2</loc><lastmod>2026-09-03T12:34:56.000Z</lastmod></url>`));
   assert.equal((body.match(/<lastmod>/g) ?? []).length, 1);
 });
 

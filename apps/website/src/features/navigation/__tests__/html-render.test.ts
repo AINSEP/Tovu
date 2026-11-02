@@ -11,7 +11,7 @@ const asAuthored = (href: string): string => href;
 const NAV_OPEN = '<nav data-tovu-menu="m"><ul data-tovu-menu-list data-depth="0">';
 const NAV_CLOSE = "</ul></nav>";
 const LI_OPEN = '<li data-tovu-menu-item data-depth="0" data-current="false" data-active="false" data-has-children="false">';
-const PLAIN_LINK = '<a href="/l" data-toolname="menu_m_0" data-tooldescription="L">L</a>';
+const PLAIN_LINK = '<a href="/l" data-toolname="menu_m_0" data-tooldescription="L" data-tool-action="navigate">L</a>';
 
 function renderOne(item: HtmlMenuItem, sanitizeHref: (href: string) => string = asAuthored): string {
   return renderHtmlMenu({ id: "m", items: [item], sanitizeHref });
@@ -24,7 +24,7 @@ test("a plain available link renders the nav, list, item and a site-relative too
 test("a current item carries aria-current and data-current while an explicit isActive=false stays false", () => {
   assert.equal(renderOne(leaf({ isCurrent: true, isActive: false })),
     `${NAV_OPEN}<li data-tovu-menu-item data-depth="0" data-current="true" data-active="false" data-has-children="false">`
-    + `<a href="/l" aria-current="page" data-toolname="menu_m_0" data-tooldescription="L">L</a></li>${NAV_CLOSE}`);
+    + `<a href="/l" aria-current="page" data-toolname="menu_m_0" data-tooldescription="L" data-tool-action="navigate">L</a></li>${NAV_CLOSE}`);
 });
 
 test("empty icon, description and rel and a false openInNewTab render exactly like absent attrs", () => {
@@ -37,12 +37,12 @@ test("a whitespace-only rel produces no rel attribute", () => {
 
 test("a new tab without an authored rel gets target=_blank and noopener noreferrer", () => {
   assert.equal(renderOne(leaf({ attrs: { openInNewTab: true } })),
-    `${NAV_OPEN}${LI_OPEN}<a href="/l" target="_blank" rel="noopener noreferrer" data-toolname="menu_m_0" data-tooldescription="L">L</a></li>${NAV_CLOSE}`);
+    `${NAV_OPEN}${LI_OPEN}<a href="/l" target="_blank" rel="noopener noreferrer" data-toolname="menu_m_0" data-tooldescription="L" data-tool-action="navigate">L</a></li>${NAV_CLOSE}`);
 });
 
 test("a new tab keeps authored rel tokens first, de-duplicates the security tokens and escapes the rel value", () => {
   assert.equal(renderOne(leaf({ attrs: { openInNewTab: true, rel: 'noreferrer x"y' } })),
-    `${NAV_OPEN}${LI_OPEN}<a href="/l" target="_blank" rel="noreferrer x&quot;y noopener" data-toolname="menu_m_0" data-tooldescription="L">L</a></li>${NAV_CLOSE}`);
+    `${NAV_OPEN}${LI_OPEN}<a href="/l" target="_blank" rel="noreferrer x&quot;y noopener" data-toolname="menu_m_0" data-tooldescription="L" data-tool-action="navigate">L</a></li>${NAV_CLOSE}`);
 });
 
 test("an unavailable item without visible descendants renders nothing at all", () => {
@@ -55,7 +55,7 @@ test("an href-less heading renders a label span with escaped icon and descriptio
     `${NAV_OPEN}<li data-tovu-menu-item data-depth="0" data-current="false" data-active="false" data-has-children="true">`
     + '<span data-tovu-menu-label><span data-tovu-menu-icon="i"></span>L<span data-tovu-menu-description>d</span></span>'
     + '<ul data-tovu-menu-list data-depth="1"><li data-tovu-menu-item data-depth="1" data-current="false" data-active="false" data-has-children="false">'
-    + `<a href="/l" data-toolname="menu_m_0_0" data-tooldescription="C&lt;">C&lt;</a></li></ul></li>${NAV_CLOSE}`);
+    + `<a href="/l" data-toolname="menu_m_0_0" data-tooldescription="C&lt;" data-tool-action="navigate">C&lt;</a></li></ul></li>${NAV_CLOSE}`);
 });
 
 test("a sanitizer that empties the href still renders the anchor, with an empty href and no tool", () => {
@@ -80,7 +80,7 @@ test("the nav id is escaped verbatim while the tool prefix maps unsafe character
   const html = renderHtmlMenu({ id, items: [leaf()], sanitizeHref: asAuthored });
   assert.equal(html,
     `<nav data-tovu-menu="a b/c&quot;d${"x".repeat(70)}"><ul data-tovu-menu-list data-depth="0">${LI_OPEN}`
-    + `<a href="/l" data-toolname="menu_a_b_c_d${"x".repeat(57)}_0" data-tooldescription="L">L</a></li>${NAV_CLOSE}`);
+    + `<a href="/l" data-toolname="menu_a_b_c_d${"x".repeat(57)}_0" data-tooldescription="L" data-tool-action="navigate">L</a></li>${NAV_CLOSE}`);
 });
 
 test("tool names are capped at 128 characters", () => {
@@ -90,7 +90,7 @@ test("tool names are capped at 128 characters", () => {
   const names = [...html.matchAll(/data-toolname="([^"]*)"/g)].map(match => match[1]);
   assert.equal(names.length, 1);
   assert.equal(names[0]!.length, 128);
-  assert.match(html, /data-tooldescription="deep"/);
+  assert.match(html, /data-tooldescription="deep" data-tool-action="navigate"/);
 });
 
 test("siblings past the 128-character cap retain distinct stable tool names", () => {

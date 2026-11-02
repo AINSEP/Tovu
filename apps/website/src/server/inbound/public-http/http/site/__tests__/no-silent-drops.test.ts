@@ -88,7 +88,11 @@ function lost(before: Counts, after: Counts, baseline: Counts = new Map()): stri
 const corpus = CORPUS.map(file => ({ file, html: readFileSync(path.join(ROOT, file), "utf8") }));
 
 test("the corpus is real and non-trivial (a moved fixture must not empty this guard)", () => {
-  assert.ok(corpus.length >= 100, `only ${corpus.length} files found under ${ROOT}`);
+  // e2fc970d4 removed four stock themes. Guard each required source instead of a stale total.
+  for (const prefix of ["content/legal/", "content/themes/static/", "content/themes/__original-themes__/static/", "development/docs/themes/scaffolds/"]) {
+    assert.ok(corpus.some(item => item.file.startsWith(prefix)), `missing corpus source ${prefix} under ${ROOT}`);
+  }
+  for (const file of ["apps/admin/src/features/pages/__tests__/fixtures/landing-scriptblocks.html", "apps/website/src/server/inbound/public-http/http/site/__tests__/fixtures/landing-leading-style.html"]) assert.ok(corpus.some(item => item.file === file), file);
   const landing = corpus.find(item => item.file.endsWith("landing-scriptblocks.html"))!;
   assert.equal(countNodes(parseFragment(landing.html)).get("script"), 3);
   assert.ok((countNodes(parseFragment(landing.html)).get("svg:svg") ?? 0) >= 6);
