@@ -12,6 +12,7 @@ import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/re
 import { injectCurrentEntityContentId, injectPageTitle, renderStaticPage, resolveTemplate } from "../static-render.js";
 import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
 import { withoutVisitorToolMarks } from "./visitor-tool-marks.fixture.js";
+import { CHROMELESS_TEMPLATES } from "./chromeless-templates.fixture.js";
 
 /**
  * @file Canaries for the unified template render pipeline, against the REAL `tovu-theme` theme on disk.
@@ -220,7 +221,14 @@ for (const prefix of ["", "__original-themes__/"]) {
     for (const pageId of new Set(["index", ...(theme.manifest.templates ?? []).map((name) => name.replace(/\.html$/, ""))])) {
       const html = withoutVisitorToolMarks(renderStaticPage({ theme, pageId }));
       assert.ok(html, `${pageId}: the real page must render`);
-      const header = html.replace(/<!--[\s\S]*?-->/g, "").match(/<header\b[\s\S]*?<\/header>/)?.[0];
+      const markup = html.replace(/<!--[\s\S]*?-->/g, "");
+      if (CHROMELESS_TEMPLATES.has(`tovu-theme/${pageId}.html`)) {
+        // ef1ae2ea7: a brand landing page has no site header at all, so no sign-in can leak through one.
+        assert.doesNotMatch(markup, /<header\b/, `${pageId}: chromeless template must omit the site header`);
+        assert.doesNotMatch(markup, /<a\b[^>]*\b(?:href="\/(?:signin|login)"|data-member-nav\b)/, `${pageId}: no sign-in anchor or member hook`);
+        continue;
+      }
+      const header = markup.match(/<header\b[\s\S]*?<\/header>/)?.[0];
       assert.ok(header, `${pageId}: the header must render without JavaScript`);
       assert.doesNotMatch(header, /<a\b[^>]*\bhref="\/(?:signin|login)"/, `${pageId}: no default sign-in anchor`);
       assert.doesNotMatch(header, /<a\b[^>]*\bdata-member-nav\b/, `${pageId}: no member hook without site enablement`);
