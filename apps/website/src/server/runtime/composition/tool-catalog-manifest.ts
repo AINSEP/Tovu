@@ -13,7 +13,6 @@ import { resolveCommittedConfigRoot, nodeProvisioningFileIo } from "#src/feature
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { LoadPluginCredentialCards } from "#src/features/custom-credentials/plugin-credential-card";
 import path from "node:path";
-import { resolveProductRoot } from "#src/platform/site-dir/index";
 import { createPluginCredentialCardsLoader } from "./plugin-credential-cards.js";
 import { bindContentTargetInputs } from "./content-target-inputs.js";
 import { contributeConsentTools } from '#src/features/consent/tool-registrations';
@@ -415,7 +414,7 @@ export function installFirstPartyToolContributors(
   contributions.contributors.register({ contribution: contributeDeploymentsTools() });
   contributions.contributors.register({ contribution: contributeDeployOpsTools({ registry: deployOpsRegistry }) });
   const domainDnsHttpClient = createHttpClient(DOMAIN_DNS_EGRESS_POLICY, { observability });
-  const bundledPluginsRoot = path.join(resolveProductRoot(), "content", "agent-plugins");
+  const bundledPluginsRoot = bundledAgentPluginsDir();
   const domainDnsDiagnostics = { observe: ({ operation, outcome }: { operation: "dns" | "tls"; outcome: string }) => console.info(`[domain-dns] ${operation}: ${outcome}`) };
   const publicDnsResolver = createBundledPublicDnsResolver({ client: domainDnsHttpClient, sourceRoot: bundledPluginsRoot }, domainDnsDiagnostics);
   contributions.contributors.register({ contribution: contributeDomainDnsAndChangeTools<AssistantToolRegistryDeps>({ createDnsDeps: createDnsChangeDepsFactory({ httpClient: domainDnsHttpClient }), createDeps: routeDeps => ({

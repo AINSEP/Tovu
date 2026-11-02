@@ -12,7 +12,7 @@ import {
   type RenderDeployConfigOptions,
 } from "../../features/deployments/index.js";
 import { isSiteIdToken, readSiteMetaId } from "../../features/webhooks/index.js";
-import { resolveProductRoot, resolveSiteRoot, ValidationError } from "../../platform/site-dir/index.js";
+import { bundledAgentPluginsDir, resolveSiteRoot, ValidationError } from "../../platform/site-dir/index.js";
 
 /**
  * @file `tovu deploy config --target <id> --region <region> [--out <file>]` — wires parsed argv to
@@ -48,11 +48,11 @@ export interface RunDeployConfigCommandInput {
   site?: string;
 }
 
-/** The bundled hosting plugins' source root. Same resolution as
- *  `server/runtime/composition/deps.ts`'s `bundledAgentPluginsDir()` (not imported: that module
- *  pulls in the whole server composition graph for one path). @complexity O(1). */
+/** The bundled hosting plugins' source root: the one owner, `platform/site-dir`'s
+ *  `bundledAgentPluginsDir()` (imported from platform, not server composition: that module pulls in
+ *  the whole server composition graph for one path), fed this command's injectable env. @complexity O(1). */
 function bundledDeploySourceRoot(env: NodeJS.ProcessEnv): string {
-  return env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
+  return bundledAgentPluginsDir({}, { env });
 }
 
 /** Injectable effects of the deploy-config command; defaults are the process env and stdio. */

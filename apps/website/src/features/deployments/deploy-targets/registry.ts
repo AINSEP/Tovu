@@ -107,9 +107,10 @@ export async function loadDeployTargetRegistryFromSource(plugin: TargetPackage, 
 
 /**
  * The hermetic registry for EVERY bundled plugin at once: each directory under `sourceRoot` (the
- * product's own `<product>/content/agent-plugins/`; callers pass that, not
- * `bundledAgentPluginsSourceRoot()`, so a test pointing `TOVU_BUNDLED_AGENT_PLUGINS_DIR` at a
- * fixture still sees the real hosts) that holds both
+ * product's bundled root, `bundledAgentPluginsDir()`: `content/agent-plugins/` or the composed root
+ * `TOVU_BUNDLED_AGENT_PLUGINS_DIR` names. Callers once passed the raw `content/agent-plugins` so a
+ * fixture-pointed env still saw the real hosts; since the hosts moved to `@jini-ai/agent-plugins`
+ * they exist only in the composed root, so the raw path loses them in dev) that holds both
  * `plugin.json` and {@link DEPLOY_TARGETS_FILENAME}, minus retired ids, in plugin-id order (the
  * installed loader's `orderByPluginId`). A directory without the file is skipped, as the installed
  * path skips a package that does not ship it; a target id two directories both declare is dropped

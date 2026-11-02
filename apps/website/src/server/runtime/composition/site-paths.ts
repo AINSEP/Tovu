@@ -202,21 +202,13 @@ export function resolveSiteStoragePaths(
 }
 
 /**
- * Agent Plugins that ship WITH the product live in `content/agent-plugins/<pluginId>/`, copied to
- * `dist/content/agent-plugins/` at build time and resolved package-relative to this file — the exact
- * same shape as {@link builtInThemesDir} immediately above, including the product-root walk-up that
- * makes it land correctly in both the source and compiled layouts, and for the same reason (CR-R04:
- * a `process.cwd()`-relative path is wrong the moment the CLI is invoked from outside the checkout).
- *
- * Deliberately NOT `<site>/agent-plugins/`. That directory is `layout.ts`'s per-workspace INSTALL
- * root — gitignored site data (`sites/README.md`), populated by extraction, and frozen read-only
- * per digest. Product-shipped source cannot live there: it would not be tracked, would not ship in
- * a release, and would collide with the content-addressed tree the installer owns. Bundled source
- * is an INPUT to installation (`features/agent-plugins/seed-bundled.ts`), not a location within it.
+ * Agent Plugins that ship WITH the product: `content/agent-plugins/`, or the composed root
+ * `TOVU_BUNDLED_AGENT_PLUGINS_DIR` names. Defined beside {@link resolveProductRoot} in
+ * `platform/site-dir/product-root.ts` (the full why lives there) so features and the CLI can call
+ * the same owner without importing this composition root; re-exported here so every product path
+ * stays listed in one file.
  */
-export function bundledAgentPluginsDir(_required: Record<string, never> = {}, optional: { env?: NodeJS.ProcessEnv } = {}): string {
-  return (optional.env ?? process.env).TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? join(resolveProductRoot(), "content", "agent-plugins");
-}
+export { bundledAgentPluginsDir } from "#src/platform/site-dir/product-root";
 
 /**
  * Tovu's host overlays for portable Agent Plugins: `content/agent-plugin-overlays/<pluginId>/`

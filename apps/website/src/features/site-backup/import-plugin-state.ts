@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import type { AgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { resolveProductRoot, readTemplate } from "#src/platform/site-dir/index";
+import { bundledAgentPluginsDir, readTemplate } from "#src/platform/site-dir/index";
 import { writeExclusive } from "./import-restore-placement.js";
 import type { ArchivePlugin } from "./archive-manifest.js";
 
@@ -27,7 +27,7 @@ export async function restoreImportedPluginState(required: { root: string; dir: 
   if (!required.state.plugins.some(plugin => plugin.kind === "agent")) return new Set();
   const { layout } = required;
   const workspaceId = readTemplate({ templateId: "starter" }).seed.workspace.id;
-  const sourceRoot = optional.sourceRoot ?? process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
+  const sourceRoot = optional.sourceRoot ?? bundledAgentPluginsDir();
   const lifecycle = createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: sourceRoot });
   await lifecycle.seedBundledAgentPlugins({ layout, workspaceId, sourceRoot });
   const workspace = layout.forWorkspace(workspaceId);

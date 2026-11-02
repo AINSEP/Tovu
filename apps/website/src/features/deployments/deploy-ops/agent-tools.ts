@@ -1,6 +1,5 @@
 import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
-import path from "node:path";
-import { resolveProductRoot } from "#src/platform/site-dir/index";
+import { bundledAgentPluginsDir } from "#src/platform/site-dir/index";
 import { readBundledDeployOpsDescriptors } from "./registry.js";
 import { MAX_WAIT_SECONDS } from "./run-ops.js";
 import type { DeployOpsDescriptor, DeployOpsRegistry } from "./types.js";
@@ -8,7 +7,7 @@ type AgentToolDefinition = SharedAgentToolDefinition & { inputSchema: Readonly<R
 /** Data-only source snapshot for hermetic catalog construction; never used to authorize or import modules. */
 function bundledDescriptors(read: BundledDescriptorReader): readonly DeployOpsDescriptor[] {
   try {
-    return read({ sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins") });
+    return read({ sourceRoot: bundledAgentPluginsDir() });
   } catch { return []; }
 }
 /** Reads the bundled deploy-ops descriptors from a plugin source root (injectable for tests). */

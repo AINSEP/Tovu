@@ -3,7 +3,7 @@ import type { Dirent } from "node:fs";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { createBundledSourceArchiveReader, packAgentPluginDirectory } from "../agent-plugins/lifecycle.js";
-import { resolveProductRoot } from "#src/platform/site-dir/index";
+import { bundledAgentPluginsDir } from "#src/platform/site-dir/index";
 import { listBundledAgentPluginServers } from "../agent-plugins/new-site-agent-plugin-tokens.js";
 import type { PackageFileInventory } from "./share-file-policy.js";
 
@@ -44,7 +44,7 @@ export async function readBundledImportPluginIds(_required: Record<string, never
 }
 
 function bundledSourceRoot(optional: { sourceRoot?: string }): string {
-  return optional.sourceRoot ?? process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
+  return optional.sourceRoot ?? bundledAgentPluginsDir();
 }
 
 /** The packed archive read back with the installer's own reader. O(archive bytes). */

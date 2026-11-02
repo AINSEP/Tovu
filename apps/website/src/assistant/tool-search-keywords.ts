@@ -4,7 +4,7 @@ import { createSearchEnricher } from '@jini-ai/registry/tool-catalog-builder';
 import { DOC2QUERY } from "./tool-search-doc2query.js";
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { resolveProductRoot } from '../platform/site-dir/product-root.js';
+import { bundledAgentPluginsDir } from '../platform/site-dir/product-root.js';
 
 /** Product-owned source enumeration; installed packages cannot contribute search authority. */
 export type BundledToolKeywordSources = (required: { sourceRoot: string; filename: string }, optional?: Record<string, never>) => readonly { pluginId: string; packageRoot: string }[];
@@ -83,7 +83,7 @@ let searchKeywords: Readonly<Record<string, string>> | undefined;
  * @complexity O(p + k) manifests and keyword entries once, then O(1). */
 export function toolSearchKeywords(_required: Record<string, never>, optional: { sources?: BundledToolKeywordSources } = {}): Readonly<Record<string, string>> {
   if (optional.sources && !bundledKeywords) {
-    bundledKeywords = readBundledToolKeywords({ sourceRoot: path.join(resolveProductRoot(), 'content', 'agent-plugins') }, optional);
+    bundledKeywords = readBundledToolKeywords({ sourceRoot: bundledAgentPluginsDir() }, optional);
     searchKeywords = undefined;
     enricher = undefined;
   }

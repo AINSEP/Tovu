@@ -1,8 +1,6 @@
 import { bundledAgentPluginsDir, siteDir } from "./site-paths.js";
 import { homedir } from "node:os";
-import { join } from "node:path";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
 import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
 import { createTovuAgentPluginLifecycle, type LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
@@ -338,7 +336,7 @@ export async function loadSiteVaultKinds(input: { workspaceId: string; siteDir?:
     loadDeployTargetRegistry({ workspaceId: input.workspaceId }, { loadContributions }),
     // Every bundled plugin's source, not one: a legacy publish row must resolve its vendor even
     // before the hosting plugin that now owns its target has been seeded and switched on.
-    loadBundledDeployTargetRegistry({ sourceRoot: join(resolveProductRoot(), "content", "agent-plugins") }),
+    loadBundledDeployTargetRegistry({ sourceRoot: bundledAgentPluginsDir() }),
   ]);
   return createTovuVaultKinds({ policy: {
     validateMeta: ({ meta }) => meta,

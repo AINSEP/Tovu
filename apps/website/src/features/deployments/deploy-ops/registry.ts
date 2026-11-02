@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { resolveProductRoot } from "#src/platform/site-dir/index";
+import { bundledAgentPluginsDir } from "#src/platform/site-dir/index";
 import { bundledContributionSources } from "../../agent-plugins/bundled-contribution-sources.js";
 import { ToolInputError } from "@jini-ai/core";
 import { defineExecutablePluginContribution, type LoadPluginContributions, loadPluginContributionsFromSource, type TrustedPluginPackage } from "../../agent-plugins/lifecycle.js";
@@ -137,7 +137,7 @@ export async function loadDeployOpsRegistry(ctx: { workspaceId: string }, requir
     // not contribute duplicate ids (duplicates are dropped). Installed activation and digest
     // checks still run in the lifecycle loader; this source list never authorizes an import.
     const owners = new Set(bundledContributionSources({
-      sourceRoot: path.join(resolveProductRoot(), "content", "agent-plugins"), filename: DEPLOY_OPS_FILENAME,
+      sourceRoot: bundledAgentPluginsDir(), filename: DEPLOY_OPS_FILENAME,
     }).map(plugin => plugin.pluginId));
     const load = await required.loadContributions({ ...ctx, definition: opsContribution }, {
       packageRefusal: ({ plugin }) => owners.has(plugin.pluginId) ? undefined : `deploy ops from '${plugin.pluginId}' were not loaded: only bundled plugins shipping ${DEPLOY_OPS_FILENAME} may contribute`,

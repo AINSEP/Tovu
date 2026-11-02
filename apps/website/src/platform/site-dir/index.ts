@@ -32,7 +32,7 @@ export { DEFAULT_SITE_NAME, resolveSiteRoot, pinDefaultSiteRoot, SITE_SELECTION_
  * `features/agent-plugins/layout.ts` (`no-deep-imports:platform/site-dir` is `error`-severity — see
  * `.dependency-cruiser.mjs`'s `PROMOTED_NO_DEEP_IMPORTS`).
  */
-export { resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot } from "./product-root.js";
+export { bundledAgentPluginsDir, resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot } from "./product-root.js";
 export { DEFAULT_OWNER_PASSWORD, resolveNewSiteAdminPassword } from "./new-site-owner.js";
 export {
   SiteCorruptError,

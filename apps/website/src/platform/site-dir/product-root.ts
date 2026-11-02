@@ -146,3 +146,29 @@ export function resolveCheckoutRoot(fromDir: string = import.meta.dirname): stri
 export function stockThemesDir(): string {
   return process.env.TOVU_STOCK_THEMES_DIR ?? path.join(resolveProductRoot(), "content", "themes");
 }
+
+/**
+ * Agent Plugins that ship WITH the product live in `content/agent-plugins/<pluginId>/`, copied to
+ * `dist/content/agent-plugins/` at build time and resolved package-relative to this file — the exact
+ * same shape as `builtInThemesDir` (`composition/site-paths.ts`), including the product-root walk-up
+ * that makes it land correctly in both the source and compiled layouts, and for the same reason
+ * (CR-R04: a `process.cwd()`-relative path is wrong the moment the CLI is invoked from outside the
+ * checkout).
+ *
+ * `TOVU_BUNDLED_AGENT_PLUGINS_DIR` wins when set: `npm run dev` and the unpackaged desktop point it at
+ * a COMPOSED root (Tovu content plus the selected `@jini-ai/agent-plugins/<id>` payloads), the same
+ * tree the build ships at the default. This is the ONE owner; every reader calls it, because a reader
+ * that joins the path itself loses every moved plugin in development. Lives here (not in server
+ * composition) so features, the CLI and composition share it without crossing INV-06, like
+ * {@link stockThemesDir}.
+ *
+ * Deliberately NOT `<site>/agent-plugins/`. That directory is `layout.ts`'s per-workspace INSTALL
+ * root — gitignored site data (`sites/README.md`), populated by extraction, and frozen read-only
+ * per digest. Product-shipped source cannot live there: it would not be tracked, would not ship in
+ * a release, and would collide with the content-addressed tree the installer owns. Bundled source
+ * is an INPUT to installation (`features/agent-plugins/seed-bundled.ts`), not a location within it.
+ * @complexity O(depth) filesystem checks via {@link resolveProductRoot}; O(1) when the env names it.
+ */
+export function bundledAgentPluginsDir(_required: Record<string, never> = {}, optional: { env?: NodeJS.ProcessEnv } = {}): string {
+  return (optional.env ?? process.env).TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? path.join(resolveProductRoot(), "content", "agent-plugins");
+}

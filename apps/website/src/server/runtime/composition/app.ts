@@ -387,8 +387,6 @@ import type { Express } from "express";
 import type { ServerModuleHandle } from "./modules/types.js";
 import { createMediaProviderRegistry } from "@jini-ai/integrations/media-providers";
 
-const AGENT_PLUGINS_DIRECTORY = "agent-plugins";
-
 /**
  * @file HTTP composition root and route wiring.
  *
@@ -1599,19 +1597,19 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // Hermetic: every bundled plugin's own source directory (each hosting plugin ships its own
     // targets), no install or activation step — see `routes/types.ts`'s `loadDeployTargets` doc.
     loadDeployTargets: () =>
-      loadBundledDeployTargetRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", AGENT_PLUGINS_DIRECTORY) }),
-    loadDeployWorkflowFiles: async () => readBundledDeployWorkflowFiles({ sourceRoot: path.join(resolveProductRoot(), "content", AGENT_PLUGINS_DIRECTORY) }),
-    loadDeployOps: () => loadBundledDeployOpsRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", AGENT_PLUGINS_DIRECTORY) }),
+      loadBundledDeployTargetRegistry({ sourceRoot: bundledAgentPluginsDir() }),
+    loadDeployWorkflowFiles: async () => readBundledDeployWorkflowFiles({ sourceRoot: bundledAgentPluginsDir() }),
+    loadDeployOps: () => loadBundledDeployOpsRegistry({ sourceRoot: bundledAgentPluginsDir() }),
     // Hermetic the same way: every bundled source-control declaration — see `routes/types.ts`'s
     // `loadSourceControlProviders` doc.
     loadSourceControlProviders: () =>
-      loadBundledSourceControlProviderRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", AGENT_PLUGINS_DIRECTORY) }),
+      loadBundledSourceControlProviderRegistry({ sourceRoot: bundledAgentPluginsDir() }),
     // And the bundled plugins' own key cards — see `routes/types.ts`'s `loadPluginCredentialCards` doc.
     loadPluginCredentialCards: () =>
-      loadMailCredentialCards({ loadMailAdapters: () => loadBundledMailAdapterRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", AGENT_PLUGINS_DIRECTORY) }) }),
+      loadMailCredentialCards({ loadMailAdapters: () => loadBundledMailAdapterRegistry({ sourceRoot: bundledAgentPluginsDir() }) }),
     // And the bundled plugins' credential scheme rules — see `routes/types.ts`'s `loadAuthSchemes` doc.
     loadAuthSchemes: async () =>
-      (await loadBundledCredentialSchemeRegistry({ sourceRoot: path.join(resolveProductRoot(), "content", AGENT_PLUGINS_DIRECTORY) })).rules,
+      (await loadBundledCredentialSchemeRegistry({ sourceRoot: bundledAgentPluginsDir() })).rules,
     // 2026-08-16 — hermetic double for `server/deps.ts`'s real (also in-memory — see
     // `routes/types.ts`'s `publishCredentialVerificationCache` doc for why this cache is
     // deliberately never DB-backed) instance.
