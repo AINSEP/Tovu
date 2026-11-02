@@ -476,11 +476,17 @@ test('missing or malformed catalog and unknown selections fail closed before imp
 test('Tovu declares no production vendor plugins; OTLP is development-only and lock entries match the selected packages', async () => {
   const manifest = JSON.parse(await readFile(new URL('../../../../../../../package.json', import.meta.url), 'utf8'));
   const lock = JSON.parse(await readFile(new URL('../../../../../../../package-lock.json', import.meta.url), 'utf8'));
+  // Agent plugins (ui-ux-design included) ship as @jini-ai/agent-plugins/<id> subpaths, never per-plugin packages.
   assert.deepEqual(Object.keys(manifest.dependencies).filter(name => name.startsWith('@jini-ai/plugin-')).sort(),
-    ['@jini-ai/plugin-catalog', '@jini-ai/plugin-ui-ux-design']);
-  assert.equal(manifest.dependencies['@jini-ai/provider-plugins'], undefined);
+    ['@jini-ai/plugin-catalog']);
+  // @jini-ai/provider-plugins carries Tovu's default chart provider (Recharts). Installing it enables no
+  // telemetry vendor: loadProductProviders resolves only an explicitly configured provider's package.
+  for (const name of ['@jini-ai/agent-plugins', '@jini-ai/provider-plugins']) {
+    assert.equal(typeof manifest.dependencies[name], 'string', name);
+    assert.equal(lock.packages[''].dependencies[name], manifest.dependencies[name], name);
+  }
   assert.equal(manifest.optionalDependencies?.['@jini-ai/plugin-observability-opentelemetry'], undefined);
-  for (const name of ['@jini-ai/plugin-catalog', '@jini-ai/plugin-ui-ux-design']) {
+  for (const name of ['@jini-ai/plugin-catalog']) {
     assert.equal(manifest.dependencies[name], '^0.6.17');
     assert.equal(lock.packages[''].dependencies[name], manifest.dependencies[name]);
     assert.equal(lock.packages[`node_modules/${name}`].version, '0.6.17');
