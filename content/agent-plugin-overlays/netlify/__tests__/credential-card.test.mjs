@@ -2,8 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { parsePluginCredentialCards } from '../../../../apps/website/src/features/agent-plugins/credential-cards.ts';
+import path from 'node:path';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
-const card = (target = 'netlify') => JSON.parse(readFileSync(new URL('../plugin.json', import.meta.url), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
+// netlify ships from @jini-ai/agent-plugins/netlify: read it where Tovu takes it from.
+const PLUGIN_DIR = agentPluginSourceDir({ pluginId: 'netlify' });
+
+const card = (target = 'netlify') => JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
 for (const [target, kind, title, permissions, helpUrl] of [
   ['netlify', 'publish-host', 'Connect Netlify', /SSO/, 'https://app.netlify.com/user/applications#personal-access-tokens'],
 ]) test(`netlify/${target}: correct title, destination, key page and minimum access guidance`, () => {
@@ -17,7 +22,7 @@ for (const [target, kind, title, permissions, helpUrl] of [
 });
 
 test('every credential card parses its task purposes', () => {
-  const parsed = parsePluginCredentialCards({ raw: readFileSync(new URL('../plugin.json', import.meta.url), 'utf8') });
+  const parsed = parsePluginCredentialCards({ raw: readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8') });
   assert.equal(parsed.ok, true);
   assert.deepEqual(parsed.descriptors.map(({ providerId, usedFor }) => ({ providerId, usedFor })), [
     {

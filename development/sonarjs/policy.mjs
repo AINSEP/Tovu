@@ -85,7 +85,6 @@ export const sonarSourceConfig = {
 export const sonarVendorSha1Override = {
   name: 'tovu/sonarjs-vendor-sha1',
   files: [
-    'content/agent-plugins/netlify/targets/netlify.mjs',
     'content/agent-plugins/vercel/targets/vercel.mjs',
   ],
   plugins: { sonarjs },

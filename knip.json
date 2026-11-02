@@ -107,7 +107,6 @@
         "content/agent-plugins/google-workspace/ui/connection-panel.html",
         "content/agent-plugins/google-workspace/ui/destination-panel.html",
         "content/agent-plugins/google-workspace/ui/picker.html",
-        "content/agent-plugins/netlify/targets/netlify.mjs",
         "content/agent-plugins/railway/deploy-configs/railway.mjs",
         "content/agent-plugins/render/deploy-configs/render.mjs",
         "content/agent-plugins/resend/adapters/resend.mjs",
