@@ -11,6 +11,7 @@ import type { PublicPostRecord } from "#src/features/post/index";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
 import { injectCurrentEntityContentId, injectPageTitle, renderStaticPage, resolveTemplate } from "../static-render.js";
 import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
+import { withoutVisitorToolMarks } from "./visitor-tool-marks.fixture.js";
 
 /**
  * @file Canaries for the unified template render pipeline, against the REAL `tovu-theme` theme on disk.
@@ -188,7 +189,8 @@ test("canary: a POST-style template (blog-sidebar-template.html) renders nav, tr
   // `resolveStaticMenusForRender`'s own doc. A hand-built `menus` map keyed by a retired literal
   // would no longer match that marker at all, so this fixture's key has to track the template's
   // real marker id, not name a specific stored menu.
-  const html = renderThroughTemplate(tovuTheme(), templateFor(tovuTheme(), "sidebar"), "Theme Authoring", {
+  // Exact anchors pin the theme's own markup; visitor tool marks are pinned in menu-tree-render.test.ts.
+  const html = withoutVisitorToolMarks(renderThroughTemplate(tovuTheme(), templateFor(tovuTheme(), "sidebar"), "Theme Authoring", {
     "menu-header-nav": items({ label: "About", href: "/about" }),
     "docs-section": items({
       label: "Menus",
@@ -196,7 +198,7 @@ test("canary: a POST-style template (blog-sidebar-template.html) renders nav, tr
       isCurrent: true,
       children: items({ label: "Menu embeds", href: "#menu-embeds" }),
     }),
-  });
+  })) ?? "";
 
   assert.ok(!html.includes("widget-placeholder"), "no marker may render as an empty widget placeholder");
   assert.ok(html.includes('<nav class="main-nav"'), "the nav partial must be spliced in");
@@ -216,7 +218,7 @@ for (const prefix of ["", "__original-themes__/"]) {
     // Reset must not restore the unconditional link. Exercise its real nav through the same renderer.
     theme.partials.nav = fs.readFileSync(path.resolve(THEME_DIR, `../../${prefix}static/tovu-theme/render/partials/nav.html`), "utf8");
     for (const pageId of new Set(["index", ...(theme.manifest.templates ?? []).map((name) => name.replace(/\.html$/, ""))])) {
-      const html = renderStaticPage({ theme, pageId });
+      const html = withoutVisitorToolMarks(renderStaticPage({ theme, pageId }));
       assert.ok(html, `${pageId}: the real page must render`);
       const header = html.replace(/<!--[\s\S]*?-->/g, "").match(/<header\b[\s\S]*?<\/header>/)?.[0];
       assert.ok(header, `${pageId}: the header must render without JavaScript`);
