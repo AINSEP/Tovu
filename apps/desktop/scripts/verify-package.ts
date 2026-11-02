@@ -31,6 +31,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { VERIFIED_PREFIXES, bundledNpmFailures, formatMismatchReport, isEmptyVerification, verifyAsarAgainstSource } from "../src/asar-verify.ts";
+import { packagedPtyHelperFailures } from "../src/pty-helpers.ts";
 import { runVerifyPackage, resolveAsarPath } from "../src/verify-package-cli.ts";
 
 const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -38,6 +39,7 @@ const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 process.exitCode = runVerifyPackage({ argv: process.argv.slice(2), desktopRoot: DESKTOP_ROOT }, {
   fs: { existsSync, readdirSync, statSync },
   verify: verifyAsarAgainstSource, isEmptyVerification, formatMismatchReport, bundledNpmFailures,
+  ptyHelperFailures: packagedPtyHelperFailures,
   prefixes: VERIFIED_PREFIXES, stdout: process.stdout, stderr: process.stderr,
 });
 

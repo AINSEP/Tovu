@@ -2,7 +2,8 @@
  * @file The decision half of `scripts/verify-package.ts` — the BACKSTOP half of the packaging safety
  * gate (see that script's header for where it sits in `package.json`'s `package` chain and why it
  * cannot be a `quality-gates.json` gate). It locates the freshly built `app.asar`, runs the
- * byte-for-byte comparison from `./asar-verify.ts`, checks the bundled npm, and turns the outcome
+ * byte-for-byte comparison from `./asar-verify.ts`, checks the bundled npm and node-pty's
+ * spawn-helper modes, and turns the outcome
  * into an exit code.
  *
  * Every filesystem read and every output stream is an injected port, so the whole CLI decision —
@@ -39,6 +40,7 @@ interface VerifyPackagePorts {
   isEmptyVerification(checkedCount: number): boolean;
   formatMismatchReport(mismatches: AsarVerification["mismatches"]): string;
   bundledNpmFailures(resourcesDirs: string[]): string[];
+  ptyHelperFailures(resourcesDirs: string[]): string[];
   prefixes: string[];
   stdout: TextSink;
   stderr: TextSink;
@@ -120,19 +122,30 @@ function asarFailure(ports: VerifyPackagePorts, asarPath: string, desktopRoot: s
   return undefined;
 }
 
-/** The bundled-npm half; returns the failure message, or `undefined` with the checked dir count. */
-function npmFailure(ports: VerifyPackagePorts, asarPath: string, desktopRoot: string): { message?: string; dirCount: number } {
-  // The verified asar's own resources dir always counts, so an explicit `--asar` outside
-  // `release/` is checked too rather than passing with zero dirs.
-  const resourcesDirs = [...new Set([path.dirname(asarPath), ...findResourcesDirs(ports.fs, desktopRoot)])];
+/** The resources dirs the npm and spawn-helper checks read. The verified asar's own resources dir
+ *  always counts, so an explicit `--asar` outside `release/` is checked too rather than passing
+ *  with zero dirs. */
+function resourcesDirsFor(ports: VerifyPackagePorts, asarPath: string, desktopRoot: string): string[] {
+  return [...new Set([path.dirname(asarPath), ...findResourcesDirs(ports.fs, desktopRoot)])];
+}
+
+/** The bundled-npm half; returns the failure message, or `undefined` on a pass. */
+function npmFailure(ports: VerifyPackagePorts, resourcesDirs: string[]): string | undefined {
   const failures = ports.bundledNpmFailures(resourcesDirs);
-  if (failures.length === 0) return { dirCount: resourcesDirs.length };
-  return {
-    dirCount: resourcesDirs.length,
-    message: `verify-package: bundled npm is missing from the packaged app:\n  ${failures.join("\n  ")}\n` +
-      "Every stdio MCP server launched via a bare npx/npm command would have nothing to run. Check " +
-      "electron-builder.yml's two npm extraResources entries and that `npm run stage` ran before packaging.\n",
-  };
+  if (failures.length === 0) return undefined;
+  return `verify-package: bundled npm is missing from the packaged app:\n  ${failures.join("\n  ")}\n` +
+    "Every stdio MCP server launched via a bare npx/npm command would have nothing to run. Check " +
+    "electron-builder.yml's two npm extraResources entries and that `npm run stage` ran before packaging.\n";
+}
+
+/** The node-pty half; returns the failure message, or `undefined` on a pass. electron-builder keeps
+ *  the mode it finds, so a helper staging left unexecutable ships that way (see pty-helpers.ts). */
+function ptyFailure(ports: VerifyPackagePorts, resourcesDirs: string[]): string | undefined {
+  const failures = ports.ptyHelperFailures(resourcesDirs);
+  if (failures.length === 0) return undefined;
+  return `verify-package: node-pty spawn-helper is missing or not executable in the packaged app:\n  ${failures.join("\n  ")}\n` +
+    "Every terminal would fail with `posix_spawnp failed`. Check that `npm run stage` ran before " +
+    "packaging (it sets the execute bits) and electron-builder.yml's node-pty asarUnpack entry.\n";
 }
 
 /**
@@ -140,8 +153,9 @@ function npmFailure(ports: VerifyPackagePorts, asarPath: string, desktopRoot: st
  *
  * @param input.argv the CLI arguments after the script path (`[--asar <path>]`).
  * @param input.desktopRoot the `apps/desktop` directory, the source side of the comparison.
- * @returns the process exit code: 0 when every verified file is byte-identical and npm is bundled,
- *   1 when no asar exists, nothing was verified, a mismatch was found, or npm is missing.
+ * @returns the process exit code: 0 when every verified file is byte-identical, npm is bundled and
+ *   every node-pty spawn-helper is executable; 1 when no asar exists, nothing was verified, a
+ *   mismatch was found, npm is missing, or a spawn-helper is missing or not executable.
  * @complexity O(n) in archive entries plus bundles under `release/`.
  */
 export function runVerifyPackage({ argv, desktopRoot }: { argv: readonly string[]; desktopRoot: string }, ports: VerifyPackagePorts): 0 | 1 {
@@ -156,12 +170,13 @@ export function runVerifyPackage({ argv, desktopRoot }: { argv: readonly string[
     ports.stderr.write(asarMessage);
     return 1;
   }
-  const npm = npmFailure(ports, asarPath, desktopRoot);
-  if (npm.message !== undefined) {
-    ports.stderr.write(npm.message);
+  const resourcesDirs = resourcesDirsFor(ports, asarPath, desktopRoot);
+  const packagedMessage = npmFailure(ports, resourcesDirs) ?? ptyFailure(ports, resourcesDirs);
+  if (packagedMessage !== undefined) {
+    ports.stderr.write(packagedMessage);
     return 1;
   }
-  ports.stdout.write(`verify-package: OK — bundled npm present in ${npm.dirCount} resources dir(s)\n`);
+  ports.stdout.write(`verify-package: OK — bundled npm present in ${resourcesDirs.length} resources dir(s)\n`);
   ports.stdout.write("verify-package: OK — every file byte-identical to source\n");
   return 0;
 }

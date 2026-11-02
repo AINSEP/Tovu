@@ -19,6 +19,7 @@ import path from "node:path";
 
 import { createNodePackagingFilesystem, missingClosureDependencies, stageTransitiveDependencies as stageClosure } from "@jini-ai/devops/packaging/electron";
 
+import { lacksExecuteBits, ptyHelperPaths } from "./pty-helpers.ts";
 import { isBundleInput, type StalenessShell } from "./shell-staleness.ts";
 
 const NODE_MODULES = "node_modules";
@@ -648,10 +649,7 @@ export function stageBundledNpm({ npmSrc, outDir }: StageBundledNpmInput): Stage
  * @complexity O(p) in prebuild directories.
  */
 export function ensurePtyHelpersExecutable({ ptyDir }: { ptyDir: string }): string[] {
-  const prebuilds = path.join(ptyDir, "prebuilds");
-  const platforms = existsSync(prebuilds) ? readdirSync(prebuilds).sort() : [];
-  const helpers = [path.join(ptyDir, "build", "Release", "spawn-helper"), ...platforms.map((dir) => path.join(prebuilds, dir, "spawn-helper"))];
-  const changed = helpers.filter((file) => existsSync(file) && (statSync(file).mode & 0o111) !== 0o111);
+  const changed = ptyHelperPaths({ ptyDir }).filter((file) => lacksExecuteBits(statSync(file).mode));
   for (const file of changed) chmodSync(file, statSync(file).mode | 0o755);
   return changed;
 }

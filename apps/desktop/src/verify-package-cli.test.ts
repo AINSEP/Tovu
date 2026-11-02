@@ -40,6 +40,7 @@ function harness(fs: VerifyPackageFs, overrides: Partial<VerifyPackagePorts> = {
   const err: string[] = [];
   const verified: string[] = [];
   const npmChecked: string[][] = [];
+  const ptyChecked: string[][] = [];
   const ports: VerifyPackagePorts = {
     fs,
     verify(asarPath, sourceRoot, prefixes): AsarVerification {
@@ -49,12 +50,13 @@ function harness(fs: VerifyPackageFs, overrides: Partial<VerifyPackagePorts> = {
     isEmptyVerification: (count) => count === 0,
     formatMismatchReport: (mismatches) => `REPORT(${mismatches.map((item) => item.relPath).join(",")})`,
     bundledNpmFailures(dirs) { npmChecked.push(dirs); return []; },
+    ptyHelperFailures(dirs) { ptyChecked.push(dirs); return []; },
     prefixes: ["src", "dist"],
     stdout: { write: (text: string) => out.push(text) },
     stderr: { write: (text: string) => err.push(text) },
     ...overrides,
   };
-  return { ports, out, err, verified, npmChecked };
+  return { ports, out, err, verified, npmChecked, ptyChecked };
 }
 
 const macApp = `${ROOT}/release/mac-arm64/Tovu.app`;
@@ -145,6 +147,26 @@ test("a missing bundled npm exits 1 and lists every missing file", () => {
   assert.ok(!out.some((line) => line.includes("OK")));
 });
 
+// node-pty 1.1.0 ships prebuilds/darwin-arm64/spawn-helper as 0644; staging sets the bits, and this
+// backstop proves the packaged copy kept them (open-bugs 11-02 o1: the release branch lacked staging's fix).
+test("a non-executable or missing node-pty spawn-helper exits 1 and names every file", () => {
+  const { ports, out, err, ptyChecked } = harness(fakeFs({}), {
+    ptyHelperFailures: (dirs) => dirs.map((dir) => `${dir}/app.asar.unpacked/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper (mode 644)`),
+  });
+  assert.equal(runVerifyPackage({ argv: ["--asar", "/a/Resources/app.asar"], desktopRoot: ROOT }, ports), 1);
+  assert.deepEqual(ptyChecked, []);
+  assert.equal(err.length, 1);
+  assert.ok(err[0]!.startsWith("verify-package: node-pty spawn-helper is missing or not executable in the packaged app:\n  /a/Resources/app.asar.unpacked/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper (mode 644)\n"));
+  assert.match(err[0]!, /posix_spawnp failed/);
+  assert.ok(!out.some((line) => line.includes("every file byte-identical")));
+});
+
+test("the spawn-helper check reads the same resources dirs as the npm check", () => {
+  const { ports, npmChecked, ptyChecked } = harness(releaseTree({ macMtime: 5, winMtime: 9 }));
+  assert.equal(runVerifyPackage({ argv: [], desktopRoot: ROOT }, ports), 0);
+  assert.deepEqual(ptyChecked, npmChecked);
+});
+
 /** `createPackageWithOptions` resolves before the write stream flushes; wait for the complete size
  *  (same workaround and reason as `asar-verify.test.ts`'s `packArchive`). */
 async function packArchive(root: string, asarPath: string): Promise<void> {
@@ -197,7 +219,7 @@ function closureArchiveFixture(scratch: string) {
     mkdirSync(path.dirname(target), { recursive: true });
     writeFileSync(target, typeof value === 'string' ? value : JSON.stringify(value));
   }
-  for (const file of ['scripts/verify-package.ts', 'scripts/verify-staged-closure.ts', 'src/asar-verify.ts', 'src/verify-package-cli.ts']) {
+  for (const file of ['scripts/verify-package.ts', 'scripts/verify-staged-closure.ts', 'src/asar-verify.ts', 'src/pty-helpers.ts', 'src/verify-package-cli.ts']) {
     mkdirSync(path.dirname(path.join(desktop, file)), { recursive: true });
     copyFileSync(path.join(DESKTOP_ROOT, file), path.join(desktop, file));
   }
