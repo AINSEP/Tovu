@@ -63,12 +63,15 @@ import {
   evaluatePerFileBranch,
   foreignImageFunctions,
   formatArea,
+  imageCounters,
   formatPerFileBranch,
   inventoryFailures,
   isInExcludedDir,
   isProductionSource,
+  readLcovImage,
+  unionLcovImages,
 } from "../src/coverage-floors.ts";
-import type { CoverageArea, ExcludedSource, LcovCounters, PerFileBranchPolicy, TestPass } from "../src/coverage-floors.ts";
+import type { CoverageArea, ExcludedSource, LcovCounters, LcovImage, PerFileBranchPolicy, TestPass } from "../src/coverage-floors.ts";
 
 /** `coverage-floors.json`, as far as this file reads it. `_comment*` and `_todo` keys exist in the
  *  file but are never read here. `perFileBranch` is required: a config without one fails the gate
@@ -134,11 +137,12 @@ function sourceInventory({ root }: { root: string }): string[] {
   return [...INVENTORY_DIRS.flatMap((dir) => filesOnDisk(dir, SOURCE_EXTENSIONS, [], root)), ...topLevel].sort();
 }
 
-/** Parse an lcov into `Map<relPath, counters>`. Paths outside this package (Jini's dist, anything
- *  reached through a symlink) are dropped rather than counted.
+/** Parse an lcov into `Map<relPath, image>`. Paths outside this package (Jini's dist, anything
+ *  reached through a symlink) are dropped rather than counted. A file recorded twice is the union of
+ *  both images ({@link unionLcovImages}), the same rule mergeCoverage applies across passes.
  *  @complexity O(n) in lcov records. */
-function parseLcov(text: string, desktopRoot: string): Map<string, LcovCounters> {
-  const byFile = new Map<string, LcovCounters>();
+function parseLcov(text: string, desktopRoot: string): Map<string, LcovImage> {
+  const byFile = new Map<string, LcovImage>();
   for (const record of text.split(/^end_of_record$/m)) {
     const sf = /^SF:(.*)$/m.exec(record);
     if (!sf) continue;
@@ -146,14 +150,9 @@ function parseLcov(text: string, desktopRoot: string): Map<string, LcovCounters>
     if (path.isAbsolute(rel)) rel = path.relative(desktopRoot, rel);
     rel = rel.split(path.sep).join("/");
     if (rel.startsWith("..") || rel.includes("node_modules")) continue;
-    const num = (key: string): number => {
-      const m = new RegExp(`^${key}:(\\d+)$`, "m").exec(record);
-      return m ? Number(m[1]) : 0;
-    };
-    const next = { lf: num("LF"), lh: num("LH"), brf: num("BRF"), brh: num("BRH"), fnf: num("FNF"), fnh: num("FNH") };
+    const next = readLcovImage({ record });
     const prev = byFile.get(rel);
-    // A file recorded twice keeps the better image, the same rule mergeCoverage applies across passes.
-    if (!prev || next.lh > prev.lh) byFile.set(rel, next);
+    byFile.set(rel, prev ? unionLcovImages({ a: prev, b: next }) : next);
   }
   return byFile;
 }
@@ -187,19 +186,20 @@ function runSuite(pass: TestPass, includes: readonly string[], lcovPath: string,
   return { status: result.signal ? null : result.status };
 }
 
-/** Reads every pass's lcov into one `Map<relPath, counters>`, keeping the better image when more
- *  than one pass measured a file.
+/** Reads every pass's lcov into one `Map<relPath, counters>`. A file more than one pass measured
+ *  counts every line, function and branch any pass ran ({@link unionLcovImages}); keeping only the
+ *  pass with more hit lines read the other pass's work as unrun.
  *  @complexity O(n) in lcov records. */
 function mergeCoverage(lcovPaths: readonly string[], desktopRoot: string): Map<string, LcovCounters> {
-  const coverage = new Map<string, LcovCounters>();
+  const images = new Map<string, LcovImage>();
   for (const file of lcovPaths) {
     if (!existsSync(file)) continue;
-    for (const [rel, counters] of parseLcov(readFileSync(file, "utf8"), desktopRoot)) {
-      const prev = coverage.get(rel);
-      if (!prev || counters.lh > prev.lh) coverage.set(rel, counters);
+    for (const [rel, image] of parseLcov(readFileSync(file, "utf8"), desktopRoot)) {
+      const prev = images.get(rel);
+      images.set(rel, prev ? unionLcovImages({ a: prev, b: image }) : image);
     }
   }
-  return coverage;
+  return new Map([...images].map(([rel, image]): [string, LcovCounters] => [rel, imageCounters({ image })]));
 }
 
 /** Runs every pass under coverage, writing pass i's lcov to `lcovPaths[i]`. Returns whether the

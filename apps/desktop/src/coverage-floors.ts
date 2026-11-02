@@ -313,3 +313,86 @@ export function foreignImageFunctions(record: string, sourceLines: readonly stri
     (counts.get(name) ?? 0) > 1 && !name.startsWith("anonymous_") && !(sourceLines[line - 1] ?? "").includes(name));
   return [...new Set(foreign.map((fn) => fn.name))].sort();
 }
+
+/** One coverage axis of one lcov image: its summary totals, and its entries keyed so the same line,
+ *  function or branch from another image of the file meets it. `entries` is empty for a record that
+ *  carries only the summary counters. */
+export interface LcovAxisImage { found: number; hit: number; entries: ReadonlyMap<string, number> }
+
+/** One lcov file record, per axis. See {@link unionLcovImages}. */
+export interface LcovImage { line: LcovAxisImage; branch: LcovAxisImage; funcs: LcovAxisImage }
+
+/** Every regex match's [key, count] in record order, with `-` (lcov's "never taken") read as 0.
+ *  @complexity O(n) in record lines. */
+function countedEntries(record: string, pattern: RegExp, keyOf: (match: RegExpMatchArray) => string, countAt: number): Map<string, number> {
+  const entries = new Map<string, number>();
+  for (const match of record.matchAll(pattern)) entries.set(keyOf(match), Number(match[countAt]) || 0);
+  return entries;
+}
+
+/** A key that counts how many times `base` was seen so far: `name#1`, `name#2`, ... Functions are
+ *  keyed by name and order, not start line, because the tsx pass moves start lines (see
+ *  {@link TEST_PASSES}); two closures sharing a name stay two functions. Branches are keyed by line
+ *  and order within the line.
+ *  @complexity O(1). */
+function ordinalKey(seen: Map<string, number>, base: string): string {
+  const n = (seen.get(base) ?? 0) + 1;
+  seen.set(base, n);
+  return `${base}#${n}`;
+}
+
+/** The function entries: every `FN:` found (0 hits) overlaid with its `FNDA:` count. Node writes one
+ *  `FNDA:` per `FN:`, in the same order, so the k-th of a name pairs with the k-th.
+ *  @complexity O(n) in record lines. */
+function functionEntries(record: string): Map<string, number> {
+  const entries = new Map<string, number>();
+  const declared = new Map<string, number>();
+  for (const m of record.matchAll(/^FN:\d+,(.+)$/gm)) entries.set(ordinalKey(declared, (m[1] ?? "").trim()), 0);
+  const counted = new Map<string, number>();
+  for (const m of record.matchAll(/^FNDA:(\d+),(.+)$/gm)) entries.set(ordinalKey(counted, (m[2] ?? "").trim()), Number(m[1]));
+  return entries;
+}
+
+/**
+ * Reads one lcov file record into its per-axis image.
+ * @complexity O(n) in record lines.
+ */
+export function readLcovImage({ record }: { record: string }): LcovImage {
+  const num = (key: string): number => Number(new RegExp(`^${key}:(\\d+)$`, "m").exec(record)?.[1] ?? 0);
+  const branchSeen = new Map<string, number>();
+  return {
+    line: { found: num("LF"), hit: num("LH"), entries: countedEntries(record, /^DA:(\d+),(\d+)/gm, (m) => m[1] ?? "", 2) },
+    branch: { found: num("BRF"), hit: num("BRH"), entries: countedEntries(record, /^BRDA:(\d+),[^,\n]*,[^,\n]*,(\d+|-)$/gm, (m) => ordinalKey(branchSeen, m[1] ?? ""), 2) },
+    funcs: { found: num("FNF"), hit: num("FNH"), entries: functionEntries(record) },
+  };
+}
+
+/** One axis of {@link unionLcovImages}. Without entries on both sides there is nothing to match, so
+ *  the axis keeps the image that hit more (the earlier one on a tie).
+ *  @complexity O(e) in entries. */
+function unionAxis(a: LcovAxisImage, b: LcovAxisImage): LcovAxisImage {
+  if (a.entries.size === 0 || b.entries.size === 0) return b.hit > a.hit ? b : a;
+  const entries = new Map(a.entries);
+  for (const [key, count] of b.entries) entries.set(key, Math.max(entries.get(key) ?? 0, count));
+  return { found: entries.size, hit: [...entries.values()].filter((count) => count > 0).length, entries };
+}
+
+/**
+ * Two images of the same file (twice in one lcov, or once per test pass) as ONE: a line, function
+ * or branch is run when either image ran it. Keeping only the image with more hit lines read
+ * everything only the other image ran as unrun (open-bugs 11-02).
+ *
+ * Limit, stated up front: the tsx pass lands some hits on neighbouring lines and adds esbuild's
+ * `__name` helper as a function (see {@link TEST_PASSES}). A union with a tsx image inherits that,
+ * exactly as the old "better image" rule did whenever the tsx image won.
+ * @complexity O(e) in entries.
+ */
+export function unionLcovImages({ a, b }: { a: LcovImage; b: LcovImage }): LcovImage {
+  return { line: unionAxis(a.line, b.line), branch: unionAxis(a.branch, b.branch), funcs: unionAxis(a.funcs, b.funcs) };
+}
+
+/** An image's totals in the shape the area and per-file floors read.
+ *  @complexity O(1). */
+export function imageCounters({ image }: { image: LcovImage }): coverage.LcovCounters {
+  return { lf: image.line.found, lh: image.line.hit, brf: image.branch.found, brh: image.branch.hit, fnf: image.funcs.found, fnh: image.funcs.hit };
+}

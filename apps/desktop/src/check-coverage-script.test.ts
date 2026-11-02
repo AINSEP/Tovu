@@ -100,7 +100,7 @@ test("an area under its floor fails the gate even though the suite passed", () =
   assert.match(err.join(""), /\ncheck-coverage: FAILED\n/);
 });
 
-test("lcov records outside the package or in node_modules are dropped, and a duplicate keeps the better image", () => {
+test("lcov records outside the package or in node_modules are dropped, and a summary-only duplicate keeps the better image", () => {
   const root = desktopRoot();
   const lcov = record(path.join(root, "src/a.ts"), [10, 10], [2, 2], [1, 1])
     // A record with no branch/function counters at all reads them as zero, not as a parse failure.
@@ -116,6 +116,19 @@ test("lcov records outside the package or in node_modules are dropped, and a dup
   const report = out.join("");
   assert.match(report, /OK {4}main\n {10}line +100\.00%/);
   assert.match(report, /OK {4}renderer\n {10}line +100\.00%/);
+});
+
+test("a file both passes measured counts every line either pass ran — a union, not the better copy", () => {
+  const root = desktopRoot({ ...DEFAULT_CONFIG, areas: [{ ...AREAS[0], floors: { line: 100 } }, AREAS[1]] });
+  // a.ts has four lines: the node pass ran 1-2 and the tsx pass ran 3-4. Keeping the "better" copy
+  // read 50% here and failed the 100% floor while every line had run.
+  const half = (ran: number[]) => `TN:\nSF:src/a.ts\n${[1, 2, 3, 4].map((line) => `DA:${line},${ran.includes(line) ? 1 : 0}`).join("\n")}\nLF:4\nLH:2\nend_of_record\n`;
+  const { ctx, out, err } = context(root, [
+    { lcov: half([1, 2]) + record("src/nested/b.ts", [5, 5]) },
+    { lcov: half([3, 4]) + record("src/renderer/r.ts", [4, 4]) },
+  ]);
+  assert.equal(runCoverageGate(ctx), 0, out.join("") + err.join(""));
+  assert.match(out.join(""), /OK {4}main\n {10}line +100\.00%/);
 });
 
 test("a file on disk with no coverage record, not declared as known, fails the area", () => {

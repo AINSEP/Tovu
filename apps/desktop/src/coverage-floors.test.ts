@@ -16,6 +16,9 @@ import {
   evaluatePerFileBranch,
   formatArea,
   foreignImageFunctions,
+  imageCounters,
+  readLcovImage,
+  unionLcovImages,
   formatPerFileBranch,
   inventoryFailures,
   pct,
@@ -533,4 +536,44 @@ test("two real closures that share a name, each on its own declaring line, are n
 test("a duplicated name pointing past the end of the file is foreign; anonymous wrappers never are", () => {
   const record = "SF:src/x.ts\nFN:1,anonymous_1\nFN:9,anonymous_1\nFN:3,createSitesWorkspace\nFN:40,createSitesWorkspace";
   assert.deepEqual(foreignImageFunctions(record, SHARED_SITES_SOURCE), ["createSitesWorkspace"]);
+});
+
+// --- two images of one file are a UNION, never the "better" copy ---------------------------------
+// The gate used to keep whichever image of a file had more hit lines (within one lcov and across
+// the node and tsx passes), so a line, function or branch only the other image ran read as unrun
+// (open-bugs 11-02). Each case below is a way two images can meet.
+
+const lcovImage = (lines: string[]) => readLcovImage({ record: ["SF:src/contracts/sections.ts", ...lines].join("\n") });
+const counted = (a: string[], b: string[]) => imageCounters({ image: unionLcovImages({ a: lcovImage(a), b: lcovImage(b) }) });
+
+test("a line, function or branch either image ran counts as run in the union", () => {
+  const nodeImage = ["FN:1,sectionLabel", "FN:3,isSection", "FNDA:2,sectionLabel", "FNDA:0,isSection", "FNF:2", "FNH:1",
+    "BRDA:2,0,0,1", "BRDA:2,1,0,0", "BRF:2", "BRH:1", "DA:1,2", "DA:2,2", "DA:3,0", "DA:4,0", "LF:4", "LH:2"];
+  const tsxImage = ["FN:1,sectionLabel", "FN:3,isSection", "FNDA:0,sectionLabel", "FNDA:5,isSection", "FNF:2", "FNH:1",
+    "BRDA:2,0,0,0", "BRDA:2,1,0,3", "BRF:2", "BRH:1", "DA:1,0", "DA:2,0", "DA:3,5", "DA:4,5", "LF:4", "LH:2"];
+  assert.deepEqual(counted(nodeImage, tsxImage), { lf: 4, lh: 4, brf: 2, brh: 2, fnf: 2, fnh: 2 });
+  assert.deepEqual(counted(tsxImage, nodeImage), { lf: 4, lh: 4, brf: 2, brh: 2, fnf: 2, fnh: 2 }, "order does not matter");
+});
+
+test("a function a transform lands on a neighbouring line is still the same function", () => {
+  // tsx maps esbuild output back through source maps and can move a function's start line.
+  const union = counted(["FN:3,isSection", "FNDA:0,isSection", "FNF:1", "FNH:0"], ["FN:4,isSection", "FNDA:1,isSection", "FNF:1", "FNH:1"]);
+  assert.deepEqual([union.fnf, union.fnh], [1, 1]);
+});
+
+test("two closures that share a name stay two functions, matched by their order", () => {
+  const union = counted(["FN:1,cut", "FN:2,cut", "FNDA:1,cut", "FNDA:0,cut", "FNF:2", "FNH:1"], ["FN:1,cut", "FN:2,cut", "FNDA:0,cut", "FNDA:4,cut", "FNF:2", "FNH:1"]);
+  assert.deepEqual([union.fnf, union.fnh], [2, 2]);
+});
+
+test("a branch lcov marks never taken with '-' is unrun, and one image alone keeps its own totals", () => {
+  assert.deepEqual(counted(["BRDA:5,0,0,-", "BRDA:5,1,0,-", "BRF:2", "BRH:0"], ["BRDA:5,0,0,1", "BRDA:5,1,0,-", "BRF:2", "BRH:1"]).brh, 1);
+  const single = lcovImage(["FN:1,a", "FNDA:1,a", "FNF:1", "FNH:1", "DA:1,1", "DA:2,0", "LF:2", "LH:1"]);
+  assert.deepEqual(imageCounters({ image: single }), { lf: 2, lh: 1, brf: 0, brh: 0, fnf: 1, fnh: 1 });
+});
+
+test("an image with only summary counters cannot be unioned, so that axis keeps the image that hit more", () => {
+  // Hand-written and older records carry LF/LH without DA lines: there is nothing to match by line.
+  assert.deepEqual(counted(["LF:10", "LH:3"], ["DA:1,1", "DA:2,0", "LF:2", "LH:1"]), { lf: 10, lh: 3, brf: 0, brh: 0, fnf: 0, fnh: 0 });
+  assert.deepEqual(counted(["LF:10", "LH:3", "BRF:4", "BRH:1"], ["LF:10", "LH:9", "BRF:4", "BRH:0"]), { lf: 10, lh: 9, brf: 4, brh: 1, fnf: 0, fnh: 0 });
 });
