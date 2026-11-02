@@ -9,6 +9,7 @@ import { registerAdminRedirectCreateRoute } from "../../inbound/admin-http/route
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { bootAuthenticated, extractRouteHandler, createCapturingResponse } from "../helpers/http-test-server.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file Coverage-gap fill for `redirects/create.ts` (dispatched post-TestRunner). Existing suites
@@ -189,7 +190,7 @@ test("admin redirects create route: an unexpected error surfaces as 500 INTERNAL
   try {
     const res = await post(baseUrl, cookie, { matchType: "exact", fromPattern: "/err", toTarget: "/target", statusCode: 301 });
     assert.equal(res.status, 500);
-    assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   } finally {
     deps.authorize = origAuthorize;
   }

@@ -9,6 +9,7 @@ import express from "express";
 import type { CommercePaymentRuntimePort } from "@jini-ai/commerce";
 import { requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminCommerceStatusRoute } from "../../inbound/admin-http/routes/commerce/status.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 type TestCommerceDeps = ReturnType<typeof createRouteDeps> & { lipay?: CommercePaymentRuntimePort & Record<string, unknown> };
 /** Explicit test-only mounting preserves the future CMS authorization adapter. Production stays off. */
@@ -197,7 +198,7 @@ test("commerce status: a payment-runtime failure is a fixed 500 that never echoe
   const response = await fetch(statusUrl(baseUrl, deps.workspaceId), { headers: { cookie } });
   const raw = await response.text();
   assert.equal(response.status, 500);
-  assert.deepEqual(JSON.parse(raw), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: JSON.parse(raw), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   assert.equal(raw.includes(leak), false);
 });
 

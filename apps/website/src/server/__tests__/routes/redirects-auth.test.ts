@@ -16,6 +16,7 @@ import { registerAdminRedirectListRoute } from "../../inbound/admin-http/routes/
 import { registerAdminRedirectTombstoneRoute } from "../../inbound/admin-http/routes/redirects/tombstone.js";
 import { registerAdminRedirectUpdateRoute } from "../../inbound/admin-http/routes/redirects/update.js";
 import type { RouteDeps } from "../../routes/types.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file T025 (REQ-12) — each of the 7 admin `redirects` endpoints, without
@@ -358,7 +359,7 @@ test("admin redirects import route: workspace mismatch, batch-size validation, a
   try {
     const errRes = await post({ rules: [{ matchType: "exact", fromPattern: "/import-e", toTarget: "/target-e", statusCode: 301 }] });
     assert.equal(errRes.status, 500);
-    assert.deepEqual(await errRes.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+    assertAdminResponse({ actual: await errRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   } finally {
     deps.authorize = origAuthorize;
   }
