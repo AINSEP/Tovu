@@ -390,7 +390,7 @@ async function initializeDesktopProductTelemetry(): Promise<void> {
   const preferencePath = desktopPreferencesPath();
   await initializeProductTelemetryIn({ app, processInfo: process, crashReporter, ipcMain, webContents, windows: BrowserWindow,
     preferencePath, isShellPage, monitor: desktopResources, state: productState,
-    armConsent: () => armFirstProductConsent({ app, dialog, menu: Menu, preferencePath, state: productState }) });
+    armConsent: () => armFirstProductConsent<BrowserWindow>({ app, dialog, menu: Menu, preferencePath, state: productState }) });
 }
 
 /** Main owns the authenticated transport; tabs hold disposable claims, never credentials. */
@@ -484,7 +484,7 @@ function createWindow(url: string, title?: string, partition?: string): BrowserW
 
 /** Open the sites home UI (boot mode 0); `null` when the renderer is not built. See `sites-home-window.ts`. */
 function openSitesHomeWindow(): BrowserWindow | null {
-  return openSitesHomeWindowWith({ ports: {
+  return openSitesHomeWindowWith<BrowserWindow>({ ports: {
     rendererPath: SITES_RENDERER_PATH, sitesPreloadPath: SITES_PRELOAD_PATH, guestPreloadPath: SPEECH_PRELOAD_PATH,
     userDataDir: app.getPath("userData"), fileExists: (file) => fs.existsSync(file),
     createBrowserWindow: (options) => new BrowserWindow(options), getAllDisplays: () => screen.getAllDisplays(),
