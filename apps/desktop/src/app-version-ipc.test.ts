@@ -80,19 +80,14 @@ test('the preload forwards getAppVersion with no renderer-supplied payload', asy
     && ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === '../contracts/app-version.js'));
 });
 
-test('main registers the version adapter with Electron before opening the sites home renderer', () => {
+// Source text on purpose: the Electron entry (src/main/index.ts) imports "electron" at module scope
+// and cannot load under node --test, and the registration is one line of its sites-home boot. The
+// adapter's behaviour is covered by the tests above, and that it is registered before the sites home
+// window opens by `src/main/boot/boot-sequence.test.ts` (`runSitesHomeBoot`). This pins only that the
+// entry hands it Electron's own app and the repo root.
+test('main registers the version adapter with Electron\'s own app and the repo root', () => {
   const file = sourceFile('./main/index.ts');
   const registration = findNode(file, (node): node is ts.CallExpression =>
     ts.isCallExpression(node) && node.expression.getText(file) === 'registerAppVersionIpc');
-  const handlers = new Map<string, () => string | Promise<string>>();
-  evaluate(registration.getText(file), {
-    registerAppVersionIpc,
-    REPO_ROOT: '/repo',
-    ipcMain: { handle: (channel: string, handler: () => string) => { handlers.set(channel, handler); } },
-    app: { getVersion: () => '6.3.1', isPackaged: true },
-  });
-  assert.equal(handlers.get(RUNNER_APP_VERSION_CHANNEL)!(), '6.3.1');
-  const opening = findNode(file, (node): node is ts.CallExpression =>
-    ts.isCallExpression(node) && node.expression.getText(file) === 'openSitesHomeWindow');
-  assert.ok(registration.getStart(file) < opening.getStart(file));
+  assert.equal(registration.getText(file), 'registerAppVersionIpc({ ipcMain, app }, { repoRoot: REPO_ROOT })');
 });

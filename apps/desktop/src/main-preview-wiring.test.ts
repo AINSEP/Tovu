@@ -1,16 +1,16 @@
 /**
- * @file Static-analysis tests for `../main.ts`'s card-preview capture wiring.
+ * @file The card-preview bindings that live only in the Electron entry (`src/main/index.ts`, formerly
+ * `main.ts`), plus the boot discovery's preview-hygiene ordering.
  *
- * `main.ts` requires `"electron"` at module scope, which resolves to a path string (not the real
- * API) outside a real Electron process — `require`-ing it under plain `node --test` would crash
- * immediately without proving anything (same constraint `main-speech-wiring.test.ts` and
- * `main-project-wiring.test.ts` document for their own files). The capture's non-Electron half —
- * the path convention, the version token, the two cleanup paths — is behaviourally covered directly
- * in `site-preview-store.test.ts`; what only this file can check is that `main.ts` actually calls
- * that store's functions, from the right places, bound the right way.
+ * The entry imports "electron" at module scope, so it cannot load under node --test. The capture,
+ * the scheduler's target, the list poll's requests and the boot sweep are tested through the real
+ * module in `src/main/boot/site-preview.test.ts`; that both site opens schedule a capture right after
+ * publishing into `openSites` is tested in `src/main/windows/site-window.test.ts` and
+ * `src/main/boot/site-backend.test.ts`. What stays here as source text is the sites-home deps object,
+ * an inline literal in the entry with no module of its own: its preview operations must be bound to
+ * THIS launch's userData, or E2E previews land in the real operator's profile.
  */
 import test from "node:test";
-import ts from "typescript";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -22,186 +22,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MAIN_PATH = path.join(__dirname, "main", "index.ts");
 const source = fs.readFileSync(MAIN_PATH, "utf8");
 
-/** One function's own body, from its `function name(` header to the next top-level `function `. */
-function functionBody(name: string): string {
-  const start = source.indexOf(`function ${name}(`);
-  assert.notEqual(start, -1, `expected a function ${name}(...) in main.ts`);
-  const rest = source.slice(start);
-  const end = rest.indexOf("\nfunction ", 1);
-  return end === -1 ? rest : rest.slice(0, end);
-}
-
-test("main.ts imports every site-preview-store operation it needs", () => {
-  assert.match(source, /from ["']\.\/src\/site-preview-store\.ts["']/);
-  for (const name of ["readPreviewVersion", "readPreviewDataUrl", "writePreview", "deletePreview", "sweepOrphanedPreviews"]) {
-    assert.match(source, new RegExp(`\\b${name}\\b`), `expected ${name} to be imported and used`);
-  }
-});
-
-test("captureSitePreview loads the site's OWN public root, never /admin/", () => {
-  const body = functionBody("captureSitePreview");
-  assert.match(body, /`http:\/\/127\.0\.0\.1:\$\{port\}\/`/, "must load the bare origin root, not an admin path");
-  assert.doesNotMatch(body, /\/admin\//, "must never navigate the capture window to /admin/");
-});
-
-/** Execute the actual declaration with Electron/I/O boundaries supplied by the test. */
-function executable(name: string, deps: Record<string, unknown>) {
-  const sf = ts.createSourceFile("main.ts", source, ts.ScriptTarget.Latest, true);
-  const declaration = sf.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === name);
-  assert.ok(declaration, name);
-  const js = ts.transpile(declaration.getText(sf), { target: ts.ScriptTarget.ES2022 });
-  return new Function(...Object.keys(deps), `${js}; return ${name};`)(...Object.values(deps));
-}
-
-function captureHarness(failAt?: "load" | "capture" | "store" | "store-null") {
-  const options: any[] = [];
-  const writes: unknown[][] = [];
-  const warnings: unknown[][] = [];
-  const urls: string[] = [];
-  let destroyed = false;
-  const resizedBytes = Buffer.from("resized png");
-  const deps = {
-    BrowserWindow: class {
-      constructor(opts: unknown) { options.push(opts); }
-      async loadURL(url: string) { urls.push(url); if (failAt === "load") throw new Error("load failed"); }
-      isDestroyed() { return destroyed; }
-      destroy() { destroyed = true; }
-      webContents = { capturePage: async () => {
-        if (failAt === "capture") throw new Error("capture failed");
-        return {
-          toPNG: () => Buffer.from("original png"),
-          resize: (opts: unknown) => {
-            assert.deepEqual(opts, { width: 320 });
-            return { toPNG: () => resizedBytes };
-          },
-        };
-      } };
-    },
-    app: { getPath: (key: string) => { assert.equal(key, "userData"); return "/profile"; } },
-    writePreview: (...args: unknown[]) => {
-      if (failAt === "store") throw new Error("store failed");
-      if (failAt === "store-null") return null;
-      writes.push(args);
-      return 123;
-    },
-    console: { warn: (...args: unknown[]) => warnings.push(args) },
-    setTimeout: (callback: () => void) => { callback(); },
-    PREVIEW_CAPTURE_WIDTH_PX: 1280, PREVIEW_CAPTURE_HEIGHT_PX: 800,
-    PREVIEW_PAINT_SETTLE_MS: 0, PREVIEW_WIDTH_PX: 320,
-  };
-  return { run: executable("captureSitePreview", deps), options, writes, warnings, urls, resizedBytes, destroyed: () => destroyed };
-}
-
-test("captureSitePreview's window is hidden and scoped to the site's own partition", async () => {
-  const body = functionBody("captureSitePreview");
-  const windowOptions = body.match(/new BrowserWindow\(\{[\s\S]*?\}\);/);
-  assert.ok(windowOptions, "expected a new BrowserWindow(...) in captureSitePreview");
-  assert.match(windowOptions[0], /show:\s*false/);
-  assert.match(windowOptions[0], /partition/);
-  const h = captureHarness();
-  await h.run("/sites/alpha", 8123, "persist:alpha-auth");
-  assert.equal(h.options.length, 1);
-  assert.equal(h.options[0].show, false);
-  assert.equal(h.options[0].webPreferences.partition, "persist:alpha-auth");
-  assert.deepEqual(h.urls, ["http://127.0.0.1:8123/"]);
-});
-
-// REGRESSION: an https dev server (`npm run dev` with dev TLS) has a localhost certificate.
-test("captureSitePreview loads an https lease through localhost, the name its certificate carries", async () => {
-  const h = captureHarness();
-  await h.run("/sites/dev", 3000, "persist:dev", "https");
-  assert.deepEqual(h.urls, ["https://localhost:3000/"]);
-});
-
-// REGRESSION: fails if a site another app runs never gets a card preview (owner 2026-10-13).
-test("the scheduler falls back to the shared running lease for a site this window does not own", () => {
-  assert.match(source, /current: \(\{ siteDir \}\) => \{[\s\S]*?sharedSites\.running\(\{ path: siteDir \}\)\.read\(\{\}\)[\s\S]*?scheme: lease\.scheme/);
-});
-
-// REGRESSION: the 4 s list poll must not open a hidden window per tick for a failing capture.
-test("requestListedSitePreview schedules once per site and port", () => {
-  const schedules: unknown[][] = [];
-  const request = executable("requestListedSitePreview", {
-    listedPreviewRequests: new Set<string>(),
-    sitePreviewScheduler: { schedule: (...args: unknown[]) => schedules.push(args) },
-  });
-  request({ siteDir: "/sites/web", port: 3000 });
-  request({ siteDir: "/sites/web", port: 3000 });
-  request({ siteDir: "/sites/web", port: 3001 });
-  assert.deepEqual(schedules, [[{ siteDir: "/sites/web" }, {}], [{ siteDir: "/sites/web" }, {}]]);
-  assert.match(source, /requestPreviewCapture: requestListedSitePreview,/);
-});
-
-test("captureSitePreview writes through writePreview, keyed by siteDir, resized before storage", async () => {
-  const body = functionBody("captureSitePreview");
-  assert.match(body, /capturePage\(\)/);
-  assert.match(body, /\.resize\(\{[^}]*\}\)/);
-  assert.match(body, /writePreview\(app\.getPath\("userData"\),\s*siteDir,/);
-  const h = captureHarness();
-  assert.equal(await h.run("/sites/beta", 8124, "persist:beta"), true);
-  assert.deepEqual(h.writes, [["/profile", "/sites/beta", h.resizedBytes]]);
-  assert.equal(h.destroyed(), true);
-});
-
-test("captureSitePreview never throws past its own boundary — every failure is caught and logged", async () => {
-  const body = functionBody("captureSitePreview");
-  assert.match(body, /catch \(error\)/);
-  assert.match(body, /finally/);
-  for (const stage of ["load", "capture", "store"] as const) {
-    const h = captureHarness(stage);
-    assert.equal(await h.run("/sites/failing", 8125, "persist:fail"), false);
-    assert.equal(h.warnings.length, 1, stage);
-    const warning = h.warnings[0];
-    assert.ok(warning);
-    assert.match(String(warning[0]), new RegExp(`${stage} failed`));
-    assert.equal(h.destroyed(), true, stage);
-    assert.deepEqual(h.writes, []);
-  }
-});
-
-test("scheduleSitePreview delegates to the live-site scheduler without capturing a port", () => {
-  const schedules: unknown[][] = [];
-  const schedule = executable("scheduleSitePreview", {
-    sitePreviewScheduler: { schedule: (...args: unknown[]) => schedules.push(args) },
-  });
-  schedule("/sites/alpha");
-  assert.deepEqual(schedules, [[{ siteDir: "/sites/alpha" }, {}]]);
-  assert.match(source, /current: \(\{ siteDir \}\) => \{[\s\S]*?openSites\.get\(siteDir\)/,
-    "the debounce must read the live entry at fire time");
-});
-
-test("P1: a best-effort storage failure reports an unsuccessful capture so it can be retried", async () => {
-  const h = captureHarness("store-null");
-  assert.equal(await h.run("/sites/failing", 8125, "persist:fail"), false);
-  assert.equal(h.destroyed(), true);
-});
-
-test("both places a site enters openSites schedule its preview capture", () => {
-  // Design decision (2026-09-12): hook exactly these two, and nowhere else — never the tab-open
-  // hot path, never a timer. A capture scheduled anywhere but right after `openSites.set(...)`
-  // would either fire before the entry exists or fire again on every reuse.
-  const windowBody = functionBody("openSiteWindow");
-  const serverBody = functionBody("openSiteServer");
-
-  assert.match(
-    windowBody,
-    /openSites\.set\(siteDir, \{ server, window, siteDir \}\);\s*\n\s*scheduleSitePreview\(siteDir\);/,
-    "openSiteWindow must schedule a capture immediately after publishing into openSites",
-  );
-  assert.match(
-    serverBody,
-    /openSites\.set\(siteDir, \{ server, siteDir \}\);\s*\n\s*scheduleSitePreview\(siteDir\);/,
-    "openSiteServer must schedule a capture immediately after publishing into openSites",
-  );
-  // The capture still needs the site's partition, or it would run on the DEFAULT
-  // (unauthenticated) partition. It now resolves that alongside the live port at fire time.
-  assert.match(source, /partition: sitePartition\(siteDir\)/);
-});
-
 test("the sites-home deps object carries the three preview operations, bound to this launch's userData", () => {
-  const depsStart = source.indexOf("const projectDeps = {");
-  assert.notEqual(depsStart, -1, "expected a projectDeps object in the sites-home branch");
-  const depsBlock = source.slice(depsStart, source.indexOf("\n      };", depsStart));
+  // `buildProjectDeps` since the whenReady split; the inline `const projectDeps = {` before it.
+  const builder = source.indexOf("function buildProjectDeps(");
+  const depsStart = builder === -1 ? source.indexOf("const projectDeps = {") : builder;
+  assert.notEqual(depsStart, -1, "expected the sites-home deps object in the entry");
+  // Up to the literal's own closing `};`, whatever its indentation.
+  const rest = source.slice(depsStart);
+  const end = rest.search(/\n\s*};\n/);
+  const depsBlock = end === -1 ? rest : rest.slice(0, end);
 
   assert.match(depsBlock, /readPreviewVersion: \(siteDir: string\) => readPreviewVersion\(app\.getPath\("userData"\), siteDir\)/);
   assert.match(depsBlock, /readPreviewDataUrl: \(siteDir: string\) => readPreviewDataUrl\(app\.getPath\("userData"\), siteDir\)/);

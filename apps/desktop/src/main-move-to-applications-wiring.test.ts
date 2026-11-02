@@ -1,10 +1,13 @@
 /**
- * @file Wiring guard for the "Move to Applications" prompt in `../main.ts`. Source text, for the
- * reason `main-mcp-announce-wiring.test.ts` gives: `main.ts` requires `"electron"` at module scope.
+ * @file Wiring guard for the "Move to Applications" prompt in the Electron entry (`src/main/index.ts`,
+ * formerly `main.ts`). Source text, because the entry requires `"electron"` at module scope and
+ * cannot load under node --test.
  * The rules are covered behaviourally in `move-to-applications.test.ts`; this file catches only that
  * `main.ts` actually runs the prompt, early enough, with Electron's real move and a conflict handler.
  * Owner 2026-10-06: DMG window already shows drag-to-Applications; prompt redundant.
- * Restore: uncomment the imports, helper and call in `main.ts`, then change `test.skip` to `test` below.
+ * Restore: bring back the imports, helper and call in `src/main/index.ts` from git history, then
+ * change `test.skip` to `test` below. If the helper comes back, prefer a module under `src/main/` with
+ * a behaviour test over these source-text checks.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -24,7 +27,7 @@ const source = withoutComments(fs.readFileSync(path.join(__dirname, "main", "ind
 test.skip("the prompt runs inside whenReady, before the auto-updater starts", () => {
   const ready = source.indexOf(".whenReady()");
   const offer = source.indexOf("await offerMoveToApplications()", ready);
-  const updater = source.indexOf("startAutoUpdater()", ready);
+  const updater = source.indexOf("desktopUpdater.startInBackground()", ready);
   assert.ok(ready !== -1 && offer !== -1 && updater !== -1, "expected whenReady, the prompt call and the updater start");
   assert.ok(offer < updater, "the prompt must run before the updater writes this copy's presence record");
 });
