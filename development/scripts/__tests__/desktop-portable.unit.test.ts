@@ -70,7 +70,7 @@ for (const platform of ["win32", "linux"]) {
 test("desktop build:preload uses Node cleanup instead of Unix rm", () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(repo, "apps/desktop/package.json"), "utf8"));
   assert.doesNotMatch(manifest.scripts["build:preload"], /\brm\s+-/);
-  assert.match(manifest.scripts["build:preload"], /^node scripts\/clean-preload\.mjs && tsc /);
+  assert.match(manifest.scripts["build:preload"], /^node scripts\/clean-preload\.ts && tsc /);
 });
 
 test("preload cleanup removes only stale preload, contracts and speech output from any cwd", (t) => {
@@ -78,13 +78,13 @@ test("preload cleanup removes only stale preload, contracts and speech output fr
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const desktop = path.join(root, "apps/desktop");
   fs.mkdirSync(path.join(desktop, "scripts"), { recursive: true });
-  fs.copyFileSync(path.join(repo, "apps/desktop/scripts/clean-preload.mjs"), path.join(desktop, "scripts/clean-preload.mjs"));
+  fs.copyFileSync(path.join(repo, "apps/desktop/scripts/clean-preload.ts"), path.join(desktop, "scripts/clean-preload.ts"));
   for (const dir of ["preload", "contracts", "speech", "renderer"]) {
     fs.mkdirSync(path.join(desktop, "dist", dir), { recursive: true });
     fs.writeFileSync(path.join(desktop, "dist", dir, "stale.js"), "old output");
   }
   for (let attempt = 0; attempt < 2; attempt++) {
-    const child = spawnSync(process.execPath, [path.join(desktop, "scripts/clean-preload.mjs")], {
+    const child = spawnSync(process.execPath, [path.join(desktop, "scripts/clean-preload.ts")], {
       cwd: root, encoding: "utf8", timeout: 5_000,
     });
     assert.ifError(child.error);

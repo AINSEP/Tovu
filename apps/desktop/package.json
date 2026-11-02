@@ -11,7 +11,7 @@
     "dev": "electron .",
     "attach": "electron .",
     "build": "npm run build:preload && npm run build:renderer",
-    "build:preload": "node scripts/clean-preload.mjs && tsc -p tsconfig.preload.json && esbuild src/speech/preload-speech.cts --bundle --platform=node --format=cjs --external:electron --outfile=dist/speech/preload-speech.cjs",
+    "build:preload": "node scripts/clean-preload.ts && tsc -p tsconfig.preload.json && esbuild src/speech/preload-speech.cts --bundle --platform=node --format=cjs --external:electron --outfile=dist/speech/preload-speech.cjs",
     "build:renderer": "vite build",
     "watch:renderer": "vite build --watch",
     "typecheck": "tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json && tsc -p tsconfig.main.json && tsc -p tsconfig.live-verify.json",
