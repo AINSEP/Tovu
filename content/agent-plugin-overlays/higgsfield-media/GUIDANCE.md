@@ -28,12 +28,20 @@ mcp-federation: 'higgsfield' refused remote tool '<name>'      — not-in-operat
 Report what those say. If none of them tells you anything, say so and send the operator to that
 banner.
 
-**Restarts.** Federation config is read once, at daemon start, and the admitted tool set is frozen
-for the life of the process, so a server cannot widen its own access mid-session. A grant saved
-mid-session does nothing until the operator clicks **Restart the assistant** on the admissions
-banner; that round trip is expected. Enabling the plugin also needs that restart before its own
-`agent_plugin_higgsfield_media` tool appears: per-plugin tools are registered once, at daemon
-boot. The bundled plugin ships disabled; once enabled, the decision is kept across boots.
+**Restarts.** Signing in needs no restart. When the operator finishes the Higgsfield sign-in, Tovu
+grants this plugin's declared tools to the still-empty `higgsfield` row (both lists, generators
+included), switches the row on and reloads the assistant's tool list, so the `mcp__higgsfield__*`
+tools become usable without a restart. If the row was signed in before the plugin declared those
+tools and is still empty, call `agent_plugin_connect` again: it grants them without a new sign-in.
+Do not send the operator to edit the row by hand for this. An operator's own edits to the row are
+never overwritten. **Restart the assistant** on the admissions banner is still needed to WIDEN a
+connection the assistant is already running with (a tool added to an admitted connection, or a new
+address or sign-in method): an admitted connection's tool set stays as it was admitted until the
+next daemon start, so a server cannot widen its own access mid-session. Narrowing (a tool or the
+connection turned off) applies on the next call. Enabling the plugin while the assistant runs still
+needs that restart before its own `agent_plugin_higgsfield_media` tool appears: per-plugin tools are
+registered once, at daemon boot. The bundled plugin ships disabled; once enabled, the decision is
+kept across boots.
 
 **`TOVU_PUBLIC_URL`.** `external_mcp_oauth_connect` refuses outright when `TOVU_PUBLIC_URL` is
 unset on the server, with a message naming it: a chat tool call has no live browser request to

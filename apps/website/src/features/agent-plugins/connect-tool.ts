@@ -290,6 +290,9 @@ async function resolvePendingOAuthServers(
 
 /** The injected adapter calls the existing token-card lifecycle without a runtime import cycle. */
 export type AgentPluginConnectOptions = ToolExecutionOptions & {
+  /** The sign-in's own `onConnected` (`apply-connect-defaults.ts`), re-run on rows that are already
+   *  signed in. Absent: an already signed-in plugin is reported connected and nothing is granted. */
+  readonly onConnected?: (serverId: string) => Promise<void>;
   readonly saveToken?: (
     input: { readonly ctx: ToolExecutionContext; readonly pluginId: string },
     optional?: ToolExecutionOptions,
@@ -392,14 +395,40 @@ export async function runAgentPluginConnect(
   }
   const pending = await resolvePendingOAuthServers(routeDeps, pluginId, oauthServerKeys);
   const [server] = pending;
-  // Every declared OAuth server is already connected: a legitimate "nothing to do" success.
-  if (!server) return { status: "connected" };
+  // Every declared OAuth server is already connected: no sign-in to start.
+  if (!server) return grantDefaultsToSignedInServers(oauthServerKeys, optional);
   if (pending.length > 1) {
     throw new ToolInputError({ message: `agent_plugin_connect: '${pluginId}' declares ${pending.length} unconnected OAuth servers (${pending.map((p) => p.serverKey).join(", ")}) — connect them one at a time.` });
   }
 
   const credentialCard = await findPluginOAuthCard(routeDeps, pluginId);
   return waitAtMcpSignInCard({ routeDeps, surfaces, ctx, pluginId, server, externalMcpOAuth, credentialCard }, optional);
+}
+
+/**
+ * Every declared OAuth server is already signed in. Re-runs the sign-in's own `onConnected` on each,
+ * so a site that signed in before its plugin declared default tools (Higgsfield Media, 2026-11-02:
+ * a connected row with no allowlist and no may-write grant) gets them now, with no second sign-in and
+ * no trip to Settings. `onConnected` writes only to a still-empty row this plugin provisioned and
+ * the operator has not turned off, so a row the operator edited, or a second call, is left alone.
+ * A failure is logged, never thrown: the connection itself is real.
+ * @complexity O(s) in the plugin's OAuth servers, each one `onConnected` call.
+ */
+async function grantDefaultsToSignedInServers(
+  oauthServerKeys: readonly string[],
+  { onConnected }: Pick<AgentPluginConnectOptions, "onConnected"> = {},
+): Promise<{ readonly status: "connected" }> {
+  if (!onConnected) return { status: "connected" };
+  for (const serverKey of oauthServerKeys) {
+    // resolvePendingOAuthServers already refused a key with no usable connection id.
+    const connectionId = deriveAgentPluginConnectionId(serverKey) ?? serverKey;
+    try {
+      await onConnected(connectionId);
+    } catch (error) {
+      console.warn(`[agent-plugins] agent_plugin_connect: granting '${connectionId}' its declared tools failed — ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  return { status: "connected" };
 }
 
 /** Show one MCP sign-in and always release its surface exchange after the bounded wait. */
