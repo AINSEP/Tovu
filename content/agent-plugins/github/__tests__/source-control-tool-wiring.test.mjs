@@ -51,9 +51,12 @@ test('with no gitAdapter override, a confirmed commit reaches the real GitHub ad
     clock: createSystemClock(), idGen: createRandomUuidGenerator(), loadSourceControlProviders,
     sourceControlExportRootDir: exportDir,
     authorize: async input => { permissions.push(input.permission); return { allowed: true, reason: 'matched' }; },
-    exportSiteBound: async ({ outputDir }) => {
+    // Required dep since 1485b4e49/0a0885ad7: the commit pins site identity + theme before rendering.
+    staticSiteContext: async () => ({ name: 'Demo', slug: 'demo', theme: 'Fixture', themeId: 'fixture' }),
+    exportSiteBound: async ({ outputDir, themeId }) => {
       exportCount++;
       assert.equal(path.dirname(outputDir), path.join(exportDir, 'github'));
+      assert.equal(themeId, 'fixture');
       return { outputDir, routes: { succeeded: [{ path: '/', kind: 'home', outputFile: 'index.html', data: '<html>export fixture</html>' }], failed: [] },
         assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] };
     },
