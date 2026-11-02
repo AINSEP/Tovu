@@ -144,6 +144,8 @@ test("a running record with a local stopping status omits Open in browser throug
   const executable = ts.transpileModule(declarations, { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText;
   const deps = {
     React, cardOpenClass, cardOpenProps, closeMenuThen, databaseLabel, deleteActionCopy, isCardOpenable, powerControl, STATUS_LABEL, sitePortPresentation, siteCardStatus, ResourceSiteFigure,
+    // CardActions renders ToolIcon (68cfd9b38); the icon markup is not under test here.
+    ToolIcon: ({ kind }: { kind: string }) => React.createElement("svg", { "data-kind": kind }),
     useSitePreview: () => null,
     useDismissibleDropdown: () => ({ open: true, setOpen: () => {}, containerRef: { current: null } }),
     MissingFolderNotice: () => null,

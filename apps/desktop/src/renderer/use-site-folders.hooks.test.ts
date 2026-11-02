@@ -10,11 +10,13 @@ import type { SiteFolders } from '../contracts/project.js';
 
 const hookSource = fs.readFileSync(new URL('./use-site-folders.hooks.ts', import.meta.url), 'utf8');
 const componentSource = fs.readFileSync(new URL('./SitesFolders.tsx', import.meta.url), 'utf8');
+// SitesFoldersDialog's trigger renders ToolIcon (95b81e8b3); the icon markup is not under test here.
+const ToolIcon = ({ kind }: { kind: string }) => createElement('svg', { 'data-kind': kind });
 const nextTurn = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 test('sync warning keeps its DOM, remedy actions and disabled states in either dialog location', () => {
   const component = sourceFunction(componentSource, 'SitesFoldersDialog', {
-    useSitesFoldersDialog, SitesFoldersWarning: sourceFunction(componentSource, 'SitesFoldersWarning'),
+    useSitesFoldersDialog, SitesFoldersWarning: sourceFunction(componentSource, 'SitesFoldersWarning'), ToolIcon,
     SettingsDialogShell: ({ tabs }: any) => tabs[0].panel,
   });
   for (const open of [false, true]) for (const showTrigger of [false, true]) {
@@ -157,7 +159,7 @@ test('the shared settings dialog lists roots, only extra roots get Remove, and p
   let added = 0, homeChanged = 0, saved = 0;
   const removed: string[] = [];
   const placements: string[] = [];
-  const component = sourceFunction(componentSource, 'SitesFoldersDialog', { useSitesFoldersDialog, SitesFoldersWarning: sourceFunction(componentSource, 'SitesFoldersWarning'), SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
+  const component = sourceFunction(componentSource, 'SitesFoldersDialog', { useSitesFoldersDialog, SitesFoldersWarning: sourceFunction(componentSource, 'SitesFoldersWarning'), ToolIcon, SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
   const nodes = elements(component({ settings: {
     folders: { home: '/home', roots: ['/repo/sites', '/extra'], extraRoots: ['/extra'] }, busy: false,
     error: 'Actual save error', open: true, databases: 'inSite', show() {}, close() {}, setDatabases(value: string) { placements.push(value); },
@@ -261,7 +263,7 @@ test("deskfx S5: IPC wrappers are stripped, close clears the action, and errors 
   const render = () => harness.render(() => storageHook({}, { useFolders: () => foldersHook({}, { getBridge }) }));
   render(); await nextTurn(); render().show(); await render().addFolder();
   assert.equal(render().error, "Choose a smaller folder.");
-  const component = sourceFunction(componentSource, 'SitesFoldersDialog', { useSitesFoldersDialog, SitesFoldersWarning: sourceFunction(componentSource, 'SitesFoldersWarning'), SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
+  const component = sourceFunction(componentSource, 'SitesFoldersDialog', { useSitesFoldersDialog, SitesFoldersWarning: sourceFunction(componentSource, 'SitesFoldersWarning'), ToolIcon, SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
   assert.equal(elements(component({ settings: render() })).filter((node) => node.props.role === 'alert').length, 1);
   // Closing is a real hook action, not an unmount that would accidentally hide stale state.
   render().close(); assert.equal(render().open, false); assert.equal(render().error, null);
@@ -271,7 +273,7 @@ test("deskfx S5: IPC wrappers are stripped, close clears the action, and errors 
 });
 
 test("deskfx S2: the home row has no Remove even with an old persisted extra-root entry", () => {
-  const component = sourceFunction(componentSource, 'SitesFoldersDialog', { useSitesFoldersDialog, SitesFoldersWarning: sourceFunction(componentSource, 'SitesFoldersWarning'), SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
+  const component = sourceFunction(componentSource, 'SitesFoldersDialog', { useSitesFoldersDialog, SitesFoldersWarning: sourceFunction(componentSource, 'SitesFoldersWarning'), ToolIcon, SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
   const nodes = elements(component({ settings: { open: true, folders: { home: '/home/Tovu', roots: ['/home/Tovu', '/extra'], extraRoots: ['/home/Tovu', '/extra'] },
     databases: 'inSite', show() {}, close() {}, busy: false, error: null } }));
   const removes = nodes.filter((node) => node.type === 'button' && node.props.children === 'Remove');
@@ -295,7 +297,7 @@ test("deskfx2 SHOULD-2: both warning remedies show their failures outside the cl
     assert.equal(render().open, false);
     const message = action === 'useAppData' ? 'Settings write failed.' : 'Folder change failed.';
     assert.equal(render().warningError, message);
-    const component = sourceFunction(componentSource, 'SitesFoldersDialog', { useSitesFoldersDialog, SitesFoldersWarning: sourceFunction(componentSource, 'SitesFoldersWarning'), SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
+    const component = sourceFunction(componentSource, 'SitesFoldersDialog', { useSitesFoldersDialog, SitesFoldersWarning: sourceFunction(componentSource, 'SitesFoldersWarning'), ToolIcon, SettingsDialogShell: ({ tabs }: any) => tabs[0].panel });
     const nodes = elements(component({ settings: render() }));
     assert.equal(nodes.some((node) => node.type === 'p' && node.props.children === message), true);
     render().show(); assert.equal(render().warningError, null); assert.equal(render().error, null);
