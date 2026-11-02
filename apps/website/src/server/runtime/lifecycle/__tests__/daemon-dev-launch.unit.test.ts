@@ -57,7 +57,7 @@ test("source-mode daemon runs under --import tsx in one process, not the tsx/cli
   assert.equal(imports.length, 3, args.join(" "));
   for (const value of imports) assert.equal(new URL(value).protocol, "file:", value);
   assert.match(imports[0], /prune-tsx-cache\.mjs\?prune$/);
-  assert.match(imports[1], /tsx\/dist\/loader\.mjs$/);
+  assert.match(imports[1], /development\/scripts\/dev-tsx-loader\.mjs$/);
   assert.match(imports[2], /dev-source-maps-off\.mjs$/);
 });
 
