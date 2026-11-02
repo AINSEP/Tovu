@@ -20,6 +20,7 @@
     "node_modules",
     "dist",
     "**/__tests__/**",
-    "**/*.test.ts"
+    "**/*.test.ts",
+    "apps/website/src/features/webhooks/seal-aad-invariant.ts"
   ]
 }

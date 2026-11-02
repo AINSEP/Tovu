@@ -72,6 +72,9 @@ import ts from "typescript";
  * path, not catch a bug.
  *
  * Usage: npx tsx apps/website/src/features/webhooks/seal-aad-invariant.ts
+ * Not part of the server build: the root `tsconfig.json` excludes this file, because it imports
+ * `typescript` (a devDependency) and dist/ ships whole in the desktop payload. `typecheck:tests`
+ * still type-checks it.
  * Exit codes: 0 = every non-exempt `.seal()` call site under scope supplies `aad`.
  *             1 = at least one does not, or has a shape this scan can't verify.
  */

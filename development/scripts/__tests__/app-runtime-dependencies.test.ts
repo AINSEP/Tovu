@@ -82,3 +82,23 @@ for (const app of ["admin", "site-chat"]) {
     assert.deepEqual(problems, [], "declare imports in dependencies/peerDependencies; hoisting is not a contract");
   });
 }
+
+test("every file the server build compiles imports only root dependencies or workspaces", () => {
+  // The server build (`tsc -p tsconfig.json`) ships all of its output in dist/, which the desktop
+  // payload stages whole; a dev-only import there (seal-aad-invariant -> typescript) fails the
+  // staged-closure audit even when nothing reaches it from the entry.
+  const manifest: Manifest & { workspaces?: string[]; imports?: Record<string, unknown> } = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf8"));
+  const workspaces = (manifest.workspaces ?? []).flatMap(pattern => readdirSync(path.join(repoRoot, path.dirname(pattern)), { withFileTypes: true })
+    .filter(entry => entry.isDirectory()).map(entry => path.join(repoRoot, path.dirname(pattern), entry.name, "package.json")))
+    .flatMap(file => { try { return [JSON.parse(readFileSync(file, "utf8")).name as string]; } catch { return []; } });
+  const config = ts.getParsedCommandLineOfConfigFile(path.join(repoRoot, "tsconfig.json"), {}, {
+    ...ts.sys, onUnRecoverableConfigFileDiagnostic: diagnostic => { throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n")); },
+  });
+  assert.ok(config && config.fileNames.length > 0, "root tsconfig.json compiles no files");
+  const problems = config.fileNames.flatMap(file => {
+    const specifiers = importReader.imports({ file, source: readFileSync(file, "utf8") });
+    return undeclaredImports({ specifiers, manifest, aliases: [...workspaces, ...Object.keys(manifest.imports ?? {})] })
+      .map(specifier => `${path.relative(repoRoot, file)}: ${specifier}`);
+  });
+  assert.deepEqual(problems, [], "move dev-only checks out of the server build, or declare the runtime dependency");
+});
