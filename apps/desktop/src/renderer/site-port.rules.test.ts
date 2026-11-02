@@ -1,20 +1,14 @@
+/**
+ * @file `site-port.rules.ts` asserted directly: when a site has an address, and the card's status
+ * title and detail line. Rendered surfaces that use these rules are tested from their real modules:
+ * the card in `SiteGrid.status-title.render.test.ts`, the stopped panel in
+ * `app/SiteStartPanel.render.test.ts`, and a stopped tab's url in
+ * `use-site-workspace.hooks.stopped-url.render.test.ts`.
+ */
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import test from 'node:test';
-import * as React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { siteCardStatus, sitePortPresentation } from './site-port.rules.js';
-import { cardOpenClass, cardOpenProps, databaseLabel, deleteActionCopy, isCardOpenable } from './SiteGrid.hooks.js';
 import { STATUS_LABEL } from './site-status.js';
-import { ResourceSiteFigure } from './ResourcesPanel.js';
-import { sourceFunction } from './source-test-harness.js';
-import { appShellSource } from './app-shell-source.js';
-import {
-  createWorkspaceActions, initialSiteWorkspaceState, loadResetKey, siteSurfaceUrl, siteWorkspaceReducer, surfaceOfUrl,
-} from './use-site-workspace.hooks.js';
-
-// The real ResourcesPanel.tsx compiles to classic JSX under the bare tsx runner (same as ResourcesPanel.render.test.ts).
-Object.assign(globalThis, { React });
 
 // REGRESSION: fails if sitePortPresentation accepts port 0 or an absent port as running.
 test('zero, absent and invalid ports have no address or port number', () => {
@@ -46,31 +40,6 @@ test('non-running lifecycle states never advertise a stale port', () => {
   }
 });
 
-const gridSource = fs.readFileSync(new URL('./SiteGrid.tsx', import.meta.url), 'utf8');
-const appSource = appShellSource();
-const workspaceSource = fs.readFileSync(new URL('./use-site-workspace.hooks.ts', import.meta.url), 'utf8');
-
-// REGRESSION: owner 2026-10-13 — the card's copy never shows the port; it lives in the status title.
-test('the rendered card keeps the running address in the status title, never in its copy', () => {
-  const SiteCard = sourceFunction(gridSource, 'SiteCard', {
-    cardOpenClass, cardOpenProps, databaseLabel, deleteActionCopy, isCardOpenable, STATUS_LABEL, sitePortPresentation, siteCardStatus, ResourceSiteFigure,
-    CardOverlays: sourceFunction(gridSource, 'CardOverlays'),
-    useSitePreview: () => null, CardActions: () => null, SiteCardMenu: () => null, MissingFolderNotice: () => null,
-  });
-  for (const [status, port, title] of [
-    ['stopped', 0, 'Stopped.'], ['stopped', 4100, 'Stopped.'], ['running', 0, 'Stopped.'],
-    ['stopped', undefined, 'Stopped.'], ['running', 4100, 'Running at http://localhost:4100'],
-  ] as const) {
-    const tree = SiteCard({
-      project: { id: 'test-site', displayName: 'Test site', installDir: '/sites/test-site', status, port, database: { kind: 'sqlite' } },
-      overlay: null, power: { statusOf: () => status, errorOf: () => null },
-    });
-    const html = renderToStaticMarkup(tree);
-    assert.ok(html.includes(`<span class="state" title="${title}">`), html);
-    assert.ok(!html.includes('4100<') && !html.includes('card__port'), `${status}/${port} must not print the port`);
-  }
-});
-
 test('siteCardStatus names the running app in the title and drops its detail line', () => {
   const running = sitePortPresentation({ port: 3000, status: 'running' });
   assert.deepEqual(siteCardStatus({ project: { runningApp: 'Web', statusDetail: 'Running in Web (port 3000)' }, connection: running }), {
@@ -86,41 +55,4 @@ test('siteCardStatus names the running app in the title and drops its detail lin
     title: 'Stopped.', detail: "The site's server exited (code 1).",
   });
   assert.deepEqual(siteCardStatus({ project: {}, connection: stopped }), { title: 'Stopped.', detail: null });
-});
-
-// REGRESSION: fails if SiteStartPanel restores `${STATUS_LABEL[project.status]} on port ${project.port}.`.
-test('the rendered stopped panel says Stopped without port 0', () => {
-  const SiteStartPanel = sourceFunction(appSource, 'SiteStartPanel', {
-    sitePortPresentation,
-    useSiteStart: () => ({ starting: false, error: null, start: () => Promise.resolve(true) }),
-    startThenNotify: () => () => Promise.resolve(),
-  });
-  for (const port of [0, undefined]) {
-    const html = renderToStaticMarkup(SiteStartPanel({
-      project: { id: 'test-site', displayName: 'Test site', status: 'stopped', port },
-    }));
-    assert.ok(html.includes('<p class="empty__body">Stopped.</p>'));
-    assert.equal(html.includes('on port'), false);
-  }
-});
-
-// REGRESSION: fails if useSiteWorkspace restores `displayUrl: state.liveUrl ?? src`.
-test('stopping a tab blanks its URL immediately even while the last guest URL is remembered', () => {
-  const state = { ...initialSiteWorkspaceState, liveUrl: 'http://127.0.0.1:4100/admin/posts' };
-  const useSiteWorkspace = sourceFunction(workspaceSource, 'useSiteWorkspace', {
-    useReducer: () => [state, () => {}], useEffect: () => {}, useState: (initial: unknown) => [initial, () => {}],
-    useWebviewLoadFailure: () => ({ guest: null, guestRef: () => {}, failed: false, stalled: false, loaded: false }),
-    runnerInventoryBridge: () => undefined,
-    initialSiteWorkspaceState, siteWorkspaceReducer, loadResetKey, siteSurfaceUrl, createWorkspaceActions,
-    liveSurface: sourceFunction(workspaceSource, 'liveSurface', { surfaceOfUrl }),
-  });
-  const running = useSiteWorkspace({ id: 'test-site', port: 4100, status: 'running' }, false);
-  assert.equal(running.displayUrl, state.liveUrl);
-  assert.equal(running.running, true);
-  for (const [port, status] of [[0, 'stopped'], [undefined, 'stopped'], [4100, 'stopped'], [0, 'running']] as const) {
-    const stopped = useSiteWorkspace({ id: 'test-site', port, status }, false);
-    assert.equal(stopped.src, '');
-    assert.equal(stopped.displayUrl, '');
-    assert.equal(stopped.running, false);
-  }
 });
