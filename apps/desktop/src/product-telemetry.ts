@@ -36,6 +36,14 @@ export function desktopProductLaunch({ isPackaged, resourcesPath, preferencePath
   return configPath ? { configPath, preferencePath, release: `tovu-desktop@${version}` } : undefined;
 }
 
+/** Without a launch config there is no product telemetry to boot. O(1) here; boot delegates. */
+async function bootLaunchProduct({ launch, observabilityExportEnabled, readConsent }: {
+  launch: DesktopProductLaunch | undefined; observabilityExportEnabled: boolean; readConsent: () => ProductConsent;
+}, { boot }: { boot: typeof bootProductTelemetry }): Promise<ProductTelemetry | undefined> {
+  if (!launch) return undefined;
+  return boot({ ...launch, observabilityExportEnabled, processRole: 'desktop-main' }, { readConsent });
+}
+
 /** Boot before children/windows; failed config stays inactive, with no dialog or child env.
  * Native dumps start only with launch-time consent. Enabling later cannot start collection.
  * @returns A tracker and owned disposal even in dev. @complexity Delegates to shared boot.
@@ -43,8 +51,7 @@ export function desktopProductLaunch({ isPackaged, resourcesPath, preferencePath
 export async function bootDesktopProductTelemetry({ launch, readConsent, crashReporter, observabilityExportEnabled = false, launchMode = 'fresh' }: {
   observabilityExportEnabled?: boolean; launch: DesktopProductLaunch | undefined; readConsent: () => ProductConsent; crashReporter: CrashReporter; launchMode?: 'fresh' | 'update';
 }, { boot = bootProductTelemetry, warn = console.warn }: { boot?: typeof bootProductTelemetry; warn?: (message: string) => void } = {}): Promise<DesktopProductTelemetry> {
-  let product: ProductTelemetry | undefined;
-  if (launch) product = await boot({ ...launch, observabilityExportEnabled, processRole: 'desktop-main' }, { readConsent });
+  const product = await bootLaunchProduct({ launch, observabilityExportEnabled, readConsent }, { boot });
   const active = product?.active === true;
   const tracker = product ? createTracker(product) : createNoopTracker({});
   const nativeStarted = startNativeReporting({ active, product, readConsent, crashReporter, observabilityExportEnabled }, { warn });
