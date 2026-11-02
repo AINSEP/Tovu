@@ -6,6 +6,7 @@ import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { createNoopObservabilityPort } from "#src/platform/observability/index";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file Observability admin page, Overview tab —
@@ -97,7 +98,7 @@ test("observability-status: an authorization failure answers a generic 500", asy
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/observability-status`, { headers: { cookie } });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("telemetry test: owner invokes the fixed action once and submitted text is ignored", async (t) => {

@@ -12,6 +12,7 @@ import { registerAdminTrashRestoreRoute } from "../inbound/admin-http/routes/tra
 import { registerAdminTrashPurgeRoute } from "../inbound/admin-http/routes/trash/purge.js";
 import type { TrashRouteDeps, TrashRouteRegistrar } from "../inbound/admin-http/routes/trash/deps.js";
 import { createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 // Author checklist: test the route's parsing/delivery/accounting, not the faked port's persistence.
 // Real storage effects and per-kind authorization have HTTP siblings in admin-trash-routes.
@@ -89,7 +90,7 @@ test("trash list returns a generic error when the page or username lookup fails"
       userRepo: { async list() { reached.push("users"); throw new Error("private user table"); } },
     });
     assert.deepEqual(reached, failUsers ? ["page", "users"] : ["page"]);
-    assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: "internal error" } });
+    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
   }
 });
 
@@ -125,9 +126,10 @@ test("trash items maps a marker-write race to 409 and an unexpected write failur
         return { ok: false, reason: "version-changed" };
       } },
     }, "/items", { type: "form", id: "form-7" });
-    assert.deepEqual(capture, fail
-      ? { statusCode: 500, jsonBody: { error: "internal error" } }
-      : { statusCode: 409, jsonBody: { error: "the item changed since it was last read", code: "TRASH_VERSION_CHANGED" } });
+    // A failed write answers the shared incident envelope; the 409 stays an exact snapshot.
+    assertAdminResponse({ actual: capture, expected: fail
+      ? { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } }
+      : { statusCode: 409, jsonBody: { error: "the item changed since it was last read", code: "TRASH_VERSION_CHANGED" } } });
   }
   assert.deepEqual(calls, [false, true].map(() => ({
     workspaceId: WS, entityType: "form", entityId: "form-7", actor: { principalId: "operator-b07" },
