@@ -160,7 +160,7 @@ test("a pass whose globs match no test file is refused before spawning — node 
   const { ctx, err, calls } = context(root, [{ lcov: fullMain(root) }]);
   assert.equal(runCoverageGate(ctx), 1);
   assert.equal(calls.length, 1, "only the pass with test files spawned");
-  assert.match(err.join(""), /tsx=no test file matches src\/renderer\/\*\*\/\*\.test\.ts src\/contracts\/\*\*\/\*\.test\.ts, which node would pass as 0 tests/);
+  assert.match(err.join(""), /tsx=no test file matches src\/renderer\/\*\*\/\*\.test\.ts src\/renderer\/\*\*\/\*\.test\.tsx src\/contracts\/\*\*\/\*\.test\.ts, which node would pass as 0 tests/);
 });
 
 test("a missing config, a corrupt config, and a config with no coverageInclude/excluded", () => {
