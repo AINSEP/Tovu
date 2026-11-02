@@ -1,7 +1,7 @@
-/** Queue regressions through the existing Jini batch gate and delegated HTTP transport. */
+/** Queue regressions through single-call viewers and delegated HTTP transport (F5 decision). */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applyBatchInputs, type BatchResult } from '../../../assistant/batch-tool-inputs.js';
+import { applyBatchInputs } from '../../../assistant/batch-tool-inputs.js';
 import { delegatedText, executeDelegatedRegisteredTool, invokeRegisteredTool } from '../../../assistant/__tests__/fixtures/execute-registered-tool.js';
 import { buildWebScreenshotRegistrations } from '../tool-registrations.js';
 import { createWebScreenshotService, readWebScreenshotInput, type PageCaptureRequest, type WebScreenshotPorts } from '../web-screenshot.js';
@@ -26,7 +26,7 @@ function fixture({ holdFirst = false }: { holdFirst?: boolean } = {}) {
     capture: { close: async () => {}, capture: async request => {
       requests.push(request);
       running++;
-      assert.equal(running, 1, 'single browser concurrency must hold across batch items');
+      assert.equal(running, 1, 'single browser concurrency must hold across single calls');
       try {
         if (requests.length === 1) {
           entered.resolve();
@@ -41,25 +41,33 @@ function fixture({ holdFirst = false }: { holdFirst?: boolean } = {}) {
   return { registration: applyBatchInputs({ registrations })[0]!, service, entered, release, timers, requests };
 }
 
-test('screenshot batches run sequentially through the existing queue', async () => {
+// Coordinator F5 decision: image-returning viewers opt out of batches to preserve image blocks.
+test('screenshot viewers are offered singly and queued calls retain every image', async () => {
   const h = fixture({ holdFirst: true });
-  const input = { items: Array.from({ length: 8 }, (_, i) => ({ url: `https://example.com/${i}` })) };
-  const pending = invokeRegisteredTool(h.registration, { executionId: 'batch', principal: { id: 'owner' }, run: { id: 'run' }, input, signal: new AbortController().signal });
+  const schema = h.registration.descriptor.inputSchema as { properties: Record<string, unknown> };
+  assert.equal(Object.hasOwn(schema.properties, 'items'), false);
+  const inputs = Array.from({ length: 8 }, (_, i) => ({ url: `https://example.com/${i}` }));
+  const pending = Promise.all(inputs.map(input => invokeRegisteredTool(h.registration, { executionId: 'single', principal: { id: 'owner' }, run: { id: 'run' }, input, signal: new AbortController().signal })));
   try {
     await h.entered.promise;
     assert.equal(h.requests.length, 1);
   } finally { h.release.resolve(); }
-  const output = await pending as BatchResult;
-  assert.equal(output.succeeded, 8);
-  assert.equal(output.failed, 0);
-  assert.deepEqual(h.requests.map(request => request.url), input.items.map(item => item.url));
+  const outputs = await pending as Array<{ content: Array<{ type: string; data?: string }> }>;
+  assert.equal(outputs.length, 8);
+  for (const output of outputs) {
+    assert.deepEqual(output.content.filter(block => block.type === 'image').map(block => block.data), [Buffer.from('fake-jpeg').toString('base64')]);
+  }
+  assert.deepEqual(h.requests.map(request => request.url), inputs.map(input => input.url));
   assert.equal(h.timers.size, 0);
 });
 
-test('delegated HTTP screenshot batches return successful results instead of HTTP 400 busy', async () => {
+test('delegated HTTP screenshot single calls return images instead of HTTP 400 busy', async () => {
   const h = fixture();
-  const result = await executeDelegatedRegisteredTool({ registration: h.registration, input: { items: [1, 2, 3, 4].map(n => ({ url: `https://example.com/${n}` })) } });
-  assert.notEqual(result.isError, true, delegatedText(result));
+  const results = await Promise.all([1, 2, 3, 4].map(n => executeDelegatedRegisteredTool({ registration: h.registration, input: { url: `https://example.com/${n}` } })));
+  for (const result of results) {
+    assert.notEqual(result.isError, true, delegatedText(result));
+    assert.equal(result.content.filter(block => block.type === 'image').length, 1);
+  }
   assert.equal(h.requests.length, 4);
   assert.equal(h.timers.size, 0);
 });

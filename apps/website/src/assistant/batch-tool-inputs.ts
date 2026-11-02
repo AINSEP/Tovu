@@ -10,9 +10,6 @@ const ROW_LEVEL_MAX_ITEMS = 100;
 /** Per-tool settings over the default `{ toolId }` entry; eligibility is selected below.
  * This list only raises or lowers a cap or adds item defaults/validation. */
 export const BATCH_TOOL_SETTINGS: readonly BatchableTool[] = [
-  // Video previews can each return 8 MiB, so both expensive readers stay capped at eight items.
-  { toolId: "media_view_video", maxItems: 8 },
-  { toolId: "web_screenshot_page", maxItems: 8 },
   ...[
     "redirects_create", "redirects_update", "redirects_tombstone",
     "taxonomy_create_term", "taxonomy_rename_term", "taxonomy_assign_terms", "taxonomy_unassign_terms",
@@ -35,6 +32,9 @@ const SINGLETON = "one site-wide setting or action; there is nothing per item to
 /** Tools kept single-call, each with its reason; every other read or write takes `items`.
  * Native items fields retain their existing owner. The production-catalog test checks coverage. */
 export const BATCH_OPT_OUT: readonly BatchOptOut[] = [
+  // F5: Jini intentionally strips item images from batch JSON; viewers must return visible images.
+  ...["media_view_video", "media_view_image", "web_screenshot_page", "assistant_demo_image"]
+    .map(toolId => ({ toolId, reason: "returns images the agent must see; batch item JSON strips image blocks" })),
   // Leaves this site or acts on a live host.
   { toolId: "fs_write_files", reason: `already writes an array of files to the picked folder after one approval; ${ASKS}` },
   { toolId: "deployment_ops_deploy", reason: `deploys to a live host; ${ASKS}` },
