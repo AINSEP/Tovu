@@ -295,6 +295,9 @@ test("publish-site: a concurrent second trigger gets 409 while the first provide
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url.startsWith("https://api.vercel.com/")) {
+      // 315c5ab12 resolves the project's verified public domain before exporting (absolute
+      // canonical/sitemap URLs); answer it like adapter.plugin-targets.unit.test.ts does.
+      if (new URL(url).pathname === "/v9/projects/demo/domains") return Response.json({ domains: [{ name: "demo.vercel.app", verified: true }] });
       if (new URL(url).pathname === "/v2/files") return new Response(null, { status: 200 });
       assert.equal(new URL(url).pathname, "/v13/deployments");
       vercelCallCount += 1;
@@ -379,6 +382,9 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url.startsWith("https://api.vercel.com/")) {
+      // 315c5ab12 resolves the project's verified public domain before exporting (absolute
+      // canonical/sitemap URLs); answer it like adapter.plugin-targets.unit.test.ts does.
+      if (new URL(url).pathname === "/v9/projects/demo/domains") return Response.json({ domains: [{ name: "demo.vercel.app", verified: true }] });
       if (new URL(url).pathname === "/v2/files") return new Response(null, { status: 200 });
       assert.equal(new URL(url).pathname, "/v13/deployments");
       vercelCallCount += 1;
