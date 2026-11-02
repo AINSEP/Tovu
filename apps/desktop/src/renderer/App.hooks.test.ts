@@ -1,9 +1,9 @@
-import { dismissOnEscape } from './site-shell-policy.js';
 /**
- * @file Behavioural tests for the plain rules `App.hooks.ts` keeps out of the components —
- * `siteSlug`, `computeCanCreate`, and the handler builders pulled out of `App.tsx`'s component
- * bodies (`countRunningSites`, `navLinkClick`, `settingsControlHandlers`, `startThenNotify`) — run
- * against the real functions, not against their source text.
+ * @file `App.hooks.ts` is now a barrel: each hook family lives in its own `use-<thing>.hooks.ts`
+ * (plus `sites-home-view.ts`), and their behaviour is tested beside each one. What is left to pin
+ * here is the barrel's own contract — every name it exported before the split is still exported,
+ * and is the very same function its family module exports, so no importer of `./App.hooks.js` can
+ * have been handed a stale copy or a wrapper.
  *
  * **How this file runs.** `apps/desktop`'s `test` script is two commands: a bare
  * `node --test "src/*.test.ts" "src/!(renderer|contracts)/**\/*.test.ts"` first, which has no
@@ -21,376 +21,48 @@ import { dismissOnEscape } from './site-shell-policy.js';
  * Co-located `*.test.ts` beside the unit it covers, matching this package's existing `*.test.cjs`
  * convention rather than the repo-wide `__tests__/unit/` layout.
  */
-import assert from "node:assert/strict";
-import test from "node:test";
-import { readFileSync } from "node:fs";
-import { hookHarness, sourceFunction } from "./source-test-harness.js";
+import assert from 'node:assert/strict';
+import test from 'node:test';
 
-import {
-  appPresentation,
-  buildCreateProjectInput,
-  computeCanCreate,
-  countRunningSites,
-  menuFocusIndex,
-  navLinkClick,
-  performSiteStart,
-  settingsControlHandlers,
-  siteSlug,
-  startThenNotify,
-} from "./App.hooks.js";
-import type { SiteRecord } from "../contracts/project.js";
-import type { SetStateAction } from "react";
+import * as barrel from './App.hooks.js';
+import * as createForm from './use-create-website-form.hooks.js';
+import * as deleteConfirmation from './use-delete-confirmation.hooks.js';
+import * as dropdownMenu from './use-dropdown-menu.hooks.js';
+import * as expandedMode from './use-expanded-mode.hooks.js';
+import * as projectMutations from './use-project-mutations.hooks.js';
+import * as projectTabs from './use-project-tabs.hooks.js';
+import * as runnerConversations from './use-runner-conversations.hooks.js';
+import * as sectionNav from './use-section-nav.hooks.js';
+import * as siteStart from './use-site-start.hooks.js';
+import * as sitesHomeView from './sites-home-view.js';
+import * as sitesInventory from './use-sites-inventory.hooks.js';
+import * as webviewLoadFailure from './use-webview-load-failure.hooks.js';
+import * as workspaceChatTransport from './use-workspace-chat-transport.hooks.js';
 
-test("creation selects only the chosen database endpoint and credential without trimming secrets", () => {
-  const input = {
-    displayName: "New site", database: "sqlite" as const, customProviderLabel: " Neon ",
-    supabaseUrl: " https://db.example ", customConnection: " postgres://db ",
-    supabaseKey: " supabase secret ", customCredential: " custom secret ",
-  };
-  assert.deepEqual(buildCreateProjectInput(input), { displayName: "New site", database: { kind: "sqlite" } });
-  assert.deepEqual(buildCreateProjectInput({ ...input, database: "supabase" }), {
-    displayName: "New site", database: { kind: "supabase", endpoint: "https://db.example", credential: " supabase secret " },
-  });
-  assert.deepEqual(buildCreateProjectInput({ ...input, database: "custom" }), {
-    displayName: "New site", database: { kind: "custom", label: "Neon", endpoint: "postgres://db", credential: " custom secret " },
-  });
-  for (const database of ["supabase", "custom"] as const) {
-    assert.deepEqual(buildCreateProjectInput({ ...input, database, customProviderLabel: " ",
-      supabaseUrl: " ", customConnection: " ", supabaseKey: "", customCredential: "" }), {
-      displayName: "New site", database: { kind: database },
-    });
+/** Every runtime (non-type) name `App.hooks.ts` exported before the split, by its new home. */
+const HOMES: Record<string, Record<string, unknown>> = {
+  useSitesPolling: sitesInventory, useSiteRescan: sitesInventory, useApplySiteRecord: sitesInventory, countRunningSites: sitesInventory,
+  useRunnerNavigation: sectionNav, useSectionNav: sectionNav, navLinkClick: sectionNav,
+  useProjectTabs: projectTabs,
+  useProjectMutations: projectMutations,
+  deriveSitesHomeView: sitesHomeView, appPresentation: sitesHomeView,
+  useExpandedMode: expandedMode,
+  useDismissibleDropdown: dropdownMenu, menuFocusIndex: dropdownMenu, useMenuKeyboard: dropdownMenu, settingsControlHandlers: dropdownMenu,
+  useDeleteConfirmation: deleteConfirmation,
+  performSiteStart: siteStart, useSiteStart: siteStart, startThenNotify: siteStart,
+  useWebviewLoadFailure: webviewLoadFailure,
+  useWorkspaceChatTransport: workspaceChatTransport,
+  useRunnerConversations: runnerConversations, useConversationDeleteConfirmation: runnerConversations,
+  computeCanCreate: createForm, buildCreateProjectInput: createForm, siteSlug: createForm, useCreateWebsiteForm: createForm,
+};
+
+test('the barrel exports exactly the runtime names it exported before the split, and nothing else', () => {
+  assert.deepEqual(Object.keys(barrel).sort(), Object.keys(HOMES).sort());
+});
+
+test('each re-exported name is the very function its family module exports', () => {
+  for (const [name, home] of Object.entries(HOMES)) {
+    assert.equal(typeof home[name], 'function', `${name} must be a function in its family module`);
+    assert.equal((barrel as Record<string, unknown>)[name], home[name], `${name} must be re-exported, not copied`);
   }
-});
-
-/** The form's real gate: `useCreateWebsiteForm` computes `slug` from the typed name and hands it
- *  straight to `computeCanCreate`, so an empty slug is a permanently disabled "Create website". */
-function canCreateSqliteSiteNamed(name: string): boolean {
-  return computeCanCreate({ slug: siteSlug(name), database: "sqlite", supabaseReady: false, customReady: false });
-}
-
-test("supabase and custom creation each require their own readiness and a nonempty slug", () => {
-  for (const database of ["supabase", "custom"] as const) {
-    for (const supabaseReady of [false, true]) for (const customReady of [false, true]) {
-      const input = { slug: "new-site", database, supabaseReady, customReady };
-      assert.equal(computeCanCreate(input), database === "supabase" ? supabaseReady : customReady);
-      assert.equal(computeCanCreate({ ...input, slug: "" }), false);
-    }
-  }
-});
-
-test("the dropdown effect closes on outside pointerdown, preserves inside clicks, and detaches", () => {
-  const harness = hookHarness();
-  const handlers = new Map<string, Set<(event: { target: unknown }) => void>>();
-  const document = {
-    addEventListener(type: string, handler: (event: { target: unknown }) => void) {
-      if (!handlers.has(type)) handlers.set(type, new Set());
-      handlers.get(type)!.add(handler);
-    },
-    removeEventListener(type: string, handler: (event: { target: unknown }) => void) { handlers.get(type)?.delete(handler); },
-  };
-  const inside = {};
-  const containerRef = { current: { contains: (target: unknown) => target === inside } };
-  const hook = sourceFunction(readFileSync(new URL("./App.hooks.ts", import.meta.url), "utf8"), "useDismissibleDropdown", {
-    ...harness.bindings, useRef: () => containerRef, document, dismissOnEscape,
-  });
-  const render = () => harness.render(() => hook());
-  try {
-    assert.equal(render().open, false);
-    assert.equal(handlers.size, 0);
-    render().setOpen(true);
-    assert.equal(render().open, true);
-    assert.equal(handlers.get("pointerdown")?.size, 1);
-    for (const listener of handlers.get("pointerdown")!) listener({ target: inside });
-    assert.equal(render().open, true);
-    for (const listener of handlers.get("pointerdown")!) listener({ target: {} });
-    assert.equal(render().open, false);
-    assert.equal(handlers.get("pointerdown")?.size, 0);
-    render().setOpen(true);
-    render();
-    assert.equal(handlers.get("pointerdown")?.size, 1);
-  } finally { harness.cleanup(); }
-  assert.equal(handlers.get("pointerdown")?.size, 0);
-});
-
-test("menu arrow keys wrap at both ends, Home/End jump, and other keys are left alone", () => {
-  const at = (key: string, current: number) => menuFocusIndex({ key, current, count: 5 });
-  assert.equal(at("ArrowDown", -1), 0);
-  assert.equal(at("ArrowDown", 1), 2);
-  assert.equal(at("ArrowDown", 4), 0);
-  assert.equal(at("ArrowUp", 0), 4);
-  assert.equal(at("ArrowUp", -1), 4);
-  assert.equal(at("ArrowUp", 3), 2);
-  assert.equal(at("Home", 3), 0);
-  assert.equal(at("End", 0), 4);
-  assert.equal(at("Enter", 2), null);
-  assert.equal(at("Tab", 2), null);
-  assert.equal(menuFocusIndex({ key: "ArrowDown", current: -1, count: 0 }), null);
-});
-
-test("the Settings menu focuses its first entry on open, moves with the arrows, and hands focus back on close", () => {
-  const harness = hookHarness();
-  const focused: string[] = [];
-  const entry = (name: string) => ({ name, focus() { focused.push(name); document.activeElement = this; } });
-  const entries = [entry("sites"), entry("appearance"), entry("light")];
-  const body = { name: "body" };
-  const document: { body: unknown; activeElement: unknown } = { body, activeElement: body };
-  const menu = {
-    querySelector: () => entries[0],
-    querySelectorAll: () => entries,
-    contains: (node: unknown) => entries.includes(node as never),
-  };
-  const trigger = { focus() { focused.push("trigger"); document.activeElement = trigger; } };
-  const menuRef = { current: menu as unknown };
-  const refs = [menuRef, { current: trigger }];
-  let refCall = 0;
-  const hook = sourceFunction(readFileSync(new URL("./App.hooks.ts", import.meta.url), "utf8"), "useMenuKeyboard", {
-    ...harness.bindings, useRef: () => refs[refCall++ % 2], document, menuFocusIndex, MENU_ENTRIES: "[role]",
-  });
-  const render = (open: boolean) => harness.render(() => hook({ open }));
-  try {
-    render(false);
-    assert.deepEqual(focused, []);
-    const { onMenuKeyDown } = render(true);
-    assert.deepEqual(focused, ["sites"]);
-    let prevented = 0;
-    const key = (k: string) => onMenuKeyDown({ key: k, preventDefault() { prevented++; } });
-    key("ArrowUp");
-    key("ArrowDown");
-    key("Enter");
-    assert.deepEqual(focused, ["sites", "light", "sites"]);
-    assert.equal(prevented, 2);
-    // Choosing an entry unmounts it, so focus has fallen to <body>: it goes back to the gear.
-    document.activeElement = body;
-    menuRef.current = null;
-    render(false);
-    assert.equal(focused.at(-1), "trigger");
-    // A click on something else moved focus on purpose; closing must not steal it back.
-    menuRef.current = menu;
-    render(true);
-    const elsewhere = {};
-    document.activeElement = elsewhere;
-    menuRef.current = null;
-    render(false);
-    assert.equal(document.activeElement, elsewhere);
-  } finally { harness.cleanup(); }
-});
-
-test("siteSlug keeps its existing behaviour for plain ASCII names", () => {
-  assert.equal(siteSlug("Hello World"), "hello-world");
-  assert.equal(siteSlug("Corner Bakery!!"), "corner-bakery");
-  assert.equal(siteSlug("  Trimmed  "), "trimmed");
-});
-
-test("siteSlug still yields nothing for a name with no letters or digits in it", () => {
-  // The empty result is what `computeCanCreate` reads as "no name typed yet", so this must keep
-  // meaning exactly that — the fix below must not turn punctuation into a usable name.
-  assert.equal(siteSlug("   "), "");
-  assert.equal(siteSlug("!!!"), "");
-  assert.equal(siteSlug("— …"), "");
-});
-
-test("a non-Latin website name is not erased, so its site can actually be created", () => {
-  // The defect: `[^a-z0-9]+` deletes every character of a name written in a non-Latin script, the
-  // slug comes back empty, and `computeCanCreate` then refuses to enable "Create website" — there
-  // is no name the operator can type in Japanese, Hindi or Greek that this form will accept.
-  for (const name of ["日本語サイト", "हिन्दी", "Ελλάδα", "Кофейня", "مقهى"]) {
-    assert.notEqual(siteSlug(name), "", `${name}: an ASCII-only slug erases this name entirely`);
-    assert.equal(canCreateSqliteSiteNamed(name), true, `${name}: "Create website" must be reachable`);
-  }
-});
-
-test("a Latin name carrying diacritics is not mangled into nonsense", () => {
-  // Shown to the operator verbatim as "Workspace folder: caf-m-nster" before the fix — the accented
-  // letters were replaced by separators rather than kept.
-  assert.equal(siteSlug("Café Münster"), "café-münster");
-  assert.equal(siteSlug("Łódź Studio"), "łódź-studio");
-});
-
-test("combining marks stay attached to the letter they belong to", () => {
-  // Devanagari writes its vowels as combining marks (`\p{M}`), not letters. Keeping only `\p{L}`
-  // would split हिन्दी into three separator-joined fragments instead of one word.
-  assert.equal(siteSlug("हिन्दी"), "हिन्दी");
-});
-
-/** A `SiteRecord` stand-in: `countRunningSites` reads nothing but `status`. */
-function siteWithStatus(status: SiteRecord["status"]): SiteRecord {
-  return { id: `/sites/${status}`, status } as unknown as SiteRecord;
-}
-
-test("countRunningSites counts running sites and nothing else", () => {
-  const projects = (["running", "starting", "running", "provisioning", "blocked"] as const).map(siteWithStatus);
-  assert.equal(countRunningSites(projects), 2);
-  assert.equal(countRunningSites([]), 0);
-});
-
-test("a NavLink click selects its own section when the link is enabled", () => {
-  for (const disabled of [false, undefined]) {
-    const selected: string[] = [];
-    navLinkClick({ disabled, id: "projects", onSelectSection: (id) => selected.push(id) })();
-    assert.deepEqual(selected, ["projects"], `disabled=${disabled}`);
-  }
-});
-
-test("a disabled NavLink never fires onSelectSection", () => {
-  // `aria-disabled`, not the native attribute, so the button still receives the click; this guard is
-  // the only thing keeping an unbuilt section (Marketplace, today) from being selected.
-  const selected: string[] = [];
-  navLinkClick({ disabled: true, id: "marketplace", onSelectSection: (id) => selected.push(id) })();
-  assert.equal(selected.length, 0);
-});
-
-/** `settingsControlHandlers` over a live open flag, recording every effect in order. */
-function recordingSettings(disabled: boolean) {
-  const calls: string[] = [];
-  let open = false;
-  const handlers = settingsControlHandlers({
-    disabled,
-    setOpen: (next: SetStateAction<boolean>) => {
-      open = typeof next === "function" ? next(open) : next;
-      calls.push(`open:${open}`);
-    },
-    onThemeChange: (theme) => calls.push(`theme:${theme}`),
-    onOpenAppearance: () => calls.push("appearance"),
-  });
-  return { calls, handlers };
-}
-
-test("the Settings gear flips its dropdown open, then shut", () => {
-  const { calls, handlers } = recordingSettings(false);
-  handlers.toggleOpen();
-  handlers.toggleOpen();
-  assert.deepEqual(calls, ["open:true", "open:false"]);
-});
-
-test("a disabled Settings gear never opens its dropdown", () => {
-  const { calls, handlers } = recordingSettings(true);
-  handlers.toggleOpen();
-  assert.equal(calls.length, 0);
-});
-
-test("picking a theme applies it FIRST, then closes the dropdown", () => {
-  const { calls, handlers } = recordingSettings(false);
-  handlers.chooseTheme("dark");
-  assert.deepEqual(calls, ["theme:dark", "open:false"]);
-});
-
-test("the Appearance link closes the dropdown FIRST, then opens the page", () => {
-  const { calls, handlers } = recordingSettings(false);
-  handlers.openAppearancePage();
-  assert.deepEqual(calls, ["open:false", "appearance"]);
-});
-
-test("Start waits for start to settle before notifying the caller", async () => {
-  const calls: string[] = [];
-  const pending: { finish?: (started: boolean) => void } = {};
-  const handleStart = startThenNotify(
-    () =>
-      new Promise<boolean>((resolve) => {
-        calls.push("start");
-        pending.finish = resolve;
-      }),
-    () => calls.push("onStarted"),
-  );
-  const done = handleStart();
-  assert.deepEqual(calls, ["start"], "onStarted must not run while start is still in flight");
-  pending.finish?.(true);
-  await done;
-  assert.deepEqual(calls, ["start", "onStarted"]);
-});
-
-test("Start with no onStarted just runs start", async () => {
-  const calls: string[] = [];
-  await startThenNotify(async () => {
-    calls.push("start");
-    return true;
-  }, undefined)();
-  assert.deepEqual(calls, ["start"]);
-});
-
-test("a start that rejects skips onStarted, and the SAME rejection reaches the caller", async () => {
-  const failure = new Error("bridge gone");
-  const calls: string[] = [];
-  await assert.rejects(
-    startThenNotify(async () => {
-      throw failure;
-    }, () => calls.push("onStarted")),
-    (error) => error === failure,
-  );
-  assert.equal(calls.length, 0);
-});
-
-// ---------------------------------------------------------------------------------------------
-// performSiteStart
-// ---------------------------------------------------------------------------------------------
-
-const STARTED_RECORD = { id: "/sites/a", status: "running", port: 4321 } as unknown as SiteRecord;
-
-test("performSiteStart calls startSite and reports main's own record back", async () => {
-  const calls: string[] = [];
-  const result = await performSiteStart("/sites/a", {
-    startSite: async (id) => {
-      calls.push(`start:${id}`);
-      return STARTED_RECORD;
-    },
-  });
-  assert.deepEqual(calls, ["start:/sites/a"]);
-  assert.equal(result.record, STARTED_RECORD, "the record must be the one main resolved with, not one composed here");
-});
-
-test("performSiteStart surfaces a rejection's Error message verbatim", () => {
-  return performSiteStart("/sites/a", {
-    startSite: () => Promise.reject(new Error("tovu serve did not report a port within 60000ms.")),
-  }).then((result) => {
-    assert.equal(result.error, "tovu serve did not report a port within 60000ms.");
-    assert.equal(result.record, undefined);
-  });
-});
-
-test("performSiteStart coerces a non-Error rejection with String(), not [object Object]", async () => {
-  const result = await performSiteStart("/sites/a", { startSite: () => Promise.reject("offline") });
-  assert.equal(result.error, "offline");
-});
-
-test("performSiteStart with no bridge is an operator-facing message, not a thrown error", async () => {
-  const result = await performSiteStart("/sites/a", undefined);
-  assert.equal(result.error, "Tovu desktop connection required to start a website.");
-});
-
-test("a start that RESOLVES but reports failure (useSiteStart's bridge-missing/caught-error path) skips onStarted", () => {
-  // useSiteStart's `start` never rejects — a missing bridge or a caught `startSite` error both set
-  // `error` state and resolve normally, so `startThenNotify` cannot tell success from failure by
-  // whether the promise rejected. It must read the resolved value instead.
-  const calls: string[] = [];
-  const handleStart = startThenNotify(
-    async () => {
-      calls.push("start");
-      return false;
-    },
-    () => calls.push("onStarted"),
-  );
-  return handleStart().then(() => {
-    assert.deepEqual(calls, ["start"], "onStarted must not fire after a failed start");
-  });
-});
-
-// The extraction must keep one routing answer for Find, Zoom, tabs and Add feedback.
-// Without the refactor this new boundary is absent; a miswired caller is covered in site-error-feedback.
-test("root presentation keeps chrome, guest targets and duplicate-site notices aligned", () => {
-  const input = {
-    showSiteTab: true, showSitesHome: false, appearanceOpen: false,
-    activeTab: '/a', visibleWorkspaceId: '/a', addNotice: { siteId: '/a', message: 'Already tracked.' },
-  };
-  assert.deepEqual(appPresentation(input), {
-    onSitesHome: false, selectedTab: '/a', guestTarget: '/a', tabNotice: 'Already tracked.',
-  });
-  assert.equal(appPresentation({ ...input, addNotice: { siteId: '/b', message: 'Other site.' } }).tabNotice, undefined);
-  assert.equal(appPresentation({ ...input, addNotice: null }).tabNotice, undefined);
-  assert.equal(appPresentation({ ...input, addNotice: { siteId: '/a', message: '' } }).tabNotice, '');
-  assert.deepEqual(appPresentation({ ...input, showSiteTab: false, showSitesHome: true }), {
-    onSitesHome: true, selectedTab: null, guestTarget: null, tabNotice: undefined,
-  });
-  assert.deepEqual(appPresentation({ ...input, appearanceOpen: true, visibleWorkspaceId: null }), {
-    onSitesHome: false, selectedTab: '/a', guestTarget: null, tabNotice: 'Already tracked.',
-  });
-  assert.equal(appPresentation({ ...input, showSitesHome: true, appearanceOpen: true }).onSitesHome, false);
 });
