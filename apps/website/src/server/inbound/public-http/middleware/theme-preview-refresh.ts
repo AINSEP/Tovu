@@ -1,5 +1,6 @@
 import type { Express, RequestHandler } from "express";
-import { requestThemePreviewRefresh, syncThemeRoster } from "#src/features/theme/index";
+import { requestThemePreviewRefresh } from "#src/features/theme/preview-refresh";
+import { syncThemeRoster } from "#src/features/theme/theme-roster-sync";
 import { requireAdminSession, getAuthedPrincipal } from "../../admin-http/dev-auth.js";
 import type { RouteDeps } from "#src/server/routes/types";
 

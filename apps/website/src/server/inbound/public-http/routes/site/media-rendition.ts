@@ -4,14 +4,16 @@ import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request, Response } from "express";
 import { createHash } from "node:crypto";
 
-import { guardMediaRenditionRepo } from "#src/features/media/index";
-import { findMediaByIdOrSlug, ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sanitizeSvg, sniffContentType, type MediaRecord } from "#src/features/media/index";
-import { isTrashed, type PostRecord } from "#src/features/post/index";
-import { DefaultMemberAccessResolver, resolvePostMemberAccess, type MemberAccessResolver } from "#src/features/members/index";
+import { guardMediaRenditionRepo } from "#src/features/media/guard-rendition-repo";
+import { findMediaByIdOrSlug, resolveMediaRendition, sanitizeSvg, sniffContentType, type MediaRecord } from "@jini-ai/cms/media";
+import { ImageSourceCorruptError, ImageTransformUnavailableError } from "@jini-ai/cms/media/node";
+import { isTrashed, type PostRecord } from "#src/features/post/post";
+import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/access-resolver";
+import type { MemberAccessResolver } from "#src/features/members/index";
 import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
 import type { MediaRenditionRouteDeps, MediaRenditionRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { SVG_CONTENT_SECURITY_POLICY, DISALLOWED_INLINE_CONTENT_TYPES, resolveMediaOriginalBlob, sendMediaOriginalResponse } from "#src/server/inbound/admin-http/routes/media/original";
-import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
+import { MEMBER_SESSION_COOKIE } from "../../http/members.js";
 
 const CACHE_CONTROL_HEADER = "Cache-Control";
 

@@ -1,11 +1,11 @@
 import type { Express } from "express";
 import { nowIso } from "@jini-ai/core/primitives";
 
-import { resolveMemberSession } from "#src/features/members/index";
-import type { PublicPostRecord as PostRecord } from "#src/features/post/index";
+import { resolveMemberSession } from "#src/features/members/access-resolver";
+import type { PublicPostRecord as PostRecord } from "#src/features/post/post";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { RouteDeps } from "#src/server/routes/types";
-import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
+import { MEMBER_SESSION_COOKIE } from "../../http/members.js";
 import { serveVirtualPage } from "./pages.js";
 
 const CODE_REQUEST_VIEW = "code-request";

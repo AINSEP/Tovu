@@ -14,7 +14,7 @@ import { createRateLimiter, type RateLimitProfile } from "#src/contracts/core/ra
 import { withSiteConsentDefaultCss } from "#src/features/consent/config";
 import { createSiteConsentRequestPorts } from "#src/features/consent/host";
 import { createSiteConsentConfig, resolveSiteConsentActivation } from "#src/features/consent/settings";
-import { findPublishedPostBySlug } from "#src/features/post/index";
+import { findPublishedPostBySlug } from "#src/features/post/post";
 import type { RouteDeps } from "#src/server/routes/types";
 import { isStaticExportRequest } from "../routes/site/pages.js";
 import { resolvePublicOrigin, resolveProtocol } from "../routes/oauth/public-origin.js";

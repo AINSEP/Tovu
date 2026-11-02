@@ -2,7 +2,7 @@ import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/s
 import { documentContentType, documentDisplayFilename, MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
 import type { Request, Response } from "express";
 
-import { findMediaByIdOrSlug, sanitizeSvg, sniffContentType, type MediaRecord } from "#src/features/media/index";
+import { findMediaByIdOrSlug, sanitizeSvg, sniffContentType, type MediaRecord } from "@jini-ai/cms/media";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { parseRangeHeader, type ParsedRange } from "#src/server/inbound/admin-http/range";
 import type { MediaRouteDeps, MediaRouteRegistrar } from "./deps.js";

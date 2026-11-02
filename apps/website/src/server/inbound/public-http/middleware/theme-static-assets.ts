@@ -3,7 +3,7 @@ import path from "node:path";
 import express from "express";
 import type { Express, NextFunction, Response } from "express";
 
-import { resolvePathWithin } from "#src/contracts/core/index";
+import { resolvePathWithin } from "#src/contracts/core/path-containment";
 
 import { resolveThemeDirs } from "./theme-asset-dirs.js";
 import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";

@@ -1,12 +1,13 @@
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request } from "express";
 
-import { getPublishedPostBySlug, PostNotFoundError } from "#src/features/post/index";
-import { getPresentationSettings, PresentationSettingsNotFoundError } from "#src/features/presentation/index";
-import { DefaultMemberAccessResolver, resolvePostMemberAccess, type MemberAccessResolver } from "#src/features/members/index";
+import { getPublishedPostBySlug, PostNotFoundError } from "#src/features/post/post";
+import { getPresentationSettings, PresentationSettingsNotFoundError } from "@jini-ai/cms/presentation";
+import { DefaultMemberAccessResolver, resolvePostMemberAccess } from "#src/features/members/access-resolver";
+import type { MemberAccessResolver } from "#src/features/members/index";
 import { toContentPostResponse } from "#src/server/inbound/public-http/http/content/posts";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
-import { MEMBER_SESSION_COOKIE } from "../../members/complete-sign-in.js";
+import { MEMBER_SESSION_COOKIE } from "../../../http/members.js";
 
 
 

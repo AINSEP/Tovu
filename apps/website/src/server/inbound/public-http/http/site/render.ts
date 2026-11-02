@@ -1,6 +1,7 @@
 import type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 import type { PluginExportRender } from "@jini-ai/cms/widgets/html";
-import { renderThemeFontLinks } from "#src/features/theme/rendering";
+// Every module counts in fresh render workers; omit the rendering re-export wrapper.
+import { renderThemeFontLinks } from "#src/features/theme/font-links";
 import { renderMediaRawHtml } from "#src/features/widgets/media-html";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -13,10 +14,10 @@ import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "#src/features/post/rendering";
 import type { DiscoveredTheme, StaticMenuItem, TemplateNode } from "#src/features/theme/index";
-import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "#src/features/theme/rendering";
-import { renderStaticPage, renderCoverImageTag } from "#src/features/theme/rendering";
+import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId } from "#src/features/theme/render-contract";
+import { renderStaticPage, renderCoverImageTag } from "#src/features/theme/static-render";
 import { projectPostBody, resolveCoverImage } from "#src/features/post/rendering";
-import { themeTokenAliasDeclarations } from "#src/features/theme/rendering";
+import { themeTokenAliasDeclarations } from "#src/features/theme/token-aliases";
 import {
   renderEntryList,
   renderEntryListStructuredData,
@@ -24,7 +25,7 @@ import {
   type EntryListItem,
   type EntryListFieldValue,
   type EntryListRenderOptions,
-} from "#src/features/theme/rendering";
+} from "#src/features/theme/entry-list-render";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import { COLLECTION_LIST_FAQ_PAGE, isCollectionListLayout } from "#src/features/entries/render-entry";
@@ -55,7 +56,7 @@ import {
 } from "./form-render.js";
 import { escapeHtml } from "#src/platform/html/escape";
 import { postAuthorForDisplay } from "#src/contracts/core/post-author";
-import { postAuthorForContentHeader } from "#src/features/theme/rendering";
+import { postAuthorForContentHeader } from "#src/features/theme/static-render";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
 import { toSlug } from "#src/platform/html/slug";
 

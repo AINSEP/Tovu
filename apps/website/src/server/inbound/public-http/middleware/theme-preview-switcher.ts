@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { parse as parseCookie } from "cookie";
 import { resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
-import { resolveActiveThemeId } from "#src/features/presentation/index";
+import { resolveActiveThemeId } from "#src/features/presentation/active-theme-id";
 import { resolveActiveTheme } from "#src/features/theme/active-theme";
 import { readPreviewSwitcher, choosePreviewTheme } from "#src/features/theme/preview-switcher";
 import { decoratePreviewPage } from "#src/features/theme/preview-switcher-html";

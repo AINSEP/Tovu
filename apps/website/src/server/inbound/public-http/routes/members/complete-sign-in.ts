@@ -1,7 +1,7 @@
 import { captureMemberSignedIn, observeMemberSignInFailure } from "./analytics.js";
 import type { Express, Response } from "express";
 import { completeSignIn, MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberSignInInput } from "#src/features/members/index";
-import { toPublicMemberResponse } from "../../http/members.js";
+import { MEMBER_SESSION_COOKIE, toPublicMemberResponse } from "../../http/members.js";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
 
@@ -17,7 +17,7 @@ import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMe
  * (`routes/site/pages.ts`) reads the SAME literal this route sets, rather than a second
  * hand-copied string that could silently drift from it.
  */
-export const MEMBER_SESSION_COOKIE = "tovu_member_session";
+export { MEMBER_SESSION_COOKIE } from "../../http/members.js";
 const MEMBER_COOKIE_OPTIONS = { httpOnly: true, path: "/", sameSite: "lax", secure: true } as const;
 
 /** The sole member cookie setter, shared by password and challenge completion. O(1). */

@@ -5,8 +5,8 @@ import type { PluginAuthContext, PluginContributionsSnapshot, PluginRouteResult 
 import type { RouteDeps } from '../../../routes/types.js';
 import { authorizeOrRespond } from '../../admin-http/authorize-guard.js';
 import { requireAdminSession } from '../../admin-http/dev-auth.js';
-import { DefaultMemberAccessResolver } from '../../../../features/members/index.js';
-import { MEMBER_SESSION_COOKIE } from './members/complete-sign-in.js';
+import { DefaultMemberAccessResolver } from '../../../../features/members/access-resolver.js';
+import { MEMBER_SESSION_COOKIE } from '../http/members.js';
 import { readRequestCookie } from '../../../http/request-cookie.js';
 import { PUBLIC_JSON_BODY_LIMIT, respondToOversizedBody } from '../../shared/json-body-parsers.js';
 

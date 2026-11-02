@@ -1,6 +1,6 @@
 import type { Express, Response } from "express";
 
-import { resolveActiveThemeId, type ActiveThemeIdResolutionDeps } from "#src/features/presentation/index";
+import { resolveActiveThemeId, type ActiveThemeIdResolutionDeps } from "#src/features/presentation/active-theme-id";
 
 /**
  * @file Per-request render-theme override for one app instance (2026-10-08): an app built with

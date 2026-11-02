@@ -1,4 +1,4 @@
-import { isNonArrayRecord } from "@jini-ai/core";
+import { isNonArrayRecord } from "@jini-ai/core/records";
 /**
  * @file `extractEntryRefs` — the chokepoint-side `entry_refs` extractor (ADR-022 §5, SPEC-043
  * REQ-29..32).

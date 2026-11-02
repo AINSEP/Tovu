@@ -1,7 +1,7 @@
 import { seoForRequest } from "../../http/site/seo-render-context.js";
 import { createSeoPageHeadHook } from "#src/features/seo/page-head-contributor";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
-import { renderCommentsMarkers } from '#src/features/comments/index';
+import { renderCommentsMarkers } from '#src/features/comments/public-markers';
 import { renderPluginWidgetPartials } from "#src/features/plugin-runtime/widget-partials";
 import type { SiteChatSelection } from "../../http/site/site-chat-markup.js";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
@@ -10,7 +10,7 @@ import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
-import type { PublicPostRecord as PostRecord } from "#src/features/post/index";
+import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { collectCoverMediaRefs } from "#src/features/post/rendering";
 import {
   createPublicPostReader,
@@ -21,18 +21,23 @@ import {
   listPublishedPostPreviews,
   PostNotFoundError,
   ROOT_SLUG,
-} from "#src/features/post/index";
-import { getPublicAssistantSettings, resolvePublicAssistantAvailability } from "#src/assistant/index";
+} from "#src/features/post/post";
+// Page readiness reads must not load the assistant tool/runtime barrel.
+import { getPublicAssistantSettings } from "#src/assistant/public-assistant-settings";
+import { resolvePublicAssistantAvailability } from "#src/assistant/public-assistant-availability";
 import {
   createMemberAccessResolver,
   resolvePostMemberAccess,
-  type MemberAccessDecision,
-  type MemberAccessResolver,
-  type MemberContext,
-} from "#src/features/members/index";
-import { resolveActiveThemeId } from "#src/features/presentation/index";
+} from "#src/features/members/access-resolver";
+import type { MemberAccessDecision, MemberContext, MemberAccessResolver } from "#src/features/members/index";
+import { resolveActiveThemeId } from "#src/features/presentation/active-theme-id";
 import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";
-import { renderStaticPage, injectCurrentEntityContentId, injectPageTitle, resolveTemplate, resolveTemplateBranchChoice, scanMenuEmbedIds, postPreviewsBatchSize, isPagedPostPreviewsMarker, NO_THEME_ID, resolveActiveTheme, tokenStylesheetSentinel, isStandaloneThemePage, isBarePageChoice, collectionMarkerKey, splitCollectionMarkerInner, renderEntryList, type DiscoveredTheme, type StaticMenuItem, type StaticMenuContent, type StaticPostPreview, type StaticListingBatch, type StaticPostPreviewsPage, type StaticFeaturedImage, type EntryListItem, type EntryListFieldValue } from "../../../../../features/theme/index.js";
+// Keep request rendering separate from theme installation, imports, and agent tools.
+import { renderStaticPage, injectCurrentEntityContentId, injectPageTitle, resolveTemplate, resolveTemplateBranchChoice, scanMenuEmbedIds, postPreviewsBatchSize, isPagedPostPreviewsMarker, isBarePageChoice, collectionMarkerKey, splitCollectionMarkerInner, type StaticMenuItem, type StaticMenuContent, type StaticPostPreview, type StaticListingBatch, type StaticPostPreviewsPage, type StaticFeaturedImage } from "#src/features/theme/static-render";
+import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";
+import { tokenStylesheetSentinel } from "#src/features/theme/static-asset-contract";
+import { isStandaloneThemePage, type DiscoveredTheme } from "#src/features/theme/theme";
+import { renderEntryList, type EntryListItem, type EntryListFieldValue } from "#src/features/theme/entry-list-render";
 import { expandPartials } from "../../../../../contracts/core/expand-partials.js";
 import { markersOfType, substituteMarkers, withInnerContentFinal, MENU_MARKER_TYPE, COLLECTION_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import {
@@ -67,12 +72,12 @@ import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from 
 import { checkSiteRelativeTarget } from "#src/platform/routing/index";
 import { type RouteTarget } from '@jini-ai/cms/routing';
 import { deriveExcerpt, resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
-import { findBoundMenu, resolveMenuDoc } from "#src/features/navigation/index";
-import type { NavMenuEntry, NavTarget, ResolveTargetHrefFn } from "#src/features/navigation/index";
-import { findMediaByIdOrSlug, getLatestTransformDefinition } from "#src/features/media/index";
-import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/index";
+import { findBoundMenu, resolveMenuDoc } from "@jini-ai/cms/navigation";
+import type { NavMenuEntry, NavTarget, ResolveTargetHrefFn } from "@jini-ai/cms/navigation";
+import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";
+import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/bootstrap";
 import type { AssignedTermView, EntryTermReadPort } from "#src/features/taxonomy/contracts";
-import { resolveSiteTitle } from "#src/features/settings/index";
+import { resolveSiteTitle } from "#src/features/settings/site-title";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head.js";
 import {
   renderSite,
@@ -94,7 +99,7 @@ import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js"
 import { injectFormAttemptTokens } from "../../http/site/form-render.js";
 import { injectMemberAuthScript } from "../../http/site/member-auth-script.js";
 import { isHttpsRequest } from "../oauth/public-origin.js";
-import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
+import { MEMBER_SESSION_COOKIE } from "../../http/members.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 
 /**

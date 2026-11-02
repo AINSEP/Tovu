@@ -1,7 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { Request, Response } from "express";
 
-import { MediaValidationError } from "#src/features/media/index";
+import { MediaValidationError } from "@jini-ai/cms/media";
 import type { AuthorizeGuardParams } from "#src/server/inbound/admin-http/authorize-guard";
 import type { MediaRouteDeps } from "./deps.js";
 

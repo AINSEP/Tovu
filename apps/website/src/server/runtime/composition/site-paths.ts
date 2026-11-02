@@ -1,5 +1,7 @@
 import { basename, join, resolve } from "node:path";
-import { resolveProductRoot, resolveSiteRoot } from "#src/platform/site-dir/index";
+// Path reads must not initialize the site registry or database adapters.
+import { resolveProductRoot } from "#src/platform/site-dir/product-root";
+import { resolveSiteRoot } from "#src/platform/site-dir/site-root";
 import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
 import type { SiteStoragePaths } from "../../routes/types.js";
 import { resolveChatAttachmentUploadDirectory } from "../../inbound/assistant/chat-attachment-directory.js";

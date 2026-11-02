@@ -1,4 +1,5 @@
-import { agentHandleSegment } from '@jini-ai/agentic';
+// Render workers need only handle identity, not the agent runtime's core barrel.
+import { agentHandleSegment } from '@jini-ai/agentic/core/handle';
 import { expandPartials } from "../../contracts/core/expand-partials.js";
 import { safeHref } from "./render-contract.js";
 import { COLLECTION_MARKER_TYPE, FEATURED_IMAGE_MARKER_TYPE, markersOfType, MENU_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, substituteMarkers, withAddedId, withElementKeptIfAttributed, withInnerContent, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";

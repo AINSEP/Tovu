@@ -1,6 +1,6 @@
 import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";
 import type { StoreApi } from "#src/features/plugins/store/store-plugin";
-import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/index";
+import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";
 import { renderSite, type SiteProduct } from "../../http/site/render.js";
 import { markOffSiteLinksOpenInNewTab } from "../../http/site/external-links.js";
 import { CACHE_CONTROL_PRIVATE_STATIC_EXPORT, isStaticExportRequest, resolveSiteTitleForRender, resolveSiteAssistantWidgetForRequest } from "./pages.js";

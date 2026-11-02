@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 
-import { resolvePathWithin } from "#src/contracts/core/index";
+import { resolvePathWithin } from "#src/contracts/core/path-containment";
 import { themeIdCandidates } from "#src/features/theme/theme-id-aliases";
 
 /**

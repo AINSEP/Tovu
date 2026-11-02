@@ -15,6 +15,9 @@ import type { MemberRecord, MemberStatus } from "#src/features/members/index";
  * is a direct PII/internal-state exposure — see ADR-PIPE-013 Enforcement.
  */
 
+/** Shared read/write cookie identity; page requests must not load sign-in services to read it. */
+export const MEMBER_SESSION_COOKIE = "tovu_member_session";
+
 /** Public-facing shape of a member — deliberately the smallest useful surface. */
 export interface PublicMemberResponse {
   id: string;

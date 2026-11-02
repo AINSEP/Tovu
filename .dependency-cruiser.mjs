@@ -668,16 +668,27 @@ const PUBLIC_ENTRIES = {
   assistant: [
     "mcp-services", "agent-daemon-port", "host-ports", "tool-contributions",
     "agent-discovery", "runtime-settings", "prompt-guidance", "session-services", "visitor-services",
+    "public-assistant-settings", "public-assistant-availability",
   ],
+  // Public page reads and render workers use these existing owners without loading feature-wide
+  // barrels. worker-import-graph.test.ts guards the runtime graph behind these narrow entries.
+  "features/comments": ["public-markers"],
+  "features/content-types": ["write-service"],
   "features/deployments": ["contracts"],
   "features/entries": ["contracts", "render-entry", "public-read"],
   "features/forms": ["render-entry"],
-  "features/media": ["contracts", "public-urls", "attachment-tools"],
+  "features/media": ["contracts", "public-urls", "attachment-tools", "bootstrap", "guard-rendition-repo"],
+  "features/members": ["access-resolver"],
   "features/navigation": ["render-entry"],
-  "features/post": ["contracts", "rendering", "read-model"],
-  "features/settings": ["contracts"],
+  "features/post": ["contracts", "rendering", "read-model", "post"],
+  "features/presentation": ["active-theme-id"],
+  "features/settings": ["contracts", "site-title"],
   "features/taxonomy": ["contracts", "render-entry", "content-targets", "term-sync"],
-  "features/theme": ["catalog", "rendering", "asset-operations"],
+  "features/theme": [
+    "catalog", "rendering", "asset-operations", "static-render", "render-contract", "font-links",
+    "token-aliases", "entry-list-render", "active-theme", "static-asset-contract", "theme", "theme-layout", "theme-id-aliases",
+    "preview-refresh", "theme-roster-sync",
+  ],
   "platform/site-dir": ["moves"],
 };
 

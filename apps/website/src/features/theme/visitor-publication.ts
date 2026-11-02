@@ -1,7 +1,8 @@
 /** SPEC-046 v3: server-issued theme publication; browser claims never add eligibility. */
 import { createHash, randomUUID } from 'node:crypto';
 import { parse, type DefaultTreeAdapterMap } from 'parse5';
-import { agentHandle, agentHandleSegment, type PagePublication, type PublishedPageAction, type PublishedPageElement } from '@jini-ai/agentic';
+import { agentHandle, agentHandleSegment } from '@jini-ai/agentic/core/handle';
+import type { PagePublication, PublishedPageAction, PublishedPageElement } from '@jini-ai/agentic/core';
 import { checkSiteRelativeTarget } from '#src/platform/routing/index';
 import { escapeHtml } from '#src/platform/html/escape';
 
