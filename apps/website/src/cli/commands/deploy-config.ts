@@ -2,8 +2,10 @@ import path from "node:path";
 import { writeFileSync } from "node:fs";
 
 import {
+  appendHostDeployNotes,
   buildDeploymentDescriptor,
   createDeployConfigKit,
+  HOST_DEPLOY_ENV,
   loadBundledDeployConfigGenerators,
   readBundledDeployConfigTargetIds,
   type DeployConfigGeneratorRegistry,
@@ -154,8 +156,9 @@ export async function runDeployConfigCommand(input: RunDeployConfigCommandInput,
   }
 
   const descriptor = buildDeploymentDescriptor();
-  const options: RenderDeployConfigOptions = { region: input.region ?? "", env: siteIdentityEnv(env, stderr, input.site) };
-  const rendered = generator.module.render(descriptor, options, createDeployConfigKit());
+  // The generators are host-neutral Jini plugin modules: Tovu supplies its production switch and notes.
+  const options: RenderDeployConfigOptions = { region: input.region ?? "", env: { ...HOST_DEPLOY_ENV, ...siteIdentityEnv(env, stderr, input.site) } };
+  const rendered = appendHostDeployNotes({ pluginId: generator.pluginId, targetId: targetRaw, rendered: generator.module.render(descriptor, options, createDeployConfigKit()) });
 
   if (input.out !== undefined) {
     const outPath = path.resolve(input.out);

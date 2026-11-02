@@ -7,7 +7,7 @@ import { resolveProductRoot } from "#src/platform/site-dir/product-root";
  * @file Tovu's host overlay for portable Agent Plugins: the one formatter for
  * `content/agent-plugin-overlays/<pluginId>/` (plan 2026-11-02 §6).
  *
- * A plugin's own package (now a Jini `@jini-ai/plugin-*` payload) describes jobs, not Tovu tools.
+ * A plugin's own payload (now a Jini `@jini-ai/agent-plugins/<id>` subpath) describes jobs, not Tovu tools.
  * Tovu's rules for those jobs — which tool does what, which shapes to write — live in an overlay:
  * an optional `GUIDANCE.md` placed before the plugin's guidance, and optional `host/<name>.md`
  * supporting files a model reads by asking the plugin's own tool for `file: "host/<name>.md"`.

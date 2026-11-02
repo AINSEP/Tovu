@@ -117,7 +117,7 @@ export interface DeployConfigGeneratorModule {
 
 /**
  * Non-secret runtime values every Tovu deploy config carries. The generators are host-neutral
- * plugin modules (`@jini-ai/plugin-{fly,render,railway}`) that default no host switch, so the
+ * plugin modules (`@jini-ai/agent-plugins/{fly,render,railway}`) that default no host switch, so the
  * production switch is Tovu's input: the caller merges this into `options.env` before render.
  * Without it a deployed server boots in local mode and the boot-blocking secret gates stay off.
  */
