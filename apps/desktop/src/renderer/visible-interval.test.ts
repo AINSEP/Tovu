@@ -1,12 +1,12 @@
 /**
  * @file `startVisibleInterval` — the Projects grid's poll must not tick while the window is hidden
  * (minimized, another Space, fully covered), and must catch up the moment it is shown again.
- * Driven with a fake document and fake timers, so no DOM or clock is needed.
+ * Driven with a fake document and fake timers, so no DOM or clock is needed. That the projects
+ * poll actually runs on it — every 4000 ms, an initial load, a stop on unmount — is rendered from
+ * the real hook in `use-sites-inventory.hooks.render.test.ts` (`useSitesPolling`).
  */
 import assert from "node:assert/strict";
 import test from "node:test";
-import fs from "node:fs";
-import ts from "typescript";
 
 import { startVisibleInterval } from "./visible-interval.js";
 import type { IntervalTimers, VisibilitySource } from "./visible-interval.js";
@@ -106,36 +106,6 @@ test("the returned stop clears the timer and the listener", () => {
   doc.set("hidden");
   doc.set("visible");
   assert.equal(ticks, 0);
-});
-
-// Execute the real polling hook's effect with only React and IPC boundaries supplied.
-test("the projects polling hook schedules its listSites callback every 4000ms", async () => {
-  const text = fs.readFileSync(new URL("./use-sites-inventory.hooks.ts", import.meta.url), "utf8");
-  const sf = ts.createSourceFile("use-sites-inventory.hooks.ts", text, ts.ScriptTarget.Latest, true);
-  const node = sf.statements.find((stmt) => ts.isFunctionDeclaration(stmt) && stmt.name?.text === "useSitesPolling");
-  assert.ok(node);
-  const js = ts.transpile(node.getText(sf).replace(/^export /, ""), { target: ts.ScriptTarget.ES2022 });
-  let calls = 0;
-  let poll: (() => void) | undefined;
-  let cleanup: (() => void) | undefined;
-  let stopped = false;
-  const hook = new Function("useState", "useEffect", "useRef", "useCallback", "runnerInventoryBridge", "startVisibleInterval", `${js}; return useSitesPolling;`)(
-    (initial: unknown) => [initial, () => {}],
-    (effect: () => () => void) => { cleanup = effect(); },
-    (initial: unknown) => ({ current: initial }),
-    (callback: unknown) => callback,
-    () => ({ listSites: async () => { calls++; return []; } }),
-    (tick: () => void, period: number) => { assert.equal(period, 4000); poll = tick; return () => { stopped = true; }; },
-  );
-  hook();
-  assert.equal(calls, 1, "initial load");
-  assert.ok(poll);
-  poll();
-  assert.equal(calls, 2, "the interval callback loads projects");
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.ok(cleanup);
-  cleanup();
-  assert.equal(stopped, true);
 });
 
 test("the default timers are the real global interval: it ticks, and stop clears it", async () => {

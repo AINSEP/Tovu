@@ -1,60 +1,50 @@
-/** Real Chromium layout of the existing nav/header markup and production stylesheet; no app server. */
-import test from 'node:test';
+/**
+ * Real Chromium layout of the nav/header markup and the production stylesheet; no app server.
+ *
+ * The markup is the REAL `TopNav` (inside its `ResourcesMonitor`) and `MainHeader`, rendered from
+ * their own modules under the shared jsdom (`app/component-harness.ts`) with the same seams their
+ * render tests use, then serialized into the page Chromium lays out. The card below the header is a
+ * hand-written layout fixture, not the card component.
+ */
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
-import React, { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { createElement } from 'react';
+// Before any jsdom global exists: the harness below installs `window`/`document` on first import.
 import { chromium } from 'playwright';
-import { sourceFunction } from './source-test-harness.js';
 import { visibleSections } from '../contracts/sections.js';
-import { navAvailability } from './nav-availability.js';
-import { navLinkClick, settingsControlHandlers } from './App.hooks.js';
-import { useSitesFoldersDialog } from './use-sites-folders-dialog.hooks.js';
-import { appShellSource } from './app-shell-source.js';
+
+// jsdom's visual clock keeps the process alive after the last test unless the window is closed.
+let closeHost: (() => void) | undefined;
+after(() => closeHost?.());
 
 test('Websites fits at 375px with every nav control and header action inside the page', { timeout: 120_000 }, async (t) => {
-  // The queue uses Node/tsx without the renderer tsconfig; its classic JSX transform needs React.
-  const previousReact = Object.getOwnPropertyDescriptor(globalThis, 'React');
-  Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
-  t.after(() => {
-    if (previousReact) Object.defineProperty(globalThis, 'React', previousReact);
-    else Reflect.deleteProperty(globalThis, 'React');
-  });
-  const { SectionIcon, GearIcon } = await import('./icons.js');
-  const { ToolIcon } = await import('./tool-icons.js');
-  const { ResourcesChip, ResourcesMonitor } = await import('./ResourcesPanel.js');
-  const { SharedKeysLauncher } = await import('./SharedKeys.js');
-  const source = appShellSource();
-  const foldersSource = fs.readFileSync(new URL('./SitesFolders.tsx', import.meta.url), 'utf8');
-  const settings = { folders: { roots: [], extraRoots: [], home: '' }, open: false, show() {}, close() {} };
-  // `SettingsDialogShell` is the dialog's default `Shell` parameter; the dialog stays closed here, so its frame never renders.
-  const SitesFoldersDialog = sourceFunction(foldersSource, 'SitesFoldersDialog', {
-    useSitesFoldersDialog, SitesFoldersWarning: sourceFunction(foldersSource, 'SitesFoldersWarning'), SettingsDialogShell: () => null, ToolIcon,
-  });
-  const SitesFolders = () => createElement(SitesFoldersDialog, { settings });
-  const NavLink = sourceFunction(source, 'NavLink', { navLinkClick, navAvailability, SectionIcon });
-  const SettingsControl = sourceFunction(source, 'SettingsControl', {
-    useDismissibleDropdown: () => ({ open: false, setOpen() {}, containerRef: { current: null } }),
-    useSiteStorageSettings: () => settings, settingsControlHandlers, navAvailability, GearIcon, SitesFoldersDialog,
-    useMenuKeyboard: () => ({ menuRef: { current: null }, triggerRef: { current: null }, onMenuKeyDown() {} }),
-    useUpdateCheck: () => ({ available: false, checking: false, async checkForUpdates() {} }),
-  });
-  const TopNav = sourceFunction(source, 'TopNav', {
-    useAppVersion: () => ({ version: '0.1.13-preview-long-version', error: null }), visibleSections, NavLink, SettingsControl, ResourcesChip,
-  });
-  const MainHeader = sourceFunction(source, 'MainHeader', { SitesFolders, SharedKeysLauncher, ToolIcon });
+  // Imported here, after the harness has registered its `.css` resolve hook and the DOM globals
+  // react-dom needs at load; the second test needs neither.
+  const harness = await import('./app/component-harness.js');
+  closeHost = (await import('./app-render-harness.js')).closeHost;
+  const { TopNav } = await import('./app/TopNav.js');
+  const { MainHeader } = await import('./app/MainHeader.js');
+  const { ResourcesMonitor } = await import('./ResourcesPanel.js');
+  // A long version string, so the brand's width is part of the fit.
+  harness.installBridge({ t, bridge: { getAppVersion: async () => '0.1.13-preview-long-version' } });
   // The real chip needs its monitor; without it, the control disappears from the width check.
-  const nav = renderToStaticMarkup(createElement(ResourcesMonitor, {
+  const navView = harness.mount({ t, element: createElement(ResourcesMonitor, {
     projects: [], onSiteUpdated() {}, useReadings: () => null,
     children: createElement(TopNav, {
       activeId: 'projects', onSitesHome: true, runningCount: 12, theme: 'light', onThemeChange() {}, onOpenAppearance() {}, onSelectSection() {},
+      useSiteSettings: harness.fakeSiteSettings().useSiteSettings,
     }),
-  }));
-  const header = renderToStaticMarkup(createElement(MainHeader, {
+  }) });
+  const headerView = harness.mount({ t, element: createElement(MainHeader, {
     activeId: 'projects', isCreating: false, activeLabel: 'Websites', onCreateWebsite() {}, onRescan: async () => {},
-    rescanning: false, onAddSite: async () => {}, adding: false,
-  }));
+    rescanning: false, onAddSite: async () => {}, adding: false, useFolders: harness.useFakeFolders,
+  }) });
+  await harness.settle();
+  assert.equal(navView.container.querySelector('.topnav__version')?.textContent, '0.1.13-preview-long-version');
+  const nav = navView.container.innerHTML;
+  const header = headerView.container.innerHTML;
   let css = fs.readFileSync(new URL('./app.css', import.meta.url), 'utf8');
   // Embed the app's bundled fonts so the fit assertion includes the production text metrics.
   css = css.replace(/url\('\.\.\/(vendor\/fonts\/[^']+)'\)/g, (_match, file: string) =>

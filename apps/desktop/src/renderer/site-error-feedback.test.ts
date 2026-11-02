@@ -1,13 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { describeAddFailure } from './use-add-site.hooks.js';
-import { appPresentation, deriveSitesHomeView, performSiteStart, countRunningSites } from './App.hooks.js';
-import { chromeVisibility } from './expanded-mode.js';
-import { elements, sourceFunction } from './source-test-harness.js';
-import type { SiteRecord } from '../contracts/project.js';
+import { performSiteStart } from './App.hooks.js';
 import { desktopCopy } from '../desktop-i18n.js';
 import { performPowerAction } from './use-site-power.hooks.js';
-import { appShellSource } from './app-shell-source.js';
 
 const TEMP = '/var/folders/7_/scratch/T/sites/junk';
 const OCCUPIED = `${TEMP} is a folder of unrelated files, not a Tovu site (no config.json and no .site-meta.json). If your site lives in a subfolder, point at that subfolder instead.`;
@@ -61,39 +57,4 @@ test('D-24: starting from a card uses the same path-free message', async () => {
     startSite: async () => { throw new Error(`tovu serve failed for ${TEMP}: exit 1`); },
     stopSite: async () => assert.fail('Start must not stop the site'),
   }), { error: 'Could not start this website. Try again or check its logs.' });
-});
-
-test('D-24: Add feedback stays on the websites view when switching to a site tab', () => {
-  const noop = () => {};
-  const site = { id: '/sites/a', displayName: 'My site', status: 'running', port: 4321 } as SiteRecord;
-  const message = 'Could not add this website. Check the folder and try again.';
-  let activeTab: string | null = null;
-  let areaProps: any;
-  const source = appShellSource();
-  const renderApp = sourceFunction(source, 'App', {
-    appScreen: sourceFunction(source, 'appScreen'),
-    useTheme: () => ['light', noop], useSiteRescan: () => ({}), useApplySiteRecord: () => noop,
-    useAddSite: () => ({ adding: false, addError: message, addSite: noop }),
-    appPresentation, deriveSitesHomeView, chromeVisibility, countRunningSites, findSection: () => ({}),
-    useFindInPage: () => ({}), useZoom: () => ({}), useRunnerNavigation: noop, useProductScreen: noop,
-    useProjectMutations: () => ({}), FindBar: () => null, TopNav: () => null, TabStrip: () => null,
-    ResourcesMonitor: ({ children }: any) => children,
-    MainArea: (props: any) => { areaProps = props; return null; },
-    CreateWebsiteHost: () => null, SiteWorkspaces: () => null, createImportSiteAction: () => undefined,
-  });
-  const render = () => elements(renderApp({
-    useProjects: () => ({ projects: [site], setProjects: noop }),
-    useTabs: () => ({ openTabs: [site.id], activeTab, setActiveTab: noop }),
-    useNav: () => ({ activeId: 'projects', appearanceOpen: false, isCreating: false }),
-    useExpanded: () => ({ expanded: false }),
-  }));
-  render();
-  assert.equal(areaProps.showSitesHome, true);
-  assert.equal(areaProps.addError, message);
-  activeTab = site.id;
-  assert.ok(!render().some(element => element.props.children === message), 'the Add failure must not overlay the site');
-  assert.equal(areaProps.showSitesHome, false);
-  activeTab = null;
-  render();
-  assert.equal(areaProps.showSitesHome, true);
 });

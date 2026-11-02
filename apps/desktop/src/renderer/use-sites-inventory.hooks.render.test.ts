@@ -104,6 +104,8 @@ function useRescanWithList(getBridge: () => Pick<RunnerInventoryBridge, 'rescanS
 }
 
 test('useSiteRescan: applies the returned list at once and shows scanning only while the call is open', async (t) => {
+  // Discarding the result would leave the operator staring at the old grid for up to 4 s after a
+  // rescan that had already found their site — indistinguishable, to them, from the button not working.
   const pending = deferred<readonly SiteRecord[]>();
   const getBridge = () => ({ rescanSites: () => pending.promise });
   const hook = renderHook(t, () => useRescanWithList(getBridge));
@@ -118,6 +120,10 @@ test('useSiteRescan: applies the returned list at once and shows scanning only w
 });
 
 test('useSiteRescan: a failed scan keeps the grid, reports Error and non-Error reasons, and clears on retry', async (t) => {
+  // The projects already listed stay real and openable whatever a scan did. Found by driving the
+  // real app: routing the rescan error through `ProjectsBody`'s `loadError` early return blanked
+  // every project the operator already had — indistinguishable from "all my sites vanished". That
+  // the error renders BESIDE the grid is `app/MainContent.render.test.ts`'s ProjectsBody case.
   const outcomes: (() => Promise<readonly SiteRecord[]>)[] = [
     () => Promise.reject(new Error('scan root unreadable')),
     () => Promise.reject('plain refusal'),
@@ -150,10 +156,16 @@ function useProjectsWith<T>(initial: readonly SiteRecord[], useRest: (setProject
   return { projects, ...useRest(setProjects) };
 }
 
+// Main's refreshed record is applied at once rather than waiting on the 4 s poll: for a start or a
+// stop those four seconds are the whole problem — the card would go on saying `Running` after the
+// operator watched their stop succeed. The App-level wiring is `App.sites-home.render.test.ts`.
 test('useApplySiteRecord: replaces the matching row, merges a located site into one card, and drops unknown ids', (t) => {
   const hook = renderHook(t, () => useProjectsWith([site('a'), site('b'), site('c')], (set) => ({ apply: useApplySiteRecord(set) })));
   act(() => hook.current().apply(site('b', { status: 'running' })));
   assert.deepEqual(hook.current().projects.map((p) => `${p.id}:${p.status}`), ['a:stopped', 'b:running', 'c:stopped']);
+  // A missing-folder card's Locate comes back under its NEW folder id and replaces the card at
+  // once, not on the next poll. A Locate onto a folder that already has a card merges into it: that
+  // card must not stay twice.
   act(() => hook.current().apply(site('c', { displayName: 'located' }), 'a'));
   assert.deepEqual(hook.current().projects.map((p) => `${p.id}:${p.displayName}`), ['c:located', 'b:b']);
   act(() => hook.current().apply(site('ghost')));

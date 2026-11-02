@@ -1,11 +1,12 @@
+/**
+ * @file Restart's pure halves — `performSiteRestart` and `restartControl` — run directly. The hook's
+ * shared in-flight guard is rendered in `use-site-power.hooks.restart-guard.render.test.ts`, and the
+ * card's Restart button (label, tooltip, busy, disabled, click) in `SiteGrid.jsdom.test.ts`.
+ */
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import test from 'node:test';
 import { performSiteRestart, restartControl } from './use-site-power.hooks.js';
 import type { SiteRecord } from '../contracts/project.js';
-import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
-import { IN_FLIGHT_STATUS, performPowerAction, powerControl, powerToggleIntent, runPowerToggle } from './use-site-power.hooks.js';
-import { desktopCopy } from '../desktop-i18n.js';
 
 const record = { id: '/site', status: 'running' } as SiteRecord;
 test('Restart waits for Stop before starting and returns the new record', async () => {
@@ -41,44 +42,6 @@ test('Restart\'s tooltip says what it does, or why it is greyed', () => {
   assert.deepEqual([tip('stopping', true).tooltip, tip('stopping', true).busy], ['Restarting…', true]);
   assert.equal(tip('running', false, { ...record, externalUrl: 'https://localhost:4200/admin/' }).tooltip, 'Restart is not available for this site');
 });
-test('rapid Restart/Stop clicks share one synchronous guard and clear it after failure', async () => {
-  const source = fs.readFileSync(new URL('./use-site-power.hooks.ts', import.meta.url), 'utf8');
-  const harness = hookHarness();
-  let fail!: (reason: Error) => void;
-  let stops = 0;
-  const usePower = sourceFunction(source, 'useSitePower', { ...harness.bindings,
-    powerControl, powerToggleIntent, performPowerAction, runPowerToggle, performSiteRestart, restartControl, desktopCopy,
-    IN_FLIGHT_STATUS, withoutKey: sourceFunction(source, 'withoutKey'),
-    runnerInventoryBridge: () => ({ stopSite: () => { stops++; return new Promise((_r, reject) => { fail = reject; }); }, startSite: async () => record }),
-  });
-  const firstRender = harness.render(() => usePower());
-  const pending = firstRender.restart(record);
-  await firstRender.restart(record);
-  await firstRender.toggle(record);
-  assert.equal(stops, 1);
-  assert.equal(harness.render(() => usePower()).restartControlOf(record).label, 'Restarting…');
-  fail(new Error('stop failed'));
-  await pending;
-  assert.equal(harness.render(() => usePower()).errorOf('/site'), 'stop failed');
-  assert.equal(harness.render(() => usePower()).statusOf(record), 'running');
-});
-test('rendered Restart button invokes the hook and is disabled during a transition', () => {
-  const source = fs.readFileSync(new URL('./SiteGrid.tsx', import.meta.url), 'utf8');
-  const CardActions = sourceFunction(source, 'CardActions', { powerControl, SiteCardMenu: () => null, ToolIcon: () => null });
-  let restarts = 0;
-  for (const status of ['running', 'starting'] as const) {
-    const power = { toggle: () => {}, restart: () => { restarts++; }, restartControlOf: () => restartControl({ project: record, status, restarting: status === 'starting' }) };
-    const tree = CardActions({ project: record, status, power });
-    const button = elements(tree).find(e => e.type === 'button' && e.props['aria-label'] === `${status === 'running' ? 'Restart' : 'Restarting…'} ${record.displayName}`);
-    assert.ok(button);
-    assert.equal(button.props['data-tooltip'], status === 'running' ? 'Restart site' : 'Restarting…');
-    assert.equal(button.props['aria-busy'], status !== 'running');
-    assert.equal(button.props.disabled, status !== 'running');
-    if (status === 'running') button.props.onClick();
-  }
-  assert.equal(restarts, 1);
-});
-
 test('the stopped record is applied even if the following start fails', async () => {
   const stopped = { ...record, status: 'stopped' } as SiteRecord;
   const updates: SiteRecord[] = [];

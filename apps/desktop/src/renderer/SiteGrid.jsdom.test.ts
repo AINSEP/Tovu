@@ -3,11 +3,13 @@
  * (`useDeleteState`, `useRenameState`, `useActions`, `usePower`, `useLocate`, `usePreview`) replaced
  * by a hand-written fake that records what the card asked of it. No module mocks.
  *
- * The wiring tests beside this file assert on `SiteGrid.tsx`'s source text, and
- * `SiteGrid.refactor.test.ts` calls its private panels through `sourceFunction` — neither runs the
- * module the coverage report measures, and neither clicks a real button. These tests render whole
- * cards and press every control an operator can reach: the card itself, the ⋮ menu and its entries,
- * Start/Stop/Restart, Locate/Remove, and the rename / delete / external-stop panels.
+ * These tests render whole cards and press every control an operator can reach: the card itself,
+ * the ⋮ menu and its entries, Start/Stop/Restart, Locate/Remove, and the rename / delete /
+ * external-stop panels. They replaced the source-text wiring tests that used to sit beside this
+ * file (`site-card-actions-wiring`, `site-card-menu-wiring`, `card-preview-wiring`,
+ * `SiteGrid.refactor`), which ran neither the module the coverage report measures nor a real click.
+ * The CSS half of the card's layout stays in `site-card-actions-wiring.test.ts`: a stylesheet rule
+ * is only checkable as text here.
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -19,7 +21,8 @@ import type { SiteRecord } from '../contracts/project.js';
 import type { ResourcesSnapshot } from '../contracts/resources.js';
 import { SiteGrid } from './SiteGrid.js';
 import { deleteActionCopy } from './SiteGrid.hooks.js';
-import { externalStopConfirm } from './use-site-power.hooks.js';
+import { externalStopConfirm, restartControl } from './use-site-power.hooks.js';
+import { STATUS_LABEL } from './site-status.js';
 import type { SiteRenameState } from './use-site-rename.hooks.js';
 import type { SitePower } from './use-site-power.hooks.js';
 import type { SiteLocate } from './use-site-locate.hooks.js';
@@ -112,13 +115,14 @@ function fakeHooks() {
   return { calls, state, hooks };
 }
 
-function renderGrid(t: TestContext, projects: SiteRecord[], fakes = fakeHooks()) {
+/** `extra` overrides any grid prop, e.g. a recording `onDelete` or `onSiteUpdated`. */
+function renderGrid(t: TestContext, projects: SiteRecord[], fakes = fakeHooks(), extra: Partial<GridProps> = {}) {
   const opened: string[] = [];
   const host = document.body.appendChild(document.createElement('div'));
   const root = createRoot(host);
   t.after(() => { act(() => root.unmount()); host.remove(); });
   const render = (records = projects) => act(() => root.render(createElement(SiteGrid, {
-    projects: records, onOpen: (id: string) => { opened.push(id); }, onDelete: async () => {}, ...fakes.hooks,
+    projects: records, onOpen: (id: string) => { opened.push(id); }, onDelete: async () => {}, ...fakes.hooks, ...extra,
   } as GridProps)));
   render();
   const cards = () => [...host.querySelectorAll<HTMLElement>('article.card')];
@@ -155,6 +159,8 @@ test('a stopped card opens on click and Enter, shows its details, and Start reac
   grid.click(start);
   grid.click(grid.button(card!, 'Restart Bakery'));
   assert.deepEqual(grid.calls, ['toggle /sites/bakery', 'restart /sites/bakery']);
+  // Every event that starts in the action row stops there — clicks AND keys: the card is
+  // keyboard-activated too, so Enter on Start would otherwise also open the site in a tab.
   assert.equal(grid.opened.length, 2, 'action buttons never also open the card');
   act(() => { grid.button(card!, 'Start Bakery').dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
   assert.equal(grid.opened.length, 2, 'a key on an action button does not reach the card either');
@@ -187,12 +193,15 @@ test('a running card shows its capture, failure line and details; the menu offer
   const fakes = fakeHooks();
   fakes.state.previews['/sites/live'] = 'blob:capture';
   fakes.state.errors['/sites/live'] = 'Port 3000 is in use.';
-  const running = site('/sites/live', { status: 'running', port: 4321, runningApp: 'Web', deleteErasesFiles: true });
+  const running = site('/sites/live', { status: 'running', port: 4321, runningApp: 'Web', deleteErasesFiles: true, statusDetail: 'Running in Web (port 52612)' });
   const failed = site('/sites/failed', { status: 'failed', statusDetail: 'the server exited (code 1)' });
   const grid = renderGrid(t, [running, failed], fakes);
   const [card, failedCard] = grid.cards();
   assert.equal(card!.querySelector('img.card__preview')!.getAttribute('src'), 'blob:capture');
   assert.equal(card!.querySelector('.state')!.getAttribute('title'), 'Running in Web at http://localhost:4321');
+  // Owner 2026-10-13: "Running in Web (port N)" is noise in the card's copy; it is the status title.
+  assert.equal(card!.querySelector('.card__detail'), null, 'a site another app runs shows no detail line');
+  assert.doesNotMatch(card!.textContent!, /port 52612/);
   assert.equal(card!.querySelector('.card__actionerror')!.textContent, 'Port 3000 is in use.');
   assert.equal(failedCard!.querySelector('.card__detail')!.textContent, 'the server exited (code 1)');
   const stop = grid.button(card!, 'Stop Bakery');
@@ -204,6 +213,9 @@ test('a running card shows its capture, failure line and details; the menu offer
   grid.click(trigger);
   assert.equal(trigger.getAttribute('aria-expanded'), 'true');
   const items = [...card!.querySelectorAll('[role="menuitem"]')].map((item) => [item.textContent?.trim(), item.className]);
+  // Neither Start nor Stop is here, and not as a preference about menu length: Start USED to live
+  // in this menu, and moved to the ⏻ in the action row when Stop became possible. The same action in
+  // a menu AND on a button is two places to look for one thing. Delete is last, after the safe entries.
   assert.deepEqual(items, [
     ['Rename…', 'card__menuitem'],
     ['Open in browser', 'card__menuitem'],
@@ -222,8 +234,10 @@ test('a running card shows its capture, failure line and details; the menu offer
   assert.deepEqual(grid.opened, [], 'nothing in the menu opens the card');
 
   grid.click(grid.button(failedCard!, 'More actions for Bakery'));
-  const failedItems = [...failedCard!.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent?.trim());
-  assert.deepEqual(failedItems, ['Rename…', deleteActionCopy(failed).menuItemLabel], 'Open in browser is only for a running site');
+  const failedItems = [...failedCard!.querySelectorAll('[role="menuitem"]')].map((item) => [item.textContent?.trim(), item.className]);
+  // The danger styling is for a delete that erases files, never for an adopted site's "Remove".
+  assert.deepEqual(failedItems, [['Rename…', 'card__menuitem'], [deleteActionCopy(failed).menuItemLabel, 'card__menuitem']],
+    'Open in browser is only for a running site');
   act(() => { failedCard!.querySelector('.card__menu')!.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'x', bubbles: true })); });
 });
 
@@ -240,6 +254,7 @@ test('a missing folder offers Locate and Remove instead of Start, and shows Loca
   let [card] = grid.cards();
   assert.equal(card!.getAttribute('role'), null, 'a missing site is not openable');
   assert.match(card!.textContent!, /Folder moved or not a site/);
+  // Start is not offered: `tovu serve` on a folder that is not there can only fail.
   assert.throws(() => grid.button(card!, 'Start Bakery'));
   grid.click(grid.button(card!, 'Locate the folder for Bakery'));
   grid.click(grid.button(card!, 'Remove'));
@@ -283,6 +298,8 @@ test('the delete confirm owns the card: cancel, confirm, busy label and main\'s 
   assert.equal(card!.getAttribute('role'), null, 'a card with an open panel is inert');
   assert.equal(card!.querySelector('.card__menu'), null, 'the ⋮ yields to the panel');
   const panel = card!.querySelector('.card__confirm')!;
+  assert.equal(panel.parentElement, card, 'the panel adds no wrapper of its own to the card');
+  assert.equal(card!.querySelectorAll('.card__confirm[role="group"]').length, 1);
   assert.equal(panel.getAttribute('aria-label'), copy.confirmTitle);
   assert.equal(panel.querySelector('.card__confirmbody')!.textContent, copy.confirmBody.replaceAll('`', ''));
   grid.click(grid.button(panel, 'Cancel'));
@@ -307,7 +324,8 @@ test('a confirm body names commands as code', (t) => {
   const confirm = externalStopConfirm({ project })!;
   const panel = grid.cards()[0]!.querySelector('.card__confirm')!;
   assert.equal(panel.getAttribute('aria-label'), confirm.confirmTitle);
-  assert.ok(panel.querySelector('.card__confirmbody code'), 'backticked text renders as <code>');
+  assert.equal(panel.querySelector('.card__confirmtitle')!.textContent, confirm.confirmTitle);
+  assert.equal(panel.querySelector('.card__confirmbody code')?.textContent, 'npm run dev', 'backticked text renders as <code>');
   grid.click(grid.button(panel, 'Cancel'));
   grid.click(grid.button(panel, confirm.confirmButtonLabel));
   assert.deepEqual(grid.calls, ['cancel stop', `confirm stop ${project.id}`]);
@@ -352,6 +370,8 @@ test('the rename panel edits the draft, saves, cancels, and shows both hints and
   grid.render();
   panel = grid.cards()[0]!.querySelector('.card__confirm')!;
   const errors = [...panel.querySelectorAll('.card__confirmerror')].map((node) => node.textContent);
+  // Main's refusal verbatim, never paraphrased: every message it raises names the fix ("remove this
+  // card and add the site again from its new location"), and rewording it would drop exactly that half.
   assert.deepEqual(errors, ['A name must be 1 to 200 characters, not counting spaces at either end.', 'That name is taken.']);
   assert.equal(grid.button(panel, 'Saving…').disabled, true);
   assert.equal(panel.querySelector<HTMLInputElement>('input')!.disabled, true);
@@ -364,4 +384,217 @@ test('the default hooks render a card outside the desktop app without a bridge',
   act(() => root.render(createElement(SiteGrid, { projects: [site('/sites/plain')], onOpen: () => {}, onDelete: async () => {} })));
   assert.equal(host.querySelectorAll('article.card').length, 1);
   assert.ok(host.querySelector('svg.card__placeholder'), 'no bridge, no capture: the placeholder');
+});
+
+// ---- Layout and wiring the source-text tests used to pin, now asserted on the rendered card ----
+
+test('every control sits in the card body: the head reads name, ⋮, SQLite, status; the button row follows it', (t) => {
+  // The owner's layout after four rounds (2026-10-06): the ⋮ level with the name, "SQLite" under the
+  // name and the status under the ⋮, then Start/Stop at the left of its own row with Restart on that
+  // same row at the right edge. The column/row shapes are CSS (`site-card-actions-wiring.test.ts`);
+  // what the DOM owns is where each control is and the order it is in.
+  const grid = renderGrid(t, [site('/sites/a')]);
+  const [card] = grid.cards();
+  assert.equal(card!.querySelector('.card__tile')!.querySelectorAll('button, .card__menu').length, 0, 'no action control may sit on the screenshot');
+  const head = card!.querySelector('.card__body > .card__head')!;
+  // Grid auto-placement fills row 1 then row 2, so the DOM order IS the layout — and the reading and
+  // Tab order, which is why the ⋮ comes second rather than last.
+  assert.deepEqual([...head.children].slice(0, 4).map((child) => child.className), ['card__namewrap', 'card__menu', 'card__details', 'card__meta']);
+  assert.equal(card!.querySelector('.card__info'), null, 'the old left-hand text column is gone');
+  const actions = card!.querySelector('.card__body > .card__actions')!;
+  assert.equal(head.nextElementSibling, actions, 'the button row sits under the head');
+  assert.equal(actions.getAttribute('role'), 'group');
+  assert.equal(actions.getAttribute('aria-label'), 'Actions for Bakery', 'the row is a labelled group, not a bare div with handlers on it');
+  assert.deepEqual([...actions.querySelectorAll('button')].map((button) => button.getAttribute('aria-label')), ['Start Bakery', 'Restart Bakery'],
+    'the ⋮ no longer lives in the button row, and Start/Stop renders before Restart');
+  assert.ok(grid.button(card!, 'Restart Bakery').classList.contains('card__restart'));
+  assert.equal(card!.querySelector('h3.card__name')!.getAttribute('title'), 'Bakery', 'D-28: a card name exposes its full text');
+  assert.equal(card!.querySelector('.card__missing'), null, 'a present folder shows no missing-folder line');
+});
+
+test('no standalone trash control exists — with the menu closed the card offers only ⋮, Start/Stop and Restart', (t) => {
+  // The owner's requirement, reversing the earlier "trash always visible" layout: their reason is
+  // misclicks, a destructive control beside a button pressed often. Delete lives only inside the ⋮.
+  const grid = renderGrid(t, [site('/sites/a', { deleteErasesFiles: true }), site('/sites/b', { status: 'running', port: 4321, displayName: 'Other' })]);
+  const names = grid.cards().map((card) => [...card.querySelectorAll('button')].map((button) => button.getAttribute('aria-label')));
+  assert.deepEqual(names, [
+    ['More actions for Bakery', 'Start Bakery', 'Restart Bakery'],
+    ['More actions for Other', 'Stop Other', 'Restart Other'],
+  ]);
+  assert.equal(grid.host.querySelectorAll('.card__delete').length, 0);
+});
+
+test('the tile shows the capture usePreview returns for the card\'s own id and version, as decoration, never the port', (t) => {
+  // REGRESSION: owner 2026-10-13 — "where it says 3000" there should be a preview, never the port.
+  const fakes = fakeHooks();
+  const asked: { id: string; previewVersion: number | null }[] = [];
+  fakes.hooks.usePreview = (input) => { asked.push(input); return input.id === '/sites/live' ? 'blob:capture' : null; };
+  const grid = renderGrid(t, [site('/sites/live', { status: 'running', port: 3000, previewVersion: 7 }), site('/sites/idle', { port: 3001 })], fakes);
+  assert.deepEqual(asked.slice(0, 2), [{ id: '/sites/live', previewVersion: 7 }, { id: '/sites/idle', previewVersion: null }]);
+  const [live, idle] = grid.cards().map((card) => card.querySelector('.card__tile')!);
+  // An empty alt is deliberate here (not a missing one): a screen-reader user already has the card's
+  // own name and status text right below the tile, and announcing "image" or a fabricated
+  // description of a screenshot the operator cannot act on would be noise, not information.
+  assert.equal(live!.querySelector('img.card__preview')!.getAttribute('alt'), '');
+  assert.equal(idle!.querySelector('svg.card__placeholder')!.getAttribute('aria-hidden'), 'true');
+  assert.deepEqual([live!.textContent, idle!.textContent], ['', ''], 'the tile must not fall back to the port');
+});
+
+test('a card wears the status the power hook decided, not the polled one, and its menu follows it', (t) => {
+  // `status`, not `project.status`: the class carries the status the card is actually RENDERING,
+  // which during this window's own start or stop is the transition rather than the polled record.
+  // See `use-site-power.hooks.ts`, and `.card.is-stopping` in `app.css`.
+  const fakes = fakeHooks();
+  fakes.state.statuses['/sites/live'] = 'stopping';
+  const project = site('/sites/live', { status: 'running', port: 4321 });
+  const grid = renderGrid(t, [project], fakes);
+  const [card] = grid.cards();
+  assert.match(card!.className, /\bis-stopping\b/);
+  assert.equal(card!.querySelector('.state')!.textContent, STATUS_LABEL.stopping);
+  const stop = grid.button(card!, 'Stopping… Bakery');
+  assert.equal(stop.disabled, true, 'a busy control must be inert, not merely dimmed');
+  assert.equal(stop.getAttribute('aria-busy'), 'true');
+  assert.equal(stop.dataset.tooltip, 'Stopping…');
+  assert.ok(stop.classList.contains('button--create'), 'still on while it stops: the accent fill');
+  grid.click(grid.button(card!, 'More actions for Bakery'));
+  // An entry that is present but inert teaches the operator that this menu's items sometimes do
+  // nothing — and a running-only entry decided from the polled record would still be offering a
+  // port that this window's own in-flight Stop is closing.
+  assert.deepEqual([...card!.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent?.trim()),
+    ['Rename…', deleteActionCopy(project).menuItemLabel]);
+});
+
+test('a site another app serves gets a ⏻ only when Tovu knows how to stop it', (t) => {
+  const fakes = fakeHooks();
+  fakes.state.withRestart = false;
+  const plain = site('/sites/ext', { status: 'stopping', externalUrl: 'https://localhost:4200/admin/' });
+  const dev = site('/sites/dev', { status: 'running', externalUrl: 'http://localhost:3000/admin/', externalLauncher: 'npm-run-dev' });
+  const grid = renderGrid(t, [plain, dev], fakes);
+  const [ext, own] = grid.cards();
+  assert.equal(ext!.querySelector('button.card__power'), null, 'external servers cannot offer a power action, mid-stop either');
+  grid.click(grid.button(own!, 'Stop Bakery'));
+  assert.deepEqual(grid.calls, ['toggle /sites/dev'], 'an npm run dev site keeps its Stop, which goes to the power hook');
+});
+
+test('a Restart in flight reads Restarting…, pulses and cannot be pressed again', (t) => {
+  const fakes = fakeHooks();
+  const project = site('/sites/a', { status: 'running', port: 4321 });
+  fakes.state.restart = restartControl({ project, status: 'starting', restarting: true }, { locale: 'en' });
+  const grid = renderGrid(t, [project], fakes);
+  const restart = grid.button(grid.cards()[0]!, 'Restarting… Bakery');
+  assert.equal(restart.dataset.tooltip, 'Restarting…');
+  assert.equal(restart.getAttribute('aria-busy'), 'true');
+  assert.equal(restart.disabled, true);
+  grid.click(restart);
+  assert.deepEqual(grid.calls, []);
+});
+
+test('Start opens through the grid\'s own onOpen, and main\'s refreshed records reach onSiteUpdated', (t) => {
+  // Start opens the site once it is running through the very `onOpen` a card click calls — no
+  // second open path. And `onSiteUpdated` could be correct upstream and simply never handed to the
+  // power and locate hooks; the only symptom would be a card four seconds stale.
+  const fakes = fakeHooks();
+  const realPower = fakes.hooks.usePower!;
+  const realLocate = fakes.hooks.useLocate!;
+  const powerArgs: Parameters<NonNullable<GridProps['usePower']>>[] = [];
+  const locateArgs: Parameters<NonNullable<GridProps['useLocate']>>[] = [];
+  fakes.hooks.usePower = (...args) => { powerArgs.push(args); return realPower(...args); };
+  fakes.hooks.useLocate = (...args) => { locateArgs.push(args); return realLocate(...args); };
+  const onSiteUpdated = () => {};
+  const grid = renderGrid(t, [site('/sites/a')], fakes, { onSiteUpdated });
+  const [updated, options] = powerArgs[0]!;
+  assert.equal(updated, onSiteUpdated);
+  options?.onStarted?.('/sites/a');
+  assert.deepEqual(grid.opened, ['/sites/a']);
+  assert.equal(locateArgs[0]![0], onSiteUpdated);
+});
+
+test('Enter or Space on the card opens it; the same key on anything inside the card does not', (t) => {
+  // The defect this originally caught: a control's keydown bubbles to the card's handler, which —
+  // unguarded — called `preventDefault()`, cancelling the click the browser was about to synthesize
+  // from the key, and opened the project underneath it. Keyboard users could not reach that
+  // control's own behaviour at all. `isCardOpenKey` is the guard (`SiteGrid.hooks.test.ts`); the
+  // handler carrying it is `cardOpenProps`, spread onto the card. That is TWO hops between the
+  // predicate and the DOM, which is why this presses real keys on the rendered card: either hop
+  // alone could be correct while the card had no keyboard behaviour at all.
+  const grid = renderGrid(t, [site('/sites/a')]);
+  const [card] = grid.cards();
+  const press = (target: Element, key: string) => act(() => { target.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key, bubbles: true })); });
+  press(card!, ' ');
+  press(card!, 'Escape');
+  assert.deepEqual(grid.opened, ['/sites/a'], 'Space opens, any other key does nothing');
+  const name = card!.querySelector('.card__name')!;
+  press(name, 'Enter');
+  press(name, ' ');
+  assert.deepEqual(grid.opened, ['/sites/a'], 'a key that bubbles up from inside the card is not the card\'s own key');
+});
+
+test('the ⋮ menu keeps its keys to itself, and closes on a press outside it or on Escape', (t) => {
+  // The menu stops BOTH clicks and keydowns: the card is a click target AND a keyboard-activated
+  // open target, and the delete button once shipped with only the click half. Dismissal is
+  // `useDismissibleDropdown`'s, shared with the top nav — a third hand-rolled copy is how a menu
+  // becomes a menu bug.
+  const grid = renderGrid(t, [site('/sites/a')]);
+  const [card] = grid.cards();
+  const trigger = grid.button(card!, 'More actions for Bakery');
+  // Icon-only, so its accessible name is the aria-label `grid.button` found it by.
+  assert.equal(trigger.getAttribute('aria-haspopup'), 'true', 'the same a11y contract SettingsControl uses');
+  grid.click(trigger);
+  act(() => { trigger.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
+  act(() => { card!.querySelector('[role="menuitem"]')!.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: ' ', bubbles: true })); });
+  assert.deepEqual(grid.opened, [], 'keys inside the menu never open the site underneath it');
+  act(() => { document.body.dispatchEvent(new dom.window.Event('pointerdown', { bubbles: true })); });
+  assert.equal(card!.querySelector('[role="menu"]'), null, 'a press outside closes the menu');
+  grid.click(trigger);
+  act(() => { document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+  assert.equal(card!.querySelector('[role="menu"]'), null, 'Escape closes the menu');
+  assert.equal(trigger.getAttribute('aria-expanded'), 'false');
+});
+
+test('the rename panel makes the card inert, bounds the input, and owns Escape and Enter', (t) => {
+  // Both panels are one `overlay` value rather than two booleans precisely so the rename form makes
+  // the card inert exactly as the delete confirmation does — see `cardOverlay`'s own doc.
+  const fakes = fakeHooks();
+  const project = site('/sites/bakery');
+  fakes.state.renamingId = project.id;
+  const grid = renderGrid(t, [project], fakes);
+  const [card] = grid.cards();
+  assert.equal(card!.getAttribute('role'), null, 'a card with the rename panel open is not an open target');
+  assert.equal(card!.querySelector('.card__menu'), null, 'the ⋮ yields to the panel');
+  const input = card!.querySelector<HTMLInputElement>('input.card__renameinput')!;
+  // maxLength is the courtesy half; `canSave` reflects the real rule, and `site-config.ts`
+  // re-applies it on the other side of the wire regardless.
+  assert.equal(input.maxLength, 200);
+  // Escape cancels and Enter submits — a text field must own both, or the card interprets them.
+  for (const key of ['Escape', 'Enter']) {
+    act(() => { input.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key, bubbles: true })); });
+  }
+  assert.deepEqual(grid.calls, ['cancel rename', `submit rename ${project.id}`]);
+  assert.deepEqual(grid.opened, []);
+});
+
+test('delete through the real confirmation hook: the ⋮ entry only asks, Cancel keeps the site, Confirm deletes it', async (t) => {
+  // A menu entry makes the confirm no less load-bearing: there is no path from the entry straight
+  // to the delete. Driven with the grid's DEFAULT `useDeleteConfirmation`, not a fake.
+  const fakes = fakeHooks();
+  Reflect.deleteProperty(fakes.hooks, 'useDeleteState');
+  const deleted: string[] = [];
+  const project = site('/sites/a', { deleteErasesFiles: true });
+  const copy = deleteActionCopy(project);
+  const grid = renderGrid(t, [project], fakes, { onDelete: async (id) => { deleted.push(id); } });
+  const card = () => grid.cards()[0]!;
+  const ask = () => {
+    grid.click(grid.button(card(), 'More actions for Bakery'));
+    grid.click(grid.button(card(), copy.menuItemLabel));
+  };
+  ask();
+  assert.ok(card().querySelector('.card__confirm'), 'the entry opens the confirm panel');
+  assert.equal(card().querySelector('[role="menu"]'), null, 'the menu closed first, so it cannot float over the panel');
+  assert.deepEqual(deleted, [], 'requesting confirmation cannot delete');
+  grid.click(grid.button(card(), 'Cancel'));
+  assert.equal(card().querySelector('.card__confirm'), null);
+  assert.deepEqual(deleted, [], 'Cancel cannot delete');
+  ask();
+  await act(async () => { grid.button(card(), copy.confirmButtonLabel).click(); });
+  assert.deepEqual(deleted, ['/sites/a']);
 });
