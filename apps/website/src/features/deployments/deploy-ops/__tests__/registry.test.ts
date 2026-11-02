@@ -1,3 +1,5 @@
+// Before the product modules: they read the shipped bundle through bundledAgentPluginsDir() (see the fixture).
+import "#src/features/agent-plugins/__tests__/fixtures/composed-bundle-env";
 import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
