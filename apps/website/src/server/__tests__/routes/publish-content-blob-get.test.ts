@@ -13,6 +13,7 @@ import { createApp, createRouteDeps } from "#src/server/runtime/composition/app"
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
 import { createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file Route-level tests for `GET .../publish-content/blobs/:sha` — the blob DOWNLOAD endpoint
@@ -310,7 +311,10 @@ test("GET .../blobs/:sha refuses (413) to ship a stored blob larger than the tra
   };
   const failed = await fetch(blobUrl(baseUrl, sha), { headers: { cookie: reader } });
   assert.equal(failed.status, 500);
-  assert.deepEqual(await failed.json(), { error: "internal error" });
+  // Shared admin failure envelope: a correlatable id, never the object store's cause.
+  const failedBody: unknown = await failed.json();
+  assertAdminResponse({ actual: failedBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assert.doesNotMatch(JSON.stringify(failedBody), /object store unreachable|private-bucket/);
 });
 
 /** Express guarantees matched `:workspaceId`/`:sha` segments, so these `?? ""` fallbacks are only
