@@ -513,6 +513,53 @@ describe("useThemeExplore — select guards a dirty buffer before switching file
     await waitFor(() => expect(result.current.selected).toBe("render/pages/about.html"));
     expect(confirmSpy).not.toHaveBeenCalled();
   });
+  // Bug class (11-02 o2/lane C): every path that switches the open file must consult confirmLeave.
+  // `copyFile` opens the new copy, and used to do it without asking, so a dirty buffer was lost.
+  it("copyFile prompts first and, when declined, neither copies nor drops the dirty buffer", async () => {
+    window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const copySpy = vi.spyOn(port, "copyThemeFile");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+
+    act(() => result.current.setSource("<h1>Changed</h1>"));
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    await act(async () => { await result.current.copyFile("render/pages/about.html"); });
+
+    expect(confirmSpy).toHaveBeenCalledOnce();
+    expect(copySpy).not.toHaveBeenCalled();
+    expect(result.current.selected).toBe("render/pages/index.html");
+    expect(result.current.source).toBe("<h1>Changed</h1>");
+  });
+
+  it("copyFile copies and opens the copy once the operator confirms leaving the dirty buffer", async () => {
+    window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const copySpy = vi.spyOn(port, "copyThemeFile");
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+
+    act(() => result.current.setSource("<h1>Changed</h1>"));
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    await act(async () => { await result.current.copyFile("render/pages/about.html"); });
+
+    expect(confirmSpy).toHaveBeenCalledOnce();
+    expect(copySpy).toHaveBeenCalledExactlyOnceWith("basic", "render/pages/about.html");
+    expect(result.current.selected).toBe("render/pages/about-1.html");
+  });
+
+  it("copyFile never prompts when the buffer is clean", async () => {
+    window.history.replaceState(null, "", "/admin/themes/explore?theme=basic");
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
+
+    const confirmSpy = vi.spyOn(window, "confirm");
+    await act(async () => { await result.current.copyFile("render/pages/about.html"); });
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(result.current.selected).toBe("render/pages/about-1.html");
+  });
 });
 
 /**

@@ -220,8 +220,8 @@ export interface ThemeExploreController {
   /** True when the source is loaded ({@link sourceLoaded}) and `source` differs from what was last
    *  loaded or saved. */
   dirty: boolean;
-  /** `useDirtyGuard`'s `confirmLeave` for `dirty` above — `select` already calls it before switching
-   *  files; `ThemeExplore.tsx` calls it itself for its own in-app navigations away from this screen
+  /** `useDirtyGuard`'s `confirmLeave` for `dirty` above — `select` and `copyFile` already call it before
+   *  switching files; `ThemeExplore.tsx` calls it itself for its own in-app navigations away from this screen
    *  entirely (the "← All themes" back link) that `select` never sees. */
   confirmLeave: DirtyGuard["confirmLeave"];
   /**
@@ -1450,14 +1450,26 @@ export function useThemeExplore(
 
   const cancelPageRenameWarning = useCallback(() => setPageRenameWarning(null), []);
 
+  // Unsaved-changes guard for the open file's buffer — `current` is `source`, `original` is
+  // `savedSource` while it is actually the loaded file's own text (`null` otherwise, matching the
+  // old inline `sourceLoaded && source !== savedSource` this replaces). Declared here, ABOVE
+  // `copyFile` and `select`, because both call `confirmLeave` before switching files; `dirty`/`confirmLeave`
+  // are returned to the controller below under their original names. `useDirtyGuard`'s own
+  // `beforeunload` listener also closes this screen's other gap from the same review finding: there
+  // was no warning at all for leaving the TAB with unsaved theme-file edits.
+  const { isDirty: dirty, confirmLeave } = useDirtyGuard({ current: source, original: sourceLoaded ? savedSource : null }, { host: window, translate: (key) => key });
+
   /**
    * Duplicate a file. No confirmation step by design ("it'll just copy it right in the sidebar" —
    * the owner's own framing) — offered for every group, including read-only-to-edit ones, since
    * copying bytes changes nothing about the source and nothing any existing reference points at.
+   * The copy becomes the open file, though, so a dirty buffer is confirmed first ({@link confirmLeave},
+   * same gate as `select`; bug 11-02: it used to switch without asking and lose the edits).
    */
   const copyFile = useCallback(
     async (path: string) => {
       if (copyingRef.current) return;
+      if (!confirmLeave()) return;
       copyingRef.current = true;
       setCopyingPath(path);
       setError(null);
@@ -1487,7 +1499,7 @@ export function useThemeExplore(
         copyingRef.current = false;
       }
     },
-    [themeId, port, modifiedRefreshSettlement]
+    [themeId, port, modifiedRefreshSettlement, confirmLeave]
   );
 
   /**
@@ -1554,15 +1566,6 @@ export function useThemeExplore(
       setDeleting(false);
     }
   }, [themeId, deleteTarget, port, detail, files, modifiedRefreshSettlement]);
-
-  // Unsaved-changes guard for the open file's buffer — `current` is `source`, `original` is
-  // `savedSource` while it is actually the loaded file's own text (`null` otherwise, matching the
-  // old inline `sourceLoaded && source !== savedSource` this replaces). Declared here, ABOVE
-  // `select`, because `select` calls `confirmLeave` before switching files; `dirty`/`confirmLeave`
-  // are returned to the controller below under their original names. `useDirtyGuard`'s own
-  // `beforeunload` listener also closes this screen's other gap from the same review finding: there
-  // was no warning at all for leaving the TAB with unsaved theme-file edits.
-  const { isDirty: dirty, confirmLeave } = useDirtyGuard({ current: source, original: sourceLoaded ? savedSource : null }, { host: window, translate: (key) => key });
 
   /**
    * Select a file, and mirror it into the address bar for shareability — `?page=<label>` for an
