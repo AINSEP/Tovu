@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import ts from "typescript";
 import { prepareByokMessageAttachments } from "../byok-message-attachments.js";
+import { readPickedFolders } from "#src/assistant/run-page-context";
 
 test("the BYOK route places prepared pixels only on the newest user message, reading the booted site's attachment directory", async () => {
   const source = ts.createSourceFile("assistant-byok.ts", readFileSync(new URL("../../../runtime/composition/modules/assistant-byok.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);
@@ -20,9 +21,11 @@ test("the BYOK route places prepared pixels only on the newest user message, rea
   }).outputText;
   const calls: unknown[] = [];
   const images = [{ mimeType: "image/png", data: "iVBORw0KGgoB" }, { mimeType: "image/png", data: "iVBORw0KGgoC" }];
-  const resolve = new Function("resolveMessages", "withPageContextBlock", "readRunPageContext", "getAuthedPrincipal", "prepareByokMessageAttachments", code)(
+  // why: 40ea6e547 made the turn validate picked folders first; the real reader is injected, so an
+  // absent `folders` still resolves to none rather than the harness failing on an unbound name.
+  const resolve = new Function("resolveMessages", "withPageContextBlock", "readRunPageContext", "getAuthedPrincipal", "prepareByokMessageAttachments", "readPickedFolders", code)(
     (raw: unknown) => raw, ({ messages }: { messages: unknown }) => messages, () => undefined,
-    () => ({ id: "alice" }), async (required: unknown) => { calls.push(required); return { images, notice: "" }; },
+    () => ({ id: "alice" }), async (required: unknown) => { calls.push(required); return { images, notice: "" }; }, readPickedFolders,
   );
   const messages = [{ role: "user", content: "old question" }, { role: "assistant", content: "old answer" }, { role: "user", content: "colours?" }];
   // The directory comes from the booted `RouteDeps.siteStoragePaths`, never from env/`siteDir()`
