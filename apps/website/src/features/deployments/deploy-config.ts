@@ -76,7 +76,8 @@ export interface DeploymentDescriptor {
  *  not about Tovu itself. No renderer may default this — see each renderer's own validation. */
 export interface RenderDeployConfigOptions {
   readonly region: string;
-  /** Explicit non-secret runtime values, supported by generators that expose environment blocks. */
+  /** Explicit non-secret runtime values (the CLI stamps `TOVU_SITE_ID`). Every generator must carry
+   *  them: in its environment block, or as an operator step in `notes` when the file has none. */
   readonly env?: Readonly<Record<string, string>>;
   /** Explicit non-secret image build arguments. Secret values belong in the platform secret store. */
   readonly buildArgs?: Readonly<Record<string, string>>;

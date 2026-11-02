@@ -1,9 +1,13 @@
 // Moved from core's apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-config-railway.unit.test.ts (types stripped): vendor tests live with
 // the vendor plugin; the host kits and fixtures it drives are still core's real ones, imported by path.
 import assert from "node:assert/strict";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
+
+import { runDeployConfigCommand } from "../../../../../apps/website/src/cli/commands/deploy-config.ts";
 
 import { ValidationError } from "../../../../../apps/website/src/platform/site-dir/index.ts";
 
@@ -95,6 +99,31 @@ test("renderRailwayConfig: notes state the headless-Chromium opt-in — the Dock
     JSON.stringify(result.notes),
   );
   assert.ok(!result.contents.includes("TOVU_INSTALL_BROWSER"), "off stays the default: railway.json itself never opts in");
+});
+
+/**
+ * Bug class: a generator silently dropping the `options.env` the CLI stamps (bug 376). railway.json
+ * cannot hold variables, so each one must reach the operator as a `railway variables set` step.
+ */
+test("tovu deploy config --target railway tells the operator to set the local site's TOVU_SITE_ID", async (t) => {
+  const site = await mkdtemp(path.join(tmpdir(), "tovu-railway-site-")); t.after(() => rm(site, { recursive: true, force: true }));
+  await writeFile(path.join(site, ".site-meta.json"), JSON.stringify({ siteId: "site-uuid-railway" }));
+  const out = []; const err = [];
+  await runDeployConfigCommand({ target: "railway", region: "us-west2" }, {
+    env: { TOVU_SITE_DIR: site }, stdout: (m) => { out.push(m); }, stderr: (m) => { err.push(m); },
+  });
+  assert.ok(err.some((line) => line.includes("stamped TOVU_SITE_ID=site-uuid-railway")), err.join(""));
+  assert.ok(err.some((line) => line.includes("railway variables set TOVU_SITE_ID='site-uuid-railway'")), err.join(""));
+  assert.ok(!out[0].includes("TOVU_SITE_ID"), "railway.json itself still has no variables section");
+});
+
+test("renderRailwayConfig: env values are single-quoted for the shell, and invalid names, non-strings and secrets are refused", () => {
+  const result = renderRailwayConfig(FIXTURE_DESCRIPTOR, { region: "us-west2", env: { TOVU_PUBLIC_URL: "https://x.test/it's $HOME `id`" } });
+  assert.ok(result.notes.some((note) => note.includes("railway variables set TOVU_PUBLIC_URL='https://x.test/it'\\''s $HOME `id`'")), JSON.stringify(result.notes));
+  for (const env of [{ "BAD; rm": "value" }, { BAD: 123 }, { TOVU_ADMIN_PASSWORD: "never-include-this-value" }]) {
+    assert.throws(() => renderRailwayConfig(FIXTURE_DESCRIPTOR, { region: "us-west2", env }),
+      (error) => error instanceof ValidationError && !error.message.includes("never-include-this-value"));
+  }
 });
 
 test("renderRailwayConfig: rejects a missing region — railway.json has no single-service region default to fall back to", () => {

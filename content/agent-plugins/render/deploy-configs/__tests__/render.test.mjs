@@ -1,9 +1,14 @@
 // Moved from core's apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-config-render.unit.test.ts (types stripped): vendor tests live with
 // the vendor plugin; the host kits and fixtures it drives are still core's real ones, imported by path.
 import assert from "node:assert/strict";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
+import { load as parseYaml } from "js-yaml";
+
+import { runDeployConfigCommand } from "../../../../../apps/website/src/cli/commands/deploy-config.ts";
 
 import { ValidationError } from "../../../../../apps/website/src/platform/site-dir/index.ts";
 
@@ -180,6 +185,50 @@ test("renderRenderYaml: a normal appName/volumeName still renders byte-identical
   assert.match(result.contents, /^ {6}name: acme_sites$/m);
 });
 
+/** The service's envVars as a plain map: secrets map to `{ sync: false }`, values to their string. */
+function envVarsOf(contents) {
+  const [service] = parseYaml(contents).services;
+  return Object.fromEntries(service.envVars.map(({ key, ...rest }) => [key, "value" in rest ? rest.value : rest]));
+}
+
+/**
+ * Bug class: a generator silently dropping the `options.env` the CLI stamps (bug 376 — Render
+ * ignored it, so `tovu deploy config --target render` printed "stamped TOVU_SITE_ID=…" and then
+ * deployed a server that would mint a different site identity). Driven the way an operator hits it.
+ */
+test("tovu deploy config --target render carries the local site's TOVU_SITE_ID into render.yaml", async (t) => {
+  const site = await mkdtemp(path.join(tmpdir(), "tovu-render-site-")); t.after(() => rm(site, { recursive: true, force: true }));
+  await writeFile(path.join(site, ".site-meta.json"), JSON.stringify({ siteId: "site-uuid-render" }));
+  const out = []; const err = [];
+  await runDeployConfigCommand({ target: "render", region: "oregon" }, {
+    env: { TOVU_SITE_DIR: site }, stdout: (m) => { out.push(m); }, stderr: (m) => { err.push(m); },
+  });
+  assert.ok(err.some((line) => line.includes("stamped TOVU_SITE_ID=site-uuid-render")), err.join(""));
+  assert.equal(envVarsOf(out[0]).TOVU_SITE_ID, "site-uuid-render", "the stamped id must reach the deployed service");
+});
+
+test("renderRenderYaml: options.env values are quoted YAML strings that parse back exactly, and may override the defaults", () => {
+  const value = 'https://example.test/a?next="quoted"\\path\n- key: EVIL\r\t#x: y \u007f\u0085\u0090';
+  const result = renderRenderYaml(FIXTURE_DESCRIPTOR, { region: "frankfurt", env: { TOVU_PUBLIC_URL: value, PORT: "4321" } });
+  assert.deepEqual(envVarsOf(result.contents), {
+    TOVU_RUNTIME_MODE: "production", PORT: "4321", TOVU_PUBLIC_URL: value,
+    TOVU_ADMIN_PASSWORD: { sync: false }, TOVU_SITE_KEY: { sync: false },
+  });
+  assert.equal((result.contents.match(/- key: PORT$/gm) ?? []).length, 1, "an override emits a single PORT entry");
+  assert.ok(!/[\u007f-\u009f]/.test(result.contents), "YAML-non-printable characters are escaped, never raw");
+});
+
+test("renderRenderYaml: an empty env map renders byte-identically to no env map", () => {
+  assert.equal(renderRenderYaml(FIXTURE_DESCRIPTOR, { region: "frankfurt", env: {} }).contents,
+    renderRenderYaml(FIXTURE_DESCRIPTOR, { region: "frankfurt" }).contents);
+});
+
+test("renderRenderYaml: rejects invalid env names, non-string values and declared secret names without echoing the value", () => {
+  for (const env of [{ "BAD\n- key": "value" }, { BAD: 123 }, { TOVU_ADMIN_PASSWORD: "never-include-this-value" }]) {
+    assert.throws(() => renderRenderYaml(FIXTURE_DESCRIPTOR, { region: "frankfurt", env }),
+      (error) => error instanceof ValidationError && !error.message.includes("never-include-this-value"));
+  }
+});
 
 test("render is a seeded-disabled package with its config and deploy-ops descriptors, modules and skill packed", async () => {
   const { readFile } = await import("node:fs/promises");

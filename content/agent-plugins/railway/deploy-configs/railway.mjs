@@ -25,7 +25,7 @@
 /**
  * @typedef {{ readonly name: string, readonly requirement: "boot-blocking" | "recommended" }} DeploymentSecret
  * @typedef {{ readonly appName: string, readonly port: number, readonly dockerfilePath: string, readonly volumeMountPath: string, readonly volumeName: string, readonly healthCheckPath: string, readonly secrets: readonly DeploymentSecret[] }} DeploymentDescriptor
- * @typedef {{ readonly region: string }} RenderDeployConfigOptions
+ * @typedef {{ readonly region: string, readonly env?: Readonly<Record<string, string>> }} RenderDeployConfigOptions
  * @typedef {{ readonly assertNoConfigInjection: (fieldLabel: string, value: string) => void, readonly validationError: (message: string) => Error, readonly migrationsNote: string }} DeployConfigKit
  * @typedef {{ readonly filename: string, readonly contents: string, readonly notes: readonly string[] }} RenderedDeployConfig
  */
@@ -36,6 +36,25 @@
  * fetched 2026-08-31.
  */
 export const RAILWAY_VALID_REGIONS = Object.freeze(["us-west2", "us-east4-eqdc4a", "europe-west4-drams3a", "asia-southeast1-eqsg3a"]);
+
+/**
+ * railway.json cannot hold variables, so each explicit non-secret one the host passes (the CLI stamps
+ * `TOVU_SITE_ID`) becomes a `railway variables set` step, single-quoted for the shell.
+ * @param {{ env: Readonly<Record<string, string>>, secrets: readonly DeploymentSecret[] }} input
+ * @param {DeployConfigKit} kit
+ * @returns {string[]}
+ * @throws {Error} For an invalid name, a non-string value or a declared secret name; never echoes the value.
+ * @complexity O(n + s) for n variable characters and s declared secrets.
+ */
+function envNotes({ env, secrets }, kit) {
+  const secretNames = new Set(secrets.map((secret) => secret.name));
+  return Object.entries(env).map(([name, value]) => {
+    if (!/^[A-Za-z_]\w*$/.test(name) || typeof value !== "string" || secretNames.has(name)) {
+      throw kit.validationError("env must contain only non-secret string variables with valid names");
+    }
+    return `Set ${name} with: railway variables set ${name}='${value.replace(/'/g, "'\\''")}' — railway.json has no env-var section.`;
+  });
+}
 
 /**
  * @param {DeploymentDescriptor} descriptor
@@ -52,6 +71,7 @@ function render(descriptor, options, kit) {
     throw kit.validationError(`--region "${region}" is not a valid Railway region — one of: ${RAILWAY_VALID_REGIONS.join(", ")}`);
   }
 
+  const variableNotes = envNotes({ env: options.env ?? {}, secrets: descriptor.secrets }, kit);
   const config = {
     $schema: "https://railway.com/railway.schema.json",
     build: {
@@ -85,6 +105,7 @@ function render(descriptor, options, kit) {
         `Set ${secret.name} (${secret.requirement}) with: railway variables set ${secret.name}=<value> — railway.json has no ` +
         "env-var section; Railway manages variables outside config-as-code."
     ),
+    ...variableNotes,
   ];
 
   return { filename: "railway.json", contents, notes };

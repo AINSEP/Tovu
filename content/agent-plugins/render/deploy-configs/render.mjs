@@ -24,7 +24,7 @@
 /**
  * @typedef {{ readonly name: string, readonly requirement: "boot-blocking" | "recommended" }} DeploymentSecret
  * @typedef {{ readonly appName: string, readonly port: number, readonly dockerfilePath: string, readonly volumeMountPath: string, readonly volumeName: string, readonly healthCheckPath: string, readonly secrets: readonly DeploymentSecret[] }} DeploymentDescriptor
- * @typedef {{ readonly region: string }} RenderDeployConfigOptions
+ * @typedef {{ readonly region: string, readonly env?: Readonly<Record<string, string>> }} RenderDeployConfigOptions
  * @typedef {{ readonly assertNoConfigInjection: (fieldLabel: string, value: string) => void, readonly validationError: (message: string) => Error, readonly migrationsNote: string }} DeployConfigKit
  * @typedef {{ readonly filename: string, readonly contents: string, readonly notes: readonly string[] }} RenderedDeployConfig
  */
@@ -38,16 +38,49 @@
 export const RENDER_VALID_REGIONS = Object.freeze(["oregon", "ohio", "virginia", "frankfurt", "singapore"]);
 
 /**
- * @param {DeploymentDescriptor} descriptor
+ * Quotes a value as a YAML double-quoted scalar. JSON string escapes are valid YAML escapes; YAML
+ * additionally forbids raw DEL, C1 controls and U+FFFE/U+FFFF, so those are escaped too.
+ * @param {string} value
  * @returns {string}
+ * @complexity O(n) in the value length.
  */
-function renderEnvVarsBlock(descriptor) {
-  const lines = [
-    "      - key: TOVU_RUNTIME_MODE",
-    "        value: production",
-    "      - key: PORT",
-    `        value: "${descriptor.port}"`,
-  ];
+function yamlString(value) {
+  return JSON.stringify(value).replace(/[\u007f-\u009f\ufffe\uffff]/g, (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`);
+}
+
+/**
+ * Checks the explicit non-secret variables the host passes (the CLI stamps `TOVU_SITE_ID` here).
+ * @param {{ env: Readonly<Record<string, string>>, secrets: readonly DeploymentSecret[] }} input
+ * @param {DeployConfigKit} kit
+ * @returns {[string, string][]}
+ * @throws {Error} For an invalid name, a non-string value or a declared secret name; never echoes the value.
+ * @complexity O(n + s) for n variables and s declared secrets.
+ */
+function checkedEnv({ env, secrets }, kit) {
+  const secretNames = new Set(secrets.map((secret) => secret.name));
+  const entries = Object.entries(env);
+  for (const [name, value] of entries) {
+    if (!/^[A-Za-z_]\w*$/.test(name) || typeof value !== "string" || secretNames.has(name)) {
+      throw kit.validationError("env must contain only non-secret string variables with valid names");
+    }
+  }
+  return entries;
+}
+
+/**
+ * Defaults keep their historical bytes; explicit `options.env` entries follow and may override them.
+ * @param {DeploymentDescriptor} descriptor
+ * @param {Readonly<Record<string, string>>} env
+ * @param {DeployConfigKit} kit
+ * @returns {string}
+ * @complexity O(n + s) for n variables and s declared secrets.
+ */
+function renderEnvVarsBlock(descriptor, env, kit) {
+  const explicit = checkedEnv({ env, secrets: descriptor.secrets }, kit);
+  const lines = [];
+  if (!("TOVU_RUNTIME_MODE" in env)) lines.push("      - key: TOVU_RUNTIME_MODE", "        value: production");
+  if (!("PORT" in env)) lines.push("      - key: PORT", `        value: "${descriptor.port}"`);
+  for (const [name, value] of explicit) lines.push(`      - key: ${name}`, `        value: ${yamlString(value)}`);
   for (const secret of descriptor.secrets) {
     lines.push(`      - key: ${secret.name}`, "        sync: false");
   }
@@ -81,7 +114,7 @@ function render(descriptor, options, kit) {
     region: ${region}
     healthCheckPath: ${descriptor.healthCheckPath}
     envVars:
-${renderEnvVarsBlock(descriptor)}
+${renderEnvVarsBlock(descriptor, options.env ?? {}, kit)}
     disk:
       name: ${descriptor.volumeName}
       mountPath: ${descriptor.volumeMountPath}
