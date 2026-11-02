@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { cp, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -61,9 +61,22 @@ let processRoot: Promise<string> | undefined;
  * may import siblings later, so the folder lives until the process exits).
  */
 export function processComposedBundledSourceRoot(): Promise<string> {
-  processRoot ??= composedBundledSourceRoot().then(({ root }) => {
-    process.once("exit", () => rmSync(root, { recursive: true, force: true }));
-    return root;
-  });
+  processRoot ??= Promise.resolve(processComposedBundledSourceRootSync());
   return processRoot;
+}
+
+let processRootSync: string | undefined;
+
+/**
+ * {@link processComposedBundledSourceRoot} for a side-effect import that must finish before its
+ * sibling imports evaluate: a module's top-level await does not hold back siblings that don't import it.
+ */
+export function processComposedBundledSourceRootSync(): string {
+  if (processRootSync !== undefined) return processRootSync;
+  const root = mkdtempSync(path.join(tmpdir(), "tovu-composed-bundle-"));
+  cpSync(path.join(REPO_ROOT, "content", "agent-plugins"), root, { recursive: true });
+  for (const pluginId of SELECTED_AGENT_PLUGIN_PACKAGES.keys()) cpSync(agentPluginSourceDir({ pluginId }), path.join(root, pluginId), { recursive: true });
+  process.once("exit", () => rmSync(root, { recursive: true, force: true }));
+  processRootSync = root;
+  return root;
 }
