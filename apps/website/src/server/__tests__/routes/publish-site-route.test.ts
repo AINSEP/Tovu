@@ -18,6 +18,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { set as setSetting } from "@jini-ai/core/settings";
 import { SITE_CONSENT_NAMESPACE } from "#src/features/consent/config";
 import { InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/publish-history";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 
 /**
@@ -811,15 +812,15 @@ test("publish-site: an authorize() failure surfaces as a 500 on all three routes
     body: JSON.stringify({ target: "vercel", projectName: "demo" }),
   });
   assert.equal(trigger.status, 500);
-  assert.deepEqual(await trigger.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await trigger.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 
   const status = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } });
   assert.equal(status.status, 500);
-  assert.deepEqual(await status.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await status.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 
   const preview = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=vercel`, { headers: { cookie } });
   assert.equal(preview.status, 500);
-  assert.deepEqual(await preview.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await preview.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("publish-site: workspaceId can never actually be undefined through this app's real composition on any of the three routes (a matched `:param` segment is always a populated string) -- reached by calling each real handler directly, the same type-bypass technique put-entry.test.ts's own equivalent test uses", async (t) => {

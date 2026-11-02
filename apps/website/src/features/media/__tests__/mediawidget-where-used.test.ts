@@ -8,6 +8,7 @@ import { extractEntryRefs } from '#src/contracts/core/entry-refs/extractor';
 import { InMemoryEntryRefsRepo } from '#src/contracts/core/entry-refs/repo.memory';
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createPost, InMemoryPostRepo } from '#src/features/post/index';
+import { assertAdminResponse } from '#src/server/inbound/admin-http/http/__tests__/assert-admin-response';
 
 test('usage queries canonical id and slug and combines indexed widgets with current raw and placement post bodies', async () => {
   const clock: Clock = { nowMs: () => Date.parse('2026-10-10T00:00:00.000Z') };
@@ -44,7 +45,8 @@ test('usage HTTP route enforces workspace and media.read before any asset lookup
   assert.deepEqual(body, { mediaId: 'm', whereUsed: { count: 0, references: [] } });
   mediaRepo.findById = async () => { throw new Error('read failure'); };
   await handler({ params: { workspaceId: 'ws', mediaId: 'm' } }, res);
-  assert.equal(status, 500); assert.deepEqual(body, { error: 'internal error' });
+  // Shared admin failure envelope (88f429c25): exact text with an incident id, no cause.
+  assert.equal(status, 500); assertAdminResponse({ actual: body, expected: { error: 'internal error', code: 'INTERNAL_ERROR' } });
 });
 
 // Exercise the purge adapter, not a second copy of the scanner or deletion ladder.
