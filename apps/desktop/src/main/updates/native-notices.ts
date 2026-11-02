@@ -41,7 +41,7 @@ export function othersOpenDialog({ count }: { count: number }, _optionalArgs = {
   return {
     type: "info",
     message: "Close the other copies of Tovu first",
-    detail: `${count} other copy${count === 1 ? " is" : "s are"} open. The update installs when the last one quits.`,
+    detail: `${count} other ${count === 1 ? "copy is" : "copies are"} open. The update installs when the last one quits.`,
   };
 }
 

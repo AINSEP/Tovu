@@ -95,16 +95,15 @@ test("a prompt queued before the checkbox turned OFF shows nothing and declines 
   assert.deepEqual(shown, []);
 });
 
-// KNOWN BUG, pinned so a fix is deliberate: the plural reads "copys" (moved verbatim from main.ts;
-// this refactor changes no behavior). Fix the wording in othersOpenDialog and update these strings.
+// Regression: the plural used to read "3 other copys are open" (bug found in the 2026-11 main.ts split).
 test("the others-open explanation is app-modal and pluralizes the count", () => {
   const { dialog, shown } = fakeDialog();
   explainOthersOpen({ dialog, count: 1 });
   explainOthersOpen({ dialog, count: 3 });
   assert.deepEqual(shown.map(box => [box.parent, box.options.detail]), [
     [null, "1 other copy is open. The update installs when the last one quits."],
-    [null, "3 other copys are open. The update installs when the last one quits."],
+    [null, "3 other copies are open. The update installs when the last one quits."],
   ]);
   assert.deepEqual(othersOpenDialog({ count: 2 }), { type: "info", message: "Close the other copies of Tovu first",
-    detail: "2 other copys are open. The update installs when the last one quits." });
+    detail: "2 other copies are open. The update installs when the last one quits." });
 });
