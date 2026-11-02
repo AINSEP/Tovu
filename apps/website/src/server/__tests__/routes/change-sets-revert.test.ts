@@ -12,6 +12,7 @@ import { createRevertRegistry, type EntityReverter } from "../../../contracts/co
 import type { RouteDeps } from "../../routes/types.js";
 import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/cms/core";
 import type { PrincipalRecord } from "@jini-ai/user-management";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file Route-level tests for `POST .../change-sets/:changeSetId/revert` — the HTTP wiring
@@ -206,7 +207,7 @@ test("change-sets revert: an unexpected error is 500 with a generic body", async
     headers: { cookie },
   });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 /**

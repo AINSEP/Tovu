@@ -11,6 +11,7 @@ import { registerAdminFormsCreateRoute } from "../../inbound/admin-http/routes/f
 import { registerAdminFormsGetRoute } from "../../inbound/admin-http/routes/forms/get-by-id.js";
 import { registerAdminFormsListSubmissionsRoute } from "../../inbound/admin-http/routes/forms/list-submissions.js";
 import type { RouteDeps } from "../../routes/types.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file Coverage-gap-fill for `forms/list-submissions.ts` and `forms/get-by-id.ts` — the branches
@@ -72,7 +73,7 @@ test("forms get-by-id: 500s (generic, message swallowed) when the repo explodes"
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/whatever`, { headers: { cookie } });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("forms get-by-id: a direct handler invocation with undefined workspaceId/formId params never matches the site and is a 404 (unreachable through real routing)", async (t) => {
@@ -193,7 +194,7 @@ test("forms list-submissions: 500s (generic, message swallowed) when the repo ex
     headers: { cookie },
   });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("forms list-submissions: undefined workspaceId/formId params fall back via direct handler invocation (unreachable through real routing)", async (t) => {

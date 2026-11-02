@@ -7,6 +7,7 @@ import { registerAdminWorkspaceListRoute } from "../inbound/admin-http/routes/wo
 import { registerAdminWorkspaceUpdateRoute } from "../inbound/admin-http/routes/workspace/update.js";
 import { createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server.js";
 import type { WorkspaceRouteDeps, WorkspaceRouteRegistrar } from "../inbound/admin-http/routes/workspace/deps.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 const WS = "ws-b07";
 const ROOT = "/api/admin/v1/workspaces";
@@ -57,7 +58,7 @@ test("workspace get/list conceal a repository failure after attempting the bound
       throw new Error("private database url");
     } });
     assert.deepEqual(reads, [{ id: WS }]);
-    assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: "internal error" } });
+    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
   }
 });
 
@@ -107,9 +108,9 @@ test("workspace PATCH conceals a failed write and leaves the active row unchange
   const repo = new InMemoryWorkspaceRepo({}, { initialRows: [{ ...own }] });
   const writes: unknown[] = [];
   t.mock.method(repo, "update", async (row: unknown) => { writes.push(row); throw new Error("private storage path"); });
-  assert.deepEqual(await invoke(registerAdminWorkspaceUpdateRoute, repo, { name: "Failed rename" }), {
-    statusCode: 500, jsonBody: { error: "internal error" },
-  });
+  assertAdminResponse({ actual: await invoke(registerAdminWorkspaceUpdateRoute, repo, { name: "Failed rename" }), expected: {
+    statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
+  } });
   assert.deepEqual(writes, [{ id: WS, name: "Failed rename", slug: "curated-journal", createdAt: "2026-09-03T14:23:00Z" }]);
   assert.deepEqual(await invoke(registerAdminWorkspaceGetRoute, repo), { statusCode: 200, jsonBody: { workspace: {
     id: WS, name: "Curated Journal", slug: "curated-journal", createdAt: "2026-09-03T14:23:00Z",

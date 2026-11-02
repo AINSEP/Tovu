@@ -16,6 +16,7 @@ import { applyBuiltinRoleGrants } from "#src/features/identity/builtin-role-gran
 import { registerAdminPageUpdateHtmlRoute } from "#src/server/inbound/admin-http/routes/pages/update-html";
 import type { ContentRouteDeps } from "#src/server/inbound/admin-http/routes/content/deps";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /** The app's real, explicit grant registry — the same one every composition root passes to identity wiring. */
 const APP_PERMISSION_GRANTS = createAppPermissionGrants({});
@@ -468,7 +469,7 @@ test("PUT /pages/:id/html maps an unrecognised store failure to an opaque 500", 
   const { baseUrl } = await harness(t, { allow: true, writeError: new Error("disk full") });
   const response = await putHtml(baseUrl, { html: "<p>edit</p>" });
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { error: "internal error" });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("PUT /pages/:id/html whose page vanishes between the write and the re-read is a 404, never a reported success", async (t) => {

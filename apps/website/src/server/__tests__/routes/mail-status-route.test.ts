@@ -6,6 +6,7 @@ import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 import type { MailerPort } from "#src/platform/mail/index";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file `GET /api/admin/v1/workspaces/:workspaceId/system/mail-status` — the read-only fact the
@@ -101,6 +102,6 @@ test("mail-status: a failing status source is a 500 without detail", async (t) =
   const logged = t.mock.method(console, "error", () => {});
   const res = await getMailStatus({ ...createRouteDeps(), mailStatus: async () => { throw new Error("db down"); } }, t);
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   assert.equal(logged.mock.callCount(), 1);
 });

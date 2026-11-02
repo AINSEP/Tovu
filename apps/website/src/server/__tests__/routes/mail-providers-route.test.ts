@@ -11,6 +11,7 @@ import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import type { MailProviderConfiguration, MailProviderConfigurationReport, MailProviderControl } from "#src/platform/mail/mail-status";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file `…/system/mail-providers` (email phase 2): the safe provider DTO, the credential plan, the
@@ -157,7 +158,7 @@ test("a non-object body reads as empty; an unexpected fault is a 500 without det
   const broken = await rig(t);
   (broken.deps.mailProviderControl as MailProviderControl).describe = async () => { throw new Error("catalog exploded"); };
   const res = await broken.send("GET", "mail-providers");
-  assert.deepEqual([res.status, await res.json()], [500, { error: "internal error", code: "INTERNAL_ERROR" }]);
+  assertAdminResponse({ actual: [res.status, await res.json()], expected: [500, { error: "internal error", code: "INTERNAL_ERROR" }] });
   assert.equal(logged.mock.callCount(), 1);
 });
 

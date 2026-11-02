@@ -11,6 +11,7 @@ import { registerAdminChangeSetGetRoute } from "../../inbound/admin-http/routes/
 import { registerAdminChangeSetListRoute } from "../../inbound/admin-http/routes/change-sets/list.js";
 import type { RouteDeps } from "../../routes/types.js";
 import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/cms/core";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file Route-level tests for `GET .../change-sets` and `GET .../change-sets/:changeSetId`.
@@ -157,7 +158,7 @@ test("change-sets list + get: a repository failure is a 500 'internal error', ne
   for (const path of ["/change-sets", "/change-sets/cs-get-1"]) {
     const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}${path}`, { headers: { cookie } });
     assert.equal(res.status, 500, path);
-    assert.deepEqual(await res.json(), { error: "internal error" }, path);
+    assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } }, { message: path });
   }
 });
 
