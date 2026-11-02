@@ -1,9 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { isValidElement } from "react";
 import { describe, expect, it, vi } from "vitest";
+import type { NativeToolPolicyInput } from "@jini-ai/agent-runtime/native-tool-policy";
 
 import { PushToTalkMicButton } from "../../../features/voice-input/PushToTalkMicButton";
-import { composerFooterLeading, folderWindowOpenElsewhere, optionalChatPaneProps, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";
+import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";
 import { FolderPathButton } from "../FolderPathButton";
 
 /**
@@ -31,6 +32,19 @@ describe("optionalChatPaneProps", () => {
 
   it("treats an empty conversation id and an empty principal id as absent", () => {
     expect(Object.keys(optionalChatPaneProps({ agents: undefined, conversationId: "", refreshSignal: undefined, composerHistoryScope: "" }))).toEqual([]);
+  });
+});
+
+describe("executionChatPaneProps", () => {
+  it("names the API row for BYOK and passes the native-tool policy on when it holds a value", () => {
+    const nativeToolPolicy: NativeToolPolicyInput = { nativeToolAccess: true, cliParity: true, permissionMode: "restricted", nativeCapabilities: { shell: true } };
+    expect(executionChatPaneProps({ mode: "byok", nativeToolPolicy })).toEqual({ executionMode: "api", nativeToolPolicy });
+  });
+
+  it("names the local row for every other mode and omits an absent policy rather than passing undefined", () => {
+    const props = executionChatPaneProps({ mode: "local", nativeToolPolicy: undefined });
+    expect(props).toEqual({ executionMode: "local" });
+    expect(Object.keys(props)).toEqual(["executionMode"]);
   });
 });
 
