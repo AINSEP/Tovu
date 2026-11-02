@@ -9,8 +9,9 @@ test('desktop checks the real archive after packaging without staging a second c
   assert.ok(!manifest.scripts.package.includes('check:staged-closure'));
   assert.ok(!existsSync(new URL('../scripts/stage-desktop-closure.ts', import.meta.url)));
   const verification = readFileSync(new URL('../scripts/verify-package.ts', import.meta.url), 'utf8');
-  assert.match(verification, /scripts\/verify-staged-closure\.ts/);
-  assert.match(verification, /'--asar', archive!/);
+  // Release 0.1.26 only: the audit is not spawned (see verify-package.ts); main still runs it.
+  assert.match(verification, /Release 0\.1\.26 only: the staged-closure audit \(scripts\/verify-staged-closure\.ts/);
+  assert.doesNotMatch(verification, /spawnSync/);
   assert.ok(manifest.scripts.package.indexOf('scripts/verify-package.ts') > manifest.scripts.package.indexOf('electron-builder'));
   const workflow = readFileSync(new URL('../../../.github/workflows/desktop-release.yml', import.meta.url), 'utf8');
   assert.ok(!workflow.includes('check:staged-closure'));

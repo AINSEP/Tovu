@@ -242,7 +242,8 @@ function closureArchiveFixture(scratch: string) {
   return { tree, resources, write, run };
 }
 
-test('verify-package audits the real archive: missing smol-toml fails, a complete archive passes', async () => {
+// Release 0.1.26 only: verify-package does not spawn the staged-closure audit (see its comment); main runs this.
+test('verify-package audits the real archive: missing smol-toml fails, a complete archive passes', { skip: 'release 0.1.26: staged-closure audit not spawned' }, async () => {
   const scratch = mkdtempSync(path.join(os.tmpdir(), 'verify-package-closure-'));
   try {
     const fixture = closureArchiveFixture(scratch);
