@@ -5,6 +5,7 @@ import test from "node:test";
 import express from "express";
 
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler, loginAsBarePrincipal } from "../helpers/http-test-server.js";
+import { assertAdminResponse } from "../../inbound/admin-http/http/__tests__/assert-admin-response.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminContentTypeListRoute } from "../../inbound/admin-http/routes/content-types/list.js";
@@ -341,7 +342,7 @@ test("UPDATE-FIELDS: statusFor's own ForbiddenError branch — the write-service
   }
 });
 
-test("UPDATE-FIELDS: an unexpected repo failure surfaces as 500 through the route's outer catch, with the real error message (not the generic 'internal error' the delete routes use)", async (t) => {
+test("UPDATE-FIELDS: an unexpected repo failure surfaces as 500 through the route's outer catch, concealed behind the shared incident envelope (88f429c25 stopped echoing the raw message)", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await fetch(`${baseUrl}/api/admin/v1/content-types`, {
@@ -361,15 +362,15 @@ test("UPDATE-FIELDS: an unexpected repo failure surfaces as 500 through the rout
       body: JSON.stringify({ fields: [{ name: "x", kind: "integer", required: false, queryable: false }], expectedVersion: 1 }),
     });
     assert.equal(res.status, 500);
-    const body = (await res.json()) as { error: string; code: string };
-    assert.equal(body.error, "simulated repo failure");
-    assert.equal(body.code, "INTERNAL_ERROR");
+    const body: unknown = await res.json();
+    assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assert.doesNotMatch(JSON.stringify(body), /simulated repo failure/);
   } finally {
     deps.contentTypeRepo.transaction = originalTransaction;
   }
 });
 
-test("UPDATE-FIELDS: a non-Error throw still surfaces as 500 with the generic 'internal error' message (the outer catch's err instanceof Error ternary, false side)", async (t) => {
+test("UPDATE-FIELDS: a non-Error throw still surfaces as 500 with the same concealed 'internal error' incident envelope", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await fetch(`${baseUrl}/api/admin/v1/content-types`, {
@@ -391,9 +392,9 @@ test("UPDATE-FIELDS: a non-Error throw still surfaces as 500 with the generic 'i
       body: JSON.stringify({ fields: [{ name: "x", kind: "integer", required: false, queryable: false }], expectedVersion: 1 }),
     });
     assert.equal(res.status, 500);
-    const body = (await res.json()) as { error: string; code: string };
-    assert.equal(body.error, "internal error");
-    assert.equal(body.code, "INTERNAL_ERROR");
+    const body: unknown = await res.json();
+    assertAdminResponse({ actual: body, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assert.doesNotMatch(JSON.stringify(body), /simulated non-Error rejection/);
   } finally {
     deps.contentTypeRepo.transaction = originalTransaction;
   }
