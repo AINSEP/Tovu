@@ -15,7 +15,8 @@ import type { SiteRecord, CreatedSiteRecord } from '../contracts/project.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
 import { appShellSource } from './app-shell-source.js';
 
-const hooks = readFileSync(new URL('./App.hooks.ts', import.meta.url), 'utf8');
+const hooks = ['use-create-website-form', 'use-project-mutations', 'use-delete-confirmation', 'use-dropdown-menu', 'use-project-tabs']
+  .map((name) => readFileSync(new URL(`./${name}.hooks.ts`, import.meta.url), 'utf8')).join('\n');
 const site = (fields: Partial<SiteRecord> = {}) => ({ id: '/site', displayName: 'My website', status: 'stopped', folderMissing: false, ...fields }) as SiteRecord;
 function keyboard() {
   const listeners = new Set<(event: { key: string }) => void>();

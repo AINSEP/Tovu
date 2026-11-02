@@ -45,7 +45,7 @@ test('the expanded-mode effect attaches Escape handling only while expanded and 
     addEventListener(type: string, listener: EventListener) { listeners.add(listener); target.addEventListener(type, listener); },
     removeEventListener(type: string, listener: EventListener) { listeners.delete(listener); target.removeEventListener(type, listener); },
   };
-  const hook = sourceFunction(readFileSync(new URL('./App.hooks.ts', import.meta.url), 'utf8'), 'useExpandedMode', {
+  const hook = sourceFunction(readFileSync(new URL('./use-expanded-mode.hooks.ts', import.meta.url), 'utf8'), 'useExpandedMode', {
     ...harness.bindings, window, expandedAfterWorkspaceChange, expandedAfterKeyDown, nextExpanded,
   });
   let showSiteTab = true;
@@ -226,7 +226,7 @@ test('no workspace is on screen outside Projects, even one whose id still matche
 
 test('whenever expanded mode can stay on, exactly one workspace — and its bar — is on screen', () => {
   // The whole point. Expanded mode hides the top nav and the tab strip, so the workspace bar
-  // (rendered inside the workspace section, `App.tsx`'s `SiteWorkspace`) is the only chrome left
+  // (rendered inside the workspace section, `app/SiteWorkspace.tsx`'s `SiteWorkspace`) is the only chrome left
   // and therefore the only exit. This walks every combination of the state `App` derives its view
   // from and checks the two halves agree: if `expandedAfterWorkspaceChange` lets the mode stay on,
   // some project must satisfy `workspaceOnScreen`.

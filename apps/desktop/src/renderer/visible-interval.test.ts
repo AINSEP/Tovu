@@ -110,8 +110,8 @@ test("the returned stop clears the timer and the listener", () => {
 
 // Execute the real polling hook's effect with only React and IPC boundaries supplied.
 test("the projects polling hook schedules its listSites callback every 4000ms", async () => {
-  const text = fs.readFileSync(new URL("./App.hooks.ts", import.meta.url), "utf8");
-  const sf = ts.createSourceFile("App.hooks.ts", text, ts.ScriptTarget.Latest, true);
+  const text = fs.readFileSync(new URL("./use-sites-inventory.hooks.ts", import.meta.url), "utf8");
+  const sf = ts.createSourceFile("use-sites-inventory.hooks.ts", text, ts.ScriptTarget.Latest, true);
   const node = sf.statements.find((stmt) => ts.isFunctionDeclaration(stmt) && stmt.name?.text === "useSitesPolling");
   assert.ok(node);
   const js = ts.transpile(node.getText(sf).replace(/^export /, ""), { target: ts.ScriptTarget.ES2022 });

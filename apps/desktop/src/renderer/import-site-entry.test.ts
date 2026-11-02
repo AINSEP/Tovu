@@ -21,7 +21,7 @@ import { appShellSource } from './app-shell-source.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const withoutComments = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
 const app = withoutComments(appShellSource());
-const hooks = fs.readFileSync(path.join(here, 'App.hooks.ts'), 'utf8');
+const hooks = fs.readFileSync(path.join(here, 'use-project-tabs.hooks.ts'), 'utf8');
 
 const project = (id: string, status: 'running' | 'stopped' | 'starting') => ({ id, status });
 

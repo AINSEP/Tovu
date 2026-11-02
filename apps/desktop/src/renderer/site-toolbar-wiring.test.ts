@@ -1,9 +1,9 @@
 /**
- * @file Wiring guard for the project tab toolbar in `App.tsx`: back, forward and reload icons on
+ * @file Wiring guard for the project tab toolbar in `app/SiteWorkspace.tsx`: back, forward and reload icons on
  * the left, the url on the right beside "Open in browser", and every action taken from
  * `useSiteWorkspace` rather than from state held in the component.
  *
- * Source text, because `App.tsx` has no runner in this package (see `rescan-wiring.test.ts`). The
+ * Source text, because `app/SiteWorkspace.tsx` had no runner in this package (see `rescan-wiring.test.ts`). The
  * behaviour behind each wire is covered for real in `use-site-workspace.hooks.test.ts`; this file
  * checks only that the component calls it, in the order the toolbar shows it.
  */
@@ -24,7 +24,7 @@ const icons = fs.readFileSync(path.join(here, 'icons.tsx'), 'utf8');
 /** `SiteWorkspace`'s body, up to the next top-level `function`. */
 function workspaceBody(): string {
   const start = appTsx.indexOf('function SiteWorkspace(');
-  assert.notEqual(start, -1, 'SiteWorkspace must still exist in App.tsx');
+  assert.notEqual(start, -1, 'SiteWorkspace must still exist in app/SiteWorkspace.tsx');
   const rest = appTsx.slice(start);
   const end = rest.indexOf('\nfunction ', 1);
   return rest.slice(0, end === -1 ? undefined : end);
@@ -109,7 +109,7 @@ test('the icons are drawn inline in icons.tsx, with no icon package', () => {
 });
 
 test('rendered toolbar buttons pair each accessible name with its own command and history flag', () => {
-  const ast = ts.createSourceFile('App.tsx', appTsx, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const ast = ts.createSourceFile('SiteWorkspace.tsx', appTsx, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const node = ast.statements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === 'SiteWorkspace');
   assert.ok(node);
   const executable = ts.transpileModule(node.getText(ast), { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText;

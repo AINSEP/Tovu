@@ -1,7 +1,7 @@
 /**
  * @file Wiring guard for `<webview partition={project.partition}>` in `SiteWorkspace` —
  * the binding that keeps two different sites' logins from sharing one cookie jar (see
- * `SiteWorkspace`'s own doc in `App.tsx`, and `contracts/project.ts`'s `partition` field).
+ * `SiteWorkspace`'s own doc in `app/SiteWorkspace.tsx`, and `contracts/project.ts`'s `partition` field).
  * `desktop-auth.test.ts` and `project-ipc.test.ts` prove main hands out a distinct `partition`
  * per site dir; nothing before this file proved the renderer actually threads that value onto
  * the guest element rather than dropping it or hardcoding one partition for every tab.
@@ -27,7 +27,7 @@ const contracts = read("..", "contracts", "project.ts");
 /** `SiteWorkspace`'s body, up to the next top-level `function`. */
 function workspaceBody() {
   const start = appTsx.indexOf("function SiteWorkspace(");
-  assert.notEqual(start, -1, "SiteWorkspace must still exist in App.tsx");
+  assert.notEqual(start, -1, "SiteWorkspace must still exist in app/SiteWorkspace.tsx");
   const rest = appTsx.slice(start);
   const end = rest.indexOf("\nfunction ", 1);
   return rest.slice(0, end === -1 ? undefined : end);
@@ -36,7 +36,7 @@ function workspaceBody() {
 /** `SiteWorkspaces`' body (the plural component that maps over open projects). */
 function workspacesBody() {
   const start = appTsx.indexOf("function SiteWorkspaces(");
-  assert.notEqual(start, -1, "SiteWorkspaces must still exist in App.tsx");
+  assert.notEqual(start, -1, "SiteWorkspaces must still exist in app/SiteWorkspace.tsx");
   const rest = appTsx.slice(start);
   const end = rest.indexOf("\nfunction ", 1);
   return rest.slice(0, end === -1 ? undefined : end);

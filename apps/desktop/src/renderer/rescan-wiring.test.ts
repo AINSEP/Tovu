@@ -21,7 +21,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const read = (...parts: string[]) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
 const preload = read("..", "preload", "preload.mts");
 const runnerApi = read("runner-api.ts");
-const appHooks = read("App.hooks.ts");
+const appHooks = read("use-sites-inventory.hooks.ts");
 const appTsx = appShellSource();
 
 test("the preload rescan method invokes the exact contract channel with no renderer payload", async () => {

@@ -43,7 +43,8 @@ const grid = fs.readFileSync(path.join(import.meta.dirname, 'SiteGrid.tsx'), 'ut
 const css = fs.readFileSync(path.join(import.meta.dirname, 'app.css'), 'utf8');
 const power = fs.readFileSync(path.join(import.meta.dirname, 'use-site-power.hooks.ts'), 'utf8');
 const app = appShellSource();
-const appHooks = fs.readFileSync(path.join(import.meta.dirname, 'App.hooks.ts'), 'utf8');
+const appHooks = ['use-delete-confirmation.hooks.ts', 'use-sites-inventory.hooks.ts']
+  .map((name) => fs.readFileSync(path.join(import.meta.dirname, name), 'utf8')).join('\n');
 
 /** `SiteCard`'s own body — the tile and the info block, without the components defined after it. */
 function cardBody(): string {
@@ -362,7 +363,7 @@ test('a missing-folder card offers Locate and Remove in place of Start/Stop', ()
 
 test('a located card replaces the missing one in the grid at once, not on the next poll', () => {
   assert.match(grid, /const locate = useLocate\(onSiteUpdated\);/);
-  const hooks = fs.readFileSync(path.join(import.meta.dirname, 'App.hooks.ts'), 'utf8');
+  const hooks = fs.readFileSync(path.join(import.meta.dirname, 'use-sites-inventory.hooks.ts'), 'utf8');
   assert.match(hooks, /\(record: SiteRecord, previousId: string = record\.id\) =>/);
   assert.match(hooks, /if \(project\.id === previousId\) return \[record\];/);
   // A Locate onto a folder that already has a card merges into it: that card must not stay twice.

@@ -29,13 +29,13 @@ import { appShellSource } from './app-shell-source.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const read = (...parts: string[]) => fs.readFileSync(path.join(__dirname, ...parts), "utf8");
-const appHooks = read("App.hooks.ts");
+const appHooks = read("use-webview-load-failure.hooks.ts");
 const appTsx = appShellSource();
 
 /** `useWebviewLoadFailure`'s body, up to the next top-level `export function`. */
 function hookBody() {
   const start = appHooks.indexOf("export function useWebviewLoadFailure(");
-  assert.notEqual(start, -1, "useWebviewLoadFailure must still exist in App.hooks.ts");
+  assert.notEqual(start, -1, "useWebviewLoadFailure must still exist in use-webview-load-failure.hooks.ts");
   const rest = appHooks.slice(start + 1);
   const end = rest.indexOf("\nexport function ");
   return rest.slice(0, end === -1 ? undefined : end);
