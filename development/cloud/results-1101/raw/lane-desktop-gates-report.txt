@@ -1,0 +1,38 @@
+LANE: desktop gates (apps/desktop, Tovu desktop 0.1.26 pre-release), branch cloud/verify-1101
+
+1. tests — TEST DRIFT (6 tests) + ENV (2 tests)
+   Cause: source-eval tests compile component source with injected bindings; components began
+   rendering ToolIcon in 95b81e8b3 (SitesFolders trigger) and 68cfd9b38 (SiteGrid CardActions) and
+   the tests never bound it -> "ReferenceError: ToolIcon is not defined" in
+   use-site-folders.hooks.test.ts (5) and site-card-menu-wiring.test.ts (1).
+   FIXED 0684afa65: bind a stub ToolIcon (same pattern site-card-actions-wiring.test.ts already uses).
+   RED: fail 6 ToolIcon is not defined -> GREEN: pass 23 fail 0 -> mutation (remove binding): fail 5 -> restored pass.
+   ENV NOT FIXED: websites-width.test.ts (2 tests): Playwright wants chromium_headless_shell-1228,
+   the box has only -1243 (/opt/pw-browsers). Not a product or test defect.
+2. typecheck — TEST DRIFT. copied-external-database.test.ts:97 case table inferred as string[][]
+   (filename = string|undefined), from 0c70a9eb2. FIXED 8fa7d4729: `as const` tuple.
+   RED 2 TS errors -> GREEN typecheck rc=0, test pass 6 -> mutation (drop as const): 2 errors -> restored.
+3. coverage — still FAIL only because the suite fails on the 2 ENV Playwright tests (node=0, tsx=1).
+4. complexity — PRODUCT (gate debt). All three FIXED with mechanical extract-function, behaviour unchanged:
+   - desktop-resources.ts get 11: two ternaries added by 0c70a9eb2. f56371e15 resourcePollIntervals().
+     desktop-resources.test.ts 15/15; mutations (win32 10_000->5_000: fail 2; 60_000->6_000: fail 3) RED.
+   - tovu-server.ts buildServeEnv 10: TOVU_PACKAGED_DESKTOP line added by e2fc970d4. 2c91c08fb
+     applyProductTelemetryEnv() (its why-comment moved with it). tovu-server.test.ts 80/80;
+     mutations (drop a delete; wrong release value) each fail 1.
+   - product-telemetry.ts bootDesktopProductTelemetry 10: observabilityExportEnabled default added by
+     e2fc970d4. d2fd68643 bootLaunchProduct(). product-telemetry.test.ts 8/8; mutation (invert launch
+     guard) fail 4. TEST GAP (already there, not fixed): forcing observabilityExportEnabled:true into
+     boot left all 8 tests green, so the desktop-side forwarding of that flag has no unit test. Owner should add one.
+   check-complexity: OK — 3 grandfathered, 0 new. No eslint-disable and no --update.
+5. js-backslide — PRODUCT. scripts/clean-preload.mjs added by 2a819ef06. FIXED 20e1fd58e: git mv to .ts,
+   build:preload -> `node scripts/clean-preload.ts` (Node 24 type stripping; CI desktop-release.yml uses
+   node-version 24 and already runs `node scripts/*.ts` for stage). Also updated the path in
+   development/scripts/__tests__/desktop-portable.unit.test.ts (repo test, not CI/deploy config).
+   No CI/workflow/electron-builder file referenced the .mjs. Portable test 4/4; mutation (package.json
+   back to .mjs) fail 1; build:preload OK; check-js-backslide OK.
+
+FINAL `npm run gates`:
+  PASS tree-quiet | FAIL tests (ENV: 2 Playwright, chromium 1228 missing) | PASS typecheck |
+  FAIL coverage (only because the suite failed) | PASS complexity | PASS js-backslide  — 4 pass, 2 fail
+
+PUSH: NOT PUSHED. `git push origin cloud/verify-1101` was rejected by the repo pre-push hook (apps/desktop/scripts/hooks/pre-push runs the desktop gates; the tests gate fails on the 2 ENV Playwright tests). --no-verify was not used. All 6 lane commits are local on cloud/verify-1101.

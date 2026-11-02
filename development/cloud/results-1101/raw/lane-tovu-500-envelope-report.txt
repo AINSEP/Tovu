@@ -1,0 +1,100 @@
+LANE: tovu-500-envelope (admin HTTP 500 envelope)   branch cloud/verify-1101   local commits only (not pushed)
+Finished 00:39 UTC (hard stop was 01:10)
+
+CAUSE (same for every item)
+  GitHub 88f429c25 (2026-11-01) "fix(admin): unexpected route failures are logged redacted with an error id,
+  never leaked or swallowed". Its message says outright that "the admin route sweep swaps raw-message / unlogged 500
+  fallbacks for the shared handler with the SAME status". The local clone is shallow (graft at 84da662), so I got the
+  evidence from `gh api repos/AINSEP/Tovu/commits?path=<route>`: for every route listed below, the last commit is
+  88f429c25, and the route now calls sendAdminFailure. For update-fields, lifecycle, menus/update-tree,
+  site/profile and analytics/recent-hits I also read the diff. The commit deleted the
+  `err instanceof Error ? err.message : "internal error"` echo / raw console.error on purpose. It also added
+  the helper assertAdminResponse (http/__tests__/assert-admin-response.ts) to migrate snapshots, but it left
+  these tests unmigrated.
+  => TEST DRIFT for every item except the one marked PRODUCT.
+
+HOW EACH TEST WAS FIXED
+  I used the existing helper assertAdminResponse; no new helper was written. It does exact deep equality on the
+  whole body and checks that errorId matches a UUID-v4 regex and that error === `internal error (error ${errorId})`.
+  Because the whole body is compared exactly, no cause can appear in it. Where a test named a specific cause,
+  I also added an explicit assert.doesNotMatch(JSON.stringify(body), /<cause>/).
+  Where a test checked the old raw log line, it now uses assertAdminDiagnostics. That checks the redacted
+  diagnostic still carries the original cause, and I added a check that the log's errorId equals the reply's
+  errorId. This applies to site-profile, menus update-tree (exact text for the stackless and non-Error
+  cases), and recovery confirm-miswiring (the "no principal on res.locals" diagnosis now has to show up in
+  the log under the reply's id).
+  Exact 4xx snapshots in the same tests are unchanged. Titles that promised "the thrown message" or "carrying
+  its message" now describe what is actually asserted. Why-comments are kept. No skip/delete, no as any, no
+  ts-ignore, no new eslint-disable (grep of the added lines: 0).
+  A tsc check of all 35 edited files (temporary tsconfig that extends tsconfig.tests.json) gave exit 0 with
+  no errors.
+
+FIXED (RED = shard-0/1/2/3/4 output or my candidate scan, before the fix; GREEN = targeted file run after the fix)
+  7ef53befc admin-database-timeline-route.test.ts            2 tests  RED (ran it myself) -> GREEN 8/8
+  917717a36 admin-post-page-delete-routes.test.ts            2        GREEN 21/21
+  8756bfd84 b07-admin-read-gaps.test.ts (themes, policy perms) 2      GREEN 9/9
+  7439dbd10 routes/content-types-routes.test.ts UPDATE-FIELDS 2       GREEN 17/17. The test expected the echoed
+            "simulated repo failure". The 88f429c25 diff deletes that echo on purpose, and no doc commits to
+            echoing it => drift, not product.
+  ed207925c routes/publish-content-blobs.test.ts             2        GREEN 13/13
+  489b60b6f routes/site-profile-route.test.ts                1        GREEN 9/9 (plus log checks)
+  626321f75 routes/taxonomy-merge-term-routes.test.ts        1        GREEN 9/9
+  cc82a041b routes/members/__tests__/members-route-failures.unit.test.ts 1  GREEN 24/24
+  f8525806b routes/content-types-lifecycle-gap-fill.test.ts  1        GREEN 10/10
+  6e29e171a routes/publish-content-blob-get.test.ts          1        GREEN 11/11
+  77ca8c0b5 admin-menus-routes.test.ts (update-tree x3)      3        GREEN 31/31
+  4c8e37be5 admin-integrations-routes.test.ts (pause), admin-assistant-site-credential-routes.test.ts (PUT)  GREEN 16/16, 14/14
+  b684e7e3b b07-trash-handler-gaps, b07-workspace-handler-gaps, change-sets-get-list, change-sets-revert,
+            mail-status-route, mail-providers-route, observability-status-route, pages-update-html-auth,
+            forms-list-submissions-and-get-by-id-edge-cases   (13 tests)  GREEN 84/84
+  e187368ae database-restore-points-routes (5, including the "known idempotency key but no persisted row"
+            integrity 500), database-schema-state-route (2), database-migrate-forward-routes (5)  GREEN 41/41
+  5fce4dc33 recovery-routes (6 assertions), recovery-restore-routes (4 including confirm-miswiring)
+  e7b07dda5 commerce-status-adapter.integration, redirects-auth (import), redirects-create,
+            publish-site-route ("authorize() failure ... all three routes"), features/media/mediawidget-where-used
+            (recovery + this group: 101 tests, 99 pass; the 2 failures are the publish-site barrier tests, see below)
+  06ea40c9e routes/taxonomy-routes.test.ts (create-taxonomy, rename-term),
+            routes/content-types/__tests__/update-fields.test.ts ("maps Error", and "thrown object/string ...
+            (reported, not fixed)". That echo is now fixed, so the test asserts the concealed envelope)  GREEN 46/46
+  0cadd3709 workspace-routes.test.ts AC-06e (sendDeleteWorkspaceError's untyped 500)  GREEN 10/10
+  54d0d0f89 routes/entries-routes.test.ts (7: create/update/lifecycle/list), content-types/__tests__/
+            register-update-fields.conflict.test.ts (2)  GREEN 63/63
+  Re-running all 45 candidate files (every test file still holding the old {error:'internal error'} shape)
+  after the fixes: 581/584 pass. The 3 failures were the 2 publish-site barrier tests plus AC-06e, which
+  was fixed afterwards in 0cadd3709.
+
+MUTATION CHECKS
+  Done in a separate git worktree under the scratchpad, so the concurrent full shards on /home/user/Tovu were
+  never touched. Each mutation was restored and the worktree removed.
+  A: adminFailureResponse returns the old body {error: message, code} (no errorId).
+  B: it adds the raw cause to the body (cause: error.message / String(error)).
+  - Batch 1 (first 10 files): A -> 19 fail / 131, B -> 18 fail / 131. Every rewritten test is RED under both.
+    Example: "timeline read failure stays a 500 (object)", "UPDATE-FIELDS: an unexpected repo failure ...".
+  - Batch 2 (24 files): A -> 51 fail / 333, B -> exactly the same 51 failing set. That is every rewritten test
+    plus the 2 publish-site barrier tests, which fail before any mutation.
+  - workspace-routes AC-06e: B -> RED. entries + register conflict: A -> all 9 rewritten tests RED.
+
+PRODUCT: NEEDS OWNER (not fixed)
+  apps/website/src/server/__tests__/routes/analytics-recent-hits.test.ts
+    "recent hits: a sink failure returns a caller-safe 500 INTERNAL_ERROR" (shard 3)
+  apps/website/src/server/__tests__/route-async-guards.test.ts
+    "analytics/recent-hits: GET responds 500 (not a hang) when deps.authorize throws" (shard 0)
+  Evidence: 56a29e396 (2026-10-18) made recent-hits the documented pilot of the canonical Jini envelope
+  { error: { code, message, requestId } } (apps/website/src/server/error-mapping/INFO.md "Analytics pilot":
+  workspace miss, denial and unexpected failure all go through respond.ts, reusing res.locals.requestId).
+  The 88f429c25 diff swapped that route's respondToApiError(INTERNAL_ERROR) for sendAdminFailure, so this
+  one route now mixes shapes: its 404/403 are nested and canonical, its 500 is the flat legacy admin
+  envelope, and the requestId correlation is gone. That breaks a documented contract.
+  Suggested fix (needs an owner decision on where errorId goes): in recent-hits.ts's catch, run
+  adminFailureResponse for the redacted log and the id, then reply with
+  respondToApiError({res, code:"INTERNAL_ERROR", message:"internal error"}), carrying errorId in reviewed
+  details or relying on requestId.
+
+NOT MINE / NOT REACHED
+  - publish-site-route.test.ts "a concurrent second trigger gets 409 ..." and "... through the ASSISTANT
+    TOOL ...": "publish never reached the provider barrier". They fail before my edit too, and the
+    coordinator says they are not in this class.
+  - Not reached: none of the items the coordinator listed. Other shard failures (postgres, menu-tree-render,
+    owner creation, media_trash_asset 403, ...) are a different class.
+  - Note: an untracked /home/user/Tovu/chat.db appeared at the repo root during the runs. I did not create
+    it intentionally, and I did not commit or delete it.

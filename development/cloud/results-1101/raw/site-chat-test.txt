@@ -1,0 +1,313 @@
+
+> tovu-site-chat@0.1.0 test
+> node --import tsx --test ${TEST_CONCURRENCY:+--test-concurrency=$TEST_CONCURRENCY} "src/**/*.test.ts"
+
+✔ React activation preserves page focus on closed mount and focuses explicit opens (476.493899ms)
+✔ React activation preserves page focus on resume and focuses explicit opens (45.214289ms)
+✔ React activation without a mount root still toggles, and touches no page element (53.197761ms)
+✔ a focus request while already open and with no enabled composer leaves focus where it was (19.947911ms)
+▶ SiteAssistantHeader
+  ✔ renders the public title and New thread without a workspace kicker (137.759949ms)
+  ✔ resets immediately with no confirm step when the transcript is empty (95.809239ms)
+  ✔ shows a two-step confirm, without resetting yet, when the transcript has messages (52.141402ms)
+  ✔ protects a typed draft in an empty transcript and restores focus after Cancel or Escape (87.964238ms)
+  ✔ autofocuses Cancel (the safe choice), not the destructive Discard button, once the confirm step appears (23.571998ms)
+  ✔ backs out on Cancel without resetting, restoring the plain New thread button (23.923543ms)
+  ✔ resets and closes the confirm step when Discard is clicked (11.166696ms)
+  ✔ backs out on Escape (from anywhere in the pane) without resetting (11.98824ms)
+  ✔ keeps confirmation open on non-Escape keydown without resetting (27.872996ms)
+  ✔ Escape is inert when the confirm step is not open (no listener attached, nothing to dismiss) (26.369433ms)
+  ✔ removes its Escape listener on unmount — a later Escape after unmount touches nothing (28.518366ms)
+✔ SiteAssistantHeader (530.259602ms)
+✔ React held turn waits for visitor click allow=true, using the existing proposal strip (836.640438ms)
+✔ React held turn waits for visitor click allow=false, using the existing proposal strip (258.829563ms)
+✔ public widget dialog: empty greeting (1139.00753ms)
+✔ public widget dialog: restored thread (362.248915ms)
+✔ hook discards expiry, repeated clicks and teardown without posting an approval (219.420611ms)
+✔ lazy bundle uses the resolved-path admin import guard (0.979781ms)
+Not implemented: navigation to another Document
+Not implemented: Window's alert() method
+✔ fail throws a BundleCheckError carrying the message (9.317501ms)
+✔ isNavigationError recognises only jsdom's navigation report (0.172961ms)
+✔ a bundle that mounts passes, with the page stubs real browsers provide in place (268.557174ms)
+✔ a bundle that throws while evaluating fails before mounting is even checked (73.911019ms)
+✔ an error raised after evaluation is reported as a post-mount failure (21.259394ms)
+✔ a bundle that removes the mount point, or never renders into it, fails (43.355138ms)
+✔ the poisoned and wrong-shaped transcript scenarios seed their keys and accept only a cleared or empty entry (96.751197ms)
+✔ retired queue data cannot scroll, highlight or navigate on mount (85.799448ms)
+✔ the rehydrated-directive scenario seeds an already-executed navigate and fails on any navigation attempt (13.21692ms)
+✔ checkBundleMounts runs every scenario in order and stops at the first failure (229.539677ms)
+✔ main reads the bundle, runs the check, and reports success as 0 (0.421176ms)
+✔ main reports an unreadable bundle or a failed scenario on stderr with exit status 1 (0.44564ms)
+✔ main's default reader reads the bundle file from disk (5.888908ms)
+✔ isEntryPoint is true only when the module is the script node was started with (0.138269ms)
+✔ a bundle honouring every contract passes every scenario (225.196591ms)
+✔ run as a script against a missing bundle, it fails loudly with exit status 1 (579.942299ms)
+✔ react: consent controls both the pre-load bubble and the mounted chat container (271.81835ms)
+✔ vanilla: consent controls both the pre-load bubble and the mounted chat container (38.099846ms)
+✔ branding yields to the same consent state at desktop and stacked mobile widths (458.707737ms)
+✔ loader-entry binds the lazy loader to the page button; activating it loads the React widget assets (167.472802ms)
+✔ vanilla-entry mounts the vanilla widget into the page root (587.255317ms)
+✔ main mounts the React widget and creates its own root without replaying stored actions (1915.289232ms)
+✔ loader host binds react assets only on demand and preserves open intent (235.315306ms)
+✔ loader host binds vanilla assets only on demand and preserves open intent (40.493679ms)
+✔ explicit deep link /#open-chat opens lazily (123.169722ms)
+✔ explicit deep link /?open-chat=1 opens lazily (89.554536ms)
+✔ react: pending destination effects preload only the lightweight widget while closed (8.71337ms)
+✔ vanilla: pending destination effects preload only the lightweight widget while closed (6.467708ms)
+✔ React chat with queued=false inserts no assets until open, then loads CSS and the bundle once (85.095979ms)
+✔ React chat with queued=true inserts no assets until open, then loads CSS and the bundle once (19.153439ms)
+✔ an open-chat anchor activates after loading even when its hash is already selected (11.657016ms)
+✔ host passes the root as the mount-readiness boundary (7.582416ms)
+✔ loader requires both mount and button: <button data-jini-chat-loader></button> (6.068834ms)
+✔ loader requires both mount and button: <div id="tovu-site-assistant-root"></div> (5.505807ms)
+✔ loader requires both mount and button:  (5.247391ms)
+✔ loader pins widget precedence and open intent: {"widget":"vanilla","compare":"react","open":false,"search":"?open-chat=0","hash":"","expected":"site-assistant","deep":false} (9.573437ms)
+✔ loader pins widget precedence and open intent: {"widget":"react","compare":"vanilla","open":true,"search":"","hash":"","expected":"site-assistant-vanilla","deep":false} (5.272853ms)
+✔ loader pins widget precedence and open intent: {"widget":"unknown","compare":"invalid","open":false,"search":"?open-chat=true","hash":"#other","expected":"site-assistant","deep":false} (5.538929ms)
+✔ loader pins widget precedence and open intent: {"widget":"vanilla","compare":"","open":false,"search":"?open-chat=1","hash":"","expected":"site-assistant-vanilla","deep":true} (5.857725ms)
+✔ loader pins widget precedence and open intent: {"widget":"vanilla","compare":"","open":false,"search":"","hash":"","expected":"site-assistant-vanilla","deep":false} (6.626061ms)
+✔ loader defaults use the browser document, location, events and session state (6.625793ms)
+✔ a later hash change to #open-chat activates the loader; any other hash does not (6.720042ms)
+✔ a focused open still announces itself in a document with no window of its own (7.299631ms)
+✔ every asset gets its raw and gzip size, then the two widget totals (2.26426ms)
+✔ the loader budget passes below 3 KB gzip and fails at it (0.624087ms)
+✔ main reads each asset from the dist directory, prints the table, then enforces the budget (1.459239ms)
+✔ run as a script against a dist directory, it prints the table; a missing dist fails (128.094772ms)
+✔ isEntryPoint is true only for the script node was started with (0.203086ms)
+▶ installRemixIconOverride
+  ✔ does nothing when document is undefined (non-browser context) (2.069383ms)
+  ▶ with a document present
+    ✔ appends a marked stylesheet link pointed at the real static asset URL (199.749697ms)
+    ✔ does not install a second link when the marker is already present (13.442883ms)
+    ✔ defers to a pre-existing marked element even if it is not this module's own link (16.465321ms)
+  ✔ with a document present (230.067362ms)
+✔ installRemixIconOverride (232.982558ms)
+▶ transcript-storage
+  ▶ loadPersistedState — fail-soft rehydrate
+    ✔ returns the empty default when nothing is stored (1.272013ms)
+    ✔ rehydrates a validly-shaped entry (0.228436ms)
+    ✔ clears the key and starts empty on malformed JSON (0.203046ms)
+    ✔ clears the key and starts empty when the envelope is not an object (0.119956ms)
+    ✔ clears the key and starts empty when open is the wrong type (0.943208ms)
+    ✔ clears the whole entry when a message's id is not a string (0.177528ms)
+    ✔ clears the whole entry when a message's content is not a string (0.301556ms)
+    ✔ clears the whole entry when a message entry is not an object at all (0.154059ms)
+    ✔ clears the whole entry when even one message in the array is wrong-shaped (0.19247ms)
+    ✔ never throws when storage access itself throws (0.389035ms)
+  ✔ loadPersistedState — fail-soft rehydrate (7.030473ms)
+  ▶ savePersistedState — bounded, oldest-dropped-first
+    ✔ round-trips through loadPersistedState (1.930026ms)
+    ✔ drops the oldest messages first once the count cap is exceeded (0.262572ms)
+    ✔ drops oldest messages first once the byte cap is exceeded, even under the count cap (3.778821ms)
+    ✔ drops a single message larger than the byte cap while retaining pane state (0.951873ms)
+    ✔ enforces the UTF-8 byte cap for 界 transcripts (1.752169ms)
+    ✔ enforces the UTF-8 byte cap for 🙂 transcripts (7.012756ms)
+    ✔ never throws when the underlying setItem throws (e.g. quota exceeded) (0.230783ms)
+  ✔ savePersistedState — bounded, oldest-dropped-first (16.366106ms)
+  ▶ clearPersistedState
+    ✔ removes the stored key (0.603146ms)
+    ✔ never throws when the underlying removeItem throws (0.145949ms)
+  ✔ clearPersistedState (0.82989ms)
+✔ transcript-storage (24.889437ms)
+▶ real-sessionStorage-bound wrappers
+  ✔ react: a fresh unopened chat writes no browser storage and loads only after activation (147.348937ms)
+  ✔ vanilla: a fresh unopened chat writes no browser storage and loads only after activation (28.839753ms)
+  ✔ loadSiteAssistantState reads through to the real sessionStorage, not a private store (14.261872ms)
+  ✔ saveSiteAssistantState writes through to the real sessionStorage, not a private store (7.283298ms)
+  ✔ clearSiteAssistantState removes the real sessionStorage entry (9.790417ms)
+✔ real-sessionStorage-bound wrappers (209.470244ms)
+✔ the storage guard sees aliases and computed accesses, while ignoring comments (8.196973ms)
+▶ storage encapsulation guard
+  ✔ only session-store.ts (and this guard) names sessionStorage under apps/site-chat/src (195.977013ms)
+✔ storage encapsulation guard (196.104046ms)
+▶ visitorFacingError
+  ✔ keeps the server's reason and drops its trailing period so the sentence reads once (5.120211ms)
+  ✔ stringifies a non-Error reason (0.209908ms)
+  ✔ falls back to a generic reason when the message is blank (0.118554ms)
+  ✔ maps each browser's fetch network TypeError to one plain reason (0.312726ms)
+  ✔ passes a non-network TypeError's own message through (3.947535ms)
+✔ visitorFacingError (33.821651ms)
+▶ createSiteAssistantTransport
+  ▶ startRun
+    ✔ throws without calling fetch when history has no user turn (3.128141ms)
+    ✔ posts the latest message with same-origin credentials and no provider auth header (23.686852ms)
+    ✔ streams text and client_directive frames through onEvent and collects both for onDone (1.203606ms)
+    ✔ preserves split frames, split delimiters, and split UTF-8 bytes (1.097235ms)
+    ✔ delivers text while the response is still open, before end or EOF (47.021662ms)
+    ✔ drains multiple coalesced frames exactly once and in order (0.772362ms)
+    ✔ drops unknown and retired client directives before transcript events (1.5709ms)
+    ✔ surfaces an error frame via onError without ending the run, then still ends on a later end frame (1.658218ms)
+    ✔ falls back to a generic error message when an error frame carries no message (0.740052ms)
+    ✔ ends the run when the stream closes with no explicit end frame (0.615814ms)
+    ✔ reports malformed JSON once, finishes once, and removes the active run (0.638129ms)
+    ✔ skips a keep-alive comment frame (no data: line) without crashing or forwarding it (0.544519ms)
+    ✔ ignores a frame with no event: line (defaults to "message", matches no known kind) (0.575564ms)
+    ✔ reports onError with the server's parsed error body when the response is not ok (1.563457ms)
+    ✔ falls back to a status-coded message when a non-ok response body is not JSON (0.640733ms)
+    ✔ throws 'no stream body' when the response has no body at all (0.308375ms)
+    ✔ finishes with no onError when input.signal aborts before the response resolves (0.400319ms)
+    ✔ finishes with no onError when stopRun aborts an in-flight request (0.298115ms)
+    ✔ reports onError for a DOMException that is not an AbortError (e.g. a dropped stream) (0.536796ms)
+    ✔ wraps a non-Error stream rejection reason in an Error before reporting it (0.344664ms)
+    ✔ bounds the history sent to the server: excludes the latest turn, drops empty-content turns, keeps only the most recent 12 prior turns, and truncates any turn over 2000 chars (0.542115ms)
+  ✔ startRun (89.738399ms)
+  ▶ startRun failure reporting (DI fetch)
+    ✔ reports an end-only stream (no text, no page action) as one no-reply error and still finishes (14.256669ms)
+    ✔ treats whitespace-only text that closes without an end frame as no reply (0.535226ms)
+    ✔ a retired page action alone is not a reply (0.384676ms)
+    ✔ does not add a no-reply error on top of a server error frame (0.359991ms)
+    ✔ stays silent for an error frame that arrives after the run already ended (20.771074ms)
+    ✔ does not re-arm or fire the idle timer for chunks received after end (1.731774ms)
+    ✔ removes the input abort listener at end even while the response remains open (0.818644ms)
+    ✔ ignores all frames after end in the same chunk (81.607111ms)
+    ✔ ignores all frames after end in the later chunk (1.919323ms)
+    ✔ words a fetch network failure as an unreachable site (0.551822ms)
+    ✔ times out a request that never answers: aborts fetch, reports once, finishes (33.802285ms)
+    ✔ restarts the idle timer on every received chunk, so a slow but live reply is not cut off (611.122532ms)
+  ✔ startRun failure reporting (DI fetch) (768.777886ms)
+  ▶ reattachRun
+    ✔ resolves immediately by calling onDone with an empty event log, without calling fetch (0.294598ms)
+  ✔ reattachRun (0.400451ms)
+  ▶ fetchRunStatus
+    ✔ always resolves null (no server-side run registry to query) (0.334147ms)
+  ✔ fetchRunStatus (0.456288ms)
+  ▶ stopRun
+    ✔ is a no-op for an unknown or already-finished runId (0.221259ms)
+  ✔ stopRun (0.267016ms)
+✔ createSiteAssistantTransport (865.320638ms)
+▶ history scanning when the latest user turn is not the last entry
+  ✔ sends the latest user turn as the message and only the turns before it as history (0.6141ms)
+✔ history scanning when the latest user turn is not the last entry (0.687013ms)
+✔ wcmp: normal visitors get neither bridge nor a diagnostic listener (204.604976ms)
+✔ wcmp: React comparison relays the exact prompt to the existing ChatPane capability (14.580453ms)
+✔ wcmp: common-send adapters preserve exact failures, prevent concurrent sends, and remove listeners (14.365838ms)
+✔ wcmp: comparison storage keys separate both panes from the real visitor thread (52.860919ms)
+✔ wcmp: navigating inside the vanilla comparison frame keeps its widget and transcript namespace (39.050655ms)
+✔ comparison root react wins before reading the parent (14.31241ms)
+✔ comparison root vanilla wins before reading the parent (15.298879ms)
+✔ comparison frame variant=react, parent=/ordinary (20.735298ms)
+✔ comparison frame variant=vanilla, parent=/ordinary (18.129298ms)
+✔ comparison frame variant=invalid, parent=/ordinary (25.384565ms)
+✔ comparison frame variant=, parent=/ordinary (91.274179ms)
+✔ comparison frame variant=react, parent=/__compare/site-chat (11.805715ms)
+✔ comparison frame variant=vanilla, parent=/__compare/site-chat (15.620402ms)
+✔ comparison frame variant=invalid, parent=/__compare/site-chat (10.180388ms)
+✔ comparison frame variant=, parent=/__compare/site-chat (32.183448ms)
+✔ comparison rejects detached documents and comparison pages without a frame (9.552158ms)
+✔ comparison catches cross-origin parent access without enabling a channel (8.223559ms)
+✔ wcmp: malformed send requests are ignored, and a non-Error failure is reported as text (6.868761ms)
+✔ wcmp: a React pane relays capability errors, and unmounting rejects a send still in flight (45.270708ms)
+✔ visitor copy covers every admin locale and binds to the page language (129.138345ms)
+✔ fills Jini chat's {name} placeholders and keeps unknown ones (34.329386ms)
+✔ only a bounded typed server directive narrows; text, malformed data and executable objects do not (2.39693ms)
+✔ a click posts only ID and literal allow, relative with same-origin mode, no redirect or retry (31.274963ms)
+✔ two widget instances supply their own live confirmation credentials (2.076815ms)
+✔ live challenges stay out of events, completed transcripts and the next provider history (8.401919ms)
+✔ without a renderer a challenge remains non-persistent, and late challenges after end stay silent (1.237919ms)
+✔ public widget accent override beats the later injected user-bubble defaults (493.890402ms)
+✔ vanilla adapters: ids, aborts, session persistence without a directive executor (39.298017ms)
+✔ vanilla frames run on the next animation frame and can be cancelled (81.253653ms)
+✔ mountSiteVanillaChat mounts into the page root with its open intent, and does nothing without one (16.817981ms)
+✔ in the comparison frame, a send relays to the widget and reports busy and error states (38.137372ms)
+✔ real Jini vanilla widget holds the turn until visitor click allow=true (101.706163ms)
+✔ real Jini vanilla widget holds the turn until visitor click allow=false (45.557378ms)
+✔ visitor markdown supports GFM, escapes raw HTML and rejects executable links (122.943879ms)
+✔ model image https://evil.test/beacon?q=private never enters the rendered DOM (23.657895ms)
+✔ model image //evil.test/beacon never enters the rendered DOM (15.937076ms)
+✔ model image data:image/png;base64,AAAA never enters the rendered DOM (19.111001ms)
+✔ model image http://[invalid never enters the rendered DOM (28.13801ms)
+✔ encoded executable links and GFM footnotes cannot introduce active links or repeated IDs (13.807748ms)
+✖ existing vanilla proposal strip click allow=true cannot activate navigation (120.737693ms)
+✖ existing vanilla proposal strip click allow=false cannot activate navigation (21.04252ms)
+✖ expiry, supersession, run teardown and open/close chrome changes clean listeners and focus (11.818686ms)
+✖ a Jini chrome re-render (Escape close, outside-bubble reopen) cannot drop a pending prompt (33.879397ms)
+✔ unmounted or incomplete host markup never creates a second proposal bar (21.288644ms)
+Could not parse CSS @import URL "./site-chat-theme.css" relative to base URL "about:blank"
+✔ the visitor message list keeps the composer-height reserve as its bottom padding (117.593272ms)
+✔ visitor navigation uses normalized, same-site public paths and never arbitrary query state (0.775024ms)
+ℹ tests 187
+ℹ suites 17
+ℹ pass 183
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 20969.947629
+
+✖ failing tests:
+
+test at src/__tests__/vanilla-tool-confirmation.test.ts:1:1238
+✖ existing vanilla proposal strip click allow=true cannot activate navigation (120.737693ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/site-chat/src/__tests__/vanilla-tool-confirmation.test.ts:22:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/__tests__/vanilla-tool-confirmation.test.ts:1:1238
+✖ existing vanilla proposal strip click allow=false cannot activate navigation (21.04252ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/site-chat/src/__tests__/vanilla-tool-confirmation.test.ts:22:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/__tests__/vanilla-tool-confirmation.test.ts:1:2025
+✖ expiry, supersession, run teardown and open/close chrome changes clean listeners and focus (11.818686ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/site-chat/src/__tests__/vanilla-tool-confirmation.test.ts:43:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/__tests__/vanilla-tool-confirmation.test.ts:1:2822
+✖ a Jini chrome re-render (Escape close, outside-bubble reopen) cannot drop a pending prompt (33.879397ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/site-chat/src/__tests__/vanilla-tool-confirmation.test.ts:67:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+EXIT 1 ELAPSED 21s

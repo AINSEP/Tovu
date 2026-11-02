@@ -1,0 +1,304 @@
+▶ effect-resource-cleanup (sourceCode only)
+  ▶ valid
+    ✔ useEffect(() => { const socket = new WebSocket("/events"); return () => socket.close(); }, []); (23.538985ms)
+    ✔ useEffect(() => { /* leak-lint-ignore: tab-lifetime connection */ new EventSource("/events"); }, []); (2.518014ms)
+  ✔ valid (26.659356ms)
+  ▶ invalid
+    ✔ useEffect(() => { new WebSocket("/events"); return () => clearInterval(timer); }, []); (3.278023ms)
+  ✔ invalid (3.434721ms)
+✔ effect-resource-cleanup (sourceCode only) (30.52005ms)
+▶ effect-resource-cleanup (getSourceCode fallback)
+  ▶ valid
+    ✔ useEffect(() => { const socket = new WebSocket("/events"); return () => socket.close(); }, []); (2.197133ms)
+    ✔ useEffect(() => { /* leak-lint-ignore: tab-lifetime connection */ new EventSource("/events"); }, []); (1.719518ms)
+  ✔ valid (4.174711ms)
+  ▶ invalid
+    ✔ useEffect(() => { new WebSocket("/events"); return () => clearInterval(timer); }, []); (1.924115ms)
+  ✔ invalid (2.09718ms)
+✔ effect-resource-cleanup (getSourceCode fallback) (6.483829ms)
+✔ rejects a second composition via import { FetchQueryProvider as Shadow } from "@/lib/fetch-query/provider"; (15.457137ms)
+✔ rejects a second composition via import * as Cache from "../../lib/fetch-query/provider"; (2.144589ms)
+✔ rejects a second composition via export { FetchQueryProvider } from "@/lib/fetch-query/provider.tsx"; (1.654097ms)
+✔ rejects a second composition via export * from "@/lib/fetch-query/provider"; (1.169228ms)
+✔ rejects a second composition via const provider = import("@/lib/fetch-query/provider"); (2.111203ms)
+✔ allows the registered composition main.tsx (1.509305ms)
+✔ allows the registered composition __tests__/fetch-query-provider.test-helper.tsx (1.332592ms)
+✔ allows the registered composition lib/fetch-query/__tests__/provider.unit.test.tsx (1.45996ms)
+✔ allows read hooks from the shared library boundary (1.864309ms)
+✔ falls back to context.getFilename() on pre-ESLint-9 hosts without context.filename (2.639063ms)
+✔ class guard detects static, re-exported and dynamic packages without executing source (7.904469ms)
+✔ class guard allows builtins and configured paths, but no namespace-wide exemptions (0.215687ms)
+✔ admin source imports declare dependencies in their own package (895.872841ms)
+✔ site-chat source imports declare dependencies in their own package (11.009632ms)
+✔ resolveExistingDbPath: returns the resolved path when the database is really there (0.868033ms)
+✔ resolveExistingDbPath: throws the exact loud message, naming the path it looked for (0.59135ms)
+✔ resolveExistingDbPath: rejects a directory as loudly as a missing file (0.485849ms)
+▶ every backfill, convert, migrate and cleanup CLI refuses its effective default in an isolated repository
+  ✔ backfill-media-slugs.ts (943.968605ms)
+  ✔ backfill-reset-admin-password.ts (1151.763555ms)
+  ✔ backfill-slug-collision-defaults.ts (7582.534047ms)
+  ✔ backfill-trashed-items.ts (904.598138ms)
+  ✔ cleanup-stale-owner-sessions.ts (773.807683ms)
+  ✔ convert-legacy-doc-pages-to-html.ts (1100.302685ms)
+  ✔ migrate-page-embed-markers.ts (820.916021ms)
+✔ every backfill, convert, migrate and cleanup CLI refuses its effective default in an isolated repository (13341.643611ms)
+SqliteError: no such table: media
+    at Database.prepare (/home/user/Tovu/node_modules/better-sqlite3/lib/methods/wrappers.js:5:21)
+    at loadRowsMissingSlug (/home/user/Tovu/development/scripts/backfill-media-slugs.ts:103:6)
+    at main (/home/user/Tovu/development/scripts/backfill-media-slugs.ts:164:16)
+    at <anonymous> (/home/user/Tovu/development/scripts/backfill-media-slugs.ts:204:1)
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  code: 'SQLITE_ERROR'
+}
+Error: content database not found at /tmp/backfill-media-slugs-missingdb-1zNLEd/content.db — refusing to create one. An empty database would report zero rows to migrate and look like success. Pass --db pointing at the real site database (e.g. sites/<site>/content.db).
+    at resolveExistingDbPath (/home/user/Tovu/development/scripts/backfill-db-path.ts:48:11)
+    at main (/home/user/Tovu/development/scripts/backfill-media-slugs.ts:161:18)
+    at <anonymous> (/home/user/Tovu/development/scripts/backfill-media-slugs.ts:204:1)
+    at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+    at async node:internal/modules/esm/loader:647:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+✔ backfill-media-slugs: a slug assigned after planning survives and is reported as skipped (897.405352ms)
+✔ backfill-media-slugs: derives per-title slugs, suffixes a same-base collision, isolates per workspace, and defaults a blank title to 'untitled' (2380.782639ms)
+✔ backfill-media-slugs: a dry run against a not-yet-migrated content.db must not migrate it — asserted on the actual file, not a log line (754.632519ms)
+✔ backfill-media-slugs: a mistyped --db path fails loudly and creates nothing, instead of silently opening an empty database (718.286956ms)
+
+Interrupted while running:
+
+⚠ development/scripts/__tests__/backfill-reset-admin-password.test.ts (development/scripts/__tests__/backfill-reset-admin-password.test.ts:1:1)
+✖ development/scripts/__tests__/backfill-reset-admin-password.test.ts (1331.186843ms)
+✖ development/scripts/__tests__/backfill-slug-collision-defaults.test.ts
+✖ development/scripts/__tests__/backfill-trashed-items.test.ts
+✖ development/scripts/__tests__/check-admin-complexity-drift.test.ts
+✖ development/scripts/__tests__/check-architecture.test.ts
+✖ development/scripts/__tests__/check-coverage-integrity.test.ts
+✖ development/scripts/__tests__/check-governance-adr-scope-drift.test.ts
+✖ development/scripts/__tests__/check-idle-motion.test.ts
+✖ development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts
+✖ development/scripts/__tests__/check-no-linked-jini.test.ts
+✖ development/scripts/__tests__/check-route-coverage-diff.test.ts
+✖ development/scripts/__tests__/check-src-complexity-drift.test.ts
+✖ development/scripts/__tests__/check-test-baseline-rollups.test.ts
+✖ development/scripts/__tests__/check-theme-replaced-elements.test.ts
+✖ development/scripts/__tests__/cleanup-stale-owner-sessions.test.ts
+✖ development/scripts/__tests__/convert-legacy-doc-pages-to-html.test.ts
+✖ development/scripts/__tests__/coverage-all-files.test.ts
+✖ development/scripts/__tests__/coverage-changed-cov3.test.ts
+✖ development/scripts/__tests__/coverage-changed-discovery.test.ts
+✖ development/scripts/__tests__/coverage-changed-model.test.ts
+✖ development/scripts/__tests__/coverage-changed.test.ts
+✖ development/scripts/__tests__/dead-path-sweep.test.ts
+✖ development/scripts/__tests__/dependency-cruiser.test.ts
+✖ development/scripts/__tests__/desktop-portable.unit.test.ts
+✖ development/scripts/__tests__/e2e-source-boundary.test.ts
+✖ development/scripts/__tests__/generate-seed-content.unit.test.ts
+✖ development/scripts/__tests__/legal-owner-inputs.unit.test.ts
+✖ development/scripts/__tests__/list-server-test-files.test.ts
+✖ development/scripts/__tests__/migrate-page-embed-markers.test.ts
+✖ development/scripts/__tests__/openapi-contract-fixtures.test.ts
+✖ development/scripts/__tests__/repair-site.test.ts
+✖ development/scripts/__tests__/report-churn-hotspots.test.ts
+✖ development/scripts/__tests__/request-site-binding.guard.test.ts
+✖ development/scripts/__tests__/route-coverage-lib.test.ts
+✖ development/scripts/__tests__/route-tool-parity.unit.test.ts
+✖ development/scripts/__tests__/seed-site.unit.test.ts
+✖ development/scripts/__tests__/sites-move-home.test.ts
+✖ development/scripts/__tests__/sites-route-parity.test.ts
+✖ development/scripts/__tests__/split-chat-data-into-chat-db.test.ts
+✖ development/scripts/__tests__/stage-selected-agent-plugin-assets.test.ts
+✖ development/scripts/__tests__/test-site-catalog-isolation.guard.test.ts
+✖ development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts
+✖ development/scripts/__tests__/unit/coverage-discovery-characterization.unit.test.ts
+✖ development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts
+✖ development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts
+ℹ tests 80
+ℹ suites 6
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 45
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22659.833871
+
+✖ failing tests:
+
+test at development/scripts/__tests__/backfill-reset-admin-password.test.ts:1:1
+✖ development/scripts/__tests__/backfill-reset-admin-password.test.ts (1331.186843ms)
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/backfill-slug-collision-defaults.test.ts:1:1
+✖ development/scripts/__tests__/backfill-slug-collision-defaults.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/backfill-trashed-items.test.ts:1:1
+✖ development/scripts/__tests__/backfill-trashed-items.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/check-admin-complexity-drift.test.ts:1:1
+✖ development/scripts/__tests__/check-admin-complexity-drift.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/check-architecture.test.ts:1:1
+✖ development/scripts/__tests__/check-architecture.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/check-coverage-integrity.test.ts:1:1
+✖ development/scripts/__tests__/check-coverage-integrity.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/check-governance-adr-scope-drift.test.ts:1:1
+✖ development/scripts/__tests__/check-governance-adr-scope-drift.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/check-idle-motion.test.ts:1:1
+✖ development/scripts/__tests__/check-idle-motion.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts:1:1
+✖ development/scripts/__tests__/check-menu-href-allowlist-sync.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/check-no-linked-jini.test.ts:1:1
+✖ development/scripts/__tests__/check-no-linked-jini.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/check-route-coverage-diff.test.ts:1:1
+✖ development/scripts/__tests__/check-route-coverage-diff.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/check-src-complexity-drift.test.ts:1:1
+✖ development/scripts/__tests__/check-src-complexity-drift.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/check-test-baseline-rollups.test.ts:1:1
+✖ development/scripts/__tests__/check-test-baseline-rollups.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/check-theme-replaced-elements.test.ts:1:1
+✖ development/scripts/__tests__/check-theme-replaced-elements.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/cleanup-stale-owner-sessions.test.ts:1:1
+✖ development/scripts/__tests__/cleanup-stale-owner-sessions.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/convert-legacy-doc-pages-to-html.test.ts:1:1
+✖ development/scripts/__tests__/convert-legacy-doc-pages-to-html.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/coverage-all-files.test.ts:1:1
+✖ development/scripts/__tests__/coverage-all-files.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/coverage-changed-cov3.test.ts:1:1
+✖ development/scripts/__tests__/coverage-changed-cov3.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/coverage-changed-discovery.test.ts:1:1
+✖ development/scripts/__tests__/coverage-changed-discovery.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/coverage-changed-model.test.ts:1:1
+✖ development/scripts/__tests__/coverage-changed-model.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/coverage-changed.test.ts:1:1
+✖ development/scripts/__tests__/coverage-changed.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/dead-path-sweep.test.ts:1:1
+✖ development/scripts/__tests__/dead-path-sweep.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/dependency-cruiser.test.ts:1:1
+✖ development/scripts/__tests__/dependency-cruiser.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/desktop-portable.unit.test.ts:1:1
+✖ development/scripts/__tests__/desktop-portable.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/e2e-source-boundary.test.ts:1:1
+✖ development/scripts/__tests__/e2e-source-boundary.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/generate-seed-content.unit.test.ts:1:1
+✖ development/scripts/__tests__/generate-seed-content.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/legal-owner-inputs.unit.test.ts:1:1
+✖ development/scripts/__tests__/legal-owner-inputs.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/list-server-test-files.test.ts:1:1
+✖ development/scripts/__tests__/list-server-test-files.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/migrate-page-embed-markers.test.ts:1:1
+✖ development/scripts/__tests__/migrate-page-embed-markers.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/openapi-contract-fixtures.test.ts:1:1
+✖ development/scripts/__tests__/openapi-contract-fixtures.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/repair-site.test.ts:1:1
+✖ development/scripts/__tests__/repair-site.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/report-churn-hotspots.test.ts:1:1
+✖ development/scripts/__tests__/report-churn-hotspots.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/request-site-binding.guard.test.ts:1:1
+✖ development/scripts/__tests__/request-site-binding.guard.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/route-coverage-lib.test.ts:1:1
+✖ development/scripts/__tests__/route-coverage-lib.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/route-tool-parity.unit.test.ts:1:1
+✖ development/scripts/__tests__/route-tool-parity.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/seed-site.unit.test.ts:1:1
+✖ development/scripts/__tests__/seed-site.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/sites-move-home.test.ts:1:1
+✖ development/scripts/__tests__/sites-move-home.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/sites-route-parity.test.ts:1:1
+✖ development/scripts/__tests__/sites-route-parity.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/split-chat-data-into-chat-db.test.ts:1:1
+✖ development/scripts/__tests__/split-chat-data-into-chat-db.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/stage-selected-agent-plugin-assets.test.ts:1:1
+✖ development/scripts/__tests__/stage-selected-agent-plugin-assets.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/test-site-catalog-isolation.guard.test.ts:1:1
+✖ development/scripts/__tests__/test-site-catalog-isolation.guard.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts:1:1
+✖ development/scripts/__tests__/unit/af-cli-characterization.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/unit/coverage-discovery-characterization.unit.test.ts:1:1
+✖ development/scripts/__tests__/unit/coverage-discovery-characterization.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts:1:1
+✖ development/scripts/__tests__/unit/mutation-cli-characterization.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'
+
+test at development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts:1:1
+✖ development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts
+  'Promise resolution is still pending but the event loop has already resolved'

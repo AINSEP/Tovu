@@ -1,0 +1,45 @@
+From d2fd68643ad8817ca07ce2dca3983159d342b8c8 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 2 Nov 2026 00:55:20 +0000
+Subject: [PATCH 9/9] refactor(desktop): the launch-gated product boot is its
+ own helper so bootDesktopProductTelemetry stays under the complexity ceiling
+
+Mechanical extract; product-telemetry.test.ts pins both the no-launch and launch paths.
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+---
+ apps/desktop/src/product-telemetry.ts | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/apps/desktop/src/product-telemetry.ts b/apps/desktop/src/product-telemetry.ts
+index 1a3d0e29d..e8a968fea 100644
+--- a/apps/desktop/src/product-telemetry.ts
++++ b/apps/desktop/src/product-telemetry.ts
+@@ -36,6 +36,14 @@ export function desktopProductLaunch({ isPackaged, resourcesPath, preferencePath
+   return configPath ? { configPath, preferencePath, release: `tovu-desktop@${version}` } : undefined;
+ }
+ 
++/** Without a launch config there is no product telemetry to boot. O(1) here; boot delegates. */
++async function bootLaunchProduct({ launch, observabilityExportEnabled, readConsent }: {
++  launch: DesktopProductLaunch | undefined; observabilityExportEnabled: boolean; readConsent: () => ProductConsent;
++}, { boot }: { boot: typeof bootProductTelemetry }): Promise<ProductTelemetry | undefined> {
++  if (!launch) return undefined;
++  return boot({ ...launch, observabilityExportEnabled, processRole: 'desktop-main' }, { readConsent });
++}
++
+ /** Boot before children/windows; failed config stays inactive, with no dialog or child env.
+  * Native dumps start only with launch-time consent. Enabling later cannot start collection.
+  * @returns A tracker and owned disposal even in dev. @complexity Delegates to shared boot.
+@@ -43,8 +51,7 @@ export function desktopProductLaunch({ isPackaged, resourcesPath, preferencePath
+ export async function bootDesktopProductTelemetry({ launch, readConsent, crashReporter, observabilityExportEnabled = false, launchMode = 'fresh' }: {
+   observabilityExportEnabled?: boolean; launch: DesktopProductLaunch | undefined; readConsent: () => ProductConsent; crashReporter: CrashReporter; launchMode?: 'fresh' | 'update';
+ }, { boot = bootProductTelemetry, warn = console.warn }: { boot?: typeof bootProductTelemetry; warn?: (message: string) => void } = {}): Promise<DesktopProductTelemetry> {
+-  let product: ProductTelemetry | undefined;
+-  if (launch) product = await boot({ ...launch, observabilityExportEnabled, processRole: 'desktop-main' }, { readConsent });
++  const product = await bootLaunchProduct({ launch, observabilityExportEnabled, readConsent }, { boot });
+   const active = product?.active === true;
+   const tracker = product ? createTracker(product) : createNoopTracker({});
+   const nativeStarted = startNativeReporting({ active, product, readConsent, crashReporter, observabilityExportEnabled }, { warn });
+-- 
+2.43.0
+

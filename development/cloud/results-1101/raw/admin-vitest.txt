@@ -1,0 +1,122 @@
+
+ RUN  v4.1.11 /home/user/Tovu/apps/admin
+
+Not implemented: Window's confirm() method
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/types.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/protocol.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/experimental/tasks/interfaces.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/@modelcontextprotocol+sdk@1.29.0_@cfworker+json-schema@4.1.1_zod@3.25.76/node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-json-schema-compat.js" points to missing source files
+ ❯ src/components/__tests__/AssistantDock.hooks.unit.test.tsx (167 tests | 1 failed) 2196ms
+     × Stop during the wake still cancels the send 16ms
+Sourcemap for "/home/user/Tovu/apps/admin/node_modules/untruncate-json/dist/cjs/index.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/openid-client@6.8.8/node_modules/openid-client/build/index.js" points to missing source files
+Sourcemap for "/home/user/Jini/node_modules/.pnpm/oauth4webapi@3.8.8/node_modules/oauth4webapi/build/index.js" points to missing source files
+12:37:59 AM [vite] (client) Failed to load source map for /home/user/Tovu/apps/admin/node_modules/typescript/lib/typescript.js.
+Error: An error occurred while trying to read the map file at typescript.js.map
+Error: ENOENT: no such file or directory, open '/home/user/Tovu/apps/admin/node_modules/typescript/lib/typescript.js.map'
+    at open (node:internal/fs/promises:1345:25)
+    at Object.readFile (node:internal/fs/promises:2003:14)
+    at extractSourcemapFromFile (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:8066:65)
+    at loadAndTransform (file:///home/user/Tovu/apps/admin/node_modules/vite/dist/node/chunks/config.js:22717:22)
+ ❯ src/lib/__tests__/dictionary-lookup-sinks.unit.test.ts (14 tests | 1 failed) 3637ms
+     × every locale dictionary is consumed only through its own translator 3597ms
+ ❯ src/lib/__tests__/untranslated-copy.unit.test.ts (66 tests | 1 failed) 34ms
+     × features/media/media-i18n.ts MEDIA_DICT has no untranslated copy 12ms
+Not implemented: Window's scrollTo() method
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+ ❯ src/features/ai-assistant/__tests__/VisitorAssistantTabs.unit.test.tsx (7 tests | 1 failed) 416ms
+     × translates every built-in title and plain description in every admin locale 3ms
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/__tests__/AssistantDock.hooks.unit.test.tsx > useAssistantTransport — the send-time execution re-read > Stop during the wake still cancels the send
+AssertionError: expected [Function] to throw error including 'stopped' but got 'This operation was aborted'
+
+Expected: "stopped"
+Received: "This operation was aborted"
+
+ ❯ src/components/__tests__/AssistantDock.hooks.unit.test.tsx:1391:117
+    1390|     const stop = new AbortController();
+    1391|     const reason = new DOMException("stopped", "AbortError");
+    1392|     const prepareBinding = vi.fn(async () => { stop.abort(reason); thr…
+       |                                                       ^
+    1393|     const { result } = renderHook(() => useAssistantTransport({ execut…
+    1394|     await expect(result.current.startRun({ agentId: "codex", signal: s…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/lib/__tests__/dictionary-lookup-sinks.unit.test.ts > apps/admin/src: no inline dictionary lookup bypasses COMMON_I18N > every locale dictionary is consumed only through its own translator
+AssertionError: expected [ …(3) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "features/posts/posts-i18n.ts: indexes POSTS_DICT",
++   "features/settings/settings-i18n.ts: indexes ACCENT_NAME_DICT",
++   "features/sites/site-transfer-i18n.ts: indexes SITE_TRANSFER_DICT",
++ ]
+
+ ❯ src/lib/__tests__/dictionary-lookup-sinks.unit.test.ts:318:48
+    316|     const declared = files.filter((f) => /_DICT\s*:\s*Record</.test(f.…
+    317|     expect(declared).toBeGreaterThan(30);
+    318|     expect(findInlineDictionaryLookups(files)).toEqual([]);
+       |                                                ^
+    319|   }, 30_000); // Whole-admin AST scan competes with the other suites i…
+    320| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/lib/__tests__/untranslated-copy.unit.test.ts > admin dictionaries: no copy left in English > features/media/media-i18n.ts MEDIA_DICT has no untranslated copy
+AssertionError: expected [ 'it :: "Extra large"' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "it :: \"Extra large\"",
++ ]
+
+ ❯ src/lib/__tests__/untranslated-copy.unit.test.ts:257:18
+    255|
+    256|   it.each(dictionaries.map(({ id, gaps }) => [id, gaps] as const))("%s…
+    257|     expect(gaps).toEqual([]);
+       |                  ^
+    258|   });
+    259|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/features/ai-assistant/__tests__/VisitorAssistantTabs.unit.test.tsx > visitor tools strings > translates every built-in title and plain description in every admin locale
+TypeError: actual value must be number or bigint, received "undefined"
+ ❯ src/features/ai-assistant/__tests__/VisitorAssistantTabs.unit.test.tsx:71:76
+     69|     const copy = Object.values(VISITOR_TOOL_PRESENTATION).flatMap(tool…
+     70|     for (const locale of Object.keys(AI_ASSISTANT_DICT)) for (const ke…
+     71|       expect(VISITOR_TOOLS_DICT[locale][key]?.length, `${locale}: ${ke…
+       |                                                                            ^
+     72|       expect(translate({ locale, key }), `${locale}: ${key}`).not.toBe…
+     73|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  4 failed | 850 passed (854)
+      Tests  4 failed | 13991 passed | 2 skipped (13997)
+   Start at  00:31:20
+   Duration  1434.06s (transform 126.78s, setup 154.91s, import 1070.32s, tests 739.92s, environment 682.25s)
+
+EXIT 1 ELAPSED 1436s

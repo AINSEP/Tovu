@@ -1,0 +1,65 @@
+From 20e1fd58ec01ba74f9a871ee2f41cab10ef87b73 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 2 Nov 2026 00:49:39 +0000
+Subject: [PATCH 4/9] build(desktop): preload cleanup script is TypeScript so
+ the desktop app stays TypeScript-only
+
+Node 24 runs it with type stripping, as it already runs the other apps/desktop scripts.
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+---
+ apps/desktop/package.json                                   | 2 +-
+ .../desktop/scripts/{clean-preload.mjs => clean-preload.ts} | 0
+ development/scripts/__tests__/desktop-portable.unit.test.ts | 6 +++---
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+ rename apps/desktop/scripts/{clean-preload.mjs => clean-preload.ts} (100%)
+
+diff --git a/apps/desktop/package.json b/apps/desktop/package.json
+index 071a23320..844f74b17 100644
+--- a/apps/desktop/package.json
++++ b/apps/desktop/package.json
+@@ -11,7 +11,7 @@
+     "dev": "electron .",
+     "attach": "electron .",
+     "build": "npm run build:preload && npm run build:renderer",
+-    "build:preload": "node scripts/clean-preload.mjs && tsc -p tsconfig.preload.json && esbuild src/speech/preload-speech.cts --bundle --platform=node --format=cjs --external:electron --outfile=dist/speech/preload-speech.cjs",
++    "build:preload": "node scripts/clean-preload.ts && tsc -p tsconfig.preload.json && esbuild src/speech/preload-speech.cts --bundle --platform=node --format=cjs --external:electron --outfile=dist/speech/preload-speech.cjs",
+     "build:renderer": "vite build",
+     "watch:renderer": "vite build --watch",
+     "typecheck": "tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json && tsc -p tsconfig.main.json && tsc -p tsconfig.live-verify.json",
+diff --git a/apps/desktop/scripts/clean-preload.mjs b/apps/desktop/scripts/clean-preload.ts
+similarity index 100%
+rename from apps/desktop/scripts/clean-preload.mjs
+rename to apps/desktop/scripts/clean-preload.ts
+diff --git a/development/scripts/__tests__/desktop-portable.unit.test.ts b/development/scripts/__tests__/desktop-portable.unit.test.ts
+index abccfa462..23a884c96 100644
+--- a/development/scripts/__tests__/desktop-portable.unit.test.ts
++++ b/development/scripts/__tests__/desktop-portable.unit.test.ts
+@@ -70,7 +70,7 @@ for (const platform of ["win32", "linux"]) {
+ test("desktop build:preload uses Node cleanup instead of Unix rm", () => {
+   const manifest = JSON.parse(fs.readFileSync(path.join(repo, "apps/desktop/package.json"), "utf8"));
+   assert.doesNotMatch(manifest.scripts["build:preload"], /\brm\s+-/);
+-  assert.match(manifest.scripts["build:preload"], /^node scripts\/clean-preload\.mjs && tsc /);
++  assert.match(manifest.scripts["build:preload"], /^node scripts\/clean-preload\.ts && tsc /);
+ });
+ 
+ test("preload cleanup removes only stale preload, contracts and speech output from any cwd", (t) => {
+@@ -78,13 +78,13 @@ test("preload cleanup removes only stale preload, contracts and speech output fr
+   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+   const desktop = path.join(root, "apps/desktop");
+   fs.mkdirSync(path.join(desktop, "scripts"), { recursive: true });
+-  fs.copyFileSync(path.join(repo, "apps/desktop/scripts/clean-preload.mjs"), path.join(desktop, "scripts/clean-preload.mjs"));
++  fs.copyFileSync(path.join(repo, "apps/desktop/scripts/clean-preload.ts"), path.join(desktop, "scripts/clean-preload.ts"));
+   for (const dir of ["preload", "contracts", "speech", "renderer"]) {
+     fs.mkdirSync(path.join(desktop, "dist", dir), { recursive: true });
+     fs.writeFileSync(path.join(desktop, "dist", dir, "stale.js"), "old output");
+   }
+   for (let attempt = 0; attempt < 2; attempt++) {
+-    const child = spawnSync(process.execPath, [path.join(desktop, "scripts/clean-preload.mjs")], {
++    const child = spawnSync(process.execPath, [path.join(desktop, "scripts/clean-preload.ts")], {
+       cwd: root, encoding: "utf8", timeout: 5_000,
+     });
+     assert.ifError(child.error);
+-- 
+2.43.0
+

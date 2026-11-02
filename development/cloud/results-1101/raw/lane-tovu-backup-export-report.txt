@@ -1,0 +1,72 @@
+LANE tovu-backup-export — /home/user/Tovu branch cloud/verify-1101 (local commits only)
+Commits: cc06e68af, 3ee485104, bfd37dc0f, e49b1ec4e, c3fca4bab
+Every mutation run was restored. `git status apps` is clean and the temporary probe test files are deleted.
+
+1. site-backup/import-backend.unit.test.ts (2 tests): TEST DRIFT, FIXED 3ee485104
+   2933fbb3f (feat site-share saved keys) did two things:
+   - it stores stagedImportWarnings on the import row after restore, which is one more put() with
+     status 'creating';
+   - siteImportView returns row.warnings.
+   So a repeated completion now returns the full ready view, warnings included, and the progress
+   sequence has three 'creating' entries. Assertions updated to those exact values; why-comment
+   reworded.
+   RED: 2 failed (original test). GREEN: 56/56.
+   Mutation A (drop the post-restore put): progress test RED.
+   Mutation B (view hides warnings when ready): repeat-completion test RED. Restored: GREEN.
+
+2. site-backup/sources.unit.test.ts (3 tests): TEST DRIFT, FIXED cc06e68af
+   2933fbb3f made collectSiteBackupFiles always return `notices` (share omissions). For a plain
+   backup that is `notices: []`. The three exact deepEquals now include it.
+   RED: 3 failed. GREEN: 60/60. Mutation (omit empty notices in sources.ts): 3 RED. Restored: 60/60.
+
+3. server/__tests__/integration/site-export-real-composition.unrun (sqlite + pglite): TEST DRIFT,
+   FIXED bfd37dc0f
+   fc2a8d10a ("exports carry no localhost or Tovu internals") behaves like this when an export has no
+   public origin:
+   - it omits sitemap.xml and feed.xml (both need absolute URLs);
+   - it strips robots.txt's Sitemap line (public-origin-policy.ts:53).
+   The admin POST system/export route takes no public URL, so the test now asserts that both files are
+   absent and that robots.txt has no Sitemap line. The sitemap/feed content checks moved with the
+   behavior: output with a public origin is still pinned by
+   features/site-export/__tests__/site-exporter.test.ts.
+   RED: 2 failed ("the bundle has sitemap.xml"). GREEN: 4/4.
+   Mutation (omitted = [] always): 2 RED. Restored.
+
+4. site-title-preservation.integration AC-12 timeout: REAL HANG (not load/ENV), NEEDS OWNER
+   - It hangs the same way when run alone (60s timeout, nothing else running).
+   - Probe checkpoints: boot, pinReached, definition and revisions all pass. It blocks at
+     `GET /products while the pin is pending`.
+   - Cause: c5e98fea6 (consent banner on by default) chains siteConsentReady after
+     Promise.all([siteTitleReady, identityReady]), in composition/deps.ts:2154 and app.ts:1127.
+     The consent middleware awaits siteConsentReady on every public render
+     (inbound/public-http/middleware/site-consent.ts:83/121). With the title pin held open, every
+     public page waits and the test deadlocks.
+   - Confirmed by experiment: with consent `after:` set to identity only, AC-12 passes in 3s
+     (reverted; not committed).
+   - The source comment says this ordering is deliberate ("title and seeded-owner identity must be
+     ready first"). Owner chooses one of:
+     (a) public render must not wait on the title pin. That is a product change to the consent
+         readiness/middleware.
+     (b) requests now wait for boot readiness, and AC-12 is rewritten to assert the request is held,
+         then lands with the legacy title after release. That changes the REQ-07 test semantics.
+
+5. platform/db/__tests__/pg-fixture.unit.test.ts (3+1 tests): ENV, not fixed
+   The psql client is at /usr/bin/psql, but no Postgres server is running:
+   'connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory'.
+   The other *.postgres.test.ts failures in the shards are the same ENV cause.
+
+6. (added) site-backup/import-failures.integration "owner creation remains ready and idempotent after
+   no URL / supervisor error": TEST DRIFT, FIXED e49b1ec4e
+   Same cause as #1 (2933fbb3f stores warnings on the row); same exact update.
+   RED: 2 failed. GREEN: 35/35. Mutation (view hides warnings when ready): 2 RED. Restored.
+
+7. (added) assistant/__tests__/mcp-ui-tool-calls-route.media-trash-asset.integration (2 tests): TEST
+   DRIFT, FIXED c3fca4bab
+   96fa7bd39 ("uploaded media show their preview in chat"): media_upload_asset, with an image codec
+   wired, now replies with content blocks (media JSON text, then a webp image) instead of `{ media }`.
+   The seedAsset helper read output.media.id, which is undefined now. The helper now asserts the
+   [text, image] block types and parses media.id from the text block.
+   RED: shard TypeError "reading 'id'". GREEN: 2/2.
+   Mutation (upload handler skips the preview wrap): 2 RED. Restored.
+
+Not run: whole website suite (shards cover it; only targeted files were run, per lane rules).

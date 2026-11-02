@@ -11503,3 +11503,636 @@ vault boot coverage {
 ✔ native fatal evidence redacts home paths and runtime-built vendor tokens before taking a tail (2.601459ms)
 ✔ built-in tier-2: enable probes in a worker, save writes ext through a worker, preview saves nothing (2119.185778ms)
 ✔ built-in tier-2: a throwing filter fails the save closed and quarantines at the threshold (1370.281225ms)
+✔ built-in tier-2: a looping filter is stopped by the timeout; previews fail without counting, saves quarantine (18381.389791ms)
+✔ built-in tier-2: the worker gets an explicit minimal env, never the server's env vars (1365.483548ms)
+[plugin-runtime] boot re-attach failed for 'tier2-site': plugin 'tier2-site' failed to load (PLUGIN_EXPORT_INVALID)
+✔ site tier-2: refused at enable and never attached at boot, even integrity-pinned (69.903857ms)
+✔ cloudflare/cloudflare-workers: correct title, destination, key page and minimum access guidance (1.040893ms)
+✔ cloudflare/cloudflare-pages: correct title, destination, key page and minimum access guidance (0.217071ms)
+✔ domain-owned forms supply the connection fields (0.719656ms)
+✔ every credential card parses its task purposes (1.233376ms)
+✔ a field that is missing or has no name is refused with the rename step (1.3001ms)
+✔ migrations run with the system clock when the kit has none, and tolerate query answers without rows (36.285195ms)
+✔ form page routes skip an entry with no file name (0.8807ms)
+✔ paging numbers that do not parse fall back: after 0, limit 50; a tiny limit is raised to 1 (2.873551ms)
+✔ a pending row needs a string submittedAt and an ip that is null or a string (3.535378ms)
+✔ composio/composio: correct title, destination, key page and minimum access guidance (4.274039ms)
+✔ browser sign-in declares permissions (0.271001ms)
+✔ every credential card parses its task purposes (2.752271ms)
+✔ renders the fly config to stdout and its operator notes to stderr (113.413998ms)
+✔ --out writes the rendered fly.toml and reports where (21.097443ms)
+✔ without --region the generator receives an empty region and fly refuses to assume one (13.772774ms)
+✔ the committed Tovu deploy workflow is exactly the render of the plugin template (1.683405ms)
+✔ the render keeps the production deploy contract and adds no step the workflow never had (0.960138ms)
+✔ an enabled block un-comments its `#| ` lines and drops the matching `!` default (0.817915ms)
+✔ placeholders are substituted, and a missing value throws instead of shipping the token (0.655011ms)
+✔ malformed regions are template errors (0.25757ms)
+✔ the CLI writes the render, and --check reports a stale committed file (3.881121ms)
+✔ vendor requests retain discovery in the production catalog (474.348182ms)
+✔ validateTarget: accepts GitHub-shaped owner/repo names and names the bad one otherwise (0.819506ms)
+✔ readAccountLabel: GET /user with the token, bounded, and returns only the login (29.143033ms)
+✔ readAccountLabel: every failure is null, never a throw (1.738655ms)
+✔ create: exposes the write and backup operations, the backup ones on the retrying long-idle client (1.198941ms)
+✔ Google sign-in card matches the existing OAuth connection and its selected-file permission (8.705094ms)
+✔ Google own-client card fills the existing client-ID and secret slots without optional or unrelated inputs (4.485632ms)
+✔ Google guidance chooses sign-in and keeps the own-client fallback on its own card (0.51136ms)
+✔ every credential card parses its task purposes (0.648248ms)
+✔ client: a 401 on a read with Jini's cached token requires reconnect without resending it (4.411425ms)
+✔ client: a 401 on a write with Jini's cached token requires reconnect without resending it (0.552695ms)
+✔ client: a 401 on a write retries once after Jini refreshes; HTTP 200 ends the retry (1.584316ms)
+✔ client: a 401 on a write retries once after Jini refreshes; HTTP 401 ends the retry (0.702198ms)
+✔ client: a quota wait after a 401 cannot resend the rejected cached token (0.752282ms)
+✔ client: an empty 2xx body resolves to null (0.610949ms)
+✔ client: a 2xx body that is not JSON is unexpected-response, not-applied for a read, and is not retried (0.469428ms)
+✔ client: a 2xx body that is not JSON after a write leaves the outcome unknown (0.469076ms)
+✔ client: an HTML 503 page is service-unavailable; a read is retried with full-jitter backoff, then the error is returned (1.085564ms)
+✔ client: without an injected jitter source the backoff uses Math.random, within the full-jitter bounds (1.149551ms)
+✔ client: Retry-After is never undercut by the jitter (0.731262ms)
+✔ client: without an injected sleep the real timer is used (a zero wait still retries) (9.290057ms)
+✔ client: a lost connection on a read is network-error and is retried (0.583555ms)
+✔ client: a lost connection on a write is uncertain-outcome and is sent exactly once (0.213813ms)
+✔ client: a fetch failing because the caller aborted rethrows the abort and is not retried (0.328832ms)
+✔ client: the token goes only into the authorization header, and a body gets content-type JSON (0.261652ms)
+✔ policy: Retry-After as an HTTP date becomes the remaining milliseconds (0.135317ms)
+✔ policy: a Retry-After date in the past, a blank header or text that is no date is ignored (0.143958ms)
+✔ policy: a Retry-After over 15 minutes is capped at 15 minutes (0.065914ms)
+✔ policy: a failure without a status on an idempotent write is network-error with an unknown outcome and keeps its cause (4.253108ms)
+✔ policy: a classified failure with no cause carries none, and its JSON never includes one (0.165117ms)
+✔ account: an account with neither email nor name is labelled "Google account"; a name is used when the email is blank (0.207981ms)
+✔ account: an answer naming no account id is unexpected-response (0.163073ms)
+✔ picked file: the title falls back to the Drive name, then to "Untitled spreadsheet" (0.382567ms)
+✔ products: a product id the catalog does not know is refused with product-disabled naming the id itself (0.172588ms)
+✔ products: a known product is named by its label (0.118957ms)
+✔ batch inventory: a request that is not an object (array, null, text) is invalid-input naming its position (0.35697ms)
+✔ batch inventory: a listed kind whose body is not an object is invalid-input naming the kind (0.079866ms)
+✔ batch inventory: an empty batch or a batch that is not a list is invalid-input (0.090634ms)
+✔ output bound: nothing to serialize (undefined) fits (0.131263ms)
+✔ revocation: a 400 whose body is not JSON is not "already revoked": the revocation stays pending (0.402228ms)
+✔ revocation: a 400 invalid_token answer means Google already revoked it, which counts as confirmed (0.318057ms)
+✔ safe error 'invalid-request' keeps its message, retryable flag, next action and default outcome (3.238551ms)
+✔ safe error 'not-connected' keeps its message, retryable flag, next action and default outcome (0.152093ms)
+✔ safe error 'reconnect-required' keeps its message, retryable flag, next action and default outcome (0.095037ms)
+✔ safe error 'account-changed' keeps its message, retryable flag, next action and default outcome (0.081943ms)
+✔ safe error 'missing-permission' keeps its message, retryable flag, next action and default outcome (0.099293ms)
+✔ safe error 'file-not-granted' keeps its message, retryable flag, next action and default outcome (0.080588ms)
+✔ safe error 'access-denied' keeps its message, retryable flag, next action and default outcome (0.882325ms)
+✔ safe error 'admin-policy' keeps its message, retryable flag, next action and default outcome (0.124138ms)
+✔ safe error 'conflict' keeps its message, retryable flag, next action and default outcome (0.257489ms)
+✔ safe error 'quota-delay' keeps its message, retryable flag, next action and default outcome (0.174442ms)
+✔ safe error 'service-unavailable' keeps its message, retryable flag, next action and default outcome (0.087247ms)
+✔ safe error 'network-error' keeps its message, retryable flag, next action and default outcome (0.103311ms)
+✔ safe error 'uncertain-outcome' keeps its message, retryable flag, next action and default outcome (0.055095ms)
+✔ safe error 'unexpected-response' keeps its message, retryable flag, next action and default outcome (0.049488ms)
+✔ safe error 'product-disabled' keeps its message, retryable flag, next action and default outcome (1.462463ms)
+✔ connection: a staged account switch is shown with the pending account label (65.479927ms)
+✔ connection: the status lists the form destinations a switch would affect, read from the delivery bindings (6.003841ms)
+✔ connection: confirm-switch asks the host to confirm and answers with the new account (5.847923ms)
+✔ connection: confirm-switch with nothing ticked moves no destination and sends nothing to Google (1.590278ms)
+✔ connection: a ticked destination is checked with the new account, then saved with its account id; an unticked one keeps the old account (47.89818ms)
+✔ connection: a destination ticked twice is moved once (18.649961ms)
+✔ connection: reassigning enabled and disabled destinations preserves each binding state (27.17007ms)
+✔ connection: a ticked destination the new account cannot open is listed with the plugin message and left unchanged (16.166158ms)
+✔ connection: a ticked form with no saved destination is listed as destination-not-found (11.152336ms)
+✔ connection: when the new account cannot be read every ticked destination is listed and none moves (1.628942ms)
+✔ connection: a host failure while saving a moved destination is listed with the fixed sentence, never the host text (14.11209ms)
+✔ security: a stored destination whose spreadsheet id is not a Drive id is refused before any request names it (9.443165ms)
+✔ security: confirm-switch without an explicit reassign choice is refused by the schema and nothing is confirmed (2.539664ms)
+✔ security: a refused switch moves no destination (9.82311ms)
+✔ connection: cancel-switch asks the host to cancel and keeps the current account (1.993096ms)
+✔ connection: a host refusal of confirm-switch reaches the panel with its code and message (1.37534ms)
+✔ connection: sign-in asks for a product that is on but not yet granted, and for one granted but now off (5.021417ms)
+✔ connection: sign-in with no product on and none granted asks for the base sign-in only (2.216378ms)
+✔ destinations: list shows each saved destination binding and whether it is on the connected account (5.254194ms)
+✔ destinations: a binding of another adapter, of several forms, or with a config in another shape is not listed (and left alone) (10.392839ms)
+✔ destinations: while Google needs a reconnect, list still shows destinations, says nothing about accounts, and sends nothing to Google (2.3805ms)
+✔ destinations: the Picker bootstrap reports reconnect-required while Google needs a reconnect (3.243595ms)
+✔ destinations: remove deletes only that form's binding and answers with the rest (7.01274ms)
+✔ destinations: removing a form with no destination leaves the others unchanged (6.810932ms)
+✔ destinations: a 51st form is refused (too-many-destinations) and nothing is saved (38.97361ms)
+✔ destinations: at the ceiling, a form that already has a destination can still change it (20.299264ms)
+✔ destinations: explicitly saving a disabled destination still enables its existing binding (12.142241ms)
+✔ destinations: list-tabs keeps grid tabs only (a tab with no type counts as a grid) and gives an untitled tab an empty title (6.808594ms)
+✔ destinations: list-tabs of an answer with no tab list returns no tabs (4.721438ms)
+✔ picked files: picking a file again moves it to the top instead of listing it twice (0.461782ms)
+✔ picked files: at most 10 are kept, newest first (0.381132ms)
+✔ picker: without an injected id source, a hosted session id is a random UUID (2.832148ms)
+✔ destinations (F11): a host binding with neither formIds nor allForms fails closed and is never treated as every form (3.762748ms)
+✔ surface tokens (F7): bootstrap without a signed-in principal cannot mint a Picker access token (1.300882ms)
+✔ the design-only package ships its API references without claiming executable chat tools (64.178098ms)
+✔ Railway declares one owned API card with a fixed destination, accepted by the real parser (2.062003ms)
+✔ Railway guidance opens its own card, deploys only through the tools and never offers an unasked replacement (0.249892ms)
+✔ every credential card parses its task purposes (0.412445ms)
+[agent-plugins:migration-complete] /tmp/tovu-render-installed-96Kbaf/ws/workspace-local
+[custom-credentials] request label=Render API host=api.render.com method=GET status=200 bodyBytes=0 at=2026-10-24T12:00:00.000Z
+[custom-credentials] request label=Render API host=api.render.com method=POST status=201 bodyBytes=2 at=2026-10-24T12:00:00.000Z
+[custom-credentials] request label=Render API host=api.render.com method=GET status=200 bodyBytes=0 at=2026-10-24T12:00:00.000Z
+✔ installed Render deploys and observes the returned ID through the guarded host (3136.599817ms)
+✔ the bundled mapping is available without provider activation and preserves optional fields (1.622596ms)
+✔ every missing-variable combination preserves the original error bytes and ordering synchronously (0.929428ms)
+✔ the shipped screening guidance includes every rulepack and preserves evidence limits (44.437505ms)
+✔ Vercel resolves the API-reported production domain before rendering, including a renamed alias (11.723713ms)
+✔ a first publish creates the missing project, then reads its assigned domain instead of guessing (6.80363ms)
+✔ a denied domain lookup never provisions a project or guesses its URL (0.855432ms)
+✔ missing or oversized domain inventories fail before upload (7.036566ms)
+ℹ tests 3996
+ℹ suites 38
+ℹ pass 3960
+ℹ fail 34
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 0
+ℹ duration_ms 1524960.941958
+
+✖ failing tests:
+
+test at apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts:2:3523
+✖ the first site's copy lands in `tovu` with the same row count as SQLite for every copied core table, and leaves out logins and saved keys (606.023219ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts:2:5499
+✖ a re-copy replaces the site's own copy and never appends (27.710017ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts:2:5945
+✖ cross-site wipe regression: a copy aimed at a schema holding ANOTHER site's copy is refused inside the transaction (28.432ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts:2:6580
+✖ a schema someone else made (no marker) is refused and left untouched, and a new site is given its own schema instead (70.629058ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts:2:7545
+✖ two sites share one database: the second gets `tovu_<site>`, each re-copy replaces only its own, and a site keeps its schema after `tovu` frees up (61.568052ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts:2:8747
+✖ a row Postgres rejects rolls the whole copy back and names only the table (28.536521ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts:2:9484
+✖ a count mismatch or rejected replacement preserves the earlier rows and marker (34.201135ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts:2:11339
+✖ a setting marked secret stays behind (values at every scope and its history); ordinary settings are copied (28.402378ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts:2:15257
+✖ T1: the copy carries the schema's indexes, foreign keys, checks, defaults and identity columns, and new rows number after the copied ones (42.533023ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts:4:485
+✖ T1: a source row whose parent is missing does not stop the copy; that foreign key is kept unvalidated and named in the result (34.777288ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts:4:1384
+✖ T2: every table in the snapshot is copied or left out with a reason; a plugin's tables are copied from the snapshot's own layout (26.130705ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts:4:4377
+✖ an unconfirmed first-copy plan cannot overwrite a copy created since planning (27.216512ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts:4:4932
+✖ a Postgres site copy preserves publish backstop audit rows and their undo inverses (46.051244ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async recreateDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:28:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async Test.run (node:internal/test_runner/test:1362:9)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts:2:3487
+✖ /home/user/Tovu/apps/website/src/features/database-transfer/__tests__/copy-engine.postgres.test.ts (23.355962ms)
+  Error: postgres: psql request failed
+      at sql (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:23:25)
+      at async dropDatabase (/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/pg-test-db.ts:33:3)
+      at async TestHook.run (node:internal/test_runner/test:1409:7)
+      at async Test.runHook (node:internal/test_runner/test:1289:9)
+      at async after (node:internal/test_runner/test:1342:9)
+      at async Test.run (node:internal/test_runner/test:1428:7)
+
+test at apps/website/src/features/media/__tests__/view-video-tool.test.ts:1:3438
+✖ video slugs resolve through the gate in an eight-item sequential batch (25.830363ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 2
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/media/__tests__/view-video-tool.test.ts:78:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/navigation/__tests__/repo.compare-and-set.postgres.test.ts:1:1547
+✖ postgres: two writers on the same base version, B blocked on A's row lock — A lands, B gets the version conflict (0.354495ms)
+  Error: failed to drop fixture database "tovu_menu_cas_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/navigation/__tests__/repo.compare-and-set.postgres.test.ts:30:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/navigation/__tests__/repo.compare-and-set.postgres.test.ts:29:1)
+
+test at apps/website/src/features/navigation/__tests__/repo.compare-and-set.postgres.test.ts:1:2531
+✖ postgres: two creates of one id, B blocked on A's uncommitted insert — A lands, B gets the version conflict (0.04957ms)
+  Error: failed to drop fixture database "tovu_menu_cas_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/navigation/__tests__/repo.compare-and-set.postgres.test.ts:30:15)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/navigation/__tests__/repo.compare-and-set.postgres.test.ts:29:1)
+
+test at apps/website/src/features/plugins/__tests__/data-module.dialects.test.ts:1:3246
+✖ a Postgres kernel takes no snapshot and opens no journal entry, whatever dbPath says (88.050557ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /directory does not exist/. Input:
+  
+  "Error: ENOENT: no such file or directory, statfs '/nonexistent'"
+  
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/plugins/__tests__/data-module.dialects.test.ts:106:9)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: ENOENT: no such file or directory, statfs '/nonexistent'
+        at async Object.statfs (node:internal/fs/promises:1763:18)
+        at async assertDatabaseCopySpace (/home/user/Jini/packages/db/src/sqlite/backup-policy.ts:28:17)
+        at async Object.backup (/home/user/Jini/packages/db/src/kernel/sqlite/driver.ts:125:7)
+        at async takingTurn (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:77:12)
+        at async Object.backupTo (/home/user/Jini/packages/db/src/kernel/kernel-core.ts:161:7)
+        at async snapshotDb (/home/user/Tovu/apps/website/src/features/plugins/snapshot.ts:68:3)
+        at async declareDataModule (/home/user/Tovu/apps/website/src/features/plugins/data-module.ts:948:38)
+        at async waitForActual (node:assert:646:5)
+        at async strict.rejects (node:assert:769:25)
+        at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/plugins/__tests__/data-module.dialects.test.ts:106:9),
+    expected: /directory does not exist/,
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/static-render-author.test.ts:1:1266
+✖ stock static post templates render one byline when enabled, including catalog reset originals (182.584409ms)
+  AssertionError [ERR_ASSERTION]: stock post templates must be discovered
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/static-render-author.test.ts:42:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:1:1640
+✖ runner-to-head, then prepare twice: one watermark row, one seeded workspace with its posts and presentation (77.04983ms)
+  Error: failed to drop fixture database "tovu_seed_content_store_pg_fixture_twice": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at freshKernels (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:37:15)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:56:26)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+
+test at apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:1:2707
+✖ a restart never overwrites operator edits: edited, deleted and re-themed rows survive a second prepare byte for byte (54.162272ms)
+  Error: failed to drop fixture database "tovu_seed_content_store_pg_fixture_edits": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at freshKernels (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:37:15)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:71:26)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:1:3463
+✖ an existing workspace with the seed's SLUG but a different id is never seeded over: no second workspace, no demo posts (146.114911ms)
+  Error: failed to drop fixture database "tovu_seed_content_store_pg_fixture_same_slug": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at freshKernels (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:37:15)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:86:26)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:1:4131
+✖ two processes booting at once: the second prepare WAITS on the seed lock the first holds, then seeds nothing twice (159.509219ms)
+  Error: failed to drop fixture database "tovu_seed_content_store_pg_fixture_concurrent": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at freshKernels (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:37:15)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts:98:33)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:3:295
+✖ bootSiteDir on a postgres site opens the store (migrated, workspace resolved) without a content.db (0.43912ms)
+  Error: failed to drop fixture database "tovu_r1f_boot_site_dir": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:38:26)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:37:1)
+
+test at apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:3:1331
+✖ bootSiteDir honors an explicit Postgres workspace instead of the oldest (0.076035ms)
+  Error: failed to drop fixture database "tovu_r1f_boot_site_dir": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:38:26)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:37:1)
+
+test at apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:3:1583
+✖ createSiteRouteDeps reuses the store bootSiteDir opened (serve/export pass it as overrides.store) (0.034865ms)
+  Error: failed to drop fixture database "tovu_r1f_boot_site_dir": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:38:26)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:37:1)
+
+test at apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:3:3203
+✖ bootSiteDir on a postgres site rejects an unknown --workspace and closes the store it opened (0.040057ms)
+  Error: failed to drop fixture database "tovu_r1f_boot_site_dir": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:38:26)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:37:1)
+
+test at apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:3:3584
+✖ createSiteRouteDeps refuses overrides.store without workspaceId (the pair rule covers the store too) (0.045907ms)
+  Error: failed to drop fixture database "tovu_r1f_boot_site_dir": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:38:26)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at node:internal/test_runner/harness:426:12
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:37:1)
+
+test at apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:3:124
+✖ /home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts (23.592777ms)
+  TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string or an instance of Buffer or URL. Received undefined
+      at Object.rmSync (node:fs:1282:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/integration/boot-site-dir.postgres.test.ts:58:6)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.runHook (node:internal/test_runner/test:1289:20)
+      at after (node:internal/test_runner/test:1342:20)
+      at Test.run (node:internal/test_runner/test:1428:13) {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }
+
+test at apps/website/src/server/__tests__/routes/taxonomy-routes.test.ts:1:23604
+✖ taxonomy routes: create-taxonomy validates 'name'/'hierarchical', reports FORBIDDEN, and maps unexpected repo failures (Error and non-Error) to 500 (162.04714ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'internal error (error 74fc4e58-386e-4cd3-806b-72e2efb539c6)'
+  - 'db connection broken'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/taxonomy-routes.test.ts:740:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'internal error (error 74fc4e58-386e-4cd3-806b-72e2efb539c6)',
+    expected: 'db connection broken',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/__tests__/routes/taxonomy-routes.test.ts:1:25699
+✖ taxonomy routes: rename-term validates 'newName', reports FORBIDDEN and TERM_NOT_FOUND, and maps unexpected repo failures (Error and non-Error) to 500 (168.121571ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'internal error (error 63392ba3-0224-4ddc-9c49-41e0ebdbbad6)'
+  - 'db connection broken'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/taxonomy-routes.test.ts:810:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'internal error (error 63392ba3-0224-4ddc-9c49-41e0ebdbbad6)',
+    expected: 'db connection broken',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/assistant/__tests__/byok-message-attachments.unit.test.ts:1:445
+✖ the BYOK route places prepared pixels only on the newest user message, reading the booted site's attachment directory (102.515945ms)
+  TypeError [Error]: res.status is not a function
+      at resolveTurnInputsOrRespond (eval at <anonymous> (file:///home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/byok-message-attachments.unit.test.ts:2:261), <anonymous>:36:13)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/assistant/__tests__/byok-message-attachments.unit.test.ts:31:24)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+
+test at apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:6:234
+✖ handlebars-worker.ts loads no database, blob-store or agent packages (1642.270247ms)
+  AssertionError [ERR_ASSERTION]: handlebars-worker.ts pulled in /Jini/packages/agentic/ (196 modules loaded)
+  + actual - expected
+  
+  + [
+  +   '/Jini/packages/agentic/'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:77:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '/Jini/packages/agentic/' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:6:234
+✖ liquid-worker.ts loads no database, blob-store or agent packages (709.455334ms)
+  AssertionError [ERR_ASSERTION]: liquid-worker.ts pulled in /Jini/packages/agentic/ (154 modules loaded)
+  + actual - expected
+  
+  + [
+  +   '/Jini/packages/agentic/'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/public-http/http/site/__tests__/worker-import-graph.test.ts:77:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ '/Jini/packages/agentic/' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+EXIT 1 ELAPSED 1525s

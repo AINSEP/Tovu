@@ -42,3 +42,48 @@ Root cause 2 (the 2 "headers omit member sign-in" canaries, masked by cause 1): 
 
 Not run: website typecheck, because the box is loaded. All changes are in test files plus one new
 fixture.
+
+==== LANE tovu-confirm-github, batch 3 (2026-11-02 ~00:37 UTC) ====
+Local commits, not pushed: dd4d212b9, c8435640c, 176722df1, d509f0a8c, f75ff4bc2. All five fixes
+are TEST DRIFT; no product change was needed. Every item listed was reached.
+
+1. shipped-site-theme-drift.canary "release stock declares current content templates": TEST DRIFT. FIXED in c8435640c.
+   ef1ae2ea7 added pages-blank.html to tovu-theme's manifest, and the exact release pin was not
+   updated. The pin stays exact.
+   Mutation (pages-blank.html removed from stock theme.json): 3 RED. Restored.
+
+2. public-site-guide.test (3 tests): TEST DRIFT. FIXED in dd4d212b9.
+   dfea76018 retired navigate_to_entry/scroll_to_entry/highlight_entry in favour of the page.*
+   tools and relabelled effectivePublicCard. The tests still granted the old ids, so "all default
+   grants" never matched and the reduced card had the new labels.
+   Bug class: a hand-copied tool-id list goes stale when the vocabulary is renamed.
+   Guard: grants now derive from VISITOR_TOOL_PRESENTATION, the reviewed visitor catalog.
+   Mutation (a label key renamed to page.clickx): 3 RED. Restored.
+
+3. byok-tool-surface (web_fetch_page, describe_tool): TEST DRIFT. FIXED in 176722df1.
+   Jini 7a2b4f7 (core, 11-01) keeps Symbol(batchItemRequiredFields) on in-memory batched schemas.
+   It is deliberately not a wire key. The tests compared describe_tool's JSON with the in-memory
+   object, which carries the symbol.
+   Guard: wireSchema() is the JSON round-trip of the registered schema.
+   Mutation (wireSchema returns the object unchanged): 2 RED. Restored.
+
+4. publish-site-route (2 concurrency tests): NOT load-induced. It reproduces when the file runs alone
+   (2 fail / 32 pass). TEST DRIFT. FIXED in d509f0a8c.
+   A probe showed the run errored EXPORT_FAILED: the fake's assert saw '/v9/projects/demo/domains'
+   where only '/v13/deployments' was expected.
+   315c5ab12 (seo) added a pre-export Vercel public-domain lookup (vercel.mjs:191). The strict
+   fakes now answer it the same way adapter.plugin-targets.unit.test.ts does. Full file: 34/34.
+   Mutation (409 in-flight guard in publish-site.ts:284 disabled): RED "202 !== 409". Restored.
+   The shard's "authorize() failure ... 500" errorId case passed in my isolated runs (the
+   incident-envelope commits from other lanes).
+
+5. static-render-author "stock post templates must be discovered" (low priority): TEST DRIFT. FIXED in f75ff4bc2.
+   e2fc970d4 deleted basic-2 and the three tailark themes, leaving 4 post templates per directory,
+   so the literal ">= 8" floor went stale.
+   The count is now derived from the manifests (templateFor includes "post") and must equal the
+   number swept. Mutation (index declared as a post template): RED. Restored.
+
+Seen in shard-4 but not assigned, so not touched:
+- mcp-ui-tool-calls-route.media-trash-asset (seedAsset: undefined .id);
+- recovery-restore-routes errorId envelope;
+- migration-manifest-postgres: ENV (no Postgres socket).

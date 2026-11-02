@@ -1,0 +1,4 @@
+render-form-layout		ENV | NOT FIXED (Playwright Chromium headless_shell-1228 not installed; container has a different build)
+site-guide.engine-unavailable		PRODUCT (likely) | NOT FIXED — NEEDS OWNER (failure points at static-render.ts:1, the @jini-ai/agentic barrel import from dfea76018; same root as worker-import-graph)
+dead-path-sweep	generated coverage	ENV (likely) | NOT FIXED (no development/coverage output in a fresh clone)
+vanilla-tool-confirmation	cannot activate navigation	PRODUCT? (possibly security) | NOT FIXED — UNTRIAGED, time cap; OWNER PRIORITY (a proposal-strip click activates navigation; area last changed by dfea76018 visitor page tools)

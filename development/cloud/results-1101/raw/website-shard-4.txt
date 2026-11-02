@@ -19209,3 +19209,1049 @@ vault boot coverage {
 ✔ missing credentials refuse locally without touching the network (0.166376ms)
 ✔ restricted documents never reach the search service (0.534374ms)
 [agent-plugins:migration-complete] /tmp/tovu-railway-installed-JIhHEY/ws/workspace-local
+[custom-credentials] request label=Railway API host=backboard.railway.com method=POST status=200 bodyBytes=460 at=2026-10-24T12:00:00.000Z
+[custom-credentials] request label=Railway API host=backboard.railway.com method=POST status=200 bodyBytes=322 at=2026-10-24T12:00:00.000Z
+[custom-credentials] request label=Railway API host=backboard.railway.com method=POST status=200 bodyBytes=166 at=2026-10-24T12:00:00.000Z
+[custom-credentials] request label=Railway API host=backboard.railway.com method=POST status=200 bodyBytes=166 at=2026-10-24T12:00:00.000Z
+[custom-credentials] request label=Railway API host=backboard.railway.com method=POST status=200 bodyBytes=235 at=2026-10-24T12:00:00.000Z
+✔ installed Railway contributes deploy and observes its returned run through the bound host (2326.9564ms)
+✔ Render accepts HTTP 201 and retains the opaque deployment ID (6.332418ms)
+✔ HTTP 202 is a queued deploy with no body: started, without a run ID (0.342075ms)
+✔ an unexpected 2xx is not reported as started (0.486975ms)
+✔ an invalid log limit is refused before any request (2.399265ms)
+✔ only a full explicit SHA becomes commitId (0.410689ms)
+✔ unsupported ref "main" fails before I/O (0.23218ms)
+✔ unsupported ref "v1" fails before I/O (0.128662ms)
+✔ unsupported ref "abc123" fails before I/O (1.503657ms)
+✔ unsupported ref "" fails before I/O (0.132834ms)
+✔ unsupported ref "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" fails before I/O (0.168472ms)
+✔ static_site cannot dispatch (0.181818ms)
+✔ cron_job cannot dispatch (0.097495ms)
+✔ future_type cannot dispatch (0.072487ms)
+✔ a mismatched service refuses before dispatch (0.104476ms)
+✔ status live maps to healthy (0.292583ms)
+✔ status build_failed maps to failing (0.091225ms)
+✔ status update_failed maps to failing (0.066616ms)
+✔ status pre_deploy_failed maps to failing (5.348905ms)
+✔ status canceled maps to stopped (0.106047ms)
+✔ status deactivated maps to stopped (0.064337ms)
+✔ status created maps to deploying (0.058359ms)
+✔ status queued maps to deploying (0.052552ms)
+✔ status build_in_progress maps to deploying (0.066818ms)
+✔ status update_in_progress maps to deploying (0.067899ms)
+✔ status pre_deploy_in_progress maps to deploying (0.064683ms)
+✔ status future maps to unknown (0.048984ms)
+✔ latest deployment is selected with one bounded read (0.126038ms)
+✔ an empty deployment list stays unknown (0.078143ms)
+✔ run ownership uses the target-scoped path and refuses a wrong run (0.094021ms)
+✔ unsafe target srv-../x never reaches HTTP (0.222452ms)
+✔ unsafe target srv-a/b never reaches HTTP (0.071055ms)
+✔ unsafe target ../x never reaches HTTP (0.065149ms)
+✔ unsafe target srv-a?x=y never reaches HTTP (0.078162ms)
+✔ logs resolve ownerId from the service, honour limit and report more pages (0.317715ms)
+✔ log query escapes service owner and checks an explicit run in the same service (0.148049ms)
+✔ long log messages are clipped with truncation reported (0.135503ms)
+✔ discovery omits static services and escapes workspace query (4.714832ms)
+✔ discovery follows bounded cursor pages (0.363547ms)
+✔ discovery refuses to invent completeness beyond five pages (0.626314ms)
+✔ ambiguous writes are not retried or returned as successful (0.200123ms)
+✔ acceptance without a usable run ID gives check-before-retry guidance (0.25294ms)
+✔ log requests stay within Render's 100-line API maximum (0.151214ms)
+✔ a service without ownerId cannot issue an unscoped log request (0.152053ms)
+✔ a run from another service fails at the scoped endpoint, with no log request (0.154697ms)
+✔ a missing pagination cursor refuses an incomplete inventory (0.241472ms)
+✔ transport-truncated inventory is never treated as a complete list (0.120078ms)
+✔ put() writes the bare key path-style under the bucket and hands the host signer the credential (26.727162ms)
+✔ blank/omitted endpoints derive the AWS host, trailing slashes are stripped, and keyPrefix namespaces every operation (6.077506ms)
+✔ object keys are byte-identical to S3BlobStore's keyPrefix + storageKey: each '/' segment is encoded independently (0.320436ms)
+✔ put() sends a real SigV4-signed request (AWS4-HMAC-SHA256) when the host signs with aws4fetch (82.500198ms)
+✔ put() then get() round-trips the exact bytes written (1.319064ms)
+✔ get() of a missing key resolves null (the object-store contract), not a rejection (0.262233ms)
+✔ head() reports the size right after put() and null after delete() (0.448336ms)
+✔ head() distinguishes a genuine 404 from 403/429/5xx instead of collapsing every non-ok response into null (0.777491ms)
+✔ head() rejects a missing, malformed or unsafe content-length rather than guessing a size, and accepts 0 (1.478653ms)
+✔ provider failures for writes, reads and deletes reject without changing stored objects (8.125075ms)
+✔ write failures bound provider error bodies at 200 characters and keep the HTTP error when the body is unreadable (6.689203ms)
+✔ put({ ifAbsent }) on a fresh key writes and reports written: true (0.718478ms)
+✔ put({ ifAbsent }) on an occupied key reports written: false and leaves the existing object untouched (0.874396ms)
+✔ a 412 on a plain put() (no ifAbsent) is a failure, not a silent written: false (0.499255ms)
+✔ put() sends contentType as content-type and passes caller headers through; contentType and ifAbsent win over a stray caller header (1.202897ms)
+✔ put(): enforced content-type and If-None-Match replace a caller header of ANY casing — never a combined 'etag-1, *' value (0.510026ms)
+✔ delete() is idempotent — deleting an already-absent key is not an error (1.492238ms)
+✔ a transport failure rejects every method as 'request failed' naming the key, for Error and non-Error causes (1.121696ms)
+✔ get() is bounded at 120s and head() at 30s, combined with the caller's signal; put()/delete() carry only the caller's signal (6.326195ms)
+✔ host.wrapFetch wraps the signed fetch once, and every object call goes through the wrapper (0.51949ms)
+✔ a transport failure surfacing through host.wrapFetch still rejects as 'request failed' (0.197359ms)
+✔ create() refuses missing input as not_configured naming every missing field, never throws, and never builds a signer (0.277466ms)
+✔ createArtifactStore() delegates to the publish target's share capability with the same input (0.854652ms)
+✔ OAuth and token fallback target the hosted service without inline secrets (26.321917ms)
+✔ the WordPress package ships both guides without a deploy target or connection card (32.003602ms)
+ℹ tests 4255
+ℹ suites 59
+ℹ pass 4197
+ℹ fail 49
+ℹ cancelled 0
+ℹ skipped 9
+ℹ todo 0
+ℹ duration_ms 1699491.008657
+
+✖ failing tests:
+
+test at apps/website/src/assistant/__tests__/byok-tool-surface.test.ts:1:8126
+✖ BYOK can find, describe and run web_fetch_page, and the wired client refuses a private address (37.544702ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  -   Symbol(batchItemRequiredFields): [
+  -     'url'
+  -   ],
+      additionalProperties: false,
+      properties: {
+        captureData: {
+          description: "Render only, default true: capture this page's own XHR/fetch JSON responses (including its data-provider hosts), capped at 20 responses, 8000 body characters each and 60000 total including URLs; the total data window also shrinks with maxChars.",
+          type: 'boolean'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/byok-tool-surface.test.ts:222:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { type: 'object', additionalProperties: false, properties: { url: [Object], format: [Object], render: [Object], waitFor: [Object], dismissCookieBanners: [Object], captureData: [Object], captureDataMatch: [Object], textMode: [Object], screenshot: [Object], find: [Object], maxChars: [Object], items: [Object] } },
+    expected: { type: 'object', additionalProperties: false, properties: { url: [Object], format: [Object], render: [Object], waitFor: [Object], dismissCookieBanners: [Object], captureData: [Object], captureDataMatch: [Object], textMode: [Object], screenshot: [Object], find: [Object], maxChars: [Object], items: [Object] } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/byok-tool-surface.test.ts:1:9086
+✖ describe_tool returns a real tool's input schema, and refuses an unknown id with a next step (29.739897ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  -   Symbol(batchItemRequiredFields): [],
+      additionalProperties: false,
+      properties: {
+        id: {
+          description: 'The current workspace id; v1 cannot address another workspace. Omit to list instead of fetching a single item.',
+          minLength: 1,
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/byok-tool-surface.test.ts:235:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { type: 'object', additionalProperties: false, properties: { id: [Object], items: [Object] } },
+    expected: { type: 'object', additionalProperties: false, properties: { id: [Object], items: [Object] } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts:1:2057
+✖ media_trash_asset trashes the asset in one call and emits no dialog (590.643775ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'id')
+      at seedAsset (/home/user/Tovu/apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts:59:63)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts:65:19)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+
+test at apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts:1:3013
+✖ SECURITY: a surface callback cannot run media_trash_asset — the route refuses it with 403 and never reaches the executor (185.085838ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'id')
+      at seedAsset (/home/user/Tovu/apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts:59:63)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.media-trash-asset.integration.test.ts:83:19)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/entries/__tests__/integration/unreadable-owner-entries-repair.postgres.test.ts:1:1250
+✖ two processes booting at once: the mismatched rows go exactly once, one marker, readable rows survive (53.176107ms)
+  Error: failed to drop fixture database "tovu_unreadable_owner_entries_repair_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/entries/__tests__/integration/unreadable-owner-entries-repair.postgres.test.ts:43:15)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+
+test at apps/website/src/features/entries/__tests__/integration/unreadable-owner-entries-repair.postgres.test.ts:1:817
+✖ /home/user/Tovu/apps/website/src/features/entries/__tests__/integration/unreadable-owner-entries-repair.postgres.test.ts (32.355089ms)
+  Error: failed to drop fixture database "tovu_unreadable_owner_entries_repair_pg_fixture": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/entries/__tests__/integration/unreadable-owner-entries-repair.postgres.test.ts:27:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.runHook (node:internal/test_runner/test:1289:20)
+      at after (node:internal/test_runner/test:1342:20)
+      at Test.run (node:internal/test_runner/test:1428:13)
+
+test at apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:1:9379
+✖ owner creation remains ready and idempotent after no URL (3104.540212ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      adminUrl: null,
+      createdAt: '2026-11-02T00:09:21.827Z',
+      error: 'Site created; start it from Sites to open admin.',
+      hasEncryptedKeys: false,
+  ...
+      status: 'ready',
+  +   warnings: [
+  +     "Plugin 'custom' isn't code this Tovu recognises. It was imported and kept switched off.",
+  +     "Skill 'custom' isn't code this Tovu recognises. It was imported and kept switched off.",
+  +     "Theme 'executable' isn't code this Tovu recognises. It was imported and kept switched off."
+  +   ]
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:140:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { importId: 'dbb3dbe8-426e-425c-b596-17d454314e6a', source: { uploadId: '81ce589b-cffc-40ea-9353-9669be8ee70b' }, newSiteId: '2e5f0220-ba3f-43c7-ae1a-b57b273cddea', newSiteName: 'imported-site', state: 'ready', status: 'ready', createdAt: '2026-11-02T00:09:21.827Z', adminUrl: null, error: 'Site created; start it from Sites to open admin.', warnings: [ "Plugin 'custom' isn't code this Tovu recognises. It was imported and kept switched off.", "Skill 'custom' isn't code this Tovu recognises. It was imported and kept switched off.", "Theme 'executable' isn't code this Tovu recognises. It was imported and kept switched off." ], hasEncryptedKeys: false, instructions: 'Open adminUrl when available. Imported extensions remain quarantined and need explicit review before activation.' },
+    expected: { importId: 'dbb3dbe8-426e-425c-b596-17d454314e6a', source: { uploadId: '81ce589b-cffc-40ea-9353-9669be8ee70b' }, newSiteId: '2e5f0220-ba3f-43c7-ae1a-b57b273cddea', newSiteName: 'imported-site', state: 'ready', status: 'ready', createdAt: '2026-11-02T00:09:21.827Z', adminUrl: null, error: 'Site created; start it from Sites to open admin.', hasEncryptedKeys: false, instructions: 'Open adminUrl when available. Imported extensions remain quarantined and need explicit review before activation.' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:1:9379
+✖ owner creation remains ready and idempotent after supervisor error (3851.505002ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      adminUrl: undefined,
+      createdAt: '2026-11-02T00:09:24.926Z',
+      error: 'Site created with its owner. Start it from Sites to open admin.',
+      hasEncryptedKeys: false,
+  ...
+      status: 'ready',
+  +   warnings: [
+  +     "Plugin 'custom' isn't code this Tovu recognises. It was imported and kept switched off.",
+  +     "Skill 'custom' isn't code this Tovu recognises. It was imported and kept switched off.",
+  +     "Theme 'executable' isn't code this Tovu recognises. It was imported and kept switched off."
+  +   ]
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-backup/__tests__/import-failures.integration.test.ts:140:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { importId: 'adab5ac2-71ed-456d-b06f-02eb66a0b93c', source: { uploadId: '3524755b-c460-47a8-a30b-d79ccebb6172' }, newSiteId: '8b5180c9-007e-46a2-a175-e7e808f81f17', newSiteName: 'imported-site', state: 'ready', status: 'ready', createdAt: '2026-11-02T00:09:24.926Z', adminUrl: undefined, error: 'Site created with its owner. Start it from Sites to open admin.', warnings: [ "Plugin 'custom' isn't code this Tovu recognises. It was imported and kept switched off.", "Skill 'custom' isn't code this Tovu recognises. It was imported and kept switched off.", "Theme 'executable' isn't code this Tovu recognises. It was imported and kept switched off." ], hasEncryptedKeys: false, instructions: 'Open adminUrl when available. Imported extensions remain quarantined and need explicit review before activation.' },
+    expected: { importId: 'adab5ac2-71ed-456d-b06f-02eb66a0b93c', source: { uploadId: '3524755b-c460-47a8-a30b-d79ccebb6172' }, newSiteId: '8b5180c9-007e-46a2-a175-e7e808f81f17', newSiteName: 'imported-site', state: 'ready', status: 'ready', createdAt: '2026-11-02T00:09:24.926Z', adminUrl: undefined, error: 'Site created with its owner. Start it from Sites to open admin.', hasEncryptedKeys: false, instructions: 'Open adminUrl when available. Imported extensions remain quarantined and need explicit review before activation.' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/theme/__tests__/shipped-site-theme-drift.canary.test.ts:1:1993
+✖ release stock declares current content templates and an explicit publication policy (12.863624ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'posts-default.html',
+      'posts-sidebar.html',
+      'pages-default.html',
+  +   'pages-blank.html',
+      'index',
+      'listing-default.html'
+    ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/theme/__tests__/shipped-site-theme-drift.canary.test.ts:62:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'posts-default.html', 'posts-sidebar.html', 'pages-default.html', 'pages-blank.html', 'index', 'listing-default.html' ],
+    expected: [ 'posts-default.html', 'posts-sidebar.html', 'pages-default.html', 'index', 'listing-default.html' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:3264
+✖ FIXTURE_DB is namespaced by this run's own process.pid — two different pids can never compute the same fixture database name, which is the entire fix for the collision (0.834383ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:3626
+✖ sweepStaleFixtureDatabases: reclaims a fixture database whose owning pid has died, and leaves one whose pid is still alive completely untouched (0.117013ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:4916
+✖ sweepStaleFixtureDatabases: a non-canonical suffix Number() would coerce into a plausible dead pid is never touched, even though the pre-fix Number()-based guard would have dropped it (0.054745ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:5681
+✖ CANONICAL_PID_SUFFIX: matches only a bare decimal pid shape; rejects every adversarial suffix Number() would otherwise coerce (0.050334ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:6272
+✖ int4 rejects 2147483648 on a live server; int8 accepts the identical value (0.068994ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:7096
+✖ reseedSequenceSql, executed after a copy that preserved original ids, makes the next plain insert land at max+1 with no collision (0.066842ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:8082
+✖ reseedSequenceSql handles the empty-table edge case: reseeding an empty table still starts identity at 1 (0.048741ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:8788
+✖ reseedSequenceSql: a table containing ONLY non-positive copied ids (0 and -1) reseeds to 1, not a collision and not a jump to 2 (0.055633ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:10206
+✖ reseedSequenceSql: a mixed-sign table (some non-positive, some positive ids) still reseeds to max+1 — the non-positive-id fix does not regress the ordinary case (0.074988ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:11176
+✖ a plain INSERT naming an explicit identity-column value fails WITHOUT OVERRIDING SYSTEM VALUE, and succeeds WITH it (0.077649ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:12024
+✖ COPY accepts an explicit identity-column value with NO override syntax at all — the override clause this manifest exports must never be prepended to a COPY statement (0.056514ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:12741
+✖ a naive-local timestamp string casts to a DIFFERENT instant depending on the reading session's timezone; a UTC-offset string does not (0.032148ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:13996
+✖ string-collation ORDER BY on a text timestamp column disagrees with chronological ORDER BY when Z and offset forms mix — the concrete mechanism TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z documents (0.027454ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:15420
+✖ Postgres accepts a UTC offset up to and including ±15:59 and rejects ±16:00 and beyond, in both directions — the bound a UTC-offset check must enforce, not the ±23:59 Date.parse allows (0.049272ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:16986
+✖ a plain Postgres text column silently accepts malformed JSON — proving a json-text column needs a semantic check beyond either dialect's type system (0.027207ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:17871
+✖ publish backstop audit is workspace-scoped core data included once in the Postgres copy catalog (0.027474ms)
+  Error: failed to list databases for the stale fixture-database sweep: psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at sweepStaleFixtureDatabases (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:149:23)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:175:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.createHook (node:internal/test_runner/test:1117:33)
+      at test.before (node:internal/test_runner/harness:426:12)
+      at <anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:174:6)
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+
+test at apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:1:3215
+✖ /home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts (27.733301ms)
+  Error: failed to drop fixture database "tovu_migration_fixture_6358": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts:180:3)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.runHook (node:internal/test_runner/test:1289:20)
+      at after (node:internal/test_runner/test:1342:20)
+      at Test.run (node:internal/test_runner/test:1428:13)
+
+test at apps/website/src/platform/site-dir/__tests__/unit/site-key-dependent-data.postgres.test.ts:1:902
+✖ findSiteKeyDependentData: Postgres (env) site — a clean database is no data; a sealed row is data (59.698649ms)
+  Error: failed to drop fixture database "tovu_site_key_dependent_data_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at recreateDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:92:25)
+      at freshPostgresDatabase (/home/user/Tovu/apps/website/src/platform/db/__tests__/postgres-database.ts:22:3)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/unit/site-key-dependent-data.postgres.test.ts:29:15)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+
+test at apps/website/src/platform/site-dir/__tests__/unit/site-key-dependent-data.postgres.test.ts:1:557
+✖ /home/user/Tovu/apps/website/src/platform/site-dir/__tests__/unit/site-key-dependent-data.postgres.test.ts (59.068371ms)
+  Error: failed to drop fixture database "tovu_site_key_dependent_data_test": psql: error: connection to server on socket "/tmp/.s.PGSQL.5432" failed: No such file or directory
+  	Is the server running locally and accepting connections on that socket?
+  
+      at dropDatabase (/home/user/Jini/packages/db/src/pg-fixture.ts:103:25)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/platform/site-dir/__tests__/unit/site-key-dependent-data.postgres.test.ts:19:13)
+      at TestHook.runInAsyncScope (node:async_hooks:227:14)
+      at TestHook.run (node:internal/test_runner/test:1402:25)
+      at TestHook.run (node:internal/test_runner/test:1757:18)
+      at TestHook.run (node:internal/util:581:20)
+      at Test.runHook (node:internal/test_runner/test:1289:20)
+      at after (node:internal/test_runner/test:1342:20)
+      at Test.run (node:internal/test_runner/test:1428:13)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+
+test at apps/website/src/server/__tests__/b07-workspace-handler-gaps.test.ts:1:2449
+✖ workspace get/list conceal a repository failure after attempting the bound-row read (5.976853ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      jsonBody: {
+  +     code: 'INTERNAL_ERROR',
+  +     error: 'internal error (error dac01999-1868-499f-9574-97a7d5c101db)',
+  +     errorId: 'dac01999-1868-499f-9574-97a7d5c101db'
+  -     error: 'internal error'
+      },
+      statusCode: 500
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/b07-workspace-handler-gaps.test.ts:60:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { statusCode: 500, jsonBody: { code: 'INTERNAL_ERROR', errorId: 'dac01999-1868-499f-9574-97a7d5c101db', error: 'internal error (error dac01999-1868-499f-9574-97a7d5c101db)' } },
+    expected: { statusCode: 500, jsonBody: { error: 'internal error' } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/__tests__/b07-workspace-handler-gaps.test.ts:1:5485
+✖ workspace PATCH conceals a failed write and leaves the active row unchanged (1.763904ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      jsonBody: {
+  +     code: 'INTERNAL_ERROR',
+  +     error: 'internal error (error 42538407-03a5-4750-9ecf-3e82f0c9cfc0)',
+  +     errorId: '42538407-03a5-4750-9ecf-3e82f0c9cfc0'
+  -     error: 'internal error'
+      },
+      statusCode: 500
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/b07-workspace-handler-gaps.test.ts:110:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { statusCode: 500, jsonBody: { code: 'INTERNAL_ERROR', errorId: '42538407-03a5-4750-9ecf-3e82f0c9cfc0', error: 'internal error (error 42538407-03a5-4750-9ecf-3e82f0c9cfc0)' } },
+    expected: { statusCode: 500, jsonBody: { error: 'internal error' } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/__tests__/routes/database-migrate-forward-routes.test.ts:1:12777
+✖ migration plan maps a capability-read failure (object) (213.862574ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'internal error (error c22815aa-49da-40ea-a517-a2c37ca3fdf4)',
+  +   errorId: 'c22815aa-49da-40ea-a517-a2c37ca3fdf4'
+  -   error: 'plan read failed'
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/database-migrate-forward-routes.test.ts:364:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: 'c22815aa-49da-40ea-a517-a2c37ca3fdf4', error: 'internal error (error c22815aa-49da-40ea-a517-a2c37ca3fdf4)' },
+    expected: { error: 'plan read failed', code: 'INTERNAL_ERROR' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/__tests__/routes/database-migrate-forward-routes.test.ts:1:12777
+✖ migration plan maps a capability-read failure (string) (267.490726ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'internal error (error 953372ac-802a-4eac-8d0d-3b89d90acc44)',
+  +   errorId: '953372ac-802a-4eac-8d0d-3b89d90acc44'
+  -   error: 'internal error'
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/database-migrate-forward-routes.test.ts:364:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: '953372ac-802a-4eac-8d0d-3b89d90acc44', error: 'internal error (error 953372ac-802a-4eac-8d0d-3b89d90acc44)' },
+    expected: { error: 'internal error', code: 'INTERNAL_ERROR' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/__tests__/routes/database-migrate-forward-routes.test.ts:1:16638
+✖ migration confirm maps failed token persistence (object) (236.963089ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'internal error (error 1b6d0484-e50a-45ad-84ab-c4b55e03528a)',
+  +   errorId: '1b6d0484-e50a-45ad-84ab-c4b55e03528a'
+  -   error: 'token store unavailable'
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/database-migrate-forward-routes.test.ts:441:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: '1b6d0484-e50a-45ad-84ab-c4b55e03528a', error: 'internal error (error 1b6d0484-e50a-45ad-84ab-c4b55e03528a)' },
+    expected: { error: 'token store unavailable', code: 'INTERNAL_ERROR' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/__tests__/routes/database-migrate-forward-routes.test.ts:1:16638
+✖ migration confirm maps failed token persistence (string) (187.463775ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'internal error (error 77aa0218-964f-4d87-bac2-1ec4f72a1239)',
+  +   errorId: '77aa0218-964f-4d87-bac2-1ec4f72a1239'
+  -   error: 'internal error'
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/database-migrate-forward-routes.test.ts:441:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: '77aa0218-964f-4d87-bac2-1ec4f72a1239', error: 'internal error (error 77aa0218-964f-4d87-bac2-1ec4f72a1239)' },
+    expected: { error: 'internal error', code: 'INTERNAL_ERROR' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/__tests__/routes/database-migrate-forward-routes.test.ts:1:18711
+✖ database migrate-forward execute: a non-Error throw is a 500 with the generic message (202.512773ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'internal error (error aef54568-c98b-4b30-9f3e-16e6931a834d)',
+  +   errorId: 'aef54568-c98b-4b30-9f3e-16e6931a834d'
+  -   error: 'internal error'
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/database-migrate-forward-routes.test.ts:490:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: 'aef54568-c98b-4b30-9f3e-16e6931a834d', error: 'internal error (error aef54568-c98b-4b30-9f3e-16e6931a834d)' },
+    expected: { error: 'internal error', code: 'INTERNAL_ERROR' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/__tests__/routes/publish-site-route.test.ts:1:8436
+✖ publish-site: a concurrent second trigger gets 409 while the first provider request is held open (10242.72311ms)
+  Error: publish never reached the provider barrier
+      at Timeout.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/publish-site-route.test.ts:93:43)
+      at listOnTimeout (node:internal/timers:685:17)
+      at process.processTimers (node:internal/timers:618:7)
+
+test at apps/website/src/server/__tests__/routes/publish-site-route.test.ts:1:11152
+✖ publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP route's own publish is in flight is refused, not raced — the two callers share one guard (Terra audit finding #1, 2026-08-16) (10228.427125ms)
+  Error: publish never reached the provider barrier
+      at Timeout.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/publish-site-route.test.ts:93:43)
+      at listOnTimeout (node:internal/timers:685:17)
+      at process.processTimers (node:internal/timers:618:7)
+
+test at apps/website/src/server/__tests__/routes/publish-site-route.test.ts:1:28849
+✖ publish-site: an authorize() failure surfaces as a 500 on all three routes (trigger, status poll, preview) -- the one awaited call every route's own try wraps before any target-specific logic (317.49074ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'internal error (error 7b3f3902-b847-43b0-9a1c-93da1b12bf69)',
+  +   errorId: '7b3f3902-b847-43b0-9a1c-93da1b12bf69'
+  -   error: 'internal error'
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/publish-site-route.test.ts:814:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: '7b3f3902-b847-43b0-9a1c-93da1b12bf69', error: 'internal error (error 7b3f3902-b847-43b0-9a1c-93da1b12bf69)' },
+    expected: { error: 'internal error', code: 'INTERNAL_ERROR' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/__tests__/routes/recovery-restore-routes.test.ts:1:16879
+✖ recovery restore: plan surfaces a throwing dbOps capability probe as 500 INTERNAL_ERROR (its message, or a generic one for a non-Error) (237.133746ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'internal error (error 2aa5c038-a40a-420d-bb41-08a984665bdb)',
+  +   errorId: '2aa5c038-a40a-420d-bb41-08a984665bdb'
+  -   error: 'capabilities probe failed'
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/recovery-restore-routes.test.ts:478:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: '2aa5c038-a40a-420d-bb41-08a984665bdb', error: 'internal error (error 2aa5c038-a40a-420d-bb41-08a984665bdb)' },
+    expected: { error: 'capabilities probe failed', code: 'INTERNAL_ERROR' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/__tests__/routes/recovery-restore-routes.test.ts:1:17711
+✖ recovery restore: a gateway error whose code has no mapped status (INTERNAL_ERROR from a throwing restore-points repo) is a 500 (567.014182ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'internal error (error 7252a4b7-e5d9-41a6-b3cb-699b6da97e18)',
+  +   errorId: '7252a4b7-e5d9-41a6-b3cb-699b6da97e18'
+  -   error: 'restore-points ledger unreadable'
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/recovery-restore-routes.test.ts:498:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: '7252a4b7-e5d9-41a6-b3cb-699b6da97e18', error: 'internal error (error 7252a4b7-e5d9-41a6-b3cb-699b6da97e18)' },
+    expected: { error: 'restore-points ledger unreadable', code: 'INTERNAL_ERROR' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/__tests__/routes/recovery-restore-routes.test.ts:1:18234
+✖ recovery restore: confirm reached without a session principal (requireAdminSession not mounted) is a 500 INTERNAL_ERROR naming the miswiring (104.798261ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /no principal on res\.locals/. Input:
+  
+  'internal error (error 85c73d03-fcfb-46e4-8718-2e636acc808c)'
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/recovery-restore-routes.test.ts:511:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'internal error (error 85c73d03-fcfb-46e4-8718-2e636acc808c)',
+    expected: /no principal on res\.locals/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/__tests__/routes/recovery-restore-routes.test.ts:1:18797
+✖ recovery restore: execute surfaces a throwing instance-authorization port as 500 INTERNAL_ERROR before any lock is taken (215.712076ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'INTERNAL_ERROR',
+  +   error: 'internal error (error 157e61ef-b1a5-43de-bd63-f365cf62a400)',
+  +   errorId: '157e61ef-b1a5-43de-bd63-f365cf62a400'
+  -   error: 'instance authorizer offline'
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/__tests__/routes/recovery-restore-routes.test.ts:523:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'INTERNAL_ERROR', errorId: '157e61ef-b1a5-43de-bd63-f365cf62a400', error: 'internal error (error 157e61ef-b1a5-43de-bd63-f365cf62a400)' },
+    expected: { error: 'instance authorizer offline', code: 'INTERNAL_ERROR' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/update-fields.test.ts:1:3420
+✖ maps Error to INTERNAL_ERROR (11.615671ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      body: {
+        code: 'INTERNAL_ERROR',
+  +     error: 'internal error (error ea936d73-ad85-43cc-ac7b-c7ccb9694492)',
+  +     errorId: 'ea936d73-ad85-43cc-ac7b-c7ccb9694492'
+  -     error: 'write rejected'
+      },
+      status: 500
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/update-fields.test.ts:68:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/update-fields.test.ts:66:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { status: 500, body: { code: 'INTERNAL_ERROR', errorId: 'ea936d73-ad85-43cc-ac7b-c7ccb9694492', error: 'internal error (error ea936d73-ad85-43cc-ac7b-c7ccb9694492)' } },
+    expected: { status: 500, body: { error: 'write rejected', code: 'INTERNAL_ERROR' } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/update-fields.test.ts:1:5671
+✖ thrown object returns the current internal-error response (reported, not fixed) (2.468526ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      body: {
+        code: 'INTERNAL_ERROR',
+  +     error: 'internal error (error 379a688f-a09c-4d5f-bd62-a72aea491259)',
+  +     errorId: '379a688f-a09c-4d5f-bd62-a72aea491259'
+  -     error: 'backend detail'
+      },
+      status: 500
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/update-fields.test.ts:121:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/update-fields.test.ts:119:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { status: 500, body: { code: 'INTERNAL_ERROR', errorId: '379a688f-a09c-4d5f-bd62-a72aea491259', error: 'internal error (error 379a688f-a09c-4d5f-bd62-a72aea491259)' } },
+    expected: { status: 500, body: { error: 'backend detail', code: 'INTERNAL_ERROR' } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/update-fields.test.ts:1:5671
+✖ thrown string returns the current internal-error response (reported, not fixed) (2.124631ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      body: {
+        code: 'INTERNAL_ERROR',
+  +     error: 'internal error (error 76c6c553-38e9-4f64-b415-0e9abe171ef7)',
+  +     errorId: '76c6c553-38e9-4f64-b415-0e9abe171ef7'
+  -     error: 'internal error'
+      },
+      status: 500
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/update-fields.test.ts:121:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/update-fields.test.ts:119:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { status: 500, body: { code: 'INTERNAL_ERROR', errorId: '76c6c553-38e9-4f64-b415-0e9abe171ef7', error: 'internal error (error 76c6c553-38e9-4f64-b415-0e9abe171ef7)' } },
+    expected: { status: 500, body: { error: 'internal error', code: 'INTERNAL_ERROR' } },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/public-site-guide.test.ts:1:2215
+✖ default grants preserve the original guide card through the injected engine (21.981789ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" to be reference-equal to "expected":
+  + actual - expected
+  ... Skipped lines
+  
+    {
+  +   explanation: 'Currently available: Search published entries; Read a published entry; List public categories. Drafts, private configuration and administrator tools are unavailable. Ask the site operator to plan or build features requiring those permissions. Never name internal tools or expose tool or topic identifiers to visitors, including when an action is unavailable or refused. Describe what you can or cannot do in plain visitor-friendly language; do not quote internal errors.',
+  -   explanation: 'The visitor assistant can search and read published entries, open public pages and operate reviewed published controls. Filling fields and submitting forms always require visitor confirmation. Drafts, private configuration and administrator tools are unavailable to this caller. Ask the site operator to plan or build features requiring those permissions. Never name internal tools or expose tool or topic identifiers to visitors, including when an action is unavailable or refused. Describe what you can or cannot do in plain visitor-friendly language; do not quote internal errors.',
+      id: 'content',
+      permissions: [],
+      pointers: [
+        {
+          label: 'Search published entries',
+  ...
+        },
+  +     {
+  +       label: 'List public categories',
+  +       permissions: []
+  +     }
+      ],
+  +   summary: 'Search published entries; Read a published entry; List public categories.',
+  -   summary: 'Find published entries and navigate this site.',
+      title: 'Published content',
+      workflows: []
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/public-site-guide.test.ts:43:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { id: 'content', title: 'Published content', summary: 'Search published entries; Read a published entry; List public categories.', explanation: 'Currently available: Search published entries; Read a published entry; List public categories. Drafts, private configuration and administrator tools are unavailable. Ask the site operator to plan or build features requiring those permissions. Never name internal tools or expose tool or topic identifiers to visitors, including when an action is unavailable or refused. Describe what you can or cannot do in plain visitor-friendly language; do not quote internal errors.', permissions: [], workflows: [], pointers: [ [Object], [Object], [Object] ] },
+    expected: { id: 'content', title: 'Published content', summary: 'Find published entries and navigate this site.', explanation: 'The visitor assistant can search and read published entries, open public pages and operate reviewed published controls. Filling fields and submitting forms always require visitor confirmation. Drafts, private configuration and administrator tools are unavailable to this caller. Ask the site operator to plan or build features requiring those permissions. Never name internal tools or expose tool or topic identifiers to visitors, including when an action is unavailable or refused. Describe what you can or cannot do in plain visitor-friendly language; do not quote internal errors.', permissions: [], workflows: [], pointers: [ [Object], [Object] ] },
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/public-site-guide.test.ts:1:2780
+✖ all default tools leave both model-facing guide operations unchanged (5.676714ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      enrichment: 'ok',
+      facts: {},
+      operation: 'overview',
+      topics: [
+  ...
+          source: 'core',
+  +       summary: 'Search published entries; Read a published entry; List public categories.',
+  -       summary: 'Find published entries and navigate this site.',
+          title: 'Published content'
+        }
+      ]
+    }
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/public-site-guide.test.ts:50:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { operation: 'overview', topics: [ [Object] ], facts: {}, enrichment: 'ok' },
+    expected: { operation: 'overview', topics: [ [Object] ], facts: {}, enrichment: 'ok' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/public-site-guide.test.ts:1:3252
+✖ reduced guide cards include every allowed CMS action and preserve the operator guidance (5.313612ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(JSON.stringify(result).includes(label))
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/public-site-guide.test.ts:59:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+EXIT 1 ELAPSED 1699s

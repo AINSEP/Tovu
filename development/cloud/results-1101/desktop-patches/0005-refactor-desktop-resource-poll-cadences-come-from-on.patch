@@ -1,0 +1,43 @@
+From f56371e154ced073dbf80a51b23689998b8aac8f Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 2 Nov 2026 00:52:08 +0000
+Subject: [PATCH 5/9] refactor(desktop): resource poll cadences come from one
+ helper so get stays under the complexity ceiling
+
+Mechanical extract; behaviour unchanged and pinned by desktop-resources.test.ts.
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+---
+ apps/desktop/src/desktop-resources.ts | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/apps/desktop/src/desktop-resources.ts b/apps/desktop/src/desktop-resources.ts
+index 77387881a..fbff9a302 100644
+--- a/apps/desktop/src/desktop-resources.ts
++++ b/apps/desktop/src/desktop-resources.ts
+@@ -113,6 +113,12 @@ function groupSample({ usages, sites, desktopPid, previous, at, totalMemoryBytes
+   };
+ }
+ 
++/** Open-panel and collapsed-badge poll cadences; Windows gets the longer open-panel interval. O(1). */
++function resourcePollIntervals({ platform, panelOpen }: { platform: NodeJS.Platform; panelOpen: boolean }, _options = {}) {
++  const panelIntervalMs = platform === 'win32' ? 10_000 : 5_000;
++  return { panelIntervalMs, pollIntervalMs: panelOpen ? panelIntervalMs : 60_000 };
++}
++
+ /**
+  * Main owns request-driven sampling and caches between polls. Concurrent callers share one read;
+  * failures clear CPU history and return unavailable without leaking native errors. No timers to leak.
+@@ -145,8 +151,7 @@ export function createDesktopResources(ports: DesktopResourcesPorts, _options =
+   return {
+     /** Call only from a visible renderer; panelOpen selects the cheaper collapsed-badge cadence. */
+     async get({ panelOpen }: ResourcesRequest, _getOptions = {}): Promise<ResourcesSnapshot> {
+-      const panelIntervalMs = ports.platform === 'win32' ? 10_000 : 5_000;
+-      const pollIntervalMs = panelOpen ? panelIntervalMs : 60_000;
++      const { panelIntervalMs, pollIntervalMs } = resourcePollIntervals({ platform: ports.platform, panelOpen });
+       // A launch-time failure must not strand the badge on a minute-long cached failure.
+       const retryIntervalMs = cached?.status === 'unavailable' ? panelIntervalMs : pollIntervalMs;
+       if (!inFlight && (!cached || ports.now() - lastAttempt >= retryIntervalMs)) {
+-- 
+2.43.0
+

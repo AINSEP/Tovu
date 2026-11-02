@@ -1,0 +1,49 @@
+LANE admin vitest — report (branch cloud/verify-1101)
+
+1. dictionary-lookup-sinks "every locale dictionary is consumed only through its own translator"
+   Class: PRODUCT (convention guard: raw dictionary indexed outside translator/init-merge shape).
+   Cause (git blame, corrects the "all 11-01" premise):
+     posts-i18n.ts:2903 indexed write POSTS_DICT[locale][key] = message — 5b7db91e9 (10-31, preview cookie copy).
+       (posts :3267 Object.assign(POSTS_DICT[locale], copy) was already guard-legal; the hit set dedupes per name.)
+     settings-i18n.ts:55 ACCENT_NAME_DICT[locale] spread inside the createDictionaryTranslator arg — 7612cd1bc (11-01).
+     site-transfer-i18n.ts:208/239 Object.assign(SITE_TRANSFER_DICT[locale]!, ...) — the `!` (NonNullExpression) breaks the
+       sanctioned Object.assign(DICT[locale], ...) shape — 1485b4e49 (10-30), 2933fbb3f (10-31). `!` was a type no-op (no noUncheckedIndexedAccess).
+   Fix: owner-local top-level Object.assign(DICT[locale], ...) init merges (settings: for-of over ACCENT_NAME_DICT into
+     non-exported SETTINGS_DICT, translator gets SETTINGS_DICT). Why-comments added.
+   Copy equality: vi.mock captured the featureDictionary passed to createDictionaryTranslator for all 3 modules before/after;
+     JSON dumps byte-identical (cmp) and deep-equal True. No copy changes.
+   RED:  + "features/posts/posts-i18n.ts: indexes POSTS_DICT" / settings ACCENT_NAME_DICT / site-transfer SITE_TRANSFER_DICT; 1 failed | 13 passed
+   GREEN: Tests 14 passed (14)
+   Mutation: reverting each file alone -> exactly that file's hit returns (1 failed | 13 passed) x3; restored.
+   Also green: sites-i18n unit, untranslated-copy (besides media, fixed below). tsc --noEmit exit 0.
+   FIXED 98021833e
+
+2. AssistantDock.hooks "Stop during the wake still cancels the send"
+   Class: TEST DRIFT (stale expectation after a deliberate impl contract change). Not flaky: failed 3/3 identically.
+   Not caused by 11-01 folder chips / Jini. Cause: 3e4c02499 (10-30 "Starting assistant…") made pageBindToken call
+     signal.throwIfAborted() up front and rethrow signal.reason ("throws the caller's abort reason on Stop") instead of the
+     wake's error. Test (f04d8c7b6, 1h earlier) pre-aborted with no reason and expected the wake's "stopped" message.
+     Proof: restoring pre-3e4c02499 semantics (no early check, `throw error`) -> old test passes.
+   RED: expected [Function] to throw error including 'stopped' but got 'This operation was aborted'
+   Fix (stronger, not weaker): Stop fires mid-wake with reason DOMException("stopped"); wake rejects with unrelated
+     Error("the wake failed"); asserts rejects.toBe(reason), prepareBinding called once, startRun not called.
+   GREEN 3/3; whole file 167 passed.
+   Mutation A (swallow Stop: drop `throw signal.reason`) -> RED "promise resolved undefined instead of rejecting".
+   Mutation B (rethrow wake error) -> RED "expected Error: the wake failed to be DOMException ... Object.is". Restored.
+   FIXED 81fe28a8f
+
+3. (from full run) untranslated-copy "features/media/media-i18n.ts MEDIA_DICT has no untranslated copy"
+   Class: PRODUCT (missing translation). Cause: 8b8f2847c (11-01 media toolbar Size select) left it "Extra large": "Extra large".
+   Fix: "Molto grande" (Italian UI convention for the XL step, e.g. Windows "Icone molto grandi").
+   RED: + "it :: \"Extra large\""; GREEN: untranslated-copy + media i18n 82 passed; mutation revert -> RED same line. FIXED 7998b1a82
+
+4. (from full run) VisitorAssistantTabs "translates every built-in title and plain description in every admin locale"
+   Class: PRODUCT (missing translations). Cause: dfea76018 (10-31, commit msg itself says "wip ... tests NOT green") added
+     page.find_elements / page.click / page.fill / page.select_option presentation (apps/website/src/assistant/site/
+     visitor-tool-presentation.ts:36-39) with no rows in visitor-tools-i18n.ts KEYS/ROWS -> VISITOR_TOOLS_DICT[locale][key] undefined.
+   NOT FIXED — NEEDS OWNER: 8 new strings x 20 locales (~160 translations) on a WIP visitor-policy feature whose copy
+     (confirmation semantics) should be owner-approved.
+
+tsc --noEmit (apps/admin) exit 0 after all edits. Full admin run had not printed its summary when read; failures listed are all ×/FAIL lines in it.
+
+PUSH: git push origin cloud/verify-1101 REJECTED by the apps/desktop pre-push hook ('check-gates: FAILED'). It ran because other lanes' desktop commits are in the push range; the hook printed no gate detail. Not bypassed with --no-verify. Branch is ahead of origin by 9; my commits are local only.

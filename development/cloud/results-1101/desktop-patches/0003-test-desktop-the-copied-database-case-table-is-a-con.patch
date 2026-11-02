@@ -1,0 +1,27 @@
+From 8fa7d47291bb29573b362365db11859ab54c4917 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 2 Nov 2026 00:48:40 +0000
+Subject: [PATCH 3/9] test(desktop): the copied-database case table is a const
+ tuple so its filename types as string
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+---
+ apps/desktop/src/copied-external-database.test.ts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/apps/desktop/src/copied-external-database.test.ts b/apps/desktop/src/copied-external-database.test.ts
+index 93dfb2fb2..d4067c159 100644
+--- a/apps/desktop/src/copied-external-database.test.ts
++++ b/apps/desktop/src/copied-external-database.test.ts
+@@ -94,7 +94,7 @@ test('a linked data.nosync directory gives the copy independent content and chat
+   fs.symlinkSync(path.dirname(f.sourcePath), path.join(f.copy, 'data.nosync'), 'junction');
+   addSitePointer({ siteDir: f.copy, projectsPath: f.projectsPath }, { workspace: f.workspace });
+   const meta = JSON.parse(fs.readFileSync(path.join(f.copy, '.site-meta.json'), 'utf8'));
+-  for (const [filename, table, expected] of [['content.db', 'posts', 'committed in WAL'], ['chat.db', 'messages', 'copied history']]) {
++  for (const [filename, table, expected] of [['content.db', 'posts', 'committed in WAL'], ['chat.db', 'messages', 'copied history']] as const) {
+     const dbPath = f.workspace.databasePath({ dir: f.copy, id: meta.siteId, filename });
+     assert.notEqual(fs.realpathSync(dbPath), fs.realpathSync(path.join(path.dirname(f.sourcePath), filename)));
+     const db = new DatabaseSync(dbPath);
+-- 
+2.43.0
+
