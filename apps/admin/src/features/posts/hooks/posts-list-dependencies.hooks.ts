@@ -10,38 +10,13 @@ import type { PostsListPort } from "./posts-list-port.hooks";
 /** The live implementation, as a module-level singleton. */
 export const defaultPostsListPort: PostsListPort = {
   listPosts: () => api.listPosts(),
-  createPost: (title) => api.createPost({ title }),
   updatePost: (target, patch) => api.updatePost(target, patch),
   deletePost: (id) => api.deletePost(id),
 };
 
-const FAKE_WORKSPACE_ID = "fake-ws";
-
-/** Every caller names the row's `id` (it is derived from the store size), so `id` is required
- *  here and comes from the trailing `...overrides` spread. */
-function fakePost(overrides: Pick<AdminPost, "id"> & Partial<AdminPost>): AdminPost {
-  return {
-    workspaceId: FAKE_WORKSPACE_ID,
-    kind: "post",
-    title: "Untitled",
-    slug: "untitled",
-    bodyJson: {},
-    bodyFormat: "doc",
-    status: "draft",
-    templateChoice: null,
-    overridesThemePage: false,
-    updatedAt: new Date(0).toISOString(),
-    version: 1,
-    ...overrides,
-  };
-}
-
 /** Seed state for {@link createFakePostsListPort}. */
 export interface FakePostsListPortOptions {
   posts?: AdminPost[];
-  /** When set, `createPost()` rejects with this instead of resolving — for create-failure
-   *  tests. */
-  createError?: Error;
   /** When set, `updatePost()` rejects with this instead of resolving — for disable-failure
    *  tests. */
   updateError?: Error;
@@ -75,12 +50,6 @@ export function createFakePostsListPort(options: FakePostsListPortOptions = {}):
     },
     async listPosts() {
       return { posts: posts.map((post) => ({ post })) };
-    },
-    async createPost(title) {
-      if (options.createError) throw options.createError;
-      const created = fakePost({ id: `fake-post-${posts.length + 1}`, title, slug: title.toLowerCase() });
-      posts.push(created);
-      return { post: created };
     },
     async updatePost({ id }, patch) {
       if (options.updateError) throw options.updateError;

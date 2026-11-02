@@ -346,10 +346,8 @@ describe("postsListNotice", () => {
 
 it("New Post opens the unsaved editor without persisting an Untitled post", async () => {
   const port = createFakePostsListPort({ posts: [] });
-  const create = vi.spyOn(port, "createPost");
   render(<Posts usePostsHook={() => usePosts({ port, navigate })} />);
   await userEvent.click(await screen.findByRole("button", { name: "New Post" }));
   expect(navigate).toHaveBeenCalledWith("/posts?create=1");
-  expect(create).not.toHaveBeenCalled();
   expect(port.posts).toEqual([]);
 });

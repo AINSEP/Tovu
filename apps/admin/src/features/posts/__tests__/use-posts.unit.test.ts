@@ -342,19 +342,6 @@ describe("rowSavingId — shared between the publish toggle and Delete", () => {
 });
 
 describe("injected port (useWiredX conversion coverage)", () => {
-  it("opening a new post never calls a refusing create port and preserves the list", async () => {
-    const fake = createFakePostsListPort({ posts: [POST] });
-    const port = { ...fake, createPost: async () => { throw "offline"; } };
-    const navigate = vi.fn();
-    const { result } = renderHook(() => usePosts({ port, navigate }));
-    await waitFor(() => expect(result.current.posts).toEqual([POST]));
-    await act(() => result.current.createPost());
-    expect(result.current.error).toBeNull();
-    expect(result.current.creating).toBe(false);
-    expect(result.current.posts).toEqual([POST]);
-    expect(navigate).toHaveBeenCalledWith("/posts?create=1");
-  });
-
   it.each([
     ["draft", "failed to publish post"],
     ["published", "failed to unpublish post"],
@@ -467,20 +454,6 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
     expect(port.posts).toEqual([]);
     expect(result.current.posts).toEqual([]);
-  });
-
-  it("opens the editor without touching a create port that would reject", async () => {
-    const port = createFakePostsListPort({ posts: [], createError: new Error("quota exceeded") });
-    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
-    await waitFor(() => expect(result.current.posts).not.toBeNull());
-
-    await act(async () => {
-      await result.current.createPost();
-    });
-
-    expect(result.current.error).toBeNull();
-    expect(port.posts).toEqual([]);
-    expect(result.current.creating).toBe(false);
   });
 });
 

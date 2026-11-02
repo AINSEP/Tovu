@@ -119,6 +119,9 @@ test("the files: list still excludes test files it is meant to exclude", () => {
   const patterns = configuredFilePatterns();
   assert.equal(shipsPath(patterns, "src/sites-mcp-registration.test.ts"), false);
   assert.equal(shipsPath(patterns, "src/sites-mcp-registration.ts"), true);
+  for (const helper of ["src/renderer/app-hooks.test-support.ts", "src/renderer/app/component-harness.ts", "src/renderer/app-shell-source.ts"]) {
+    assert.equal(shipsPath(patterns, helper), false, `${helper} is test-only`);
+  }
 });
 
 /**

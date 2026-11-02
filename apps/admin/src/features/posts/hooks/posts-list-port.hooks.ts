@@ -8,7 +8,6 @@ import type { AdminPost } from "@/lib/api";
  */
 export interface PostsListPort {
   listPosts(): Promise<{ posts: Array<{ post: AdminPost }> }>;
-  createPost(title: string): Promise<{ post: AdminPost }>;
   /**
    * `expectedVersion` (2026-09-18, multi-author hardening) — the optimistic-concurrency basis, same
    * contract as `post-editor-port.hooks.ts`'s `updatePost`: the row's `version` as this list last

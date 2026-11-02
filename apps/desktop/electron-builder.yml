@@ -24,6 +24,10 @@ files:
   - "src/**"
   - "!**/*.map"
   - "!src/**/*.test.ts"
+  # Test-only renderer helpers: only the renderer tests import them.
+  - "!src/**/*.test-support.ts"
+  - "!src/renderer/app/component-harness.ts"
+  - "!src/renderer/app-shell-source.ts"
   # `scripts/stage-payload.ts` builds the payload; it is not part of the app.
   - "!scripts/**"
   # The staged payload is 427 MB and ships via `extraResources` below. Without this negation the
