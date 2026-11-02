@@ -17,7 +17,12 @@ import { parseObjectStoresFile } from "../../../../apps/website/src/features/obj
 import { resolveShareDelivery } from "../../../../apps/website/src/features/site-backup/share-hosting.ts";
 import { SiteShareRegistry } from "../../../../apps/website/src/features/site-backup/share-registry.ts";
 import { createSiteShare, revokeSiteShare, SHARE_DOWNLOAD_HEADERS } from "../../../../apps/website/src/features/site-backup/share-service.ts";
-import provider from "../object-stores/vercel-blob.mjs";
+import { pathToFileURL } from 'node:url';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
+
+// vercel ships from @jini-ai/agent-plugins/vercel: read it where Tovu takes it from.
+const PLUGIN_DIR = agentPluginSourceDir({ pluginId: 'vercel' });
+const { default: provider } = await import(pathToFileURL(path.join(PLUGIN_DIR, "object-stores/vercel-blob.mjs")).href);
 
 // Built at runtime: gitleaks runs on main and must never see a token-shaped literal.
 const blobToken = ["vercel_blob_rw_", "StoreAbc123", "_", "x".repeat(10), "_", "x".repeat(10)].join("");
@@ -113,7 +118,7 @@ test("no token in errors or logs; a missing or malformed Blob token refuses befo
 });
 
 test("the manifest registers provider `vercel`; it is chosen and delivered when it is the only artifact store", async () => {
-  const manifest = parseObjectStoresFile({ raw: await readFile(new URL("../tovu-object-stores.json", import.meta.url), "utf8") });
+  const manifest = parseObjectStoresFile({ raw: await readFile(path.join(PLUGIN_DIR, "tovu-object-stores.json"), "utf8") });
   assert.equal(manifest.ok, true);
   assert.deepEqual(manifest.descriptors.map(({ id, module }) => ({ id, module })), [{ id: "vercel", module: "object-stores/vercel-blob.mjs" }]);
   assert.equal(provider.create({ settings: {}, host: {} }).status, "rejected", "Blob holds share links only, never site media");
