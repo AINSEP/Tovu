@@ -152,3 +152,112 @@ test('SiteWorkspace: a slow guest gets the stall panel over it; a failed one is 
   await view.click(view.byText('Start site'));
   assert.deepEqual(view.calls, ['start:a', 'updated:a']);
 });
+
+test('SiteWorkspaces: each open site\'s guest is on that site\'s own partition, never one shared jar', async (t) => {
+  // Two sites both answering on 127.0.0.1 would otherwise share one cookie jar (cookies ignore the
+  // port), and each open would overwrite the other's session. `openSites.map` hands every instance
+  // its own `project`, and that same `project` is what the instance's guest reads `partition` from
+  // — no lifted or module-level partition in between that could flatten them to one, and no
+  // literal partition string that would give every tab the same session.
+  const view = await renderWorkspaces(t, { openSites: [RUNNING, site('b', { status: 'running', port: 4200 })] });
+  assert.deepEqual(view.all('webview').map((guest) => guest.getAttribute('partition')), ['persist:a', 'persist:b']);
+});
+
+test('SiteWorkspace: the bar reads history first, then the status dot and views, with the url pushed right beside Open in browser', async (t) => {
+  const view = await renderWorkspaces(t);
+  const bar = view.shown()!.querySelector('.workspace__bar')!;
+  const name = (part: Element) => part.getAttribute('aria-label') ?? (part.tagName === 'BUTTON' ? part.textContent : part.classList[0]);
+  assert.deepEqual([...bar.children].map(name), [
+    'workspace__nav', 'state', 'workspace__views', 'workspace__spacer', 'workspace__url', 'Open in browser', 'Expand to full window',
+  ]);
+  const history = [...bar.querySelectorAll('.workspace__nav button')];
+  assert.deepEqual(history.map((button) => [button.getAttribute('aria-label'), button.getAttribute('title')]), [
+    ['Back', 'Back'], ['Forward', 'Forward'], ['Reload', 'Reload'],
+  ], 'each icon-only button carries its own accessible name and tooltip');
+  for (const button of history) {
+    assert.equal(button.textContent, '', 'icon only: the text Reload button is gone');
+    assert.ok(button.querySelector('svg.icon'), 'drawn inline, not from an icon package');
+  }
+  assert.equal(bar.querySelector('.workspace__url')?.textContent, 'http://127.0.0.1:4100/admin/');
+});
+
+test('SiteWorkspace: Back and Forward enable from the guest\'s live history and step that guest', async (t) => {
+  const view = await renderWorkspaces(t);
+  const guest = view.container.querySelector('webview')!;
+  const calls: string[] = [];
+  let history = { canGoBack: true, canGoForward: false };
+  Object.assign(guest, {
+    canGoBack: () => history.canGoBack,
+    canGoForward: () => history.canGoForward,
+    goBack: () => { calls.push('back'); },
+    goForward: () => { calls.push('forward'); },
+  });
+  const navigate = (url: string) => act(async () => { guest.dispatchEvent(Object.assign(new dom.window.Event('did-navigate'), { url })); });
+  await navigate('http://127.0.0.1:4100/admin/posts');
+  assert.deepEqual([view.byLabel('Back')?.hasAttribute('disabled'), view.byLabel('Forward')?.hasAttribute('disabled')], [false, true]);
+  assert.equal(view.shown()!.querySelector('.workspace__url')?.textContent, 'http://127.0.0.1:4100/admin/posts', 'the url follows the guest, not only the toggle');
+  await view.click(view.byLabel('Back'));
+  history = { canGoBack: false, canGoForward: true };
+  await navigate('http://127.0.0.1:4100/admin/');
+  assert.deepEqual([view.byLabel('Back')?.hasAttribute('disabled'), view.byLabel('Forward')?.hasAttribute('disabled')], [true, false]);
+  await view.click(view.byLabel('Forward'));
+  assert.deepEqual(calls, ['back', 'forward']);
+});
+
+test('SiteWorkspace: Reload on a healthy guest reloads that same guest past the cache, and shows its loading state again', async (t) => {
+  const view = await renderWorkspaces(t);
+  const guest = view.container.querySelector('webview')!;
+  const calls: string[] = [];
+  Object.assign(guest, { reloadIgnoringCache: () => { calls.push('reload'); } });
+  await act(async () => { guest.dispatchEvent(new dom.window.Event('did-finish-load')); });
+  assert.equal(view.container.querySelector('.workspace__overlay--loading'), null);
+  await view.click(view.byLabel('Reload'));
+  assert.deepEqual(calls, ['reload']);
+  assert.equal(view.container.querySelector('webview'), guest, 'not a remount: the guest, and with it its history, survives');
+  // The load-failure state resets on soft loads as well as remounts (`loadResetKey`), so a reload
+  // is a fresh load that has not finished yet.
+  assert.ok(view.container.querySelector('.workspace__overlay--loading'));
+});
+
+test('SiteWorkspace: both recovery panels retry by remounting the guest, and the new guest is still listened to', async (t) => {
+  // The remount survives only as recovery: `key` on the guest is bumped by the stall panel's and
+  // the failure panel's "Start site" alike. The failure panel's retry is one of the two ordinary
+  // paths that mount a guest D-03 left unlistened (see `useWebviewLoadFailure`'s doc), so the
+  // remounted guest's own failure must still be heard.
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const view = await renderWorkspaces(t);
+  const first = view.container.querySelector('webview')!;
+  act(() => t.mock.timers.tick(8000));
+  await settle();
+  await view.click(view.byText('Start site'));
+  const second = view.container.querySelector('webview')!;
+  assert.ok(second && second !== first, 'the stall panel\'s retry remounts the guest');
+  assert.ok(view.container.querySelector('.workspace__overlay--loading'), 'the stall is withdrawn for the fresh guest');
+  const fail = (guest: Element) => act(async () => { guest.dispatchEvent(Object.assign(new dom.window.Event('did-fail-load'), { isMainFrame: true, errorCode: -102 })); });
+  await fail(second);
+  await settle();
+  assert.equal(view.container.querySelector('webview'), null);
+  await view.click(view.byText('Start site'));
+  const third = view.container.querySelector('webview')!;
+  assert.ok(third && third !== second, 'the failure panel\'s retry mounts a new guest');
+  await fail(third);
+  await settle();
+  assert.equal(view.container.querySelector('webview'), null, 'the remounted guest\'s failure is heard');
+  assert.deepEqual(view.calls, ['start:a', 'updated:a', 'start:a', 'updated:a']);
+});
+
+test('SiteWorkspace: a guest that mounts late, when a stopped tab\'s site comes up, is still listened to', async (t) => {
+  // D-03: a stopped tab whose site flips to running mounts its guest in a LATER render. The
+  // listeners are keyed on the node the callback ref hands over, so they attach to it then; a
+  // ref object would have stayed the same and left this guest with no failure listener at all.
+  const view = await renderWorkspaces(t, { openSites: [site('a')] });
+  assert.equal(view.container.querySelector('webview'), null);
+  view.rerender({ openSites: [RUNNING] });
+  await settle();
+  const guest = view.container.querySelector('webview')!;
+  assert.ok(guest);
+  await act(async () => { guest.dispatchEvent(Object.assign(new dom.window.Event('did-fail-load'), { isMainFrame: true, errorCode: -102 })); });
+  await settle();
+  assert.equal(view.container.querySelector('webview'), null);
+  assert.equal(view.container.querySelector('.workspace__idle .empty__body')?.textContent, 'Site a isn\'t answering on port 4100. It may still be running, but stuck.');
+});

@@ -1,20 +1,14 @@
 /**
- * @file Behavioural tests for `use-site-workspace.hooks.ts`: the project tab toolbar's back, forward
- * and reload buttons, the Cmd+[ / Cmd+] routing, and the failed-load remount that has to survive
- * Reload no longer being a remount.
- *
- * `useSiteWorkspace` itself calls React hooks, and this package has no React renderer (see
- * `use-site-rename.hooks.test.ts`'s header). Every decision it makes is a plain exported function,
- * so most tests call those directly with a fake `<webview>` that records its own calls;
- * `site-toolbar-wiring.test.ts` checks that `App.tsx` uses them. The hook's own effect bodies (guest
- * attachment and replacement, history subscription cleanup) run through the injected hook harness
- * in `source-test-harness.ts` against recording guest ports.
+ * @file Behavioural tests for `use-site-workspace.hooks.ts`'s plain exports: the project tab
+ * toolbar's back, forward and reload decisions, the Cmd+[ / Cmd+] routing, and the failed-load
+ * remount that has to survive Reload no longer being a remount. Each is called directly with a fake
+ * `<webview>` that records its own calls. `useSiteWorkspace` itself, rendered with its effects
+ * (guest attachment and replacement, history subscription cleanup, the foreign-site attach), is
+ * tested in `use-site-workspace.hooks.render.test.ts`; the toolbar that uses it in
+ * `app/SiteWorkspace.render.test.ts`.
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { subscribeWorkspaceThemePreview } from './site-theme-preview.hooks.js';
-import { readFileSync } from 'node:fs';
-import { hookHarness, sourceFunction } from './source-test-harness.js';
 
 import {
   createWorkspaceActions,
@@ -37,59 +31,6 @@ import type { SiteHistoryCommand, SiteRecord } from '../contracts/project.js';
 import { powerControl, restartControl } from './use-site-power.hooks.js';
 
 type NavigationListener = (event: { url: string; isMainFrame?: boolean }) => void;
-
-test('workspace effects follow guest replacement and visible-tab history subscriptions', () => {
-  const harness = hookHarness();
-  const source = readFileSync(new URL('./use-site-workspace.hooks.ts', import.meta.url), 'utf8');
-  const commands = new Set<(command: SiteHistoryCommand) => void>();
-  const bridge = { onSiteHistory(listener: (command: SiteHistoryCommand) => void) {
-    commands.add(listener);
-    return () => { commands.delete(listener); };
-  } };
-  let guest: WorkspaceGuest | null = null;
-  let hidden = false;
-  const hook = sourceFunction(source, 'useSiteWorkspace', {
-    ...harness.bindings,
-    useReducer(reducer: typeof siteWorkspaceReducer, initial: SiteWorkspaceState) {
-      const [state, setState] = harness.bindings.useState(initial);
-      return [state, (action: SiteWorkspaceAction) => setState((previous: SiteWorkspaceState) => reducer(previous, action))];
-    },
-    useWebviewLoadFailure: () => ({ failed: false, stalled: false, loaded: true, guest, guestRef: () => {} }),
-    siteWorkspaceReducer, initialSiteWorkspaceState, loadResetKey, readHistory, trackGuestNavigation,
-    subscribeSiteHistory, subscribeWorkspaceThemePreview, siteSurfaceUrl, createWorkspaceActions, prepareExternalWorkspace,
-    liveSurface: sourceFunction(source, 'liveSurface', { surfaceOfUrl }), runnerInventoryBridge: () => bridge,
-  });
-  const render = () => harness.render(() => hook({ id: 'site-1', port: 4100, status: 'running' }, hidden));
-  try {
-    render();
-    const first = fakeGuest({ canGoBack: true });
-    guest = first.guest;
-    assert.deepEqual(render().history, { canGoBack: true, canGoForward: false });
-    assert.equal(commands.size, 1);
-    first.fire('did-navigate', { url: 'http://127.0.0.1:4100/admin/posts' });
-    assert.equal(render().displayUrl, 'http://127.0.0.1:4100/admin/posts');
-    for (const listener of commands) listener('back');
-    assert.deepEqual(first.calls, ['goBack']);
-    const second = fakeGuest({ canGoForward: true });
-    guest = second.guest;
-    assert.deepEqual(render().history, { canGoBack: false, canGoForward: true });
-    assert.equal(render().displayUrl, 'http://127.0.0.1:4100/admin/');
-    assert.equal(first.listeners.size, 0);
-    assert.equal(second.listeners.size, 2);
-    assert.equal(commands.size, 1);
-    for (const listener of commands) listener('forward');
-    assert.deepEqual(second.calls, ['goForward']);
-    hidden = true;
-    render();
-    assert.equal(commands.size, 0);
-    hidden = false;
-    render();
-    assert.equal(commands.size, 1);
-    harness.cleanup();
-    assert.equal(second.listeners.size, 0);
-    assert.equal(commands.size, 0);
-  } finally { harness.cleanup(); }
-});
 
 test('soft-load retains populated history, the live URL, and the existing guest identity', () => {
   const populated: SiteWorkspaceState = {
@@ -516,28 +457,4 @@ test('foreign running sites have no stop action and cannot restart the owning ap
   const project = { id: '/outside/site', displayName: 'Site', externalUrl: 'https://localhost:3456/admin/' } as SiteRecord;
   assert.equal(powerControl('running', { external: true }), null);
   assert.equal(restartControl({ project, status: 'running', restarting: false }).disabled, true);
-});
-
-test('the workspace mounts no foreign guest until main has admitted its origin', async () => {
-  const harness = hookHarness();
-  const project = { id: '/outside/site', installDir: '/outside/site', port: 3456, status: 'running', externalUrl: 'https://localhost:3456/admin/' } as SiteRecord;
-  let admit!: (record: SiteRecord) => void;
-  const bridge = { startSite: () => new Promise<SiteRecord>((resolve) => { admit = resolve; }), onSiteHistory: () => () => {} };
-  const hook = sourceFunction(readFileSync(new URL('./use-site-workspace.hooks.ts', import.meta.url), 'utf8'), 'useSiteWorkspace', {
-    ...harness.bindings,
-    useReducer(reducer: typeof siteWorkspaceReducer, initial: SiteWorkspaceState) {
-      const [state, setState] = harness.bindings.useState(initial);
-      return [state, (action: SiteWorkspaceAction) => setState((previous: SiteWorkspaceState) => reducer(previous, action))];
-    },
-    useWebviewLoadFailure: () => ({ failed: false, stalled: false, loaded: false, guest: null, guestRef: () => {} }),
-    siteWorkspaceReducer, initialSiteWorkspaceState, loadResetKey, readHistory, trackGuestNavigation,
-    subscribeSiteHistory, subscribeWorkspaceThemePreview, siteSurfaceUrl, createWorkspaceActions, prepareExternalWorkspace,
-    liveSurface: () => 'admin', runnerInventoryBridge: () => bridge,
-  });
-  const render = () => harness.render(() => hook(project, false));
-  try {
-    assert.equal(render().src, ''); assert.equal(render().running, false);
-    admit(project); await new Promise<void>((resolve) => setImmediate(resolve));
-    assert.equal(render().src, project.externalUrl); assert.equal(render().running, true);
-  } finally { harness.cleanup(); }
 });

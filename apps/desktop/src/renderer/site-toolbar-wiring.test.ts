@@ -1,142 +1,33 @@
 /**
- * @file Wiring guard for the project tab toolbar in `app/SiteWorkspace.tsx`: back, forward and reload icons on
- * the left, the url on the right beside "Open in browser", and every action taken from
- * `useSiteWorkspace` rather than from state held in the component.
- *
- * Source text, because `app/SiteWorkspace.tsx` had no runner in this package (see `rescan-wiring.test.ts`). The
- * behaviour behind each wire is covered for real in `use-site-workspace.hooks.test.ts`; this file
- * checks only that the component calls it, in the order the toolbar shows it.
+ * @file Source-text guards for the project tab toolbar in `app/SiteWorkspace.tsx` that no render can
+ * observe: where its state lives, and where its icons come from. What the bar renders and what each
+ * button does is tested for real in `app/SiteWorkspace.render.test.ts`.
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import path from 'node:path';
 import test from 'node:test';
-import ts from 'typescript';
-import * as React from 'react';
-import { fileURLToPath } from 'node:url';
-import { appShellSource } from './app-shell-source.js';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const appTsx = appShellSource();
-const workspaceHooks = fs.readFileSync(path.join(here, 'use-site-workspace.hooks.ts'), 'utf8');
-const icons = fs.readFileSync(path.join(here, 'icons.tsx'), 'utf8');
+const workspaceTsx = fs.readFileSync(new URL('./app/SiteWorkspace.tsx', import.meta.url), 'utf8');
+const icons = fs.readFileSync(new URL('./icons.tsx', import.meta.url), 'utf8');
 
 /** `SiteWorkspace`'s body, up to the next top-level `function`. */
 function workspaceBody(): string {
-  const start = appTsx.indexOf('function SiteWorkspace(');
+  const start = workspaceTsx.indexOf('function SiteWorkspace(');
   assert.notEqual(start, -1, 'SiteWorkspace must still exist in app/SiteWorkspace.tsx');
-  const rest = appTsx.slice(start);
+  const rest = workspaceTsx.slice(start);
   const end = rest.indexOf('\nfunction ', 1);
   return rest.slice(0, end === -1 ? undefined : end);
 }
 
-/** The index of `needle` in `haystack`, asserted to exist so an ordering check cannot pass on -1s. */
-function at(haystack: string, needle: string): number {
-  const index = haystack.indexOf(needle);
-  assert.notEqual(index, -1, `expected ${needle} in SiteWorkspace`);
-  return index;
-}
-
-test('back, forward and reload are icon-only buttons named for assistive tech', () => {
-  const body = workspaceBody();
-  for (const label of ['Back', 'Forward', 'Reload']) {
-    assert.match(body, new RegExp(`aria-label="${label}"`), `${label} needs an accessible name`);
-    assert.match(body, new RegExp(`title="${label}"`), `${label} needs a tooltip`);
-  }
-  assert.match(body, /<NavIcon kind="back" \/>/);
-  assert.match(body, /<NavIcon kind="forward" \/>/);
-  assert.match(body, /<NavIcon kind="reload" \/>/);
-  assert.doesNotMatch(body, />\s*Reload\s*</, 'the text Reload button must be gone');
-});
-
-test('the three history buttons come first, before the status dot and the view toggle', () => {
-  const body = workspaceBody();
-  const back = at(body, 'aria-label="Back"');
-  const forward = at(body, 'aria-label="Forward"');
-  const reload = at(body, 'aria-label="Reload"');
-  const dot = at(body, 'className="state"');
-  const toggle = at(body, 'className="workspace__views"');
-  assert.ok(back < forward && forward < reload, 'order must be back, forward, reload');
-  assert.ok(reload < dot && dot < toggle, 'the history buttons must sit left of the status dot and toggle');
-});
-
-test('the url sits on the right, directly before Open in browser', () => {
-  const body = workspaceBody();
-  const spacer = at(body, 'className="workspace__spacer"');
-  const url = at(body, 'className="workspace__url"');
-  const openInBrowser = at(body, 'Open in browser');
-  assert.ok(spacer < url, 'the url must be pushed right by the spacer');
-  const between = body.slice(url, openInBrowser);
-  assert.equal((between.match(/<button/g) ?? []).length, 1, 'nothing but the Open in browser button may sit between them');
-});
-
-test('the buttons are wired to the hook, and back/forward disable from live history', () => {
-  const body = workspaceBody();
-  assert.match(body, /onClick=\{workspace\.goBack\}/);
-  assert.match(body, /onClick=\{workspace\.goForward\}/);
-  assert.match(body, /onClick=\{workspace\.reload\}/);
-  assert.match(body, /disabled=\{!workspace\.history\.canGoBack\}/);
-  assert.match(body, /disabled=\{!workspace\.history\.canGoForward\}/);
-  assert.match(body, /useSiteWorkspace\(project, hidden, \{ adminPage \}\)/);
-});
-
 test('SiteWorkspace holds no state or effects of its own', () => {
+  // Everything a tab remembers lives in `useSiteWorkspace`, per tab, so the component stays markup.
   const body = workspaceBody();
   assert.doesNotMatch(body, /\buse(State|Effect|Reducer|Ref)\b/);
   assert.doesNotMatch(body, /setReloadNonce/);
 });
 
-test('the remount survives only as recovery: key on the guest, and both recovery panels retry through it', () => {
-  const body = workspaceBody();
-  // The ref on the guest is `combinedGuestRef`, which COMPOSES `guestRef` with the find bar's and
-  // zoom's own registration (`useComposedGuestRef`); `webview-failure-wiring.test.ts` pins that the
-  // D-03 callback ref is the one inside it.
-  assert.match(body, /<webview\s+ref=\{combinedGuestRef\}\s+key=\{workspace\.reloadNonce\}/);
-  assert.match(body, /const \{ guestRef \} = workspace;/);
-  assert.match(body, /useComposedGuestRef\(guestRef,/);
-  assert.equal((body.match(/onStarted=\{workspace\.recover\}/g) ?? []).length, 2);
-  assert.match(
-    workspaceHooks,
-    /useWebviewLoadFailure\(loadResetKey\(state\)\)/,
-    'the load-failure hook must reset on soft loads and remounts alike',
-  );
-});
-
 test('the icons are drawn inline in icons.tsx, with no icon package', () => {
   assert.match(icons, /export function NavIcon\(/);
-  assert.doesNotMatch(appTsx, /lucide/);
+  assert.doesNotMatch(workspaceTsx, /lucide/);
   assert.doesNotMatch(icons, /lucide/);
-});
-
-test('rendered toolbar buttons pair each accessible name with its own command and history flag', () => {
-  const ast = ts.createSourceFile('SiteWorkspace.tsx', appTsx, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const node = ast.statements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === 'SiteWorkspace');
-  assert.ok(node);
-  const executable = ts.transpileModule(node.getText(ast), { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText;
-  for (const history of [{ canGoBack: true, canGoForward: false }, { canGoBack: false, canGoForward: true }]) {
-    const calls: string[] = [];
-    const workspace = { running: true, history, goBack: () => calls.push('back'), goForward: () => calls.push('forward'), reload: () => calls.push('reload'),
-      failed: false, loaded: true, stalled: false, surface: 'admin', displayUrl: 'http://localhost/admin/', src: 'http://localhost/admin/', guestRef: () => {}, reloadNonce: 0 };
-    const deps = { React, useSiteWorkspace: () => workspace, useComposedGuestRef: () => () => {},
-      SITE_SURFACES: ['admin', 'site'], NavIcon: () => null, ExpandToggle: () => null, WorkspaceLoadingOverlay: () => null, SiteStartPanel: () => null };
-    const SiteWorkspace = new Function(...Object.keys(deps), `${executable}; return SiteWorkspace;`)(...Object.values(deps));
-    const tree = SiteWorkspace({ project: { id: 's1', status: 'running' }, hidden: false, expanded: false });
-    const buttons = new Map<string, Record<string, any>>();
-    function visit(child: React.ReactNode) {
-      if (!React.isValidElement(child)) return;
-      const element = child as React.ReactElement<Record<string, any>>;
-      if (element.type === 'button' && element.props['aria-label']) buttons.set(element.props['aria-label'], element.props);
-      React.Children.forEach(element.props.children, visit);
-    }
-    visit(tree);
-    const back = buttons.get('Back');
-    const forward = buttons.get('Forward');
-    const reload = buttons.get('Reload');
-    assert.ok(back && forward && reload);
-    assert.equal(back.disabled, !history.canGoBack);
-    assert.equal(forward.disabled, !history.canGoForward);
-    assert.equal(reload.disabled, false);
-    back.onClick(); forward.onClick(); reload.onClick();
-    assert.deepEqual(calls, ['back', 'forward', 'reload']);
-  }
 });

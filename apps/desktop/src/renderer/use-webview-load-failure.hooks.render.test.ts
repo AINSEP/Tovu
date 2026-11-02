@@ -89,3 +89,73 @@ test('useWebviewLoadFailure: unmounting clears a pending stall timer', (t) => {
   hook.unmount();
   assert.equal(clock.pending.size, 0);
 });
+
+test('useWebviewLoadFailure: a guest that mounts after the first render is listened to from the moment it mounts', (t) => {
+  // D-03. The guest arrives through state set by a callback ref, which is a dependency that actually
+  // CHANGES when the element mounts; a `RefObject` is the same object forever, so a stopped tab whose
+  // site came up (or the failure panel's own retry) mounted a guest no listener or stall timer ever reached.
+  const clock = fakeTimers();
+  const hook = renderHook(t, () => useWebviewLoadFailure('k', { timers: clock.timers }));
+  hook.rerender();
+  assert.equal(clock.pending.size, 0);
+  const late = guestNode();
+  act(() => hook.current().guestRef(late));
+  assert.equal(clock.pending.size, 1, 'the late guest arms its own stall timer');
+  act(() => { late.dispatchEvent(loadEvent('did-fail-load', { isMainFrame: true, errorCode: -102 })); });
+  assert.equal(hook.current().failed, true);
+});
+
+test('useWebviewLoadFailure: a replacement guest takes over the listeners and the one stall timer from the old one', (t) => {
+  const clock = fakeTimers();
+  const hook = renderHook(t, () => useWebviewLoadFailure('k', { timers: clock.timers }));
+  const first = guestNode();
+  const second = guestNode();
+  act(() => hook.current().guestRef(first));
+  act(() => hook.current().guestRef(second));
+  assert.equal(clock.pending.size, 1, 'replacement clears the old timer');
+  act(() => { first.dispatchEvent(loadEvent('did-fail-load', { isMainFrame: true, errorCode: -102 })); });
+  act(() => { first.dispatchEvent(loadEvent('did-finish-load')); });
+  assert.deepEqual([hook.current().failed, hook.current().loaded], [false, false], 'the old guest is no longer listened to');
+  act(() => { second.dispatchEvent(loadEvent('did-fail-load', { isMainFrame: true, errorCode: -102 })); });
+  assert.equal(hook.current().failed, true, 'the new guest reports');
+});
+
+test('useWebviewLoadFailure: the failed guest unmounting keeps the failure, so the recovery panel cannot flicker away', (t) => {
+  // Clearing the failure is a SEPARATE effect keyed on resetKey alone. Key that reset on the node
+  // instead and unmounting the guest, which is what `failed` DOES (`running && !failed` swaps it for
+  // the recovery panel), re-runs it with a null node and clears the very flag that unmounted it: the
+  // guest remounts, fails again, and the panel flickers forever. The reset fires only when the
+  // operator asks for a fresh judgment.
+  const clock = fakeTimers();
+  const hook = renderHook(t, () => useWebviewLoadFailure('k', { timers: clock.timers }));
+  const guest = guestNode();
+  act(() => hook.current().guestRef(guest));
+  act(() => { guest.dispatchEvent(loadEvent('did-fail-load', { isMainFrame: true, errorCode: -102 })); });
+  act(() => hook.current().guestRef(null));
+  assert.equal(hook.current().failed, true);
+});
+
+test('useWebviewLoadFailure: only did-finish-load marks the admin loaded, and every new load starts unloaded again', (t) => {
+  // "The guest is mounted" is not "the admin is on screen": navigation events on the way to the
+  // first content must not claim it, and a remount, view switch or soft load must not carry over a
+  // previous navigation's finished state.
+  const clock = fakeTimers();
+  let resetKey = 0;
+  const hook = renderHook(t, () => useWebviewLoadFailure(resetKey, { timers: clock.timers }));
+  const guest = guestNode();
+  act(() => hook.current().guestRef(guest));
+  for (const name of ['did-start-loading', 'dom-ready', 'did-navigate', 'did-stop-loading']) {
+    act(() => { guest.dispatchEvent(loadEvent(name)); });
+    assert.equal(hook.current().loaded, false, `${name} cannot finish the load`);
+  }
+  act(() => clock.fireAll());
+  assert.deepEqual([hook.current().stalled, hook.current().loaded], [true, false]);
+  act(() => { guest.dispatchEvent(loadEvent('did-finish-load')); });
+  assert.deepEqual([hook.current().stalled, hook.current().loaded], [false, true]);
+  resetKey = 1;
+  hook.rerender();
+  assert.equal(hook.current().loaded, false, 'the next load shows its loading state');
+  assert.equal(clock.pending.size, 1, 'a soft navigation re-arms the stall timer');
+  act(() => { guest.dispatchEvent(loadEvent('did-fail-load', { isMainFrame: true, errorCode: -102 })); });
+  assert.deepEqual([hook.current().failed, hook.current().loaded], [true, false]);
+});

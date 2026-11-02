@@ -2,14 +2,15 @@
  * @file `useSiteWorkspace` rendered from its real module under jsdom (see `dom-hook-harness.ts`),
  * with the bridge injected through its `getBridge` port and the real `useWebviewLoadFailure`. The
  * reducer, actions and subscriptions have direct tests in `use-site-workspace.hooks.test.ts`; this
- * file asserts what the hook composes: the guest `src`, the shown url, and the foreign-site attach.
+ * file asserts what the hook composes: the guest `src`, the shown url, the foreign-site attach, and
+ * the guest listeners and accelerator subscription following the guest that is actually mounted.
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { act } from 'react';
 
-import type { SiteRecord } from '../contracts/project.js';
+import type { SiteHistoryCommand, SiteRecord } from '../contracts/project.js';
 import { installDom, renderHook, settle } from './dom-hook-harness.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
 import { createWorkspaceActions, initialSiteWorkspaceState, prepareExternalWorkspace, useSiteWorkspace } from './use-site-workspace.hooks.js';
@@ -130,4 +131,63 @@ test('an attached guest reports its history and navigations into the workspace',
   assert.equal(hook.current().displayUrl, 'http://127.0.0.1:4100/admin/posts');
   act(() => hook.current().guestRef(null));
   assert.deepEqual(hook.current().history, { canGoBack: false, canGoForward: false }, 'a detached guest has no history');
+});
+
+test('a replacement guest takes over the navigation listeners and the visible tab\'s accelerator; unmounting detaches both', (t) => {
+  const window = installDom();
+  const commands = new Set<(command: SiteHistoryCommand) => void>();
+  const bridge = {
+    onSiteHistory: (listener: (command: SiteHistoryCommand) => void) => { commands.add(listener); return () => { commands.delete(listener); }; },
+  } as unknown as RunnerInventoryBridge;
+  /** A guest with fixed history that records its steps and counts its live navigation listeners. */
+  function recordingGuest(history: { canGoBack: boolean; canGoForward: boolean }) {
+    const node = window.document.createElement('webview');
+    const add = node.addEventListener.bind(node);
+    const remove = node.removeEventListener.bind(node);
+    const navigation = new Set<unknown>();
+    const steps: string[] = [];
+    const isNavigation = (type: string) => type === 'did-navigate' || type === 'did-navigate-in-page';
+    Object.assign(node, {
+      canGoBack: () => history.canGoBack,
+      canGoForward: () => history.canGoForward,
+      goBack: () => { steps.push('back'); },
+      goForward: () => { steps.push('forward'); },
+      addEventListener: (type: string, listener: EventListener, options?: boolean | AddEventListenerOptions) => {
+        if (isNavigation(type)) navigation.add(listener);
+        add(type, listener, options);
+      },
+      removeEventListener: (type: string, listener: EventListener, options?: boolean | EventListenerOptions) => {
+        if (isNavigation(type)) navigation.delete(listener);
+        remove(type, listener, options);
+      },
+    });
+    const navigate = (url: string) => act(() => { node.dispatchEvent(Object.assign(new window.Event('did-navigate'), { url })); });
+    return { guest: node as unknown as HTMLWebViewElement, steps, listening: () => navigation.size, navigate };
+  }
+  const press = (command: SiteHistoryCommand) => act(() => { for (const listener of commands) listener(command); });
+  // One stable port, as production's module-level default is: a fresh arrow per render would re-run
+  // every effect that depends on it.
+  const getBridge = () => bridge;
+  const hook = renderHook(t, () => useSiteWorkspace(OWN, false, { getBridge }));
+
+  const first = recordingGuest({ canGoBack: true, canGoForward: false });
+  act(() => hook.current().guestRef(first.guest));
+  assert.deepEqual(hook.current().history, { canGoBack: true, canGoForward: false });
+  first.navigate('http://127.0.0.1:4100/admin/posts');
+  assert.equal(hook.current().displayUrl, 'http://127.0.0.1:4100/admin/posts');
+  press('back');
+  assert.deepEqual(first.steps, ['back']);
+
+  const second = recordingGuest({ canGoBack: false, canGoForward: true });
+  act(() => hook.current().guestRef(second.guest));
+  assert.deepEqual(hook.current().history, { canGoBack: false, canGoForward: true }, 'a new guest starts from its own history');
+  assert.equal(hook.current().displayUrl, 'http://127.0.0.1:4100/admin/', 'and from the requested url, not the old guest\'s');
+  assert.deepEqual([first.listening(), second.listening()], [0, 2], 'the navigation listeners moved to the new guest');
+  assert.equal(commands.size, 1, 'one accelerator subscription, re-pointed rather than accumulated');
+  press('forward');
+  assert.deepEqual([first.steps, second.steps], [['back'], ['forward']]);
+
+  hook.unmount();
+  assert.equal(second.listening(), 0);
+  assert.equal(commands.size, 0);
 });
