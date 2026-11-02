@@ -44,6 +44,7 @@ import { collectProcessTreePids, listProcessSnapshots, stopProcesses } from "@ji
 
 import { devSitesHome } from "./dev-sites-home.mjs";
 import { apiWatchArgs } from "./dev-api-watch.mjs";
+import { composeDevBundledAgentPlugins } from "./compose-bundled-agent-plugins.mjs";
 import { pruneTsxCache } from "./prune-tsx-cache.mjs";
 import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
 import { localDevPluginInstallEnv } from "./local-dev-plugin-install.mjs";
@@ -746,6 +747,9 @@ async function main() {
   }
   preflight();
   await pruneTsxCache({});
+  // Moved agent plugins ship in @jini-ai/agent-plugins: compose them with Tovu's own into the one
+  // bundled root the API seeds from. Children inherit it (buildDevChildEnv spreads process.env).
+  process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR = composeDevBundledAgentPlugins({ repoRoot: REPO_ROOT, env: process.env });
 
   const tlsActive = resolveDevTlsActive({
     certPath: CERT_PATH,

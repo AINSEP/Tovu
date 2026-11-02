@@ -84,6 +84,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createCommandInvocation } from "@jini-ai/platform/command";
 
+import { composeDevBundledAgentPlugins } from "./compose-bundled-agent-plugins.mjs";
 import { pickFreePort } from "./free-port.mjs";
 import { loadRepoRootEnvFile } from "./load-repo-root-env.mjs";
 import { localDevPluginInstallEnv } from "./local-dev-plugin-install.mjs";
@@ -560,6 +561,9 @@ function startDesktopAdminVite(port, adminViteGone) {
 
 async function main() {
   await pruneTsxCache({});
+  // Moved agent plugins ship in @jini-ai/agent-plugins: the unpackaged desktop seeds from the composed
+  // root (bundledAgentPluginsDir reads this variable; every child inherits process.env).
+  process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR = composeDevBundledAgentPlugins({ repoRoot: REPO_ROOT, env: process.env });
   // Preload has no watch step here, so build it once up front — covers a first run with no dist/
   // yet, and any preload edit made since the last build.
   runToCompletion("building preload", "build:preload");
