@@ -146,6 +146,17 @@ test("a packaged launch reads its bundled product config and release, and an upd
   assert.deepEqual(h.exportInputs, [{ env: {}, packagedDesktop: true }]);
 });
 
+// The cases above only ever see `true` from the resolver, which a hard-coded `true` would also pass.
+// A forwarded flag needs both values to prove it is forwarded, not constant (open-bugs 11-02).
+test("the resolver's export verdict reaches the boot as given, false as well as true", async () => {
+  for (const verdict of [false, true]) {
+    const h = bootHarness({ isPackaged: true, env: { TOVU_OBSERVABILITY_EXPORT: "x" } });
+    await initializeDesktopProductTelemetry(h.args, { ...h.options, observabilityExport: (input) => { h.exportInputs.push(input); return verdict; } });
+    assert.equal(h.bootInputs[0]!.observabilityExportEnabled, verdict);
+    assert.deepEqual(h.exportInputs, [{ env: { TOVU_OBSERVABILITY_EXPORT: "x" }, packagedDesktop: true }]);
+  }
+});
+
 test("the boot's consent reader reads the preferences file it was given", async () => {
   const h = bootHarness();
   await initializeDesktopProductTelemetry({ ...h.args, preferencePath: "/definitely/missing/prefs.json" }, h.options);
