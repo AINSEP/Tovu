@@ -66,9 +66,7 @@
         "content/agent-plugins/**/__tests__/*.test.mjs",
         "content/agent-plugins/*/scripts/*.mjs",
         "apps/website/src/cli/__tests__/fixtures/**/*.mjs",
-        "apps/website/src/features/deployments/deploy-ops/__tests__/fixtures/**/*.mjs",
-        "content/agent-plugins/fly/deploy-configs/fly.mjs",
-        "content/agent-plugins/fly/deploy-ops/fly.mjs"
+        "apps/website/src/features/deployments/deploy-ops/__tests__/fixtures/**/*.mjs"
       ],
       "project": [
         "apps/website/src/**/*.{ts,tsx,js,mjs}",

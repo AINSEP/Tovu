@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildDeployOpsRegistrations } from "../../../../../apps/website/src/features/deployments/deploy-ops/tool-registrations.ts";
+import { buildDeployOpsRegistrations } from "../../../../apps/website/src/features/deployments/deploy-ops/tool-registrations.ts";
 import { fixture, execution, AT } from "./ops-fixture.mjs";
 
 // Moved from core deploy-ops/__tests__/tool-registrations.test.ts, which now drives a neutral fixture:

@@ -7,6 +7,7 @@ import { load as parseYaml } from "js-yaml";
 
 import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 import { packAgentPluginDirectory } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
+import { agentPluginSourceDir } from "../../../../development/test-support/agent-plugin-source.mjs";
 
 /**
  * @file Moved from core (`apps/website/src/features/agent-plugins/__tests__/unit/bundled-deploy-fly-server.unit.test.ts`)
@@ -15,32 +16,36 @@ import { packAgentPluginDirectory } from "../../../../apps/website/src/features/
  * plan `ADS-memory/reports/2026-09-29-deploy-agent-plugin-plan.md` §10, T10). Since the 2026-10-12
  * Phase B split gives this procedure to `fly` ("Fly.io"), alongside its ops/config/scheme data.
  *
- * The procedure lives in `skills/fly/references/fly-server.md`, beside its two templates and
- * `machines-api-path.md`; the deploy skill points at it. Three kinds of assertion, kept from the old
- * package test for the same reasons:
+ * Since D-W4 the plugin ships from `@jini-ai/agent-plugins/fly` (host-neutral: SKILL.md and the two
+ * templates in `skills/fly/references/`), and Tovu's procedure is this overlay's `host/fly-server.md`
+ * beside `host/machines-api-path.md`; `GUIDANCE.md` points at it. Three kinds of assertion, kept from
+ * the old package test for the same reasons:
  *
  * 1. **Manifest** — `plugin.json` still parses and carries the fly vocabulary an operator searches
  *    for, so the merged plugin surfaces for "deploy to fly".
- * 2. **Installability** — the fly references actually pack through `packAgentPluginDirectory`, the
+ * 2. **Installability** — the fly templates actually pack through `packAgentPluginDirectory`, the
  *    real first half of `seed-bundled.ts`'s install path. The assistant READS the templates off disk
  *    and writes them into the operator's repo; a packer change that filtered by extension would
  *    gut the procedure while leaving its prose intact.
- * 3. **Content contract** — the five Fly rules survive the move. Generic fly.io knowledge gets every
+ * 3. **Content contract** — the five Fly rules survive the move (into the overlay). Generic fly.io knowledge gets every
  *    one of them wrong, and they are the kind of prose that erodes silently during an unrelated edit.
  */
 
-const CONTENT_ROOT = path.resolve(import.meta.dirname, "../..");
-const PACKAGE_ROOT = path.join(CONTENT_ROOT, "fly");
+const CONTENT_ROOT = path.resolve(import.meta.dirname, "../../../agent-plugins");
+// fly ships from @jini-ai/agent-plugins/fly: read it where Tovu takes it from.
+const PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "fly" });
 const SKILL_DIR = path.join(PACKAGE_ROOT, "skills", "fly");
-const FLY_REFERENCES = ["fly-server.md", "fly.template.toml", "fly-deploy.template.yml", "machines-api-path.md"];
+/** Tovu's host text for the plugin: `host/fly-server.md` and `host/machines-api-path.md`. */
+const OVERLAY_HOST_DIR = path.resolve(import.meta.dirname, "../host");
+const FLY_TEMPLATES = ["fly.template.toml", "fly-deploy.template.yml"];
 
 async function readPackageFile(relativePath) {
   return readFile(path.join(PACKAGE_ROOT, relativePath), "utf8");
 }
 
-/** The Fly server procedure — what the old plugin's SKILL.md said, now a reference of `deploy`. */
+/** The Fly server procedure — what the old plugin's SKILL.md said, now Tovu's overlay host file. */
 async function readSkill() {
-  return readFile(path.join(SKILL_DIR, "references", "fly-server.md"), "utf8");
+  return readFile(path.join(OVERLAY_HOST_DIR, "fly-server.md"), "utf8");
 }
 
 test("the old tovu-deploy-fly package is gone — retire-bundled.ts removes it from workspaces", async () => {
@@ -65,40 +70,47 @@ test("plugin.json still parses and carries the fly vocabulary an operator would 
   }
 });
 
-test("the fly skill triggers for a Fly server deploy and points at the procedure", async () => {
+test("the fly skill triggers for a Fly server deploy and defers to the host guidance that names the procedure", async () => {
   const skill = await readFile(path.join(SKILL_DIR, "SKILL.md"), "utf8");
   const frontmatter = skill.slice(0, skill.indexOf("\n---", 4));
   assert.match(frontmatter, /fly\.io/);
   assert.match(frontmatter, /flyctl/);
   assert.match(frontmatter, /code, not content/i);
-  assert.ok(skill.includes("references/fly-server.md"), "SKILL.md must point at references/fly-server.md");
+  assert.match(skill, /Follow the host guidance first/, "SKILL.md must send the assistant to the host guidance");
+  const guidance = await readFile(path.resolve(import.meta.dirname, "../GUIDANCE.md"), "utf8");
+  assert.ok(guidance.includes("host/fly-server.md"), "GUIDANCE.md must point at host/fly-server.md");
 });
 
-test("the package packs through the real installer's own packer, fly references and templates included", async () => {
+test("the package packs through the real installer's own packer, fly templates included", async () => {
   const packed = await packAgentPluginDirectory(PACKAGE_ROOT);
 
   assert.ok(packed.files.includes("plugin.json"));
   assert.ok(packed.files.includes("skills/fly/SKILL.md"));
-  for (const reference of FLY_REFERENCES) {
+  for (const reference of FLY_TEMPLATES) {
     const asset = `skills/fly/references/${reference}`;
     assert.ok(packed.files.includes(asset), `${asset} must survive packing — the assistant reads it off disk`);
   }
   assert.ok(!packed.files.some((file) => file.includes("tovu-deploy-fly")), "no file may still live under the old plugin's skill folder");
+  for (const hostFile of ["fly-server.md", "machines-api-path.md"]) {
+    assert.ok(!packed.files.includes(`skills/fly/references/${hostFile}`), `${hostFile} is Tovu's: it arrives through the overlay, not the package`);
+  }
   assert.match(packed.sha256, /^[a-f0-9]{64}$/);
 });
 
 test("the templates are separate asset files, not inlined, and fly-server.md points at each", async () => {
   const procedure = await readSkill();
-  for (const reference of FLY_REFERENCES.filter((name) => name !== "fly-server.md")) {
+  for (const reference of FLY_TEMPLATES) {
     assert.ok(
       procedure.includes(`references/${reference}`),
       `fly-server.md must point at references/${reference} — an asset nothing references is an asset nothing writes`,
     );
   }
 
-  // The Machines API note points back at the procedure by its new name, not the deleted SKILL.md.
-  const machines = await readFile(path.join(SKILL_DIR, "references", "machines-api-path.md"), "utf8");
-  assert.ok(machines.includes("references/fly-server.md"));
+  assert.ok(procedure.includes("host/machines-api-path.md"), "fly-server.md must point at host/machines-api-path.md");
+
+  // The Machines API note points back at the procedure by its overlay name, not the deleted SKILL.md.
+  const machines = await readFile(path.join(OVERLAY_HOST_DIR, "machines-api-path.md"), "utf8");
+  assert.ok(machines.includes("host/fly-server.md"));
   assert.doesNotMatch(machines, /parent SKILL\.md/);
 });
 
@@ -116,12 +128,13 @@ test("every operator-supplied value in both templates is marked as a placeholder
   // assistant writes into someone ELSE's repo.
   const flyToml = await readFile(path.join(SKILL_DIR, "references", "fly.template.toml"), "utf8");
   assert.ok(!/^\s*app\s*=\s*"tovu"/m.test(flyToml), "fly.template.toml must not hardcode this repo's own production app name");
-  const config = parseToml(flyToml);
+  // `internal_port` takes an unquoted placeholder (a number once filled): give it one to parse.
+  const config = parseToml(flyToml.replace(/= <<PLACEHOLDER:[^>]+>>$/gm, "= 0"));
   assert.equal(config.app, "<<PLACEHOLDER: fly app name>>");
   assert.equal(config.primary_region, "<<PLACEHOLDER: fly region, e.g. iad — this is NOT a default>>");
   assert.deepEqual(config.mounts.map(mount => ({ ...mount })), [{
     source: "<<PLACEHOLDER: volume name — must match `flyctl volumes create` exactly>>",
-    destination: "/workspace/Tovu/sites",
+    destination: "<<PLACEHOLDER: volume mount path inside the container>>",
   }]);
   const service = config.http_service;
   assert.equal(service.auto_stop_machines, false);
@@ -135,11 +148,12 @@ test("every operator-supplied value in both templates is marked as a placeholder
   assert.deepEqual(workflow.on.push.branches, [token("<<PLACEHOLDER: default branch, e.g. main>>")]);
   assert.equal(workflow.concurrency.group, `fly-deploy-${token("<<PLACEHOLDER: fly app name>>")}`);
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
+  // The template is host-neutral (Tovu's build args come from this overlay's workflow/ blocks,
+  // proven by fly-overlay.test.mjs); its operator default is a plain remote deploy.
   assert.deepEqual(workflow.jobs.deploy.steps, [
     { uses: "actions/checkout@v4" },
     { uses: "superfly/flyctl-actions/setup-flyctl@v1" },
-    { run: "flyctl deploy --remote-only --build-arg TOVU_BUILD_SHA=${{ github.sha }} --build-arg TOVU_INSTALL_BROWSER=0",
-      env: { FLY_API_TOKEN: "${{ secrets.FLY_API_TOKEN }}" } },
+    { run: "flyctl deploy --remote-only", env: { FLY_API_TOKEN: "${{ secrets.FLY_API_TOKEN }}" } },
   ]);
 
 });
@@ -211,7 +225,7 @@ test("fly-server.md forbids org-wide or account-wide Fly API listing calls durin
 });
 
 test("fly-server.md documents the Machines API path as BLOCKED and never as a procedure to run", async () => {
-  const machines = await readFile(path.join(SKILL_DIR, "references", "machines-api-path.md"), "utf8");
+  const machines = await readFile(path.join(OVERLAY_HOST_DIR, "machines-api-path.md"), "utf8");
   assert.match(machines, /NOT implemented|Do not implement/i);
   assert.match(machines, /config\.image/);
   // The blocker must be stated concretely. "Not supported yet" would let a future reader assume

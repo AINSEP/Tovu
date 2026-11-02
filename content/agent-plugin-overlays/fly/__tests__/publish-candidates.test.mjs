@@ -1,15 +1,21 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
 import test from "node:test";
 import { findCandidateDestination } from "../../../../apps/website/src/features/publish-trust/connect.ts";
 import { readBundledDeployConfigCandidatePaths, readBundledDeployWorkflowFile } from "../../../../apps/website/src/features/deployments/deploy-config-registry.ts";
+import { agentPluginSourceDir } from "../../../../development/test-support/agent-plugin-source.mjs";
+import { processComposedBundledSourceRoot } from "../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts";
+
+// fly ships from @jini-ai/agent-plugins/fly: read it where Tovu takes it from, and the bundle-wide
+// candidate list from the bundle the build composes.
+const PLUGIN_DIR = agentPluginSourceDir({ pluginId: "fly" });
 
 test("Fly declares deploy candidates and its workflow as data, usable before activation", async () => {
-  const declaration = JSON.parse(readFileSync(new URL("../tovu-deploy-configs.json", import.meta.url), "utf8")).generators[0];
+  const declaration = JSON.parse(readFileSync(path.join(PLUGIN_DIR, "tovu-deploy-configs.json"), "utf8")).generators[0];
   assert.deepEqual(declaration.candidatePaths, [{ path: "fly.toml", order: 1 }, { path: ".github/workflows/fly-deploy.yml", order: 5 }]);
   assert.equal(declaration.workflowFile, "fly-deploy.yml");
-  const required = { sourceRoot: fileURLToPath(new URL("../../", import.meta.url)) };
+  const required = { sourceRoot: await processComposedBundledSourceRoot() };
   assert.deepEqual(readBundledDeployConfigCandidatePaths(required), ["fly.toml", "render.yaml", "railway.toml", "app.json", ".github/workflows/fly-deploy.yml"]);
   assert.equal(readBundledDeployWorkflowFile(required), declaration.workflowFile);
   const reads = [];

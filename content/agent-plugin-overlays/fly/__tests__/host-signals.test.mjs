@@ -6,7 +6,6 @@ import assert from "node:assert/strict";
 import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { evaluateHostSignals } from "../../../../apps/website/src/contracts/core/host-signals.ts";
 import { readBundledHostSignalDeclaration, resolveBundledHostSignals } from "../../../../apps/website/src/features/agent-plugins/host-signals.ts";
@@ -17,9 +16,12 @@ import { resolveAgentPermissionMode } from "../../../../apps/website/src/contrac
 import { detectDeploymentSignals, collectBootReadinessWarnings, warnOnBootReadinessGaps } from "../../../../apps/website/src/server/runtime/boot/boot-readiness-warnings.ts";
 import { headExpectations, headProxyOutcome, headEnvironmentMatrix } from "./fixtures/host-signals-head.mjs";
 import { stageServerRuntimeAssets } from "../../../../development/scripts/build-server.mjs";
+import { agentPluginSourceDir } from "../../../../development/test-support/agent-plugin-source.mjs";
+import { processComposedBundledSourceRoot } from "../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts";
 
-const sourceRoot = fileURLToPath(new URL("../../", import.meta.url));
-const shippedManifest = readFileSync(new URL("../plugin.json", import.meta.url), "utf8");
+// fly ships from @jini-ai/agent-plugins/fly: the bundle the build composes is the bundled source root.
+const sourceRoot = await processComposedBundledSourceRoot();
+const shippedManifest = readFileSync(path.join(agentPluginSourceDir({ pluginId: "fly" }), "plugin.json"), "utf8");
 const extension = JSON.parse(shippedManifest).extensions.tovu;
 
 test("Fly's host declaration is plain manifest data, synchronously readable before activation", () => {
@@ -223,10 +225,12 @@ test("native and permission policies without host injection preserve frozen HEAD
 test("Docker's runtime-asset staging preserves Fly's host declaration byte for byte", t => {
   const repoRoot = mkdtempSync(path.join(tmpdir(), "fly-host-payload-"));
   t.after(() => rmSync(repoRoot, { recursive: true, force: true }));
-  for (const dir of ["templates", "themes", "agent-plugins/fly", "plugins", "public"]) mkdirSync(path.join(repoRoot, "content", dir), { recursive: true });
+  for (const dir of ["templates", "themes", "agent-plugins/fly", "agent-plugin-overlays", "plugins", "public"]) mkdirSync(path.join(repoRoot, "content", dir), { recursive: true });
   mkdirSync(path.join(repoRoot, "apps/website/src/platform/db/drizzle"), { recursive: true });
   writeFileSync(path.join(repoRoot, "content/agent-plugins/fly/plugin.json"), shippedManifest);
-  stageServerRuntimeAssets({ repoRoot });
+  // No package selection: this pins the staging copy itself (package composition has its own suite,
+  // development/scripts/__tests__/compose-bundled-agent-plugins.test.ts).
+  stageServerRuntimeAssets({ repoRoot }, { selection: new Map() });
   assert.equal(readFileSync(path.join(repoRoot, "dist/content/agent-plugins/fly/plugin.json"), "utf8"), shippedManifest);
   assert.deepEqual(readBundledHostSignalDeclaration({ sourceRoot: path.join(repoRoot, "dist/content/agent-plugins") }).signals, extension.hostSignals);
   const dockerfile = readFileSync(new URL("../../../../Dockerfile", import.meta.url), "utf8");

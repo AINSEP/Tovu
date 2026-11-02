@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import path from "node:path";
 import test from "node:test";
 
 import { detectSelfDescribingAuthScheme } from "@jini-ai/integrations/credentialed-http";
 
 import { loadCredentialSchemeRegistryFromSource } from "../../../../apps/website/src/features/agent-plugins/auth-schemes.ts";
+import { agentPluginSourceDir } from "../../../../development/test-support/agent-plugin-source.mjs";
 
 /**
  * @file Moved from core (`apps/website/src/features/custom-credentials/__tests__/auth-schemes.unit.test.ts`)
@@ -13,7 +13,8 @@ import { loadCredentialSchemeRegistryFromSource } from "../../../../apps/website
  * is SYNTHETIC, never a real credential.
  */
 
-const PACKAGE_ROOT = path.resolve(import.meta.dirname, "..");
+// fly ships from @jini-ai/agent-plugins/fly: read it where Tovu takes it from.
+const PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "fly" });
 
 test("the bundled fly plugin ships exactly one rule, fly-io, sending FlyV1 for a FlyV1 prefix", async () => {
   const registry = await loadCredentialSchemeRegistryFromSource({ pluginId: "fly", packageRoot: PACKAGE_ROOT });
