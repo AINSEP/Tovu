@@ -126,7 +126,7 @@ export function shouldReopenOnActivate({ windowCount, quitPhase }: { windowCount
 /** The Electron, serializer and `openSites` effects own-server mode drives. */
 export interface OwnServerBootPorts {
   /** `sharedSites.config({}).warning`. */
-  sitesConfigWarning: () => { message: string; localHome: string } | undefined;
+  sitesConfigWarning: () => { message: string; localHome: string } | null | undefined;
   warn: (message: string) => void;
   refreshAppMenu: (ctx: OwnServerCtx) => void;
   /** {@link resolveStartupSiteDirs} with its ports bound. */
