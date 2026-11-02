@@ -9,6 +9,7 @@ import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminDatabaseRestorePointsCreateRoute, registerAdminDatabaseRestorePointsListRoute } from "../../inbound/admin-http/routes/database/restore-points.js";
 import type { RouteDeps } from "../../routes/types.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file design-spec.md §3.8 backend-gap closure — route-level tests for Database's restore-points
@@ -110,7 +111,7 @@ test("database restore-points routes: POST is 403 for a caller without backup.cr
   assert.deepEqual(await deps.restorePointsRepo.list(), []);
 });
 
-test("database restore-points routes: GET 500s with the thrown message when the repo explodes", async (t) => {
+test("database restore-points routes: GET 500s with the concealed incident envelope (no thrown message) when the repo explodes", async (t) => {
   const deps: RouteDeps = createRouteDeps();
   deps.restorePointsRepo.list = async () => {
     throw new Error("disk read failure");
@@ -124,7 +125,8 @@ test("database restore-points routes: GET 500s with the thrown message when the 
 
   const res = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, { headers: { cookie } });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "disk read failure", code: "INTERNAL_ERROR" });
+  // 88f429c25: the shared envelope conceals the cause behind an incident id.
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("database restore-points routes: GET 500s with a generic message when a non-Error is thrown", async (t) => {
@@ -142,7 +144,7 @@ test("database restore-points routes: GET 500s with a generic message when a non
 
   const res = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, { headers: { cookie } });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("database restore-points routes: POST defaults trigger to 'manual' and mints its own idempotencyKey when the body omits both", async (t) => {
@@ -246,7 +248,7 @@ test("database restore-points routes: POST 409s (RestorePointUnavailableError) w
   assert.equal(body.code, "RESTORE_POINT_UNAVAILABLE");
 });
 
-test("database restore-points routes: POST 500s with the thrown message when persistence fails after a successful capture", async (t) => {
+test("database restore-points routes: POST 500s with the concealed incident envelope (no thrown message) when persistence fails after a successful capture", async (t) => {
   const deps: RouteDeps = createRouteDeps();
   deps.restorePointsRepo.save = async () => {
     throw new Error("save failed");
@@ -264,7 +266,8 @@ test("database restore-points routes: POST 500s with the thrown message when per
     body: JSON.stringify({ trigger: "manual" }),
   });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "save failed", code: "INTERNAL_ERROR" });
+  // 88f429c25: the shared envelope conceals the cause behind an incident id.
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("database restore-points routes: POST is idempotent — a repeat idempotencyKey returns the original restore point without capturing or persisting again (AC-11)", async (t) => {
@@ -324,7 +327,7 @@ test("database restore-points routes: POST 500s with a generic message when a no
     body: JSON.stringify({ trigger: "manual" }),
   });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 
@@ -339,7 +342,8 @@ test("restore-point retry refuses an inconsistent idempotency lookup before capt
     method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ idempotencyKey: "retry" }),
   });
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { error: "restore point 'lost-snapshot' has a known idempotency key but no persisted row", code: "INTERNAL_ERROR" });
+  // The integrity breach stays an INTERNAL_ERROR 500, now concealed behind the shared incident envelope.
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   assert.equal(capture.mock.callCount(), 0);
   assert.equal(save.mock.callCount(), 0);
 });

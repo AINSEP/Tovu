@@ -11,6 +11,7 @@ import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminDatabaseSchemaStateRoute } from "../../inbound/admin-http/routes/database/schema-state.js";
 import type { RouteDeps } from "../../routes/types.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file Route-level test for `GET /api/admin/v1/database/schema-state` (ADR-041 §3) — the read-only
@@ -145,16 +146,14 @@ test("database schema-state route: reports 'unknown' with the null snapshot inta
   assert.deepEqual(body.runtime, { version: 3, tag: "0003_x" });
 });
 
-test("database schema-state route: a failing introspection read is a 500 carrying the real error text, not a fabricated clean status", async (t) => {
+test("database schema-state route: a failing introspection read is a 500 incident envelope (cause concealed), not a fabricated clean status", async (t) => {
   const { app } = buildTestApp(stubIntrospection({ throws: new Error("content.db is locked") }));
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const res = await fetch(`${baseUrl}/api/admin/v1/database/schema-state`, { headers: { cookie } });
   assert.equal(res.status, 500);
-  const body = (await res.json()) as { error: string; code: string; status?: string };
-  assert.equal(body.error, "content.db is locked");
-  assert.equal(body.code, "INTERNAL_ERROR");
-  assert.equal(body.status, undefined);
+  // 88f429c25: exact envelope (so no fabricated status field and no "content.db is locked" text).
+  assertAdminResponse({ actual: await res.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("database schema-state route: a caller with zero grants is rejected FORBIDDEN (database.read)", async (t) => {
@@ -187,6 +186,6 @@ test("schema-state non-Error read rejection returns a generic failure without a 
   const read = t.mock.method(deps.databaseIntrospection, "getSchemaState", async () => { throw "private failure"; });
   const response = await fetch(`${baseUrl}/api/admin/v1/database/schema-state`, { headers: { cookie } });
   assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  assertAdminResponse({ actual: await response.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
   assert.equal(read.mock.callCount(), 1);
 });
