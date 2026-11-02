@@ -9,6 +9,7 @@ import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { WorkspaceLastRemainingError, WorkspaceNotFoundError } from "../../features/workspace/index.js";
 import { sendDeleteWorkspaceError } from "../inbound/admin-http/routes/workspace/delete.js";
 import { createCapturingResponse } from "./helpers/http-test-server.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file Route-level proof of SPEC-044 (Workspace Administration) — AC-01..AC-08.
@@ -343,5 +344,6 @@ test("AC-06e: sendDeleteWorkspaceError maps WorkspaceLastRemainingError to 409 L
   sendDeleteWorkspaceError(generic.res, new Error("db exploded: connection string postgres://user:pw@host"));
   assert.equal(generic.capture.statusCode, 500);
   // The untyped branch must stay opaque — a repo error can carry connection strings.
-  assert.deepEqual(generic.capture.jsonBody, { error: "internal error" });
+  assertAdminResponse({ actual: generic.capture.jsonBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assert.doesNotMatch(JSON.stringify(generic.capture.jsonBody), /db exploded|postgres:\/\//);
 });
