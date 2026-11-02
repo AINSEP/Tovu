@@ -177,7 +177,8 @@ test('T4 subpaths of one package share one npm listing and stage only their own 
   assert.deepEqual(roots, [f.packageRoot]);
   assert.deepEqual(staged.pluginIds, ['jev', 'ui-ux-design']);
   assert.equal(fs.readFileSync(path.join(staged.sourceRoot, 'jev/skills/jev/SKILL.md'), 'utf8'), '# Jev');
-  assert.equal(fs.existsSync(path.join(staged.sourceRoot, 'jev/design')), false);
+  assert.deepEqual(fs.readdirSync(path.join(staged.sourceRoot, 'jev'), { recursive: true }).sort(),
+    ['plugin.json', 'skills', 'skills/jev', 'skills/jev/SKILL.md'].map(value => value.split('/').join(path.sep)).sort());
   assert.equal(fs.existsSync(path.join(staged.sourceRoot, 'ui-ux-design/skills/jev')), false);
 });
 
