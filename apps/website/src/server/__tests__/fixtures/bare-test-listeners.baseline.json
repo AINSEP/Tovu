@@ -585,13 +585,13 @@
     "call": "server.listen(0)"
   },
   {
-    "file": "content/agent-plugins/s3-compatible/__tests__/media-store.integration.test.mjs",
-    "line": 128,
+    "file": "content/agent-plugin-overlays/s3-compatible/__tests__/media-store.integration.test.mjs",
+    "line": 132,
     "call": "server.listen(0)"
   },
   {
-    "file": "content/agent-plugins/s3-compatible/__tests__/media-store.integration.test.mjs",
-    "line": 241,
+    "file": "content/agent-plugin-overlays/s3-compatible/__tests__/media-store.integration.test.mjs",
+    "line": 245,
     "call": "server.listen(0)"
   },
   {

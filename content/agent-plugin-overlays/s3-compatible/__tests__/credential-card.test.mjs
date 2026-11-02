@@ -2,8 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { parsePluginCredentialCards } from '../../../../apps/website/src/features/agent-plugins/credential-cards.ts';
+import path from 'node:path';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
-const card = (target = 's3-compatible') => JSON.parse(readFileSync(new URL('../plugin.json', import.meta.url), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
+// s3-compatible ships from @jini-ai/agent-plugins/s3-compatible: read it where Tovu takes it from.
+const PLUGIN_DIR = agentPluginSourceDir({ pluginId: 's3-compatible' });
+
+const card = (target = 's3-compatible') => JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8')).extensions.tovu.credentialCards.find(c => c.target === target);
 for (const [target, kind, title, permissions, helpUrl] of [
   ['s3-compatible', 'publish-host', 'Connect S3-compatible storage', /ListBucket.*GetObject.*PutObject.*DeleteObject/, undefined],
 ]) test(`s3-compatible/${target}: correct title, destination, key page and minimum access guidance`, () => {
@@ -18,14 +23,14 @@ for (const [target, kind, title, permissions, helpUrl] of [
 
 test('non-secret connection fields are declared explicitly', () => {
   // Publish-host cards use their deploy target's form; the card does not own those inputs.
-  const target = JSON.parse(readFileSync(new URL('../tovu-deploy-targets.json', import.meta.url), 'utf8')).targets.find(entry => entry.id === 's3-compatible');
+  const target = JSON.parse(readFileSync(path.join(PLUGIN_DIR, 'tovu-deploy-targets.json'), 'utf8')).targets.find(entry => entry.id === 's3-compatible');
   assert.equal(card().fields, undefined);
   assert.deepEqual(target.credential.fields.filter(f => !f.secret).map(f => f.name), ['endpoint', 'region', 'bucket', 'accessKeyId', 'publicUrl', 'mediaBucket', 'mediaKeyPrefix']);
   assert.equal(target.credential.tokenField, 'secretAccessKey');
 });
 
 test('every credential card parses its task purposes', () => {
-  const parsed = parsePluginCredentialCards({ raw: readFileSync(new URL('../plugin.json', import.meta.url), 'utf8') });
+  const parsed = parsePluginCredentialCards({ raw: readFileSync(path.join(PLUGIN_DIR, 'plugin.json'), 'utf8') });
   assert.equal(parsed.ok, true);
   assert.deepEqual(parsed.descriptors.map(({ providerId, usedFor }) => ({ providerId, usedFor })), [
     {

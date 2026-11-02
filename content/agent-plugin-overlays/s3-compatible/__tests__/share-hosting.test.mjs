@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createDeployHostKit } from "../../../../apps/website/src/features/deployments/deploy-targets/host-kit.ts";
 import { SHARE_DOWNLOAD_HEADERS } from "../../../../apps/website/src/features/site-backup/share-service.ts";
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
+
+// s3-compatible ships from @jini-ai/agent-plugins/s3-compatible: read it where Tovu takes it from.
+const PLUGIN_DIR = agentPluginSourceDir({ pluginId: 's3-compatible' });
 const key = `_share/${"a".repeat(16)}/site.tovu.zip`;
 const bytes = Buffer.from("PK artifact contract");
 async function s3() {
@@ -28,7 +34,7 @@ async function s3() {
     checkDeploymentUrl: async () => ({ reachable: true, status: "ready" }),
     createSigV4Client: () => ({ fetch: fetchObject, sign: async () => { throw new Error("No signing is needed by this fixture"); } }),
   };
-  const module = (await import(new URL("../targets/s3-compatible.mjs", import.meta.url).href)).default;
+  const module = (await import(pathToFileURL(path.join(PLUGIN_DIR, "targets/s3-compatible.mjs")).href)).default;
   const context = { credential: { token: "fixture-secret", accessKeyId: "fixture-id", bucket: "bucket", region: "test", publicUrl: "https://objects.example.test", endpoint: "https://api.example.test" }, config: {}, kit };
   return { store: module.createArtifactStore(context), target: module.create(context), objects };
 }

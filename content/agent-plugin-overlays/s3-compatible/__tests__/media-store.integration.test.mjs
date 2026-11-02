@@ -19,17 +19,19 @@ import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerTransform, SharpImageTransformer, uploadMedia } from "#src/features/media/index";
+import { processComposedBundledSourceRoot } from "#src/features/agent-plugins/__tests__/fixtures/bundled-source-root";
 
 /**
  * @file Proves the S3 media path as production wires it, end to end, without Docker and without any
  * real cloud account: `TOVU_MEDIA_BLOB_STORE=s3` + `TOVU_S3_*` env → `createMediaBlobStore` → the
- * bundled s3-compatible Agent Plugin's `s3_compatible` object-store provider, loaded from this repo's
- * own `content/agent-plugins` source through `loadBundledObjectStoreRegistry`, signing with the
+ * bundled s3-compatible Agent Plugin's `s3_compatible` object-store provider (`@jini-ai/agent-plugins/s3-compatible`),
+ * loaded from the composed bundle (as the build ships it) through `loadBundledObjectStoreRegistry`, signing with the
  * deploy host kit's SigV4 client and traced by `trackFetch` — the same ports `deps.ts` hands it.
  *
  * The provider's own request semantics (status handling, error texts, key encoding, SigV4 signature
- * shape, `If-None-Match` on create-only writes) are proven in the plugin's suite,
- * `content/agent-plugins/s3-compatible/__tests__/object-store.test.mjs`. This file covers only
+ * shape, `If-None-Match` on create-only writes) are proven in the plugin's suite in Jini,
+ * `packages/agent-plugins/s3-compatible/__tests__/object-store.test.mjs`, and the real SigV4 signature in
+ * this folder's `sigv4-host-signer.test.mjs`. This file covers only
  * the Tovu wiring around it: env → provider settings, the late-bound host ports, the
  * `blobStoreFromObjectStore` view, and the real `uploadMedia()` → `/m/...` route on top.
  *
@@ -46,6 +48,8 @@ const BUCKET = "tovu-media-test";
 const KEY_PREFIX = "tenant/";
 const ACCESS_KEY_ID = "test-access-key-id";
 const SECRET_ACCESS_KEY = "test-secret-access-key";
+// s3-compatible ships from @jini-ai/agent-plugins/s3-compatible: load it from the bundle the build composes.
+const BUNDLED_SOURCE_ROOT = await processComposedBundledSourceRoot();
 
 
 
@@ -179,12 +183,12 @@ function buildEnvS3MediaStore(required) {
         wrapFetch: (fetchFn) => trackFetch({ fetch: fetchFn, observability: required.observability }),
       },
       loadBundledRegistry: () =>
-        loadBundledObjectStoreRegistry({ uploadsDir: required.uploadsDir, sourceRoot: path.resolve(import.meta.dirname, "../..") }),
+        loadBundledObjectStoreRegistry({ uploadsDir: required.uploadsDir, sourceRoot: BUNDLED_SOURCE_ROOT }),
       loadSiteRegistry: notOnEnvPath("loadSiteRegistry"),
       readSetting: notOnEnvPath("readSetting"),
       resolveSharedCredential: notOnEnvPath("resolveSharedCredential"),
     }),
-  }, { envDeclarations: readBundledObjectStoreEnvDeclarations({ sourceRoot: path.resolve(import.meta.dirname, "../..") }) });
+  }, { envDeclarations: readBundledObjectStoreEnvDeclarations({ sourceRoot: BUNDLED_SOURCE_ROOT }) });
 }
 
 /**

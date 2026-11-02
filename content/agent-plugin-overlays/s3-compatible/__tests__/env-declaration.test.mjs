@@ -1,14 +1,19 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { readBundledObjectStoreEnvDeclarations } from "../../../../apps/website/src/features/object-storage/registry.ts";
 import { readMediaStoreEnv, createMediaBlobStore } from "../../../../apps/website/src/features/object-storage/media-store.ts";
+import path from 'node:path';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
+import { processComposedBundledSourceRoot } from '../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts';
 
-const { id, env: declaration } = JSON.parse(readFileSync(new URL("../tovu-object-stores.json", import.meta.url), "utf8")).providers[0];
+// s3-compatible ships from @jini-ai/agent-plugins/s3-compatible: read it where Tovu takes it from.
+const PLUGIN_DIR = agentPluginSourceDir({ pluginId: 's3-compatible' });
+
+const { id, env: declaration } = JSON.parse(readFileSync(path.join(PLUGIN_DIR, "tovu-object-stores.json"), "utf8")).providers[0];
 const names = ["TOVU_S3_BUCKET", "TOVU_S3_REGION", "TOVU_S3_ACCESS_KEY_ID", "TOVU_S3_SECRET_ACCESS_KEY"];
 const complete = { TOVU_MEDIA_BLOB_STORE: "s3", TOVU_S3_BUCKET: "bucket", TOVU_S3_REGION: "region", TOVU_S3_ACCESS_KEY_ID: "id", TOVU_S3_SECRET_ACCESS_KEY: "secret", TOVU_S3_KEY_PREFIX: "prefix/", TOVU_S3_ENDPOINT: "https://objects.example.test" };
-const envDeclarations = readBundledObjectStoreEnvDeclarations({ sourceRoot: fileURLToPath(new URL("../../", import.meta.url)) });
+const envDeclarations = readBundledObjectStoreEnvDeclarations({ sourceRoot: await processComposedBundledSourceRoot() });
 
 test("the bundled mapping is available without provider activation and preserves optional fields", () => {
   assert.deepEqual(envDeclarations.find(entry => entry.providerId === id), { providerId: id, ...declaration });
