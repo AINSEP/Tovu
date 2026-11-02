@@ -9,7 +9,7 @@ import { agentPluginActivations } from "../../activation-effects.js";
 const { setAgentPluginActivation } = agentPluginActivations;
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, realpath, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { mock } from "node:test";
@@ -43,6 +43,7 @@ import {
 } from "../../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { UNTESTED_PLUGIN_GUIDANCE } from "../../identity.js";
 
 
 /**
@@ -107,12 +108,18 @@ function manifest(name: string, version = "1.0.0"): string {
 async function withAgentPluginsDir<T>(fn: (agentPluginsDir: string) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-tool-registrations-test-"));
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
+  // Hermetic overlays: the product's own content/agent-plugin-overlays must not change these
+  // fixtures' guidance (several reuse real plugin ids). Overlay cases pass their own directory.
+  const previousOverlays = process.env.TOVU_AGENT_PLUGIN_OVERLAYS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
+  process.env.TOVU_AGENT_PLUGIN_OVERLAYS_DIR = path.join(dir, "no-overlays");
   try {
     return await fn(dir);
   } finally {
     if (previous === undefined) delete process.env.TOVU_AGENT_PLUGINS_DIR;
     else process.env.TOVU_AGENT_PLUGINS_DIR = previous;
+    if (previousOverlays === undefined) delete process.env.TOVU_AGENT_PLUGIN_OVERLAYS_DIR;
+    else process.env.TOVU_AGENT_PLUGIN_OVERLAYS_DIR = previousOverlays;
     await forceRemove(dir);
   }
 }
@@ -122,8 +129,9 @@ async function installRealPackage(
   pluginId: string,
   skills: Readonly<Record<string, string>>,
   archiveSeed: string,
+  manifestText = manifest(pluginId),
 ) {
-  const entries: AgentPluginArchiveEntry[] = [fileEntry("plugin.json", manifest(pluginId))];
+  const entries: AgentPluginArchiveEntry[] = [fileEntry("plugin.json", manifestText)];
   for (const [skillName, skillMarkdown] of Object.entries(skills)) {
     entries.push(fileEntry(`skills/${skillName}/SKILL.md`, skillMarkdown));
   }
@@ -547,6 +555,83 @@ for (const revocation of ["disable", "uninstall", "unreadable-activation"] as co
   });
 }
 
+
+/** Tovu's overlay for `coffee-roastery` (plan 2026-11-02 §6, seam 1) under the test's own temp dir. */
+async function roasteryOverlay(dir: string): Promise<string> {
+  const overlaysDir = path.join(dir, "overlays");
+  await mkdir(path.join(overlaysDir, "coffee-roastery", "host"), { recursive: true });
+  await writeFile(path.join(overlaysDir, "coffee-roastery", "GUIDANCE.md"), "HOST RULES");
+  await writeFile(path.join(overlaysDir, "coffee-roastery", "host", "brew-ratios.md"), "RATIOS");
+  return overlaysDir;
+}
+
+async function registeredRoastery(overlaysDir: string) {
+  const registry = createToolRegistry({});
+  await registerInstalledAgentPluginTools(registry, { ...testSiteLayoutContext({ workspaceId: WORKSPACE_A }), withExtensionApprovalPolicy }, { overlaysDir });
+  const executor = createToolExecutor({ registry });
+  return async (input: Record<string, unknown>) => {
+    const outcome = await executor.execute({ principal: { id: "principal-1" }, run: { id: "run-1" }, toolId: "agent_plugin_coffee_roastery", input });
+    return { status: outcome.status, output: (outcome.output ?? {}) as { guidance?: string; files?: string[]; note?: string } };
+  };
+}
+
+test("the registered guidance tool puts the plugin's overlay GUIDANCE first, lists its host files, and answers a host file from the overlay", async () => {
+  await withAgentPluginsDir(async (dir) => {
+    await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, "archive-overlay");
+    const invoke = await registeredRoastery(await roasteryOverlay(dir));
+    const plain = await invoke({});
+    assert.equal(plain.status, "completed");
+    assert.match(plain.output.guidance ?? "", /^HOST RULES\n\n# Coffee Roastery/);
+    assert.equal(plain.output.files?.at(-1), "host/brew-ratios.md");
+    const hostFile = await invoke({ file: "host/brew-ratios.md" });
+    assert.equal(hostFile.status, "completed");
+    assert.equal(hostFile.output.guidance, "RATIOS", "the overlay answers; the plugin's file reader never sees host/");
+    assert.equal(hostFile.output.files?.at(-1), "host/brew-ratios.md");
+    const skill = await invoke({ skill: "coffee-roastery", file: "host/brew-ratios.md" });
+    assert.equal(skill.output.guidance, "RATIOS", "a skill selection still reaches the overlay file");
+  });
+});
+
+test("a refused host file keeps the overlay and skill guidance with a recovery note", async () => {
+  await withAgentPluginsDir(async (dir) => {
+    await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, "archive-overlay-refused");
+    const invoke = await registeredRoastery(await roasteryOverlay(dir));
+    for (const file of ["host/../../etc/passwd", "host/missing.md"]) {
+      const refused = await invoke({ file });
+      assert.equal(refused.status, "completed", file);
+      assert.match(refused.output.guidance ?? "", /^HOST RULES\n\n# Coffee Roastery/);
+      assert.match(refused.output.note ?? "", /is not available for the 'coffee-roastery' plugin\. Valid host files: host\/brew-ratios\.md\./);
+      assert.equal((refused.output.note ?? "").includes("etc/passwd"), false);
+    }
+  });
+});
+
+test("an untested plugin's caution stays ahead of its overlay guidance", async () => {
+  await withAgentPluginsDir(async (dir) => {
+    const untested = JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "coffee-roastery", version: "1.0.0", extensions: { tovu: { maturity: "untested" } } });
+    await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, "archive-overlay-untested", untested);
+    const invoke = await registeredRoastery(await roasteryOverlay(dir));
+    assert.ok((await invoke({})).output.guidance?.startsWith(`${UNTESTED_PLUGIN_GUIDANCE}\n\nHOST RULES\n\n# Coffee Roastery`));
+    assert.equal((await invoke({ file: "host/brew-ratios.md" })).output.guidance, `${UNTESTED_PLUGIN_GUIDANCE}\n\nRATIOS`);
+  });
+});
+
+test("a disabled plugin's call is denied before the overlay is read, and no overlay leaves the answer unchanged", async () => {
+  await withAgentPluginsDir(async (dir) => {
+    await installRealPackage(WORKSPACE_A, "coffee-roastery", { "coffee-roastery": "# Coffee Roastery\n" }, "archive-overlay-disabled");
+    const withoutOverlay = await (await registeredRoastery(path.join(dir, "empty-overlays")))({});
+    const invoke = await registeredRoastery(await roasteryOverlay(dir));
+    assert.equal((await invoke({})).output.guidance, `HOST RULES\n\n${withoutOverlay.output.guidance}`);
+    assert.deepEqual((await invoke({})).output.files, [...(withoutOverlay.output.files ?? []), "host/brew-ratios.md"]);
+    const workspaceRoot = resolveAgentPluginLayout({ siteDir: process.env.TOVU_AGENT_PLUGINS_DIR ?? resolveSiteRoot() }).forWorkspace(WORKSPACE_A).root;
+    await setAgentPluginActivation({ workspaceRoot, pluginId: "coffee-roastery", enabled: false, actor: "owner" });
+    for (const input of [{}, { file: "host/brew-ratios.md" }]) {
+      const denied = await invoke(input);
+      assert.equal(denied.status, "denied");
+      assert.doesNotMatch(JSON.stringify(denied.output), /HOST RULES|RATIOS/);
+    }
+  });
+});
 
 test("the registered connect handler resolves a real installed plugin and recognizes its saved sign-in", async () => {
   await withAgentPluginsDir(async () => {

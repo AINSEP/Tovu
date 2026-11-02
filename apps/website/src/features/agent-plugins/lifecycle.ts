@@ -25,6 +25,7 @@ import type { AgentPluginLayout, AgentPluginWorkspaceLayout } from "./layout.js"
 import { migrateSiteAgentPluginLayouts } from "./memory.js";
 import { carryCloudflareActivation } from "./deploy-split-activation.js";
 import { readPluginMaturity, UNTESTED_PLUGIN_GUIDANCE } from "./identity.js";
+import { readHostPluginRefOverlays, removeChatRefusedToolPermissions, splitHostPluginRefRequest, type HostPluginRefOptions } from "./host-plugin-guidance.js";
 import { BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED, RETIRED_BUNDLED_AGENT_PLUGINS, formatPluginToolPointer } from "./bundled-catalog.js";
 import {
   readSupersessions, supersededDescriptorRefusal, supersededPackageRefusal, createBundledSourceManifestReader,
@@ -92,7 +93,7 @@ export function resolveAgentPluginDeliveryMode(env: { readonly TOVU_AGENT_PLUGIN
  * Network installation and MCP provisioning have separate host owners and are not used by this
  * binding. Refuse those unbound capabilities rather than bypassing their guards.
  * @complexity O(1) composition. All operations delegate to the lifecycle owner. */
-export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLayout }, optional: { readonly bundledSourceRoot?: string; readonly productTracker?: () => Pick<Tracker, 'capture'>; readonly filesystem?: FilesystemPort; readonly identityAdmission?: AgentPluginLifecycleOptional["identityAdmission"]; readonly mcpProvisioning?: import("@jini-ai/agent-plugins/lifecycle").AgentPluginMcpProvisioningPort; readonly supersessionManifests?: SupersessionManifestsPort } = {}) {
+export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLayout }, optional: { readonly bundledSourceRoot?: string; readonly productTracker?: () => Pick<Tracker, 'capture'>; readonly filesystem?: FilesystemPort; readonly identityAdmission?: AgentPluginLifecycleOptional["identityAdmission"]; readonly mcpProvisioning?: import("@jini-ai/agent-plugins/lifecycle").AgentPluginMcpProvisioningPort; readonly supersessionManifests?: SupersessionManifestsPort; readonly hostOverlaysDir?: string } = {}) {
   const unbound = async (): Promise<never> => { throw new Error("This lifecycle binding does not provide network installation or MCP provisioning"); };
   const policy: AgentPluginLifecycleOptional = {
     onActivationChanged: ({ pluginId, actor, enabled }) => optional.productTracker?.().capture({ name: enabled ? "agent_plugin_enabled" : "agent_plugin_disabled", userId: actor }, { properties: { pluginId, pluginKind: "agent", source: "shared" } }),
@@ -128,12 +129,18 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
     readBundledSource: optional.bundledSourceRoot === undefined ? unbound : createBundledSourceManifestReader({ bundledSourceRoot: optional.bundledSourceRoot }),
   };
   /** Apply host disclosure after Jini's trust/activation checks, for pinned and automatic guidance.
+   * Order: maturity notices, each plugin's overlay `GUIDANCE.md` (`host-plugin-guidance.ts`; not in
+   * pointer delivery, whose tool call carries it), the owner's sections, then a requested `host/`
+   * file — the owner is asked without that file, which is Tovu's, not the plugin's.
    * @throws A manifest read failure; never deliver guidance while hiding its maturity.
-   * @complexity One catalog scan plus one contained manifest read per selected plugin.
+   * @complexity One catalog scan plus one contained manifest read and one overlay read per selected plugin.
    */
-  async function resolveHostPluginRefs(input: { pluginRefIds: readonly string[]; workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages" | "root"> }, options: { deliveryMode?: AgentPluginDeliveryMode; skill?: string; file?: string } = {}) {
-    const result = await owner.resolveAgentPluginRefs(input, options);
+  async function resolveHostPluginRefs(input: { pluginRefIds: readonly string[]; workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages" | "root"> }, options: HostPluginRefOptions = {}): Promise<import("@jini-ai/agent-plugins/lifecycle").ResolveAgentPluginRefsResult> {
+    const request = splitHostPluginRefRequest({ options, defaultDeliveryMode: resolveAgentPluginDeliveryMode() });
+    const result = await owner.resolveAgentPluginRefs(input, request.ownerOptions);
     if (!result.ok || input.pluginRefIds.length === 0) return result;
+    const overlays = await readHostPluginRefOverlays({ pluginRefIds: input.pluginRefIds, ...request.overlay }, { overlaysDir: optional.hostOverlaysDir });
+    if (!overlays.ok) return overlays;
     const installed = owner.preferBundledAgentPluginDigests({
       installed: await owner.listInstalledPlugins({ workspaceRoot: input.workspaceLayout.root }),
       bundled: await owner.readBundledAgentPluginDigests({ workspaceRoot: input.workspaceLayout.root }),
@@ -144,7 +151,8 @@ export function createTovuAgentPluginLifecycle(required: { layout: AgentPluginLa
       // Every maturity flag ("untested", "soon") means not tested end to end, so both carry the caution.
       return readPluginMaturity({ manifest }) ? `Plugin '${plugin.pluginId}' is untested. ${UNTESTED_PLUGIN_GUIDANCE}` : '';
     }));
-    return { ...result, promptPrefix: [...notices, result.promptPrefix].filter(Boolean).join('\n\n') };
+    const promptPrefix = [...notices, ...overlays.guidance, result.promptPrefix, ...overlays.fileSections].filter(Boolean).join('\n\n');
+    return { ...result, promptPrefix: removeChatRefusedToolPermissions(promptPrefix) };
   }
   return {
     ...owner,

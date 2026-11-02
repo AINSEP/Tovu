@@ -7,6 +7,7 @@ import { buildPluginMemoryRegistrations } from "./memory-tools.js";
 import { WRITE_PLUGIN_NOTE, pluginNoteCatalog, pluginNoteRisk, pluginNoteHandler } from "./write-note-tool.js";
 import type { OperatorLocaleDeps } from "../../contracts/headless/index.js";
 import { appendPluginNotes } from "./memory.js";
+import { deliverHostPluginGuidance, isHostPluginFileRequest, type HostPluginOverlayOptional, type PluginToolGuidance } from "./host-plugin-guidance.js";
 
 // Jini owns activation lifecycle; this host binding owns its effects.
 import { agentPluginActivations } from "./activation-effects.js";
@@ -672,24 +673,46 @@ export function buildAgentPluginToolRegistrations(
  * Registers with the REAL gate, so every tool this puts into the daemon's registry stops answering
  * the moment its plugin is switched off OR uninstalled — see the REVOCATION note above
  * {@link createAgentPluginToolGate}.
+ *
+ * Each guidance answer carries Tovu's overlay for that plugin (`host-plugin-guidance.ts`): its
+ * `GUIDANCE.md` after any maturity notice, and its `host/` files. `optional.overlaysDir` defaults to
+ * the shipped overlays.
  */
 export async function registerInstalledAgentPluginTools(
   registry: { register: (registration: ToolRegistration) => void },
   ctx: { readonly workspaceId: string; readonly agentPluginLayout: AgentPluginLayout; readonly withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
+  optional: HostPluginOverlayOptional = {},
 ): Promise<void> {
   const sources = await loadInstalledAgentPluginToolSources(ctx);
   const gate = createAgentPluginToolGate(ctx);
   for (const registration of buildAgentPluginToolRegistrations({ sources, gate, withExtensionApprovalPolicy: ctx.withExtensionApprovalPolicy })) {
     const handler = registration.handler;
-    registry.register({ ...registration, handler: async (execution, optional) => {
-      const result = await handler(execution, optional) as { pluginId: string; guidance: string };
-      return { ...result, guidance: await appendPluginNotes({ contain: containAgentPluginStatePath,
+    // Runs after the gate authorized the call, so a disabled plugin never reaches its overlay.
+    // A `host/` file is Tovu's, never the plugin's: the plugin answers its default, Tovu the file.
+    registry.register({ ...registration, handler: async (execution, executionOptional) => {
+      const hostFile = requestedHostPluginFile(execution.input);
+      const pluginExecution = hostFile === undefined ? execution : { ...execution, input: withoutFileArgument(execution.input) };
+      const result = await handler(pluginExecution, executionOptional) as PluginToolGuidance & { maturity?: PluginMaturity };
+      const delivered = await deliverHostPluginGuidance({ result, ...(hostFile !== undefined ? { file: hostFile } : {}) },
+        { ...optional, ...(result.maturity ? { notice: UNTESTED_PLUGIN_GUIDANCE } : {}) });
+      return { ...result, ...delivered, guidance: await appendPluginNotes({ contain: containAgentPluginStatePath,
         workspaceRoot: ctx.agentPluginLayout.forWorkspace(ctx.workspaceId).root,
-        pluginId: result.pluginId, guidance: result.guidance,
+        pluginId: result.pluginId, guidance: delivered.guidance,
       }) };
     } });
   }
   for (const registration of buildPluginMemoryRegistrations({ sources, workspaceId: ctx.workspaceId, agentPluginLayout: ctx.agentPluginLayout, gate, withExtensionApprovalPolicy: ctx.withExtensionApprovalPolicy })) registry.register(registration);
+}
+
+/** The `host/` file a plugin tool call names, if any; any other input is the handler's to validate. */
+function requestedHostPluginFile(input: unknown): string | undefined {
+  const file = typeof input === "object" && input !== null ? (input as { file?: unknown }).file : undefined;
+  return isHostPluginFileRequest(file) ? file : undefined;
+}
+
+/** The same input minus `file`, so the plugin's own skill/field validation still runs. */
+function withoutFileArgument(input: unknown): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(input as Record<string, unknown>).filter(([key]) => key !== "file"));
 }
 
 /**

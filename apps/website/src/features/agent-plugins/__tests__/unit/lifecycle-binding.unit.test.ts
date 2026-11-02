@@ -23,7 +23,7 @@ import { forceRemove } from "../fixtures/force-remove.js";
 
 const WORKSPACE = "workspace-local";
 
-async function boundLifecycle(t: TestContext) {
+async function boundLifecycle(t: TestContext, optional: { hostOverlaysDir?: string } = {}) {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-lifecycle-binding-"));
   const previous = process.env.TOVU_AGENT_PLUGINS_DIR;
   process.env.TOVU_AGENT_PLUGINS_DIR = dir;
@@ -32,7 +32,7 @@ async function boundLifecycle(t: TestContext) {
     await forceRemove(dir);
   });
   const layout = resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: dir } });
-  return { dir, layout, lifecycle: createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir() }) };
+  return { dir, layout, lifecycle: createTovuAgentPluginLifecycle({ layout }, { bundledSourceRoot: bundledAgentPluginsDir(), ...optional }) };
 }
 
 async function packedNotes(dir: string, lifecycle: ReturnType<typeof createTovuAgentPluginLifecycle>, maturity?: 'untested' | 'soon') {
@@ -87,6 +87,74 @@ for (const maturity of ['untested', 'soon', undefined] as const) {
     });
   }
 }
+
+/** Tovu's overlay for `notes` (plan 2026-11-02 §6, seam 2) under its own temp dir. */
+async function notesOverlay(t: TestContext): Promise<string> {
+  const overlaysDir = await mkdtemp(path.join(tmpdir(), "tovu-lifecycle-overlays-"));
+  t.after(() => forceRemove(overlaysDir));
+  await mkdir(path.join(overlaysDir, "notes", "host"), { recursive: true });
+  await writeFile(path.join(overlaysDir, "notes", "GUIDANCE.md"), "HOST RULES");
+  await writeFile(path.join(overlaysDir, "notes", "host", "filing.md"), "FILING");
+  return overlaysDir;
+}
+
+async function installedNotes(t: TestContext, optional: { maturity?: 'untested'; overlay?: boolean } = {}) {
+  const hostOverlaysDir = optional.overlay === false ? path.join(tmpdir(), "tovu-no-overlays-for-this-test") : await notesOverlay(t);
+  const { dir, layout, lifecycle } = await boundLifecycle(t, { hostOverlaysDir });
+  const packed = await packedNotes(dir, lifecycle, optional.maturity);
+  await lifecycle.installAgentPlugin({ archive: packed.bytes, expectedSha256: packed.sha256, archiveReader: lifecycle.createBundledSourceArchiveReader(), layout, workspaceId: WORKSPACE });
+  return { layout, lifecycle, workspace: layout.forWorkspace(WORKSPACE) };
+}
+
+test("inject run references put maturity first, then the overlay GUIDANCE, then the plugin's section", async t => {
+  const { lifecycle, workspace } = await installedNotes(t, { maturity: 'untested' });
+  const result = await lifecycle.resolveAgentPluginRefs(['notes'], workspace, 'inject');
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  const caution = result.promptPrefix.indexOf("Before saving keys or acting with this plugin");
+  const host = result.promptPrefix.indexOf("HOST RULES");
+  const skill = result.promptPrefix.indexOf("Write things down");
+  assert.ok(caution >= 0 && caution < host && host < skill, result.promptPrefix);
+});
+
+test("pointer run references add no overlay guidance (the tool call carries it); a selected skill in pointer mode does", async t => {
+  const { lifecycle, workspace } = await installedNotes(t);
+  const pointer = await lifecycle.resolveAgentPluginRefs(['notes'], workspace, 'pointer');
+  assert.equal(pointer.ok, true);
+  assert.equal(pointer.ok && pointer.promptPrefix.includes("HOST RULES"), false);
+  const skill = await lifecycle.resolveAgentPluginGuidance({ pluginRefIds: ['notes'], workspaceLayout: workspace }, { deliveryMode: 'pointer', skill: 'notes' });
+  assert.equal(skill.ok && skill.promptPrefix.includes("HOST RULES"), true);
+});
+
+test("a host/ file is appended after the owner's default section, and a missing one refuses like a missing plugin file", async t => {
+  const { lifecycle, workspace } = await installedNotes(t);
+  const result = await lifecycle.resolveAgentPluginGuidance({ pluginRefIds: ['notes'], workspaceLayout: workspace }, { deliveryMode: 'inject', file: 'host/filing.md' });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.ok(result.promptPrefix.indexOf("Write things down") < result.promptPrefix.indexOf("Host file host/filing.md for Agent Plugin 'notes':\nFILING"), result.promptPrefix);
+  for (const file of ['host/missing.md', 'host/../GUIDANCE.md']) {
+    const refused = await lifecycle.resolveAgentPluginGuidance({ pluginRefIds: ['notes'], workspaceLayout: workspace }, { deliveryMode: 'inject', file });
+    assert.equal(refused.ok, false, file);
+    assert.equal(!refused.ok && refused.reason.includes('../'), false);
+  }
+});
+
+test("a disabled plugin gets the owner's refusal and no overlay", async t => {
+  const { lifecycle, workspace } = await installedNotes(t);
+  await explicitRootAgentPluginActivations.setAgentPluginActivation({ workspaceRoot: workspace.root, pluginId: "notes", enabled: false, actor: "owner" });
+  for (const file of [undefined, 'host/filing.md']) {
+    const refused = await lifecycle.resolveAgentPluginGuidance({ pluginRefIds: ['notes'], workspaceLayout: workspace }, { deliveryMode: 'inject', ...(file ? { file } : {}) });
+    assert.equal(refused.ok, false);
+    assert.doesNotMatch(JSON.stringify(refused), /HOST RULES|FILING/);
+  }
+});
+
+test("a plugin without an overlay keeps the owner's prefix unchanged", async t => {
+  const bare = await installedNotes(t, { overlay: false });
+  const result = await bare.lifecycle.resolveAgentPluginRefs(['notes'], bare.workspace, 'inject');
+  assert.equal(result.ok, true);
+  if (result.ok) assert.match(result.promptPrefix, /^<<AGENT_PLUGIN pluginId="notes">>\n---\nname: notes/);
+});
 
 test("pure helpers delegate unchanged: entry paths, digest ledgers, archive cap and ranking", async t => {
   const { lifecycle } = await boundLifecycle(t);
