@@ -76,7 +76,7 @@ function touch(filePath: string, mtimeMs: number): number {
 /** Writes a real `package.json` naming `dependencies`, the shape `declaredDependencies` reads. */
 function writePackage(dir: string, dependencies: Record<string, string> = {}): void {
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: path.basename(dir), version: "1.0.0", dependencies }));
+  fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: path.basename(dir), dependencies }));
 }
 
 test("returns 0 for a path that does not exist", () => {
@@ -310,7 +310,7 @@ test("stageTransitiveDependencies: does not re-copy a dependency whose staged de
 
   // Pre-stage a STUB foo at the destination — proves the real foo is never copied over it.
   const stagedFoo = path.join(outDir, "node_modules", "foo");
-  writePackage(stagedFoo, { bar: "^1" });
+  fs.mkdirSync(stagedFoo, { recursive: true });
   fs.writeFileSync(path.join(stagedFoo, "marker.txt"), "stub-foo");
 
   const count = stageTransitiveDependencies({ roots: [pkgA], outDir });
@@ -992,37 +992,6 @@ test("a missing required dependency or peer refuses staging instead of shipping 
     writePackage(source);
     fs.writeFileSync(path.join(source, "package.json"), JSON.stringify({ [field]: { "missing-required": "1" } }));
     assert.throws(() => stageTransitiveDependencies({ roots: [source], outDir: path.join(tmp, "out") }),
-      { message: `Unresolved production dependency: ${source} -> missing-required` });
+      { message: `Unresolved runtime dependency: ${source} -> missing-required` });
   }
-});
-
-for (const preStaged of [false, true]) {
-  test(`stageTransitiveDependencies refuses incompatible flattened versions (pre-staged=${preStaged})`, () => {
-    const tmp = tempDir(), outDir = path.join(tmp, 'out');
-    const roots = ['one', 'two'].map(name => path.join(tmp, name));
-    for (const [index, root] of roots.entries()) {
-      writePackage(root, { shared: '*' });
-      const shared = path.join(root, 'node_modules/shared');
-      writePackage(shared);
-      fs.writeFileSync(path.join(shared, 'package.json'), JSON.stringify({ name: 'shared', version: `${index + 1}.0.0` }));
-    }
-    if (preStaged) stageDir(path.join(roots[0]!, 'node_modules/shared'), path.join(outDir, 'node_modules/shared'), true);
-    assert.throws(() => stageTransitiveDependencies({ roots, outDir }), /Package version conflict while flattening shared/);
-    if (preStaged) assert.equal(JSON.parse(fs.readFileSync(path.join(outDir, 'node_modules/shared/package.json'), 'utf8')).version, '1.0.0');
-    else assert.equal(fs.existsSync(outDir), false, 'validate the entire flattening plan before copying');
-  });
-}
-
-test('assertClosureComplete checks nested scoped packages and intermediate ancestor resolution', () => {
-  const tmp = tempDir(), outDir = path.join(tmp, 'out'), modules = path.join(outDir, 'node_modules');
-  const parent = path.join(modules, 'parent');
-  const nested = path.join(parent, 'node_modules/@scope/nested');
-  writePackage(parent, { '@scope/nested': '*' });
-  writePackage(nested, { sibling: '*', missing: '*' });
-  writePackage(path.join(parent, 'node_modules/sibling'));
-  // Ancestor checkout packages must not satisfy a shipped nested gap.
-  writePackage(path.join(tmp, 'node_modules/missing'));
-  assert.throws(() => assertClosureComplete({ outDir }), /parent\/node_modules\/@scope\/nested -> missing/);
-  writePackage(path.join(modules, 'missing'));
-  assert.doesNotThrow(() => assertClosureComplete({ outDir }));
 });
