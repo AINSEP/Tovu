@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agentic
+
+ ✓ src/__tests__/package-surface.integration.test.ts (2 tests) 28ms
+ ✓ src/core/__tests__/page-executor.test.ts (97 tests) 103ms
+
+ Test Files  2 passed (2)
+      Tests  99 passed (99)
+   Start at  20:24:31
+   Duration  777ms (transform 497ms, setup 0ms, collect 700ms, tests 131ms, environment 1ms, prepare 162ms)
+

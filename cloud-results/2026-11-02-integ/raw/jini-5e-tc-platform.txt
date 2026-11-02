@@ -1,0 +1,4 @@
+
+> @jini-ai/platform@0.6.17 typecheck /home/user/Jini/packages/platform
+> tsc -p tsconfig.json --noEmit
+

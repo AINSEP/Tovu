@@ -1,0 +1,30 @@
+
+> jini@ guard /home/user/Jini
+> node --import tsx ./scripts/guard.ts
+
+[hardwiring] HW1-env-default: 17 total; 0 new
+[hardwiring] HW2-vendor-adapter: 16 total; 0 new
+[hardwiring] HW3-module-state: 137 total; 2 new
+[hardwiring] HW4-injected-fetch: 1 total; 0 new
+[hardwiring] HW5-jini-export: 0 total; 0 new
+[hardwiring] HW6-boot-default: 0 total; 0 new
+[hardwiring] HW7-public-react: 0 total; 0 new
+[hardwiring] HW8-provider-url: 49 total; 0 new
+[hardwiring] HW9-plugin-import: 0 total; 0 new
+[hardwiring] 30 stale debt occurrences; remove them from scripts/hardwiring-debt.json.
+[guard] R13-model-fallback-freshness claude: MF3 compared 16 live id(s) against 20 fallback entr(ies).
+[guard] R13-model-fallback-freshness codex: MF3 SKIPPED — `codex debug models` unavailable (spawn codex ENOENT). Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness antigravity: MF3 SKIPPED — `agy models` unavailable (spawn agy ENOENT). Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness pi: MF3 SKIPPED — MF3 does not apply to `pi` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness aider: MF3 SKIPPED — MF3 does not apply to `aider` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R13-model-fallback-freshness opencode: MF3 SKIPPED — MF3 does not apply to `opencode` — only MF1/MF2 (staleness date) apply. Staleness date still enforced (MF1/MF2).
+[guard] R2-deep-path packages/chat/tests/folder-drop-redaction.integration.test.ts: relative import "../../ui/src/features/folder-path-drop/rules.js" reaches into another package's src (ui) — import by package name instead
+[guard] N1-consumer-identity packages/provider-plugins/src/charts-echarts/option.ts: forbidden source reference "Tovu" (comments included)
+[guard] N1-consumer-identity packages/provider-plugins/src/charts-recharts/bar-chart.tsx: forbidden source reference "Tovu" (comments included)
+[guard] N1-consumer-identity packages/provider-plugins/src/charts-recharts/chart-config.ts: forbidden source reference "Tovu" (comments included)
+[guard] SI-domain packages/db/src/kernel/sqlite/driver.ts: ./kernel/sqlite (kernel) reaches src/sqlite/backup-policy.ts (sqlite) via ../../sqlite/backup-policy.js
+[guard] HW3-module-state packages/chat/src/react/hooks/composer-draft-cache.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+[guard] HW3-module-state packages/provider-plugins/src/charts-echarts/mount.ts: Module state must be instance-owned; readonly collections or explicitly reviewed path-keyed locks may be retained.
+
+7 guard violation(s).
+ ELIFECYCLE  Command failed with exit code 1.

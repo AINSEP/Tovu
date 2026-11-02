@@ -1,0 +1,6 @@
+
+> tovu-desktop@0.1.25 typecheck
+> tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json && tsc -p tsconfig.main.json && tsc -p tsconfig.live-verify.json
+
+src/preload/preload.mts(27,64): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+src/speech/preload-speech.cts(46,27): error TS2307: Cannot find module 'electron' or its corresponding type declarations.

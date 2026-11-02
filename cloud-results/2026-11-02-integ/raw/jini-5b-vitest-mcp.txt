@@ -1,0 +1,72 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/mcp
+
+stderr | src/core/__tests__/config.test.ts > readMcpConfig / writeMcpConfig > returns empty and logs on corrupt JSON
+[mcp-config] Corrupted JSON, returning empty: SyntaxError: Expected property name or '}' in JSON at position 2 (line 1 column 3)
+    at JSON.parse (<anonymous>)
+    at Module.readMcpConfig (/home/user/Jini/packages/mcp/src/core/config.ts:264:34)
+    at /home/user/Jini/packages/mcp/src/core/__tests__/config.test.ts:159:5
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file:///home/user/Jini/node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11
+
+ ✓ src/core/__tests__/config.test.ts (60 tests) 87ms
+ ✓ src/server/__tests__/tool-server.test.ts (38 tests) 107ms
+stdout | src/federation/__tests__/mcp-federation.bootstrap.test.ts > defaultConnect hands the hosted transport callTimeoutMs as its per-request bound, matching the stdio arm — not connectTimeoutMs
+agent-daemon mcp-federation: 'hosted-vendor' registered 0 federated tool(s): (none)
+
+stdout | src/federation/__tests__/mcp-federation.bootstrap.test.ts > attachFederatedMcpTools stamps preset connections with a preset origin, for external-mcp-revocation.ts's roster/preset split
+agent-daemon mcp-federation: 'hosted-vendor' registered 1 federated tool(s): mcp__hosted-vendor__ping
+
+stderr | src/federation/__tests__/mcp-federation.bootstrap.test.ts > a connect timeout produces a human-readable connectFailures entry with no report entry, for the connection admin admissions must surface
+agent-daemon mcp-federation: 'namecom' failed, continuing without its tools — Error: connect timed out after 15000ms
+    at connect (/home/user/Jini/packages/mcp/src/federation/__tests__/mcp-federation.bootstrap.test.ts:221:13)
+    at attachOneFederatedConnection (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:276:21)
+    at attachFederatedMcpTools (/home/user/Jini/packages/mcp/src/federation/bootstrap.ts:197:28)
+    at /home/user/Jini/packages/mcp/src/federation/__tests__/mcp-federation.bootstrap.test.ts:220:24
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+
+ ✓ src/federation/__tests__/mcp-federation.bootstrap.test.ts (4 tests) 158ms
+stderr | src/core/__tests__/tokens.test.ts > readTokensFile > returns an empty store on corrupt JSON
+[mcp-tokens] Corrupted JSON, returning empty: SyntaxError: Expected property name or '}' in JSON at position 2 (line 1 column 3)
+    at JSON.parse (<anonymous>)
+    at Module.readTokensFile (/home/user/Jini/packages/mcp/src/core/tokens.ts:189:43)
+    at /home/user/Jini/packages/mcp/src/core/__tests__/tokens.test.ts:177:5
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file:///home/user/Jini/node_modules/.pnpm/vitest@2.1.9_@types+node@24.13.3_jsdom@26.1.0_lightningcss@1.33.0_sass@1.51.0/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11
+
+stderr | src/core/__tests__/tokens.test.ts > token store mutations > C31: returns null for inherited entries and preserves corrupt contents before replacing the store
+[mcp-tokens] Corrupted JSON, returning empty: SyntaxError: Expected ',' or '}' after property value in JSON at position 46 (line 1 column 47)
+    at JSON.parse (<anonymous>)
+    at readTokensFile (/home/user/Jini/packages/mcp/src/core/tokens.ts:189:43)
+    at /home/user/Jini/packages/mcp/src/core/tokens.ts:250:18
+    at withLock (/home/user/Jini/packages/mcp/src/core/tokens.ts:214:12)
+    at Module.setToken (/home/user/Jini/packages/mcp/src/core/tokens.ts:249:3)
+    at /home/user/Jini/packages/mcp/src/core/__tests__/tokens.test.ts:196:5
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ ✓ src/core/__tests__/tokens.test.ts (23 tests) 98ms
+ ✓ src/federation/__tests__/presets.hwa.test.ts (3 tests) 17ms
+
+ Test Files  5 passed (5)
+      Tests  128 passed (128)
+   Start at  20:25:38
+   Duration  2.11s (transform 961ms, setup 0ms, collect 2.06s, tests 467ms, environment 1ms, prepare 354ms)
+

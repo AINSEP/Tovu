@@ -1,0 +1,8 @@
+
+> @jini-ai/provider-plugins@0.6.13 typecheck /home/user/Jini/packages/provider-plugins
+> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.charts.json --noEmit
+
+error TS18003: No inputs were found in config file '/home/user/Jini/packages/provider-plugins/tsconfig.charts.json'. Specified 'include' paths were '["src/charts-*"]' and 'exclude' paths were '[]'.
+/home/user/Jini/packages/provider-plugins:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @jini-ai/provider-plugins@0.6.13 typecheck: `tsc -p tsconfig.json --noEmit && tsc -p tsconfig.charts.json --noEmit`
+Exit status 2

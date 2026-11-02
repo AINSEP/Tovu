@@ -1,0 +1,4 @@
+
+> @jini-ai/agent-runtime@0.6.17 typecheck /home/user/Jini/packages/agent-runtime
+> tsc -p tsconfig.json --noEmit
+

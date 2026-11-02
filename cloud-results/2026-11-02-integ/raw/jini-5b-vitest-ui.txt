@@ -1,0 +1,17 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/ui
+
+ ✓ src/features/charts/__tests__/catalog-registry.test.tsx (6 tests) 107ms
+ ✓ src/features/sketch-editor/__tests__/react/hooks/useSketchSaveWorkflow.test.ts (19 tests) 129ms
+ ✓ src/features/a2ui/__tests__/real-catalog-components.test.tsx (7 tests) 278ms
+ ✓ src/features/interactive-ui/__tests__/registry.test.ts (9 tests) 126ms
+ ✓ src/features/charts/__tests__/react-host.test.tsx (3 tests) 43ms
+ ✓ src/features/charts/__tests__/catalog-manifests.test.ts (14 tests) 125ms
+ ✓ src/features/interactive-ui/__tests__/manifests.test.ts (4 tests) 321ms
+   ✓ interactive-ui manifests entry point > declares the same order as the React registry, so search rank and fallback order agree 316ms
+
+ Test Files  7 passed (7)
+      Tests  62 passed (62)
+   Start at  20:26:33
+   Duration  6.25s (transform 2.97s, setup 958ms, collect 4.54s, tests 1.13s, environment 2.23s, prepare 606ms)
+

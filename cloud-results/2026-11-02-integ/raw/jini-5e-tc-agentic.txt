@@ -1,0 +1,4 @@
+
+> @jini-ai/agentic@0.6.17 typecheck /home/user/Jini/packages/agentic
+> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.dom.json --noEmit
+

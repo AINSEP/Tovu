@@ -1,0 +1,4 @@
+error TS5057: Cannot find a tsconfig.json file at the specified directory: '.'.
+undefined
+/home/user/Jini/packages/plugin-observability-opentelemetry:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: tsc --noEmit -p .

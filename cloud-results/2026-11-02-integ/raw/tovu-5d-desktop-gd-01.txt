@@ -1,0 +1,687 @@
+✔ with nothing rejected, the message is the plain ask (0.961442ms)
+✔ a rejected startup default is named first, with the reason for each kind (0.293222ms)
+✔ the picker asks for a folder it may also create, with the explained message (0.885091ms)
+✔ the first of several chosen paths is returned (0.15676ms)
+✔ a cancelled dialog returns null even if it carries paths (1.349502ms)
+✔ an uncancelled dialog with no path returns null (0.275148ms)
+✔ a self-test refuses to show a picker and names the env vars that avoid it (0.550923ms)
+✔ a dialog failure propagates unchanged (0.209606ms)
+✔ open recent: adopts the folder, opens what adoption resolved, then refreshes the menu (1.697526ms)
+✔ a folder that no longer adopts is reported and nothing opens or refreshes (0.247665ms)
+✔ a window that fails to open is reported and the menu is not refreshed (0.248298ms)
+✔ open site…: prompts, then adopts, opens and refreshes the picked folder (0.213907ms)
+✔ a cancelled picker does nothing at all (0.209677ms)
+✔ a picker that cannot be shown (self-test) is reported as a folder failure (0.250386ms)
+✔ a picked folder that fails to open is reported as a site failure, not a folder failure (0.300851ms)
+✔ a failing error dialog propagates rather than being swallowed (0.688167ms)
+✔ retainsSiteOnClose: only macOS with no quit under way keeps the site running (1.253403ms)
+✔ a first open spawns the server, creates its titled window on the site's partition, publishes it, then schedules previews (1.898385ms)
+✔ with no options the backend gets no pinned port (0.278298ms)
+✔ an open site's live window is shown and focused, never re-created or re-spawned (0.242271ms)
+✔ a retained server (macOS window closed) is reused with its own partition — no second spawn (0.472429ms)
+✔ an entry whose window was destroyed reuses the server and replaces the window (0.359814ms)
+✔ a window that cannot be created after a fresh spawn drops the row, stops the child, and rethrows (0.756667ms)
+✔ a window that cannot be created over a REUSED server leaves that server and its row alone (0.394163ms)
+✔ a failed rollback stop surfaces instead of the window error (0.423738ms)
+✔ a backend that fails to start opens nothing (0.429727ms)
+✔ macOS close (not quitting) releases only the window: the server, row and session stay (0.382212ms)
+✔ macOS close of a stale window leaves a replacement entry's window in place (0.187628ms)
+✔ macOS close with no entry left does nothing (0.291961ms)
+✔ win32 close during idle: unpublish, then logout → stop → row, tracked until done (0.63348ms)
+✔ linux close during idle: unpublish, then logout → stop → row, tracked until done (0.170872ms)
+✔ darwin close during draining: unpublish, then logout → stop → row, tracked until done (0.173995ms)
+✔ darwin close during drained: unpublish, then logout → stop → row, tracked until done (0.085411ms)
+✔ the crash-safety row outlives a pending stop (12.12476ms)
+✔ a failed logout never blocks the stop (0.574064ms)
+✔ a stop that cannot confirm exit is logged and keeps its recovery row (0.502764ms)
+✔ closing a stale window stops ITS server but never deletes the replacement entry (0.283057ms)
+✔ an unbuilt renderer: logs why, fails the run, shows the reason, quits, and opens no window (2.974365ms)
+✔ an unbuilt renderer in a self-test shows no dialog, but still fails and quits (0.337518ms)
+✔ options: unsandboxed sites preload with the webview tag, the owner's 480x600 floor, fallback size with nothing remembered (0.573068ms)
+✔ a remembered spot on a current display is reopened; one no display covers falls back to a centred default (0.995862ms)
+✔ a self-test window stays hidden and is tracked before anything loads (0.309082ms)
+✔ setup order: every listener and boundary is in place before the renderer file loads (0.278719ms)
+✔ the page may not retitle the window (0.240372ms)
+✔ close remembers the bounds, except for a destroyed or full-screen window (0.608616ms)
+✔ a supervised guest attaches with the speech preload and Node off, whatever the page asked for (0.523258ms)
+✔ a guest pointed anywhere else, or nowhere, is refused and its preferences are left untouched (0.707429ms)
+✔ an attached guest gets its own spelling menu (0.277946ms)
+✔ only the renderer's own file may load; a remote page goes to the OS browser instead (0.409717ms)
+(node:21555) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21555) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ dist/preload/preload.mjs is not older than its own source (the 2026-09-18 stale-bridge incident) (1.005664ms)
+✔ the staleness predicate itself refuses the exact incident shape (build older than the source that added onFindToggle) (0.315284ms)
+✖ the compiled preload exposes every current source bridge method regardless of mtimes (4.054263ms)
+(node:21562) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21562) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✔ preload.mts uses the shared speech bridge with the Tovu channel namespace (0.961805ms)
+✔ preload.mts exposes both bridges — dropping either is what the port had to avoid (0.336476ms)
+✖ the ESM preload exposes shared keys, runner and voice and maps methods to fixed contract channels (2.927183ms)
+tovu desktop: dropped inherited TOVU_PACKAGED_DESKTOP; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.
+tovu desktop: dropped inherited TOVU_PACKAGED_DESKTOP; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.
+tovu desktop: dropped inherited TOVU_PACKAGED_DESKTOP; spawned sites use their own plugin and skill folders. Set overrides only for a direct single-site run.
+✔ no config in dev means noop tracker, no provider reads, no child launch, and crashReporter never starts (3.272096ms)
+✔ packaged config is selected from Resources; explicit test path takes precedence; failed boot stays inactive (0.919952ms)
+✔ native reporter starts only with crashes already on at launch; switch-off disables uploads; late enable waits for restart (0.785649ms)
+✔ app_started happens once per launch with usage consent, including a first-run grant (0.358843ms)
+✔ non-clean renderer/GPU/utility exits and one unexpected supervisor exit carry only fixed diagnostic fields (0.864794ms)
+✔ buildServeEnv forwards exactly three product env values only with an active launch, for POSIX and Windows paths (1.816787ms)
+✔ denied export never starts native reporting even with explicit config, consent and an injected crash capability (0.544199ms)
+✔ packaging fact is cleared before setting it from main, independently of product config (1.586343ms)
+✔ desktop launch forwards the explicit or default export policy into shared telemetry boot (0.723466ms)
+✔ packaged spawn-helpers lacking execute bits are named with their mode; executable ones pass (9.113902ms)
+✔ a mac bundle with no spawn-helper fails; a non-mac resources dir with none passes (5.2735ms)
+✔ a Windows resources dir passes even though node-pty ships macOS spawn-helpers without execute bits (5.741467ms)
+✔ with the default lookup and no preload (`window.tovuRunner` unset) every bridge-reading hook stays inert (28.917688ms)
+✔ the barrel exports exactly the runtime names it exported before the split, and nothing else (2.055192ms)
+✔ each re-exported name is the very function its family module exports (0.377956ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/App.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/app-render-harness.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/src/renderer/app-render-harness.ts:24:12)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/App.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/App.sites-home.render.test.ts (622.11906ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/App.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/app-render-harness.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/src/renderer/app-render-harness.ts:24:12)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/App.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/App.workspace-start.render.test.ts (585.275987ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/CreateWebsiteOnboarding.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/CreateWebsiteOnboarding.database-options.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/CreateWebsiteOnboarding.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/CreateWebsiteOnboarding.database-options.render.test.ts (120.204635ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/CreateWebsiteOnboarding.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/CreateWebsiteOnboarding.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/CreateWebsiteOnboarding.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/CreateWebsiteOnboarding.render.test.ts (216.894398ms)
+✔ the "Soon" tag reuses the admin sidebar badge look (uppercase, bordered, faint) (1.73677ms)
+✔ Enter or Space on the card itself opens the project (1.398033ms)
+✔ any other key on the card does nothing (0.267794ms)
+✔ Enter or Space on a control INSIDE the card does not open the project (0.216361ms)
+✔ a menu entry closes the menu BEFORE running its action (1.241872ms)
+✔ every entry built from one closeMenuThen runs only its own action (0.316751ms)
+✔ a card whose folder is missing does not open — there is no site to start there (0.383044ms)
+✔ cardOpenProps opens only for accepted keys on the card and leaves descendant controls alone (0.51564ms)
+✔ the open-affordance class is absent for every inert card (0.396994ms)
+✔ databaseLabel names the provisioned database, an operator's own label, or the custom category (0.307776ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/SiteGrid.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/SiteGrid.jsdom.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/SiteGrid.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/SiteGrid.jsdom.test.ts (112.170707ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/SiteGrid.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/SiteGrid.no-add-tile.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/SiteGrid.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/SiteGrid.no-add-tile.render.test.ts (194.886774ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/SiteGrid.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/SiteGrid.status-title.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/SiteGrid.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/SiteGrid.status-title.render.test.ts (212.685223ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/SitesFolders.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/SitesFolders.dialog.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/SitesFolders.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/SitesFolders.dialog.render.test.ts (225.352447ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/WorkspaceChatPane.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/WorkspaceChatPane.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/WorkspaceChatPane.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/WorkspaceChatPane.render.test.ts (207.782703ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/app/CreateWebsiteHost.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/app/CreateWebsiteHost.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/app/CreateWebsiteHost.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/app/CreateWebsiteHost.render.test.ts (194.287721ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/app/FindBar.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/app/FindBar.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/app/FindBar.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/app/FindBar.render.test.ts (180.582647ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/app/MainArea.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/app/MainArea.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/app/MainArea.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/app/MainArea.render.test.ts (195.4806ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/app/MainContent.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/app/MainContent.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/app/MainContent.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/app/MainContent.render.test.ts (184.865639ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/app/MainHeader.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/app/MainHeader.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/app/MainHeader.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/app/MainHeader.render.test.ts (205.027837ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/app/SettingsControl.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/app/SettingsControl.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/app/SettingsControl.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/app/SettingsControl.render.test.ts (190.602102ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/app/SiteStartPanel.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/app/SiteStartPanel.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/app/SiteStartPanel.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/app/SiteStartPanel.render.test.ts (222.104322ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/app/SiteWorkspace.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/app/SiteWorkspace.loading-overlay.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/app/SiteWorkspace.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/app/SiteWorkspace.loading-overlay.render.test.ts (186.955836ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/app/SiteWorkspace.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/app/SiteWorkspace.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/app/SiteWorkspace.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/app/SiteWorkspace.render.test.ts (196.198746ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/app/TabStrip.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/app/TabStrip.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/app/TabStrip.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/app/TabStrip.render.test.ts (225.410216ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/app/TopNav.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/app/TopNav.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/app/TopNav.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/app/TopNav.render.test.ts (189.221982ms)
+✔ the toggle expands from collapsed (1.178328ms)
+✔ the toggle collapses from expanded (0.161147ms)
+✔ the toggle round-trips from either starting state (0.193827ms)
+✔ the collapse key is exactly the DOM key name, not a label (0.161796ms)
+✔ Escape collapses expanded mode (0.166593ms)
+✔ Escape while already collapsed is a no-op, not a toggle (0.14554ms)
+✔ repeated Escape stays collapsed (0.131779ms)
+✔ every other key leaves the mode exactly as it was, from both states (0.173758ms)
+✔ losing the project tab collapses expanded mode (0.147354ms)
+✔ expanded mode survives as long as the project tab is still showing (0.18888ms)
+✔ a project tab appearing does NOT expand on its own (0.156613ms)
+✔ entering expanded mode hides both the top nav and the tab strip (0.975685ms)
+✔ expanded mode hides the top nav in every section, appearance open or not (0.132264ms)
+✔ collapsed, the top nav shows in every section (0.148943ms)
+✔ the tab strip keeps its two pre-existing rules when nothing is expanded (0.454394ms)
+✔ the visible project is on screen; its open siblings are not (0.269425ms)
+✔ nothing is on screen when no workspace is the visible one (0.202515ms)
+✔ no workspace is on screen outside Projects, even one whose id still matches (0.133819ms)
+✔ whenever expanded mode can stay on, exactly one workspace — and its bar — is on screen (0.567995ms)
+✔ opening Appearance takes the workspace away, and the top nav with it — but not the exit (0.158942ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/user/Tovu/apps/desktop/src/renderer/icons.ts' imported from /home/user/Tovu/apps/desktop/src/renderer/icons.section-icon.render.test.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:23:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:751:16) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///home/user/Tovu/apps/desktop/src/renderer/icons.ts'
+}
+
+Node.js v24.22.2
+✖ src/renderer/icons.section-icon.render.test.ts (98.990036ms)
+✔ the target is the first running site, else the first site, else none (0.988393ms)
+✔ the import page is an allowlisted admin path, never one the renderer composes (0.798814ms)
+✔ a tab asked for the import page loads the admin on it; the public site ignores it (0.391172ms)
+✔ useAppVersion: loads the version, keeps a failure message, and waits without a bridge (40.063122ms)
+✔ useSiteFolders: loads, applies every action result, and keeps a null picker result out (4.839443ms)
+✔ useSiteFolders: a missing bridge or method and a failed load surface readable errors (6.755483ms)
+✔ useSiteStorageSettings: drafts follow the folders, the dialog clears errors, saves send placement (2.601141ms)
+✔ useSiteFolders: busy while a folder is added; a failed automatic scan keeps the added folder and shows its exact remedy (2.048833ms)
+✔ useSiteFolders: a refused add, remove or save keeps the saved folders and shows main's exact message (2.381677ms)
+✔ useSiteStorageSettings over the real useSiteFolders: an action failure stays in the open dialog, and closing clears it (2.446586ms)
+✔ useSiteStorageSettings over the real useSiteFolders: a failed warning fix keeps the dialog closed and shows its failure on the warning (4.094992ms)
+ℹ tests 132
+ℹ suites 0
+ℹ pass 109
+ℹ fail 23
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8876.886193
+
+✖ failing tests:
+
+test at src/preload/preload-staleness.test.ts:80:1
+✖ the compiled preload exposes every current source bridge method regardless of mtimes (4.054263ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'electron' imported from /home/user/Tovu/apps/desktop/src/preload/preload-staleness.test.ts
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:331:9)
+      at packageResolve (node:internal/modules/esm/resolve:784:25)
+      at moduleResolve (node:internal/modules/esm/resolve:873:18)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at nextStep (node:internal/modules/customization_hooks:189:26)
+      at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:19:14)
+      at nextStep (node:internal/modules/customization_hooks:189:26)
+      at resolve (node:internal/test_runner/mock/loader:21:29) {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at src/preload/preload.test.ts:43:1
+✖ the ESM preload exposes shared keys, runner and voice and maps methods to fixed contract channels (2.927183ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'electron' imported from /home/user/Tovu/apps/desktop/src/preload/preload.test.ts
+      at Object.getPackageJSONURL (node:internal/modules/package_json_reader:331:9)
+      at packageResolve (node:internal/modules/esm/resolve:784:25)
+      at moduleResolve (node:internal/modules/esm/resolve:873:18)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at nextStep (node:internal/modules/customization_hooks:189:26)
+      at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:19:14)
+      at nextStep (node:internal/modules/customization_hooks:189:26)
+      at resolve (node:internal/test_runner/mock/loader:21:29) {
+    code: 'ERR_MODULE_NOT_FOUND'
+  }
+
+test at src/renderer/App.sites-home.render.test.ts:1:1
+✖ src/renderer/App.sites-home.render.test.ts (622.11906ms)
+  'test failed'
+
+test at src/renderer/App.workspace-start.render.test.ts:1:1
+✖ src/renderer/App.workspace-start.render.test.ts (585.275987ms)
+  'test failed'
+
+test at src/renderer/CreateWebsiteOnboarding.database-options.render.test.ts:1:1
+✖ src/renderer/CreateWebsiteOnboarding.database-options.render.test.ts (120.204635ms)
+  'test failed'
+
+test at src/renderer/CreateWebsiteOnboarding.render.test.ts:1:1
+✖ src/renderer/CreateWebsiteOnboarding.render.test.ts (216.894398ms)
+  'test failed'
+
+test at src/renderer/SiteGrid.jsdom.test.ts:1:1
+✖ src/renderer/SiteGrid.jsdom.test.ts (112.170707ms)
+  'test failed'
+
+test at src/renderer/SiteGrid.no-add-tile.render.test.ts:1:1
+✖ src/renderer/SiteGrid.no-add-tile.render.test.ts (194.886774ms)
+  'test failed'
+
+test at src/renderer/SiteGrid.status-title.render.test.ts:1:1
+✖ src/renderer/SiteGrid.status-title.render.test.ts (212.685223ms)
+  'test failed'
+
+test at src/renderer/SitesFolders.dialog.render.test.ts:1:1
+✖ src/renderer/SitesFolders.dialog.render.test.ts (225.352447ms)
+  'test failed'
+
+test at src/renderer/WorkspaceChatPane.render.test.ts:1:1
+✖ src/renderer/WorkspaceChatPane.render.test.ts (207.782703ms)
+  'test failed'
+
+test at src/renderer/app/CreateWebsiteHost.render.test.ts:1:1
+✖ src/renderer/app/CreateWebsiteHost.render.test.ts (194.287721ms)
+  'test failed'
+
+test at src/renderer/app/FindBar.render.test.ts:1:1
+✖ src/renderer/app/FindBar.render.test.ts (180.582647ms)
+  'test failed'
+
+test at src/renderer/app/MainArea.render.test.ts:1:1
+✖ src/renderer/app/MainArea.render.test.ts (195.4806ms)
+  'test failed'
+
+test at src/renderer/app/MainContent.render.test.ts:1:1
+✖ src/renderer/app/MainContent.render.test.ts (184.865639ms)
+  'test failed'
+
+test at src/renderer/app/MainHeader.render.test.ts:1:1
+✖ src/renderer/app/MainHeader.render.test.ts (205.027837ms)
+  'test failed'
+
+test at src/renderer/app/SettingsControl.render.test.ts:1:1
+✖ src/renderer/app/SettingsControl.render.test.ts (190.602102ms)
+  'test failed'
+
+test at src/renderer/app/SiteStartPanel.render.test.ts:1:1
+✖ src/renderer/app/SiteStartPanel.render.test.ts (222.104322ms)
+  'test failed'
+
+test at src/renderer/app/SiteWorkspace.loading-overlay.render.test.ts:1:1
+✖ src/renderer/app/SiteWorkspace.loading-overlay.render.test.ts (186.955836ms)
+  'test failed'
+
+test at src/renderer/app/SiteWorkspace.render.test.ts:1:1
+✖ src/renderer/app/SiteWorkspace.render.test.ts (196.198746ms)
+  'test failed'
+
+test at src/renderer/app/TabStrip.render.test.ts:1:1
+✖ src/renderer/app/TabStrip.render.test.ts (225.410216ms)
+  'test failed'
+
+test at src/renderer/app/TopNav.render.test.ts:1:1
+✖ src/renderer/app/TopNav.render.test.ts (189.221982ms)
+  'test failed'
+
+test at src/renderer/icons.section-icon.render.test.ts:1:1
+✖ src/renderer/icons.section-icon.render.test.ts (98.990036ms)
+  'test failed'

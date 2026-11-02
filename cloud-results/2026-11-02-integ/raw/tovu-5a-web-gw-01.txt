@@ -1,0 +1,1436 @@
+✔ tovu-theme and site-import load ui-ux-design before designing themes or writing page layouts (12.019723ms)
+✔ Part C discovers the active theme through the site profile, rather than treating the theme list as an active id (1.433959ms)
+✔ every tool tovu-theme's skill and references cite is a real native tool or a per-plugin tool (4.385526ms)
+✔ matching a reference site uses theme_duplicate only as a scaffold and rebuilds layout, not just colours (1.444396ms)
+✔ the compare loop is mandatory: source and own page, desktop and mobile, capped rounds, never done without a capture (2.940971ms)
+✔ theme guidance checks all pages at both sizes and uses asset tools (0.940321ms)
+✔ the header menu is wired by the menu marker's id, the way static themes resolve menus (1.087238ms)
+✔ site-import hands its theme step to tovu-theme and keeps no duplicate-and-tweak recipe (4.217812ms)
+✔ importing the homepage also imports the main menu and the header call-to-action (3.460897ms)
+✔ neither skill gates copying on ownership or the right to copy (6.037391ms)
+✔ Part C copies the source's real text, images, logo, brand names and fonts verbatim, never placeholder copy (1.495073ms)
+✔ fonts are imported into the theme with theme_import_file_from_url; linking the source's font URLs is only the fallback (1.20216ms)
+✔ the compare loop sees the theme copy through themeId, never by activating it, and reports cite the saved capture paths (1.490271ms)
+✔ copying a site is modular: every header and footer link list is a menu rendered through a marker, never hard-coded (1.183302ms)
+✔ site-import builds the footer link columns as menus too and hands their slugs to the theme step (1.881986ms)
+✔ Tovuize asks exactly one unchecked static opt-out before either conversion branch (1.509759ms)
+✔ Tovuize reuses local Media and shared Page mapping with matching family shells; static makes no Pages (2.878637ms)
+✔ bundled ui-ux-design has a valid manifest and is on the seeded-enabled list (113.048068ms)
+[agent-plugins:migration-complete] /tmp/tovu-design-seed-OXXA6M/agent-plugins/ws/workspace-local
+✔ ui-ux-design seeds correctly for new site (249.664475ms)
+[agent-plugins:migration-complete] /tmp/tovu-design-seed-cENMz2/agent-plugins/ws/workspace-local
+✔ ui-ux-design seeds correctly for untouched disabled seed (200.138151ms)
+[agent-plugins:migration-complete] /tmp/tovu-design-seed-Raf7Ll/agent-plugins/ws/workspace-local
+✔ ui-ux-design seeds correctly for operator disabled (177.179424ms)
+[agent-plugins:migration-complete] /tmp/tovu-design-manual-VUsWrC/agent-plugins/ws/workspace-local
+✔ ui-ux-design seeding selects its bundled revision over a manual install, keeps the manual digest, and stays singular across boots (615.761113ms)
+✔ agent_plugin_connect: a bundled plugin with one OAuth server shows exactly one https sign-in link and no token (46.267834ms)
+✔ agent_plugin_connect: a fake callback flipping the row to connected resolves { status: 'connected' } (8.782719ms)
+✔ agent_plugin_connect: a plugin with no OAuth server is refused (1.364177ms)
+✔ connect_token_only_uses_plugin_card_without_oauth (0.693121ms)
+✔ token-only card cancelled is never reported connected (0.457799ms)
+✔ token-only card expired is never reported connected (0.462124ms)
+✔ token-only card abandoned is never reported connected (0.384148ms)
+✔ token-only card refused is never reported connected (0.324337ms)
+✔ token-only card invalid is never reported connected (0.295514ms)
+✔ token-only card unavailable is never reported connected (0.425147ms)
+✔ token-only card error is never reported connected (0.205083ms)
+✔ token-only connect reuses a stored credential without prompting or changing grants (7.037455ms)
+✔ oauth_with_token_fallback_still_starts_oauth (1.800359ms)
+✔ a saved token with a different owner cannot report this plugin connected (3.239132ms)
+✔ a saved token with a different endpoint cannot report this plugin connected (2.450997ms)
+✔ token-only declarations refuse ambiguous or invalid targets and provide a key-card path without an adapter (0.79915ms)
+✔ agent_plugin_connect: an OAuth server provisioning skipped (legacy sse) is refused before any sign-in starts (0.780683ms)
+✔ agent_plugin_connect: a skipped stdio helper does not block its OAuth server (1.307343ms)
+✔ agent_plugin_connect: a device-code grant is refused rather than showing a link with no code (1.336451ms)
+✔ OAuth metadata failure reports that no card opened and points to the plugin key card (1.393857ms)
+✔ agent_plugin_connect: a failed 'connected' card update never turns a real connection into a tool failure (1.443546ms)
+✔ agent_plugin_connect: refuses unknown-plugin before starting sign-in (0.52672ms)
+✔ agent_plugin_connect: refuses two-servers before starting sign-in (1.226267ms)
+✔ agent_plugin_connect: refuses no-oauth before starting sign-in (0.22789ms)
+✔ agent_plugin_connect: refuses no-surface before starting sign-in (0.633891ms)
+✔ agent_plugin_connect: abort closes the exchange and returns waiting (1.08655ms)
+✔ agent_plugin_connect: denied permission provisions no row and emits no card (0.576878ms)
+✔ agent_plugin_connect: an already saved oauth starts no sign-in and preserves the row (1.187739ms)
+✔ agent_plugin_connect: an already saved static-token starts no sign-in and preserves the row (1.96111ms)
+[agent-plugins:migration-complete] /tmp/connect-installed-9vL8Tv/ws/77777777-7777-4777-8777-777777777777
+✔ agent_plugin_connect resolves the installed package without an injected resolver (2322.92617ms)
+✔ agent_plugin_connect aborts during the polling sleep and cleans up promptly (2.551316ms)
+✔ connect pre-card behavior: unknown (1.189737ms)
+✔ connect pre-card behavior: no-oauth-service (0.329979ms)
+✔ connect pre-card behavior: already-connected (1.023884ms)
+✔ connect pre-card behavior: multiple (1.383612ms)
+✔ connect pre-card behavior: no-emitter (0.793355ms)
+✔ connect closes its exchange when the initial waiting card fails (1.431938ms)
+✔ connect refuses a different plugin's endpoint before OAuth: provisioning-refused (1.265383ms)
+✔ connect refuses a different plugin's endpoint before OAuth: ownership-changed (0.998878ms)
+✔ agent_plugin_connect: a non-http TOVU_PUBLIC_URL falls back to the derived origin (1.577586ms)
+✔ agent_plugin_connect: a malformed TOVU_PUBLIC_URL is treated as absent (1.253142ms)
+✔ agent_plugin_connect: no configured or derived origin leaves the redirect to the OAuth service (1.456905ms)
+✔ agent_plugin_connect: an OAuth validation refusal becomes a ToolInputError; any other failure propagates unchanged (1.902868ms)
+✔ agent_plugin_connect: a server key with no usable connection id is refused before any sign-in (0.465493ms)
+✔ agent_plugin_connect: an abort landing during a poll read ends the wait without sleeping (1.347586ms)
+✔ agent_plugin_connect: default poll timing still reports a connection observed on the first poll (1.339052ms)
+✔ defaultResolveInstalledAgentPlugin returns null for a plugin this workspace never installed (8.224193ms)
+✔ agent_plugin_connect carries plugin-owned connection and permission copy into the sign-in card (1.600532ms)
+✔ OAuth card copy comes only from the trusted merged loader and the declaring plugin (11.465839ms)
+✔ OAuth validation classification is supplied by the port before any card opens (2.174738ms)
+✔ absent i18n parses to undefined; a well-formed block round-trips (2.313754ms)
+✔ each malformed shape is refused with its exact reason (0.287749ms)
+✔ translation length accepts 2000 characters and refuses 2001 (0.255705ms)
+✔ the caps on locales and strings per locale hold (0.777413ms)
+✔ a deploy target carries its i18n block; a bad one refuses the file with the target's path (0.96396ms)
+✔ a git host carries its i18n block; a bad one refuses the file with the provider's path (1.098426ms)
+✖ github/tovu-source-control.json: every i18n key is a string that entry declares (no stale translation) (0.426651ms)
+✖ every bundled descriptor file still parses with its i18n blocks (9.391027ms)
+✔ descriptor i18n validates locales and entries in insertion order without trimming saved text (0.711954ms)
+✔ a plugin without an overlay reads as no guidance and no host files, and delivery leaves the answer unchanged (13.284171ms)
+✔ guidance and sorted host files are read; names outside host/<lowercase>.md and non-files are not listed (19.059746ms)
+✔ a host file reads by name; traversal, absolute, unlisted and unknown-plugin requests return a note that never echoes the unsafe value (16.028383ms)
+✔ reads are bounded at 256 KiB: a host file over the cap is a note, at the cap it reads, and an oversized GUIDANCE.md throws (21.109447ms)
+✔ a GUIDANCE.md that is not a file is a broken overlay and throws rather than silently dropping host rules (5.117339ms)
+✔ the overlays directory honors TOVU_AGENT_PLUGIN_OVERLAYS_DIR, defaults to the product's content tree, and site-paths re-exports the same resolver (0.781078ms)
+✔ only file values starting with host/ are host requests (0.236143ms)
+✔ Bash leaves delivered frontmatter allowed-tools only; other tools, body text and fenced examples stay byte-identical (0.491948ms)
+✔ tool delivery: GUIDANCE goes before the plugin's text, a maturity notice stays first, and host names join the plugin's files (7.218868ms)
+✔ tool delivery of a host file answers with that file after the notice; a refused name keeps the default answer and adds a note (11.510039ms)
+✔ run-reference requests: the owner never sees a host file; pointer delivery with nothing selected adds no guidance (0.394782ms)
+✔ run-reference overlays keep pin order, frame a host file with its plugin, and refuse a missing host file like a missing plugin file (12.420145ms)
+✔ strict JSON declaration validation accepts only the data contract (2.555102ms)
+✔ nonthrowing reader rejects ambiguous declarations as a whole for the core fallback (0.897697ms)
+✔ conflicting advice and duplicate names within one package yield no hints (0.23525ms)
+✔ path-fact and read/evaluation failures never fail boot; supplied roots select the declaration (0.728224ms)
+✔ real synchronous bundled selection reads manifests, excludes retired/non-packages, needs no activation (19.212137ms)
+✔ explicit shipped and unavailable payloads keep independent no-signal defaults (4.450681ms)
+✔ a token is sealed onto a row with no credential, and the plugin is switched on (15.124821ms)
+✔ a row that already holds a saved token is never overwritten (3.166511ms)
+✔ a plugin an operator turned off gets the token but stays off (6.60044ms)
+✔ a token saved while an operator keeps the plugin off survives the next import (provisioning never drops it) (3.085411ms)
+✔ hasStoredAgentPluginCredential:a finished sign-in or a saved token counts; a bare oauth row does not (0.159014ms)
+✔ env import copies the declared env token once, logs once, and is silent on the next boot (2.068021ms)
+✔ env import uses the declared URL when its connection lookup returns no row (3.195555ms)
+✔ env import saves a token without retiredEnv and continues to the next plugin (5.147069ms)
+✔ env import with no token set writes nothing (0.758507ms)
+✔ set retired env vars are named as no longer used; unset ones are not (0.729679ms)
+✔ env import never throws: a failed save is a warning (1.283927ms)
+✔ env import never logs importer text that echoes an opaque access token (1.056276ms)
+✔ env import reads only a bundled plugin's declaration: an installed plugin cannot pull any env secret (0.981491ms)
+[agent-plugins:migration-complete] /tmp/tovu-test-site-layout-aDb5uT/agent-plugins/ws/ws-token-import
+✔ listInstalledAgentPluginServers marks a plugin bundled only when its digest is the one this build seeded (2088.542568ms)
+Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+Plugin 'duplicate-plugin' has no publisher-qualified id; using 'unknown/duplicate-plugin'.
+✔ listInstalledAgentPluginServers deduplicates plugin ids when no bundled ledger can narrow the digests (26.218451ms)
+✔ env import never sends the token to a row pointed at a URL the bundled plugin does not declare (1.257164ms)
+✔ manifest: importFromEnv and retiredEnv parse; a malformed env name excludes the server (0.426716ms)
+✔ env import skips a plugin that still has a token pending from create-site onboarding (0.860355ms)
+✔ a save whose switch-on failed is switched on by the next import, without touching the saved token (4.030826ms)
+✔ an already-connected row is not switched on when an operator turned the plugin off (2.94072ms)
+✔ a row an operator already set up and switched on still gets its plugin switched on, or it is not reported on (4.721291ms)
+✔ env import warns on listing failure and logs plural retirement notices even without an import declaration (1.751227ms)
+✔ env import logs an operator-off save once and remains silent on its credential-preserving retry (2.589328ms)
+✔ without an injected listing, env import reads the workspace's installed plugins (none here) and copies nothing (5.051512ms)
+✔ an Error thrown while listing plugins is reported by its message (1.225081ms)
+✔ delivery mode is pointer only when asked for exactly; unset or a typo stays inject (1.12398ms)
+✔ the import-time layout never selects a site: every workspace lookup refuses (0.5066ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ pack, bundled reader and install round-trip through the binding's positional wrappers (81.352046ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ inject pinned guidance discloses maturity untested (49.609557ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ pointer pinned guidance discloses maturity untested (53.603436ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ inject pinned guidance discloses maturity soon (42.907047ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ pointer pinned guidance discloses maturity soon (49.82281ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ inject pinned guidance discloses maturity (absent) (47.936028ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ pointer pinned guidance discloses maturity (absent) (40.660376ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ inject run references put maturity first, then the overlay GUIDANCE, then the plugin's section (51.806077ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ pointer run references add no overlay guidance (the tool call carries it); a selected skill in pointer mode does (56.653214ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ a host/ file is appended after the owner's default section, and a missing one refuses like a missing plugin file (65.16687ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ a disabled plugin gets the owner's refusal and no overlay (52.248271ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ a plugin without an overlay keeps the owner's prefix unchanged (42.430208ms)
+✔ pure helpers delegate unchanged: entry paths, digest ledgers, archive cap and ranking (4.259516ms)
+✔ recordBundledAgentPluginDigests passes an injected clock through and the ledger reads back (6.471506ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ uninstall preview and uninstall go through the caller's layout (52.325085ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ trusted-package lookup reports switched-off packages to onInactive (41.52554ms)
+[agent-plugins:migration-complete] /tmp/tovu-lifecycle-binding-6furi9/ws/workspace-local
+Plugin 'plain-bundled' has no publisher-qualified id; using 'unknown/plain-bundled'.
+Plugin 'plain-bundled' has no publisher-qualified id; using 'unknown/plain-bundled'.
+Plugin 'plain-bundled' has no publisher-qualified id; using 'unknown/plain-bundled'.
+Plugin 'plain-bundled' has no publisher-qualified id; using 'unknown/plain-bundled'.
+Plugin 'plain-bundled' has no publisher-qualified id; using 'unknown/plain-bundled'.
+Plugin 'plain-bundled' has no publisher-qualified id; using 'unknown/plain-bundled'.
+Plugin 'plain-bundled' has no publisher-qualified id; using 'unknown/plain-bundled'.
+Plugin 'plain-bundled' has no publisher-qualified id; using 'unknown/plain-bundled'.
+Plugin 'plain-bundled' has no publisher-qualified id; using 'unknown/plain-bundled'.
+Plugin 'plain-bundled' has no publisher-qualified id; using 'unknown/plain-bundled'.
+Plugin 'plain-bundled' has no publisher-qualified id; using 'unknown/plain-bundled'.
+Plugin 'plain-bundled' has no publisher-qualified id; using 'unknown/plain-bundled'.
+Plugin 'plain-bundled' has no publisher-qualified id; using 'unknown/plain-bundled'.
+✔ a seeded bundled plugin refuses uninstall with Tovu's disable recovery, and retirement with nothing retired is a no-op (77.038416ms)
+Plugin 'notes' has no publisher-qualified id; using 'unknown/notes'.
+✔ a host archive reader's non-file entries pass through the positional adapter unchanged (48.035141ms)
+[agent-plugins:migration-complete] /tmp/tovu-lifecycle-binding-KOdkxb/ws/workspace-local
+Plugin 'seam-bundled' has no publisher-qualified id; using 'unknown/seam-bundled'.
+Plugin 'seam-bundled' has no publisher-qualified id; using 'unknown/seam-bundled'.
+Plugin 'seam-bundled' has no publisher-qualified id; using 'unknown/seam-bundled'.
+Plugin 'seam-bundled' has no publisher-qualified id; using 'unknown/seam-bundled'.
+Plugin 'seam-bundled' has no publisher-qualified id; using 'unknown/seam-bundled'.
+Plugin 'seam-bundled' has no publisher-qualified id; using 'unknown/seam-bundled'.
+Plugin 'seam-bundled' has no publisher-qualified id; using 'unknown/seam-bundled'.
+✔ a trusted bundled package's files and modules are read through the binding (74.185923ms)
+[agent-plugins:migration-complete] /tmp/tovu-lifecycle-binding-2JfkD2/ws/workspace-local
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+✔ a trusted plugin's own supersedes declaration refuses the packages and descriptors it names (128.346681ms)
+[agent-plugins:migration-complete] /tmp/tovu-lifecycle-binding-q1Ursg/ws/workspace-local
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+✔ without any supersedes declaration every package contributes and the caller's packageRefusal still applies (127.396814ms)
+[agent-plugins:migration-complete] /tmp/tovu-lifecycle-binding-NBjJW1/ws/workspace-local
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+Plugin 'old-pkg' has no publisher-qualified id; using 'unknown/old-pkg'.
+Plugin 'shared-pkg' has no publisher-qualified id; using 'unknown/shared-pkg'.
+Plugin 'successor' has no publisher-qualified id; using 'unknown/successor'.
+✔ an installed successor that predates its declaration is superseded through the build's bundled source manifest (120.503035ms)
+[plugin-credential-cards] Optional card lookup failed; using the default credential form.
+[plugin-credential-cards] Optional card lookup failed; using the default credential form.
+[plugin-credential-cards] Optional card lookup failed; using the default credential form.
+[plugin-credential-cards] Optional card lookup failed; using the default credential form.
+✔ usedFor is bounded display text on API and domain cards, never saved connection metadata (3.730124ms)
+✔ usedFor rejects malformed or oversized declarations instead of silently truncating them (0.586857ms)
+✔ an owned API label is explicit, preserved and limited to that card destination (0.628492ms)
+✔ manifest cards normalize target identity and preserve declared fields without changing mail cards (0.78465ms)
+✔ missing extension is supported; malformed declarations and repeated targets fail closed (2.873376ms)
+✔ dynamic host and OAuth cards have explicit contracts; duplicate merged ids are refused (0.533905ms)
+✔ domain forms keep required fields and update rules while plugin copy replaces the generic card (0.347362ms)
+✔ API submissions preserve server metadata and accept only declared public fields (2.405516ms)
+✔ declaration limits, supported API fields and server-owned extra origins are enforced (0.628741ms)
+✔ domain card lookup matches both the save owner and its provider id (0.505479ms)
+✔ optional card failures preserve the default form for every domain (1.096346ms)
+✔ all colliding manifest cards are dropped regardless of order, and mail wins (0.327705ms)
+✔ domain copy keeps credential details, one sealing description and unrelated secret hints (0.297876ms)
+✔ only API forms may declare public input fields (0.272597ms)
+✔ every bundled plugin credential declaration passes the real parser (28.445029ms)
+✔ sync switches only faces that differ from their provider, and only the named provider's (2.00814ms)
+✔ every provider activation write in this workspace moves its face; other workspaces and plugins do not (0.828059ms)
+✔ a face that cannot follow is logged, never fails the provider decision; a failed provider write moves nothing (0.923474ms)
+✔ the linked-face refusal names the provider plugin's real switch (0.297232ms)
+[agent-plugins:migration-complete] /tmp/tovu-provider-link-Vc8jpZ/agent-plugins/ws/ws
+✔ production ports read the shipped links and switch the real activation record (309.229841ms)
+✔ a delayed older mirror reads current provider state inside the lifecycle owner (28.149123ms)
+✔ link discovery selects the bundled revision, honors removed links, and refuses ambiguous revisions (0.892136ms)
+✔ parseSupersedes reads a full declaration and defaults omitted lists to empty (1.693493ms)
+✔ parseSupersedes reads no declaration from missing, unparsable or undeclaring manifests (0.256074ms)
+✔ parseSupersedes drops a declaration with any malformed part rather than half-applying it (0.257819ms)
+✔ readSupersessions prefers the installed manifest, falls back to the bundled source, and skips refusals (0.577609ms)
+✔ refusal lines name the package or descriptor, the label and the trusted successor; anything else passes (0.267803ms)
+✔ the bundled source reader propagates a missing supplied root without discovering another (0.629335ms)
+✔ the bundled source reader reads <root>/<id>/plugin.json and refuses ids that are not one path segment (0.405156ms)
+✔ the shipped cloudflare manifest declares exactly the supersession core used to hard-code (10.582875ms)
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+✔ the seeder's default 'off' is switched on with the row, and only then reported on (84.00703ms)
+✔ an operator's own 'off' is kept and reported (10.367386ms)
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+✔ an operator disable during connection setup is reported even when activations become read-only (48.663393ms)
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+✔ no activation record reads as on and writes nothing (39.511597ms)
+[agent-plugins:migration-complete] /tmp/tovu-switch-on-ZTaLzX/ws/ws-switch-on
+✔ the production fallback enables an untouched saved-token row with the installed plugin's declared grants (2394.923044ms)
+✔ a connection row an operator left disabled is reported as off, and the plugin is never switched on (8.929131ms)
+✔ a missing connection row is reported as off (3.339119ms)
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+Plugin 'some-plugin' has no publisher-qualified id; using 'unknown/some-plugin'.
+✔ a plugin an operator already switched on stays on without a write (50.080153ms)
+✔ injected activation ports decide the outcome: an operator-off check short-circuits, a refused switch-on is off (3.473746ms)
+✔ describeSavedTokenSwitch names the screen that turns each kind of 'off' back on (0.719593ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ opening an installed plugin discovers navigation ahead of guidance loaders; applying it retains guidance (80.725576ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ each installed plugin produces exactly one stable, collision-free tool id with a non-empty description naming every one of its skills (61.01846ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ registerInstalledAgentPluginTools registers one guidance tool plus its scoped memory read/write pair per plugin directly onto a real ToolRegistry, the same registration call agent-daemon-server.ts makes for every other domain (46.21301ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ the input schema documents an optional 'skill' property whose enum names every skill this specific plugin has (43.452822ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ calling with no 'skill' argument returns the plugin's own eponymous skill plus the other available skill names (41.77863ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ when a plugin has no eponymous skill folder, the default falls back to its alphabetically-first skill and the description says so (47.744098ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ an explicit, recognized 'skill' argument returns that skill's own guidance, not the default (42.784797ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ an unrecognized 'skill' argument falls back to the default skill gracefully, with an informative note listing the valid values — never a thrown error (38.752685ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ a malformed 'skill' argument (wrong type) or an unexpected extra field still throws — only an unrecognized VALUE is graceful (37.098481ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ the handler returns the exact same guidance markdown readInstalledSkillMarkdown reads for that skill — real content, not a stub (32.01206ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✔ SECURITY: no absolute host path appears in any registered tool's id, description, schema, or handler output (44.019354ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+[agent-plugins] 'ui-ux-design': agent-plugin tools: 'ui-ux-design' is installed under more than one digest (e413b4326316e6da9fc12c1d323f818bd84c3e25d00a368802632ffa781fca6b and fc6b4649a5f729bda56118fd337d11d96515ac2376b5d0d9be7cbc02aad193cc) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+✔ two installed digests of the same plugin id refuse that plugin loudly, without aborting the load (67.160564ms)
+Plugin 'healthy-before' has no publisher-qualified id; using 'unknown/healthy-before'.
+Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+Plugin 'healthy-after' has no publisher-qualified id; using 'unknown/healthy-after'.
+Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+Plugin 'conflicted-plugin' has no publisher-qualified id; using 'unknown/conflicted-plugin'.
+Plugin 'healthy-after' has no publisher-qualified id; using 'unknown/healthy-after'.
+Plugin 'healthy-before' has no publisher-qualified id; using 'unknown/healthy-before'.
+[agent-plugins] 'conflicted-plugin': agent-plugin tools: 'conflicted-plugin' is installed under more than one digest (241022268f6d96562dbe1515d8bbef1914dee41085cd25f6024a80e1f535cc30 and 347db903facb95abb81a339bd4cd0002f812f23616e46d14b76a9ec63281716c) — this module wires one tool id per installed plugin id with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool — skipped
+✔ a per-plugin resolution failure (digest ambiguity) is isolated to that plugin — every other installed plugin still gets its tool source (131.743277ms)
+Plugin 'upgraded-plugin' has no publisher-qualified id; using 'unknown/upgraded-plugin'.
+Plugin 'upgraded-plugin' has no publisher-qualified id; using 'unknown/upgraded-plugin'.
+Plugin 'upgraded-plugin' has no publisher-qualified id; using 'unknown/upgraded-plugin'.
+✔ a current upgrade exposes only the accepted replacement's guidance (51.946831ms)
+Plugin 'only-in-other' has no publisher-qualified id; using 'unknown/only-in-other'.
+✔ workspace isolation: a load for workspace A sees nothing installed only under a different workspace (29.609617ms)
+✔ an empty (never-installed) workspace produces zero sources and an empty registration list, no throw (1.968866ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ the executor denies cached guidance after disable (61.962426ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ the executor denies cached guidance after uninstall (41.338127ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+[agent-plugins] 'coffee-roastery': tool call denied — activation could not be established (activations.json is not valid JSON (Expected property name or '}' in JSON at position 1 (line 1 column 2)))
+✔ the executor denies cached guidance after unreadable-activation (42.487665ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ the registered guidance tool puts the plugin's overlay GUIDANCE first, lists its host files, and answers a host file from the overlay (51.141946ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ a refused host file keeps the overlay and skill guidance with a recovery note (48.750196ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ an untested plugin's caution stays ahead of its overlay guidance (68.57591ms)
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+Plugin 'coffee-roastery' has no publisher-qualified id; using 'unknown/coffee-roastery'.
+✔ a disabled plugin's call is denied before the overlay is read, and no overlay leaves the answer unchanged (63.047513ms)
+[agent-plugins:migration-complete] /tmp/tovu-agent-plugin-tool-registrations-test-OCrN9C/ws/55555555-5555-4555-8555-555555555555
+✔ the registered connect handler resolves a real installed plugin and recognizes its saved sign-in (2080.909252ms)
+✔ plugin guidance carries maturity and warns before keys/actions for every maturity flag (0.888789ms)
+✔ L025b guidance pins selection guards, reader recovery and sanitized unknown names (0.897337ms)
+✔ the vitest compat matchers fail wrong assertions and pass right ones (7.150533ms)
+✔ compat mocks retain exact arguments, resolve configured values and clear calls (1.029688ms)
+✔ compat timers fire at the deadline and globals restore to their original value (11.785674ms)
+✔ the network guard fails the test even when the forbidden fetch rejection is caught, and file cleanup still runs (230.402273ms)
+✔ compat value and error matchers accept the right value and reject the wrong one (1.945018ms)
+✔ createCommentsModule uses the injected spamCheck, not a hardcoded HeuristicSpamCheck (3.57669ms)
+✔ BUG REGRESSION: a draft entry (never published) rejects a public comment as entry-closed (0.50369ms)
+✔ BUG REGRESSION: an unpublished (retracted) entry rejects a public comment as entry-closed, even though publishedAt is still set (0.429084ms)
+✔ a published entry with no closeAfterDays cap still accepts a public comment (positive control) (0.869373ms)
+✔ a published entry aged 6 days respects the seven-day closing window (0.70412ms)
+✔ a published entry aged 7 days respects the seven-day closing window (0.419466ms)
+✔ a published entry aged 7.000011574074074 days respects the seven-day closing window (0.436244ms)
+✔ a published entry aged 8 days respects the seven-day closing window (0.388929ms)
+✔ one composed module reads ledger changes live for both ingress and the entry closing window (11.151086ms)
+✔ the composed writeService forwards removal, restore, and transaction dependencies (3.108172ms)
+✖ comment submissions immediately honor a changed per-IP budget without resetting the hour (0.79304ms)
+✔ schema 2 parses; region entries are kept and unknown kinds are skipped, not refused (1.626169ms)
+✔ the bundled host plugins ship one valid reader each (2.810369ms)
+✔ an entry the region slot refuses is dropped; the legacy header setting is one more reader (0.227415ms)
+✔ only the configured ingress plugin is trusted, from active plugins only (0.37991ms)
+✔ no ingress (Fly, Electron) loads nothing and stays strict; a loader fault stays strict too (0.306066ms)
+✔ detect: a token starting with ExampleV1 splits into scheme 'ExampleV1' and everything after it as the value (23.156879ms)
+✔ detect: a token that IS exactly 'ExampleV1', with nothing following it, does not match — there is no credential value left to send (0.369108ms)
+✔ detect: a token that merely CONTAINS 'ExampleV1' later in the string, not as a leading prefix, does not match (0.16759ms)
+✔ detect: an ordinary opaque token does not match — the overwhelming majority of tokens (0.113499ms)
+✔ detect: the match is case-sensitive — a lowercase 'examplev1' prefix does not match (0.111232ms)
+✔ detect: with no rules loaded, nothing matches (0.151905ms)
+✔ detect: first matching rule wins, in declared order (0.189489ms)
+✔ detect: the scheme sent may differ from the prefix matched (0.110886ms)
+✔ the example-host fixture plugin ships exactly one rule, example-host, sending ExampleV1 for an ExampleV1 prefix (23.093675ms)
+✔ a source directory without the file contributes nothing and is not an error (3.200298ms)
+✔ a source scheme file that is a directory propagates its read error instead of contributing nothing (5.794524ms)
+✔ parse: accepts a valid file and ignores unknown keys such as note (0.328757ms)
+✔ parse: rejects each malformed shape with its exact reason (0.55543ms)
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ registry: a Tovu-bundled plugin's rules load (49.360614ms)
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ registry: a DISABLED bundled plugin's rules still load, so a saved credential keeps working when the plugin is switched off (37.806848ms)
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ registry: an operator-installed plugin (digest not the bundled one) is refused, even when enabled (38.051802ms)
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ registry: a malformed file drops that plugin with the parse reason (32.213917ms)
+✔ registry: a workspace with nothing installed has no rules and no refusals (2.2768ms)
+Plugin 'first-scheme' has no publisher-qualified id; using 'unknown/first-scheme'.
+Plugin 'second-scheme' has no publisher-qualified id; using 'unknown/second-scheme'.
+Plugin 'first-scheme' has no publisher-qualified id; using 'unknown/first-scheme'.
+Plugin 'second-scheme' has no publisher-qualified id; using 'unknown/second-scheme'.
+Plugin 'first-scheme' has no publisher-qualified id; using 'unknown/first-scheme'.
+Plugin 'second-scheme' has no publisher-qualified id; using 'unknown/second-scheme'.
+✔ registry: duplicate IDs across trusted plugins remove both ambiguous rules and retain unique rules (74.958646ms)
+Plugin 'bad-scheme' has no publisher-qualified id; using 'unknown/bad-scheme'.
+Plugin 'good-scheme' has no publisher-qualified id; using 'unknown/good-scheme'.
+Plugin 'bad-scheme' has no publisher-qualified id; using 'unknown/bad-scheme'.
+Plugin 'good-scheme' has no publisher-qualified id; using 'unknown/good-scheme'.
+Plugin 'bad-scheme' has no publisher-qualified id; using 'unknown/bad-scheme'.
+Plugin 'good-scheme' has no publisher-qualified id; using 'unknown/good-scheme'.
+✔ registry: a malformed plugin does not discard a healthy plugin's rules (91.901365ms)
+✔ bundled scheme discovery unions packages and refuses duplicates, skipping missing categories, non-packages and retired ids (19.383723ms)
+✔ a network failure during the commit returns a caller-safe message: no transport text, no address, no token — anywhere (64.263701ms)
+✔ an egress refusal during the commit reaches the model without the resolved address; the log keeps the full refusal (25.327131ms)
+[@jini-ai/http-kit] internal error (delegated-tool-execute, correlationId=f913986a-963c-4534-a9bf-632bca53c15d) 'custom_credential_write_files: GitHub could not be reached: the request failed before any response arrived (a network error or timeout).'
+✔ a network failure while planning keeps the transport text out of the result, the run, and the log (7.703682ms)
+✔ a provider rejection during the commit still carries GitHub's own reason — the allowlist does not blank real reasons (4.860879ms)
+✔ a rejected branch update after blob, tree and commit creation carries GitHub's reason without transport-detail logging (5.967719ms)
+✔ HOST_DEPLOY_ENV is Tovu's production switch, frozen (2.276929ms)
+✔ appends the overlay's notes for the target after the generator's, by plugin name (publisher id or bare) (0.570455ms)
+✔ a note the generator already printed is not repeated (the pre-cutover bundled generators print it) (0.1543ms)
+✔ no overlay file, or no entry for this target, leaves the rendered config unchanged (0.151269ms)
+✔ a malformed notes entry fails loudly, naming the file (0.568854ms)
+✔ Tovu's real fly, render and railway overlays each add the headless-Chromium opt-in for their own target (0.636558ms)
+✔ the bundled plugin union declares fly, railway, render in plugin-id order, each with a render() (828.500543ms)
+✔ a module without render() is refused and its siblings still load (10.822762ms)
+✔ a module path that escapes the plugin root is refused (4.45856ms)
+✔ a malformed manifest drops the plugin with the parse reason (3.489878ms)
+✔ a directory without the manifest contributes nothing and is not an error (4.238717ms)
+✔ parseDeployConfigsFile: rejects each malformed shape with its exact reason (0.744899ms)
+✔ readBundledDeployConfigTargetIds: all bundled ids in plugin-id order, without importing modules (0.892364ms)
+✔ readDeployConfigTargetIdsFromSource: a missing or invalid manifest yields no ids (7.906609ms)
+✔ bundled config discovery skips missing categories, non-packages and retired ids; refuses cross-package duplicates (33.507832ms)
+✔ L210 descriptor validation preserves boundaries, error precedence and original strings (0.678349ms)
+✔ workflow declarations use the installed active contribution gate and preserve all choices (0.534054ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-ops-verb-83DYgB/ws/workspace-local
+✔ split upgrade: deploy=false, github=false — Actions follows github, Fly follows deploy (2776.778526ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-ops-verb-KdYufE/ws/workspace-local
+✖ split upgrade: deploy=false, github=true — Actions follows github, Fly follows deploy (1859.621517ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-ops-verb-TcYhzb/ws/workspace-local
+✖ split upgrade: deploy=true, github=false — Actions follows github, Fly follows deploy (1846.959468ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-ops-verb-t5H6qB/ws/workspace-local
+✖ split upgrade: deploy=true, github=true — Actions follows github, Fly follows deploy (1789.73603ms)
+✔ a bundled ops manifest loads every contained module and refuses unknown ids (24.788363ms)
+✔ malformed manifests and missing modules are reported refusals, never thrown (6.338585ms)
+✔ parser refuses duplicate platforms, empty hosts and escaping paths (0.444502ms)
+▶ invalid descriptor fields return exact refusals and load no platforms
+  ✔ more than 32 platforms (5.388229ms)
+  ✔ non-object entry (3.322074ms)
+  ✔ invalid id (3.269417ms)
+  ✔ blank label (3.878553ms)
+✔ invalid descriptor fields return exact refusals and load no platforms (16.981518ms)
+▶ invalid module and secrets-adapter shapes return exact refusals and are not registered
+  ✔ partial secrets adapter (5.049452ms)
+  ✔ missing secret capabilities (4.721482ms)
+  ✔ non-function status (4.07597ms)
+✔ invalid module and secrets-adapter shapes return exact refusals and are not registered (14.750145ms)
+✖ installed fly package must be active and match the bundled digest (71.030586ms)
+✖ installed github package must be active and match the bundled digest (52.619195ms)
+✖ installed railway package must be active and match the bundled digest (42.923759ms)
+✖ installed render package must be active and match the bundled digest (45.808454ms)
+✔ bundled ops discovery unions categories, skips missing/non-package/retired sources and refuses duplicates in registry and enum (27.003346ms)
+Plugin 'example-pages' has no publisher-qualified id; using 'unknown/example-pages'.
+Plugin 'example-pages' has no publisher-qualified id; using 'unknown/example-pages'.
+Plugin 'example-pages' has no publisher-qualified id; using 'unknown/example-pages'.
+✔ a digest-trusted package outside the ops owners cannot become a parallel ops owner (47.89838ms)
+▶ secrets fields without the secret verbs, and invalid secret capabilities, are refused by exact reason
+  ✔ capabilities without verbs (29.275041ms)
+  ✔ readSecret without verbs (4.097304ms)
+  ✔ unknown appliesOn (4.079102ms)
+  ✔ non-boolean supportsStaging (4.211424ms)
+  ✔ non-function optional verb (4.976414ms)
+  ✔ a complete secrets adapter loads (4.00236ms)
+✔ secrets fields without the secret verbs, and invalid secret capabilities, are refused by exact reason (51.980032ms)
+✔ an unreadable manifest is a refusal for the registry and is skipped by enum discovery (9.952163ms)
+✔ a loader fault becomes one refusal, and requirePlatform names no platforms plus every refusal (0.970657ms)
+✔ config fields and env fallback parse; absent ones default to none (2.907382ms)
+✔ a config field may carry a separate person-facing userHelp; a non-string one is refused (0.382167ms)
+✔ the shipped github-pages owner field has person-facing help that does not address the agent (11.243061ms)
+✔ a credential may carry a separate person-facing userHelp; a non-string one is refused (0.337151ms)
+✔ the shipped S3 credential and Public URL speak to the person, not in the agent's voice (5.220552ms)
+✔ the shipped Cloudflare credential help and Account ID help do not point to different places (4.646366ms)
+✔ a config field may not shadow a publish request's own keys (0.284551ms)
+✔ a config field is never secret: the agent passes config in the clear, so a secret belongs on the credential (0.199407ms)
+✔ malformed config fields and env blocks are refused with the exact reason (0.398066ms)
+✔ the shipped hosting plugins declare the publish fields and env vars core used to hard-code (5.988431ms)
+✔ a credential block parses: vendor, declared fields, and which field is the token (default 'token') (0.310173ms)
+✔ malformed credential blocks are refused with the exact reason (0.405437ms)
+✔ credential token links must be HTTPS and project-name copy rejects malformed labels and help (0.715923ms)
+✔ the shipped hosting plugins name each credential check's vendor and which hosts return an account label (794.340206ms)
+✔ the shipped hosting plugins declare the credential fields and vendors core used to hard-code (7.141064ms)
+✔ the targets file refuses invalid JSON, a missing targets array and duplicate ids; projectName copy may omit help (0.312613ms)
+✔ a source directory's targets load through loadDeployTargetRegistryFromSource, with a non-object module refused (19.526714ms)
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ lists a target from an enabled, Tovu-bundled plugin and builds a working DeployTarget from its module (113.3287ms)
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ refuses a plugin whose installed digest is not the one Tovu shipped (34.398002ms)
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ refuses a module path that escapes the plugin root (42.198757ms)
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ refuses a module that is not an .mjs file, so no host package.json can turn it into CommonJS (48.27288ms)
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ a disabled bundled plugin contributes nothing and is not an error (46.745555ms)
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ an unreadable activation record fails CLOSED with its reason (49.150214ms)
+Plugin 'plain-skill' has no publisher-qualified id; using 'unknown/plain-skill'.
+Plugin 'plain-skill' has no publisher-qualified id; using 'unknown/plain-skill'.
+Plugin 'plain-skill' has no publisher-qualified id; using 'unknown/plain-skill'.
+✔ plugins without a deploy-targets file are ignored entirely (49.996127ms)
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ a malformed descriptor drops that plugin with the parse reason (41.891646ms)
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ a module without create() is refused and its siblings still load (45.495012ms)
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ a module that throws on import is refused with the error message (38.237031ms)
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'other-deploy' has no publisher-qualified id; using 'unknown/other-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'other-deploy' has no publisher-qualified id; using 'unknown/other-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'other-deploy' has no publisher-qualified id; using 'unknown/other-deploy'.
+✔ two bundled plugins declaring the same target id: neither is used (143.461916ms)
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+Plugin 'fixture-deploy' has no publisher-qualified id; using 'unknown/fixture-deploy'.
+✔ an altered installation is refused even when the original bundled digest is recorded (53.281829ms)
+Plugin 'zeta-deploy' has no publisher-qualified id; using 'unknown/zeta-deploy'.
+Plugin 'alpha-deploy' has no publisher-qualified id; using 'unknown/alpha-deploy'.
+Plugin 'alpha-deploy' has no publisher-qualified id; using 'unknown/alpha-deploy'.
+Plugin 'zeta-deploy' has no publisher-qualified id; using 'unknown/zeta-deploy'.
+Plugin 'alpha-deploy' has no publisher-qualified id; using 'unknown/alpha-deploy'.
+Plugin 'zeta-deploy' has no publisher-qualified id; using 'unknown/zeta-deploy'.
+✔ installed targets list in plugin-id order, not install order (76.901488ms)
+✔ the bundled source registry is the union of every plugin dir that ships targets, in plugin-id order (23.139447ms)
+✔ the bundled source registry skips retired ids and dirs without a plugin.json (18.85984ms)
+✔ the bundled source registry drops a target id two plugin dirs both declare (18.667484ms)
+✔ the product's own bundled plugins load every host with no refusal (no target left in two plugins) (864.87918ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ a registry-known target is built by its plugin module, gets responseHeaders as data, and the adapter adds no header file (1326.805519ms)
+✔ every field the resolved credential carries reaches the module under its own name, whatever the host declares (158.972281ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ the REAL plugin Netlify module, fed through the adapter, uploads exactly one _headers rendered from the live header set (771.819412ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ the REAL plugin Cloudflare Pages module, fed through the adapter, sends _headers as a config form field, never an asset (684.883147ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ the REAL plugin Vercel module, fed through the adapter, posts exactly one vercel.json rendered from the live header set (700.061805ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ the REAL plugin GitHub Pages module, fed through the adapter, commits one .nojekyll and reports the /<repo> base path (927.878956ms)
+✔ an id the registry does not know is refused as INVALID_CONFIG, naming what is installed, before any credential or export work (143.389769ms)
+✔ a module's validateConfig refusal is returned as INVALID_CONFIG before any credential or export work (157.261865ms)
+✔ a module whose create() throws is reported like a legacy unusable credential (151.305195ms)
+✔ a registry that fails to load is refused as INVALID_CONFIG with the reason, never published some other way (161.945965ms)
+✔ a supplied buildTarget (the target-construction test seam) still wins over the registry (869.418515ms)
+✔ adaptInstalledTarget: the port's checkReachability({ url }) reaches the installed netlify module as the bare URL string (1.131833ms)
+✔ adaptInstalledTarget: the port's checkReachability({ url }) reaches the installed cloudflare-pages module as the bare URL string (0.60512ms)
+✔ adaptInstalledTarget: the port's checkReachability({ url }) reaches the installed vercel module as the bare URL string (0.569828ms)
+✔ adaptInstalledTarget: the port's checkReachability({ url }) reaches the installed github-pages module as the bare URL string (0.521471ms)
+✔ adaptInstalledTarget: the port's checkReachability({ url }) reaches the installed s3-compatible module as the bare URL string (4.927929ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ BYHO with the receiver setting unset republishes wire-identical to the earlier forms publish (2155.703782ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ BYHO's saved key still pulls through the same receiver client, with the same receipt key (709.54256ms)
+✔ a valid file parses, keeping only declared fields (2.835874ms)
+✔ invalid files are refused with the field that is wrong (0.698085ms)
+✔ a module missing what its receive mode needs is dropped with the reason (0.77672ms)
+✔ an id two plugins declare, and a host two co-hosted destinations claim, are dropped for both (0.605771ms)
+✔ resolve maps a saved scope by destination id or by co-hosted host; get is by id only (0.453804ms)
+✔ the bundled plugin's real file loads and resolves its hosting target to the D1 destination (19.703232ms)
+✔ a destination module whose default export is not an object is refused by name; installed loading orders by plugin id (8.762658ms)
+[routes/media/where-used] {
+  errorId: 'e6c91ef1-6bb7-451f-8125-08ddbba7ade2',
+  diagnostic: 'Error: read failure\n' +
+    '    at MediaRepo.mediaRepo.findById (/home/user/Tovu/apps/website/src/features/media/__tests__/mediawidget-where-used.test.ts:46:44)\n' +
+    '    at <anonymous> (/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/media/where-used.ts:17:42)\n' +
+    '    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/media/__tests__/mediawidget-where-used.test.ts:47:3)\n' +
+    '    at async Test.run (node:internal/test_runner/test:1409:7)\n' +
+    '    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)'
+}
+✔ usage queries canonical id and slug and combines indexed widgets with current raw and placement post bodies (5.163373ms)
+✔ usage HTTP route enforces workspace and media.read before any asset lookup (813.147634ms)
+✔ Tovu purge refuses retired slug references from current post bodies and succeeds after removal (3.74849ms)
+✔ usage reports an html-format post body under bodyHtml and never counts a soft-deleted post (1.273822ms)
+✔ video slugs are offered only as single calls and all eight calls retain frames (20.63972ms)
+✔ video selector conflicts and missing slugs fail before extraction; equal selectors work (19.17733ms)
+✔ video slug calls retain ownership checks and refuse batches before source reads (6.509941ms)
+✔ delegated HTTP video single calls accept slug selectors and retain frames (252.566498ms)
+✔ video schema and description advertise gap, start, sixty-four frames and total image budget (32.037877ms)
+✔ forwards count, explicit timestamps, gap and start without supplying a missing count (3.619108ms)
+✔ refuses invalid sampling values with exact messages before authorization or source I/O (3.756226ms)
+✔ accepts sixty-four returned frames and refuses sixty-five or an oversized individual JPEG (6.428101ms)
+✔ accepts exactly eight MiB of JPEGs but refuses aggregate overflow from a custom extractor (19.777879ms)
+✔ owned media and chat refs return identical actual JPEG images and metadata (24.843928ms)
+✔ foreign and unattributed media fail before blob access; shared blob owner never grants access (5.278483ms)
+✔ foreign attachment, denied permission and arbitrary paths are refused before extraction (2.403942ms)
+✔ checks source size before blob download and surfaces unavailable host as a text result (20.432404ms)
+✔ read-only delegated gateway preserves frames and the real BYOK OpenAI payload contains image blocks (26.828118ms)
+✔ sheet mode returns images with a one-based tile map in sampling order (2.786509ms)
+✔ sheet mode enforces sheet, tile and byte budgets before preparing image attachments (19.826457ms)
+✔ refuses extractor results whose layout differs from the requested mode (2.416904ms)
+✔ bundled preset admits the active, unchanged installed contribution (10.660616ms)
+✔ a non-bundled plugin is ignored even if it copies the shipped provider (3.724371ms)
+✔ bundled id cannot replace pinned issuer (3.536957ms)
+✔ bundled id cannot replace pinned jwksUri (4.362936ms)
+✔ bundled id cannot replace pinned authorizationEndpoint (2.127865ms)
+✔ bundled id cannot replace pinned tokenEndpoint (2.176988ms)
+✔ disabled package contributes no provider (0.403598ms)
+✔ duplicate provider ids are refused in full (1.920686ms)
+✔ invalid preset rejected: pkce (0.396504ms)
+✔ invalid preset rejected: signingAlgorithm (0.627845ms)
+✔ invalid preset rejected: clientAuthentication (0.138684ms)
+✔ invalid preset rejected: scopes (0.110253ms)
+✔ invalid preset rejected: jwksUri (0.066318ms)
+✔ a plain available link renders the nav, list, item and a site-relative tool (1.949627ms)
+✔ a current item carries aria-current and data-current while an explicit isActive=false stays false (0.286035ms)
+✔ empty icon, description and rel and a false openInNewTab render exactly like absent attrs (0.202871ms)
+✔ a whitespace-only rel produces no rel attribute (0.204853ms)
+✔ a new tab without an authored rel gets target=_blank and noopener noreferrer (0.769781ms)
+✔ a new tab keeps authored rel tokens first, de-duplicates the security tokens and escapes the rel value (0.19073ms)
+✔ an unavailable item without visible descendants renders nothing at all (0.224579ms)
+✔ an href-less heading renders a label span with escaped icon and description around its nested list (0.212022ms)
+✔ a sanitizer that empties the href still renders the anchor, with an empty href and no tool (0.18029ms)
+✔ the sanitizer receives the authored href, never the raw one being rendered (1.104857ms)
+✔ an unavailable or href-less item never calls the sanitizer (0.222817ms)
+✔ the nav id is escaped verbatim while the tool prefix maps unsafe characters to _ and keeps 64 characters (0.160492ms)
+✔ tool names are capped at 128 characters (0.503754ms)
+✔ siblings past the 128-character cap retain distinct stable tool names (0.720783ms)
+✔ an empty item list renders an empty string (0.118296ms)
+✔ the sanitized href "HTTPS://x" is rendered as a link but never advertised as a tool (0.141317ms)
+✔ the sanitized href "javascript:alert(1)" is rendered as a link but never advertised as a tool (0.078339ms)
+✔ the sanitized href "a:b" is rendered as a link but never advertised as a tool (0.041687ms)
+✔ the sanitized href "//x" is rendered as a link but never advertised as a tool (0.034903ms)
+✔ the sanitized href "/\\x" is rendered as a link but never advertised as a tool (0.03463ms)
+✔ the sanitized href "\\/x" is rendered as a link but never advertised as a tool (0.035434ms)
+✔ the sanitized href "\\\\x" is rendered as a link but never advertised as a tool (0.053638ms)
+✔ the sanitized href "/x " is rendered as a link but never advertised as a tool (0.044805ms)
+✔ the sanitized href "/x\u001f" is rendered as a link but never advertised as a tool (0.049442ms)
+✔ the sanitized href "/x\u0000" is rendered as a link but never advertised as a tool (0.04269ms)
+✔ the sanitized href "/x\\y" is rendered as a link but never advertised as a tool (0.036126ms)
+✔ the sanitized href "1abc:x" is site-relative and advertised as a tool (0.05905ms)
+✔ the sanitized href "+x:y" is site-relative and advertised as a tool (0.037897ms)
+✔ the sanitized href "/x!" is site-relative and advertised as a tool (0.067555ms)
+✔ the sanitized href "/x" is site-relative and advertised as a tool (0.045108ms)
+✔ the sanitized href "./rel" is site-relative and advertised as a tool (0.080002ms)
+✔ the sanitized href "?q" is site-relative and advertised as a tool (0.049245ms)
+✔ the sanitized href "#f" is site-relative and advertised as a tool (0.042947ms)
+✔ the sanitized href "/" is site-relative and advertised as a tool (0.071769ms)
+✔ parseObjectStoresFile: accepts entries with and without a label, keeping label only when given (4.832381ms)
+✔ parseObjectStoresFile: a label of exactly 100 characters is accepted, 101 is refused (0.307618ms)
+✔ parseObjectStoresFile: refuses text that is not JSON (0.178772ms)
+✔ parseObjectStoresFile: refuses a non-object root or any schemaVersion other than 1 (0.191382ms)
+✔ parseObjectStoresFile: refuses providers that is not an array (0.14806ms)
+✔ parseObjectStoresFile: refuses an entry that is not a plain object, naming its index (0.214354ms)
+✔ parseObjectStoresFile: refuses a non-string id (0.159183ms)
+✔ parseObjectStoresFile: refuses a module that is not a string, not .mjs, or absolute (0.221624ms)
+✔ parseObjectStoresFile: refuses a label that is non-string or blank (0.212122ms)
+✔ parseObjectStoresFile: refuses an id declared twice in one file (0.277358ms)
+✔ loadObjectStoreRegistry: local is seeded and default; plugin items are contributed; loader and registry refusals merge in order (11.90136ms)
+✔ loadObjectStoreRegistry: the seeded local provider writes under uploadsDir (15.818808ms)
+✔ loadBundledObjectStoreRegistry: the real bundled source contributes s3_compatible from the s3-compatible plugin, with no refusals (871.278648ms)
+✔ loadBundledObjectStoreRegistry: a bad manifest and a non-provider module become refusal lines; good plugins still load (20.396756ms)
+✔ loadBundledObjectStoreRegistry: an empty source root yields only local (3.262195ms)
+✔ [memory] findByWorkspaceId returns null when nothing is registered (1.025707ms)
+✔ [memory] findByWorkspaceId returns the registered origin (1.075205ms)
+✔ [memory] findRedirectAllowlist/findEgressAllowlist return the registered lists, normalized (0.320458ms)
+✔ [memory] findRedirectAllowlist/findEgressAllowlist return [] for an unregistered workspace (0.130406ms)
+▶ OriginSettingRepoPort (SQL) [sqlite]
+  ✔ [sql] findByWorkspaceId returns null when nothing is registered (129.036275ms)
+  ✔ [sql] findByWorkspaceId returns the registered origin (117.381598ms)
+  ✔ [sql] findRedirectAllowlist/findEgressAllowlist return the registered lists, normalized (109.9615ms)
+  ✔ [sql] findRedirectAllowlist/findEgressAllowlist return [] for an unregistered workspace (128.592638ms)
+  ✔ seedDevCapabilityOrigin is idempotent — a second call never overwrites an existing row (168.390011ms)
+  ✔ dev loopback seeds follow scheme and port changes while preserving allowlists and idempotency (115.612861ms)
+  ✔ configured public origins reject loopback rather than entering the persisted-origin cases (0.735243ms)
+  ✔ dev seed preserves workspace-setting origin on tovu.example-host.dev (120.817936ms)
+  ✔ dev seed preserves workspace-setting origin on example.com (112.103364ms)
+  ✔ reads wait for the boot write they are given, and fail when it failed (117.266783ms)
+  ✔ registerConfiguredOrigin inserts when no origin is registered yet (120.97791ms)
+  ✔ registerConfiguredOrigin persists, changes and removes port/basePath independently (126.612278ms)
+  ✔ all origin reads isolate two populated workspaces and a missing workspace (141.188672ms)
+  ✔ registerConfiguredOrigin corrects a poisoned dev-capability localhost row in place (136.366141ms)
+  ✔ registerConfiguredOrigin preserves both allowlists when it corrects an existing row (169.189842ms)
+  ✔ registerConfiguredOrigin is a no-op when the stored origin already matches (126.794664ms)
+  ✔ registerConfiguredOrigin updates an existing workspace-setting row when the configured origin changes (130.986136ms)
+✔ OriginSettingRepoPort (SQL) [sqlite] (2073.967572ms)
+▶ OriginSettingRepoPort (SQL) [pglite]
+  ✔ [sql] findByWorkspaceId returns null when nothing is registered (6144.738525ms)
+  ✔ [sql] findByWorkspaceId returns the registered origin (9.258915ms)
+  ✔ [sql] findRedirectAllowlist/findEgressAllowlist return the registered lists, normalized (5.001714ms)
+  ✔ [sql] findRedirectAllowlist/findEgressAllowlist return [] for an unregistered workspace (3.65397ms)
+  ✔ seedDevCapabilityOrigin is idempotent — a second call never overwrites an existing row (5.040137ms)
+  ✔ dev loopback seeds follow scheme and port changes while preserving allowlists and idempotency (12.253282ms)
+  ✔ configured public origins reject loopback rather than entering the persisted-origin cases (0.566499ms)
+  ✔ dev seed preserves workspace-setting origin on tovu.example-host.dev (6.734487ms)
+  ✔ dev seed preserves workspace-setting origin on example.com (6.616721ms)
+  ✔ reads wait for the boot write they are given, and fail when it failed (4.101171ms)
+  ✔ registerConfiguredOrigin inserts when no origin is registered yet (5.171693ms)
+  ✔ registerConfiguredOrigin persists, changes and removes port/basePath independently (25.527742ms)
+  ✔ all origin reads isolate two populated workspaces and a missing workspace (13.798163ms)
+  ✔ registerConfiguredOrigin corrects a poisoned dev-capability localhost row in place (6.105032ms)
+  ✔ registerConfiguredOrigin preserves both allowlists when it corrects an existing row (6.990952ms)
+  ✔ registerConfiguredOrigin is a no-op when the stored origin already matches (6.701326ms)
+  ✔ registerConfiguredOrigin updates an existing workspace-setting row when the configured origin changes (7.175832ms)
+✔ OriginSettingRepoPort (SQL) [pglite] (6271.243751ms)
+✔ ADR-046 Phase 1: SqliteOriginSettingRepo persists across a simulated process restart (real on-disk file, fresh repo instance) (119.625322ms)
+▶ plugin dataModule engine [sqlite]
+  ▶ install
+    ✔ creates the declared tables and indexes, records the DDL, and a repeat declare is a no-op (140.366593ms)
+    ✔ INTEGER holds a millisecond timestamp and REAL a fraction, read back as numbers (136.549121ms)
+    ✔ a Postgres kernel takes no snapshot and opens no journal entry, whatever dbPath says (126.503694ms)
+  ✔ install (405.119194ms)
+  ▶ upgrade
+    ✔ adds a declared nullable column and a new index to an existing table (127.817688ms)
+    ✔ recreates an index whose declared shape changed (120.166785ms)
+    ✔ fails closed on a changed column type and on a NOT NULL column added to an existing table (118.085818ms)
+    ✔ a failing statement rolls the whole alteration back, the added column included (118.146477ms)
+  ✔ upgrade (484.802388ms)
+  ▶ identity guard
+    ✔ mints on first sight, allows an unchanged repeat, refuses a mismatch without overwriting (109.441364ms)
+    ✔ a declare with a mismatched provenance is refused before any DDL (115.437949ms)
+  ✔ identity guard (225.200688ms)
+  ▶ journal and recovery scan
+    ✔ entries move through their phases; only non-terminal ones are surfaced for recovery (115.427625ms)
+    ✔ a staged phase rolls back with its transaction (113.7383ms)
+  ✔ journal and recovery scan (229.409971ms)
+✔ plugin dataModule engine [sqlite] (1345.225338ms)
+▶ plugin dataModule engine [pglite]
+  ▶ install
+    ✔ creates the declared tables and indexes, records the DDL, and a repeat declare is a no-op (4744.836032ms)
+    ✔ INTEGER holds a millisecond timestamp and REAL a fraction, read back as numbers (25.493609ms)
+    ✔ a Postgres kernel takes no snapshot and opens no journal entry, whatever dbPath says (24.907615ms)
+  ✔ install (4795.827843ms)
+  ▶ upgrade
+    ✔ adds a declared nullable column and a new index to an existing table (105.073334ms)
+    ✔ recreates an index whose declared shape changed (68.245837ms)
+    ✔ fails closed on a changed column type and on a NOT NULL column added to an existing table (49.058466ms)
+    ✔ a failing statement rolls the whole alteration back, the added column included (71.565967ms)
+  ✔ upgrade (294.434298ms)
+  ▶ identity guard
+    ✔ mints on first sight, allows an unchanged repeat, refuses a mismatch without overwriting (46.437062ms)
+    ✔ a declare with a mismatched provenance is refused before any DDL (63.891635ms)
+  ✔ identity guard (110.555904ms)
+  ▶ journal and recovery scan
+    ✔ entries move through their phases; only non-terminal ones are surfaced for recovery (16.650858ms)
+    ✔ a staged phase rolls back with its transaction (10.028094ms)
+  ✔ journal and recovery scan (26.883682ms)
+✔ plugin dataModule engine [pglite] (5228.069652ms)
+✔ FILE_TREE_KINDS is exactly the 4 kinds from §1's inventory table (2.370007ms)
+✔ no kind's resolved root can ever equal a site-root file name (0.854644ms)
+✔ checkTreePath blocks every deny-listed segment, name and extension (0.771835ms)
+✔ checkTreePath blocks config.json/.site-meta.json only at tree root, not nested (0.133774ms)
+✔ checkTreePath blocks path-shape violations (.., leading /, backslash, depth, length, empty segment) (0.193369ms)
+✔ checkTreePath accepts an ordinary theme source path (0.123973ms)
+✔ isIgnoredTreeFileName recognizes every documented OS junk name (0.137551ms)
+✔ checkTreePath no longer blocks a .DS_Store path — it is ignored upstream, not denied here (0.188372ms)
+✔ checkTreeFiles refuses an OS junk file that reached it, with a plain reason (1.11554ms)
+✔ checkTreeFiles still runs the '..' and size checks on a junk-looking name (0.323426ms)
+✔ checkTreeFiles blocks a tree holding a planted Anthropic key, exact reason (0.549547ms)
+✔ checkTreeFiles blocks a tree holding a planted GitHub PAT (0.335123ms)
+✔ checkTreeFiles blocks a tree holding a planted PEM private key block (0.199831ms)
+✔ checkTreeFiles does not scan a binary-extension file even if its sample matches a pattern (0.153124ms)
+✔ checkTreeFiles blocks a qualifying file when textSample is omitted (0.129549ms)
+✔ every file-backed publish-content contributor imports file-tree-policy (2.265647ms)
+✔ checkTreeFiles blocks case-insensitively duplicate paths (0.194737ms)
+✔ checkTreeFiles blocks a disallowed extension for theme-files, terse and preformatted (0.1909ms)
+✔ checkTreeFiles names a video extension specifically (0.083466ms)
+✔ checkTreeFiles allows every extension for a code-class kind (agent-skill) (0.062613ms)
+✔ checkTreeFiles blocks a tree over the per-file byte cap (0.070033ms)
+✔ checkTreeFiles blocks a tree over the total byte cap (0.066444ms)
+✔ checkTreeFiles blocks a tree over the file-count cap (0.404268ms)
+✔ normalizeMode collapses any exec bit to 0o755 and everything else to 0o644 (0.106388ms)
+✔ resolveTreeRelativePath rejects a wrong segment count and an invalid segment (0.128962ms)
+✔ checkMcpJsonSecretPlaceholders allows empty/placeholder env values and blocks a literal token (0.370267ms)
+✔ MCP headers must be empty or placeholders, never literal credentials (0.08921ms)
+✔ NUL paths and sealed storage-secret filenames are refused (0.134582ms)
+✔ wrapTreePolicyReason prefixes ordinary reasons and preserves final reasons (0.08096ms)
+﹣ THEME_FILE_TREE_ALLOWED_EXTENSIONS covers every extension used by the real static/tovu-theme theme (0.286827ms) # local static/tovu-theme fixture is unavailable
+✔ license documents are text: accepted by identity, scanned for secrets, and never a blanket extensionless allowance (0.331911ms)
+✔ input with null is refused as a source error (2.212401ms)
+✔ input with a string is refused as a source error (0.199936ms)
+✔ input with an array is refused as a source error (0.194831ms)
+✔ input with an unknown key is refused as a source error (0.178478ms)
+✔ input with both sources is refused as a source error (0.122679ms)
+✔ input with no source is refused as a source error (0.086535ms)
+✔ an array carrying a url property is refused as a source error (0.292238ms)
+✔ displayName 42 is refused (0.205572ms)
+✔ displayName "  " is refused (0.137018ms)
+✔ displayName "xxxxxxxxxxx is refused (0.196086ms)
+✔ requestId 7 is refused (0.180252ms)
+✔ requestId "" is refused (0.124373ms)
+✔ requestId "has space" is refused (0.098556ms)
+✔ requestId "xxxxxxxxxxx is refused (0.068392ms)
+✔ url 42 is refused as not an HTTPS share URL (0.18462ms)
+✔ url "https://a.examp is refused as not an HTTPS share URL (0.120341ms)
+✔ url "not a url" is refused as not an HTTPS share URL (0.092537ms)
+✔ url http://a.example/x.zip is refused for scheme, credentials or fragment (0.096416ms)
+✔ url https://user@a.example/x.zip is refused for scheme, credentials or fragment (0.04654ms)
+✔ url https://:pw@a.example/x.zip is refused for scheme, credentials or fragment (0.037724ms)
+✔ url https://a.example/x.zip#frag is refused for scheme, credentials or fragment (0.064757ms)
+✔ uploadId 7 is refused (0.134794ms)
+✔ uploadId "../../etc/passw is refused (0.085816ms)
+✔ uploadId "0F8FAD5B-D9CB-4 is refused (0.112005ms)
+✔ a URL source is normalised to its href and optional fields are kept only when given (0.76321ms)
+✔ an upload over the archive cap is refused with the upload cap message (734.317029ms)
+✔ a fifth staged payload is refused with the staging budget message (674.646824ms)
+✔ low private staging space is refused with the staging space message (600.078689ms)
+✔ a URL import checks the staging budget; an upload import does not (3939.59838ms)
+✔ a request id reused for another source is refused (3919.712678ms)
+✔ a consumed upload is refused and recorded on the failed row (4293.992872ms)
+✔ an already-aborted caller signal fails the import before anything is fetched (658.628177ms)
+✔ the download request is a bounded identity GET of the share URL (4375.703794ms)
+✔ a download with a non-200 status is refused as a failed download (584.856202ms)
+✔ a download with no body is refused as a failed download (629.853536ms)
+✔ a download with a truncated body is refused as a failed download (634.71857ms)
+✔ a download with content type {} is refused (607.408549ms)
+✔ a download with content type {"content-type":""} is refused (552.436682ms)
+✔ a download with content type {"content-type":"text/html"} is refused (589.616381ms)
+✔ an archive reader error that is not a share refusal is recorded with the generic message (542.2417ms)
+✔ the imported site name comes from the archive unless a display name was given (8055.076901ms)
+✔ site_imported fires exactly once after owner commit, including a repeated completion (4531.415017ms)
+✔ site_imported stays silent when creating the imported site fails (3934.558787ms)
+✔ owner setup on a failed import is refused as not awaiting setup (3964.590424ms)
+✔ owner password undefined is refused (4471.726034ms)
+✔ owner password tovu-dev is refused (3587.066871ms)
+✔ low sites-home space is refused with the sites-home message (3610.89556ms)
+✔ an already-aborted owner setup is refused before the row is marked creating (3593.987263ms)
+✔ a failed site creation is rolled back and recorded (3962.149116ms)
+✔ a created site started with no admin URL records its start outcome (4087.461349ms)
+✔ a created site started with a supervisor error records its start outcome (3912.805895ms)
+✔ a created site started with an admin URL records its start outcome (3980.559137ms)
+✔ a pending import view carries the default setup URL and owner instructions (3948.241098ms)
+✔ progress reports every stored status in order (3825.10103ms)
+✔ a replayed request id returns the original import without starting another (3715.696583ms)
+✔ a second operation while one holds the import lane is refused as busy (508.712318ms)
+✔ input boundary refuses malformed source/options null (3.388472ms)
+✔ input boundary refuses malformed source/options undefined (0.324358ms)
+✔ input boundary refuses malformed source/options [] (0.206636ms)
+✔ input boundary refuses malformed source/options false (0.240931ms)
+✔ input boundary refuses malformed source/options "url" (0.188709ms)
+✔ input boundary refuses malformed source/options {"url":1} (0.328678ms)
+✔ input boundary refuses malformed source/options {"url":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (0.2422ms)
+✔ input boundary refuses malformed source/options {"url":"not a URL"} (0.266456ms)
+✔ input boundary refuses malformed source/options {"url":"https://:password@example.com"} (0.355135ms)
+✔ input boundary refuses malformed source/options {"url":"https://example.com/#fragment"} (0.498887ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":null} (0.368463ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":4} (0.181727ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":""} (0.138295ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":" "} (0.096024ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","displayName":"xxxxxxxxx (0.185774ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":null} (0.098546ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":4} (0.113169ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":""} (0.118063ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":"bad space"} (0.084685ms)
+✔ input boundary refuses malformed source/options {"uploadId":"00000000-0000-4000-8000-000000000001","requestId":"xxxxxxxxxxx (0.042902ms)
+✔ input boundary refuses malformed source/options {"uploadId":null} (0.112052ms)
+✔ input boundary refuses malformed source/options {"uploadId":1} (0.049182ms)
+✔ input boundary refuses malformed source/options {"uploadId":"bad-id"} (0.0628ms)
+✔ input boundary refuses malformed source/options {"uploadId":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"} (0.124965ms)
+✔ source boundary accepts bounded optional metadata and normalizes HTTPS URLs (0.851365ms)
+✔ registry protects principal boundaries, invalid identifiers, unreadable history and private permissions (693.586062ms)
+✔ registry expires only old staged payloads and pending owner rows, retaining ready history and corrupt evidence (593.363368ms)
+✔ upload budget refuses a fifth payload and low disk space before retaining bytes (522.039103ms)
+✔ upload metadata failure removes the private ZIP and releases the transfer lock (497.150434ms)
+✔ in-flight import rejects another operation, then releases its lane on verification failure (542.136029ms)
+✔ a consumed upload cannot create a second import, while request replay is idempotent and source-bound (3876.901447ms)
+✔ unfinished creation without an allocation is classified as failed only under the lane lock (434.448426ms)
+✔ owner creation remains ready and idempotent after no URL (3927.368862ms)
+✔ owner creation remains ready and idempotent after supervisor error (4055.65783ms)
+✔ owner creation checks volume space before allocating and keeps staged data for retry (3867.37314ms)
+✔ L3 local: share/import preserves private documents and deduplicates blobs (5458.510386ms)
+✔ L3 s3: share/import preserves private documents and deduplicates blobs (4409.032994ms)
+✔ L3 import explicitly rejects missing document before creating a site (3741.571089ms)
+✔ L3 import explicitly rejects corrupt document before creating a site (3584.368271ms)
+✔ L3 import explicitly rejects invalid-json document before creating a site (3745.224605ms)
+✔ L3 import explicitly rejects invalid-docx document before creating a site (3648.907665ms)
+✔ L3 import explicitly rejects bad-key document before creating a site (3801.925719ms)
+✔ L3 a v1 archive is refused without creating a site (489.833628ms)
+✔ L3 document-first deduplication strips mixed blob uploader attribution (active) (700.641943ms)
+✔ L3 document-first deduplication strips mixed blob uploader attribution (trashed) (610.66514ms)
+✔ L3 rejects invented manifest identity 13 (481.840716ms)
+✔ L3 rejects invented manifest identity 14 (522.207231ms)
+✔ L3 forged ordinary rendition cannot expose a private document through anonymous media retrieval (3770.962242ms)
+✔ L3 genuine pre-L3 share omits Trash and orphan payloads but rejects arbitrary uploads (3654.780022ms)
+✔ L3 valid DOCX package expansion is bounded within entry limits (4135.22463ms)
+✔ L3 isolated guard: oversize (4266.628863ms)
+✔ L3 isolated guard: wrong-signature (3552.906936ms)
+✔ L3 isolated guard: secret-sentinel (3740.379813ms)
+✔ L3 isolated guard: destination-collision (3897.755467ms)
+✔ L3 isolated guard: forged-cross-owner (3978.103448ms)
+✔ every scope switched on: exactly the scope subtrees, never the live database, chat history, journals, or secrets-bearing files (28.752588ms)
+✔ share profile drops Finder's .DS_Store instead of refusing the share (7.304575ms)
+✔ plugins scope: each installed plugin's package and memory, found where the installer's own layout puts them; never its data/ (10.574289ms)
+✔ scope switches are independent: themes + settings alone picks up nothing else (7.081062ms)
+✔ publish's own scratch folders under themes/ (.publish-staging, .publish-previous) are never backed up (8.580779ms)
+✔ every file carries its size, and each scope is tagged (7.825129ms)
+✔ a symlink is never followed — it is skipped and reported, so a link to ~/.ssh cannot ride along (11.232987ms)
+✔ plugins scope: a symlinked plugin folder or package store is reported and never followed (11.003931ms)
+✔ media stored in object storage (no uploads folder on disk) is reported as not included, never silently dropped (7.282102ms)
+✔ media remote by the site setting (isMediaRemote answers true): the unused uploads folder is not walked and the note is written (7.117465ms)
+✔ media local by the site setting (isMediaRemote answers false): the uploads folder is backed up with no note (8.806214ms)
+✔ the database snapshot comes from captureRestorePoint's artifact (byte-exact, binary-safe), and the artifact is deleted afterwards (7.611669ms)
+✔ a database whose restore mechanism is not a cheap file snapshot is refused with the reason, and nothing is captured (6.55489ms)
+✔ a snapshot capture failure returns a safe message and a separate diagnostic code (7.051951ms)
+✔ an unreadable snapshot artifact is removed even on failure; failed cleanup stays caller-safe (9.421514ms)
+✔ a file over GitHub's 100 MiB limit is refused, naming the host, the file and its size — never truncated (0.519268ms)
+✔ exactly 100 MiB is allowed; the total is summed (0.145439ms)
+✔ a host that declares no per-file limit gets no per-file check, only this tool's own caps (0.07216ms)
+✔ a disk file over the host's per-file limit is left out and named in skipped with its size; exactly the limit stays (0.296799ms)
+✔ too many files, or too many bytes in total, is refused with the cap named (0.157081ms)
+✔ a planned file that changed after the plan is refused as stale; an unchanged one reads byte-exact (9.96696ms)
+✔ a same-size edit after planning is refused on its modification time (8.015343ms)
+✔ a file replaced after planning by a symlink with matching size and mtime is refused (8.079518ms)
+✔ the manifest names the format, Tovu version, schema, timestamp, scopes, database watermark and every file with its sha256 (0.603302ms)
+✔ absent scope folders and settings files produce an empty backup (11.136049ms)
+✔ settings links and directories are reported instead of read as regular files (8.749403ms)
+✔ directory read propagates unexpected Error: disk unavailable failures (7.908194ms)
+✔ directory read propagates unexpected null failures (7.726665ms)
+✔ directory read propagates unexpected disk unavailable failures (7.819524ms)
+✔ a file disappearing between listing and lstat is omitted without losing stable siblings (9.195807ms)
+✔ an unexpected lstat failure aborts collection rather than silently omitting a file (7.656095ms)
+✔ plugin workspace links, invalid ids and stray files are not traversed (11.88434ms)
+✔ plugin paths that are missing or regular files are empty, and invalid plugin ids are ignored (14.517536ms)
+✔ plugin-owned-directory lstat failures other than ENOENT abort collection (8.472059ms)
+✔ 0 bytes formats as 0 B (0.223327ms)
+✔ 1023 bytes formats as 1023 B (0.054085ms)
+✔ 1024 bytes formats as 1 KiB (0.061607ms)
+✔ 1536 bytes formats as 1.5 KiB (0.032401ms)
+✔ 1048576 bytes formats as 1 MiB (0.042335ms)
+✔ 1073741824 bytes formats as 1 GiB (0.043888ms)
+✔ 1610612736 bytes formats as 1.5 GiB (0.034959ms)
+✔ a planned file replaced by a directory is stale (10.225474ms)
+✔ a file truncated after fstat is refused and its handle is closed (0.464527ms)
+✔ a handle stat failure propagates after closing the handle (0.313106ms)
+✔ a handle readFile failure propagates after closing the handle (0.232743ms)
+✔ a manifest with no database scope records null and preserves an explicitly empty scope note (0.253553ms)
+✔ share collection rejects hardlinks and linked scope roots instead of following outside content (12.798878ms)
+✔ share collection rejects linked plugin root before traversal (7.155114ms)
+✔ share collection rejects linked plugin workspacesDir before traversal (11.215894ms)
+✔ share directory lstat failures propagate while a directory removed during discovery is empty (6.709958ms)
+✔ share plugin root lstat failures are never hidden as missing installations (6.89293ms)
+✔ share collection omits only private runtime files and includes overrides and plugin source (35.731461ms)
+✔ share collection silently omits a plugin workspace whose own name is a private path (16.355525ms)
+✔ share collection with no agent-plugins folder at all collects only skills (9.672396ms)
+✔ a snapshot larger than the caller's byte cap is refused and its artifact removed (11.074693ms)
+✔ a snapshot within the caller's byte cap is read back (10.480774ms)
+✔ repository manifests retain their independent format and omit ZIP profile fields (0.413635ms)
+✔ collected files come back sorted by path in code-unit order (9.924992ms)
+✔ share collection refuses a regular file standing where a scope folder belongs (11.314819ms)
+✔ site backup never walks the owner profile or root-level owner database, key and portable backup (23.994783ms)
+[site-capabilities] section 'tools' failed SectionUnavailableError: section unavailable: not-wired
+    at collectTools (/home/user/Tovu/apps/website/src/features/site-inspection/site-capabilities.ts:209:50)
+    at Object.collect (/home/user/Tovu/apps/website/src/features/site-inspection/site-capabilities.ts:297:41)
+    at authorizeAndCollectSection (/home/user/Tovu/apps/website/src/features/site-inspection/section-collector.ts:145:46)
+    at async <anonymous> (/home/user/Tovu/apps/website/src/features/site-inspection/site-capabilities.ts:302:74)
+    at async Promise.all (index 0)
+    at async buildSiteCapabilities (/home/user/Tovu/apps/website/src/features/site-inspection/site-capabilities.ts:302:19)
+    at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-inspection/__tests__/site-capabilities.unit.test.ts:167:18)
+    at async Test.run (node:internal/test_runner/test:1409:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+  reason: 'not-wired'
+}
+[site-capabilities] section 'contentTypes' failed TypeError: row data CANARY_CT_ERROR_77aa
+    at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/site-inspection/__tests__/site-capabilities.unit.test.ts:212:35)
+    at Test.runInAsyncScope (node:async_hooks:227:14)
+    at Test.run (node:internal/test_runner/test:1402:25)
+    at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    at Test.postRun (node:internal/test_runner/test:1542:19)
+    at Test.run (node:internal/test_runner/test:1467:12)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+✔ site capabilities: a fully granted principal gets every section, each authorized against its own permission (3.184918ms)
+✔ site capabilities: section permissions reuse the existing vocabulary rather than minting a new one (0.235589ms)
+✔ tools section: grouped by the reader's source, sorted, counted, and pointing at describe_tool/search_tools (0.766929ms)
+✔ tools section: read from the injected registry reader on every call — nothing is captured into a second index (0.556071ms)
+✔ tools section: no injected registry reader is 'unavailable'/'not-wired' — never an empty catalog (5.499702ms)
+✔ admin screens section: id, label and route path exactly as the injected list gives them (0.505811ms)
+✔ content types section: key and label only, tombstoned types excluded (0.396688ms)
+✔ a denied section is 'forbidden', performs no read, and leaves the other sections intact (0.335067ms)
+✔ a failing read is 'unavailable' with the error CLASS name only, and the other sections still return (0.661454ms)
+✔ omitting sectionTimeoutMs waits five seconds before reporting a held section as timed-out (9.217975ms)
+✔ sections limits the call to the requested ones, in vocabulary order, reading nothing else (0.448856ms)
+✔ summarizeToolDescription: first sentence, whitespace collapsed, capped at MAX_TOOL_SUMMARY_CHARS (0.169271ms)
+✔ summarizeToolDescription: an over-long sentence is cut at the last whole word, not mid-word (0.073061ms)
+✔ summarizeToolDescription: 'e.g.' and a decimal point do not end the first sentence (0.050487ms)
+✔ tools section: a long description is still one capped line in the output (0.446928ms)
+✔ an authorization-service rejection affects only its section and performs no corresponding read (0.494139ms)
+✔ summarizeToolDescription: one enormous token is cut mid-word at the cap (0.119208ms)
+✔ tools section: rows sharing one id stay listed side by side in a stable sorted domain (0.206899ms)
+✔ admin screens expose each panel purpose and its entity/query contract to the assistant (2.068767ms)
+✔ admin screens expose the unsaved-post route without reserving a post slug (0.688047ms)
+ℹ tests 734
+ℹ suites 12
+ℹ pass 723
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 276486.07849
+
+✖ failing tests:
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/descriptor-i18n.unit.test.ts:1:4785
+✖ github/tovu-source-control.json: every i18n key is a string that entry declares (no stale translation) (0.426651ms)
+  Error: ENOENT: no such file or directory, open '/home/user/Tovu/content/agent-plugins/github/tovu-source-control.json'
+      at readFileSync (node:fs:483:20)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/descriptor-i18n.unit.test.ts:97:29)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/user/Tovu/content/agent-plugins/github/tovu-source-control.json'
+  }
+
+test at apps/website/src/features/agent-plugins/__tests__/unit/descriptor-i18n.unit.test.ts:1:5226
+✖ every bundled descriptor file still parses with its i18n blocks (9.391027ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(DEPLOY_TARGET_FILES.length > 0)
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/agent-plugins/__tests__/unit/descriptor-i18n.unit.test.ts:108:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/comments/__tests__/index.test.ts:1:9360
+✖ comment submissions immediately honor a changed per-IP budget without resetting the hour (0.79304ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'newId')
+      at <anonymous> (/home/user/Jini/packages/core/src/settings/write-service.ts:121:34)
+      at InMemorySettingsRepo.transaction (/home/user/Jini/packages/core/src/settings/repo.memory.ts:279:22)
+      at registerDefinitions (/home/user/Jini/packages/core/src/settings/write-service.ts:119:21)
+      at async registerMissingDefinition (/home/user/Jini/packages/core/src/settings/ensure-definitions.ts:195:3)
+      at async ensureSettingDefinitions (/home/user/Jini/packages/core/src/settings/ensure-definitions.ts:137:7)
+      at async ensureCommentsSettingDefinitions (/home/user/Tovu/apps/website/src/features/comments/settings.ts:90:3)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/comments/__tests__/index.test.ts:247:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at apps/website/src/features/deployments/deploy-ops/__tests__/installed-deploy-verb.test.ts:1:1458
+✖ split upgrade: deploy=false, github=true — Actions follows github, Fly follows deploy (1859.621517ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   "deploy ops from 'github' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute"
+  + ]
+  - []
+  
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/installed-deploy-verb.test.ts:52:16)
+      at async withAgentPluginsDir (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/installed-deploy-verb.test.ts:30:16)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/installed-deploy-verb.test.ts:43:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ "deploy ops from 'github' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute" ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/deploy-ops/__tests__/installed-deploy-verb.test.ts:1:1458
+✖ split upgrade: deploy=true, github=false — Actions follows github, Fly follows deploy (1846.959468ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   "deploy ops from 'fly' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute",
+  +   "deploy ops from 'railway' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute",
+  +   "deploy ops from 'render' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute"
+  + ]
+  - []
+  
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/installed-deploy-verb.test.ts:52:16)
+      at async withAgentPluginsDir (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/installed-deploy-verb.test.ts:30:16)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/installed-deploy-verb.test.ts:43:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ "deploy ops from 'fly' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute", "deploy ops from 'railway' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute", "deploy ops from 'render' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute" ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/deploy-ops/__tests__/installed-deploy-verb.test.ts:1:1458
+✖ split upgrade: deploy=true, github=true — Actions follows github, Fly follows deploy (1789.73603ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   "deploy ops from 'fly' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute",
+  +   "deploy ops from 'github' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute",
+  +   "deploy ops from 'railway' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute",
+  +   "deploy ops from 'render' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute"
+  + ]
+  - []
+  
+      at <anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/installed-deploy-verb.test.ts:52:16)
+      at async withAgentPluginsDir (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/installed-deploy-verb.test.ts:30:16)
+      at async TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/installed-deploy-verb.test.ts:43:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ "deploy ops from 'fly' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute", "deploy ops from 'github' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute", "deploy ops from 'railway' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute", "deploy ops from 'render' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute" ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:1:6402
+✖ installed fly package must be active and match the bundled digest (71.030586ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   'fly'
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:114:14)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'fly' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:1:6402
+✖ installed github package must be active and match the bundled digest (52.619195ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   'github-actions'
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:114:14)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'github-actions' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:1:6402
+✖ installed railway package must be active and match the bundled digest (42.923759ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   'railway'
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:114:14)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'railway' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:1:6402
+✖ installed render package must be active and match the bundled digest (45.808454ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + []
+  - [
+  -   'render'
+  - ]
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/features/deployments/deploy-ops/__tests__/registry.test.ts:114:14)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [ 'render' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

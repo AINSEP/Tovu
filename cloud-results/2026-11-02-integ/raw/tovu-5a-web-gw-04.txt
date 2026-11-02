@@ -1,0 +1,375 @@
+✔ end to end: a submission is planned, delivered through the OAuth connection with a fresh token, and a replayed event adds no row (90.720456ms)
+✔ an account switch after planning: the frozen job is refused (authorization-required, kept), never delivered to the new account (38.399419ms)
+✔ a binding re-pointed at the switched account delivers the next submission there (32.00621ms)
+✔ reconnect required (the provider refuses the refresh with invalid_grant): authorization-required, the job kept in the ledger, nothing sent (26.191272ms)
+✔ a binding naming a saved custom credential still resolves behind the OAuth port (the OAuth port does not own its ref) (20.78607ms)
+✔ a job of another workspace is never served by this site's OAuth host: no connection resolves, authorization-required (13.174804ms)
+✔ end to end: the surface saves a binding (connection id and form slug in, ref and form row id stored) and a submission delivers through it (30.351373ms)
+✔ security: an adapter the surface declares but the plugin does not contribute is refused (adapter-not-owned); nothing stored (15.148091ms)
+✔ security: another adapter's binding is invisible to the surface and can be neither overwritten nor removed (23.780949ms)
+✔ the surface lists and removes its own binding; the removal reaches the stored setting (27.417877ms)
+✔ security: an adapter id the surface declares but ANOTHER plugin contributes is refused (adapter-not-owned); nothing stored (17.806197ms)
+✔ a trusted plugin owns its declared API label; another plugin cannot borrow it (6.683426ms)
+✔ declaring an API label does not authorize another plugin saveTarget (0.603512ms)
+✔ an agent plugin that declares its provider plugin owns that provider settings card (0.745901ms)
+✔ a provider settings card for a provider plugin the agent plugin does not declare is refused (0.646739ms)
+✔ duplicate API label claims refuse both plugins in either order and retain unrelated cards (1.458985ms)
+✔ an explicit label claim conflicts with another plugin implicit identity ownership (0.865562ms)
+✔ an explicit claim cannot take a mail plugin API label; both conflicting cards are refused (0.546029ms)
+✔ cards from one plugin may share its API row and domain display labels claim no API ownership (0.745136ms)
+✔ bundled Fly and Meilisearch declarations survive real parsing and ownership with saved labels unchanged (16.084796ms)
+✔ composition merges mail and manifest cards through the active contribution owner on every lookup (0.696035ms)
+✔ a refused manifest does not remove working mail cards and its refusal is reported (0.322994ms)
+✔ a broken manifest loader retains mail cards and reports the fallback (0.271397ms)
+✔ trusted contribution materialization tags ownership and refuses cross-plugin identities (1.498232ms)
+✔ probe declarations survive real parsing and trusted card materialization (0.393669ms)
+✔ unsafe probe declaration is refused: https://other.example.com/user (0.306635ms)
+✔ unsafe probe declaration is refused: http://api.example.com/user (0.160083ms)
+✔ unsafe probe declaration is refused: https://user:password@api.example.com/user (0.136245ms)
+✔ unsafe probe declaration is refused: https://@api.example.com/user (0.128492ms)
+✔ unsafe probe declaration is refused: /user (0.147453ms)
+✔ a fixed probe requires an API card and a fixed declared base origin (0.641698ms)
+✔ owner 2026-10-09: both families share one live metadata lookup with workspace isolation (40.684184ms)
+✔ the executable site SDK receives only live metadata methods through the existing loader (11.676365ms)
+✔ the manifest adapter never includes malformed package bytes in its error (4.701703ms)
+✔ legacy metadata warns, preserves the install and never infers provides from permissions (2.177128ms)
+✔ cross-family identity admission refuses duplicates before publication and releases its lock (6.270517ms)
+✔ the composed installer reserves built-in publisher ids even without a cross-family host (6.830263ms)
+✔ plugin list/toggle/uninstall dispatch to injected host capabilities and retain authorization (4.488404ms)
+✔ search_tools indexes a site plugin keyword and provides capability (19.27662ms)
+✔ every bundled agent and site package declares a distinct publisher identity and discovery terms (664.987201ms)
+✔ parallel host adapters serialize duplicate identity admission across plugin kinds (17.665408ms)
+✔ unrecorded revisions are omitted without hiding healthy providers or blocking unrelated installs (8.73469ms)
+✔ conflicting revisions retain every publisher reservation even when a bundled ledger selects one (11.808637ms)
+✔ a broken revision cannot hide the only valid operator revision (1.989393ms)
+✔ one malformed identity never hides healthy providers or blocks admission (3.802205ms)
+✔ rejected duplicate site records do not reappear in the host directory (2.10559ms)
+✔ same-name legacy plugins in different families are independently addressable (2.557852ms)
+✔ MCP provisioning logs each server and reason while preserving activation success (4.976815ms)
+✔ L058b site discovery omits invalid identities and propagates activation read failures (4.746312ms)
+✔ L058b default agent activation is resolved through the lifecycle owner (16.440165ms)
+✔ L058b agent revision lookup and admission retain distinct selection contracts (10.105767ms)
+✔ the composed MCP port preserves store errors by identity and persists through the bound store (5.401121ms)
+✔ memory gauges follow usage consent with fixed labels; warnings retain crash consent and severity (31.457837ms)
+✔ unset or incomplete child env never loads providers or reads config, and returns no product branch (0.595871ms)
+✔ catalog event uses installation identity; unknown and visitor events are dropped, free-text enum properties are omitted (8.230636ms)
+✔ unknown enum drops only its property and still sends the event; known enum is kept (3.620415ms)
+✔ admin route is renamed and projected to two segments; queries and later slugs do not escape (4.134819ms)
+✔ each next event sees mtime consent changes; usage and crashes are independent; no identity drops usage (9.333197ms)
+✔ error payload masks POSIX/Windows/UNC/file paths, credentials and email; context and lifecycle signals are restricted (4.398528ms)
+✔ preference reader parses only on mtime change, and stat/read/JSON/malformed booleans fail closed (1.00265ms)
+✔ missing/corrupt config, invalid shape and load/init failure yield both noops and exactly one fixed warning (9.077921ms)
+✔ post-load failure disposes resources and a throwing warning sink cannot fail boot (2.136847ms)
+✔ catalog is frozen; declared free-text enum values and unknown identity fields are omitted (0.482421ms)
+✔ maker errors discard site trace IDs and arbitrary attributes while preserving permitted context (3.023648ms)
+✔ standalone catalog resolves only configured packages; real provider ports retain live consent and attribution (140.541465ms)
+✔ one configured standalone provider leaves the other noop without resolving its package (42.431644ms)
+✔ standalone lookup, discovery, integrity and init failures release earlier providers and disable both outputs (149.153975ms)
+✔ missing or malformed catalog and unknown selections fail closed before importing any provider (58.458795ms)
+✖ Tovu declares no production vendor plugins; OTLP is development-only and lock entries match the selected packages (10.642403ms)
+✔ product factory options carry runtime eligibility only to observability and consent still vetoes export (53.571868ms)
+✔ child launch environment determines product eligibility before provider loading (6.127607ms)
+[agent-plugins:migration-complete] /tmp/tovu-face-sync-dqxQLY/agent-plugins/ws/workspace-local
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ memory composition: the provider switch moves its linked face (was a bare repo) (352.06264ms)
+[migrations] /tmp/tovu-face-sync-TXc5wb/site/content.db: applied 0000_legacy_baseline, 0001_post_search, 0002_drop_empty_legacy_chat_tables, 0003_coercion_json_as_json, 0004_drop_unused_deployment_tables, 0005_media_createdby, 0006_submission_ip_retention, 0007_publish_backstop, 0008_posts_publish_at_featured_media, 0009_posts_author, 0010_members_credentials_revoked_at, 0011_drop_empty_core_commerce_tables, 0012_secrets_vault, 0013_unify_vault_credentials, 0014_media_library, 0015_document_blob_ownership, 0016_publish_destination_history, 0017_publish_history_kind, 0018_form_submission_remote_receipts, 0019_form_delivery_plans, 0020_vault_api_connection_kind, 0021_site_consent_revisions, 0022_workspace_mcp_cascade, 0023_mail_ledgers, 0024_domain_bindings, 0025_mail_feedback_processed, 0026_domain_binding_version, 0027_search_index, 0028_search_index_retired, 0029_mail_activity_indexes, 0030_mail_suppression_admin, 0031_mail_activity_retention, 0032_member_signup_email, 0033_mail_activity_message, 0034_member_auth, 0035_member_external_identities, 0036_publish_history_config_jsonb, 0037_media_source_metadata
+[migrations]   vault coverage site-assistant: rows=0, envelopes=0
+[migrations]   vault coverage personal-execution: rows=0, envelopes=0
+[migrations]   vault coverage media-provider: rows=0, envelopes=0
+[migrations]   vault coverage custom: rows=0, envelopes=0
+[migrations]   vault coverage publish-peer: rows=0, envelopes=0
+[migrations]   vault coverage database-destination: rows=0, envelopes=0
+[migrations]   vault coverage vendor: rows=0, envelopes=0
+[migrations]   vault coverage source-control: rows=0, envelopes=0
+[migrations]   vault coverage mcp-env: rows=0, envelopes=0
+[migrations]   vault coverage mcp-auth: rows=0, envelopes=0
+vault boot coverage {
+  green: true,
+  flagged: [],
+  kinds: {
+    'site-assistant': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'personal-execution': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'media-provider': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'publish-peer': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'database-destination': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    vendor: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'source-control': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-env': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'mcp-auth': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    'api-connection': {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    },
+    custom: {
+      rows: 0,
+      envelopes: 0,
+      attempted: 0,
+      succeeded: 0,
+      dropped: 0,
+      blocked: 0,
+      legacyRemaining: 0,
+      unopenable: 0
+    }
+  }
+}
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+[agent-plugins:migration-complete] /tmp/tovu-face-sync-TXc5wb/agent-plugins/ws/workspace-local
+✔ SQLite composition: the provider switch moves its linked face (1016.969348ms)
+✔ browser restart after a committed attached save produces a success card with reload guidance (25.365676ms)
+✔ the chat card saves the provider's settings into the PROJECT store, not the site vault; the key never reaches the result, transcript or model input (5.004382ms)
+✔ a Custom… choice saves the typed host (3.113545ms)
+✔ the shared re-entry rule: a changed host with the saved key kept is refused and nothing is written (4.468246ms)
+✔ a blank key with an unchanged host keeps the saved key (3.073514ms)
+✔ a provider plugin that is not installed opens no card (2.386294ms)
+✔ the chat save refuses a missing conditional token with exact guidance and accepts explicit no auth (4.32199ms)
+✔ provider_status reports presence only: configured, missing, store, never a value (2.179435ms)
+✔ a different key card explains site isolation and retains the manifest's help and purposes (0.315026ms)
+✔ provider_status exposes manifest requirements and choices with the command that opens settings (0.586236ms)
+✔ the provider_status settings command opens the manifest card without an agent plugin (2.539288ms)
+✔ assistant reports saved settings with the plugin startup reason and correction, never restart guidance (2.832826ms)
+✔ anonymous guide exposes public content only, using the real Jini filtering shell (4.090908ms)
+✔ guide explains only effective policy grants, without exposing tool ids (1.140736ms)
+✔ default grants preserve the original guide card through the injected engine (0.291777ms)
+✔ all default tools leave both model-facing guide operations unchanged (1.088734ms)
+✔ reduced guide cards include every allowed CMS action and preserve the operator guidance (0.605055ms)
+✔ visitor registry grants only the explicitly injected guide and still denies unknown names/callers (3.348055ms)
+✔ visitor preamble points directly to the public guide without admin-only discovery or delegation (0.180717ms)
+✔ visitor guidance hides internal tool names and ids, including unavailable actions (0.885897ms)
+✔ visitorsafe: public guide prose and pointers contain no raw tool identifiers (0.704365ms)
+✔ no shipped seed file means no seed deps (0.98215ms)
+✔ ports no inspect() reads throw a labelled error on first touch, including the stamp-watermark port (152.775108ms)
+✔ seed loading leaves no temporary database after success (145.330618ms)
+✔ seed loading leaves no temporary database after an invalid seed (4.177713ms)
+✖ the source directory is the pinned version inside the installed package, not content/plugins (2.888311ms)
+✖ the approval equals the packaged manifest: id, version, browser providers and the FULL integrity map (0.23986ms)
+✖ every pinned file is on disk with exactly the pinned bytes (0.231291ms)
+✔ the runtime manifest is the approval: a package cannot widen its own trust (0.884966ms)
+✔ resolution uses the desktop payload roots and the pinned version, whatever the package version (0.308145ms)
+✔ a missing package is a loud packaging error, never a silent content/plugins fallback (0.483843ms)
+✔ the agent face (@jini-ai/agent-plugins/charts-recharts) drives this runtime source (0.766222ms)
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+Plugin 'ui-ux-design' has no publisher-qualified id; using 'unknown/ui-ux-design'.
+✖ assistant tool-call transcript contains the installed ui-ux-design foundations reference (127.14453ms)
+✔ source-mode daemon runs under --import tsx in one process, not the tsx/cli relauncher (3.556443ms)
+✔ source-mode daemon is a single OS process with source maps off (121.715035ms)
+✔ TOVU_DEV_SOURCE_MAPS=1 keeps source maps on for the dev daemon (116.590959ms)
+ℹ tests 109
+ℹ suites 0
+ℹ pass 104
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22885.372874
+
+✖ failing tests:
+
+test at apps/website/src/server/runtime/composition/__tests__/product-telemetry.unit.test.ts:21:7546
+✖ Tovu declares no production vendor plugins; OTLP is development-only and lock entries match the selected packages (10.642403ms)
+  AssertionError [ERR_ASSERTION]: @jini-ai/agent-plugins
+  + actual - expected
+  
+  + '^0.6.17'
+  - '^0.6.19'
+           ^
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/product-telemetry.unit.test.ts:486:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '^0.6.17',
+    expected: '^0.6.19',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts:1:664
+✖ the source directory is the pinned version inside the installed package, not content/plugins (2.888311ms)
+  AssertionError [ERR_ASSERTION]: @jini-ai/provider-plugins must ship plugins/charts-recharts/0.6.19
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts:21:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts:1:1323
+✖ the approval equals the packaged manifest: id, version, browser providers and the FULL integrity map (0.23986ms)
+  Error: ENOENT: no such file or directory, open '/home/user/Jini/packages/provider-plugins/plugins/charts-recharts/0.6.19/jini.plugin.json'
+      at readFileSync (node:fs:483:20)
+      at packagedManifest (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts:17:21)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts:29:20)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/user/Jini/packages/provider-plugins/plugins/charts-recharts/0.6.19/jini.plugin.json'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts:2:179
+✖ every pinned file is on disk with exactly the pinned bytes (0.231291ms)
+  Error: ENOENT: no such file or directory, open '/home/user/Jini/packages/provider-plugins/plugins/charts-recharts/0.6.19/client/provider.js'
+      at Object.openSync (node:fs:621:18)
+      at readFileSync (node:fs:487:35)
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/recharts-package-pin.unit.test.ts:41:58)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/home/user/Jini/packages/provider-plugins/plugins/charts-recharts/0.6.19/client/provider.js'
+  }
+
+test at apps/website/src/server/runtime/composition/__tests__/skill-supporting-files.chat.integration.test.ts:1:888
+✖ assistant tool-call transcript contains the installed ui-ux-design foundations reference (127.14453ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '## Tovu chat rules\n' +
+  - '# Foundations\n' +
+      '\n' +
+  +   'Load design guidance and references with `agent_plugin_ui_ux_design`, passing `skill` and optional\n' +
+  +   '`file`. Discover available theme, page, media and screenshot tools with `search_tools` and\n' +
+  +   '`describe_tool`. Use theme/page tools for actual site edits. Never use Bash, curl, npx or package\n' +
+  +   'installers from chat. CLI and React examples apply only to an authorized coding-agent checkout, not\n' +
+  +   'an authored HTML Tovu theme. If shadcn MCP or another capability is unavailable, explain the\n' +
+  +   'limitation; do not invent tools or install dependencies to work around it. Project specs and design\n' +
+  +   'notes are optional context. Tovu chat requires neither an AI Dev Shop checkout nor\n' +
+  +   '`<ADS_MEMORY_ROOT>`. Return the design in chat unless the user asks to save it through an available\n' +
+  +   'tool.\n' +
+  +   '\n' +
+  +   '\n' +
+  +   '# Foundations\n' +
+  +   '\n' +
+      'Use this reference when creating or extending the visual system for a product or feature.\n' +
+      '\n' +
+      'This file owns the token, layout, and visual-system contract. `ui-loop.md` owns the\n' +
+      "resulting page/screen quality review; do not treat this reference's decisions or\n" +
+      'anti-patterns as a substitute completion checklist.\n' +
+  
+      at TestContext.<anonymous> (/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/skill-supporting-files.chat.integration.test.ts:60:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "## Tovu chat rules\n\nLoad design guidance and references with `agent_plugin_ui_ux_design`, passing `skill` and optional\n`file`. Discover available theme, page, media and screenshot tools with `search_tools` and\n`describe_tool`. Use theme/page tools for actual site edits. Never use Bash, curl, npx or package\ninstallers from chat. CLI and React examples apply only to an authorized coding-agent checkout, not\nan authored HTML Tovu theme. If shadcn MCP or another capability is unavailable, explain the\nlimitation; do not invent tools or install dependencies to work around it. Project specs and design\nnotes are optional context. Tovu chat requires neither an AI Dev Shop checkout nor\n`<ADS_MEMORY_ROOT>`. Return the design in chat unless the user asks to save it through an available\ntool.\n\n\n# Foundations\n\nUse this reference when creating or extending the visual system for a product or feature.\n\nThis file owns the token, layout, and visual-system contract. `ui-loop.md` owns the\nresulting page/screen quality review; do not treat this reference's decisions or\nanti-patterns as a substitute completion checklist.\n\n## Goals\n\n- Define a stable visual foundation before designing individual screens.\n- Give Programmer a constrained, reusable system instead of one-off styling decisions.\n- Preserve existing product patterns unless the user explicitly wants a new direction.\n\n## Required Decisions\n\n1. Visual direction\n2. Color and semantic token system\n3. Typography hierarchy\n4. Spacing scale\n5. Layout/container/grid rules\n6. Breakpoint behavior\n7. Elevation, border, radius, and motion primitives\n\n## Minimum Foundation Contract\n\n### Visual Direction\n\nDefine:\n\n- product character in 3-5 adjectives\n- intended level of formality\n- density target: compact, balanced, spacious\n- contrast profile: restrained, moderate, bold\n- reuse vs reinvention decision\n\nIf working within an existing system, document continuation rules instead of inventing a new style.\n\n### Token Categories\n\nCreate or extend tokens for:\n\n- surface/background\n- text/foreground\n- border/separator\n- interactive/brand\n- success/warning/error/info\n- focus ring\n- shadow/elevation\n- radius\n- spacing\n- typography\n- motion duration/easing\n\nPrefer semantic names over raw color names.\n\n### Typography\n\nDefine:\n\n- display or hero style if needed\n- heading scale\n- body sizes\n- caption/supporting text\n- monospace usage if relevant\n- line-height and weight rules\n\n### Spacing\n\nUse a consistent scale. Typical safe pattern:\n\n- `4, 8, 12, 16, 24, 32, 48, 64`\n\nApply the same scale to:\n\n- margins\n- padding\n- grid gaps\n- section rhythm\n- component spacing\n\n### Layout\n\nDefine:\n\n- max content widths\n- section padding rules\n- grid column behavior\n- stack behavior on narrow screens\n- sticky or persistent UI elements if any\n\nDefault to mobile-first.\n\n### Breakpoints\n\nDocument behavior at:\n\n- mobile\n- tablet\n- desktop\n- large desktop if relevant\n\nDescribe behavior, not just widths:\n\n- navigation changes\n- card/list reflow\n- sidebar collapse/expand\n- media cropping\n- density and spacing adjustments\n\n## Theming\n\nDo not require multiple themes by default.\n\nIf theming is in scope, define:\n\n- what tokens change\n- contrast rules\n- image/media treatment changes\n- persistence behavior\n\nDo not add a theme toggle only because it is possible.\n\n## Anti-Patterns\n\n- hardcoded one-off colors across components\n- spacing chosen ad hoc per screen\n- headings without a system\n- desktop-first layout that collapses poorly on mobile\n- decorative motion without purpose\n- dark mode or theme switching as mandatory default\n\n## Reference-Specific Output\n\nRecord the applicable foundation decisions in the authorized design artifact or\nliving visual `design.md`:\n\n- visual direction named\n- semantic token groups defined\n- typography hierarchy defined\n- spacing scale defined\n- breakpoints documented\n- layout rules documented\n- motion/elevation basics documented\n- assumptions and constraints explicitly noted\n",
+    expected: "# Foundations\n\nUse this reference when creating or extending the visual system for a product or feature.\n\nThis file owns the token, layout, and visual-system contract. `ui-loop.md` owns the\nresulting page/screen quality review; do not treat this reference's decisions or\nanti-patterns as a substitute completion checklist.\n\n## Goals\n\n- Define a stable visual foundation before designing individual screens.\n- Give Programmer a constrained, reusable system instead of one-off styling decisions.\n- Preserve existing product patterns unless the user explicitly wants a new direction.\n\n## Required Decisions\n\n1. Visual direction\n2. Color and semantic token system\n3. Typography hierarchy\n4. Spacing scale\n5. Layout/container/grid rules\n6. Breakpoint behavior\n7. Elevation, border, radius, and motion primitives\n\n## Minimum Foundation Contract\n\n### Visual Direction\n\nDefine:\n\n- product character in 3-5 adjectives\n- intended level of formality\n- density target: compact, balanced, spacious\n- contrast profile: restrained, moderate, bold\n- reuse vs reinvention decision\n\nIf working within an existing system, document continuation rules instead of inventing a new style.\n\n### Token Categories\n\nCreate or extend tokens for:\n\n- surface/background\n- text/foreground\n- border/separator\n- interactive/brand\n- success/warning/error/info\n- focus ring\n- shadow/elevation\n- radius\n- spacing\n- typography\n- motion duration/easing\n\nPrefer semantic names over raw color names.\n\n### Typography\n\nDefine:\n\n- display or hero style if needed\n- heading scale\n- body sizes\n- caption/supporting text\n- monospace usage if relevant\n- line-height and weight rules\n\n### Spacing\n\nUse a consistent scale. Typical safe pattern:\n\n- `4, 8, 12, 16, 24, 32, 48, 64`\n\nApply the same scale to:\n\n- margins\n- padding\n- grid gaps\n- section rhythm\n- component spacing\n\n### Layout\n\nDefine:\n\n- max content widths\n- section padding rules\n- grid column behavior\n- stack behavior on narrow screens\n- sticky or persistent UI elements if any\n\nDefault to mobile-first.\n\n### Breakpoints\n\nDocument behavior at:\n\n- mobile\n- tablet\n- desktop\n- large desktop if relevant\n\nDescribe behavior, not just widths:\n\n- navigation changes\n- card/list reflow\n- sidebar collapse/expand\n- media cropping\n- density and spacing adjustments\n\n## Theming\n\nDo not require multiple themes by default.\n\nIf theming is in scope, define:\n\n- what tokens change\n- contrast rules\n- image/media treatment changes\n- persistence behavior\n\nDo not add a theme toggle only because it is possible.\n\n## Anti-Patterns\n\n- hardcoded one-off colors across components\n- spacing chosen ad hoc per screen\n- headings without a system\n- desktop-first layout that collapses poorly on mobile\n- decorative motion without purpose\n- dark mode or theme switching as mandatory default\n\n## Reference-Specific Output\n\nRecord the applicable foundation decisions in the authorized design artifact or\nliving visual `design.md`:\n\n- visual direction named\n- semantic token groups defined\n- typography hierarchy defined\n- spacing scale defined\n- breakpoints documented\n- layout rules documented\n- motion/elevation basics documented\n- assumptions and constraints explicitly noted\n",
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

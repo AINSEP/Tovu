@@ -1,0 +1,4 @@
+
+> @jini-ai/sqlite@0.6.17 typecheck /home/user/Jini/packages/sqlite
+> tsc -p tsconfig.json --noEmit
+

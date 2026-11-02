@@ -1,0 +1,4 @@
+
+> @jini-ai/ui@0.6.17 typecheck /home/user/Jini/packages/ui
+> tsc -p tsconfig.json --noEmit
+

@@ -1,0 +1,34 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/server
+
+stderr | src/__tests__/create-local-node-daemon.test.ts > createLocalNodeDaemon > delegated tool calls > refuses tool execution when the host supplies no principal resolver
+[@jini-ai/http-kit] internal error (resolve-principal, correlationId=b0fd61b1-03cf-427e-a2bc-38419f1a9ce8) Error: Delegated tool calls require a host principal resolver
+    at resolveDelegatedToolPrincipal (/home/user/Jini/packages/server/src/builtin-features.ts:68:32)
+    at Object.resolvePrincipal (/home/user/Jini/packages/server/src/builtin-features.ts:509:50)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/delegated-tools.ts:313:30)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at /home/user/Jini/packages/http-kit/src/adapter.ts:135:22
+
+stderr | src/__tests__/create-local-node-daemon.test.ts > createLocalNodeDaemon > resolveRunInput, when supplied with no onRunStarted, builds a default RunStartHandler that drives the real zero-config AgentExecutor
+[@jini-ai/http-kit] internal error (run-start, correlationId=b88314f3-0fa2-4198-9d7e-853032b70ae5) AgentExecutorError: AgentExecutor: unknown agentId "no-such-agent"
+    at Object.failBeforeSpawn (/home/user/Jini/packages/daemon/src/agent-executor/launch.ts:1011:11)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at prepareRunContext (/home/user/Jini/packages/daemon/src/agent-executor/launch.ts:1044:22)
+    at Object.run (/home/user/Jini/packages/daemon/src/agent-executor/launch.ts:1360:42)
+    at Object.onStarted (/home/user/Jini/packages/daemon/src/continuation/run-start-handler.ts:120:5)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/runs.ts:226:9)
+    at /home/user/Jini/packages/http-kit/src/adapter.ts:135:22 {
+  code: 'AGENT_NOT_FOUND'
+}
+
+stderr | src/__tests__/create-local-node-daemon.test.ts > createLocalNodeDaemon > binds an IPv6 loopback host to a URL that actually parses and answers
+IPv6 loopback unavailable: this platform cannot bind ::1 (EAFNOSUPPORT).
+
+ ✓ src/__tests__/create-local-node-daemon.test.ts (92 tests | 1 skipped) 3999ms
+   ✓ createLocalNodeDaemon > serves GET /api/agents, projecting the real @jini-ai/agent-runtime registry with zero config 2007ms
+
+ Test Files  1 passed (1)
+      Tests  91 passed | 1 skipped (92)
+   Start at  20:26:21
+   Duration  7.97s (transform 2.30s, setup 0ms, collect 3.67s, tests 4.00s, environment 0ms, prepare 76ms)
+

@@ -1,0 +1,783 @@
+✔ renamed Cloudflare package loads both targets, preserving the Pages target and vendor credential (40.020376ms)
+✔ both installed module contracts refuse model-provided domain approval before any request (7.076865ms)
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+✔ cloudflare-pages retained after failed retirement; successor trusted yields at most one Pages owner (657.779369ms)
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+✔ cloudflare-pages retained after failed retirement; successor untrusted yields at most one Pages owner (64.391209ms)
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+✔ cloudflare-pages retained after failed retirement; successor disabled yields at most one Pages owner (65.252487ms)
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+Plugin 'cloudflare-pages' has no publisher-qualified id; using 'unknown/cloudflare-pages'.
+✔ cloudflare-pages retained after failed retirement; successor absent yields at most one Pages owner (38.29357ms)
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+✔ deploy retained after failed retirement; successor trusted yields at most one Pages owner (71.955556ms)
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+✔ deploy retained after failed retirement; successor untrusted yields at most one Pages owner (87.565143ms)
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+Plugin 'cloudflare' has no publisher-qualified id; using 'unknown/cloudflare'.
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+✔ deploy retained after failed retirement; successor disabled yields at most one Pages owner (80.964689ms)
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+Plugin 'deploy' has no publisher-qualified id; using 'unknown/deploy'.
+✔ deploy retained after failed retirement; successor absent yields at most one Pages owner (58.790145ms)
+✔ cloudflare/cloudflare-workers: correct title, destination, key page and minimum access guidance (1.920173ms)
+✔ cloudflare/cloudflare-pages: correct title, destination, key page and minimum access guidance (0.362728ms)
+✔ domain-owned forms supply the connection fields (1.058913ms)
+✔ every credential card parses its task purposes (2.573842ms)
+✔ Cloudflare owns the diagnostic DNS URL as data available before activation (524.762417ms)
+✔ the Tovu sign-in fallback, grant screen and restart live here (14.182518ms)
+✔ the overlay grants no remote code-execution tool (9.334676ms)
+✔ every snake_case tool the overlay cites is a served native tool or a per-plugin tool (4.03018ms)
+✔ the hosted connection supports browser sign-in without inline credentials (21.139194ms)
+✔ composio/composio: correct title, destination, key page and minimum access guidance (3.47715ms)
+✔ browser sign-in declares permissions (0.291811ms)
+✔ every credential card parses its task purposes (1.761191ms)
+✔ the old tovu-deploy-fly package is gone — retire-bundled.ts removes it from workspaces (6.207994ms)
+✔ plugin.json still parses and carries the fly vocabulary an operator would search for (11.839306ms)
+✔ the fly skill triggers for a Fly server deploy and defers to the host guidance that names the procedure (2.690113ms)
+✔ the package packs through the real installer's own packer, fly templates included (14.406637ms)
+✔ the templates are separate asset files, not inlined, and fly-server.md points at each (2.360703ms)
+✔ every operator-supplied value in both templates is marked as a placeholder (11.008459ms)
+✔ fly-server.md encodes the single-machine rule and forbids autoscaling (1.384169ms)
+✔ fly-server.md states that the volume shadows the image's ENTIRE sites/ tree (1.436379ms)
+✔ fly-server.md keeps secrets out of fly.toml and names all three as boot-blocking (1.30575ms)
+✔ fly-server.md says plainly and EARLY that deploying ships code, not content (1.375134ms)
+✔ fly-server.md forbids org-wide or account-wide Fly API listing calls during pre-flight (1.211151ms)
+✔ fly-server.md documents the Machines API path as BLOCKED and never as a procedure to run (1.626678ms)
+✔ fly-server.md defers every GitHub step to the `github` plugin instead of restating the procedure (1.459681ms)
+✔ fly-server.md never tells the assistant to handle a secret value itself (1.4702ms)
+✔ Fly owns ops, config and FlyV1 scheme with no static publish target, and seeds disabled (6.44944ms)
+✔ fly/fly: correct title, destination, key page and minimum access guidance (1.775576ms)
+✔ the Machines API host is declared explicitly (1.407938ms)
+✔ every credential card parses its task purposes (1.675315ms)
+✔ the bundled fly plugin ships exactly one rule, fly-io, sending FlyV1 for a FlyV1 prefix (17.403391ms)
+✔ detect: a token starting with FlyV1 splits into scheme 'FlyV1' and everything after it as the value (1.796163ms)
+✔ renders the fly config to stdout and its operator notes to stderr, Tovu's Chromium note last (580.470017ms)
+✔ --out writes the rendered fly.toml and reports where (7.322445ms)
+✔ without --region the generator receives an empty region and fly refuses to assume one (5.739024ms)
+✔ the plugin with Tovu's kit and HOST_DEPLOY_ENV preserves every production field, including the live volume folder and public origin (0.690873ms)
+✔ the production workflow's generation step uses the fetched plugin and emits the parity config without npm or a built CLI (65.407975ms)
+✖ the committed Tovu deploy workflow is exactly the render of the plugin template plus this overlay (8.101262ms)
+✔ the render keeps the production deploy contract (1.710413ms)
+✔ the deploy job fetches exactly the pinned plugin version and imports the generator from it, not from Tovu (1.040916ms)
+✔ every block the values file names exists in workflow/, and every workflow/ file is used (1.36793ms)
+✔ supporting files follow the overlay naming rule the guidance reader enforces (0.466651ms)
+✔ deploy notes are keyed by target id and hold plain strings (0.354379ms)
+✔ the Fly package advertises one secrets-capable platform labelled Fly.io (22.992236ms)
+✔ status, logs and targets through the generic handlers return Fly's normalized empty results (15.828973ms)
+✔ wait reports Fly machine observations until every started machine passes (9.703874ms)
+✔ a missing Fly credential prefills the secure card with Fly's API host (4.541409ms)
+✔ Fly's host declaration is plain manifest data, synchronously readable before activation (6.415755ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,null,null] (3.926976ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,null,""] (2.233975ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,null," "] (1.985697ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,null,"0"] (2.057301ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,null,"alloc"] (1.878811ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,"",null] (2.042051ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,"",""] (1.719802ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,""," "] (1.854734ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,"","0"] (1.97003ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,"","alloc"] (1.746702ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null," ",null] (1.604337ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null," ",""] (1.660642ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null," "," "] (1.797535ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null," ","0"] (1.625963ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null," ","alloc"] (1.595684ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,"0",null] (1.578703ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,"0",""] (1.933767ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,"0"," "] (1.514032ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,"0","0"] (1.644688ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,"0","alloc"] (1.502148ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,"machine",null] (1.561732ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,"machine",""] (1.537288ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,"machine"," "] (1.61741ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,"machine","0"] (1.519126ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [null,"machine","alloc"] (1.535889ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["",null,null] (1.549898ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["",null,""] (4.077394ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["",null," "] (1.493391ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["",null,"0"] (1.449434ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["",null,"alloc"] (1.378261ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["","",null] (1.343229ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["","",""] (1.361786ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["",""," "] (1.340888ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["","","0"] (1.3192ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["","","alloc"] (1.277631ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [""," ",null] (1.301554ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [""," ",""] (1.291723ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [""," "," "] (1.281917ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [""," ","0"] (1.347699ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [""," ","alloc"] (1.260968ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["","0",null] (1.268829ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["","0",""] (1.367206ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["","0"," "] (1.3706ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["","0","0"] (1.211115ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["","0","alloc"] (1.268356ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["","machine",null] (1.26394ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["","machine",""] (1.307437ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["","machine"," "] (1.336178ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["","machine","0"] (1.229614ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["","machine","alloc"] (1.335913ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ",null,null] (1.287143ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ",null,""] (1.280014ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ",null," "] (1.484755ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ",null,"0"] (1.28868ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ",null,"alloc"] (1.259406ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ","",null] (1.415064ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ","",""] (1.227788ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ",""," "] (1.185379ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ","","0"] (1.322132ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ","","alloc"] (1.223169ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" "," ",null] (1.174921ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" "," ",""] (1.305743ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" "," "," "] (1.484587ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" "," ","0"] (1.56722ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" "," ","alloc"] (1.470353ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ","0",null] (1.420962ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ","0",""] (1.270578ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ","0"," "] (1.507545ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ","0","0"] (1.386617ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ","0","alloc"] (1.53459ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ","machine",null] (1.394629ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ","machine",""] (1.47285ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ","machine"," "] (3.692106ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ","machine","0"] (1.301851ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix [" ","machine","alloc"] (1.282022ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0",null,null] (1.319587ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0",null,""] (1.290901ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0",null," "] (1.475548ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0",null,"0"] (1.227423ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0",null,"alloc"] (1.286353ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0","",null] (1.22422ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0","",""] (1.215612ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0",""," "] (1.270357ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0","","0"] (1.216412ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0","","alloc"] (1.247381ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0"," ",null] (1.326111ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0"," ",""] (1.488691ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0"," "," "] (1.156581ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0"," ","0"] (1.291418ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0"," ","alloc"] (1.200817ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0","0",null] (1.172563ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0","0",""] (1.24265ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0","0"," "] (1.18559ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0","0","0"] (1.242304ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0","0","alloc"] (1.236051ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0","machine",null] (1.184501ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0","machine",""] (1.183274ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0","machine"," "] (1.286176ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0","machine","0"] (1.207859ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["0","machine","alloc"] (1.153635ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app",null,null] (1.234567ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app",null,""] (1.165512ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app",null," "] (1.236161ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app",null,"0"] (1.330171ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app",null,"alloc"] (1.20557ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app","",null] (1.303849ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app","",""] (1.195198ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app",""," "] (1.194497ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app","","0"] (1.153315ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app","","alloc"] (1.160492ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app"," ",null] (1.229814ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app"," ",""] (1.101885ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app"," "," "] (1.211782ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app"," ","0"] (1.308881ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app"," ","alloc"] (1.184802ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app","0",null] (1.136303ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app","0",""] (1.248465ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app","0"," "] (1.259375ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app","0","0"] (1.237421ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app","0","alloc"] (1.261335ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app","machine",null] (1.167529ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app","machine",""] (1.165619ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app","machine"," "] (1.214116ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app","machine","0"] (1.200939ms)
+✔ Fly APP/MACHINE/ALLOC policy matrix ["app","machine","alloc"] (2.851108ms)
+✔ packaged desktop and plugin-install opt-in preserve their separate exceptions (15.682966ms)
+✔ boot labels, ordering and full warning bytes stay identical, including incidental advice (2.584955ms)
+✔ valid shipped declaration: 4,500 combinations match frozen HEAD for every consumer (201.918469ms)
+✔ valid shipped declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (4.415691ms)
+✔ missing declaration: 4,500 combinations match frozen HEAD for every consumer (119.57505ms)
+✔ missing declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (2.03543ms)
+✔ unreadable manifest: 4,500 combinations match frozen HEAD for every consumer (170.451324ms)
+✔ unreadable manifest: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (3.565926ms)
+✔ malformed JSON: 4,500 combinations match frozen HEAD for every consumer (216.669057ms)
+✔ malformed JSON: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (1.413934ms)
+✔ missing metadata: 4,500 combinations match frozen HEAD for every consumer (121.410417ms)
+✔ missing metadata: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (2.63974ms)
+✔ malformed declaration: 4,500 combinations match frozen HEAD for every consumer (130.225355ms)
+✔ malformed declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (1.593363ms)
+✔ empty security declaration: 4,500 combinations match frozen HEAD for every consumer (129.353114ms)
+✔ empty security declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (1.562193ms)
+✔ partial security declaration: 4,500 combinations match frozen HEAD for every consumer (134.753096ms)
+✔ partial security declaration: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (1.608271ms)
+✔ weakened security facts: 4,500 combinations match frozen HEAD for every consumer (169.843041ms)
+✔ weakened security facts: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (1.903622ms)
+✔ ambiguous cross-package ownership: 4,500 combinations match frozen HEAD for every consumer (196.486629ms)
+✔ ambiguous cross-package ownership: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (2.56527ms)
+✔ ambiguous ownership within package: 4,500 combinations match frozen HEAD for every consumer (199.072234ms)
+✔ ambiguous ownership within package: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (2.325119ms)
+✔ conflicting advice: 4,500 combinations match frozen HEAD for every consumer (220.124937ms)
+✔ conflicting advice: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (1.603688ms)
+✔ unresolved product root: 4,500 combinations match frozen HEAD for every consumer (111.118596ms)
+✔ unresolved product root: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (1.241225ms)
+✔ absent source root: 4,500 combinations match frozen HEAD for every consumer (112.150311ms)
+✔ absent source root: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (1.292244ms)
+✔ reader failure: 4,500 combinations match frozen HEAD for every consumer (147.688955ms)
+✔ reader failure: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (2.299339ms)
+✔ missing advice: 4,500 combinations match frozen HEAD for every consumer (173.875623ms)
+✔ missing advice: independent product switches, CLI locks, warning triggers and salt bytes match HEAD (1.77674ms)
+✔ missing/malformed on-disk declarations preserve HEAD rather than silently granting access (4.66411ms)
+✔ native and permission policies without host injection preserve frozen HEAD (25.638326ms)
+✔ Docker's runtime-asset staging preserves Fly's host declaration byte for byte (15.118284ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-ops-verb-5Bk5OC/ws/workspace-local
+✖ seeded from this build, the installed fly adapter stays observe-only (1860.989937ms)
+✔ the fly package's ops manifest loads its contained module with its declared hosts (25.604087ms)
+✔ plugin.json parses under the Agent Plugins v1.0.0 validator with no warnings (15.379237ms)
+✔ mcp.json declares ZERO servers — hosts run in-process through the deploy-target registry (7.196029ms)
+✔ the eponymous skill exists and names the server host it deploys to; Tovu's guidance points at every hosting plugin (2.277429ms)
+✔ the package packs through the real packer, and ships no publish target of its own any more (9.937994ms)
+✔ Fly declares deploy candidates and its workflow as data, usable before activation (679.644421ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ vendor requests retain discovery in the production catalog (450.039845ms)
+✔ github-pages/github-pages: correct title, destination, key page and minimum access guidance (1.125665ms)
+✔ every credential card parses its task purposes (1.652537ms)
+✔ github/github: correct title, destination, key page and minimum access guidance (1.204324ms)
+✔ github/github-source-control: correct title, destination, key page and minimum access guidance (0.31883ms)
+✔ source control uses the GitHub save destination (0.21264ms)
+✔ every credential card parses its task purposes (1.83098ms)
+✔ only the API-token card declares a parsed, same-origin read-only user probe (0.604951ms)
+✔ resolves ref to a full SHA, dispatches example-deploy.yml pinned to it, and finds the run after it appears (4.480631ms)
+✔ ref defaults to main; a run id in the dispatch response is used without lookups (0.688187ms)
+✔ runs on another SHA or from before the dispatch are never reported as this deploy (0.832889ms)
+✔ bare SHAs, bad refs, injected targets and unresolvable refs are refused before any dispatch (1.527762ms)
+✔ through the real registry: runDeploy sends one JSON dispatch and deployment_ops_wait accepts the returned runId (62.960048ms)
+✔ the workflow input the overlay names is the deploy workflow's required dispatch input (14.484223ms)
+✔ the Site key start commands the overlay gives are real npm scripts (3.73222ms)
+✔ the overlay keeps the no-restore promise and the export note (1.714748ms)
+✔ the overlay is vendor-neutral about models: no model or vendor names (1.715577ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-ops-verb-WBt8hI/ws/workspace-local
+✖ seeded from this build, the installed github-actions adapter exports deploy (145.359377ms)
+[agent-plugins:migration-complete] /tmp/tovu-deploy-ops-verb-OiPBjk/ws/workspace-local
+✖ upgrade: a site holding the previous github digest loads the changed adapter after the next boot (333.730644ms)
+✔ the github package's ops manifest loads its contained module with its declared hosts (12.2668ms)
+✔ GitHub owns its token form and reuses its existing source-control credential card (5.018506ms)
+✔ GitHub declares its own reserved and executable workflow paths (0.680461ms)
+✔ GitHub credential admission needs only the token and probes through the injected transport after saving (43.239738ms)
+✔ with no gitAdapter override, a confirmed commit reaches the real GitHub adapter (57.526193ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✖ vendor requests retain discovery in the production catalog (382.292084ms)
+✔ member OAuth client uses the existing sealed API card and matches the preset credential binding (6.211402ms)
+✔ missing client ID is rejected by the existing card owner (1.093725ms)
+✔ the card cannot add a new callback or issuer input through API metadata (0.74602ms)
+✔ U1: the bundled contract pins the host link, fixed label, consent and static fallback (1.493215ms)
+✔ U1: each variant passes the real fragment policy with native keyboard navigation and local assets (10.665023ms)
+✔ U1: disabled, unconfigured and foreign-owner providers cannot render a button (2.670349ms)
+✔ U1: arbitrary variant, label and URL props are rejected, including a mixed valid/invalid batch (1.757135ms)
+✔ U1: static mode keeps authored fallback and bundles deduplicated CSS and G artwork references (1.115505ms)
+✔ U1: every bundled public export template passes the single CMS fragment validator (7.683172ms)
+✔ the bundled Google preset pins the identity protocol without API permissions or offline access (1.60208ms)
+✔ Google Login is discoverable as a bundled opt-in member provider and marked soon (1.324174ms)
+✔ Google sign-in card matches the existing OAuth connection and its selected-file permission (4.093562ms)
+✔ Google own-client card fills the existing client-ID and secret slots without optional or unrelated inputs (2.624661ms)
+✔ Google guidance chooses sign-in and keeps the own-client fallback on its own card (0.206478ms)
+✔ every credential card parses its task purposes (0.506102ms)
+✔ the destination panel's save is the delivery binding: this plugin's Sheets adapter, its own connection ref, the form's row id, the frozen account (167.026581ms)
+✔ end to end: one submission becomes one RAW row; a replayed event and a redelivered job add no second row (145.686861ms)
+✔ Sheets turned off pauses delivery (adapter-unavailable, retryable, nothing sent); turned back on, the same job delivers (138.995912ms)
+✔ reconnect required (Google refuses the refresh with invalid_grant): authorization-required, the job kept, nothing appended (84.857753ms)
+✔ an account switch after planning: the frozen job is refused, never appended with the new account (88.317192ms)
+✔ every native tool the overlay cites exists; plugin tools carry the google-workspace prefix (18.426674ms)
+✔ the overlay keeps the connect and own-client calls the skill used to name (6.040786ms)
+✔ the overlay carries the Tovu-only screens and the OAuth callback route (1.713986ms)
+✖ host budget refusal: a write becomes quota-delay with the host retryAfterMs and outcome not-applied, never uncertain-outcome; nothing is sent (5.388761ms)
+✔ host budget refusal: a short wait is retried once by the existing backoff rule (Retry-After honoured), then the write is sent (30.062568ms)
+✔ host budget refusal: retries stop at the existing attempt limit and the last refusal is returned (0.534486ms)
+✔ host budget refusal: an unusable retryAfterMs is dropped rather than copied into the error (0.542963ms)
+✔ pin: the existing host refusals keep their safe codes and are not retried (0.792142ms)
+✔ pin: any other host error passes through unchanged (0.422197ms)
+✔ vertical slice: hosted sign-in asks for drive.file only, proves PKCE, and the account_info tool names the account without a token (104.174386ms)
+✔ PKCE: the verifier sent to the token endpoint matches the S256 challenge of the same attempt (the fake refuses any other) (13.032183ms)
+✔ state: a callback whose state was never issued is refused as invalid-attempt and no code is exchanged (3.106906ms)
+✔ state: a replayed callback is refused as invalid-attempt (consume once) (10.59068ms)
+✔ consent denial: access-denied, nothing exchanged or stored, still not connected (3.399489ms)
+✔ partial scopes: a grant without drive.file is refused as scope-not-granted and no token is served (6.333479ms)
+✔ missing refresh token: a hosted same-account reconnect that omits one keeps the stored refresh token (27.88722ms)
+✔ refresh rotation: a rotated refresh token is stored and the old one is never sent again (18.681075ms)
+✔ invalid_grant: the connection needs a reconnect and the plugin client says "Reconnect required" with a reconnect action (15.54546ms)
+✔ revoke hook: posts the token form-encoded to Google's revocation endpoint and resolves only on 200 (3.186416ms)
+✔ revoke hook: a refusal is never a confirmation (only invalid_token, "already revoked", is), and the error carries no token (10.006979ms)
+✔ revoke hook: Google's own error text never reaches the thrown message (6.335483ms)
+✔ revoke hook: a transport failure is pending (provider-unreachable), never confirmed (0.683973ms)
+✔ scopes: a product the catalog does not know is refused, never silently dropped from the sign-in (3.534801ms)
+✔ identity: a Drive answer that names no stable account id is refused, so no account is bound (2.309526ms)
+✔ revoke: a confirmed revocation clears local tokens; a failed one stays "revocation pending", serves no token, and a retry confirms (10.954131ms)
+✔ revoke over the vault token store reaches Google and clears the grant (9.626964ms)
+✔ revoke: Google answering that the token is already revoked counts as confirmed, so a retry can finish (7.880068ms)
+✔ revoke: any other refusal from Google stays pending (7.431763ms)
+✔ desktop: the installed-app sign-in forces consent without incremental grants, and re-consent replaces the old tokens (15.564863ms)
+✔ hosted incremental: include_granted_scopes=true and a grant carrying earlier scopes is accepted (11.931908ms)
+✔ redaction: no token or client secret reaches status, connection records or the tool output (8.939067ms)
+✔ redaction: a Google error that echoes request data becomes a fixed safe message (2.860234ms)
+✔ transport: the test fetch refuses every host but Google's (no real third-party call is possible) (0.344851ms)
+✔ browser binding (hosted): missing or another browser's proof burns the attempt before exchange (2.433445ms)
+✔ offline access (hosted): a first grant without a refresh token is refused before credential install (8.109983ms)
+✔ browser binding (desktop): missing or another browser's proof burns the attempt before exchange (1.967671ms)
+✔ offline access (desktop): a first grant without a refresh token is refused before credential install (3.765289ms)
+✔ hosted consent: a renewable same-account reconnect keeps incremental grants without forcing consent again (4.599723ms)
+✔ paths: Tovu's executor refuses a spreadsheet id that is not a Google id against the real input schema (53.106756ms)
+✔ vertical slice: a confirmed sheets_tab_modify rename registers, discloses, waits for the click and sends one batchUpdate (117.38771ms)
+✔ browser sign-in and operator read trust are declared without a token (26.007311ms)
+✔ higgsfield-media/higgsfield-media: correct title, destination, key page and minimum access guidance (1.998138ms)
+✔ browser sign-in declares permissions (0.407169ms)
+✔ every credential card parses its task purposes (2.591644ms)
+✔ supporting files follow the overlay naming rule and the guidance names how to read them (23.582327ms)
+✔ the Tovu-only claims an agent cannot infer reach the run through GUIDANCE.md (2.025106ms)
+✔ every snake_case tool the overlay cites is a served native tool or a per-plugin tool (4.697713ms)
+✔ the overlay is vendor-neutral: no model or vendor names (2.781665ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✖ vendor requests retain discovery in the production catalog (388.866997ms)
+✔ meilisearch/meilisearch: correct title, destination, key page and minimum access guidance (1.768539ms)
+✔ the required server URL field is declared explicitly (1.007767ms)
+✔ every credential card parses its task purposes (3.974086ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ vendor requests retain discovery in the production catalog (514.953839ms)
+✔ netlify/netlify: correct title, destination, key page and minimum access guidance (1.444024ms)
+✔ every credential card parses its task purposes (2.187222ms)
+✔ opentelemetry: one provider-settings card that saves the observability-opentelemetry provider plugin through the host (2.693825ms)
+✔ opentelemetry: the skill opens that card, checks provider_status first, and never takes a key in chat (0.552741ms)
+✔ opentelemetry: packs as a bundled plugin with no MCP servers and no code (25.737334ms)
+✔ posthog: one provider-settings card that saves the analytics-posthog provider plugin through the host (2.51156ms)
+✔ posthog: the skill opens that card, checks provider_status first, and never takes a key in chat (0.486892ms)
+✔ posthog: packs as a bundled plugin with no MCP servers and no code (16.785679ms)
+✔ Railway declares one owned API card with a fixed destination, accepted by the real parser (2.600894ms)
+✔ Railway guidance opens its own card, deploys only through the tools and never offers an unasked replacement (0.282984ms)
+✔ every credential card parses its task purposes (0.426556ms)
+✔ tovu deploy config --target railway tells the operator to set Tovu's runtime mode and the local site's TOVU_SITE_ID (710.301939ms)
+✔ railway is a seeded-disabled package with its config and deploy-ops descriptors, modules and skill packed (9.966445ms)
+[agent-plugins:migration-complete] /tmp/tovu-railway-installed-pOiSB4/ws/workspace-local
+✖ installed Railway contributes deploy and observes its returned run through the bound host (1962.388916ms)
+✔ Railway manifest loads the contained deploy adapter with only its GraphQL host (24.608202ms)
+✔ Railway advertises deployment ops and keeps the 'soon' maturity flag and its existing token guidance (1.864419ms)
+✔ Render declares one owned API card with a fixed destination, accepted by the real parser (4.088744ms)
+✔ Render guidance opens its own card, deploys only through the tools and never offers an unasked replacement (0.485593ms)
+✔ every credential card parses its task purposes (0.74967ms)
+✔ tovu deploy config --target render carries Tovu's runtime mode and the local site's TOVU_SITE_ID into render.yaml (796.520509ms)
+✔ render is a seeded-disabled package with its config and deploy-ops descriptors, modules and skill packed (10.256725ms)
+[agent-plugins:migration-complete] /tmp/tovu-render-installed-faa0LK/ws/workspace-local
+✖ installed Render deploys and observes the returned ID through the guarded host (2456.746656ms)
+✔ Render manifest loads its contained module and fixed API host (10.983121ms)
+✔ Render keeps the 'soon' maturity flag and its owners probe parses on its owned API card (2.296345ms)
+✔ plugin.json parses under the Agent Plugins v1.0.0 validator with no warnings (12.447143ms)
+✔ mcp.json's only server is Resend's account MCP — the mail adapter still runs in-process through the mail-adapter registry (3.07474ms)
+✔ the credential label is byte-identical to the one sites already saved (no re-entry on upgrade) (10.588626ms)
+✔ the package packs through the real packer with its descriptor, module and skill (7.729459ms)
+[agent-plugins:migration-complete] /tmp/tovu-resend-plugin-T7KUt1/ws/workspace-local
+✔ seeded by the real seeder, resend stays disabled until explicit enable loads its installed adapter (113.594315ms)
+[agent-plugins:migration-complete] /tmp/tovu-resend-plugin-wr4WBO/ws/workspace-local
+✔ an operator who switched resend off stays switched off across boots, and the registry then has no adapter (128.746639ms)
+[agent-plugins:migration-complete] /tmp/tovu-resend-plugin-yBwXCs/ws/workspace-local
+✔ mail_list_providers discovers the seeded, disabled resend plugin without loading or enabling its adapter (75.769454ms)
+✔ capabilities reports the resend driver shape (2.270794ms)
+✔ send() POSTs to /emails with bearer auth, JSON body, and the idempotency key header (0.689717ms)
+✔ send() uses the saved credential's baseUrl (0.282617ms)
+✔ send() forwards attachments using Resend's snake_case field shape (0.30792ms)
+✔ send() maps a 422 validation_error to a non-retryable failure with the provider's error name (0.25262ms)
+✔ send() maps a 429 rate_limit_exceeded to the shared throttling result (0.166133ms)
+✔ send() preserves Retry-After on the shared throttling result (0.117031ms)
+✔ send() maps a 500 to a retryable failure, and a 401 to a non-retryable one (0.180299ms)
+✔ send() handles a non-JSON error body without throwing (0.168915ms)
+✔ send() preserves HTTP acceptance for an undecodable success body "" (0.209555ms)
+✔ send() preserves HTTP acceptance for an undecodable success body "<html>Accepted</html>" (0.108685ms)
+✔ sendBatch() keeps every per-message result after empty and malformed successful replies (0.482521ms)
+✔ send() maps a thrown transport error (network failure/EgressPolicy refusal) to a retryable TRANSPORT_ERROR, never throws (0.137779ms)
+✔ send() handles a non-Error thrown during transport (0.186535ms)
+✔ sendBatch() loops send() once per message, preserving result[i] <-> messages[i] ordering under partial failure (0.319633ms)
+✔ sendBatch() gives each message its own Idempotency-Key, deterministically derived so a redelivery of the same batch reproduces the same keys (0.228465ms)
+✔ send() forwards replyTo, html, and custom headers when provided (0.150992ms)
+✔ send() falls back to opts.idempotencyKey if response JSON does not have string id (0.081547ms)
+✔ send() handles 409 conflict as retryable, and empty bodyText falls back to HTTP status message (0.139486ms)
+✔ send() uses timeoutMs from options when specified (0.083774ms)
+✔ the bundled descriptor owns the Resend key-card contract (4.902202ms)
+✔ mcp.json declares Resend's hosted token-authenticated server, auto-provisioned as 'resend' (14.188134ms)
+✔ the account key points at Resend's API keys page and probes an endpoint a Sending access key cannot read (1.888504ms)
+✔ default tools: within the cap, read and write partition allow, and the happy path is granted (1.956809ms)
+✔ default tools leave out removals, mass sends, and anything that would put a new secret in the chat (2.195275ms)
+✔ every granted tool that mails a person asks the person first (2.785053ms)
+✔ SKILL.md keeps site mail on Tovu's tools and connects before any Resend account tool (1.039054ms)
+✔ SKILL.md saves both keys through the secure form, each with the permission it needs (0.871531ms)
+✔ the Full access card is the plugin's own, saves to the account connection, and says which key to make (2.09172ms)
+✔ resend_account_connection_is_key_based (58.324561ms)
+✔ every mcp__resend__ tool SKILL.md names is granted by default (2.244447ms)
+✔ no file in the package carries a Resend key or webhook secret (5.126583ms)
+✔ the webhook endpoint the overlay gives the operator is the route Tovu mounts (8.759796ms)
+✔ the signing-secret labels, current and previous, are the ones the feedback route reads (1.563577ms)
+✔ suppression rules and the secret-free setup stay stated (1.6044ms)
+✔ the overlay is vendor-neutral about models: no model or vendor names (1.352457ms)
+✔ s3-compatible/s3-compatible: correct title, destination, key page and minimum access guidance (1.16832ms)
+✔ non-secret connection fields are declared explicitly (1.924401ms)
+✔ every credential card parses its task purposes (0.990765ms)
+✔ the bundled mapping is available without provider activation and preserves optional fields (2.844084ms)
+✔ every missing-variable combination preserves the original error bytes and ordering synchronously (1.715017ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ env-selected S3 media store end to end: uploadMedia() writes to S3-compatible storage, and the real /m/... route serves the rendition back (766.067666ms)
+✔ env-selected S3 media store exports one CLIENT span per object call through the host's wrapFetch: status, never bucket, key or signature (29.389578ms)
+✔ env-selected S3 media store records a transport failure on its span by error type (15.046694ms)
+✔ object store artifact contract: upload/verify/delete/confirmed absence; unrelated objects survive (7.811729ms)
+✔ ordinary S3 publishing preserves share objects even if an old cleanup manifest names them (4.655782ms)
+✔ the host kit's SigV4 client sends a verifiable AWS4-HMAC-SHA256 PUT with the exact body (21.06476ms)
+[plugin-runtime] bundled initialization failed for 'charts-recharts' PluginInvalidError: plugin 'charts-recharts' failed validation and cannot be enabled
+    at assertPluginEnableAllowed (/home/user/Jini/packages/plugins/src/host/activation.ts:94:11)
+    at setPluginEnabled (/home/user/Jini/packages/plugins/src/host/activation.ts:179:22)
+    at initializeOne (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:25:11)
+    at async initializeBundledPlugins (/home/user/Jini/packages/plugins/src/host/bundled-initialization.ts:30:23)
+    at async initializeBootDefaults (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:508:25)
+    at async Object.attachEnabledPluginsAtBoot (/home/user/Tovu/apps/website/src/server/runtime/composition/plugin-runtime.ts:521:25)
+✔ vendor requests retain discovery in the production catalog (403.143791ms)
+✔ sentry: one provider-settings card that saves the observability-sentry provider plugin through the host (2.071618ms)
+✔ sentry: the skill opens that card, checks provider_status first, and never takes a key in chat (0.435872ms)
+✔ sentry: packs as a bundled plugin with no MCP servers and no code (17.816284ms)
+✔ the host loader exposes every Shopify overlay reference named by its guidance (24.837868ms)
+✔ collection shapes use the current read card and preserve version and field-bag guards (1.835831ms)
+✔ renderer and live-site limitations stay in the overlay (1.494709ms)
+✔ supporting files follow the overlay naming rule the guidance reader enforces (6.069515ms)
+✔ every tool the overlay cites is a served native tool or a per-plugin tool (18.304534ms)
+✔ the overlay reads references through the plugin tool, never the refused repo root (3.167552ms)
+✔ Tovu-only routing lives here: backups and share links go to site_import_backup (1.765147ms)
+✔ the capability hand-off resolves to the Tovu plugins that provide it (3.147758ms)
+✔ the final / check names the published and live readers (1.572957ms)
+✔ the overlay is vendor-neutral: no model or vendor names (1.486801ms)
+✔ OAuth and token fallback target the hosted service without inline secrets (23.246745ms)
+✔ supabase/supabase: correct title, destination, key page and minimum access guidance (1.197411ms)
+✔ browser sign-in uses the OAuth save destination (0.257055ms)
+✔ every credential card parses its task purposes (1.766699ms)
+✔ Tovu's link and approval behavior live here (11.357352ms)
+✔ the overlay keeps the old setup out (1.905499ms)
+✔ the overlay is exactly the approved Tovu chat rules (10.359549ms)
+✔ the overlay keeps the safety rules the in-skill copy carried (3.387491ms)
+✔ the overlay ships guidance only: no supporting files, nothing else to stage (5.464141ms)
+✔ the overlay is vendor-neutral: no model or vendor names (1.844395ms)
+✔ upload/verify/delete: unsuffixed key in the token's store, anonymous verify, idempotent delete (7.923775ms)
+✔ verify fails closed: wrong size, wrong type, foreign URL, still-present after delete (3.008104ms)
+✔ no token in errors or logs; a missing or malformed Blob token refuses before any request (1.312558ms)
+✔ the manifest registers provider `vercel`; it is chosen and delivered when it is the only artifact store (13.044954ms)
+✔ create, then revoke deletes the blob and verifies it is gone (27.163009ms)
+✔ an S3-style store with no saved credential is skipped, so a Vercel-only site still gets Blob (1.581437ms)
+✔ the store's binding is its Blob origin, so two Blob stores never share one binding (0.370754ms)
+✔ a Vercel publishing token without a usable Blob token never qualifies for sharing (0.444388ms)
+✔ put and delete send the headers @vercel/blob 2.8.2 sends: API version 13 and public access (0.938912ms)
+✔ vercel/vercel: correct title, destination, key page and minimum access guidance (1.710528ms)
+✔ every credential card parses its task purposes (2.519324ms)
+ℹ tests 438
+ℹ suites 0
+ℹ pass 429
+ℹ fail 9
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 109767.459812
+
+✖ failing tests:
+
+test at content/agent-plugin-overlays/fly/__tests__/fly-overlay.test.mjs:25:1
+✖ the committed Tovu deploy workflow is exactly the render of the plugin template plus this overlay (8.101262ms)
+  AssertionError [ERR_ASSERTION]: re-render with the command in this file's header
+  + actual - expected
+  ... Skipped lines
+  
+    '# ============================================================================\n' +
+      '# GENERATED FILE - do not edit by hand. Rendered by the Fly agent plugin:\n' +
+  +   '#   node content/agent-plugins/fly/scripts/render-deploy-workflow.mjs\n' +
+  +   '# from content/agent-plugins/fly/skills/fly/references/fly-deploy.template.yml (its `tovu-host`\n' +
+  +   '# blocks) and content/agent-plugins/fly/scripts/tovu-production.values.json. Edit those, re-render,\n' +
+  +   '# and commit both; content/agent-plugins/fly/scripts/__tests__ fails while they disagree.\n' +
+  -   '#   node node_modules/@jini-ai/agent-plugins/fly/scripts/render-deploy-workflow.mjs \\\n' +
+  -   '#     --values content/agent-plugin-overlays/fly/tovu-production.values.json --repo-root .\n' +
+  -   "# from @jini-ai/agent-plugins' fly/skills/fly/references/fly-deploy.template.yml and Tovu's overlay\n" +
+  -   '# content/agent-plugin-overlays/fly/ (the values file and its workflow/*.yml blocks). Edit the\n' +
+  -   '# overlay, re-render, and commit both; content/agent-plugin-overlays/fly/__tests__ fails while they\n' +
+  -   '# disagree.\n' +
+      '# ============================================================================\n' +
+      '# Generated config ownership and production invariants (moved from the former root fly.toml)\n' +
+      '# ============================================================================\n' +
+      "# The Fly plugin's deploy-configs/fly.mjs owns generation. This job has no installed/built Tovu\n" +
+  +   '# CLI, so it imports that dependency-free module directly immediately before flyctl deploy.\n' +
+  -   '# CLI, so it fetches the pinned @jini-ai/agent-plugins package (exact version from the overlay values\n' +
+  -   "# file, independent of Tovu's own dependencies) and imports that dependency-free module directly\n" +
+  -   '# immediately before flyctl deploy.\n' +
+      '# Do not commit the generated root fly.toml. For a local deploy, generate it first with\n' +
+      '# `tovu deploy config --target fly --region <region> --out fly.toml` and review deployment-specific\n' +
+  +   '# env/build args; content/agent-plugins/fly/scripts/fly-build.sh only pins the build context, not these inputs.\n' +
+  -   '# env/build args; content/agent-plugin-overlays/fly/fly-build.sh only pins the build context, not these inputs.\n' +
+      '# @jini-ai/* comes from npm: the repo root is the self-contained Docker build context, next to\n' +
+      '# Dockerfile and docker-compose.yml. No sibling Jini checkout or parent-context handling is needed,\n' +
+      '# including on Depot/Fly remote builders. The generated [build].dockerfile is relative to this root.\n' +
+      '\n' +
+      '# ============================================================================\n' +
+  ...
+      '  # `mv /workspace/Tovu/sites/tovu-com /workspace/Tovu/sites/tovu-dev` on the volume, then drop this TOVU_SITE value.\n' +
+  +   '  TOVU_SITE: tovu-com\n' +
+  +   '  TOVU_SITE_ID: ${{ vars.TOVU_SITE_ID }}\n' +
+  +   "  # This deployment's public origin. NOT a secret (it is the URL crawlers already see), so it\n" +
+  +   "  # belongs in this workflow's env block rather than in `fly secrets set`.\n" +
+  +   '  #\n' +
+  +   '  # Load-bearing, added 2026-09-18 — '... 7284 more characters
+  -   '  '... 8075 more characters
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/fly-overlay.test.mjs:28:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '# ============================================================================\n# GENERATED FILE - do not edit by hand. Rendered by the Fly agent plugin:\n#   node content/agent-plugins/fly/scripts/render-deploy-workflow.mjs\n# from content/agent-plugins/fly/skills/fly/references/fly-deploy.template.yml (its `tovu-host`\n# blocks) and content/agent-plugins/fly/scripts/tovu-production.values.json. Edit those, re-render,\n# and commit both; content/agent-plugins/fly/scripts/__tests__ fails while they disagree.\n# ============================================================================\n# Generated config ownership and production invariants (moved from the former root fly.toml)\n# ============================================================================\n# The Fly plugin\'s deploy-configs/fly.mjs owns generation. This job has no installed/built Tovu\n# CLI, so it imports that dependency-free module directly immediately before flyctl deploy.\n# Do not commit the generated root fly.toml. For a local deploy, generate it first with\n# `tovu deploy config --target fly --region <region> --out fly.toml` and review deployment-specific\n# env/build args; content/agent-plugins/fly/scripts/fly-build.sh only pins the build context, not these inputs.\n# @jini-ai/* comes from npm: the repo root is the self-contained Docker build context, next to\n# Dockerfile and docker-compose.yml. No sibling Jini checkout or parent-context handling is needed,\n# including on Depot/Fly remote builders. The generated [build].dockerfile is relative to this root.\n\n# ============================================================================\n# THIS IS THE DEPLOY WORKFLOW. Corrected 2026-09-02.\n#\n# This checkout deploys from origin -> github.com/AINSEP/Tovu (transferred 2026-09-23 from\n# leonaburime-ucla/Tovu; old URLs redirect). Earlier notes about a separate public mirror/private\n# working repo became stale on 2026-09-09. Plain `gh` now addresses the deploying repo.\n#\n# A previous history replacement silently overwrote mirror-only fixes: the packages/sdk build\n# step, TOVU_BUILD_SHA in Dockerfile, and both build-arg flags below. Two deploys failed before it\n# was spotted. Before another history replacement, diff MODIFIED files as well as added/deleted ones.\n# Historical notes about restructure/apps-website-phased being ahead of main are not current\n# evidence; inspect the selected ref and use the expected_sha gate for manual dispatches below.\n# ============================================================================\nname: Deploy to Fly.io\n\n# Deploy-only workflow — deliberately separate from `ci.yml` (which is currently disabled; this\n# workflow does not touch it, enable it, or run any tests). It only builds and deploys whatever\n# is already on the triggering branch/commit via Fly\'s remote builder.\n#\n# One exception, added after deploy run 34506663942 (see the `jini-published-typecheck` job\n# below): `deploy` now `needs` that one narrow, ENABLED gate — install + typecheck against the\n# @jini-ai/* versions actually on npm — so a build known to fail on registry drift never reaches\n# `flyctl deploy`. That job is a separate, independently-triggered workflow file\n# (`.github/workflows/jini-published-typecheck.yml`), not `ci.yml`.\n#\n# ============================================================================\n# One-time manual setup — this workflow cannot do any of this for you\n# ============================================================================\n#\n# 1. Repo secret: add `FLY_API_TOKEN` at\n#        Settings -> Secrets and variables -> Actions -> New repository secret\n#    Name it exactly `FLY_API_TOKEN`. Value comes from `flyctl auth token` (or the token you\n#    already have in your shell profile) — paste only the value; never commit it anywhere, and\n#    never add a step to this file that echoes/prints it.\n#\n# 2. Volume: workflow env FLY_VOLUME (generated `[[mounts]].source`) must exist before the first deploy,\n#    or the app boots with no persistent storage for site content, uploads, and themes:\n#        flyctl volumes create tovu_sites --region <region> -a tovu\n#    The name must match FLY_VOLUME exactly.\n#\n# 3. Region: FLY_REGION retains the former config\'s "iad". That value was originally marked\n#    unverified; confirm against `flyctl config show -a tovu` before changing it or the volume.\n#    Region, volume size and machine sizing were inferred from Dockerfile requirements, not\n#    verified infrastructure. Generation preserves those settings; it does not provision them.\n#\n# 4. App secrets — set with `flyctl secrets set -a tovu KEY=value`, never in this file or\n#    in the generated config\'s public `[env]` block. Verified directly against this repo\'s boot-gate\n#    code, not assumed:\n#      - TOVU_ADMIN_PASSWORD        — BOOT-BLOCKING. In production mode (the renderer sets\n#        TOVU_RUNTIME_MODE=production), `production-readiness-gate.ts`\'s\n#        `collectUnsafeDefaultFailures` (server/runtime/boot/production-readiness-gate.ts:77-84)\n#        refuses to boot while this is unset or still equal to the literal default "tovu-dev"\n#        (index.ts:216-232, features/identity/wiring.ts:61).\n#      - ANALYTICS_ROOT_KEY_SEED    — ALSO BOOT-BLOCKING, and NOT listed in .env.example or in\n#        deploy-config.ts\'s own REQUIRED_SECRETS — found by reading the gate code directly rather\n#        than trusting either of those. `index.ts:229` sets `hasDevSecretPlaceholder:\n#        !process.env.ANALYTICS_ROOT_KEY_SEED`, and `hasDevSecretPlaceholder` is one of the same\n#        four checks `collectUnsafeDefaultFailures` (production-readiness-gate.ts:77-84) fails\n#        boot on. Set it to any random value before the first production deploy, e.g.:\n#        node -e "console.log(require(\'node:crypto\').randomBytes(32).toString(\'hex\'))"\n#      - TOVU_SITE_KEY — NOT boot-blocking (absent from the gate entirely — see\n#        deploy-config.ts:109-115), but every route needing at-rest secret encryption (visitor AI\n#        assistant provider credentials, the newsletter integration) fails closed with\n#        503 SECRET_STORE_UNCONFIGURED until it\'s set. Strongly recommended before first real use;\n#        generate the same way as above.\n#\n# ============================================================================\n# Trigger branch\n# ============================================================================\n# Fires on push to `main` — this repo\'s default branch (confirmed via `gh repo view --json\n# defaultBranchRef`), not the branch this workflow was authored on\n# (`restructure/apps-website-phased`). A push to any other branch does nothing here: no run, no\n# error, no warning. `workflow_dispatch` (the "Run workflow" button on this workflow\'s Actions tab\n# page) is the manual escape hatch.\n#\n# How far that other branch is from `main` is deliberately NOT recorded here. It was written down\n# as a number once and was wrong; `git rev-list --left-right --count origin/main...HEAD` answers it\n# in one command and cannot go stale.\n#\n# A manual dispatch requires the full SHA the operator expects the selected branch/tag to resolve\n# to. The deploy job fails before checkout unless it exactly matches GitHub\'s resolved `github.sha`.\n# On 2026-09-18 an unchecked dispatch resolved `main` to a week-old commit and shipped it —\n# successfully, changing nothing visible. See ADS-memory/reports/2026-09-18-deploy-ref-gap.md.\n\non:\n  push:\n    branches: [main]\n  workflow_dispatch:\n    inputs:\n      expected_sha:\n        description: "Full commit SHA expected from the selected branch/tag; the deploy fails if it differs"\n        required: true\n        type: string\n\npermissions:\n  contents: read\n\n# One deploy at a time: two `flyctl deploy` runs racing each other against a single SQLite volume\n# is a real hazard, not just wasted minutes. Queue rather than cancel — a deploy cut off mid-way\n# is worse than a later push waiting its turn.\nconcurrency:\n  group: fly-deploy-tovu-ai-cms\n  cancel-in-progress: false\n\nenv:\n  # Non-secret only. Real secrets (TOVU_ADMIN_PASSWORD, TOVU_ADMIN_USER,\n  # TOVU_SITE_KEY — see docker-compose.yml\'s own comments for\n  # what each does) go through `fly secrets set`, never in this workflow\'s env block\n  # or the generated [env].\n  # The app name is "tovu": the earlier "tovu-ai-cms" returned HTTP 000, while tovu returned HTTP 200.\n  FLY_APP: tovu\n  FLY_REGION: iad\n  # Persistent state: every site\'s content.db + WAL sidecars, uploads/,\n  # themes/, ops state — everything else in the image is disposable. A missing\n  # or misconfigured mount here is silent data loss on next deploy, not a\n  # startup error. PLACEHOLDER volume name/size — create it first with\n  # `fly volumes create tovu_sites --region <region> -a tovu` and match\n  # the name in FLY_VOLUME.\n  FLY_VOLUME: tovu_sites\n  FLY_VOLUME_MOUNT_PATH: /workspace/Tovu/sites\n  FLY_DOCKERFILE: Dockerfile\n  # `/readyz` exists (apps/website/src/server/inbound/public-http/routes/ops/health.ts,\n  # wired via registerReadyzRoute) and is 503 until migrations/seeding finish\n  # — a truer "actually ready" signal than `/health`, which is liveness-only.\n  FLY_HEALTH_CHECK_PATH: /readyz\n  TOVU_RUNTIME_MODE: production\n  PORT: "3000"\n  # The live site\'s folder on the `tovu_sites` volume configured above. Pinned 2026-09-26 when the repo\'s own\n  # site folder was renamed `sites/tovu-com` -> `sites/tovu-dev` (which also changed the code default,\n  # `DEFAULT_SITE_NAME`): the volume still holds `tovu-com/`, and without this pin the next deploy\n  # would boot an empty `tovu-dev/` next to it. To rename the live folder too, stop the machine,\n  # `mv /workspace/Tovu/sites/tovu-com /workspace/Tovu/sites/tovu-dev` on the volume, then drop this TOVU_SITE value.\n  TOVU_SITE: tovu-com\n  TOVU_SITE_ID: ${{ vars.TOVU_SITE_ID }}\n  # This deployment\'s public origin. NOT a secret (it is the URL crawlers already see), so it\n  # belongs in this workflow\'s env block rather than in `fly secrets set`.\n  #\n  # Load-bearing, added 2026-09-18 — '... 7284 more characters,
+    expected: '# ============================================================================\n# GENERATED FILE - do not edit by hand. Rendered by the Fly agent plugin:\n#   node node_modules/@jini-ai/agent-plugins/fly/scripts/render-deploy-workflow.mjs \\\n#     --values content/agent-plugin-overlays/fly/tovu-production.values.json --repo-root .\n# from @jini-ai/agent-plugins\' fly/skills/fly/references/fly-deploy.template.yml and Tovu\'s overlay\n# content/agent-plugin-overlays/fly/ (the values file and its workflow/*.yml blocks). Edit the\n# overlay, re-render, and commit both; content/agent-plugin-overlays/fly/__tests__ fails while they\n# disagree.\n# ============================================================================\n# Generated config ownership and production invariants (moved from the former root fly.toml)\n# ============================================================================\n# The Fly plugin\'s deploy-configs/fly.mjs owns generation. This job has no installed/built Tovu\n# CLI, so it fetches the pinned @jini-ai/agent-plugins package (exact version from the overlay values\n# file, independent of Tovu\'s own dependencies) and imports that dependency-free module directly\n# immediately before flyctl deploy.\n# Do not commit the generated root fly.toml. For a local deploy, generate it first with\n# `tovu deploy config --target fly --region <region> --out fly.toml` and review deployment-specific\n# env/build args; content/agent-plugin-overlays/fly/fly-build.sh only pins the build context, not these inputs.\n# @jini-ai/* comes from npm: the repo root is the self-contained Docker build context, next to\n# Dockerfile and docker-compose.yml. No sibling Jini checkout or parent-context handling is needed,\n# including on Depot/Fly remote builders. The generated [build].dockerfile is relative to this root.\n\n# ============================================================================\n# THIS IS THE DEPLOY WORKFLOW. Corrected 2026-09-02.\n#\n# This checkout deploys from origin -> github.com/AINSEP/Tovu (transferred 2026-09-23 from\n# leonaburime-ucla/Tovu; old URLs redirect). Earlier notes about a separate public mirror/private\n# working repo became stale on 2026-09-09. Plain `gh` now addresses the deploying repo.\n#\n# A previous history replacement silently overwrote mirror-only fixes: the packages/sdk build\n# step, TOVU_BUILD_SHA in Dockerfile, and both build-arg flags below. Two deploys failed before it\n# was spotted. Before another history replacement, diff MODIFIED files as well as added/deleted ones.\n# Historical notes about restructure/apps-website-phased being ahead of main are not current\n# evidence; inspect the selected ref and use the expected_sha gate for manual dispatches below.\n# ============================================================================\nname: Deploy to Fly.io\n\n# Deploy-only workflow — deliberately separate from `ci.yml` (which is currently disabled; this\n# workflow does not touch it, enable it, or run any tests). It only builds and deploys whatever\n# is already on the triggering branch/commit via Fly\'s remote builder.\n#\n# One exception, added after deploy run 34506663942 (see the `jini-published-typecheck` job\n# below): `deploy` now `needs` that one narrow, ENABLED gate — install + typecheck against the\n# @jini-ai/* versions actually on npm — so a build known to fail on registry drift never reaches\n# `flyctl deploy`. That job is a separate, independently-triggered workflow file\n# (`.github/workflows/jini-published-typecheck.yml`), not `ci.yml`.\n#\n# ============================================================================\n# One-time manual setup — this workflow cannot do any of this for you\n# ============================================================================\n#\n# 1. Repo secret: add `FLY_API_TOKEN` at\n#        Settings -> Secrets and variables -> Actions -> New repository secret\n#    Name it exactly `FLY_API_TOKEN`. Value comes from `flyctl auth token` (or the token you\n#    already have in your shell profile) — paste only the value; never commit it anywhere, and\n#    never add a step to this file that echoes/prints it.\n#\n# 2. Volume: workflow env FLY_VOLUME (generated `[[mounts]].source`) must exist before the first deploy,\n#    or the app boots with no persistent storage for site content, uploads, and themes:\n#        flyctl volumes create tovu_sites --region <region> -a tovu\n#    The name must match FLY_VOLUME exactly.\n#\n# 3. Region: FLY_REGION retains the former config\'s "iad". That value was originally marked\n#    unverified; confirm against `flyctl config show -a tovu` before changing it or the volume.\n#    Region, volume size and machine sizing were inferred from Dockerfile requirements, not\n#    verified infrastructure. Generation preserves those settings; it does not provision them.\n#\n# 4. App secrets — set with `flyctl secrets set -a tovu KEY=value`, never in this file or\n#    in the generated config\'s public `[env]` block. Verified directly against this repo\'s boot-gate\n#    code, not assumed:\n#      - TOVU_ADMIN_PASSWORD        — BOOT-BLOCKING. In production mode (the renderer sets\n#        TOVU_RUNTIME_MODE=production), `production-readiness-gate.ts`\'s\n#        `collectUnsafeDefaultFailures` (server/runtime/boot/production-readiness-gate.ts:77-84)\n#        refuses to boot while this is unset or still equal to the literal default "tovu-dev"\n#        (index.ts:216-232, features/identity/wiring.ts:61).\n#      - ANALYTICS_ROOT_KEY_SEED    — ALSO BOOT-BLOCKING, and NOT listed in .env.example or in\n#        deploy-config.ts\'s own REQUIRED_SECRETS — found by reading the gate code directly rather\n#        than trusting either of those. `index.ts:229` sets `hasDevSecretPlaceholder:\n#        !process.env.ANALYTICS_ROOT_KEY_SEED`, and `hasDevSecretPlaceholder` is one of the same\n#        four checks `collectUnsafeDefaultFailures` (production-readiness-gate.ts:77-84) fails\n#        boot on. Set it to any random value before the first production deploy, e.g.:\n#        node -e "console.log(require(\'node:crypto\').randomBytes(32).toString(\'hex\'))"\n#      - TOVU_SITE_KEY — NOT boot-blocking (absent from the gate entirely — see\n#        deploy-config.ts:109-115), but every route needing at-rest secret encryption (visitor AI\n#        assistant provider credentials, the newsletter integration) fails closed with\n#        503 SECRET_STORE_UNCONFIGURED until it\'s set. Strongly recommended before first real use;\n#        generate the same way as above.\n#\n# ============================================================================\n# Trigger branch\n# ============================================================================\n# Fires on push to `main` — this repo\'s default branch (confirmed via `gh repo view --json\n# defaultBranchRef`), not the branch this workflow was authored on\n# (`restructure/apps-website-phased`). A push to any other branch does nothing here: no run, no\n# error, no warning. `workflow_dispatch` (the "Run workflow" button on this workflow\'s Actions tab\n# page) is the manual escape hatch.\n#\n# How far that other branch is from `main` is deliberately NOT recorded here. It was written down\n# as a number once and was wrong; `git rev-list --left-right --count origin/main...HEAD` answers it\n# in one command and cannot go stale.\n#\n# A manual dispatch requires the full SHA the operator expects the selected branch/tag to resolve\n# to. The deploy job fails before checkout unless it exactly matches GitHub\'s resolved `github.sha`.\n# On 2026-09-18 an unchecked dispatch resolved `main` to a week-old commit and shipped it —\n# successfully, changing nothing visible. See ADS-memory/reports/2026-09-18-deploy-ref-gap.md.\n\non:\n  push:\n    branches: [main]\n  workflow_dispatch:\n    inputs:\n      expected_sha:\n        description: "Full commit SHA expected from the selected branch/tag; the deploy fails if it differs"\n        required: true\n        type: string\n\npermissions:\n  contents: read\n\n# One deploy at a time: two `flyctl deploy` runs racing each other against a single SQLite volume\n# is a real hazard, not just wasted minutes. Queue rather than cancel — a deploy cut off mid-way\n# is worse than a later push waiting its turn.\nconcurrency:\n  group: fly-deploy-tovu-ai-cms\n  cancel-in-progress: false\n\nenv:\n  # Non-secret only. Real secrets (TOVU_ADMIN_PASSWORD, TOVU_ADMIN_USER,\n  # TOVU_SITE_KEY — see docker-compose.yml\'s own comments for\n  # what each does) go through `fly secrets set`, never in this workflow\'s env block\n  # or the generated [env].\n  # The app name is "tovu": the earlier "tovu-ai-cms" returned HTTP 000, while tovu returned HTTP 200.\n  FLY_APP: tovu\n  FLY_REGION: iad\n  # Persistent state: every site\'s content.db + WAL sidecars, uploads/,\n  # themes/, ops state — everything else in the image is disposable. A missing\n  # or misconfigured mount here is silent data loss on next deploy, not a\n  # startup error. PLACEHOLDER volume name/size — create it first with\n  # `fly volumes create tovu_sites --region <region> -a tovu` and match\n  # the name in FLY_VOLUME.\n  FLY_VOLUME: tovu_sites\n  FLY_VOLUME_MOUNT_PATH: /workspace/Tovu/sites\n  FLY_DOCKERFILE: Dockerfile\n  # `/readyz` exists (apps/website/src/server/inbound/public-http/routes/ops/health.ts,\n  # wired via registerReadyzRoute) and is 503 until migrations/seeding finish\n  # — a truer "actually ready" signal than `/health`, which is liveness-only.\n  FLY_HEALTH_CHECK_PATH: /readyz\n  TOVU_RUNTIME_MODE: production\n  PORT: "3000"\n  # The live site\'s folder on the `tovu_sites` volume configured above. Pinned 2026-09-26 when the repo\'s own\n  # site folder was renamed `sites/tovu-com` -> `sites/tovu-dev` (which also changed the code default,\n  # `DEFAULT_SITE_NAME`): the volume still holds `tovu-com/`, and without this pin the next deploy\n  # would boot an empty `tovu-dev/` next to it. To rename the live folder too, stop the machine,\n  # `mv /workspace/Tovu/sites/tovu-com /workspace/Tovu/sites/tovu-dev` on the volume, then drop this TOVU_SITE value.\n  '... 8075 more characters,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at content/agent-plugin-overlays/fly/__tests__/installed-observe-only.test.mjs:19:1
+✖ seeded from this build, the installed fly adapter stays observe-only (1860.989937ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   "deploy ops from 'fly' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute",
+  +   "deploy ops from 'github' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute"
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/fly/__tests__/installed-observe-only.test.mjs:28:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ "deploy ops from 'fly' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute", "deploy ops from 'github' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute" ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at content/agent-plugin-overlays/github/__tests__/installed-deploy-verb.test.mjs:35:1
+✖ seeded from this build, the installed github-actions adapter exports deploy (145.359377ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   "deploy ops from 'github' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute"
+  + ]
+  - []
+  
+      at file:///home/user/Tovu/content/agent-plugin-overlays/github/__tests__/installed-deploy-verb.test.mjs:39:12
+      at async withAgentPluginsDir (file:///home/user/Tovu/content/agent-plugin-overlays/github/__tests__/installed-deploy-verb.test.mjs:28:16)
+      at async TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/github/__tests__/installed-deploy-verb.test.mjs:36:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ "deploy ops from 'github' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute" ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at content/agent-plugin-overlays/github/__tests__/installed-deploy-verb.test.mjs:44:1
+✖ upgrade: a site holding the previous github digest loads the changed adapter after the next boot (333.730644ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   "deploy ops from 'github' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute"
+  + ]
+  - []
+  
+      at file:///home/user/Tovu/content/agent-plugin-overlays/github/__tests__/installed-deploy-verb.test.mjs:62:14
+      at async withAgentPluginsDir (file:///home/user/Tovu/content/agent-plugin-overlays/github/__tests__/installed-deploy-verb.test.mjs:28:16)
+      at async TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/github/__tests__/installed-deploy-verb.test.mjs:48:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ "deploy ops from 'github' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute" ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at content/agent-plugin-overlays/github/__tests__/tool-discovery.test.mjs:7:1
+✖ vendor requests retain discovery in the production catalog (382.292084ms)
+  AssertionError [ERR_ASSERTION]: my GitHub token changed: expected credential_save, got skills_install, custom_credential_verify, custom_credential_write_files
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/github/__tests__/tool-discovery.test.mjs:18:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at content/agent-plugin-overlays/google-workspace/__tests__/host-token-refusals.security.test.mjs:29:1
+✖ host budget refusal: a write becomes quota-delay with the host retryAfterMs and outcome not-applied, never uncertain-outcome; nothing is sent (5.388761ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+      code: 'quota-delay',
+  +   message: 'Google asked this site to slow down. Nothing was lost; retry after the delay.',
+  -   message: 'Google asked Tovu to slow down. Nothing was lost; retry after the delay.',
+      nextAction: 'retry-later',
+      outcome: 'not-applied',
+      retryAfterMs: 60000,
+      retryable: true
+    }
+  
+      at Object.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/google-workspace/__tests__/host-token-refusals.security.test.mjs:32:12)
+      at expectedException (node:assert:578:17)
+      at expectsError (node:assert:703:21)
+      at strict.rejects (node:assert:769:3)
+      at async TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/google-workspace/__tests__/host-token-refusals.security.test.mjs:31:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { code: 'quota-delay', message: 'Google asked this site to slow down. Nothing was lost; retry after the delay.', retryable: true, outcome: 'not-applied', nextAction: 'retry-later', retryAfterMs: 60000 },
+    expected: { code: 'quota-delay', message: 'Google asked Tovu to slow down. Nothing was lost; retry after the delay.', retryable: true, outcome: 'not-applied', nextAction: 'retry-later', retryAfterMs: 60000 },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at content/agent-plugin-overlays/higgsfield-media/__tests__/tool-discovery.test.mjs:7:1
+✖ vendor requests retain discovery in the production catalog (388.866997ms)
+  AssertionError [ERR_ASSERTION]: connect higgsfield mcp: expected external_mcp_save, got external_mcp_oauth_connect, external_mcp_oauth_poll_device, content_read.external_mcp
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/higgsfield-media/__tests__/tool-discovery.test.mjs:16:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at content/agent-plugin-overlays/railway/__tests__/installed-deploy.test.mjs:42:1
+✖ installed Railway contributes deploy and observes its returned run through the bound host (1962.388916ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   "deploy ops from 'github' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute",
+  +   "deploy ops from 'railway' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute"
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/railway/__tests__/installed-deploy.test.mjs:51:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ "deploy ops from 'github' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute", "deploy ops from 'railway' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute" ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at content/agent-plugin-overlays/render/__tests__/installed-deploy.test.mjs:21:1
+✖ installed Render deploys and observes the returned ID through the guarded host (2456.746656ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   "deploy ops from 'github' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute",
+  +   "deploy ops from 'render' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute"
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/content/agent-plugin-overlays/render/__tests__/installed-deploy.test.mjs:32:12)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ "deploy ops from 'github' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute", "deploy ops from 'render' were not loaded: only bundled plugins shipping tovu-deploy-ops.json may contribute" ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

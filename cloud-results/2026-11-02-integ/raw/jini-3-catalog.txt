@@ -1,0 +1,26 @@
+
+> @jini-ai/plugin-catalog@0.6.17 generate /home/user/Jini/packages/plugin-catalog
+> node --import tsx scripts/generate.ts
+
+node:internal/fs/promises:1345
+  return new FileHandle(await PromisePrototypeThen(
+                        ^
+
+Error: ENOENT: no such file or directory, open '/home/user/Jini/packages/provider-plugins/plugins/charts-echarts/0.6.13/jini.plugin.json'
+    at async open (node:internal/fs/promises:1345:25)
+    at async readFile (node:internal/fs/promises:2003:14)
+    at async Object.readJson (/home/user/Jini/packages/plugin-catalog/scripts/generate.ts:198:40)
+    at async generateCatalog (/home/user/Jini/packages/plugin-catalog/scripts/generate.ts:147:22)
+    at async writeCatalog (/home/user/Jini/packages/plugin-catalog/scripts/generate.ts:197:19)
+    at async <anonymous> (/home/user/Jini/packages/plugin-catalog/scripts/generate.ts:206:95) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/user/Jini/packages/provider-plugins/plugins/charts-echarts/0.6.13/jini.plugin.json'
+}
+
+Node.js v24.22.2
+/home/user/Jini/packages/plugin-catalog:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @jini-ai/plugin-catalog@0.6.17 generate: `node --import tsx scripts/generate.ts`
+Exit status 1
+ WARN   Local package.json exists, but node_modules missing, did you mean to install?

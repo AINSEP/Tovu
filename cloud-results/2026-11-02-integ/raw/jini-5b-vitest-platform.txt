@@ -1,0 +1,15 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/platform
+
+ ✓ src/fs/__tests__/file-lock.test.ts (12 tests) 99ms
+ ✓ src/fs/__tests__/file-lock.incomplete-holder.test.ts (39 tests) 90ms
+ ✓ src/fs/__tests__/file-lock.agent-plugins.test.ts (15 tests) 1842ms
+   ✓ U9: pid 0, -1, 1.5, a string, and 2**60 never reach the liveness probe, and each times out 525ms
+   ✓ U14: a lock that is re-taken the instant each stale break removes it still times out, instead of spinning past timeoutMs 361ms
+ ✓ src/secrets/__tests__/exports.test.ts (2 tests) 7ms
+
+ Test Files  4 passed (4)
+      Tests  68 passed (68)
+   Start at  20:25:42
+   Duration  2.77s (transform 442ms, setup 0ms, collect 716ms, tests 2.04s, environment 1ms, prepare 320ms)
+

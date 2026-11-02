@@ -1,0 +1,571 @@
+✔ packaged: version IPC registers the exact contract channel and reads app.getVersion on each request (2.40107ms)
+✔ dev launch: the nearest desktop-v tag plus -dev, read once in the repo root (0.494326ms)
+✔ dev launch without git or a tag falls back to package.json version plus -dev (0.327459ms)
+✔ the preload forwards getAppVersion with no renderer-supplied payload (61.788728ms)
+✔ main registers the version adapter with Electron's own app and the repo root (35.170086ms)
+node:internal/modules/package_json_reader:331
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@electron/asar' imported from /home/user/Tovu/apps/desktop/src/asar-verify.test.ts
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:331:9)
+    at packageResolve (node:internal/modules/esm/resolve:784:25)
+    at moduleResolve (node:internal/modules/esm/resolve:873:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:19:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.22.2
+✖ src/asar-verify.test.ts (122.44968ms)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+file:///home/user/Tovu/apps/desktop/src/coverage-floors.ts:273
+ *
+ * The tsx pass also runs `src/renderer/**/*.test.tsx`: the `.tsx` components are counted in their
+                                            ^
+ * own area since 2026-11-02, and a component test written as `.tsx` must run in the suite and the
+
+SyntaxError [ERR_INVALID_TYPESCRIPT_SYNTAX]: Expression expected
+    at parseTypeScript (node:internal/modules/typescript:72:36)
+    at processTypeScriptCode (node:internal/modules/typescript:146:42)
+    at stripTypeScriptModuleTypes (node:internal/modules/typescript:215:22)
+    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:680:29)
+    at #translate (node:internal/modules/esm/loader:438:20)
+    at afterLoad (node:internal/modules/esm/loader:506:29)
+    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:511:12)
+    at #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:564:36)
+    at afterResolve (node:internal/modules/esm/loader:611:52)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:617:12) {
+  code: 'ERR_INVALID_TYPESCRIPT_SYNTAX'
+}
+
+Node.js v24.22.2
+✖ src/check-coverage-script.test.ts (155.657167ms)
+✔ a TypeScript-only tree (allowlisted exceptions included) passes (1.708633ms)
+✔ every JavaScript-family offender is named with its TypeScript rename (0.512994ms)
+✔ a lister failure fails the gate with a bounded message, whether it throws an Error or not (2.947433ms)
+✔ the real lister reads git's view of apps/desktop, and the real entry exits with the verdict (166.844204ms)
+✔ a quiet checkout passes, having asked pgrep, git (scoped to the verified surface) and slept once (4.121062ms)
+✔ a live vite watcher, git-dirty paths, and a write inside the window are each reported (3.044754ms)
+✔ a pgrep failure other than 'no match' fails the gate rather than reading as quiet (4.75761ms)
+✔ a non-Error thrown by a probe still fails the gate with a readable line (2.214696ms)
+✔ snapshot fingerprints a missing path, a file, and a tree (symlinks are not counted) (2.641692ms)
+✔ the real entry runs the check against this checkout and exits with its verdict (993.641542ms)
+✔ Add copied folder with app-data database preserves WAL content in an independent database (58.852702ms)
+✔ Add copied folder with symlinked database preserves WAL content in an independent database (32.321131ms)
+✔ Start of a legacy-tracked app-data copy snapshots its content before the server opens it (29.669133ms)
+✔ an unreadable external database refuses Add without changing identity or tracking the copy (22.039551ms)
+✔ a linked data.nosync directory gives the copy independent content and chat databases (43.779989ms)
+✔ failed marker commit restores copied database links and removes its provisional snapshots (26.341456ms)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+file:///home/user/Tovu/apps/desktop/src/coverage-floors.ts:273
+ *
+ * The tsx pass also runs `src/renderer/**/*.test.tsx`: the `.tsx` components are counted in their
+                                            ^
+ * own area since 2026-11-02, and a component test written as `.tsx` must run in the suite and the
+
+SyntaxError [ERR_INVALID_TYPESCRIPT_SYNTAX]: Expression expected
+    at parseTypeScript (node:internal/modules/typescript:72:36)
+    at processTypeScriptCode (node:internal/modules/typescript:146:42)
+    at stripTypeScriptModuleTypes (node:internal/modules/typescript:215:22)
+    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:680:29)
+    at #translate (node:internal/modules/esm/loader:438:20)
+    at afterLoad (node:internal/modules/esm/loader:506:29)
+    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:511:12)
+    at #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:564:36)
+    at afterResolve (node:internal/modules/esm/loader:611:52)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:617:12) {
+  code: 'ERR_INVALID_TYPESCRIPT_SYNTAX'
+}
+
+Node.js v24.22.2
+✖ src/coverage-floors.test.ts (104.592627ms)
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+file:///home/user/Tovu/apps/desktop/src/coverage-floors.ts:273
+ *
+ * The tsx pass also runs `src/renderer/**/*.test.tsx`: the `.tsx` components are counted in their
+                                            ^
+ * own area since 2026-11-02, and a component test written as `.tsx` must run in the suite and the
+
+SyntaxError [ERR_INVALID_TYPESCRIPT_SYNTAX]: Expression expected
+    at parseTypeScript (node:internal/modules/typescript:72:36)
+    at processTypeScriptCode (node:internal/modules/typescript:146:42)
+    at stripTypeScriptModuleTypes (node:internal/modules/typescript:215:22)
+    at ModuleLoader.<anonymous> (node:internal/modules/esm/translators:680:29)
+    at #translate (node:internal/modules/esm/loader:438:20)
+    at afterLoad (node:internal/modules/esm/loader:506:29)
+    at ModuleLoader.loadAndTranslate (node:internal/modules/esm/loader:511:12)
+    at #getOrCreateModuleJobAfterResolve (node:internal/modules/esm/loader:564:36)
+    at afterResolve (node:internal/modules/esm/loader:611:52)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:617:12) {
+  code: 'ERR_INVALID_TYPESCRIPT_SYNTAX'
+}
+
+Node.js v24.22.2
+✖ src/coverage-runner-split.test.ts (116.319979ms)
+✔ a dev-only package imported by reachable code is reported with the file that imports it (13.882596ms)
+✔ several undeclared packages are all listed in the boot-failure message, counted in the plural (2.292729ms)
+✔ builtins, declared packages, subpaths of declared packages and scoped packages pass (5.703508ms)
+✔ follows #src/ subpath imports, re-exports and literal dynamic imports (16.119633ms)
+✔ files unreachable from the entry are not checked; comments and a local `require` are not imports (7.727728ms)
+✔ a missing relative target is reported rather than silently skipped (2.251025ms)
+✔ the compiled daemon supervisor pulls no package outside root `dependencies` (0.1.26: dev-only tsx resolve failed every build) (161.302371ms)
+(node:21307) ExperimentalWarning: Module mocking is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21307) DeprecationWarning: mock.module(): options.namedExports is deprecated. Use options.exports instead.
+✖ the desktop journey harness loads through Playwright on the supported Node runtime (6514.667698ms)
+node:internal/modules/package_json_reader:331
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'app-builder-lib' imported from /home/user/Tovu/apps/desktop/src/electron-builder-files.test.ts
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:331:9)
+    at packageResolve (node:internal/modules/esm/resolve:784:25)
+    at moduleResolve (node:internal/modules/esm/resolve:873:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolve (file:///home/user/Tovu/apps/desktop/scripts/resolve-ts-ext.ts:19:14)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveWithHooks (node:internal/modules/customization_hooks:417:10) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.22.2
+✖ src/electron-builder-files.test.ts (126.224683ms)
+✔ desktop app creates one runtime outside window/site callbacks (4.619049ms)
+✔ quit waits for owned runtime disposal even without sites and disposes once across repeated quits (7.794448ms)
+✔ closing all windows quits Windows/Linux, while macOS keeps the app alive (43.125441ms)
+﹣ the prompt runs inside whenReady, before the auto-updater starts (1.932956ms) # SKIP
+﹣ the prompt call is guarded so a failure never breaks the boot (0.138379ms) # SKIP
+﹣ Electron's own move is called with the policy's conflict handler (0.086809ms) # SKIP
+﹣ the skip check is fed this copy's real launch facts, including the other open copies (0.106351ms) # SKIP
+✔ the toolchain is prepared AFTER userData is applied -- userData must be locked in first (1.067127ms)
+✔ the toolchain is written with process.execPath, DESKTOP_ROOTS.npmRoot and the real writer and builder (0.173702ms)
+✔ the prepared env is what the site backend hands every tovu serve (0.146796ms)
+✔ a site start never calls the owner-store CLI: the sync-on-start path is gone (0.927904ms)
+✔ the sites-home deps object carries the three preview operations, bound to this launch's userData (1.695379ms)
+✔ boot discovery leaves the home window free and sweeps only after the scan settles (1.504892ms)
+✔ a failed boot scan reports the failure and still performs preview hygiene (0.467418ms)
+✔ the dev-fallback rows are settled against the one resolved dev-fallback directory (1.237502ms)
+✔ the deps carry the transitions store, or every start and stop reports the state it just left (0.257868ms)
+✔ the deps carry a scan root and the recently-opened list for the scan to read (0.239943ms)
+✔ the scan root is the sites directory the dev fallback already lives in (0.888505ms)
+✔ recentSiteDirs is a thunk over the MRU file, not a snapshot taken at boot (0.224533ms)
+✔ the two bulk site scans in the boot chain are handed the NON-throwing classifier (0.231203ms)
+✔ deskfx2 SHOULD-1: desktop main explicitly enables catalog recovery (0.161567ms)
+✔ before-quit waits on in-flight teardowns, not only on openSites (8.589611ms)
+✖ Quit during a card Stop waits for its tracked teardown after openSites becomes empty (1.745711ms)
+✔ a quit attempt during the drain is held until the drain completes, not let through (0.487011ms)
+✔ the drain arms the force-exit deadline itself, so a held quit cannot outlive a hung drain (0.42123ms)
+✔ main.ts calls registerSpeechIpc with the real ipcMain and the shell-page sender check (0.975129ms)
+✔ createWindow's preload is the compiled speech preload, dist/speech/preload-speech.cjs (0.408367ms)
+✔ the theme stream fetches through the site's own partition, sending its admin cookies (0.964128ms)
+✔ a card's Stop cancels both the preview capture and the theme stream (0.279503ms)
+✔ electron-updater is never imported at module scope (1.025113ms)
+✔ only the quit that ends the app consults the updater, and may be held by it (0.455031ms)
+✔ main.ts hands the resolver Electron's appData root (1.089924ms)
+✔ main.ts applies the resolver's userData through applyUserDataDir, and sets it nowhere else (0.389099ms)
+✔ the shared workspace receives Electron's resolved scratch profile only when the E2E override is on (0.200339ms)
+✔ userData is set before anything reads it, and before whenReady (0.660403ms)
+✔ a cancelled picker is a decline: an info dialog, then a plain quit with no error exit code (1.868039ms)
+✔ a cancelled picker in a self-test quits without a dialog nobody could dismiss (0.209592ms)
+✔ the quit after a decline waits for the dialog to close (0.349444ms)
+✔ a real failure with nothing open: logged, exit code 1, error box, then a hard exit(1) (0.271162ms)
+✔ a failure after an earlier site opened quits gracefully so before-quit can stop that child (0.25034ms)
+✔ self-test and unattended launches never show the blocking error box; self-test never asks unattended (0.226358ms)
+✔ self-test: each loaded window reports its url and quoted title; quit only once every expected window loaded (0.413211ms)
+✔ self-test: a failed load reports the failure, sets exit code 1 and quits (0.309439ms)
+✔ every mode runs the shared steps in launch order, then exactly its own boot (2.194075ms)
+✔ termination signals are armed before any step that can spawn a tovu serve (0.279429ms)
+✔ the nested-home migration runs after the orphan reap and before the boot mode is even chosen (4.391608ms)
+✔ the updater is started without awaiting it: the boot goes on while it loads (0.325844ms)
+✔ a failing awaited step rejects the boot and runs nothing after it (0.827547ms)
+✔ own-server mode's rejection reaches the boot's caller (0.265128ms)
+✔ an unknown boot mode is a boot failure, never a silent windowless launch (0.247551ms)
+✔ the app-wide menu keeps the sites-home menus and appends Settings, read after them (0.59591ms)
+✔ a single-window mode opens its window once and listens for the Dock (0.309269ms)
+✔ under self-test the tracker expecting one window is installed before the window opens (0.29698ms)
+✔ a Dock click reopens only with no window left and no quit draining, reading both at click time (0.399343ms)
+✔ sites home registers everything in order, installs the menu, then opens its one window (0.287921ms)
+✔ the handlers and the boot discovery scan get the SAME deps object (0.120319ms)
+✔ the legacy owner-store check runs once, after the shared-key IPC is registered (0.092952ms)
+✔ the real site handlers claim their channels before the runner stubs (0.070617ms)
+✔ sites home under self-test installs the tracker after the menu and before the window (0.078612ms)
+✔ a real launch uses the packaged/dev default profile and leaves the env untouched (1.821583ms)
+✔ an E2E override wins, is trimmed and resolved, and the resolved path is exported for CLI children (0.57387ms)
+✔ a written toolchain yields its env contract (0.354199ms)
+✔ a disk-image launch turns the toolchain off with a move-to-Applications hint (0.354126ms)
+✔ a failed write degrades to no toolchain and never throws (0.217102ms)
+✔ boot mode: sites home by default; attach for a URL; own server for pinned site dirs (0.270566ms)
+✔ boot mode: an explicit runner UI beats both attach and pinned dirs (0.138374ms)
+✔ boot mode: attach wins over a pinned site dir; a blank URL is not attach (0.223836ms)
+✔ dev-fallback rows: migrate dismissals, then seed, then retire — all with the safe classifier (0.25857ms)
+✔ dev-fallback rows: a packaged app (no dev fallback) touches nothing (0.194343ms)
+✔ a new rescan aborts the previous rescan but not a running picker validation (0.355782ms)
+✔ a new picker validation aborts the previous validation but not a running rescan (0.214436ms)
+✔ before-quit aborts the live scan of both lanes; with none started it is a no-op (0.244887ms)
+✔ an empty legacy store loses exactly its four files under this launch's userData (0.366019ms)
+✔ a store holding keys gets the native import notice; check failures are logged as warnings (0.338704ms)
+✔ TOVU_DESKTOP_SITE_DIRS wins outright: every dir resolves under the fail policy, in order, port left unpinned (4.285023ms)
+✔ the plural arm fails as a whole when any one named dir is refused (0.88158ms)
+✔ otherwise one site via the precedence chain, with the env dir, dev fallback, picker and fail policy (0.413071ms)
+✔ a pinned TOVU_DESKTOP_PORT is trimmed onto ctx.firstSitePort; a blank one pins nothing (0.266631ms)
+✔ a packaged app (no dev fallback) passes null through to the chain (0.274996ms)
+✔ a picker cancellation surfaces unchanged for the boot-failure reporter (0.481087ms)
+✔ orphan reconciliation is silent when nothing was reaped and names every reaped site otherwise (0.442014ms)
+✔ a Dock click reopens only with no window left and no quit draining (0.230069ms)
+✔ own-server boot: menu, resolve, open each site serialized in order (only the first pinned), menu, then activate (0.963768ms)
+✔ own-server boot opens sites one after another, never concurrently (8.424651ms)
+✔ a self-test seeds its tracker with the FULL site count before the first window opens (0.531169ms)
+✔ a sites-config warning is logged with its local-home hint before anything opens (0.266178ms)
+✔ a failed startup open stops the boot before the second site and the activate handler (0.295132ms)
+✔ Dock activation restores every retained site window, even if recent-site entries were cleared (2.147077ms)
+✔ Dock activation with nothing open asks for a site (0.466535ms)
+✔ Dock activation does nothing while a window remains or a quit drains (0.273905ms)
+✔ a restore that fails is reported through the boot-failure reporter; an entry without a dir is skipped (2.277704ms)
+✔ the activate handler bootOwnServerMode registers is the restore handler (0.51821ms)
+✔ a watched tab's stream opens when its site first starts, against that server's port, workspace and partition (3.334595ms)
+✔ after Stop a late frame from the old server is dropped, and a restart streams from the new server (0.622042ms)
+✔ an open with no tab watching the site starts its server but opens no stream (0.43704ms)
+✔ reopening a site that is already open reuses its server and keeps its one stream (0.410643ms)
+✔ a spawned site: boot token always emitted, toolchain env merged, then record, session, announce in order (3.724925ms)
+✔ an unpinned start passes port undefined and a missing toolchain env still yields the Desktop marker (0.361334ms)
+✔ the capture bridge closes when the spawned child exits, not before (0.324619ms)
+✔ an owner sign-in capability arms the partition's session before the session is ensured (0.349652ms)
+✔ a site another app already runs is attached: no spawn, no registry row, no session work (0.206217ms)
+✔ losing the spawn race to a concurrent Web start attaches the winner without bookkeeping (0.280675ms)
+✔ a failed spawn with no winner to attach closes the bridge and rethrows the spawn error (0.709672ms)
+✔ authenticate: a child with no boot token logs and never redeems (0.345147ms)
+✔ authenticate: redeems this site's token on its own partition and admin URL (0.398114ms)
+✔ authenticate: a refused redeem logs its reason and reports false (0.341603ms)
+✔ authenticate: a rejecting redeem (non-loopback wiring bug) is loud on error and reports false (0.203482ms)
+✔ a start whose session is still valid never redeems a boot token (0.294862ms)
+✔ announce: writes the launcher first, then registers with the site's own workspace and session (6.07326ms)
+✔ announce: a successful registration stays silent (0.698527ms)
+✔ announce: a failed launcher write is reported, never thrown, and nothing is registered (0.370941ms)
+✔ announce: any user-data override (even blank) skips before touching Electron or the filesystem (0.324575ms)
+✔ openSiteServer: a site already open returns its server without any start (0.2485ms)
+✔ openSiteServer: a new site is published to openSites, then its previews are scheduled (0.286922ms)
+✔ openSiteServer: a failed start publishes nothing and schedules no preview (0.207141ms)
+✔ a capture loads the site's OWN public root in a hidden window on the site's partition (2.290619ms)
+✔ an https lease loads through localhost, the name its certificate carries (0.284387ms)
+✔ an explicit http scheme still loads the loopback IP (0.210887ms)
+✔ the stored bytes are the resized capture, keyed by siteDir, and the window is destroyed (0.298449ms)
+✔ every failure stage is caught, logged once, reports false, stores nothing and destroys the window (0.531236ms)
+✔ a window that cannot even be created is reported and nothing is destroyed (0.306981ms)
+✔ P1: a store that declines (null) reports an unsuccessful capture so it can be retried (0.253749ms)
+✔ a window destroyed while settling is not captured and not destroyed twice (0.203995ms)
+✔ the target is this launch's own server first, without consulting any lease (0.417307ms)
+✔ a site another app runs is captured through its lease's port and scheme (0.290442ms)
+✔ no own server and no lease, or a lease still starting (port 0), means nothing to capture (0.382595ms)
+✔ the list poll asks once per site and port; a new port earns a fresh attempt (0.246988ms)
+✔ two request functions keep separate memories (0.180086ms)
+✔ the boot sweep hands every tracked site dir to the store's sweep (0.222023ms)
+✔ a failing read or sweep is reported, never thrown — hygiene must not fail a launch (0.524989ms)
+✔ the skip gate maps Electron's launch facts onto Tovu's release policy (1.43682ms)
+✔ only an exact '1' disables the updater, and an absent windowsStore is not the Store (0.205786ms)
+✔ an eligible launch loads the native updater, binds a controller to it and starts it (1.193807ms)
+✔ a skipped launch logs the policy reason and never loads electron-updater (0.216505ms)
+✔ a persisted OFF choice skips lazy updater loading on launch (0.206401ms)
+✔ turning updates OFF while electron-updater is loading creates no controller (0.23954ms)
+✔ a quit drain that began during the load creates no controller (0.285147ms)
+✔ start is single-flight: a second call while starting, or once started, does nothing (0.237785ms)
+✔ a failed load clears the starting flag, so a later start can retry (0.89416ms)
+✔ a background start logs a rejection instead of failing the boot (6.816878ms)
+✔ a non-Error rejection is still logged as text (0.694352ms)
+✔ the controller's download prompt records the ready version for Check for updates… (0.364477ms)
+✔ a ready version is not offered once the controller is gone (0.213631ms)
+✔ a restart starts the controller fresh: an old ready version is forgotten (0.387976ms)
+✔ turning automatic updates OFF persists first, stops the coordinator, and disables native installs/downloads (0.146191ms)
+✔ turning updates OFF before any native updater loaded only persists (0.12561ms)
+✔ a failed preference save does not shut down an enabled updater (0.202825ms)
+✔ a failed save of ON starts nothing (0.097618ms)
+✔ turning automatic updates back ON starts the eligible updater after saving (3.443702ms)
+✔ the final quit asks the controller and is held exactly when it says so (0.331057ms)
+✔ with no controller the final quit is never held (0.061873ms)
+✔ a persisted OFF choice suppresses installation of an already downloaded update on final quit (0.0879ms)
+✔ OFF at final quit with no native updater loaded is simply not held (0.086329ms)
+✔ will-quit removes this instance's presence record only when a controller runs (0.07568ms)
+✔ Check for updates… with updates ON starts the controller before handing back the native updater (0.083899ms)
+✔ Check for updates… with updates OFF only loads the native updater and remembers it (0.05405ms)
+✔ a later check keeps the native updater the controller already listens to (0.085001ms)
+✔ the ready prompt restarts through the controller only when Restart is chosen (0.125742ms)
+✔ a Restart choice with no controller running does nothing further (0.048372ms)
+✔ by default the real auto-update controller binds to the native updater's events (7.824991ms)
+✔ controller inputs are read when a controller is created, not when the updater is (0.242416ms)
+✔ a box parents to the focused window, else the first open window, else none (1.882649ms)
+✔ a desktop notice is one OK box carrying the notice's type, message and detail (0.301686ms)
+✔ a notice with no open window is app-modal rather than lost (0.185915ms)
+✔ Update ready names the version, defaults to Restart and cancels to Later (0.206595ms)
+✔ the prompt resolves true only for Restart (button 0) (0.369031ms)
+✔ a prompt queued before the checkbox turned OFF shows nothing and declines the restart (0.170634ms)
+✔ the others-open explanation is app-modal and pluralizes the count (0.409533ms)
+✔ a relaunch after an install is an update launch; anything else is fresh (1.788676ms)
+✔ before boot every mode sees an inert product with nothing to dispose (1.142593ms)
+✔ a focused app window counts as visible; focus and blur both wake the sampler (0.564477ms)
+✔ a dev launch with no product config boots inactive: process reports wired, no sampler, no dialog (1.096942ms)
+✔ a packaged launch reads its bundled product config and release, and an updated relaunch says so (0.571216ms)
+✔ the resolver's export verdict reaches the boot as given, false as well as true (0.597769ms)
+✔ the boot's consent reader reads the preferences file it was given (0.549585ms)
+✔ product IPC accepts only shell pages served from file: (0.352506ms)
+✔ crashed renderers and children are reported to the booted product; clean exits are not (0.632889ms)
+✔ a configured launch also samples memory and then arms the first-run dialog (0.892136ms)
+✔ the disposers boot leaves run the teardowns it registered (0.489273ms)
+✔ a failed boot leaves the inert product and nothing registered (0.97539ms)
+✔ a later step's throw keeps the earlier disposers for before-quit (0.465069ms)
+✔ the dialog waits for a window that is actually visible (14.1171ms)
+✔ the dialog is offered once per launch, then stops following new windows (0.888282ms)
+✔ a choice persists, reaches the product, and checks the installed menu in place (0.757683ms)
+✔ crash reports only checks only the crash box (0.66852ms)
+✔ closing the dialog records nothing (0.702274ms)
+✔ an earlier decision means no dialog at all (0.665095ms)
+✖ an inactive product never asks (3.699386ms)
+✔ the product is read when the window shows, not when the dialog was armed (5.573572ms)
+✔ a failed save or a failed dialog shows the sharing error and changes nothing (1.083416ms)
+✔ the preferences file lives in Electron's userData (1.76573ms)
+✖ Settings carries Automatic updates, checked from the persisted choice (3.573365ms)
+✔ the Automatic updates checkbox hands the new state to the updater (0.652092ms)
+✔ a failed update-preference save shows the localized error with the failure's text (0.677836ms)
+✖ with no product launch config the sharing checkboxes are absent (0.548487ms)
+✔ a booted product adds both sharing checkboxes, checked from the stored consent (0.408516ms)
+✔ a sharing checkbox persists, then tells the product the saved consent (0.520828ms)
+✔ a failed sharing save shows the sharing error and changes no consent (0.455431ms)
+✔ the default ports read and write the real preferences file (10.399233ms)
+✔ after the first-run dialog the installed sharing checkboxes follow the stored consent in place (0.802984ms)
+✔ with no installed menu the refresh does nothing (0.274928ms)
+✔ the refresh reads the real file by default: a missing file is OFF (0.463303ms)
+✔ own-server menu: macOS gets the app menu first; other platforms start at File (0.465668ms)
+✔ own-server menu carries the given Settings menu unchanged (0.17985ms)
+✔ File › Open Site… is Cmd/Ctrl+O and opens a new site (0.433553ms)
+✔ Open Recent lists each recent site and opens the one clicked (0.282076ms)
+✔ Open Recent with no recent sites shows one disabled placeholder (0.328946ms)
+✔ admin window options: 1360x900 with a 1024x700 floor, sandboxed, speech preload, titled Tovu by default (3.755059ms)
+✔ a site's partition and title are applied; a self-test window stays hidden (0.217693ms)
+✔ no partition means no partition key at all (attach mode keeps the default session) (0.187029ms)
+✔ setup order: create, track, pin title, install the boundary, then load (0.861103ms)
+✔ without a tracker the window still opens and loads (0.342306ms)
+✔ the page may not retitle the window (0.26815ms)
+✔ the boundary is the loaded URL's parsed origin, not a string prefix (0.409079ms)
+✔ an unparseable URL throws before anything loads (0.505359ms)
+✔ no dock (Windows, Linux): nothing is set and nothing is logged (1.409905ms)
+✔ a dock gets the Tovu mark (0.301987ms)
+✔ an unreadable icon is logged and the boot carries on (0.275669ms)
+✔ contents that are not a webview guest get nothing (2.880208ms)
+✔ a webview guest gets the popup handler, then will-navigate, then will-redirect (0.360475ms)
+✔ same-origin navigation is left alone — the tab IS that project's admin (0.291522ms)
+✔ navigation to another supervised site is denied in the guest and handed to the OS browser (0.219749ms)
+✔ navigation anywhere unsupervised is denied and never reaches the OS browser (0.318893ms)
+✔ the same-origin test reads the guest's CURRENT url, so a guest on another site is judged against it (0.205259ms)
+✔ a main-frame redirect is allowed only to a supervised site; subframe redirects are left alone (0.228189ms)
+✔ every popup is denied in the guest; an ordinary web link and a supervised site go to the OS browser (0.316003ms)
+ℹ tests 260
+ℹ suites 0
+ℹ pass 246
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 4
+ℹ todo 0
+ℹ duration_ms 15649.662791
+
+✖ failing tests:
+
+test at src/asar-verify.test.ts:1:1
+✖ src/asar-verify.test.ts (122.44968ms)
+  'test failed'
+
+test at src/check-coverage-script.test.ts:1:1
+✖ src/check-coverage-script.test.ts (155.657167ms)
+  'test failed'
+
+test at src/coverage-floors.test.ts:1:1
+✖ src/coverage-floors.test.ts (104.592627ms)
+  'test failed'
+
+test at src/coverage-runner-split.test.ts:1:1
+✖ src/coverage-runner-split.test.ts (116.319979ms)
+  'test failed'
+
+test at src/e2e-harness-import.test.ts:9:1
+✖ the desktop journey harness loads through Playwright on the supported Node runtime (6514.667698ms)
+  AssertionError [ERR_ASSERTION]: Error: Cannot find module 'electron'
+  Require stack:
+  - /home/user/Tovu/apps/desktop/package.json
+      at Module.<anonymous> (node:internal/modules/cjs/loader:1564:15)
+      at Module.resolveFilename [as _resolveFilename] (/home/user/Tovu/node_modules/playwright/lib/common/index.js:1185:36)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1118:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1142:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1169:12)
+      at Module._load (node:internal/modules/cjs/loader:1341:5)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+      at Module.require (node:internal/modules/cjs/loader:1674:12)
+      at desktopRequire (node:internal/modules/helpers:157:16)
+      at file:///home/user/Tovu/development/e2e/desktop/_fixtures.ts:49:69
+      at ModuleJob.run (node:internal/modules/esm/module_job:561:25)
+      at node:internal/modules/esm/loader:647:26
+      at requireOrImport (/home/user/Tovu/node_modules/playwright/lib/common/index.js:1147:12) {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [ '/home/user/Tovu/apps/desktop/package.json' ]
+  }
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/e2e-harness-import.test.ts:56:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/electron-builder-files.test.ts:1:1
+✖ src/electron-builder-files.test.ts (126.224683ms)
+  'test failed'
+
+test at src/main-shutdown-wiring.test.ts:105:1
+✖ Quit during a card Stop waits for its tracked teardown after openSites becomes empty (1.745711ms)
+  AssertionError [ERR_ASSERTION]: card Stop must receive the same tracker before-quit drains
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/main-shutdown-wiring.test.ts:106:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /\n\s*pendingTeardowns,/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at src/main/updates/product-telemetry-boot.test.ts:335:1
+✖ an inactive product never asks (3.699386ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   {
+  +     options: {
+  +       buttons: [
+  +         'Send crash reports and usage',
+  +         'Crash reports only',
+  +         "Don't send"
+  +       ],
+  +       cancelId: 3,
+  +       defaultId: 2,
+  +       detail: "Reports go to Tovu's makers, never your sites' content, keys, files or prompts. Error text is redacted. Native crash reports include a snapshot of process memory, which may contain sensitive information. Usage includes screens, actions and memory measurements. You can change either choice in Settings. Turning sharing off does not delete reports already sent.",
+  +       message: 'Share diagnostics and usage with Tovu?',
+  +       noLink: true,
+  +       title: 'Help improve Tovu',
+  +       type: 'question'
+  +     },
+  +     window: FakeWindow {
+  +       Symbol(kCapture): false,
+  +       Symbol(shapeMode): false,
+  +       _events: [Object: null prototype] {},
+  +       _eventsCount: 0,
+  +       _maxListeners: undefined,
+  +       visible: true,
+  +       webContents: EventEmitter {
+  +         Symbol(kCapture): false,
+  +         Symbol(shapeMode): false,
+  +         _events: [Object: null prototype] {
+  +           'did-finish-load': [Function: wrapper] {
+  +             listener: [Function: offer]
+  +           }
+  +         },
+  +         _eventsCount: 1,
+  +         _maxListeners: undefined
+  +       }
+  +     }
+  +   }
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/main/updates/product-telemetry-boot.test.ts:339:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Array],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at src/main/updates/settings-menu.test.ts:51:1
+✖ Settings carries Automatic updates, checked from the persisted choice (3.573365ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      [
+        'Automatically update Tovu',
+        true
+      ],
+  +   [
+  +     'Send crash reports to Tovu',
+  +     false
+  +   ],
+  +   [
+  +     'Send usage statistics to Tovu',
+  +     false
+  +   ]
+    ]
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/main/updates/settings-menu.test.ts:56:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 'Automatically update Tovu', true ], [ 'Send crash reports to Tovu', false ], [ 'Send usage statistics to Tovu', false ] ],
+    expected: [ [ 'Automatically update Tovu', true ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at src/main/updates/settings-menu.test.ts:82:1
+✖ with no product launch config the sharing checkboxes are absent (0.548487ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  3 !== 1
+  
+      at TestContext.<anonymous> (file:///home/user/Tovu/apps/desktop/src/main/updates/settings-menu.test.ts:83:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

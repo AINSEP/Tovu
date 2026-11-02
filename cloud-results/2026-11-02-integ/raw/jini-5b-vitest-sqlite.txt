@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/sqlite
+
+ ✓ src/__tests__/index.test.ts (2 tests) 8ms
+ ✓ src/__tests__/surface.test.ts (4 tests) 31ms
+
+ Test Files  2 passed (2)
+      Tests  6 passed (6)
+   Start at  20:26:30
+   Duration  1.64s (transform 743ms, setup 0ms, collect 2.66s, tests 39ms, environment 0ms, prepare 147ms)
+

@@ -1,0 +1,165 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugin-catalog
+
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm notice
+npm notice package: @jini-ai/plugin-catalog@0.6.17
+npm notice Tarball Contents
+npm notice 11.3kB LICENSE
+npm notice 256B NOTICE
+npm notice 2.1kB README.md
+npm notice 3.2kB catalog.json
+npm notice 845B package.json
+npm notice Tarball Details
+npm notice name: @jini-ai/plugin-catalog
+npm notice version: 0.6.17
+npm notice filename: jini-ai-plugin-catalog-0.6.17.tgz
+npm notice package size: 6.0 kB
+npm notice unpacked size: 17.7 kB
+npm notice shasum: 298f4b84738f962af5d5bb1264f261c2756a19a6
+npm notice integrity: sha512-EZo6PYuIAhgH6[...]pRsQyj0599afA==
+npm notice total files: 5
+npm notice
+ ❯ __tests__/catalog.test.ts (28 tests | 4 failed) 418ms
+   × standalone plugin catalog > lists every provider source exactly once and each agent plugin package 16ms
+     → expected [ 'agent:slide-design', …(7) ] to deeply equal [ 'agent:charts-echarts', …(35) ]
+   × standalone plugin catalog > 'agent' 'slide-design' matches its real package, publisher, path and contract 4ms
+     → expected { kind: 'agent', …(9) } to deeply equal { kind: 'agent', …(9) }
+   × standalone plugin catalog > 'agent' 'ui-ux-design' matches its real package, publisher, path and contract 3ms
+     → expected { kind: 'agent', …(9) } to deeply equal { kind: 'agent', …(9) }
+   × standalone plugin catalog > preserves each agent manifest version independently of the npm release 4ms
+     → expected { kind: 'agent', …(9) } to match object { kind: 'agent', …(5) }
+(4 matching properties omitted from actual)
+   ✓ standalone plugin catalog > packs only metadata and documentation into the actual npm tarball 361ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  __tests__/catalog.test.ts > standalone plugin catalog > lists every provider source exactly once and each agent plugin package
+AssertionError: expected [ 'agent:slide-design', …(7) ] to deeply equal [ 'agent:charts-echarts', …(35) ]
+
+- Expected
++ Received
+
+  Array [
+-   "agent:charts-echarts",
+-   "agent:charts-recharts",
+-   "agent:cloudflare",
+-   "agent:composio",
+-   "agent:fly",
+-   "agent:github",
+-   "agent:github-pages",
+-   "agent:google-login",
+-   "agent:google-workspace",
+-   "agent:higgsfield-media",
+-   "agent:jev",
+-   "agent:meilisearch",
+-   "agent:netlify",
+-   "agent:opentelemetry",
+-   "agent:posthog",
+-   "agent:railway",
+-   "agent:render",
+-   "agent:resend",
+-   "agent:s3-compatible",
+-   "agent:sentry",
+-   "agent:shopify",
+-   "agent:site-compliance",
+-   "agent:site-import",
+    "agent:slide-design",
+-   "agent:supabase",
+    "agent:ui-ux-design",
+-   "agent:vercel",
+-   "agent:wordpress",
+    "provider:ai-trace-langfuse",
+    "provider:analytics-posthog",
+-   "provider:charts-echarts",
+-   "provider:charts-recharts",
+    "provider:fixture-provider",
+    "provider:observability-opentelemetry",
+    "provider:observability-sentry",
+    "provider:payments-stripe",
+  ]
+
+ ❯ __tests__/catalog.test.ts:24:27
+     22|     const ids = sources.filter(item => item.isDirectory() && !item.nam…
+     23|     const keys = (list: { kind: string; id: string }[]) => list.map(it…
+     24|     expect(keys(entries)).toEqual(keys([...ids.map(id => ({ kind: 'pro…
+       |                           ^
+     25|       ...agentPluginPackages.map(row => ({ kind: 'agent', id: row.name…
+     26|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  __tests__/catalog.test.ts > standalone plugin catalog > 'agent' 'slide-design' matches its real package, publisher, path and contract
+ FAIL  __tests__/catalog.test.ts > standalone plugin catalog > 'agent' 'ui-ux-design' matches its real package, publisher, path and contract
+AssertionError: expected { kind: 'agent', …(9) } to deeply equal { kind: 'agent', …(9) }
+
+- Expected
++ Received
+
+  Object {
+    "contract": Object {
+      "id": "agent-plugins",
+      "version": "1.0.0",
+    },
+    "description": "Slide and presentation design: storyline, takeaway titles, charts, 16:9 layout, speaker notes, accessibility, review and HTML decks, as one portable Agent Plugin.",
+    "expectedDigests": null,
+    "id": "slide-design",
+    "kind": "agent",
+-   "packageName": "@jini-ai/agent-plugins",
++   "packageName": "@jini-ai/plugin-slide-design",
+    "path": "slide-design",
+    "pluginVersion": "0.1.0",
+    "publisherIdentity": "jini/slide-design",
+    "version": "0.6.17",
+  }
+
+ ❯ __tests__/catalog.test.ts:37:19
+     35|       : path.join(packagesRoot, `provider-plugins/src/${entry.id}/jini…
+     36|     const pluginManifest = await readJson(source);
+     37|     expect(entry).toEqual({ ...catalogEntry({ id: entry.id, packageMan…
+       |                   ^
+     38|       expectedDigests: entry.expectedDigests });
+     39|     if (row) expect(`${entry.packageName}/${entry.path}`).toBe(`${AGEN…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  __tests__/catalog.test.ts > standalone plugin catalog > preserves each agent manifest version independently of the npm release
+AssertionError: expected { kind: 'agent', …(9) } to match object { kind: 'agent', …(5) }
+(4 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+    "contract": Object {
+      "id": "agent-plugins",
+      "version": "1.0.0",
+    },
+    "kind": "agent",
+-   "packageName": "@jini-ai/agent-plugins",
++   "packageName": "@jini-ai/plugin-ui-ux-design",
+    "path": "ui-ux-design",
+-   "pluginVersion": "0.6.1",
++   "pluginVersion": "0.4.6",
+    "version": "0.6.17",
+  }
+
+ ❯ __tests__/catalog.test.ts:48:64
+     46| 
+     47|   it('preserves each agent manifest version independently of the npm r…
+     48|     expect(entries.find(entry => entry.id === 'ui-ux-design')).toMatch…
+       |                                                                ^
+     49|       kind: 'agent', packageName: AGENT_PLUGINS_PACKAGE, version: agen…
+     50|       contract: { id: 'agent-plugins', version: '1.0.0' },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 24 passed (28)
+   Start at  20:25:45
+   Duration  814ms (transform 108ms, setup 0ms, collect 130ms, tests 418ms, environment 0ms, prepare 90ms)
+
+undefined
+/home/user/Jini/packages/plugin-catalog:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run --maxWorkers=2 --minWorkers=1 __tests__/catalog.test.ts

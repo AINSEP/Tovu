@@ -1,0 +1,15 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/db
+
+ ✓ src/__tests__/sqlite/db-ops.test.ts (15 tests) 94ms
+ ✓ src/__tests__/sqlite/backup-policy.test.ts (4 tests) 158ms
+ ✓ src/__tests__/sqlite/index.test.ts (6 tests) 25ms
+ ✓ src/__tests__/backup.test.ts (5 tests) 3306ms
+   ✓ PGlite backupTo writes a data-dir dump 3264ms
+ ✓ src/__tests__/postgres-idle-error-redaction.test.ts (1 test) 13ms
+
+ Test Files  5 passed (5)
+      Tests  31 passed (31)
+   Start at  20:25:16
+   Duration  4.80s (transform 562ms, setup 0ms, collect 1.23s, tests 3.60s, environment 1ms, prepare 377ms)
+

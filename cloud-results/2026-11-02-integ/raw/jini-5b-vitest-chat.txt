@@ -1,0 +1,30 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/chat
+
+ ✓ src/react/components/__tests__/ToolCard.test.tsx (142 tests) 1825ms
+ ✓ src/react/agent-bridge/__tests__/frontend-session-bridge.test.ts (55 tests) 153ms
+ ✓ src/react/hooks/__tests__/useRunStream.test.ts (21 tests) 117ms
+ ✓ src/react/components/__tests__/Composer.test.tsx (54 tests) 2763ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPane.refresh.test.tsx (8 tests) 125ms
+ ✓ src/react/components/__tests__/ConversationList.test.tsx (32 tests) 3217ms
+   ✓ the four actions > selects a conversation and closes 550ms
+   ✓ the four actions > does not select when a double-click opens the rename editor 447ms
+ ✓ src/react/components/__tests__/Composer.guards.test.tsx (13 tests) 529ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.test.tsx (7 tests) 66ms
+ ✓ src/react/components/__tests__/ExtEventErrorBoundary.test.tsx (6 tests) 112ms
+ ✓ src/react/components/__tests__/ConversationList.gaps.test.tsx (6 tests) 285ms
+ ✓ src/react/hooks/__tests__/useRunStream.checkpoint.cov-j2.test.ts (8 tests) 45ms
+ ✓ src/react/components/__tests__/ConversationTitleEditor.test.tsx (4 tests) 314ms
+ ✓ src/core/__tests__/tool-events.antigravity.test.ts (20 tests) 23ms
+ ✓ src/react/features/chat-pane/__tests__/hooks/useChatPaneFileDrop.cov-j2.test.tsx (1 test) 26ms
+ ✓ src/store/runtime/__tests__/chat-expiry-sweep.cov-j2.test.ts (10 tests) 231ms
+ ✓ src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts (4 tests) 129ms
+ ✓ src/store/__tests__/manifest.test.ts (2 tests) 8ms
+ ✓ src/embed-widget/__tests__/boundaries.test.ts (9 tests) 14ms
+ ✓ src/__tests__/dbpkg-chat-request-ports.test.ts (2 tests) 9ms
+
+ Test Files  19 passed (19)
+      Tests  404 passed (404)
+   Start at  20:24:32
+   Duration  17.74s (transform 5.14s, setup 2.40s, collect 12.40s, tests 9.99s, environment 5.51s, prepare 1.43s)
+

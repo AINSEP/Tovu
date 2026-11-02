@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/agent-runtime
+
+ ✓ src/providers/__tests__/oauth-tokens.test.ts (22 tests) 105ms
+ ✓ src/__tests__/integration-contracts.test.ts (7 tests) 20ms
+
+ Test Files  2 passed (2)
+      Tests  29 passed (29)
+   Start at  20:24:27
+   Duration  2.35s (transform 1.71s, setup 0ms, collect 2.59s, tests 125ms, environment 0ms, prepare 194ms)
+

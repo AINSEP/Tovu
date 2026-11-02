@@ -1,0 +1,4 @@
+
+> @jini-ai/desktop-host@0.6.17 typecheck /home/user/Jini/packages/desktop-host
+> tsc -p tsconfig.json --noEmit
+

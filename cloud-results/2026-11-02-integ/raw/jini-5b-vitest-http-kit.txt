@@ -1,0 +1,27 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/http-kit
+
+ ✓ src/__tests__/rate-limit.test.ts (31 tests) 16ms
+stderr | src/__tests__/adapter.test.ts > http adapter > leaves no dangling close listener after a route that throws
+[@jini-ai/http-kit] internal error (GET /boom-cleanup, correlationId=2ad2d985-5f0a-49b0-91a9-77c1824bc367) Error: boom
+    at Object.handle (/home/user/Jini/packages/http-kit/src/__tests__/adapter.test.ts:339:15)
+    at Object.GET /boom-cleanup (/home/user/Jini/packages/http-kit/src/adapter.ts:135:33)
+    at /home/user/Jini/packages/http-kit/src/__tests__/adapter.test.ts:346:43
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ ✓ src/__tests__/adapter.test.ts (16 tests) 30ms
+ ✓ src/__tests__/http-error-log-redaction.test.ts (24 tests) 821ms
+   ✓ HTTP exception logging class guard > requires the shared redactor at every exception log in HTTP packages 495ms
+   ✓ HTTP exception logging class guard > requires shared redaction for caught errors across the remaining packages 303ms
+
+ Test Files  3 passed (3)
+      Tests  71 passed (71)
+   Start at  20:25:35
+   Duration  2.44s (transform 445ms, setup 0ms, collect 1.19s, tests 867ms, environment 1ms, prepare 224ms)
+

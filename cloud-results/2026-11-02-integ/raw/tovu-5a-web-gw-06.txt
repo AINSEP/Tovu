@@ -1,0 +1,161 @@
+✔ class guard detects static, re-exported and dynamic packages without executing source (16.114385ms)
+✔ class guard allows builtins and configured paths, but no namespace-wide exemptions (0.293876ms)
+✔ admin source imports declare dependencies in their own package (2528.662891ms)
+✔ site-chat source imports declare dependencies in their own package (19.916287ms)
+✔ every file the server build compiles imports only root dependencies or workspaces (2255.787271ms)
+✔ asset-only refresh replaces stale plugin catalogs without invoking a compiler (17.650367ms)
+✔ portable build clears stale sources, runs compilers in order, and copies hidden content files (9.48073ms)
+✔ compiler failure stops the build before metadata emission and asset staging (1.219362ms)
+✔ D0a: the runtime assets carry the composed plugin root and the Tovu overlays (13.836598ms)
+✔ D0a: a composition refusal fails the asset step instead of shipping a partial plugin root (9.375149ms)
+✔ runtime assets leave out __tests__ folders: test fixtures import repo sources the payload never ships (9.791188ms)
+✔ the composed bundled id set is pinned, and no id ships from both content and a package (1.808136ms)
+✔ every selected package resolves to a payload whose plugin.json names its selection key (9.254987ms)
+✔ the source helper reads a selected plugin from its package payload and any other id from content (6.73635ms)
+✔ the live tree has no idle-CPU offenders and no stale allowlist entries (1084.90155ms)
+✔ an absent allowed spinner produces its exact stale-allowlist violation (2.116598ms)
+✔ an allowed infinite spinner still requires reduced-motion support (2.26895ms)
+✔ an infinite CSS animation outside the allowlist fails, with its selector (1.575657ms)
+✔ a commented-out infinite animation and a finite one pass (1.313933ms)
+✔ an autoplaying or looping video in UI markup fails (1.574275ms)
+✔ turning off Electron background throttling in the main-process entry fails, reported once (1.715064ms)
+✔ a bare setInterval in UI code fails; one in a comment does not (1.790743ms)
+✔ a Tailwind infinite animation class fails (2.512226ms)
+✔ cssDeclarations keeps the innermost selector across @media blocks (0.456431ms)
+✔ a test change that adds a message-less assert.ok is reported against its merge-base copy (54.096859ms)
+✔ a brand-new test file counts every message-less assertion as new (3.645076ms)
+✔ historical violations in a touched file pass while the count holds or shrinks (10.991959ms)
+✔ a renamed test file keeps the allowance of its source path (4.519677ms)
+✔ files outside the tsx-run test roots and inline disables are handled by the shared config (5.78033ms)
+✔ composes Tovu content and the selected package payload into one root and leaves no staging folder (23.789148ms)
+✔ repeat composition follows unchanged packages, changed bytes and a changed selection (24.544646ms)
+✔ an id in both content and a selected package fails and keeps the previous output (21.276351ms)
+✔ a selected package that does not resolve fails the build (9.236667ms)
+✔ a payload without plugin.json fails the build (8.46188ms)
+✔ a selection key that differs from the plugin name its package declares fails the build (8.459567ms)
+✔ every payload path a tovu-*.json contribution names must exist inside that plugin (11.089607ms)
+✔ a contribution check also covers selected package payloads (10.074437ms)
+✔ an empty selection composes Tovu content alone without npm (7.714087ms)
+✔ development composes into the gitignored folder unless the operator already points at a bundled root (9.060986ms)
+✖ desktop dev CLI launches preload, watcher and Electron portably on win32 (94.333112ms)
+✖ desktop dev CLI launches preload, watcher and Electron portably on linux (87.434286ms)
+✔ desktop build:preload uses Node cleanup instead of Unix rm (0.713626ms)
+✔ preload cleanup removes only stale preload, contracts and speech output from any cwd (179.193996ms)
+✔ T4 stages exactly npm-selected payload bytes, preserves Tovu wording, and repeats identically (23.999311ms)
+✔ T4 empty selection resolves and installs nothing (6.551187ms)
+✔ T4 preserves conflicting output and refuses selection: staged-agent-assets/ui-ux-design/skills/design/SKILL.md (16.092617ms)
+✔ T4 preserves conflicting output and refuses selection: staged-agent-assets/uploaded/plugin.json (13.119778ms)
+✔ T4 a missing later package leaves the previous output unchanged and removes scratch files (11.263696ms)
+✔ T4 rejects unsafe npm file paths: ../escape (6.93364ms)
+✔ T4 rejects unsafe npm file paths: /absolute (6.859495ms)
+✔ T4 rejects unsafe npm file paths: ui-ux-design/../../escape (7.060745ms)
+✔ T4 rejects unsafe npm file paths: ui-ux-design\escape (8.125256ms)
+✔ T4 refuses missing npm manifests, duplicate identities and symlinked payload files (14.644002ms)
+✔ T4 asks npm for an offline dry-run file list with lifecycle scripts disabled (101.6287ms)
+✔ T4 partial copy failures never publish a partial selection or remove existing output (15.264955ms)
+✔ T4 multiple selected packages produce sorted identities independent of input and npm order (18.192277ms)
+✔ T4 resolves locally linked Jini packages without copying their unshipped files (9.614482ms)
+✔ T4 subpaths of one package share one npm listing and stage only their own folders (12.716257ms)
+✔ T4 a subpath whose package.json is not above its manifest is refused (6.60856ms)
+✔ the test-safety lint guard rejects message synthesis: assert.ok(result); (49.501982ms)
+✔ the test-safety lint guard rejects message synthesis: assert.ok(
+ results.some(value => value.ok)
+); (6.547872ms)
+✔ the test-safety lint guard rejects message synthesis: assert(result); (3.000775ms)
+✔ the test-safety lint guard rejects message synthesis: assert.strict.ok(result); (2.400225ms)
+✔ the test-safety lint guard rejects message synthesis: assert.strict(result); (2.487404ms)
+✔ explicit messages and other assertions remain valid (4.483063ms)
+✔ guard flags temp-cwd-only and env-less resolver calls, and accepts explicit roots (14.590234ms)
+✔ every test that resolves a site layout without an explicit root isolates the home catalog (3684.469228ms)
+✔ with the home catalog isolated, a temp-cwd layout stays inside its temp dir (7.956129ms)
+✔ runtime guard rejects owner-home layouts and sibling-prefix escapes before disk reads (3.25589ms)
+ℹ tests 69
+ℹ suites 0
+ℹ pass 67
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18005.074951
+
+✖ failing tests:
+
+test at development/scripts/__tests__/desktop-portable.unit.test.ts:1:282
+✖ desktop dev CLI launches preload, watcher and Electron portably on win32 (94.333112ms)
+  AssertionError [ERR_ASSERTION]: node:internal/modules/esm/resolve:272
+      throw new ERR_MODULE_NOT_FOUND(
+            ^
+  
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/desktop-portable-C83FoM/development/scripts/compose-bundled-agent-plugins.mjs' imported from /tmp/desktop-portable-C83FoM/development/scripts/dev-desktop.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at ModuleJob.syncLink (node:internal/modules/esm/module_job:276:33)
+      at ModuleJob.link (node:internal/modules/esm/module_job:381:17) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///tmp/desktop-portable-C83FoM/development/scripts/compose-bundled-agent-plugins.mjs'
+  }
+  
+  Node.js v24.22.2
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/desktop-portable.unit.test.ts:65:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at development/scripts/__tests__/desktop-portable.unit.test.ts:1:282
+✖ desktop dev CLI launches preload, watcher and Electron portably on linux (87.434286ms)
+  AssertionError [ERR_ASSERTION]: node:internal/modules/esm/resolve:272
+      throw new ERR_MODULE_NOT_FOUND(
+            ^
+  
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/desktop-portable-71KSCC/development/scripts/compose-bundled-agent-plugins.mjs' imported from /tmp/desktop-portable-71KSCC/development/scripts/dev-desktop.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+      at moduleResolve (node:internal/modules/esm/resolve:879:10)
+      at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+      at #resolve (node:internal/modules/esm/loader:687:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+      at ModuleJob.syncLink (node:internal/modules/esm/module_job:276:33)
+      at ModuleJob.link (node:internal/modules/esm/module_job:381:17) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///tmp/desktop-portable-71KSCC/development/scripts/compose-bundled-agent-plugins.mjs'
+  }
+  
+  Node.js v24.22.2
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/home/user/Tovu/development/scripts/__tests__/desktop-portable.unit.test.ts:65:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

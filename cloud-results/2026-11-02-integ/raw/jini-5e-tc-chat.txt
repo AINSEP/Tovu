@@ -1,0 +1,4 @@
+
+> @jini-ai/chat@0.6.17 typecheck /home/user/Jini/packages/chat
+> tsc -p tsconfig.json --noEmit
+

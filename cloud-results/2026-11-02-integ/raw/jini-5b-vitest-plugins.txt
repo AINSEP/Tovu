@@ -1,0 +1,11 @@
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+ RUN  v2.1.9 /home/user/Jini/packages/plugins
+
+ ✓ src/host/__tests__/unit/contributions.edges.unit.test.ts (20 tests) 32ms
+
+ Test Files  1 passed (1)
+      Tests  20 passed (20)
+   Start at  20:25:47
+   Duration  860ms (transform 400ms, setup 0ms, collect 512ms, tests 32ms, environment 0ms, prepare 87ms)
+

@@ -1,0 +1,21 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/devops
+
+ ✓ src/packaging/electron/__tests__/staging.test.ts (87 tests) 31ms
+ ✓ src/packaging/electron/__tests__/packaging.test.ts (17 tests) 53ms
+ ✓ src/packaging/electron/__tests__/typescript.test.ts (4 tests) 28ms
+ ✓ src/packaging/electron/__tests__/staged-closure.test.ts (8 tests) 10050ms
+   ✓ staged closure rejects missing smol-toml even when an ancestor has it 941ms
+   ✓ staged closure passes when smol-toml is actually present 847ms
+   ✓ only an owning Jini optional peer classification exempts a miss 1571ms
+   ✓ uses import and require export conditions and detects missing relative targets 2341ms
+   ✓ scans unreferenced Jini dist modules but does not audit third-party optional implementations 1628ms
+   ✓ the asar resource layout checks Jini inside app and resolves sibling website files 879ms
+   ✓ a third-party package nested under Jini retains third-party ownership 967ms
+   ✓ a nameless dist/cjs type marker does not hide the owning optional-peer opt-in 875ms
+
+ Test Files  4 passed (4)
+      Tests  116 passed (116)
+   Start at  20:25:23
+   Duration  10.87s (transform 331ms, setup 0ms, collect 1.00s, tests 10.16s, environment 1ms, prepare 303ms)
+

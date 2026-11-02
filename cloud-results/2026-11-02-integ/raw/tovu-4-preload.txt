@@ -1,0 +1,6 @@
+
+> tovu-desktop@0.1.25 build:preload
+> node scripts/clean-preload.ts && tsc -p tsconfig.preload.json && esbuild src/speech/preload-speech.cts --bundle --platform=node --format=cjs --external:electron --outfile=dist/speech/preload-speech.cjs
+
+src/preload/preload.mts(27,64): error TS2307: Cannot find module 'electron' or its corresponding type declarations.
+src/speech/preload-speech.cts(46,27): error TS2307: Cannot find module 'electron' or its corresponding type declarations.

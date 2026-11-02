@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/desktop-host
+
+ ✓ src/__tests__/render-bridge.l138b.characterization.test.ts (41 tests) 534ms
+
+ Test Files  1 passed (1)
+      Tests  41 passed (41)
+   Start at  20:25:21
+   Duration  869ms (transform 78ms, setup 0ms, collect 84ms, tests 534ms, environment 0ms, prepare 73ms)
+

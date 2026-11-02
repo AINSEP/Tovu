@@ -1,0 +1,26 @@
+jini-5a-agent-plugins-content rc=1 55s
+jini-5c-scripts-vitest rc=1 18s
+jini-5b-vitest-agent-runtime rc=0 4s
+jini-5b-vitest-agentic rc=0 1s
+jini-5b-vitest-chat rc=0 19s
+jini-5b-vitest-cms rc=0 3s
+jini-5b-vitest-core rc=0 13s
+jini-5b-vitest-daemon rc=0 9s
+jini-5b-vitest-db rc=0 6s
+jini-5b-vitest-desktop-host rc=0 1s
+jini-5b-vitest-devops rc=0 12s
+jini-5b-vitest-http-kit rc=0 4s
+jini-5b-vitest-mcp rc=0 3s
+jini-5b-vitest-platform rc=0 3s
+jini-5b-vitest-plugin-catalog rc=1 2s
+jini-5b-vitest-plugins rc=0 2s
+jini-5b-vitest-provider-plugins rc=1 32s
+jini-5b-vitest-server rc=0 9s
+jini-5b-vitest-sqlite rc=0 3s
+jini-5b-vitest-ui rc=0 7s
+jini-5d-guard-plugins rc=0 2s
+jini-5d-guard rc=1 32s
+jini-5d-guard-plugins-packed rc=1 115s
+jini-5d-complexity rc=1 88s
+jini-5e-tsc-scripts rc=0 3s
+DONE

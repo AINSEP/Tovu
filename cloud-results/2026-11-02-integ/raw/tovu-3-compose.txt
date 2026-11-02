@@ -1,0 +1,5 @@
+
+> tovu@0.1.0 agent-plugins:compose
+> node development/scripts/compose-bundled-agent-plugins.mjs
+
+tovu: composed 28 bundled agent plugins into /home/user/Tovu/.generated/bundled-agent-plugins; restart the API to seed them.

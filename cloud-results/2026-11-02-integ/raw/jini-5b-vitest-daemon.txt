@@ -1,0 +1,34 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/daemon
+
+ ✓ src/__tests__/run-lifecycle.test.ts (67 tests) 102ms
+ ✓ src/routines/__tests__/scheduler.test.ts (34 tests) 55ms
+ ✓ src/__tests__/legacy-data-migration.test.ts (41 tests) 297ms
+ ✓ src/http/__tests__/attachments.test.ts (154 tests) 1405ms
+ ✓ src/__tests__/read-only-tools.test.ts (23 tests) 20ms
+ ✓ src/http/__tests__/remote-run-events.test.ts (34 tests) 50ms
+ ✓ src/__tests__/run-lifecycle-slow-run-watchdog.test.ts (12 tests) 31ms
+ ✓ src/http/__tests__/frontend-sessions.test.ts (27 tests) 225ms
+ ✓ src/http/__tests__/frontend-control.test.ts (12 tests) 216ms
+ ✓ src/__tests__/run-lifecycle-event-drop.test.ts (4 tests) 37ms
+stderr | src/http/__tests__/delegated-tools-host-described-internal-error.test.ts > delegated tool route: describeInternalError (host-supplied model-safe text for the 500) > falls back to the generic message when the host describer throws
+[@jini-ai/http-kit] describeInternalError threw (correlationId=4288fff5-d3e8-4d39-b28c-e9e86b0ab924) Error: describer bug
+    at Object.describeInternalError (/home/user/Jini/packages/daemon/src/http/__tests__/delegated-tools-host-described-internal-error.test.ts:148:15)
+    at describeSafely (/home/user/Jini/packages/daemon/src/http/delegated-tools.ts:165:23)
+    at reportInternalError (/home/user/Jini/packages/daemon/src/http/delegated-tools.ts:183:19)
+    at Object.handle (/home/user/Jini/packages/daemon/src/http/delegated-tools.ts:358:27)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at callRoute (/home/user/Jini/packages/daemon/src/http/__tests__/delegated-tools-host-described-internal-error.test.ts:47:18)
+    at /home/user/Jini/packages/daemon/src/http/__tests__/delegated-tools-host-described-internal-error.test.ts:152:41
+    at file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file:///home/user/Jini/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+ ✓ src/http/__tests__/delegated-tools-host-described-internal-error.test.ts (11 tests) 30ms
+ ✓ src/store/agent-sessions/__tests__/pack-refusal-m1.unit.test.ts (1 test) 7ms
+
+ Test Files  12 passed (12)
+      Tests  420 passed (420)
+   Start at  20:25:07
+   Duration  7.99s (transform 3.11s, setup 0ms, collect 9.91s, tests 2.47s, environment 3ms, prepare 903ms)
+

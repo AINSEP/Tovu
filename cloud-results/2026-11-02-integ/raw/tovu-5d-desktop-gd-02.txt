@@ -1,0 +1,826 @@
+✔ the fleet page renders no chat FAB of its own — the site's assistant FAB inside the <webview> is the only one (1.009666ms)
+✔ App.tsx does not import a ChatFab component either — the other route the second button comes back by (0.224168ms)
+✔ the disabled-FAB style went with the button, so nothing is left to style a placeholder back into place (0.20578ms)
+✔ WorkspaceChatPane survives the FAB's removal, unreferenced, for the panel that replaces it (0.290187ms)
+✔ the fleet chat still has no main-process half — if this fails, revisit where the workspace chat is reached from (0.282783ms)
+✔ the preload rescan method invokes the exact contract channel with no renderer payload (56.466879ms)
+✔ starts empty, keeps one state object until a change, then publishes a new one to subscribers and onChange (2.658999ms)
+✔ refresh: a failed list logs and resolves to the list already published, without publishing (0.321078ms)
+✔ refresh: failures go to console.error when no log port is given, looked up when the failure happens (0.650754ms)
+✔ select publishes id, pane key and transcript together, once, only after the load resolves (5.753087ms)
+✔ a slower select resolving after a newer select never lands, and the newer transcript counts as already saved (1.19823ms)
+✔ a slower select resolving after a newer create never lands (0.722912ms)
+✔ a failed load logs and still switches, to an empty pane (0.729135ms)
+✔ create opens a new empty thread on top of the switcher, ready to receive writes (0.701344ms)
+✔ create is claimed before its request: a select made while it is in flight wins, whichever settles first (0.839287ms)
+✔ a failed create rejects and leaves the state alone (0.825157ms)
+✔ removing a thread that is not open drops its row at once and leaves the open one alone (1.11042ms)
+✔ removing the open thread selects the first survivor of the re-read list, never the deleted row (4.500564ms)
+✔ removing the open thread when the re-read fails falls back to the on-screen list without the deleted row (1.091665ms)
+✔ removing the last thread lands on a fresh pane with a new key each time, and drops a switch already in flight (3.495537ms)
+✔ removing a lazily adopted last thread resets adoption, so the fresh pane adopts a new thread (0.783746ms)
+✔ a failed delete rejects and keeps the thread, open and listed (0.47132ms)
+✔ rename shows the new title at once on that row only, then re-reads the list (0.667046ms)
+✔ a failed rename logs and still re-reads, so the stored title comes back (0.493659ms)
+✔ an open thread saves only settled, unsaved messages, and re-reads the list only when it wrote (0.882348ms)
+✔ a message is marked saved before its write resolves, so a delta mid-flight does not queue it twice (0.479129ms)
+✔ a failed save logs and is un-marked, so the next delta writes it again (0.462162ms)
+✔ a message settling between deleting the open thread and loading the next is not written anywhere (0.495005ms)
+✔ with nothing open, the mount echo and a still-streaming reply create nothing and publish nothing (0.193898ms)
+✔ a first message with nothing open adopts ONE thread for every delta before it exists, without a remount (1.130221ms)
+✔ an adoption overtaken by a select or create still saves its messages but does not take over (0.727322ms)
+✔ a failed adoption logs, saves nothing, and lets a later turn try again (0.444757ms)
+✔ an old adoption failing late does not clear a newer one still in flight (0.581781ms)
+✔ without a bridge every action is a quiet no-op (0.415892ms)
+✔ D-12: Escape dismisses, but not while busy or mid IME composition, and no other key does (1.027259ms)
+✔ D-14: closing the active tab picks right, else left, and preserves an unrelated selection (0.23382ms)
+✔ D-18: a missing website keeps its name in truthful Remove copy (0.194109ms)
+✔ D-19: the ready notice disappears on start, missing folder, or removal and uses no stale status (0.239985ms)
+✔ D-20: fast typing issues one search for the complete exact query; clear/close cancels it and Enter flushes it (1.32616ms)
+✔ D-24: IPC and AddSitePointerError class prefixes never reach the operator (0.89853ms)
+✔ D-26: the active tab scrolls into view and overflow buttons expose the hidden direction (0.318065ms)
+✔ D-02/D-17: oversized paste preserves the full draft for validation instead of silently saving 200 characters (0.366785ms)
+✔ tabAfterClose: closing the active tab that is not in the strip leaves no active tab (0.214973ms)
+✔ siteOperationError falls back to English copy in a host with no navigator (1.211989ms)
+✔ the card head is a 2x2 grid — name | ⋮ on row 1, SQLite | status on row 2 (1.289916ms)
+✔ Start/Stop sits on its own row UNDER the text, with Restart on that same row at the right edge (0.618408ms)
+✔ no standalone trash style exists — delete lives only inside the ⋮ menu (0.206259ms)
+✔ nothing in the action row is revealed by hover — the owner asked to see the ⋮ either way (0.379436ms)
+✔ the "Create website" class the running ⏻ reuses resolves to a token, not a hand-copied colour (0.262143ms)
+✔ the ⋮ menu's destructive entry reuses the app's danger tokens (0.242237ms)
+✔ useAddSite: pending while the picker is open, then the new card first and no message (25.773074ms)
+✔ useAddSite: a duplicate keeps one card, says so for that site, and opens its tab (3.57184ms)
+✔ useAddSite: a duplicate without a tab opener still reports it (2.576799ms)
+✔ useAddSite: cancelling the picker changes nothing and says nothing, either way main reports it (4.625426ms)
+✔ useAddSite: a refusal is shown as recovery text, and the next attempt clears it first (3.150809ms)
+✔ useAddSite: a refused add after a duplicate drops that site's notice and shows only the refusal (2.325507ms)
+✔ useAddSite: outside the desktop app the button explains itself instead of doing nothing (1.590181ms)
+✔ useCreateSitePluginTokens: offers the services Tovu lists, and sends trimmed typed tokens once (4.695372ms)
+✔ useCreateSitePluginTokens: hidden services are never requested and never send a token (1.789276ms)
+✔ useCreateSitePluginTokens: no bridge method, a rejecting bridge, or a late reply all offer nothing (4.153093ms)
+✔ useCreateSitePluginTokens: services shown later are requested then, and hiding them again asks nothing more (1.973021ms)
+✔ useCreateSitePluginTokens: a token typed while shown is not sent once the services are hidden, and is cleared (1.495451ms)
+✔ D-24: Add shows a short recovery message without the error class or temporary path (1.717201ms)
+✔ D-24: an empty folder points to Create website (0.313174ms)
+✔ D-24: a damaged folder and an unreadable folder have different recovery instructions (0.200203ms)
+✔ D-24: unknown path-bearing Add failures have a short fallback (0.323339ms)
+✔ D-24: Add recovery text uses the desktop locale (0.171758ms)
+✔ D-24: every supported locale has all six recovery messages (0.544941ms)
+✔ D-24: a failed site start hides the internal temp path (1.040459ms)
+✔ D-24: starting from a card uses the same path-free message (0.338646ms)
+✔ zero, absent and invalid ports have no address or port number (2.357982ms)
+✔ running sites retain their port, origin and lifecycle copy (0.367098ms)
+✔ non-running lifecycle states never advertise a stale port (0.359451ms)
+✔ siteCardStatus names the running app in the title and drops its detail line (0.350802ms)
+✔ Restart waits for Stop before starting and returns the new record (1.674686ms)
+✔ a failed Stop never starts; a failed Start remains actionable; missing bridge is reported (1.024049ms)
+✔ Restart is offered only for running sites with a present folder (0.565932ms)
+✔ Restart's tooltip says what it does, or why it is greyed (0.306187ms)
+✔ the stopped record is applied even if the following start fails (0.433601ms)
+✔ SiteWorkspace holds no state or effects of its own (1.012967ms)
+✔ the icons are drawn inline in icons.tsx, with no icon package (0.198267ms)
+✔ an open tab on Projects shows that site's workspace, in tab order (1.748037ms)
+✔ a tab whose project vanished between polls is dropped and strands nothing (0.228434ms)
+✔ the sites home tab (no active tab) shows the grid, and the create form only while creating (0.291799ms)
+✔ outside Projects no workspace or create form is reachable, but the tabs stay open (0.248982ms)
+✔ Appearance hides the visible workspace and the create form without closing either (0.171964ms)
+✔ a project tab hides the create form even while creating (1.200858ms)
+✔ root presentation keeps chrome, guest targets and duplicate-site notices aligned (0.42149ms)
+✔ D-13 arrow keys wrap, Home/End select endpoints and focus the selected tab (1.888979ms)
+✔ D-13 ignores other controls, vertical keys, and modified shortcuts (0.320591ms)
+✔ D-13 a single All tab remains navigable (1.472654ms)
+✔ useAddSite: a cancelled folder picker adds nothing, opens nothing and says nothing (400.436071ms)
+✔ useAddSite: re-adding a site already in the list names it, opens its tab, and keeps one row (4.770795ms)
+✔ a folder refusal keeps the recovery instruction without exposing the path (1.670875ms)
+✔ the Electron IPC prefix and folder path are replaced by recovery text (0.339371ms)
+✔ a cancelled folder picker shows NOTHING (0.124313ms)
+✔ an empty or non-Error rejection still produces something sayable (0.353934ms)
+✔ re-adding a tracked website REPLACES its row instead of showing a second card (0.900045ms)
+✔ a newly added website appears first (0.169006ms)
+✔ useAppVersion: reads the exact main-process version once and keeps it across re-renders (468.454021ms)
+✔ useAppVersion: a replacement bridge drops the old request's reply, and one without the method clears the version (7.766906ms)
+✔ useAppVersion: a bridge that throws before returning a promise keeps its exact text as the error (4.47529ms)
+✔ useAppVersion: with no preload bridge at all the brand stays usable — no version and no error (4.359779ms)
+✔ tokensForCreate: trimmed, blanks dropped, undefined when nothing was typed (2.134323ms)
+✔ createdTokensNote: saved says it connects on first start; failed says to ask the assistant; none is null (0.317084ms)
+✔ useCreateWebsiteForm: an invalid name explains itself on submit and an empty one never enables Create (443.903912ms)
+✔ useCreateWebsiteForm: Supabase needs a URL and a typed key; the key is read once and wiped before the call (9.516267ms)
+✔ useCreateWebsiteForm: a custom provider needs a label and a connection; a failed create shows the reason (5.088207ms)
+✔ useCreateWebsiteForm: with the credential inputs unmounted a SQLite site still submits with no credential (2.557743ms)
+✔ useCreateWebsiteForm: a valid name shows no error, and Create stays off until the chosen database is ready (3.395636ms)
+✔ useCreateWebsiteForm: a name over the length limit is refused even though it has a usable slug (3.825152ms)
+✔ useCreateWebsiteForm: a custom provider label or connection that is only spaces is not ready (2.527265ms)
+✔ useCreateWebsiteForm: a Supabase key without a URL is not ready (1.837589ms)
+✔ useCreateWebsiteForm: Create refuses the drafts Rename refuses, with the same message, and accepts the ones it accepts (5.377285ms)
+✔ creation selects only the chosen database endpoint and credential without trimming secrets (2.432043ms)
+✔ supabase and custom creation each require their own readiness and a nonempty slug (0.396603ms)
+✔ SQLite needs nothing but a slug, whatever the other providers report (0.228509ms)
+✔ siteSlug keeps its existing behaviour for plain ASCII names (1.68868ms)
+✔ siteSlug still yields nothing for a name with no letters or digits in it (1.113323ms)
+✔ a non-Latin website name is not erased, so its site can actually be created (0.385847ms)
+✔ a Latin name carrying diacritics is not mangled into nonsense (0.318061ms)
+✔ combining marks stay attached to the letter they belong to (0.161495ms)
+✔ siteSlug trims separators at both ends and collapses runs between words (0.232468ms)
+✔ useDeleteConfirmation: request, Escape cancels unless a delete is in flight, success clears, failure explains (30.800047ms)
+✔ useDeleteConfirmation: an empty rejection falls back to the keep-your-card message (3.153503ms)
+✔ useDeleteConfirmation: listens for Escape only while a card is pending, and releases it on cancel and unmount (2.504143ms)
+✔ useDismissibleDropdown: outside pointerdown and Escape close it; a press inside does not (26.657764ms)
+✔ useDismissibleDropdown: listens only while open, ignores other keys, and detaches on close and unmount (7.492469ms)
+✔ useMenuKeyboard: opening focuses the first entry and the arrows, Home and End move between entries (22.909047ms)
+✔ useMenuKeyboard: closing with focus inside (or nowhere) returns it to the trigger; a deliberate click away is left alone (9.135602ms)
+✔ useMenuKeyboard: a menu that stays mounted while closed returns focus from inside it, and not from outside (5.815646ms)
+✔ useMenuKeyboard: a document reporting no focused element at all still hands focus back to the trigger (3.352075ms)
+✔ useMenuKeyboard: arrow keys read the current entry from the injected document (2.697471ms)
+✔ menu arrow keys wrap at both ends, Home/End jump, and other keys are left alone (0.979182ms)
+✔ a one-entry menu keeps focus on its only entry whichever way the arrows go (0.175115ms)
+✔ the Settings gear flips its dropdown open, then shut (1.07283ms)
+✔ a disabled Settings gear never opens its dropdown (0.164517ms)
+✔ picking a theme applies it FIRST, then closes the dropdown (0.229952ms)
+✔ the Appearance link closes the dropdown FIRST, then opens the page (0.178099ms)
+✔ a disabled control still runs its dropdown entries (they are unreachable, not guarded) (0.168572ms)
+✔ useExpandedMode: toggles, collapses on Escape only, and never outlives the workspace it immerses (425.830368ms)
+✔ useExpandedMode: listens for Escape only while expanded, and releases the listener on collapse and unmount (6.333298ms)
+✔ toggle opens the bar and bumps focusNonce, even when already open (1.824255ms)
+✔ set-query to non-empty text keeps the last result; clearing to "" drops it (1.259408ms)
+✔ result records whatever the target reported; close resets to the initial state (0.218569ms)
+✔ resolveFindTarget prefers the active guest when it is actually mounted (0.339911ms)
+✔ resolveFindTarget falls back to top when the active guest id has no mounted element (0.330198ms)
+✔ resolveFindTarget is top with no active tab, and none with no bridge either (0.213954ms)
+✔ shouldCloseOnGuestChange: true only when the bar is open AND the visible surface actually changed (0.218786ms)
+✔ runFind on a guest target calls the guest directly, never the bridge (0.446347ms)
+✔ runFind on a guest not yet attached to the DOM is swallowed, not thrown (0.432204ms)
+✔ runFind on the top target calls the bridge with the query merged into the options (0.512356ms)
+✔ runFind on the top target clears the document selection BEFORE searching (0.339681ms)
+✔ runFind on a guest target ALSO clears the host selection first (0.24693ms)
+✔ runFind on the top target with no bridge does not clear the selection either (0.206045ms)
+✔ restoreFindInputFocus blurs THEN focuses the input on every call, and tolerates a closed bar (0.337242ms)
+✔ restoreFindInputFocus raises `restoring` for exactly its own blur, so the blur listener cannot loop on it (0.731127ms)
+✔ runFind/stopFind on none, or on top with no bridge, are no-ops (0.420466ms)
+✔ stopFind clears the guest with clearSelection, or stops the bridge search (0.230162ms)
+✔ stopFind on a guest not yet attached is swallowed, not thrown (0.169989ms)
+✔ formatMatchCount: blank until a result exists, "No results" for zero matches, "N of M" otherwise (0.146674ms)
+✔ subscribeToFindResults: a GUEST target reports on both sources, and a result on the GUEST's own event also restores focus — a guest find moves keyboard focus into the guest (0.528335ms)
+✔ subscribeToFindResults: a TOP target listens to the window alone (0.178773ms)
+✔ subscribeToFindResults: no bridge (outside a desktop window) still subscribes a guest, restores focus on its own event, and unsubscribing is safe (0.18377ms)
+✔ shouldReclaimFindFocus: only while open and within FIND_FOCUS_RECLAIM_MS of the last issued find (0.182171ms)
+✔ shouldKeepReclaimingFindFocus: every frame from issuing a find until it reports, never mid-composition (0.147483ms)
+✔ without a desktop bridge the bar has nothing to open and stays inert (28.564082ms)
+✔ Cmd+F opens and focuses the bar; a typed query searches the window once typing settles (17.609146ms)
+✔ Enter and Shift+Enter step within the session; stepping with a pending query runs that query instead (5.786598ms)
+✔ clearing the query stops the search and the counter; closing stops it and resets the bar (5.836278ms)
+✔ a re-summon while open refocuses and reselects the existing query (3.729498ms)
+✔ a blur long after the last find, or before any find, is the user clicking away and sticks (4.305395ms)
+✔ an IME composition is never interrupted: searches wait for it and reports do not refocus (4.478322ms)
+✔ a mounted guest is searched directly, reports on its own event, and a tab switch closes the bar (6.923897ms)
+✔ unmounting cancels every pending query, frame and blur reclaim (2.933651ms)
+✔ the blur inside the hook's own refocus never schedules a competing blur reclaim (3.335142ms)
+✔ a closed bar's detached input is no longer listened to: its blur and composition change nothing (3.977498ms)
+✔ useComposedGuestRef feeds one webview node to every registration, and is stable across renders (9.372932ms)
+✔ the live ports read the real window: selection, clock, frames and timers (35.26813ms)
+✔ the query scheduler's default clock is the real timer: cancel drops, settle runs (200.550833ms)
+✔ T18: a poll started before creation cannot erase the new site and its token notice (427.138151ms)
+✔ useProjectMutations: a create appends the plain record, keeps the full result for the notice, and resets the form (4.330923ms)
+✔ useProjectMutations: a cancelled picker keeps the form, and a missing bridge throws before touching anything (6.167066ms)
+✔ useProjectMutations: a rejected create or delete propagates and leaves the grid, tabs and form as they were (2.200633ms)
+✔ useProjectMutations: delete drops the row and its tab; open clears the notice first; cancel resets the form (4.427631ms)
+✔ useProjectMutations: the ready notice is withdrawn once the site it names leaves the grid (2.36189ms)
+✔ useProjectMutations: a caller that passes no project list never has the notice withdrawn under it (2.036612ms)
+✔ useProjectMutations: the ready notice goes for good once its site starts; stopping again does not bring it back (2.879175ms)
+✔ useProjectTabs: opening adds once and selects, remembers an admin page, and closing picks a neighbour (375.844044ms)
+✔ useProjectTabs: closing a tab that is not selected keeps the selection where it is (2.844905ms)
+✔ useProjectTabs: closing the selected middle tab selects its right neighbour, then the left one when none is to its right (3.04045ms)
+✔ useProjectTabs: reopening a tab without a page keeps the admin page it was sent to (2.530572ms)
+✔ useRunnerConversations: loads the list on mount, and a failed load logs and keeps an empty switcher (427.369984ms)
+✔ useRunnerConversations: select loads a transcript, a slower earlier select never lands, and a failed load still switches (4.100846ms)
+✔ useRunnerConversations: create switches to the new thread unless a select overtook it while it was in flight (4.996647ms)
+✔ useRunnerConversations: removing the open thread lands on the next one, or on a fresh pane when none is left (3.253574ms)
+✔ useRunnerConversations: a remove whose refresh fails falls back to the on-screen list without the deleted thread (2.833122ms)
+✔ useRunnerConversations: rename is optimistic, logs a failed write, and re-reads the list either way (3.929522ms)
+✔ useRunnerConversations: an optimistic rename changes only the renamed thread (2.82336ms)
+✔ useRunnerConversations: an open thread saves each settled message once, and a failed save is retried later (2.86266ms)
+✔ useRunnerConversations: a first message with nothing open adopts exactly one new thread and saves into it (2.178046ms)
+✔ useRunnerConversations: an adoption overtaken by a select still saves its messages but does not take over (1.948875ms)
+✔ useRunnerConversations: a failed adoption logs and lets the next message try again (2.04979ms)
+✔ useRunnerConversations: a message landing between deleting the open thread and loading the next is not written to the deleted thread (2.18514ms)
+✔ useRunnerConversations: without a bridge every action is a no-op (1.551926ms)
+✔ useRunnerConversations: returns the same shape as before, with actions that keep their identity across renders (2.22111ms)
+✔ useRunnerConversations: looks the bridge up once, not on every render (1.734825ms)
+✔ useConversationDeleteConfirmation: a prompt resolves from the answer, and a newer prompt cancels an older one (2.125351ms)
+✔ useConversationDeleteConfirmation: declining resolves false, and a second answer to the same prompt changes nothing (1.321272ms)
+✔ useRunnerNavigation: an agent navigate moves the section and returns to the sites home tab, then detaches (501.558634ms)
+✔ useRunnerNavigation: an agent navigate leaves the Appearance page open over the new section (3.8905ms)
+✔ useRunnerNavigation: without a bridge nothing subscribes and the nav stays put (2.069478ms)
+✔ useSectionNav: a section click resets create, Appearance and the open tab; Appearance drops the tab (3.6211ms)
+✔ a NavLink click selects its own section when the link is enabled (1.53911ms)
+✔ a disabled NavLink never fires onSelectSection (0.20034ms)
+✔ closing the settings dropdown leaves the sites dialog and its placement draft mounted outside the menu (81.437074ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ a Start reads as starting until main answers, then applies main's record and opens the site (420.023255ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ two presses from one render — a double click before React re-renders — start the site once (4.406139ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ a failed Stop shows main's sentence, clears the pending mark, and the next press clears the error (5.026774ms)
+✔ statuses with no honest button make a press a no-op that never reaches the bridge (1.988632ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ Stop on a site another process serves asks first; Cancel drops it and Confirm stops it (5.427271ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ Restart stops, reports the stopped record, starts, and reads as restarting meanwhile (4.101263ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ a Restart whose start fails shows the failure; a disabled Restart never reaches the bridge (3.48419ms)
+✔ with no bridge wired, a press reports the unavailable bridge on the card (2.385954ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ rapid Restart and Stop presses share one synchronous guard, and a failed Restart releases it (475.45221ms)
+✔ toggle intent preserves no-op, synchronous lock and external-stop confirmation precedence (2.692862ms)
+✔ a running site is offered Stop (0.254528ms)
+✔ a stopped site is offered Start (0.145532ms)
+✔ a FAILED site is offered Start, not a disabled button — a failed boot is the one you retry (0.108462ms)
+✔ mid-start the button says Starting… and does nothing when pressed (0.176474ms)
+✔ mid-stop the button says Stopping… and does nothing when pressed (0.241078ms)
+✔ provisioning and blocked get NO button rather than an inert one (0.240303ms)
+✔ no status produces a label that contradicts its action (0.244749ms)
+✔ 'start' calls startSite and reports main's own record back (0.324472ms)
+✔ 'stop' calls stopSite, never startSite (0.383508ms)
+✔ a rejected call surfaces the Error message verbatim rather than re-wrapping it (1.128879ms)
+✔ a non-Error rejection is coerced with String(), not left as [object Object] (0.181528ms)
+✔ no bridge at all is an operator-facing message, not a thrown error (0.168918ms)
+✔ the in-flight status of each action is the lifecycle status of the same name (0.106865ms)
+✔ a Start that comes back running opens the site, after the card has the new record (0.317746ms)
+✔ a failed Start stays on the card: the error is returned and nothing opens (0.456228ms)
+✔ a Start whose record does not say running does not open the site (0.247843ms)
+✔ a Stop never opens the site (0.262919ms)
+✔ an npm run dev site gets the owner's confirm copy; another app gets one naming it (0.308999ms)
+✔ codeSpans renders backticked text as code and drops empty parts (0.211638ms)
+✔ the Stop confirm is its own card overlay; delete still wins a tie (0.089958ms)
+✔ a null previewVersion clears, even when a bridge IS available (2.352374ms)
+✔ a null previewVersion clears with no bridge either (0.246699ms)
+✔ a real previewVersion with no bridge skips — no fetch attempted, but nothing is cleared (0.218767ms)
+✔ a real previewVersion with a bridge plans a fetch, carrying that SAME bridge reference and the id (0.344513ms)
+✔ previewVersion 0 is a real version, not treated like null (0.190937ms)
+✔ a cancelled run writes nothing on success — a stale resolve must not clobber a newer run (0.23983ms)
+✔ a cancelled run writes nothing on failure either (0.177591ms)
+✔ a live run writes the resolved url on success (0.149547ms)
+✔ a live run writes null on success when there genuinely is no capture yet (0.322522ms)
+✔ a live run writes null on failure (0.369118ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ starting a rename seeds the current name; Escape cancels it (384.631306ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ a successful save sends the trimmed-as-typed draft, closes the overlay and hands main's record over (14.2343ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ a rejected save keeps the overlay open with main's sentence and stops the spinner (4.082133ms)
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Probe inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ after a rejected save the draft is kept and Save offered again; a retry clears the old sentence at once and resends the same draft (4.378565ms)
+✔ refusals never reach the bridge and never show a spinner (4.21285ms)
+✔ Enter that commits IME composition cannot submit; the subsequent ordinary Enter can (1.897181ms)
+✔ an empty name is rejected (0.173559ms)
+✔ a name that is only whitespace is rejected — trims BEFORE measuring, not after (0.104969ms)
+✔ a single visible character is accepted (0.176054ms)
+✔ exactly 200 characters (the boundary) is accepted (0.144071ms)
+✔ 201 characters is rejected — one past the boundary (0.145385ms)
+✔ 200 characters of CONTENT survives surrounding whitespace that would otherwise push it over (0.121467ms)
+✔ 201 characters of content is still rejected once surrounding whitespace is trimmed away (0.109794ms)
+✔ Save is enabled for a valid name that is not already saving (0.386223ms)
+✔ Save is disabled while a save is already in flight, even with a valid name (0.365325ms)
+✔ Save is disabled for an invalid name, even when nothing is in flight (0.196109ms)
+✔ Save is disabled when BOTH the name is invalid and a save is in flight (0.098958ms)
+✔ with no bridge, submission refuses with the exact operator-facing message (0.232399ms)
+✔ with a bridge, submission carries that SAME bridge reference and the id/name payload (0.114212ms)
+✔ the payload carries the RAW draft, untrimmed — main trims and validates its own copy (0.191972ms)
+✔ an Error rejection surfaces its message verbatim, fix and all (0.280199ms)
+✔ a non-Error rejection is coerced with String(), not left as [object Object] (0.180565ms)
+✔ the invalid-name hint shows for a non-empty draft Tovu would reject (0.115163ms)
+✔ no invalid-name hint for an empty draft (0.053549ms)
+✔ no invalid-name hint for a valid draft, including one exactly at the 200 boundary (0.058975ms)
+✔ Escape cancels the rename, whether or not Save is enabled (0.184537ms)
+✔ Enter submits the card being renamed when Save is enabled (0.140054ms)
+✔ Enter does nothing while Save is disabled (0.106153ms)
+✔ every other key is left alone (0.098475ms)
+✔ building the handler runs nothing (0.059679ms)
+✔ useSiteStart: success hands main's record on and resolves true; a missing bridge or a rejection resolves false with a reason (462.621827ms)
+✔ useSiteStart: a retry clears the previous error, and a success without onSiteUpdated still resolves true (4.844974ms)
+ℹ tests 288
+ℹ suites 0
+ℹ pass 288
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13910.201664

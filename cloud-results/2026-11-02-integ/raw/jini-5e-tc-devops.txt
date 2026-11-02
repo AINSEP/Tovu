@@ -1,0 +1,4 @@
+
+> @jini-ai/devops@0.6.17 typecheck /home/user/Jini/packages/devops
+> tsc -p tsconfig.json --noEmit
+

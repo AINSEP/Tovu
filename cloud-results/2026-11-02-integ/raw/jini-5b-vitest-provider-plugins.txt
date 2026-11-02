@@ -1,0 +1,322 @@
+
+ RUN  v2.1.9 /home/user/Jini/packages/provider-plugins
+
+✘ [ERROR] Expected ";" but found "valid"
+
+    src/alpha/index.ts:1:4:
+      1 │ not valid TypeScript
+        │     ~~~~~
+        ╵     ;
+
+ ✓ src/__tests__/build-script.test.ts (19 tests) 476ms
+stderr | src/__tests__/artifact.integration.test.ts > charts-echarts: the built client bundle mounts and draws a stacked bar chart as SVG
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at yr (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71449)
+    at S_ (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:72069)
+    at Du (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:15:31)
+    at d1 (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:120125)
+    at e.t.calculateCategoryInterval (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:123441)
+    at yR (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:119580) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at yr (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71497)
+    at S_ (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:72069)
+    at Du (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:15:31)
+    at d1 (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:120125)
+    at e.t.calculateCategoryInterval (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:123441)
+    at yR (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:119580) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at S_ (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:72066)
+    at Du (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:15:31)
+    at d1 (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:120125)
+    at e.t.calculateCategoryInterval (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:123441)
+    at yR (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:119580) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at S_ (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:72066)
+    at Du (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:15:31)
+    at d1 (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:120125)
+    at e.t.calculateCategoryInterval (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:123441)
+    at yR (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:119580) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at Tm (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:127104) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at Tm (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:127104) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at Tm (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:127104) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at Tm (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:127104) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at Tm (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:35:127104) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at e.getBoundingRect (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:15:17448) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at e.getBoundingRect (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:15:17448) undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.getBoundingRect (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29985)
+    at file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:93467 undefined
+Error: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)
+    at module.exports (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)
+    at HTMLCanvasElementImpl.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)
+    at HTMLCanvasElement.getContext (/home/user/Jini/node_modules/.pnpm/jsdom@25.0.1/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)
+    at Object.mt.measureText (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:2645)
+    at _r (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:71997)
+    at p0 (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:26:342)
+    at e._updatePlainTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:31155)
+    at e._updateSubTexts (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:29545)
+    at e.update (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:29:28706)
+    at t._updateAndAddDisplayable (file:///tmp/provider-artifact-nu8JMP/charts-echarts/host/node_modules/@jini-ai/provider-plugins/plugins/charts-echarts/0.6.13/client/provider.js:14:34036) undefined
+
+ ❯ src/__tests__/artifact.integration.test.ts (12 tests | 3 failed) 11007ms
+   ✓ analytics-posthog: packs, installs and loads identical standalone bytes with both host SDK ABIs outside the workspace 526ms
+   ✓ observability-opentelemetry: packs, installs and loads identical standalone bytes with both host SDK ABIs outside the workspace 1188ms
+   ✓ observability-sentry: packs, installs and loads identical standalone bytes with both host SDK ABIs outside the workspace 713ms
+   × charts-recharts: packs, installs, loads and admits identical browser-only bytes with both host SDK ABIs outside the workspace 337ms
+     → expected { loaded: false, …(1) } to deeply equal { loaded: true }
+   × charts-echarts: packs, installs, loads and admits identical browser-only bytes with both host SDK ABIs outside the workspace 212ms
+     → expected { loaded: false, …(1) } to deeply equal { loaded: true }
+   × charts-recharts: the built client bundle mounts and draws a bar chart with whole-number ticks 274ms
+     → expected <g …(1)><g …(1)>…(1)</g></g> to have a length of 2 but got 1
+✘ [ERROR] Could not resolve "node:fs"
+
+    src/charts-fixture/client/provider.ts:1:29:
+      1 │ import { readFileSync } from 'node:fs';
+        ╵                              ~~~~~~~~~
+
+  The package "node:fs" wasn't found on the file system but is built into node. Are you trying to bundle for node? You can use "platform: 'node'" to do that, which will remove this error.
+
+ ✓ src/__tests__/build-script-browser.test.ts (9 tests) 209ms
+ ✓ src/charts-recharts/__tests__/chart-default-palette-css.test.ts (4 tests) 6ms
+ ✓ src/charts-recharts/__tests__/chart-styles.test.ts (3 tests) 4ms
+ ✓ src/__tests__/distribution-manifest.test.ts (2 tests) 23ms
+ ✓ src/charts-recharts/__tests__/bar-chart.test.tsx (16 tests) 898ms
+ ✓ src/charts-echarts/__tests__/option.test.ts (14 tests) 29ms
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > draws bar as SVG (never canvas) inside a labelled figure
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > draws stacked-bar as SVG (never canvas) inside a labelled figure
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > draws line as SVG (never canvas) inside a labelled figure
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > draws area as SVG (never canvas) inside a labelled figure
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > draws pie as SVG (never canvas) inside a labelled figure
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > draws donut as SVG (never canvas) inside a labelled figure
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > draws scatter as SVG (never canvas) inside a labelled figure
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > puts the title and description in the hidden caption as text, never as markup
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > replaces series on update, so dropped series and a former kind's axes are gone
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > applies the ChartTheme mode and chart tokens to its element on mount and update
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > shares category colors and one legend across rings, and identifies the hovered ring, category and formatted value
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > refuses an unsupported spec at mount (leaving nothing behind) and at update (keeping the chart)
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > disposes ECharts on destroy, empties its element, is idempotent and ignores later updates
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/mount.test.ts > ECharts vanilla lifecycle > resizes with its frame and stops observing once destroyed
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+ ✓ src/charts-echarts/__tests__/mount.test.ts (14 tests) 580ms
+ ✓ src/charts-recharts/__tests__/chart.test.tsx (23 tests) 483ms
+   ✓ shared chart presentation with real Recharts > uses config labels and colors in the real tooltip and legend 312ms
+ ✓ src/charts-recharts/__tests__/mount.test.tsx (9 tests) 569ms
+ ✓ src/charts-recharts/__tests__/line-chart.test.tsx (9 tests) 736ms
+ ✓ src/charts-recharts/__tests__/pie-chart.test.tsx (8 tests) 351ms
+ ✓ src/charts-recharts/__tests__/chart-config.test.ts (24 tests) 28ms
+ ✓ src/__tests__/core-boundary.test.ts (33 tests) 23848ms
+   ✓ no core package imports or declares a vendor SDK 17284ms
+   ✓ production sources keep Stripe endpoints in its plugin and never import sibling plugins 6507ms
+ ✓ src/charts-echarts/__tests__/descriptor.test.ts (30 tests) 25ms
+stderr | src/charts-echarts/__tests__/provider.test.ts > ECharts artifact through the neutral UI chart host > draws a multi-series spec pinned to plugin.echarts and hides the data table once drawn
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/provider.test.ts > ECharts artifact through the neutral UI chart host > renders multi-series pie and falls back to all table cells when category coverage no longer matches
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+stderr | src/charts-echarts/__tests__/provider.test.ts > ECharts artifact through the neutral UI chart host > renders multi-series donut and falls back to all table cells when category coverage no longer matches
+[ECharts] Can't get DOM width or height. Please check dom.clientWidth and dom.clientHeight. They should not be 0.For example, you may need to call this in the callback of window.onload.
+
+ ✓ src/charts-echarts/__tests__/provider.test.ts (5 tests) 272ms
+ ✓ src/charts-recharts/__tests__/y-axis-ticks.test.tsx (10 tests) 715ms
+ ❯ src/charts-recharts/__tests__/provider.test.tsx (4 tests | 3 failed) 17ms
+   × Recharts artifact through the neutral UI host and A2UI catalog > preserves the bar-chart wire alias while drawing real SVG 11ms
+     → expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
+   × Recharts artifact through the neutral UI host and A2UI catalog > preserves the line-chart wire alias while drawing real SVG 2ms
+     → expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
+   × Recharts artifact through the neutral UI host and A2UI catalog > preserves the pie-chart wire alias while drawing real SVG 1ms
+     → expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/__tests__/artifact.integration.test.ts > charts-recharts: packs, installs, loads and admits identical browser-only bytes with both host SDK ABIs outside the workspace
+ FAIL  src/__tests__/artifact.integration.test.ts > charts-echarts: packs, installs, loads and admits identical browser-only bytes with both host SDK ABIs outside the workspace
+AssertionError: expected { loaded: false, …(1) } to deeply equal { loaded: true }
+
+- Expected
++ Received
+
+  Object {
+-   "loaded": true,
++   "loaded": false,
++   "reason": "BROWSER_PROVIDER_FORBIDDEN",
+  }
+
+ ❯ installAndLoad src/__tests__/artifact.integration.test.ts:164:18
+    162|     coreDeps: { getCurrentEntry() { throw new Error('unused'); }, writ…
+    163|   });
+    164|   expect(loaded).toEqual({ loaded: true });
+       |                  ^
+    165|   return { registry, installedRoot };
+    166| }
+ ❯ src/__tests__/artifact.integration.test.ts:275:41
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  src/__tests__/artifact.integration.test.ts > charts-recharts: the built client bundle mounts and draws a bar chart with whole-number ticks
+AssertionError: expected <g …(1)><g …(1)>…(1)</g></g> to have a length of 2 but got 1
+
+- Expected
++ Received
+
+- 2
++ 1
+
+ ❯ src/__tests__/artifact.integration.test.ts:297:65
+    295|     await vi.waitFor(() => expect(element.querySelectorAll('.recharts-…
+    296|     expect(element.querySelector('figure')?.getAttribute('data-chart-p…
+    297|     expect(element.querySelectorAll('.recharts-bar-rectangle')).toHave…
+       |                                                                 ^
+    298|     expect(Array.from(element.querySelectorAll('.recharts-yAxis-tick-l…
+    299|     destroy();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  src/charts-recharts/__tests__/provider.test.tsx > Recharts artifact through the neutral UI host and A2UI catalog > preserves the bar-chart wire alias while drawing real SVG
+ FAIL  src/charts-recharts/__tests__/provider.test.tsx > Recharts artifact through the neutral UI host and A2UI catalog > preserves the line-chart wire alias while drawing real SVG
+ FAIL  src/charts-recharts/__tests__/provider.test.tsx > Recharts artifact through the neutral UI host and A2UI catalog > preserves the pie-chart wire alias while drawing real SVG
+AssertionError: expected [Function RegisteredChart] to be [Function RegisteredChart] // Object.is equality
+
+Compared values have no visual difference.
+
+ ❯ src/charts-recharts/__tests__/provider.test.tsx:29:29
+     27|     const selected = snapshot.resolveByCapability({ capability: kind }…
+     28|     expect(entry.provider).toBe('plugin.recharts');
+     29|     expect(entry.Component).toBe(selected.Component);
+       |                             ^
+     30|     expect(entry.propsSchema).toBe(selected.propsSchema);
+     31|     const props = kind === 'pie-chart' ? { data: [{ name: 'Draft', val…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ Test Files  2 failed | 17 passed (19)
+      Tests  6 failed | 242 passed (248)
+   Start at  20:25:49
+   Duration  30.86s (transform 2.85s, setup 0ms, collect 8.43s, tests 40.28s, environment 4.89s, prepare 1.51s)
+
+undefined
+/home/user/Jini/packages/provider-plugins:
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command failed with exit code 1: vitest run --maxWorkers=2 --minWorkers=1 src/__tests__/artifact.integration.test.ts src/__tests__/build-script-browser.test.ts src/__tests__/build-script.test.ts src/__tests__/core-boundary.test.ts src/__tests__/distribution-manifest.test.ts src/charts-echarts/__tests__/descriptor.test.ts src/charts-echarts/__tests__/mount.test.ts src/charts-echarts/__tests__/option.test.ts src/charts-echarts/__tests__/provider.test.ts src/charts-recharts/__tests__/bar-chart.test.tsx src/charts-recharts/__tests__/chart-config.test.ts src/charts-recharts/__tests__/chart-default-palette-css.test.ts src/charts-recharts/__tests__/chart-styles.test.ts src/charts-recharts/__tests__/chart.test.tsx src/charts-recharts/__tests__/line-chart.test.tsx src/charts-recharts/__tests__/mount.test.tsx src/charts-recharts/__tests__/pie-chart.test.tsx src/charts-recharts/__tests__/provider.test.tsx src/charts-recharts/__tests__/y-axis-ticks.test.tsx

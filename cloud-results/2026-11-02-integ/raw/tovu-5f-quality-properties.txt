@@ -1,0 +1,29 @@
+
+> tovu@0.1.0 quality:properties
+> node --import tsx --test "apps/website/src/platform/oauth/__tests__/unit/endpoint-safety.property.unit.test.ts" "apps/website/src/features/consent/__tests__/unit/validation.property.unit.test.ts" "apps/website/src/features/forms/__tests__/unit/field-validation.property.unit.test.ts"
+
+✔ bounded nonblank consent copy survives parsing unchanged (24.184267ms)
+✔ every copy field accepts its limit and rejects longer input (7.767795ms)
+✔ missing required fields and unknown fields never cross the configuration boundary (28.897313ms)
+✔ custom CSS accepts the boundary and rejects oversize input before compilation (13.614074ms)
+✔ enabled consent requires a safe policy link; auto is available with or without a header (14.762746ms)
+ℹ fast-check seed=20261021, numRuns=150
+✔ unique well-formed descriptors are accepted without mutating the caller (65.324282ms)
+✔ duplicating a valid field is always rejected as a duplicate identifier (4.591258ms)
+✔ unsafe HTML attribute names are rejected regardless of their values (7.741757ms)
+✔ text submissions preserve accepted answers, enforce caps, and omit honeypot metadata (4.831084ms)
+✔ required text rejects blank input and undeclared keys cannot become stored answers (4.017452ms)
+ℹ fast-check seed=20261022, numRuns=150
+✔ HTTPS private IPv4 endpoints and device links are refused, including numeric spellings (38.317637ms)
+✔ HTTPS unique-local IPv6 endpoints are refused (15.942511ms)
+✔ public HTTPS endpoints normalize safely while plaintext and userinfo links are refused (12.289964ms)
+✔ plaintext loopback requires the explicit development option (11.621916ms)
+ℹ fast-check seed=20261020, numRuns=150
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 710.534952

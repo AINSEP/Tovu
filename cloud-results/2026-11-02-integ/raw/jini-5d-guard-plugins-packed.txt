@@ -1,0 +1,7 @@
+
+> jini@ guard:plugins:packed /home/user/Jini
+> node --import tsx ./scripts/check-plugin-packages.ts --packed
+
+P1-plugin-isolation packages/cookie-consent/package.json: @jini-ai/cookie-consent: another plugin's payload in dist/render/banner.js
+P1-plugin-isolation packages/provider-plugins/package.json: @jini-ai/provider-plugins: exported paths missing from tarball: ./plugins/charts-echarts/*, ./plugins/charts-recharts/*, ./plugins/*
+ ELIFECYCLE  Command failed with exit code 1.

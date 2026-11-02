@@ -1,0 +1,137 @@
+
+> tovu@0.1.0 complexity:strict
+> eslint --no-error-on-unmatched-pattern --no-inline-config --ignore-pattern '**/{__tests__,__measurements__,__mocks__,fixtures,test,tests,vendor,.build}/**' --ignore-pattern '**/*.{test,spec,typecheck}.*' --ignore-pattern '**/*.d.{ts,mts,cts}' --ignore-pattern 'apps/website/src/platform/db/migrations/{0002,0006,0011,0012,0013,0020}_*.ts' --rule '{"complexity":["error",10],"sonarjs/cognitive-complexity":["error",10]}' "apps/*/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}" "packages/*/src/**/*.{ts,tsx}" "content/agent-plugins/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"
+
+
+/home/user/Tovu/apps/admin/src/components/AssistantDock/AssistantDock.tsx
+  315:8  error  Function 'AssistantDock' has a complexity of 11. Maximum allowed is 10  complexity
+
+/home/user/Tovu/apps/admin/src/components/AssistantDock/FolderDropConfirmation.tsx
+  21:17  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+  39:13  warning  Extract this nested ternary operation into an independent statement            sonarjs/no-nested-conditional
+
+/home/user/Tovu/apps/admin/src/features/fs-files/hooks/use-folder-drop.hooks.ts
+  207:27  error  Async method 'task' has a complexity of 13. Maximum allowed is 10                    complexity
+  207:42  error  Refactor this function to reduce its Cognitive Complexity from 12 to the 10 allowed  sonarjs/cognitive-complexity
+
+/home/user/Tovu/apps/admin/src/features/media/Media.tsx
+   306:1   error    Function 'MediaCardStage' has a complexity of 14. Maximum allowed is 10                    complexity
+   331:20  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+  1022:1   error    Function 'MediaCardMetadata' has a complexity of 11. Maximum allowed is 10                 complexity
+
+/home/user/Tovu/apps/admin/src/features/observability/Observability.tsx
+  122:109  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+/home/user/Tovu/apps/admin/src/features/pages/hooks/use-pages.hooks.ts
+  191:51  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+/home/user/Tovu/apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts
+  560:8  error  Function 'usePostEditor' has a complexity of 11. Maximum allowed is 10  complexity
+
+/home/user/Tovu/apps/admin/src/features/posts/hooks/use-posts.hooks.ts
+  182:51  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+/home/user/Tovu/apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts
+  89:130  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+/home/user/Tovu/apps/admin/src/lib/api.ts
+   693:13  warning  Remove this redundant type alias and replace its occurrences with "AdminPublishCredentialProviderId"  sonarjs/redundant-type-aliases
+   818:13  warning  Remove this redundant type alias and replace its occurrences with "string"                            sonarjs/redundant-type-aliases
+  1014:13  warning  Remove this redundant type alias and replace its occurrences with "string"                            sonarjs/redundant-type-aliases
+
+/home/user/Tovu/apps/desktop/src/coverage-floors.ts
+  273:43  error  Parsing error: Expression expected
+
+/home/user/Tovu/apps/desktop/src/product-telemetry-ipc.ts
+  66:60  warning  Refactor this function to use "return" consistently  sonarjs/no-inconsistent-returns
+
+/home/user/Tovu/apps/desktop/src/stage-payload-run.ts
+   84:63  warning  Define a constant instead of duplicating this literal 5 times                                 sonarjs/no-duplicate-string
+  121:3   warning  Reduce the total number of "break" and "continue" statements in this loop to use one at most  sonarjs/too-many-break-or-continue-in-loop
+
+/home/user/Tovu/apps/website/src/assistant/site/visitor-confirmation-gate.ts
+  77:16  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+/home/user/Tovu/apps/website/src/assistant/tool-catalog-query.ts
+  56:31  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+  69:94  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant              sonarjs/no-redundant-optional
+
+/home/user/Tovu/apps/website/src/features/agent-plugins/host-plugin-guidance.ts
+  39:23  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+
+/home/user/Tovu/apps/website/src/features/agent-plugins/install-tool.ts
+  43:16  warning  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+/home/user/Tovu/apps/website/src/features/api-connections/vault-stores.ts
+  80:49  warning  Define a constant instead of duplicating this literal 9 times  sonarjs/no-duplicate-string
+
+/home/user/Tovu/apps/website/src/features/navigation/render-entry.ts
+  56:61  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+  56:96  warning  Consider removing 'undefined' type or '?' specifier, one of them is redundant  sonarjs/no-redundant-optional
+
+/home/user/Tovu/apps/website/src/features/plugin-runtime/install.ts
+  11:9  warning  Use destructuring syntax for these assignments from "required"  sonarjs/destructuring-assignment-syntax
+
+/home/user/Tovu/apps/website/src/features/site-backup/archive-manifest.ts
+  91:96  warning  This statement will not be executed conditionally; only the first statement will be. The rest will execute unconditionally  sonarjs/no-unenclosed-multiline-block
+
+/home/user/Tovu/apps/website/src/features/site-backup/import-database.ts
+  42:7  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+/home/user/Tovu/apps/website/src/features/site-backup/import-verifier-inventory.ts
+  196:3  warning  Reduce the total number of "break" and "continue" statements in this loop to use one at most  sonarjs/too-many-break-or-continue-in-loop
+  251:3  warning  Reduce the total number of "break" and "continue" statements in this loop to use one at most  sonarjs/too-many-break-or-continue-in-loop
+
+/home/user/Tovu/apps/website/src/features/site-backup/share-database/repo.sqlite.ts
+  130:3   warning  Reduce the total number of "break" and "continue" statements in this loop to use one at most  sonarjs/too-many-break-or-continue-in-loop
+  518:19  warning  Immediately return this expression instead of assigning it to the temporary variable "bytes"  sonarjs/prefer-immediate-return
+
+/home/user/Tovu/apps/website/src/features/site-backup/share-policy.ts
+  88:3  warning  Add the missing "else" clause  sonarjs/elseif-without-else
+
+/home/user/Tovu/apps/website/src/features/site-export/export-html-policy.ts
+  159:3  warning  Reduce the total number of "break" and "continue" statements in this loop to use one at most  sonarjs/too-many-break-or-continue-in-loop
+
+/home/user/Tovu/apps/website/src/features/site-export/public-origin-policy.ts
+   6:10  warning  Simplify this regular expression to reduce its complexity from 23 to the 20 allowed  sonarjs/regex-complexity
+  18:90  warning  Refactor this code to not use nested template literals                               sonarjs/no-nested-template-literals
+  31:23  warning  Simplify this regular expression to reduce its complexity from 21 to the 20 allowed  sonarjs/regex-complexity
+
+/home/user/Tovu/apps/website/src/features/site-export/site-exporter.ts
+  548:107  warning  Refactor this code to not use nested template literals  sonarjs/no-nested-template-literals
+
+/home/user/Tovu/apps/website/src/features/source-control/tool-registrations.ts
+  149:56  warning  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+/home/user/Tovu/apps/website/src/features/theme/theme.ts
+  499:1  error  Function 'readBundledTemplateFallback' has a complexity of 11. Maximum allowed is 10  complexity
+
+/home/user/Tovu/apps/website/src/platform/db/sqlite/content-db.ts
+  121:10  warning  Reduce the number of conditional operators (4) used in the expression (maximum allowed 3)  sonarjs/expression-complexity
+
+/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/posts/create.ts
+  102:13  error  Method 'execute' has a complexity of 14. Maximum allowed is 10  complexity
+
+/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/sites/sites-home.ts
+  35:9  warning  Refactor this code to not nest more than 3 if/for/while/switch/try statements  sonarjs/nested-control-flow
+  41:9  warning  Refactor this code to not nest more than 3 if/for/while/switch/try statements  sonarjs/nested-control-flow
+
+/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts
+  320:58  warning  Define a constant instead of duplicating this literal 5 times  sonarjs/no-duplicate-string
+
+/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-imports.ts
+  99:185  warning  Review this potentially hard-coded password  sonarjs/no-hardcoded-passwords
+
+/home/user/Tovu/apps/website/src/server/inbound/admin-http/routes/system/site-share-errors.ts
+  64:55  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+/home/user/Tovu/apps/website/src/server/runtime/composition/deps.ts
+   921:20  warning  Refactor this function to use "return" consistently                                  sonarjs/no-inconsistent-returns
+  1056:1   error    Async function 'composeSiteRouteDeps' has a complexity of 11. Maximum allowed is 10  complexity
+
+/home/user/Tovu/apps/website/src/server/runtime/composition/observability-export.ts
+  21:73  warning  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+✖ 53 problems (10 errors, 43 warnings)
+  0 errors and 1 warning potentially fixable with the `--fix` option.
+
