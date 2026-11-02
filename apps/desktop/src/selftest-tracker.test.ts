@@ -1,13 +1,11 @@
 /**
  * @file Direct tests for `selftest-tracker.ts`. No Electron: a fake window is just
  * `{ webContents: { on, once, getURL, getTitle } }`, the only surface this module touches.
+ * That every app window is tracked before it loads is tested in `src/main/windows/app-window.test.ts`.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import fs from "node:fs";
-import { runInNewContext } from "node:vm";
-import ts from "typescript";
 
 import { createSelftestTracker } from "./selftest-tracker.ts";
 import type { SelftestCallbacks } from "./selftest-tracker.ts";
@@ -72,34 +70,6 @@ test("two windows, added one at a time: the FIRST window finishing before the SE
     { url: "http://x/a", title: "A" },
     { url: "http://x/b", title: "B" },
   ]);
-  assert.deepEqual(calls.settled, [{ failed: false }]);
-});
-
-// F2.4/F3.5: execute main's actual createWindow body; a load may complete immediately.
-test("createWindow registers the tracker before navigation can finish", () => {
-  const source = fs.readFileSync(new URL("./main/index.ts", import.meta.url), "utf8");
-  const parsed = ts.createSourceFile("main.ts", source, ts.ScriptTarget.Latest, true);
-  const declaration = parsed.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "createWindow");
-  assert.ok(declaration);
-  const compiled = ts.transpileModule(declaration.getText(parsed), {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
-  }).outputText;
-  const { calls, callbacks } = recordingCallbacks();
-  class BrowserWindow {
-    webContents = fakeWindow("http://x/a", "A").webContents;
-    on() { return this; }
-    loadURL() {
-      assert.equal(this.webContents.listenerCount("did-finish-load"), 1);
-      this.webContents.emit("did-finish-load");
-    }
-  }
-  const create = runInNewContext(`${compiled}\ncreateWindow`, {
-    BrowserWindow, SELFTEST: true, SPEECH_PRELOAD_PATH: "/speech.js", URL,
-    selftestTracker: createSelftestTracker(1, callbacks),
-    installAppWindowNavigationPolicy: () => {}, shell: { openExternal: () => {} },
-  });
-  create("http://x/a", "A");
-  assert.deepEqual(calls.loaded, [{ url: "http://x/a", title: "A" }]);
   assert.deepEqual(calls.settled, [{ failed: false }]);
 });
 

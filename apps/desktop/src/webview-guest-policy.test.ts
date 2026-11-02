@@ -1,12 +1,15 @@
 /**
  * @file Proof for the `<webview>` guest policy — that an embedded project tab gets the shell's own
  * speech preload (D-10) AND that the page still cannot choose anything for its guest.
+ *
+ * That the sites home window routes `will-attach-webview` through this policy, with the speech
+ * preload and the supervised-site check, is tested through the real module in
+ * `src/main/windows/sites-home-window.test.ts`.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import ts from "typescript";
 
 import { admitGuestSource, applyGuestWebPreferences } from "./webview-guest-policy.ts";
 import type { GuestWebPreferences } from "./webview-guest-policy.ts";
@@ -55,19 +58,6 @@ test("missing guest policy options report the required preload without changing 
     /preloadPath is required/,
   );
   assert.deepEqual(webPreferences, { preload: "/page-chosen.js", nodeIntegration: true, contextIsolation: false });
-});
-
-test("main.ts routes will-attach-webview through this policy, with the speech preload", () => {
-  // Source text: `main.ts` requires "electron" at module scope and cannot be required under plain
-  // node --test (see `main-speech-wiring.test.ts`). Without this, the policy above could be correct
-  // and simply not called.
-  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
-  assert.match(source, /from "\.\/src\/webview-guest-policy\.ts"/);
-  assert.match(
-    source,
-    /will-attach-webview[\s\S]{0,300}?applyGuestWebPreferences\(webPreferences, \{ preloadPath: SPEECH_PRELOAD_PATH \}\)/,
-  );
-  assert.doesNotMatch(source, /delete webPreferences\.preload/, "deleting the preload is the defect");
 });
 
 test("the preload main.ts hands the guest is the same file the standalone window gets, and its source exists", () => {
@@ -128,48 +118,4 @@ test("a predicate that throws refuses the attach instead of throwing out of Elec
   };
   assert.equal(admitGuestSource(event, { src: SUPERVISED }, { isAllowedSource }), false);
   assert.equal(event.prevented, 1);
-});
-
-test("main.ts checks the guest's src against the supervised sites before applying its preferences", () => {
-  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
-  assert.match(
-    source,
-    /on\("will-attach-webview", \(event, webPreferences, params\) => \{\s*if \(!admitGuestSource\(event, params, \{ isAllowedSource: isSupervisedGuestUrl \}\)\) return;\s*applyGuestWebPreferences\(webPreferences, \{ preloadPath: SPEECH_PRELOAD_PATH \}\);/,
-  );
-});
-
-
-test("the sites-home attach registration executes the admission check before granting the preload", () => {
-  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
-  const ast = ts.createSourceFile("main.ts", source, ts.ScriptTarget.Latest, true);
-  const home = ast.statements.find((node): node is ts.FunctionDeclaration =>
-    ts.isFunctionDeclaration(node) && node.name?.text === "openSitesHomeWindow");
-  assert.ok(home?.body);
-  const registrations = home.body.statements.filter((node) =>
-    ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) &&
-    node.expression.expression.getText(ast) === "window.webContents.on" &&
-    node.expression.arguments[0]?.getText(ast) === '"will-attach-webview"');
-  assert.equal(registrations.length, 1, "registration must execute directly in the window setup");
-  const registration = registrations[0];
-  assert.ok(registration);
-  let handler: ((event: ReturnType<typeof attachEvent>, prefs: GuestWebPreferences, params: { src: string }) => void) | undefined;
-  const asked: string[] = [];
-  new Function("window", "admitGuestSource", "applyGuestWebPreferences", "isSupervisedGuestUrl", "SPEECH_PRELOAD_PATH", registration.getText(ast))(
-    { webContents: { on: (channel: string, callback: typeof handler) => { assert.equal(channel, "will-attach-webview"); handler = callback; } } },
-    admitGuestSource, applyGuestWebPreferences,
-    (src: string) => { asked.push(src); return src === SUPERVISED; }, PRELOAD,
-  );
-  assert.ok(handler);
-  for (const src of ["https://attacker.example/admin", SUPERVISED]) {
-    const event = attachEvent();
-    const prefs = { nodeIntegration: true, contextIsolation: false, preload: "/evil.js" };
-    handler(event, prefs, { src });
-    assert.equal(event.prevented, src === SUPERVISED ? 0 : 1);
-    assert.deepEqual(prefs, src === SUPERVISED
-      // Jini's guest policy also pins the sandbox and web-security flags whatever the page asked for.
-      ? { nodeIntegration: false, contextIsolation: true, preload: PRELOAD, sandbox: true, webSecurity: true,
-        allowRunningInsecureContent: false, nodeIntegrationInSubFrames: false, experimentalFeatures: false }
-      : { nodeIntegration: true, contextIsolation: false, preload: "/evil.js" });
-  }
-  assert.deepEqual(asked, ["https://attacker.example/admin", SUPERVISED]);
 });

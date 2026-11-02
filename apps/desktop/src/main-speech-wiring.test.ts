@@ -1,11 +1,13 @@
 /**
- * @file Static-analysis tests for `../main.ts`'s speech feature wiring. `main.ts` requires
+ * @file Static-analysis tests for the Electron entry's (`src/main/index.ts`, formerly `main.ts`) speech
+ * feature wiring. `main.ts` requires
  * `"electron"` at module scope, which resolves to a path string (not the real API) outside a real
  * Electron process — `require`-ing it under plain `node --test` would crash immediately without
  * proving anything (same constraint `preload-speech.test.ts` documents for its own file). What IS
- * testable without Electron is its SOURCE TEXT: whether `createWindow`'s `webPreferences` actually
- * names a `preload` script, and whether `registerSpeechIpc` is required and invoked early enough
- * that the renderer's `isAvailable()` call never races an unregistered channel.
+ * testable without Electron is its SOURCE TEXT: whether `createWindow` hands the window module the
+ * compiled speech preload, and whether `registerSpeechIpc` is handed the real `ipcMain` and the
+ * shell-page sender check. That the preload reaches the
+ * window's `webPreferences` is tested through the real module in `src/main/windows/app-window.test.ts`.
  *
  * Both `speech-ipc.ts` and `preload-speech.cts` document this exact gap in their own file headers
  * ("Not wired into main.ts yet") — this is the mic's actual failure mode inside the desktop shell:
@@ -24,53 +26,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MAIN_PATH = path.join(__dirname, "main", "index.ts");
 const source = fs.readFileSync(MAIN_PATH, "utf8");
 
-test("main.ts imports registerSpeechIpc from speech-ipc.ts", () => {
-  assert.match(source, /from ["']\.\/src\/speech\/speech-ipc\.ts["']/);
-  assert.match(source, /registerSpeechIpc/);
-});
-
-test("main.ts calls registerSpeechIpc with the real ipcMain before attach mode's window can load", () => {
-  const registerCallIndex = source.indexOf("registerSpeechIpc(");
-  const attachBranchIndex = source.indexOf("if (attachUrl)");
-  assert.notEqual(registerCallIndex, -1, "expected a registerSpeechIpc(...) call in main.ts");
-  assert.notEqual(attachBranchIndex, -1, "expected the attach-mode branch in main.ts");
-  assert.ok(
-    registerCallIndex < attachBranchIndex,
-    "registerSpeechIpc must run before attach mode's window can load, or an early isAvailable() call races an unregistered channel",
-  );
+// WHEN it runs (before any boot mode can open a window, so an early isAvailable() call never races an
+// unregistered channel) is tested through `src/main/boot/boot-sequence.ts`'s `runDesktopBoot`, whose
+// `registerAppWideIpc` step this call belongs to. What stays text is the call's own arguments.
+test("main.ts calls registerSpeechIpc with the real ipcMain and the shell-page sender check", () => {
   // The real ipcMain, the shell-page sender check, and no injected `port` — a port here would
   // replace the real recognizer. `window-navigation-policy.test.ts` pins what `isShellPage` checks.
   assert.match(source, /registerSpeechIpc\(\s*\{\s*ipcMain,\s*isTrustedSender: isShellPage\s*\}\s*\)/);
 });
 
-test("createWindow's webPreferences names a preload script", () => {
-  const createWindowStart = source.indexOf("function createWindow(");
-  assert.notEqual(createWindowStart, -1, "expected a createWindow function in main.ts");
-  const webPreferencesMatch = source.slice(createWindowStart).match(/webPreferences:\s*\{[^}]*\}/);
-  assert.ok(webPreferencesMatch, "expected a webPreferences object in createWindow");
-  assert.match(webPreferencesMatch[0], /preload:\s*\S/, "webPreferences must set a preload path");
-});
-
-test("the preload path (inline or via a named constant) resolves to the compiled speech preload, dist/speech/preload-speech.cjs", () => {
-  const createWindowStart = source.indexOf("function createWindow(");
-  assert.notEqual(createWindowStart, -1);
-  const createWindowSource = source.slice(createWindowStart).split(/\nfunction /)[0]!;
-  const webPreferencesMatch = createWindowSource.match(/webPreferences:\s*\{[^}]*preload:\s*([A-Za-z0-9_]+|"[^"]*"|'[^']*')/);
-  assert.ok(webPreferencesMatch, "expected a preload value in webPreferences");
-  const preloadValue = webPreferencesMatch[1]!; // `!`: the pattern's one capture group is not optional, so a match always sets it.
-  // A bare identifier means the path is built from a constant elsewhere in the file (e.g.
-  // `path.join(__dirname, "dist", "speech", "preload-speech.cjs")`) — resolve it there instead of
-  // requiring the literal to be inlined in webPreferences itself.
-  const isIdentifier = /^[A-Za-z0-9_]+$/.test(preloadValue) && !preloadValue.startsWith('"') && !preloadValue.startsWith("'");
-  // `[1]!` above: a match always sets the non-optional `([^;]+)` group, and the fallback's index 1 is "".
-  const target = isIdentifier
-    ? (source.match(new RegExp(`const\\s+${preloadValue}\\s*=([^;]+);`)) ?? [, ""])[1]!
-    : preloadValue;
+// `createWindow` hands `SPEECH_PRELOAD_PATH` to `src/main/windows/app-window.ts`, whose test pins that
+// it lands in `webPreferences.preload`. The constant itself lives in the entry, so this stays text.
+test("createWindow's preload is the compiled speech preload, dist/speech/preload-speech.cjs", () => {
+  const createWindowSource = source.slice(source.indexOf("function createWindow("), source.indexOf("function openSitesHomeWindow("));
+  assert.match(createWindowSource, /preloadPath: SPEECH_PRELOAD_PATH/, "createWindow must hand the speech preload to the window module");
+  const constant = source.match(/const\s+SPEECH_PRELOAD_PATH\s*=([^;]+);/);
+  assert.ok(constant, "expected the SPEECH_PRELOAD_PATH constant in the entry");
   // `dist/speech/preload-speech.cjs` is what `tsconfig.preload.json` emits for
   // `src/speech/preload-speech.cts` (`preload-speech.test.ts` asserts that half); pointing at the
   // `.cts` source, or at the old hand-written `src/speech/preload-speech.cjs`, fails here.
   assert.match(
-    target,
+    constant[1] ?? "",
     /["']dist["']\s*,\s*["']speech["']\s*,\s*["']preload-speech\.cjs["']/,
     "preload path must be the compiled dist/speech/preload-speech.cjs",
   );

@@ -7,14 +7,16 @@
  * `evil.example`) opened inside Electron and inherited the window's speech preload, `tovuFiles`
  * included. Every other URL went to `shell.openExternal` whatever its scheme, and the window had no
  * `will-navigate` policy at all.
+ *
+ * Where each policy is installed (createWindow, the sites home window, every webview guest) is
+ * tested through the real modules in `src/main/windows/` (`app-window.test.ts`,
+ * `sites-home-window.test.ts`, `guest-navigation.test.ts`).
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { runInNewContext } from "node:vm";
-import ts from "typescript";
+import { fileURLToPath } from "node:url";
 
 import {
   installAppWindowNavigationPolicy,
@@ -29,32 +31,6 @@ import type { NavigableContents, WindowOpenResponse } from "./window-navigation-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const APP_ORIGIN = "http://127.0.0.1:4567";
-
-/** Execute the actual main-process function with injected Electron dependencies, without booting
- * the side-effecting main module. AST selection fails explicitly if the function is renamed. */
-function mainFunction(name: string, globals: Record<string, unknown>) {
-  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
-  const parsed = ts.createSourceFile("main.ts", source, ts.ScriptTarget.Latest, true);
-  const declaration = parsed.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === name);
-  assert.ok(declaration, `expected main.ts function ${name}`);
-  const compiled = ts.transpileModule(declaration.getText(parsed), {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
-  }).outputText;
-  return runInNewContext(`${compiled}\n${name}`, {
-    URL, pathToFileURL, SELFTEST: false, selftestTracker: null,
-    installAppWindowNavigationPolicy, installSitesHomeNavigationPolicy,
-    installGuestWindowOpenPolicy, isSameOrigin, ...globals,
-  }) as (...args: unknown[]) => unknown;
-}
-
-function fakeWindow(contents: NavigableContents, atLoad: (url: string) => void) {
-  return class {
-    webContents = contents;
-    on() { return this; }
-    loadURL(url: string) { atLoad(url); }
-    loadFile(file: string) { atLoad(pathToFileURL(file).href); }
-  };
-}
 
 /** A `webContents` stand-in that keeps whatever the policy registers, plus every URL handed to the
  *  OS browser. */
@@ -276,93 +252,6 @@ test("guest popup: a throwing openExternal never escapes the handler — a guest
   });
 });
 
-test("main.ts installs this policy on every createWindow window, against the loaded URL's parsed origin", () => {
-  // Source text: `main.ts` imports "electron" at module scope and cannot load under plain node --test
-  // (see `main-speech-wiring.test.ts`). Without this, the policy above could be correct and unused.
-  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
-  assert.match(source, /from "\.\/src\/window-navigation-policy\.ts"/);
-  const createWindow = source.slice(source.indexOf("function createWindow("), source.indexOf("function openSitesHomeWindow("));
-  assert.match(
-    createWindow,
-    /installAppWindowNavigationPolicy\(window\.webContents, \{\s*appOrigin: new URL\(url\)\.origin,/,
-  );
-  assert.doesNotMatch(source, /\.startsWith\(origin\)/, "a string prefix is not an origin check");
-});
-
-test("createWindow installs its boundary before loading in both packaged and development mode", () => {
-  for (const isPackaged of [true, false]) {
-    let loaded = "";
-    const fake = installOnFake((contents, openExternal) => {
-      let popup: ((details: { url: string }) => WindowOpenResponse) | undefined;
-      const original = contents.setWindowOpenHandler.bind(contents);
-      contents.setWindowOpenHandler = (handler) => { popup = handler; original(handler); };
-      const create = mainFunction("createWindow", {
-        app: { isPackaged }, SPEECH_PRELOAD_PATH: "/speech.js", shell: { openExternal },
-        BrowserWindow: fakeWindow(contents, (url) => {
-          // Policy handlers must exist before the initial load can trigger navigation.
-          assert.ok(popup, "policy must be installed before loadURL");
-          assert.deepEqual(popup({ url: "https://evil.example/" }), { action: "deny" });
-          loaded = url;
-        }),
-      });
-      const window = create(`${APP_ORIGIN}/admin`) as { webContents: NavigableContents };
-      assert.equal(window.webContents, contents);
-    });
-    assert.equal(loaded, `${APP_ORIGIN}/admin`);
-    assert.deepEqual(fake.windowOpen(`${APP_ORIGIN}@evil.example/admin`), { action: "deny" });
-    assert.equal(fake.navigate(`${APP_ORIGIN}@evil.example/admin`), true);
-    assert.equal(fake.navigate(`${APP_ORIGIN}/admin/pages`), false);
-  }
-});
-
-test("the webview guest's popup handler is wired through installGuestWindowOpenPolicy, not a second copy", () => {
-  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
-  const guestPolicy = source.slice(source.indexOf("function registerGuestNavigationPolicy("), source.indexOf("async function adoptAndOpenSite("));
-  assert.match(
-    guestPolicy,
-    /installGuestWindowOpenPolicy\(contents, \{ isSupervisedGuestUrl, openExternal: \(url\) => void shell\.openExternal\(url\) \}\);/,
-  );
-  assert.doesNotMatch(guestPolicy, /setWindowOpenHandler/, "the popup handler belongs in installGuestWindowOpenPolicy, not inline here");
-});
-
-test("the webview guest's will-navigate uses the same origin primitive, not a second copy", () => {
-  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
-  const guestPolicy = source.slice(source.indexOf("function registerGuestNavigationPolicy("), source.indexOf("async function adoptAndOpenSite("));
-  assert.match(guestPolicy, /will-navigate[\s\S]{0,200}?isSameOrigin\(url, contents\.getURL\(\)\)/);
-  assert.doesNotMatch(guestPolicy, /new URL\(/, "the guest policy must not carry its own origin parse");
-});
-
-test("the webview guest refuses a main-frame redirect to anything but a supervised site", () => {
-  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
-  const guestPolicy = source.slice(source.indexOf("function registerGuestNavigationPolicy("), source.indexOf("async function adoptAndOpenSite("));
-  assert.match(
-    guestPolicy,
-    /on\("will-redirect", \(details\) => \{\s*if \(!details\.isMainFrame \|\| isSupervisedGuestUrl\(details\.url\)\) return;\s*details\.preventDefault\(\);/,
-  );
-});
-
-test("registered guest callbacks deny foreign navigation, popups and main-frame redirects", () => {
-  const fake = installOnFake((contents, openExternal) => {
-    let created: ((event: unknown, contents: unknown) => void) | undefined;
-    mainFunction("registerGuestNavigationPolicy", {
-      app: { on(event: string, listener: typeof created) {
-        assert.equal(event, "web-contents-created"); created = listener;
-      } },
-      shell: { openExternal }, isSupervisedGuestUrl: (url: string) => isSameOrigin(url, APP_ORIGIN),
-    })();
-    assert.ok(created);
-    created(undefined, { getType: () => "window" }); // ordinary windows are ignored
-    created(undefined, { ...contents, getType: () => "webview", getURL: () => `${APP_ORIGIN}/admin` });
-  });
-  assert.deepEqual(fake.windowOpen("https://example.com/"), { action: "deny" });
-  assert.equal(fake.navigate(`${APP_ORIGIN}@evil.example/admin`), true);
-  assert.equal(fake.navigate(`${APP_ORIGIN}/admin/pages`), false);
-  assert.equal(fake.redirect("https://evil.example/", true), true);
-  assert.equal(fake.redirect(`${APP_ORIGIN}/admin`, true), false);
-  assert.equal(fake.redirect("https://evil.example/", false), false);
-  assert.deepEqual(fake.opened, ["https://example.com/"]);
-});
-
 const RENDERER = "file:///Applications/Tovu.app/Contents/Resources/app/dist/renderer/index.html";
 const pages = (overrides: { attachUrl?: string } = {}) => ({
   isSupervisedSite: (url: string) => url.startsWith("http://127.0.0.1:4567/"), // the fake's own shortcut; the real one is isSupervisedGuestUrl
@@ -398,6 +287,9 @@ test("isShellPageUrl refuses foreign pages and garbage without throwing", () => 
   }
 });
 
+// Source text on purpose: `isShellPage` is a one-line binding in the Electron entry
+// (`src/main/index.ts`), which imports "electron" at module scope and cannot load under node --test.
+// `isShellPageUrl` itself is covered above; this pins only that the entry feeds it the live inputs.
 test("main.ts registers the speech channels with the shell-page sender check", () => {
   const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
   assert.match(source, /registerSpeechIpc\(\{ ipcMain, isTrustedSender: isShellPage \}\)/);
@@ -443,43 +335,5 @@ test("sites home: a remote popup is denied and handed to the OS browser; a main-
   const fake = installOnFake(installSitesHome);
   assert.deepEqual(fake.windowOpen("https://evil.example/"), { action: "deny" });
   assert.deepEqual(fake.opened, ["https://evil.example/"]);
-  assert.equal(fake.redirect("https://evil.example/", true), true);
-});
-
-test("main.ts installs the sites home policy on openSitesHomeWindow's window, against the renderer's own file url", () => {
-  const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
-  const sitesHome = source.slice(source.indexOf("function openSitesHomeWindow("), source.indexOf("window.loadFile(SITES_RENDERER_PATH)"));
-  assert.match(
-    sitesHome,
-    /installSitesHomeNavigationPolicy\(window\.webContents, \{\s*rendererFileUrl: pathToFileURL\(SITES_RENDERER_PATH\)\.href,/,
-  );
-});
-
-test("openSitesHomeWindow installs its boundary before loading the renderer", () => {
-  const rendererPath = fileURLToPath(RENDERER);
-  let loaded = "";
-  const fake = installOnFake((contents, openExternal) => {
-    const original = contents.setWindowOpenHandler.bind(contents);
-    let popup: ((details: { url: string }) => WindowOpenResponse) | undefined;
-    contents.setWindowOpenHandler = (handler) => { popup = handler; original(handler); };
-    const open = mainFunction("openSitesHomeWindow", {
-      SITES_RENDERER_PATH: rendererPath, SITES_PRELOAD_PATH: "/sites.js",
-      fs: { existsSync: () => true }, app: { isPackaged: true, getPath: () => "/user-data" },
-      shell: { openExternal }, screen: { getAllDisplays: () => [] }, Menu: {},
-      windowBoundsFilePath: () => "/bounds", readWindowBounds: () => null,
-      resolveWindowBounds: () => ({ width: 1360, height: 900 }),
-      relayFindResults: () => {}, registerSpellCheckContextMenu: () => {},
-      BrowserWindow: fakeWindow(contents, (url) => {
-        assert.ok(popup, "policy must be installed before loadFile");
-        assert.deepEqual(popup({ url: "https://evil.example/" }), { action: "deny" });
-        loaded = url;
-      }),
-    });
-    const window = open() as { webContents: NavigableContents };
-    assert.equal(window.webContents, contents);
-  });
-  assert.equal(loaded, RENDERER);
-  assert.equal(fake.navigate("https://evil.example/"), true);
-  assert.equal(fake.navigate(RENDERER), false);
   assert.equal(fake.redirect("https://evil.example/", true), true);
 });
