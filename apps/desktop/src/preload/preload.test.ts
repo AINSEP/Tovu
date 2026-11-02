@@ -8,7 +8,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { register } from "tsx/esm/api";
 import ts from "typescript";
 
 import { IPC_CHANNEL_IS_AVAILABLE, IPC_CHANNEL_TRANSCRIBE } from "../speech/speech-ipc.ts";
@@ -42,9 +41,9 @@ test("preload.mts exposes both bridges — dropping either is what the port had 
 
 // PARITY: both renderer bridges remain exposed and the ESM voice bridge preserves positional IPC.
 test("the ESM preload exposes shared keys, runner and voice and maps methods to fixed contract channels", async (t) => {
-  // Resolve the preload's emitted .js contract paths back to TypeScript source under Node.
-  const unregister = register();
-  t.after(unregister);
+  // The preload's emitted .js contract paths resolve to TypeScript source through the node pass's
+  // `--import ./scripts/resolve-ts-ext.ts`, not tsx's register(): that loaded the contracts a second
+  // way and wrote a second coverage image of them (coverage-runner-split.test.ts guards that).
   const exposed = new Map<string, Record<string, (...args: unknown[]) => unknown>>();
   const invokes: unknown[][] = [];
   const sends: unknown[][] = [];

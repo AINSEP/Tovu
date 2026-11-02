@@ -34,7 +34,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { register } from "tsx/esm/api";
 
 import { shellStalenessFailure, type StalenessShell } from "../shell-staleness.ts";
 
@@ -84,9 +83,9 @@ test("the compiled preload exposes every current source bridge method regardless
     t.skip("preload has not been built in this checkout");
     return;
   }
-  // Source contracts use emitted .js paths; compare them using the TypeScript resolver.
-  const unregister = register();
-  t.after(unregister);
+  // Source contracts use emitted .js paths. The node pass's own `--import ./scripts/resolve-ts-ext.ts`
+  // maps them to .ts; tsx's register() here loaded them a second way and wrote a second coverage image
+  // over contracts/sections.ts and workspace-chat.ts (coverage-runner-split.test.ts guards that).
   const exposed = new Map<string, Record<string, unknown>>();
   t.mock.module("electron", {
     namedExports: {

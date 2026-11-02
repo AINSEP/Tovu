@@ -64,6 +64,21 @@ test("every suite and coverage pass using module mocks enables Node's module-moc
   }
 });
 
+test("no bare-node test loads source through tsx in-process, which would write a second coverage image", () => {
+  // preload-staleness.test.ts and preload.test.ts called tsx's register() inside the node pass, so the
+  // contracts preload.mts imports (sections.ts, workspace-chat.ts, ...) loaded once natively and once
+  // through esbuild in the same run. Node appended the second, differently-offset image to the same
+  // lcov record and the gate warned "loaded a second way" (open-bugs 11-02). The node pass maps the
+  // contracts' `.js` specifiers itself (scripts/resolve-ts-ext.ts), so no node test needs tsx.
+  const nodePass = TEST_PASSES.find((pass) => pass.id === "node")!;
+  const nodeTests = globSync([...nodePass.globs], { cwd: DESKTOP_ROOT });
+  assert.ok(nodeTests.includes("src/preload/preload-staleness.test.ts"), "the scan must reach the preload tests");
+  const offenders = nodeTests.filter((file) =>
+    /\bfrom\s+["']tsx(?:\/[^"']*)?["']|\bimport\(\s*["']tsx(?:\/[^"']*)?["']\s*\)/.test(readFileSync(path.join(DESKTOP_ROOT, file), "utf8")),
+  );
+  assert.deepEqual(offenders, []);
+});
+
 test("every real desktop source file is in exactly one coverage area, or excluded with a why", () => {
   const config = JSON.parse(readFileSync(path.join(DESKTOP_ROOT, "coverage-floors.json"), "utf8"));
   const files = sourceInventory({ root: DESKTOP_ROOT });
