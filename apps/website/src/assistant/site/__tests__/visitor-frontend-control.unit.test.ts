@@ -13,7 +13,7 @@ import { registerSiteAssistantConfirm, SITE_ASSISTANT_CONFIRM_PATH } from '#src/
 function policyFixture() {
   const app = express();
   const frontend = createVisitorFrontendControl({ workspaceId: 'origin-policy-test', enabled: async () => true,
-    clock: { nowMs: () => 0, nowIso: () => '1970-01-01T00:00:00.000Z' },
+    clock: { nowMs: () => 0 },
     canonicalOrigin: async () => ({ scheme: 'https', host: 'public.test', source: 'workspace-setting', verifiedAt: '2026-10-31' }),
   });
   frontend.mount({ app });
@@ -162,7 +162,7 @@ async function fixture(t: test.TestContext) {
   // Simulate distinct clients behind an explicitly trusted loopback proxy in this test only.
   app.set('trust proxy', 'loopback');
   const frontend = createVisitorFrontendControl({ workspaceId: 'quota-test', enabled: async () => true,
-    clock: { nowMs: () => 0, nowIso: () => '1970-01-01T00:00:00.000Z' },
+    clock: { nowMs: () => 0 },
     canonicalOrigin: async () => ({ scheme: 'https', host: 'public.test', source: 'workspace-setting', verifiedAt: '2026-10-31' }),
   });
   frontend.mount({ app });

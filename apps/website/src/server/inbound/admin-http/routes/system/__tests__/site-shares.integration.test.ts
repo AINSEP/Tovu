@@ -170,7 +170,8 @@ test("static HTTP options and start share exact selection validation and export 
   for (const input of [[], null, "text", { themeIds: [] }, { themeIds: [1] }, { themeIds: ["a", "a"] }, { themeIds: ["../x"] }, { themeIds: ["a"], jobId }, { extra: true }]) {
     const response = await post(input); assert.equal(response.status, 400); assert.equal((response.body as { code: string }).code, "INVALID_INPUT");
   }
-  assert.deepEqual(calls, []);
+  // A length check: deepEqual(calls, []) would narrow `calls` to never[] for the pops below.
+  assert.equal(calls.length, 0);
   assert.deepEqual((await dispatchJsonRequest(app, "GET", root + "/options")).body, { activeThemeId: "poster", themes: [{ themeId: "poster", name: "poster" }] });
   assert.equal(calls.pop(), "options");
   for (const input of [{}, { themeIds: ["editorial", "poster"] }, { jobId }]) {

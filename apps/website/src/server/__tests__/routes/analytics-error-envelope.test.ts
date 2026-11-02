@@ -49,7 +49,7 @@ for (const failure of ["authorize", "sink"] as const) {
       t.mock.method(console, "error", (...args: unknown[]) => { logs.push(args); });
 
       const app = express();
-      applyRequestTracking(app, { tracker: createTracker({}), env: {} });
+      applyRequestTracking(app, { tracker: createTracker({}), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
       app.use((_req, res, next) => {
         res.locals.principal = { id: "owner" };
         res.locals.adminFailureTracker = { error: (report: { error: Error }) => { reports.push(report); } };
