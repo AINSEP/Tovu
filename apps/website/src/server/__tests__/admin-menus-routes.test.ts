@@ -18,6 +18,7 @@ import { registerAdminMenuDeleteRoute } from "../inbound/admin-http/routes/menus
 import { registerAdminMenuGetRoute } from "../inbound/admin-http/routes/menus/get-by-id.js";
 import { registerAdminMenuListRoute } from "../inbound/admin-http/routes/menus/list.js";
 import { registerAdminMenuUpdateTreeRoute } from "../inbound/admin-http/routes/menus/update-tree.js";
+import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file Route-level tests for the admin `menus` HTTP surface (ADR-029).
@@ -796,8 +797,9 @@ test("update menu tree: sendUpdateMenuTreeError's default 500 branch, forced via
 
   await handler({ params: { workspaceId: deps.workspaceId, menuId: "whatever" }, body: { items: [] } }, res);
 
-  assert.equal(capture.statusCode, 500);
-  assert.deepEqual(capture.jsonBody, { error: "internal error" });
+  // Shared admin failure envelope: a correlatable id, never the repository's cause.
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assert.doesNotMatch(JSON.stringify(capture), /boom: repo exploded/);
 });
 
 test("update-tree: a menu item with a missing or null target is a 400 with a specific message, NOT an opaque 500", async (t) => {
@@ -860,9 +862,10 @@ test("update-tree logs the original error with or without a stack and returns an
 
   const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/menus/:menuId");
 
-  const logged: string[] = [];
+  const logged: unknown[][] = [];
+  const errorIds: string[] = [];
   const realError = console.error;
-  console.error = (...args: unknown[]) => void logged.push(args.map(String).join(" "));
+  console.error = (...args: unknown[]) => void logged.push(args);
   try {
     for (const hasStack of [true, false]) {
       if (!hasStack) delete failure.stack;
@@ -870,20 +873,20 @@ test("update-tree logs the original error with or without a stack and returns an
       res.locals.principal = ownerPrincipal;
       await handler({ params: { workspaceId: deps.workspaceId, menuId: "whatever" }, body: { items: [] } }, res);
 
-      // The wire response is deliberately unchanged -- the fix is the diagnostic, not the envelope.
-      assert.equal(capture.statusCode, 500);
-      assert.deepEqual(capture.jsonBody, { error: "internal error" });
+      // 88f429c25 moved the route onto the shared incident envelope: an opaque text plus an id.
+      assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+      assert.doesNotMatch(JSON.stringify(capture), /boom: repo exploded/);
+      errorIds.push((capture.jsonBody as { errorId: string }).errorId);
     }
   } finally {
     console.error = realError;
   }
 
-  assert.equal(logged.length, 2, "expected one server-side log per unmapped error");
   // Assert the ORIGINAL error text reached the log. Asserting only that console.error fired would
   // pass under a log that printed "internal error" and threw the real cause away -- which is the
-  // exact defect being fixed.
-  assert.match(logged[0]!, /boom: repo exploded/);
-  assert.equal(logged[1], "admin menu update-tree route failed: boom: repo exploded");
+  // exact defect being fixed. The stackless case logs exactly the message.
+  assertAdminDiagnostics({ calls: logged, operation: "[routes/menus/update-tree]", diagnostics: [/boom: repo exploded/, /^boom: repo exploded$/] });
+  assert.deepEqual(logged.map((call) => (call[1] as { errorId: string }).errorId), errorIds);
 });
 
 test("update-tree: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call with no params, is the workspace 404", async () => {
@@ -949,19 +952,19 @@ test("update-tree: a thrown non-Error value is logged via String() and still ans
   assert.ok(ownerPrincipal, "expected the seeded admin principal");
   const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/menus/:menuId");
 
-  const logged: string[] = [];
+  const logged: unknown[][] = [];
   const realError = console.error;
-  console.error = (...args: unknown[]) => void logged.push(args.map(String).join(" "));
+  console.error = (...args: unknown[]) => void logged.push(args);
   try {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = ownerPrincipal;
     await handler({ params: { workspaceId: deps.workspaceId, menuId: "whatever" }, body: { items: [] } }, res);
-    assert.equal(capture.statusCode, 500);
-    assert.deepEqual(capture.jsonBody, { error: "internal error" });
+    assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+    assert.doesNotMatch(JSON.stringify(capture), /bare string/);
   } finally {
     console.error = realError;
   }
-  assert.deepEqual(logged, ["admin menu update-tree route failed: repo rejected with a bare string"]);
+  assertAdminDiagnostics({ calls: logged, operation: "[routes/menus/update-tree]", diagnostics: [/^repo rejected with a bare string$/] });
 });
 
 test("T041/INV-NEW-02: zero navigation.manage string literals remain in src/server/inbound/admin-http/routes/menus/*.ts after cutover", async () => {
