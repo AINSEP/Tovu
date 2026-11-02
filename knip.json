@@ -68,8 +68,7 @@
         "apps/website/src/cli/__tests__/fixtures/**/*.mjs",
         "apps/website/src/features/deployments/deploy-ops/__tests__/fixtures/**/*.mjs",
         "content/agent-plugins/fly/deploy-configs/fly.mjs",
-        "content/agent-plugins/fly/deploy-ops/fly.mjs",
-        "content/agent-plugins/railway/deploy-configs/railway.mjs"
+        "content/agent-plugins/fly/deploy-ops/fly.mjs"
       ],
       "project": [
         "apps/website/src/**/*.{ts,tsx,js,mjs}",

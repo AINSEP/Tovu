@@ -3,20 +3,21 @@ import test from "node:test";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { forceRemove } from "../../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts";
-import { resolveAgentPluginLayout } from "../../../../../apps/website/src/features/agent-plugins/layout.ts";
-import { createTovuAgentPluginLifecycle, seedBundledAgentPlugins } from "../../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
-import { agentPluginActivations } from "../../../../../apps/website/src/features/agent-plugins/activation-effects.ts";
-import { loadDeployOpsRegistry } from "../../../../../apps/website/src/features/deployments/deploy-ops/registry.ts";
-import { AesGcmSecretSealer } from "../../../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.ts";
-import { InMemoryKeyring } from "../../../../../apps/website/src/features/webhooks/keyring.memory.ts";
-import { InMemoryCustomCredentialSetRepo } from "../../../../../apps/website/src/features/custom-credentials/repo.memory.ts";
-import { createCustomCredential } from "../../../../../apps/website/src/features/custom-credentials/store.ts";
-import { runDeploy, runDeployOps } from "../../../../../apps/website/src/features/deployments/deploy-ops/run-ops.ts";
+import { forceRemove } from "../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts";
+import { processComposedBundledSourceRoot } from "../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts";
+import { resolveAgentPluginLayout } from "../../../../apps/website/src/features/agent-plugins/layout.ts";
+import { createTovuAgentPluginLifecycle, seedBundledAgentPlugins } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
+import { agentPluginActivations } from "../../../../apps/website/src/features/agent-plugins/activation-effects.ts";
+import { loadDeployOpsRegistry } from "../../../../apps/website/src/features/deployments/deploy-ops/registry.ts";
+import { AesGcmSecretSealer } from "../../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.ts";
+import { InMemoryKeyring } from "../../../../apps/website/src/features/webhooks/keyring.memory.ts";
+import { InMemoryCustomCredentialSetRepo } from "../../../../apps/website/src/features/custom-credentials/repo.memory.ts";
+import { createCustomCredential } from "../../../../apps/website/src/features/custom-credentials/store.ts";
+import { runDeploy, runDeployOps } from "../../../../apps/website/src/features/deployments/deploy-ops/run-ops.ts";
 import { AT, API, RUN, OTHER, TARGET, discovery, deployed, request } from "./fixtures.mjs";
 
-const CONTENT_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
+// railway ships from @jini-ai/agent-plugins/railway: seed the bundle the build composes.
+const CONTENT_ROOT = await processComposedBundledSourceRoot();
 const WORKSPACE_ID = "workspace-local";
 
 /** Uses production credential storage and HTTP binding with simulated replies, never live I/O. */
