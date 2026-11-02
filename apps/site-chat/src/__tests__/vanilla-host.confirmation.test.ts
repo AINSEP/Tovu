@@ -13,6 +13,7 @@ for (const allow of [true, false]) test(`real Jini vanilla widget holds the turn
   const realFetch = globalThis.fetch;
   let stream!: ReadableStreamDefaultController<Uint8Array>;
   const decisions: unknown[] = [];
+  const navigations: string[] = [];
   globalThis.fetch = (async (url, options) => {
     if (url === '/api/site-assistant/confirm') {
       decisions.push(JSON.parse(options?.body as string));
@@ -27,24 +28,38 @@ for (const allow of [true, false]) test(`real Jini vanilla widget holds the turn
     } }));
   }) as typeof fetch;
   const element = dom.window.document.getElementById('tovu-site-assistant-root')!;
-  const widget = mountVanillaChat(createSiteVanillaArgs({ element }), { initialOpen: true });
+  const widget = mountVanillaChat(createSiteVanillaArgs({ element }, { assign: ({ path }) => { navigations.push(path); } }), { initialOpen: true });
   t.after(() => { widget.unmount(); globalThis.fetch = realFetch; restore(); });
   await widget.controller.send({ text: 'Search please' });
   await new Promise(resolve => setImmediate(resolve));
   const strip = element.querySelector<HTMLElement>('.jini-chat-vanilla__tool-confirmation')!;
   assert.equal(strip.hidden, false);
+  assert.equal(element.querySelector('.jini-chat-vanilla__proposal'), null, 'the retired navigation strip must not return');
+  assert.equal(strip.hasAttribute('data-agent-private'), true);
   assert.equal(strip.textContent, 'Allow search? Search published posts.AllowCancel');
   assert.equal(dom.window.document.activeElement?.textContent, 'Cancel');
   assert.deepEqual(decisions, []);
+  assert.deepEqual(navigations, []);
   assert.doesNotMatch(JSON.stringify(loadSiteAssistantState()), /challengeId|aaaaaaaaaaaaaaaaaaaaaa/);
   // Native close/open chrome cannot silently discard or approve the held prompt.
   element.querySelector<HTMLButtonElement>('button[aria-label="Close chat"]')!.click();
   element.querySelector<HTMLButtonElement>('button[aria-label="Chat with this site"]')!.click();
   await Promise.resolve();
   assert.equal(strip.hidden, false);
+  // Exercise non-click chrome paths too: keyboard close and the loader's outside-bubble event.
+  element.querySelector<HTMLButtonElement>('button[aria-label="Close chat"]')!.focus();
+  dom.window.document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(element.querySelector<HTMLElement>('.jini-chat-vanilla__panel')!.hidden, true);
+  element.dispatchEvent(new dom.window.Event('jini-chat-open'));
+  await Promise.resolve();
+  assert.equal(element.querySelector<HTMLElement>('.jini-chat-vanilla__panel')!.hidden, false);
+  assert.equal(strip.hidden, false);
+  assert.equal(strip.textContent, 'Allow search? Search published posts.AllowCancel');
+  assert.deepEqual(decisions, []);
   [...strip.querySelectorAll('button')].find(button => button.textContent === (allow ? 'Allow' : 'Cancel'))!.click();
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(decisions, [{ challengeId: directive.challengeId, allow }]);
+  assert.deepEqual(navigations, [], 'only the explicit page-tool execution path may navigate');
   assert.equal(widget.controller.getState({}).busy, false);
   assert.equal(strip.hidden, true);
   assert.doesNotMatch(JSON.stringify(loadSiteAssistantState()), /challengeId|aaaaaaaaaaaaaaaaaaaaaa/);

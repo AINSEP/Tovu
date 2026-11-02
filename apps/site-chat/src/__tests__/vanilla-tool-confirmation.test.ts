@@ -5,18 +5,24 @@ import { createVanillaToolConfirmation } from '../vanilla-tool-confirmation';
 
 const directive = { kind: 'tool_confirmation' as const, challengeId: 'a'.repeat(22), title: 'Allow search?', summary: '<script>approved</script>' };
 function fixture() {
-  const dom = new JSDOM('<button id="previous">Stop</button><main><div class="jini-chat-vanilla__proposal" hidden><span>Go to About?</span><button type="button">Go there</button></div></main>', { pretendToBeVisual: true });
+  // dfea76018 (Jini 7b4d99636) retired the navigation proposal in favour of a human-only strip.
+  const dom = new JSDOM('<button id="previous">Stop</button><form><main><div class="jini-chat-vanilla__tool-confirmation" hidden><span></span><button type="button">Allow</button></div></main></form>', { pretendToBeVisual: true });
   const document = dom.window.document, element = document.querySelector('main')!, strip = element.querySelector<HTMLElement>('div')!;
   const previous = document.getElementById('previous')!;
   previous.focus();
   let navigations = 0;
   element.querySelector('button')!.addEventListener('click', () => { navigations++; });
+  element.addEventListener('click', () => { navigations++; });
+  let submits = 0;
+  document.querySelector('form')!.addEventListener('submit', event => { event.preventDefault(); submits++; });
+  const clicks: Event[] = [];
+  document.addEventListener('click', event => { clicks.push(event); }, true);
   const decisions: unknown[] = [];
   const show = createVanillaToolConfirmation({ element, document }, { confirm: async input => { decisions.push(input); return true; } });
-  return { dom, document, element, strip, previous, show, decisions, navigations: () => navigations };
+  return { dom, document, element, strip, previous, show, decisions, clicks, navigations: () => navigations, submits: () => submits };
 }
 
-for (const allow of [true, false]) test(`existing vanilla proposal strip click allow=${allow} cannot activate navigation`, async t => {
+for (const allow of [true, false]) test(`vanilla confirmation strip click allow=${allow} cannot activate navigation or submit`, async t => {
   const f = fixture(); t.after(() => f.dom.window.close());
   f.show({ directive });
   assert.equal(f.strip.hidden, false);
@@ -27,10 +33,13 @@ for (const allow of [true, false]) test(`existing vanilla proposal strip click a
   assert.equal(f.document.activeElement, buttons[1], 'focus defaults to Cancel');
   buttons[allow ? 0 : 1].click();
   assert.deepEqual(f.decisions, [{ challengeId: directive.challengeId, allow }]);
+  assert.equal(f.clicks.length, 1);
+  assert.equal(f.clicks[0]!.defaultPrevented, true, 'the decision cancels native anchor/form activation');
   assert.equal(f.navigations(), 0);
+  assert.equal(f.submits(), 0);
   assert.equal(f.strip.hidden, true);
   assert.equal(f.document.activeElement, f.previous);
-  assert.equal(f.strip.textContent, 'Go to About?Go there');
+  assert.equal(f.strip.textContent, 'Allow');
 });
 
 test('expiry, supersession, run teardown and open/close chrome changes clean listeners and focus', async t => {
@@ -61,7 +70,7 @@ test('a Jini chrome re-render (Escape close, outside-bubble reopen) cannot drop 
   const f = fixture(); t.after(() => f.dom.window.close());
   f.show({ directive });
   const label = f.strip.querySelector('span')!;
-  f.strip.hidden = true; // what Jini's renderChrome does on close/open with no navigation proposal
+  f.strip.hidden = true; // Even a host mutation must not discard a pending prompt.
   label.textContent = '';
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(f.strip.hidden, false);
@@ -70,11 +79,11 @@ test('a Jini chrome re-render (Escape close, outside-bubble reopen) cannot drop 
   f.strip.hidden = true; // after a decision the observer is gone: no revival
   await new Promise(resolve => setTimeout(resolve, 0));
   assert.equal(f.strip.hidden, true);
-  assert.equal(f.strip.textContent, 'Go to About?Go there');
+  assert.equal(f.strip.textContent, 'Allow');
 });
 
 test('unmounted or incomplete host markup never creates a second proposal bar', () => {
-  for (const html of ['', '<div class="jini-chat-vanilla__proposal"></div>', '<div class="jini-chat-vanilla__proposal"><span></span></div>']) {
+  for (const html of ['', '<div class="jini-chat-vanilla__tool-confirmation"></div>', '<div class="jini-chat-vanilla__tool-confirmation"><span></span></div>', '<div class="jini-chat-vanilla__proposal"><span>Go to About?</span><button type="button">Go there</button></div>']) {
     const dom = new JSDOM(`<main>${html}</main>`);
     const element = dom.window.document.querySelector('main')!;
     const show = createVanillaToolConfirmation({ element, document: dom.window.document });
