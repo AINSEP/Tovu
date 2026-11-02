@@ -308,12 +308,35 @@ test("AC-12 (REQ-07, T-W3): with the definition registered and the pin held open
       }),
     ]);
     const app = createApp(deps);
-    const pendingPage = await dispatchHttpRequest({ app, method: "GET", url: "/products" });
-    assert.equal(pendingPage.status, 200, pendingPage.body);
-    assertSingleTitle(pendingPage.body, LEGACY_TITLE, "S3 GET /products while the pin is pending");
-    const homePage = await dispatchHttpRequest({ app, method: "GET", url: "/" });
-    assert.equal(homePage.status, 200, homePage.body);
+    // The pending pin must supply the same site identity for every public page kind.
+    // A post retains its entry title (INV-06); RSS discovery still names the legacy site.
+    const surfaces = [
+      { kind: "home seeded", url: "/", title: LEGACY_TITLE },
+      { kind: "page", url: "/pricing", title: LEGACY_TITLE },
+      { kind: "post", url: "/welcome", title: "Welcome to Tovu" },
+      { kind: "products", url: "/products", title: LEGACY_TITLE },
+      { kind: "home static index", url: "/", title: LEGACY_TITLE, unpublishHome: true },
+    ];
+    const renderedTitles = [];
+    for (const surface of surfaces) {
+      if (surface.unpublishHome) await unpublishHomePage(deps);
+      const page = await dispatchHttpRequest({ app, method: "GET", url: surface.url });
+      assert.equal(page.status, 200, page.body);
+      assert.match(page.body, /<link\b[^>]*type="application\/rss\+xml"[^>]*title="Tovu Demo Site"[^>]*>/, `${surface.kind}: legacy site identity`);
+      renderedTitles.push({ kind: surface.kind, titles: realTitles(page.body) });
+      assert.equal((await systemPinRevisions(deps)).length, 0, `${surface.kind}: the pin must remain pending`);
+    }
+    assert.deepEqual(renderedTitles, surfaces.map(({ kind, title }) => ({ kind, titles: [title] })), "pending titles across every public page kind");
     assert.equal((await systemPinRevisions(deps)).length, 0, "consent and public rendering must finish before the pin");
+
+    // Preservation supplies only the home fallback; explicit per-entry SEO must still win.
+    const home = await deps.postRepo.findBySlug({ workspaceId: deps.workspaceId, slug: "/" });
+    assert.ok(home);
+    await deps.postRepo.save({ ...home, status: "published", seoExtJson: JSON.stringify({ title: "Home SEO override" }) });
+    const seoHome = await dispatchHttpRequest({ app, method: "GET", url: "/" });
+    assert.equal(seoHome.status, 200, seoHome.body);
+    assertSingleTitle(seoHome.body, "Home SEO override", "seeded home with explicit SEO while pending");
+    assert.equal((await systemPinRevisions(deps)).length, 0, "explicit SEO rendering must finish before the pin");
 
     releasePin();
     await deps.siteTitleReady;
@@ -324,6 +347,27 @@ test("AC-12 (REQ-07, T-W3): with the definition registered and the pin held open
     clearTimeout(deadline);
     releasePin();
   }
+});
+
+test("AC-12 compatibility: without a pending pin or workspace title, home and marketing pages retain authored titles", async (t) => {
+  const deps = await bootSiteDeps(t, await createPreExistingSite(t), (store) => {
+    store.listPendingWorkspaceIds = async () => [];
+    store.isPending = async () => false;
+  });
+  await deps.siteTitleReady;
+  const app = createApp(deps);
+  const surfaces = [
+    { url: "/", title: "Home" },
+    { url: "/pricing", title: "Pricing — Tovu" },
+    { url: "/", title: "Tovu", unpublishHome: true },
+  ];
+  for (const surface of surfaces) {
+    if (surface.unpublishHome) await unpublishHomePage(deps);
+    const page = await dispatchHttpRequest({ app, method: "GET", url: surface.url });
+    assert.equal(page.status, 200, page.body);
+    assertSingleTitle(page.body, surface.title, `unconfigured GET ${surface.url}`);
+  }
+  assert.equal((await systemPinRevisions(deps)).length, 0);
 });
 
 test("AC-13 (T-W4): with preservation disabled in the harness, the AC-10 check fails, so AC-10 does not pass by coincidence", async (t) => {

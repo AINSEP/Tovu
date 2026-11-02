@@ -161,7 +161,11 @@ async function buildExtraHead(
   };
 
   // Contributors close over this render only; another app/export cannot replace their dependencies.
-  const seoHook = createSeoPageHeadHook({ deps: deps.seoDeps, rootSlug: deps.seoDeps.rootSlug, siteTitle: deps.seoDeps.siteTitle });
+  const seoHook = createSeoPageHeadHook({
+    deps: deps.seoDeps,
+    rootSlug: deps.seoDeps.rootSlug,
+    siteTitle: () => resolveSiteTitleForRender(deps, { preserveAuthoredFallback: true }),
+  });
   const elements = await foldPageHead(ctx, { contributors: [seoHook, ...(deps.pageHeadContributors ?? [])] });
   return serializeHeadElements(elements);
 }
@@ -208,9 +212,24 @@ async function tryRedirectPhase(
  * theme preview shows, read through `core.site.title`'s one resolver. Replaces the `SITE_TITLE`
  * literal this file used to export, and is exported for the same reason that constant was
  * (2026-08-12, `.liquid` Preview-tab fix): a template that reads `site.title`/`ctx.siteTitle` must
- * preview exactly as it renders live. Never throws (see `resolveSiteTitle`).
+ * preview exactly as it renders live. The default read never throws (see `resolveSiteTitle`).
+ * `preserveAuthoredFallback` lets an authored page keep its title when there is no workspace
+ * title, while a pending legacy pin still uses the same render resolver. Explicit-title read
+ * errors in that mode propagate to the caller's existing fallback.
+ * @complexity O(1) bounded owner reads and space.
  */
-export function resolveSiteTitleForRender(deps: RouteDeps): Promise<string> {
+export function resolveSiteTitleForRender(deps: RouteDeps): Promise<string>;
+export function resolveSiteTitleForRender(deps: RouteDeps, options: { preserveAuthoredFallback: true }): Promise<string | undefined>;
+export async function resolveSiteTitleForRender(
+  deps: RouteDeps,
+  options: { preserveAuthoredFallback?: boolean } = {},
+): Promise<string | undefined> {
+  if (options.preserveAuthoredFallback) {
+    // Read the marker before the value: a pin can land between reads, never disappear between them.
+    // A failed marker read delegates to the render resolver's legacy-safe error policy.
+    const pending = await deps.siteTitlePreservationStore.isPending(deps.workspaceId).catch(() => true);
+    if (!pending) return deps.seoDeps.siteTitle({ workspaceId: deps.workspaceId });
+  }
   return resolveSiteTitle(
     {
       settingsRepo: deps.settingsRepo,
@@ -2004,7 +2023,7 @@ export async function resolveMarketingPageOrOverride(
   const extraHead = await buildExtraHead(deps, "page", await resolveSiteTitleForRender(deps), undefined, postPublicPath({ slug: slug }));
   // The display-name fallback must not displace an authored theme title. If the explicit-title
   // read fails, retain the existing fold-wins behavior rather than failing the page render.
-  const preserveThemeTitle = await deps.seoDeps.siteTitle({ workspaceId: deps.workspaceId })
+  const preserveThemeTitle = await resolveSiteTitleForRender(deps, { preserveAuthoredFallback: true })
     .then((title) => title === undefined, () => false);
   // ADR-054 gap fix — same `pageShell`-bypassing shape missed the visitor-chat widget the same way
   // it missed `extraHead` above; a static theme's marketing pages (pricing/docs/blog/…) never showed
@@ -2887,8 +2906,8 @@ async function serveStaticThemeIndex({ req, res, deps, theme, staticMenus, extra
   req: Request; res: Response; deps: SiteRequestDeps; theme: DiscoveredTheme & { pages: { index: string } };
   staticMenus: StaticMenuMap; extraHead: string; siteAssistantEnabled: SiteChatSelection; access: PostPreviewsAccess;
 }): Promise<void> {
-  // Same explicit-only policy as marketing pages; entry-bearing homes returned above.
-  const preserveThemeTitle = await deps.seoDeps.siteTitle({ workspaceId: deps.workspaceId })
+  // Preserve authored titles only when neither a workspace title nor a pending pin supplies one.
+  const preserveThemeTitle = await resolveSiteTitleForRender(deps, { preserveAuthoredFallback: true })
     .then((title) => title === undefined, () => false);
   const rendered = await finishStaticTierDocument(deps, {
     theme,
