@@ -1,11 +1,13 @@
+import path from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 import { createPluginContributionLoader } from "@jini-ai/agent-plugins/lifecycle";
 import { loadBundledLoginProviders, loadLoginProviders, parseLoginProviders } from "../providers.js";
 import { provider } from "./fixtures.js";
+import { agentPluginSourceDir } from "../../../../../../development/test-support/agent-plugin-source.mjs";
 
-const sourceRoot = fileURLToPath(new URL("../../../../../../content/agent-plugins/", import.meta.url));
+// google-login ships as `@jini-ai/agent-plugins/google-login` (D-W5): read bundled pins from the folder holding it.
+const sourceRoot = path.dirname(agentPluginSourceDir({ pluginId: "google-login" }));
 const file = (value = provider) => JSON.stringify({ schemaVersion: 1, providers: [value] });
 
 function installed(raw: string, pluginId = "google-login") {

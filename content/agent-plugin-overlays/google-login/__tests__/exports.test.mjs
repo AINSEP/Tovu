@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
@@ -5,8 +6,13 @@ import { parseAgentPluginManifest } from '@jini-ai/agent-plugins/manifest';
 import { fillPluginExportTemplate, substituteHtmlEmbeds } from '@jini-ai/cms/widgets/html';
 import { embedMarkerSnippetFromConfig } from '@jini-ai/cms/widgets/markers';
 import { createPluginExportRuntime } from '../../../../apps/website/src/features/agent-plugins/exports/runtime.ts';
+import { SELECTED_AGENT_PLUGIN_PACKAGES } from '../../../../apps/website/src/features/agent-plugins/bundled-catalog.ts';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
-const root = new URL('../', import.meta.url);
+// Moved from content/agent-plugins/google-login (D-W5): the plugin ships as @jini-ai/agent-plugins/google-login; this Tovu-bound test reads it from there.
+const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'google-login' });
+
+const root = pathToFileURL(`${PLUGIN_ROOT}/`);
 const raw = JSON.parse(readFileSync(new URL('plugin.json', root), 'utf8'));
 const parsed = parseAgentPluginManifest({ value: raw }, { identityNamespace: 'tovu' });
 const workspaceId = 'ws-google-button';
@@ -88,11 +94,13 @@ test('U1: static mode keeps authored fallback and bundles deduplicated CSS and G
 });
 
 test('U1: every bundled public export template passes the single CMS fragment validator', () => {
-  const pluginsRoot = new URL('../', root);
+  const contentRoot = new URL('../../../agent-plugins/', import.meta.url);
+  const contentIds = readdirSync(contentRoot, { withFileTypes: true }).filter(item => item.isDirectory()).map(item => item.name);
   let count = 0;
   // Bundled-only v1: a new export joins this contract check without an install-time CMS dependency.
-  for (const entry of readdirSync(pluginsRoot, { withFileTypes: true }).filter(item => item.isDirectory())) {
-    const pluginRoot = new URL(`${entry.name}/`, pluginsRoot);
+  // Bundled = Tovu's content plugins plus every selected @jini-ai/agent-plugins/<id>.
+  for (const pluginId of new Set([...contentIds, ...SELECTED_AGENT_PLUGIN_PACKAGES.keys()])) {
+    const pluginRoot = pathToFileURL(`${agentPluginSourceDir({ pluginId })}/`);
     let manifest;
     try { manifest = JSON.parse(readFileSync(new URL('plugin.json', pluginRoot), 'utf8')); }
     catch (error) { if (error.code === 'ENOENT') continue; throw error; }
