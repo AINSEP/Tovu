@@ -1,0 +1,18 @@
+      - name: Verify manual dispatch SHA
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RESOLVED_SHA: ${{ github.sha }}
+        run: |
+          if [[ ! "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error title=Invalid expected SHA::expected_sha must be a full 40-character lowercase commit SHA"
+            exit 1
+          fi
+
+          if [[ "$EXPECTED_SHA" != "$RESOLVED_SHA" ]]; then
+            echo "::error title=Manual deploy SHA mismatch::Selected ref resolved to $RESOLVED_SHA, but the operator expected $EXPECTED_SHA. Nothing was deployed."
+            exit 1
+          fi
+
+          echo "Manual deploy SHA verified: $RESOLVED_SHA"
+

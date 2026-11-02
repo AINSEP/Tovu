@@ -1,0 +1,61 @@
+      - name: Snapshot HTML before deploy
+        continue-on-error: true
+        run: node development/scripts/deploy-html-snapshot.mjs snapshot https://tovu.dev before.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      # Only this one package is downloaded; npm pack checks the registry integrity.
+      - name: Fetch the pinned Fly plugin
+        env:
+          PLUGIN_FLY_VERSION: "<<PLACEHOLDER: exact @jini-ai/plugin-fly version>>"
+        run: |
+          npm pack "@jini-ai/plugin-fly@${PLUGIN_FLY_VERSION}" --pack-destination "$RUNNER_TEMP"
+          mkdir -p "$RUNNER_TEMP/plugin-fly" && tar -xzf "$RUNNER_TEMP"/jini-ai-plugin-fly-*.tgz -C "$RUNNER_TEMP/plugin-fly"
+
+      - name: Generate Fly config from the plugin
+        run: |
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from "node:fs";
+          const { default: fly } = await import(`${process.env.RUNNER_TEMP}/plugin-fly/package/fly/deploy-configs/fly.mjs`);
+
+          const env = process.env;
+          const result = fly.render({
+            appName: env.FLY_APP,
+            port: Number(env.PORT),
+            dockerfilePath: env.FLY_DOCKERFILE,
+            volumeMountPath: env.FLY_VOLUME_MOUNT_PATH,
+            volumeName: env.FLY_VOLUME,
+            healthCheckPath: env.FLY_HEALTH_CHECK_PATH,
+            secrets: [], // No secret values are passed to config generation.
+          }, {
+            region: env.FLY_REGION,
+            env: {
+              TOVU_RUNTIME_MODE: env.TOVU_RUNTIME_MODE,
+              PORT: env.PORT,
+              TOVU_SITE: env.TOVU_SITE,
+              TOVU_SITE_ID: env.TOVU_SITE_ID,
+              TOVU_PUBLIC_URL: env.TOVU_PUBLIC_URL,
+            },
+            buildArgs: { TOVU_INSTALL_BROWSER: env.TOVU_INSTALL_BROWSER },
+          }, {
+            // This runner has no host kit installed. Its app/region/volume inputs are identifiers;
+            // restrict that port to identifier characters rather than accepting TOML syntax.
+            assertNoConfigInjection: (label, value) => {
+              if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error(`Invalid ${label}`);
+            },
+            validationError: message => new Error(message),
+            migrationsNote: "", // Follow-up CLI notes are unused by this deploy job.
+          });
+          writeFileSync(result.filename, result.contents);
+          NODE
+
+      # Fly's remote builder does the actual image build; this runner just uploads the build
+      # context and polls status, so no local Docker/BuildKit setup is needed on the runner.
+      # --build-arg TOVU_BUILD_SHA: the build context sent to Fly's remote builder excludes `.git`,
+      #   so `emit-dist-package-json.mjs` cannot read the commit itself. Without this the runtime
+      #   manifest records no provenance.
+      # TOVU_INSTALL_BROWSER in generated [build.args]: the explicit Chromium switch. 0 matches the
+      #   Dockerfile default (owner decision 2026-10-08: off by default — image size, ~150–250 MB RAM
+      #   per capture). Change it to 1 to opt in to browser-backed tools (page evidence, screenshots).

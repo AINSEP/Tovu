@@ -1,0 +1,69 @@
+# Deploy-only workflow — deliberately separate from `ci.yml` (which is currently disabled; this
+# workflow does not touch it, enable it, or run any tests). It only builds and deploys whatever
+# is already on the triggering branch/commit via Fly's remote builder.
+#
+# One exception, added after deploy run 34506663942 (see the `jini-published-typecheck` job
+# below): `deploy` now `needs` that one narrow, ENABLED gate — install + typecheck against the
+# @jini-ai/* versions actually on npm — so a build known to fail on registry drift never reaches
+# `flyctl deploy`. That job is a separate, independently-triggered workflow file
+# (`.github/workflows/jini-published-typecheck.yml`), not `ci.yml`.
+#
+# ============================================================================
+# One-time manual setup — this workflow cannot do any of this for you
+# ============================================================================
+#
+# 1. Repo secret: add `FLY_API_TOKEN` at
+#        Settings -> Secrets and variables -> Actions -> New repository secret
+#    Name it exactly `FLY_API_TOKEN`. Value comes from `flyctl auth token` (or the token you
+#    already have in your shell profile) — paste only the value; never commit it anywhere, and
+#    never add a step to this file that echoes/prints it.
+#
+# 2. Volume: workflow env FLY_VOLUME (generated `[[mounts]].source`) must exist before the first deploy,
+#    or the app boots with no persistent storage for site content, uploads, and themes:
+#        flyctl volumes create tovu_sites --region <region> -a tovu
+#    The name must match FLY_VOLUME exactly.
+#
+# 3. Region: FLY_REGION retains the former config's "iad". That value was originally marked
+#    unverified; confirm against `flyctl config show -a tovu` before changing it or the volume.
+#    Region, volume size and machine sizing were inferred from Dockerfile requirements, not
+#    verified infrastructure. Generation preserves those settings; it does not provision them.
+#
+# 4. App secrets — set with `flyctl secrets set -a tovu KEY=value`, never in this file or
+#    in the generated config's public `[env]` block. Verified directly against this repo's boot-gate
+#    code, not assumed:
+#      - TOVU_ADMIN_PASSWORD        — BOOT-BLOCKING. In production mode (the renderer sets
+#        TOVU_RUNTIME_MODE=production), `production-readiness-gate.ts`'s
+#        `collectUnsafeDefaultFailures` (server/runtime/boot/production-readiness-gate.ts:77-84)
+#        refuses to boot while this is unset or still equal to the literal default "tovu-dev"
+#        (index.ts:216-232, features/identity/wiring.ts:61).
+#      - ANALYTICS_ROOT_KEY_SEED    — ALSO BOOT-BLOCKING, and NOT listed in .env.example or in
+#        deploy-config.ts's own REQUIRED_SECRETS — found by reading the gate code directly rather
+#        than trusting either of those. `index.ts:229` sets `hasDevSecretPlaceholder:
+#        !process.env.ANALYTICS_ROOT_KEY_SEED`, and `hasDevSecretPlaceholder` is one of the same
+#        four checks `collectUnsafeDefaultFailures` (production-readiness-gate.ts:77-84) fails
+#        boot on. Set it to any random value before the first production deploy, e.g.:
+#        node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+#      - TOVU_SITE_KEY — NOT boot-blocking (absent from the gate entirely — see
+#        deploy-config.ts:109-115), but every route needing at-rest secret encryption (visitor AI
+#        assistant provider credentials, the newsletter integration) fails closed with
+#        503 SECRET_STORE_UNCONFIGURED until it's set. Strongly recommended before first real use;
+#        generate the same way as above.
+#
+# ============================================================================
+# Trigger branch
+# ============================================================================
+# Fires on push to `main` — this repo's default branch (confirmed via `gh repo view --json
+# defaultBranchRef`), not the branch this workflow was authored on
+# (`restructure/apps-website-phased`). A push to any other branch does nothing here: no run, no
+# error, no warning. `workflow_dispatch` (the "Run workflow" button on this workflow's Actions tab
+# page) is the manual escape hatch.
+#
+# How far that other branch is from `main` is deliberately NOT recorded here. It was written down
+# as a number once and was wrong; `git rev-list --left-right --count origin/main...HEAD` answers it
+# in one command and cannot go stale.
+#
+# A manual dispatch requires the full SHA the operator expects the selected branch/tag to resolve
+# to. The deploy job fails before checkout unless it exactly matches GitHub's resolved `github.sha`.
+# On 2026-09-18 an unchecked dispatch resolved `main` to a week-old commit and shipped it —
+# successfully, changing nothing visible. See ADS-memory/reports/2026-09-18-deploy-ref-gap.md.
+

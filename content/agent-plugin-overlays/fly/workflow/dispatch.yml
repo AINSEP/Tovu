@@ -1,0 +1,6 @@
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: "Full commit SHA expected from the selected branch/tag; the deploy fails if it differs"
+        required: true
+        type: string

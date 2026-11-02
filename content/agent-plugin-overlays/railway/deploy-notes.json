@@ -1,0 +1,5 @@
+{
+  "railway": [
+    "Headless Chromium is not installed by default. To enable browser-backed tools (page evidence, screenshots), run: railway variables set TOVU_INSTALL_BROWSER=1 (Railway passes it to the Dockerfile build), redeploy, and allow ~150–250 MB more RAM per capture."
+  ]
+}

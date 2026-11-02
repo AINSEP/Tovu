@@ -1,0 +1,10 @@
+  # Gates the deploy below on `.github/workflows/jini-published-typecheck.yml` (a reusable
+  # workflow -- it also runs standalone on push/PR, see its own file). Added after deploy run
+  # 34506663942 shipped a green `main` past this workflow straight into a Docker build that died
+  # 6.5 minutes in on @jini-ai/* registry drift (see that workflow's header for the full story).
+  # `ci.yml` is `disabled_manually` on GitHub and not a substitute here -- it doesn't gate this
+  # workflow at all (separate trigger, separate job graph), and re-enabling the whole thing would
+  # also block deploys on its many known-red/report-only gates, not just this one narrow check.
+  jini-published-typecheck:
+    uses: ./.github/workflows/jini-published-typecheck.yml
+

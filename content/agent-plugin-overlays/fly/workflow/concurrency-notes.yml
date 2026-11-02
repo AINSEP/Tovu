@@ -1,0 +1,3 @@
+# One deploy at a time: two `flyctl deploy` runs racing each other against a single SQLite volume
+# is a real hazard, not just wasted minutes. Queue rather than cancel — a deploy cut off mid-way
+# is worse than a later push waiting its turn.

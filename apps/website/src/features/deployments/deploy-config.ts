@@ -115,6 +115,71 @@ export interface DeployConfigGeneratorModule {
   render(descriptor: DeploymentDescriptor, options: RenderDeployConfigOptions, kit: DeployConfigKit): RenderedDeployConfig;
 }
 
+/**
+ * Non-secret runtime values every Tovu deploy config carries. The generators are host-neutral
+ * plugin modules (`@jini-ai/plugin-{fly,render,railway}`) that default no host switch, so the
+ * production switch is Tovu's input: the caller merges this into `options.env` before render.
+ * Without it a deployed server boots in local mode and the boot-blocking secret gates stay off.
+ */
+export const HOST_DEPLOY_ENV: Readonly<Record<string, string>> = Object.freeze({ TOVU_RUNTIME_MODE: "production" });
+
+/** Where Tovu's agent-plugin overlays live, relative to the repo root (the same cwd convention as
+ *  {@link buildDeploymentDescriptor}'s reads). */
+const OVERLAYS_DIR = "content/agent-plugin-overlays";
+
+export interface HostDeployNotesPorts {
+  /** Overlay root; defaults to `content/agent-plugin-overlays` under `process.cwd()`. */
+  readonly overlaysDir?: string;
+  /** Reads a file, or returns `undefined` when it does not exist. */
+  readonly readFile?: (file: string) => string | undefined;
+}
+
+function readOptionalFile(file: string): string | undefined {
+  try {
+    return readFileSync(file, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+/** The notes array for `targetId`, or a loud error naming the malformed overlay file. */
+function hostNotesFor(raw: string, targetId: string, file: string): readonly string[] {
+  const parsed: unknown = JSON.parse(raw);
+  const entry = parsed !== null && typeof parsed === "object" ? (parsed as Record<string, unknown>)[targetId] : undefined;
+  if (entry === undefined) return [];
+  if (!Array.isArray(entry) || !entry.every((note) => typeof note === "string")) {
+    throw new Error(`tovu deploy config: ${file} must map each target id to an array of note strings (target "${targetId}")`);
+  }
+  return entry;
+}
+
+/**
+ * Appends Tovu's own notes for a deploy target after its plugin generator rendered: the notes in
+ * `<overlays>/<plugin>/deploy-notes.json`, keyed by target id (a plugin may contribute several
+ * targets). Today that is the headless-Chromium opt-in (owner decision 2026-10-08: the Dockerfile's
+ * `TOVU_INSTALL_BROWSER` defaults to 0, so the opt-in has to be stated wherever a host's config is
+ * generated); it is Tovu's Dockerfile, so it is Tovu's note, not the vendor plugin's.
+ *
+ * A note the generator already printed is not repeated: the bundled generators printed these same
+ * notes before the cutover to the Jini packages, so the append is safe on both sides of it.
+ *
+ * @throws {Error} When the overlay's notes file exists but is not valid JSON of that shape.
+ * @complexity O(n · m) for n host notes and m rendered notes (both a handful).
+ */
+export function appendHostDeployNotes(
+  { pluginId, targetId, rendered }: { readonly pluginId: string; readonly targetId: string; readonly rendered: RenderedDeployConfig },
+  { overlaysDir = join(process.cwd(), OVERLAYS_DIR), readFile = readOptionalFile }: HostDeployNotesPorts = {}
+): RenderedDeployConfig {
+  // Publisher ids are `tovu/<name>`; overlay folders are named by the plugin's own name.
+  const pluginName = pluginId.slice(pluginId.lastIndexOf("/") + 1);
+  const file = join(overlaysDir, pluginName, "deploy-notes.json");
+  const raw = readFile(file);
+  if (raw === undefined) return rendered;
+  const extra = hostNotesFor(raw, targetId, file).filter((note) => !rendered.notes.includes(note));
+  return extra.length === 0 ? rendered : { ...rendered, notes: [...rendered.notes, ...extra] };
+}
+
 /** The kit every generator gets. @complexity O(1). */
 export function createDeployConfigKit(): DeployConfigKit {
   return {

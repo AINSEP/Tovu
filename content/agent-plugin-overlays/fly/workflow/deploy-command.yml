@@ -1,0 +1,1 @@
+      - run: flyctl deploy --remote-only --config fly.toml --build-arg TOVU_BUILD_SHA=${{ github.sha }}

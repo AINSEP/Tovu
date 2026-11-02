@@ -1,0 +1,2 @@
+        with:
+          ref: ${{ github.sha }}

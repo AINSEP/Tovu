@@ -56,11 +56,14 @@ export {
 // bundled hosting plugins' `deploy-configs/*.mjs`), loaded by `./deploy-config-registry.ts` — see
 // `deploy-config.ts`'s own header for why this is one descriptor and thin generators.
 export {
+  appendHostDeployNotes,
   buildDeploymentDescriptor,
   createDeployConfigKit,
+  HOST_DEPLOY_ENV,
   type DeployConfigGeneratorModule,
   type DeployConfigKit,
   type DeploymentDescriptor,
+  type HostDeployNotesPorts,
   type DeploymentSecret,
   type RenderDeployConfigOptions,
   type RenderedDeployConfig,

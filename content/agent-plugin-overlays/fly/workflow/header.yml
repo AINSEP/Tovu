@@ -1,0 +1,35 @@
+# ============================================================================
+# GENERATED FILE - do not edit by hand. Rendered by the Fly agent plugin:
+#   node node_modules/@jini-ai/plugin-fly/fly/scripts/render-deploy-workflow.mjs \
+#     --values content/agent-plugin-overlays/fly/tovu-production.values.json --repo-root .
+# from @jini-ai/plugin-fly's fly/skills/fly/references/fly-deploy.template.yml and Tovu's overlay
+# content/agent-plugin-overlays/fly/ (the values file and its workflow/*.yml blocks). Edit the
+# overlay, re-render, and commit both; content/agent-plugin-overlays/fly/__tests__ fails while they
+# disagree.
+# ============================================================================
+# Generated config ownership and production invariants (moved from the former root fly.toml)
+# ============================================================================
+# The Fly plugin's deploy-configs/fly.mjs owns generation. This job has no installed/built Tovu
+# CLI, so it fetches the pinned @jini-ai/plugin-fly package (exact version from the overlay values
+# file, independent of Tovu's own dependencies) and imports that dependency-free module directly
+# immediately before flyctl deploy.
+# Do not commit the generated root fly.toml. For a local deploy, generate it first with
+# `tovu deploy config --target fly --region <region> --out fly.toml` and review deployment-specific
+# env/build args; content/agent-plugin-overlays/fly/fly-build.sh only pins the build context, not these inputs.
+# @jini-ai/* comes from npm: the repo root is the self-contained Docker build context, next to
+# Dockerfile and docker-compose.yml. No sibling Jini checkout or parent-context handling is needed,
+# including on Depot/Fly remote builders. The generated [build].dockerfile is relative to this root.
+
+# ============================================================================
+# THIS IS THE DEPLOY WORKFLOW. Corrected 2026-09-02.
+#
+# This checkout deploys from origin -> github.com/AINSEP/Tovu (transferred 2026-09-23 from
+# leonaburime-ucla/Tovu; old URLs redirect). Earlier notes about a separate public mirror/private
+# working repo became stale on 2026-09-09. Plain `gh` now addresses the deploying repo.
+#
+# A previous history replacement silently overwrote mirror-only fixes: the packages/sdk build
+# step, TOVU_BUILD_SHA in Dockerfile, and both build-arg flags below. Two deploys failed before it
+# was spotted. Before another history replacement, diff MODIFIED files as well as added/deleted ones.
+# Historical notes about restructure/apps-website-phased being ahead of main are not current
+# evidence; inspect the selected ref and use the expected_sha gate for manual dispatches below.
+# ============================================================================
