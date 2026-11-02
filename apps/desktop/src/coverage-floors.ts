@@ -282,3 +282,34 @@ export const TEST_PASSES: readonly coverage.TestPass[] = [
   { id: "node", nodeArgs: ["--experimental-test-module-mocks", "--import", "./scripts/resolve-ts-ext.ts"], globs: ["src/*.test.ts", "src/!(renderer|contracts)/**/*.test.ts"] },
   { id: "tsx", nodeArgs: ["--import", "tsx"], globs: ["src/renderer/**/*.test.ts", "src/renderer/**/*.test.tsx", "src/contracts/**/*.test.ts"] },
 ];
+
+/** The pass whose lcov keeps real source lines, so {@link foreignImageFunctions} can be checked on
+ *  it. The tsx pass maps esbuild output back through source maps and lands some functions on
+ *  neighbouring lines (see {@link TEST_PASSES}), which would read as foreign images. */
+export const LINE_ACCURATE_PASS_ID = "node";
+
+/**
+ * The functions in ONE lcov file record that are listed twice, with a copy at a line that does not
+ * declare them. That is a second coverage image of the same file: a process that inherited
+ * `NODE_V8_COVERAGE` loaded it through another transform (tsx, Playwright's babel, a bundle's source
+ * map), so the offsets differ and node's merge APPENDS that image's functions instead of matching
+ * them, then paints its unrun ranges over the real line hits.
+ *
+ * Measured 2026-11-02 (`cloud/desktop-coverage-1102`, REPORT.md item A): the Playwright child in
+ * `e2e-harness-import.test.ts` did this to the 8 desktop files the e2e harness imports.
+ * `shared-sites.ts` read 36% instead of 100%, and "src main-process" failed at 94.55% when it was
+ * 99.86%. The merged line table cannot be repaired after the fact, so the gate only NAMES the file;
+ * the fix is keeping `NODE_V8_COVERAGE` out of the child that loads it a second way.
+ *
+ * Only a DUPLICATED name counts, so two closures that share a name, each on its own line, are not
+ * flagged (`spellcheck-menu.ts`'s two `cut`s are real).
+ * @complexity O(f) in the record's FN entries.
+ */
+export function foreignImageFunctions(record: string, sourceLines: readonly string[]): string[] {
+  const fns = [...record.matchAll(/^FN:(\d+),(.+)$/gm)].map((m) => ({ line: Number(m[1]), name: (m[2] ?? "").trim() }));
+  const counts = new Map<string, number>();
+  for (const { name } of fns) counts.set(name, (counts.get(name) ?? 0) + 1);
+  const foreign = fns.filter(({ line, name }) =>
+    (counts.get(name) ?? 0) > 1 && !name.startsWith("anonymous_") && !(sourceLines[line - 1] ?? "").includes(name));
+  return [...new Set(foreign.map((fn) => fn.name))].sort();
+}

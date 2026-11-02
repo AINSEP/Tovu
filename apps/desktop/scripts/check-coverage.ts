@@ -56,10 +56,12 @@ import { fileURLToPath } from "node:url";
 
 import {
   INVENTORY_DIRS,
+  LINE_ACCURATE_PASS_ID,
   SOURCE_EXTENSIONS,
   TEST_PASSES,
   evaluateArea,
   evaluatePerFileBranch,
+  foreignImageFunctions,
   formatArea,
   formatPerFileBranch,
   inventoryFailures,
@@ -263,6 +265,37 @@ function evaluateInventory({ config }: { config: CoverageConfig }, ctx: Coverage
   return failures.length > 0;
 }
 
+/** Names every desktop file in the line-accurate pass's lcov that carries a second coverage image (see
+ *  `foreignImageFunctions`). A warning, not a failure: node already merged the two images, so the
+ *  numbers cannot be repaired here and the area floors still judge them. This says WHY a file reads
+ *  low, so the next one costs a grep instead of a cloud investigation.
+ *  @complexity O(n) in lcov records plus the source lines read. */
+function warnForeignImages(lcovPaths: readonly string[], ctx: CoverageGateContext): void {
+  const lcovPath = lcovPaths[TEST_PASSES.findIndex((pass) => pass.id === LINE_ACCURATE_PASS_ID)];
+  if (lcovPath === undefined || !existsSync(lcovPath)) return;
+  for (const record of readFileSync(lcovPath, "utf8").split(/^end_of_record$/m)) {
+    const rel = recordSourcePath(record, ctx.root);
+    if (rel === undefined) continue;
+    const names = foreignImageFunctions(record, readFileSync(path.join(ctx.root, rel), "utf8").split("\n"));
+    if (names.length === 0) continue;
+    ctx.out(
+      `\n  WARNING ${rel} was loaded a second way (${names.join(", ")} listed again at lines that do not declare them). ` +
+        `A child process that inherited NODE_V8_COVERAGE loaded it through another transform, so its numbers read low. ` +
+        `Keep NODE_V8_COVERAGE out of that child.\n`
+    );
+  }
+}
+
+/** The desktop-relative path one lcov record measured, or undefined for a record with no `SF:`, a
+ *  file outside this package (Jini's dist, anything through node_modules), or one no longer on disk.
+ *  @complexity O(1) plus one stat. */
+function recordSourcePath(record: string, root: string): string | undefined {
+  const sf = /^SF:(.*)$/m.exec(record)?.[1]?.trim();
+  if (!sf) return undefined;
+  const rel = path.relative(root, path.resolve(root, sf)).split(path.sep).join("/");
+  return rel.startsWith("..") || rel.includes("node_modules") || !existsSync(path.join(root, rel)) ? undefined : rel;
+}
+
 /** Printed every run, by name. An excluded file nobody is told about is the trap; an excluded file
  *  in every run's output is a decision.
  *  @complexity O(n). */
@@ -293,6 +326,7 @@ function runCoverageGate(ctx: CoverageGateContext): number {
     const suitePassed = produceCoverage(config, lcovPaths, ctx);
     const coverage = mergeCoverage(lcovPaths, ctx.root);
     const areas = evaluateAreas(config, coverage, ctx);
+    warnForeignImages(lcovPaths, ctx);
     const perFileFailed = evaluatePerFile({ config, coverage, files: areas.files }, ctx);
     const inventoryFailed = evaluateInventory({ config }, ctx);
     printExcluded(config, ctx);
