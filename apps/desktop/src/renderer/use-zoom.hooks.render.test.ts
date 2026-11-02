@@ -103,3 +103,11 @@ test('a shell whose localStorage getter throws still renders, and zoom still wor
   assert.equal(c.level, 0.5, 'the command still zooms the visible guest');
   assert.ok(reads >= 2, 'storage is resolved lazily at the read and the write, each failure swallowed');
 });
+
+test('unmounting drops the zoom command subscription', (t) => {
+  const fake = zoomBridge();
+  const hook = renderHook(t, () => useZoom('/a', { bridge: fake.bridge, storage: memoryStorage().storage }));
+  assert.deepEqual(fake.log, ['subscribe']);
+  hook.unmount();
+  assert.deepEqual(fake.log, ['subscribe', 'unsubscribe']);
+});

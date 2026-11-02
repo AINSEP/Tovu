@@ -1,9 +1,9 @@
 /**
  * @file Behavioural tests for `use-workspace-chat-pane.hooks.ts`'s plain exports —
  * `captureFolderDrop`, `workspaceConversationView`, `WORKSPACE_RUN_CONTEXT` — run against the real
- * code. `useWorkspaceChatPane` itself calls React hooks and cannot run here (no renderer in this
- * package; see `use-site-rename.hooks.test.ts`'s header), so the last test is a source-text guard
- * that the hook and `WorkspaceChatPane` actually route through these functions.
+ * code. `useWorkspaceChatPane` and `WorkspaceChatPane` are rendered from their real modules in
+ * `use-workspace-chat-pane.hooks.render.test.ts` and `WorkspaceChatPane.render.test.ts`; the last
+ * test here is a source-text guard that the component holds no React state of its own.
  *
  * Drop events use the same plain-object stand-ins `folder-drop.test.ts` uses: nothing under test
  * reads a real DOM property, only `kind`, `webkitGetAsEntry`, `isDirectory`, `items` and `files`.
@@ -157,30 +157,16 @@ function withoutComments(source: string) {
   return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
 }
 
-test('WorkspaceChatPane takes everything from useWorkspaceChatPane, and the hook routes drops through captureFolderDrop', () => {
-  // Source text, written when neither the component nor the hook could run in this package. Without it
-  // the functions above could be correct and simply not called. The component now lives in its own
-  // module and is also rendered (`WorkspaceChatPane.render.test.ts`); this keeps the no-raw-primitives
-  // rule and the drop wiring, which that render does not observe.
+test('WorkspaceChatPane uses no raw React primitives: all of its state comes from useWorkspaceChatPane', () => {
+  // Source text because only the text can say where state lives. What the pane renders from the
+  // hook, and the drop and composer wiring, are rendered for real in `WorkspaceChatPane.render.test.ts`
+  // and `use-workspace-chat-pane.hooks.render.test.ts`.
   const app = withoutComments(fs.readFileSync(path.join(import.meta.dirname, 'WorkspaceChatPane.tsx'), 'utf8'));
   const start = app.indexOf('function WorkspaceChatPane(');
   assert.notEqual(start, -1, 'WorkspaceChatPane is gone from WorkspaceChatPane.tsx');
   const rest = app.slice(start + 1);
   const end = rest.indexOf('\nfunction ');
   const body = end === -1 ? rest : rest.slice(0, end);
-
   assert.match(body, /\} = useWorkspaceChatPane\(\{\}, ports\);/);
   assert.doesNotMatch(body, /\buse(State|Ref|Callback|Effect|Memo)\b/, 'raw React primitives are back in the component');
-  assert.match(body, /onDropCapture=\{onDropCapture\}/);
-  assert.match(body, /composerHandle=\{composerHandle\}/);
-  assert.match(body, /runContext=\{WORKSPACE_RUN_CONTEXT\}/);
-  assert.match(body, /conversations=\{listItems\}/);
-  assert.match(body, /\{\.\.\.conversationIdProp\}/);
-
-  const hooks = fs.readFileSync(path.join(import.meta.dirname, 'use-workspace-chat-pane.hooks.ts'), 'utf8');
-  assert.match(
-    hooks,
-    /useCallback\(\s*\(event: DragEvent<HTMLElement>\) => captureFolderDrop\(event, getPathForFile, composerHandle\),\s*\[getPathForFile\],?\s*\)/,
-  );
-  assert.match(hooks, /\.\.\.workspaceConversationView\(conversations\)/);
 });

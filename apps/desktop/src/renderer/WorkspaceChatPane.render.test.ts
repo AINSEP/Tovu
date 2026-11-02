@@ -32,10 +32,11 @@ type DeleteConfirmation = ReturnType<typeof useConversationDeleteConfirmation>;
 interface Fakes {
   connected?: boolean;
   pendingTitle?: string | null;
+  getPathForFile?: (file: File) => string;
 }
 
 /** The three ports, recording every callback the pane's controls reach. */
-function fakePorts({ connected = true, pendingTitle = null }: Fakes = {}) {
+function fakePorts({ connected = true, pendingTitle = null, getPathForFile }: Fakes = {}) {
   const calls: string[] = [];
   const runtimeAccess = {
     listAgents: async () => [],
@@ -46,7 +47,7 @@ function fakePorts({ connected = true, pendingTitle = null }: Fakes = {}) {
     transport: connected ? { name: 'fleet' } : undefined,
     runtimeAccess: connected ? runtimeAccess : undefined,
     workingDirectoryAccess: undefined,
-    getPathForFile: undefined,
+    getPathForFile,
     uploadAttachments: async () => [],
   } as unknown as Transport;
   const conversations = {
@@ -142,4 +143,22 @@ test('a pending delete renders an inline confirmation whose buttons answer it', 
   click(byText('Cancel'));
   click(byText('Delete'));
   assert.deepEqual(calls, ['resolve:false', 'resolve:true']);
+});
+
+test('a folder dropped anywhere on the pane is swallowed and its path written into the composer the chat pane was handed', async (t) => {
+  // The pane hands `ChatPane` the composer handle and catches drops on its own `<aside>`; both halves
+  // must reach the same handle, or a correct `captureFolderDrop` would simply never be called.
+  const window = installDom();
+  const { host, fake } = await renderPane(t, { getPathForFile: (file) => (file as unknown as { path: string }).path });
+  const inserted: string[] = [];
+  (fake.rendered.chat?.composerHandle as { current: unknown }).current = { insertText: (text: string) => { inserted.push(text); } };
+  const drop = Object.assign(new window.Event('drop', { bubbles: true, cancelable: true }), {
+    dataTransfer: {
+      items: [{ kind: 'file', webkitGetAsEntry: () => ({ isDirectory: true }) }],
+      files: [{ path: '/Users/x/Site' }],
+    },
+  });
+  act(() => { host.querySelector('textarea')!.dispatchEvent(drop); });
+  assert.deepEqual(inserted, ['/Users/x/Site']);
+  assert.equal(drop.defaultPrevented, true, 'a folder drop is not also staged as an attachment');
 });

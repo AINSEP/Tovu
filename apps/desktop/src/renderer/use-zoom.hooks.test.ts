@@ -1,15 +1,11 @@
 /**
- * @file Behavioural tests for `use-zoom.hooks.ts`: which target a command routes to, the step math,
- * and the `localStorage` round trip. `useZoom` itself calls React hooks, and this package has no
- * React renderer (see `use-find-in-page.hooks.test.ts`'s own header for the identical constraint) —
- * every decision it makes is a plain exported function, tested directly here with fakes. The hook's
- * own command subscription and guest ref callback run through the injected hook harness in
- * `source-test-harness.ts`, with recording ports for guest restoration and inert targets.
+ * @file Behavioural tests for `use-zoom.hooks.ts`'s plain exports: which target a command routes
+ * to, the step math, and the `localStorage` round trip, each called directly with fakes. `useZoom`
+ * itself (the guests map, re-applying a remembered level on registration, the command subscription
+ * and its teardown) is rendered from its real module in `use-zoom.hooks.render.test.ts`.
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFileSync } from 'node:fs';
-import { hookHarness, sourceFunction } from './source-test-harness.js';
 
 import {
   applyStoredZoom,
@@ -172,48 +168,6 @@ test('applyZoomCommand: a top target with no bridge, or a none target, is an ine
   assert.deepEqual(bridge.calls, []);
   assert.equal(bridge.readCount(), 0);
   assert.deepEqual(storage.accesses, []);
-});
-
-test('useZoom wires remembered zoom on registration and commands to the current target, with teardown', () => {
-  const harness = hookHarness();
-  const storage = fakeStorage();
-  writeStoredZoom(storage, 'proj-1', 1.5);
-  const listeners = new Set<(direction: 'in' | 'out' | 'reset') => void>();
-  const bridge = { ...fakeBridge(), onZoomCommand(listener: (direction: 'in' | 'out' | 'reset') => void) {
-    listeners.add(listener); return () => { listeners.delete(listener); };
-  } };
-  const guests = { current: new Map<string, ZoomableGuest>() };
-  const hook = sourceFunction(readFileSync(new URL('./use-zoom.hooks.ts', import.meta.url), 'utf8'), 'useZoom', {
-    ...harness.bindings, useRef: () => guests, runnerInventoryBridge: () => bridge,
-    shellZoomStorage: storage, applyStoredZoom, resolveZoomTarget, applyZoomCommand,
-  });
-  let activeId: string | null = 'proj-1';
-  const render = () => harness.render(() => hook(activeId));
-  const emit = (direction: 'in' | 'out' | 'reset') => { for (const listener of listeners) listener(direction); };
-  try {
-    const guest = fakeGuest();
-    render().registerGuest('proj-1', guest);
-    assert.deepEqual(guest.calls, [['setZoomLevel', 1.5]]);
-    assert.equal(listeners.size, 1);
-    emit('in');
-    assert.equal(guest.getZoomLevel(), 2);
-    assert.equal(readStoredZoom(storage, 'proj-1'), 2);
-    activeId = null;
-    render();
-    assert.equal(listeners.size, 1, 'tab switch must replace, rather than accumulate listeners');
-    storage.accesses.length = 0;
-    emit('in');
-    assert.deepEqual(bridge.calls, [['setZoomLevel', 0.5]]);
-    assert.equal(guest.getZoomLevel(), 2);
-    assert.deepEqual(storage.accesses, []);
-    activeId = 'proj-1';
-    render().registerGuest('proj-1', null);
-    assert.equal(guests.current.size, 0);
-    emit('out');
-    assert.deepEqual(bridge.calls, [['setZoomLevel', 0.5], ['setZoomLevel', 0]]);
-    assert.equal(guest.getZoomLevel(), 2, 'deregistered guest must receive no commands');
-  } finally { harness.cleanup(); }
-  assert.equal(listeners.size, 0);
 });
 
 test('applyStoredZoom: an attached guest takes the stored level at once, with no listener left behind', () => {

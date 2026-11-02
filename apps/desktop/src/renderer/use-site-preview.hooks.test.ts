@@ -1,64 +1,18 @@
 /**
- * @file Coverage for `use-site-preview.hooks.ts`: its pure decision logic and the actual
- * `useSitePreview` effect body.
- *
- * `useSitePreview` itself calls `useState`/`useEffect`, so it cannot be invoked directly in this
- * package: there is no React renderer here at all (no jsdom, no testing-library, no
- * react-test-renderer), and calling a hook outside a component render throws "Invalid hook call"
- * (verified empirically against this exact React 19 install). Every decision the effect makes,
- * though, is a plain function it calls — `previewFetchPlan` (whether to clear, skip, or fetch) and
- * `nextPreviewUrl` (what a settled fetch should write, respecting cancellation) — pulled out for
- * exactly the reason `folder-drop.ts` was pulled out of `App.hooks.ts` (see that file's own header).
- * Both are tested here directly, with real inputs and exact expected outputs.
- *
- * The effect body itself runs through the injected hook harness in `source-test-harness.ts`, with
- * deferred responses, so dependency changes and cancellation of a late result are observed without
- * a renderer.
+ * @file Coverage for `use-site-preview.hooks.ts`'s pure decision logic. Every decision the
+ * `useSitePreview` effect makes is a plain function it calls — `previewFetchPlan` (whether to
+ * clear, skip, or fetch) and `nextPreviewUrl` (what a settled fetch should write, respecting
+ * cancellation) — pulled out for exactly the reason `folder-drop.ts` was pulled out of
+ * `App.hooks.ts` (see that file's own header). Both are tested here directly, with real inputs and
+ * exact expected outputs. The effect itself — refetching per id and version, and a superseded
+ * request's late reply or failure never clobbering a newer one — is rendered from the real module
+ * in `use-site-preview.hooks.render.test.ts`.
  */
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
-import { hookHarness, sourceFunction } from './source-test-harness.js';
 
 import { nextPreviewUrl, previewFetchPlan } from './use-site-preview.hooks.js';
 import type { RunnerInventoryBridge } from './runner-api.js';
-
-const here = path.dirname(fileURLToPath(import.meta.url));
-const hookSource = fs.readFileSync(path.join(here, 'use-site-preview.hooks.ts'), 'utf8');
-
-for (const staleOutcome of ['resolve', 'reject'] as const) {
-  test(`the preview effect refetches a new id and ignores the cancelled request's late ${staleOutcome}`, async () => {
-    const harness = hookHarness();
-    const requests: Array<{ id: string; resolve: (url: string) => void; reject: (error: Error) => void }> = [];
-    const bridge = {
-      getSitePreview(id: string) {
-        return new Promise<string>((resolve, reject) => requests.push({ id, resolve, reject }));
-      },
-    };
-    const hook = sourceFunction(hookSource, 'useSitePreview', {
-      ...harness.bindings, previewFetchPlan, nextPreviewUrl, runnerInventoryBridge: () => bridge,
-    });
-    let id = 'site-a';
-    const render = () => harness.render(() => hook({ id, previewVersion: 7 }));
-    const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
-    try {
-      assert.equal(render(), null);
-      id = 'site-b';
-      assert.equal(render(), null);
-      assert.deepEqual(requests.map((request) => request.id), ['site-a', 'site-b']);
-      requests[1]!.resolve('data:image/png;base64,new');
-      await flush();
-      assert.equal(render(), 'data:image/png;base64,new');
-      if (staleOutcome === 'resolve') requests[0]!.resolve('data:image/png;base64,old');
-      else requests[0]!.reject(new Error('late stale failure'));
-      await flush();
-      assert.equal(render(), 'data:image/png;base64,new');
-      assert.equal(requests.length, 2, 'unchanged id/version must not refetch');
-    } finally { harness.cleanup(); }
-  });
-}
 
 // ---------------------------------------------------------------------------------------------
 // previewFetchPlan

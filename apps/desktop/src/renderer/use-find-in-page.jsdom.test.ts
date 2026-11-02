@@ -2,10 +2,9 @@
  * @file `useFindInPage` and `useComposedGuestRef` rendered from their REAL module under jsdom, with
  * the hook's two ports (`bridge`, `clock`) injected as hand-written fakes — no module mocks.
  *
- * `use-find-in-page.hooks.test.ts` covers every exported decision directly and executes the hook's
- * source through a transpiled copy, which the coverage report cannot attribute to the file. These
- * tests drive the hook the way `App.tsx` does — a real React root, a real `<input>` holding the
- * bar's `inputRef`, real DOM focus — and step the clock's frames and timers by hand, so each
+ * `use-find-in-page.hooks.test.ts` covers every exported decision directly. These tests drive the
+ * hook the way `App.tsx` does — a real React root, a real `<input>` holding the bar's `inputRef`,
+ * real DOM focus — and step the clock's frames and timers by hand, so each
  * assertion names an observable outcome: which surface was searched with which options, what the
  * counter reads, where keyboard focus is, and what is left scheduled.
  */
@@ -350,6 +349,44 @@ test('unmounting cancels every pending query, frame and blur reclaim', (t) => {
   assert.equal(time.timers.size, 0);
   assert.equal(time.frames.size, 0);
   assert.deepEqual(window.subscribed(), { toggle: false, report: false });
+});
+
+test('the blur inside the hook\'s own refocus never schedules a competing blur reclaim', (t) => {
+  // `restoreFindInputFocus` blurs THEN focuses, and raises `restoring` for exactly that blur: the
+  // hook's blur listener must honour it, or every refocus would queue another refocus behind it.
+  const time = manualClock();
+  const window = fakeBridge();
+  const bar = renderFind(t, { bridge: window.bridge, clock: time.clock });
+  window.toggle();
+  bar.act(() => bar.current().setQuery('a'));
+  time.runTimers();
+  assert.ok(focused(bar.input()));
+  assert.equal(time.timers.size, 0, 'issuing the find refocuses the input, and that blur is its own');
+  time.runFrames();
+  time.runFrames();
+  assert.ok(focused(bar.input()));
+  assert.equal(time.timers.size, 0, 'each frame\'s blur-then-focus is its own too');
+  assert.equal(time.frames.size, 1, 'and the frame loop goes on until the find reports');
+});
+
+test('a closed bar\'s detached input is no longer listened to: its blur and composition change nothing', (t) => {
+  const time = manualClock();
+  const window = fakeBridge();
+  const bar = renderFind(t, { bridge: window.bridge, clock: time.clock });
+  window.toggle();
+  const detached = bar.input()!;
+  detached.dispatchEvent(new dom.window.Event('compositionstart'));
+  bar.act(() => bar.current().close());
+  assert.equal(bar.input(), null);
+  detached.dispatchEvent(new dom.window.Event('blur'));
+  detached.dispatchEvent(new dom.window.Event('compositionstart'));
+  assert.equal(time.timers.size, 0, 'a blur on the detached input schedules no reclaim');
+  window.toggle();
+  window.calls.length = 0;
+  bar.act(() => bar.current().setQuery('a'));
+  time.runTimers();
+  assert.deepEqual(window.calls, [['find', { text: 'a', forward: true, findNext: true }]],
+    'no composition from the old input holds back the next search');
 });
 
 test('useComposedGuestRef feeds one webview node to every registration, and is stable across renders', (t) => {
