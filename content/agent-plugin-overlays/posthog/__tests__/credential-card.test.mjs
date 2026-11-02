@@ -4,8 +4,12 @@ import path from 'node:path';
 import test from 'node:test';
 import { parsePluginCredentialCards } from '../../../../apps/website/src/features/agent-plugins/credential-cards.ts';
 import { packAgentPluginDirectory } from '../../../../apps/website/src/features/agent-plugins/lifecycle.ts';
+import { agentPluginSourceDir } from '../../../../development/test-support/agent-plugin-source.mjs';
 
-const root = path.resolve(import.meta.dirname, '..');
+// Moved from content/agent-plugins/posthog (D-W): the plugin ships as @jini-ai/agent-plugins/posthog; this Tovu-bound test reads it from there.
+const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: 'posthog' });
+
+const root = PLUGIN_ROOT;
 const raw = readFileSync(path.join(root, 'plugin.json'), 'utf8');
 
 test('posthog: one provider-settings card that saves the analytics-posthog provider plugin through the host', () => {

@@ -1,3 +1,4 @@
+import path from "node:path";
 import { fakeAttachments, vaultRow } from "#src/features/project-keys/__tests__/helpers";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
@@ -20,6 +21,7 @@ import { buildProviderStatusRegistrations } from "#src/features/plugin-runtime/p
 
 import { createVaultProviderConfigSource, withAttachedProject } from "../provider-config-source.js";
 import { bindProviderSettingsCardPorts, listProviderStatuses } from "../provider-settings-save.js";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 
 /**
  * @file The assistant's provider-settings key card end to end, with DI fakes for the two vaults: an
@@ -54,7 +56,7 @@ function fakeState(): { state: AgentPluginStateStore; rows: Map<string, unknown>
 }
 
 const bundledCards = () => {
-  const parsed = parsePluginCredentialCards({ raw: readFileSync(new URL("../../../../../../../content/agent-plugins/posthog/plugin.json", import.meta.url), "utf8") });
+  const parsed = parsePluginCredentialCards({ raw: readFileSync(path.join(agentPluginSourceDir({ pluginId: "posthog" }), "plugin.json"), "utf8") });
   assert.equal(parsed.ok, true);
   return parsed.ok ? parsed.descriptors : [];
 };
