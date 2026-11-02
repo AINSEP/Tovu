@@ -3,25 +3,16 @@
  * Sites screen's Import tab, never in an external browser (a desktop site signs in through the
  * webview's boot token, so a browser would land on a login page).
  *
- * Pure parts are asserted directly; the wiring is asserted against comment-stripped source, the
- * way `use-add-site.hooks.test.ts` does for the sibling header button.
+ * The pure parts are asserted here. The wiring is rendered from the real modules: the header button
+ * opening the running site's tab on its Import page, and hiding with no site (`App.render.test.ts`),
+ * the tab hook remembering the page per tab (`use-project-tabs.hooks.render.test.ts`), and each
+ * workspace loading its own page (`app/SiteWorkspace.render.test.ts`).
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { SITE_ADMIN_PAGES, resolveImportSiteTarget } from './import-site-entry.js';
 import { siteSurfaceUrl } from './use-site-workspace.hooks.js';
-import { tabAfterClose } from './site-shell-policy.js';
-import { hookHarness, sourceFunction } from './source-test-harness.js';
-import { appShellSource } from './app-shell-source.js';
-
-const here = path.dirname(fileURLToPath(import.meta.url));
-const withoutComments = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
-const app = withoutComments(appShellSource());
-const hooks = fs.readFileSync(path.join(here, 'use-project-tabs.hooks.ts'), 'utf8');
 
 const project = (id: string, status: 'running' | 'stopped' | 'starting') => ({ id, status });
 
@@ -44,29 +35,4 @@ test('a tab asked for the import page loads the admin on it; the public site ign
     siteSurfaceUrl({ port: 4321, view: 'admin', externalUrl: 'https://localhost:3000/admin/', adminPage: 'import' }),
     'https://localhost:3000/admin/import-export?tab=import',
   );
-});
-
-test('the tab hook remembers a requested admin page per tab and forgets it on close', () => {
-  const harness = hookHarness();
-  const useTabs = sourceFunction(hooks, 'useProjectTabs', { ...harness.bindings, tabAfterClose });
-  const render = () => harness.render(() => useTabs());
-  render().openProjectTab('a', { adminPage: 'import' }); render();
-  render().openProjectTab('b'); render();
-  assert.deepEqual(render().adminPages, { a: 'import' });
-  assert.equal(render().activeTab, 'b');
-  render().openProjectTab('a'); render();
-  assert.deepEqual(render().adminPages, { a: 'import' }, 'reopening without a page keeps where the tab was sent');
-  render().closeProjectTab('a'); render();
-  assert.deepEqual(render().adminPages, {});
-});
-
-test('the header button opens the target tab on the import page and hides with no target', () => {
-  assert.match(app, /resolveImportSiteTarget\(\{ projects \}\)/);
-  assert.match(app, /openProjectTab\(importTarget, \{ adminPage: 'import' \}\)/);
-  assert.match(app, /onImportSite && \(\s*<button type="button" className="button button--quiet button--icon jini-tooltip"[^>]*aria-label="Import site" onClick=\{onImportSite\}>/);
-});
-
-test('each workspace receives its own requested admin page', () => {
-  assert.match(app, /adminPage=\{adminPages\[project\.id\]\}/);
-  assert.match(app, /useSiteWorkspace\(project, hidden, \{ adminPage \}\)/);
 });

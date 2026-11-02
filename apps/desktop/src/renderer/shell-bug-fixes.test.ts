@@ -1,110 +1,20 @@
 import { runFind, type FindableGuest } from './use-find-in-page.hooks.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { hookHarness, sourceFunction, elements } from './source-test-harness.js';
-import { siteNameError, SITE_NAME_ERROR, namePasteHandler } from '../contracts/site-name.js';
-import { humanSiteError, siteOperationError, tabAfterClose, readyNoticeStillTrue, dismissOnEscape, addedSiteMessage } from './site-shell-policy.js';
+import { siteNameError, namePasteHandler } from '../contracts/site-name.js';
+import { humanSiteError, siteOperationError, tabAfterClose, readyNoticeStillTrue, dismissOnEscape } from './site-shell-policy.js';
 import { createFindQueryScheduler, FIND_QUERY_SETTLE_MS } from './find-query-scheduler.js';
 import { revealActiveTab, tabOverflow } from './use-tab-strip.hooks.js';
-import { computeCanCreate, buildCreateProjectInput, siteSlug } from './App.hooks.js';
-import { renameSubmission, canSubmitRename } from './use-site-rename.hooks.js';
+import { canSubmitRename } from './use-site-rename.hooks.js';
 import { deleteActionCopy } from './SiteGrid.hooks.js';
-import { describeAddFailure, mergeAddedSite, NO_BRIDGE_MESSAGE } from './use-add-site.hooks.js';
+import { describeAddFailure } from './use-add-site.hooks.js';
 import type { SiteRecord, CreatedSiteRecord } from '../contracts/project.js';
-import type { RunnerInventoryBridge } from './runner-api.js';
-import { appShellSource } from './app-shell-source.js';
 
-const hooks = ['use-create-website-form', 'use-project-mutations', 'use-delete-confirmation', 'use-dropdown-menu', 'use-project-tabs']
-  .map((name) => readFileSync(new URL(`./${name}.hooks.ts`, import.meta.url), 'utf8')).join('\n');
 const site = (fields: Partial<SiteRecord> = {}) => ({ id: '/site', displayName: 'My website', status: 'stopped', folderMissing: false, ...fields }) as SiteRecord;
-function keyboard() {
-  const listeners = new Set<(event: { key: string }) => void>();
-  return {
-    document: { addEventListener: (_type: string, listener: (event: { key: string }) => void) => listeners.add(listener),
-      removeEventListener: (_type: string, listener: (event: { key: string }) => void) => listeners.delete(listener) },
-    press: (key: string) => { for (const listener of [...listeners]) listener({ key }); },
-    listeners,
-  };
-}
 
-test('D-02/D-17: Create and Rename reject invalid drafts locally, with the same exact inline validation', async () => {
-  const harness = hookHarness();
-  let creates = 0;
-  const useForm = sourceFunction(hooks, 'useCreateWebsiteForm', {
-    ...harness.bindings, useRef: () => ({ current: null }), siteNameError, SITE_NAME_ERROR, computeCanCreate,
-    siteSlug, buildCreateProjectInput, refValue: () => '', humanSiteError,
-  });
-  const render = () => harness.render(() => useForm(async () => { creates++; }));
-  for (const name of ['   ', 'x'.repeat(201)]) {
-    render().setName(name);
-    assert.equal(render().canCreate, false);
-    assert.equal(render().nameError, SITE_NAME_ERROR);
-    await render().handleSubmit({ preventDefault() {} });
-    assert.equal(creates, 0, 'no picker call for an invalid name');
-    assert.deepEqual(renameSubmission({} as RunnerInventoryBridge, '/site', name), { kind: 'refused', message: SITE_NAME_ERROR });
-    assert.equal(canSubmitRename(name, false), false);
-  }
-  for (const name of ['a', 'x'.repeat(200), '  Café ☕ 日本語  ']) {
-    assert.equal(siteNameError({ name }), null);
-    render().setName(name);
-    assert.equal(render().canCreate, true);
-  }
-});
-
-test('D-03: a cancelled Create keeps the form open without inserting a row or a ready notice', async () => {
-  const harness = hookHarness();
-  const useMutations = sourceFunction(hooks, 'useProjectMutations', {
-    ...harness.bindings, readyNoticeStillTrue, runnerInventoryBridge: () => ({ createSite: async () => null }),
-  });
-  let exits = 0;
-  const deps = { projects: [], setProjects: () => assert.fail('cancellation must not insert a site'),
-    closeProjectTab: () => {}, stopCreating: () => { exits++; }, startCreating: () => {} };
-  const render = () => harness.render(() => useMutations(deps));
-  await render().handleCreate({ displayName: 'My website', database: { kind: 'sqlite' } });
-  assert.equal(exits, 0);
-  assert.equal(render().lastCreated, null);
-  assert.equal(render().createFormKey, 0);
-});
-
-test('D-03/D-09: cancelled Add is silent; an already-tracked Add reports the exact name and opens that site', async () => {
-  for (const added of [null, { ...site(), alreadyTracked: true }]) {
-    const harness = hookHarness();
-    const useAdd = sourceFunction(readFileSync(new URL('./use-add-site.hooks.ts', import.meta.url), 'utf8'), 'useAddSite', {
-      ...harness.bindings, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite, addedSiteMessage,
-      runnerInventoryBridge: () => ({ addSite: async () => added }),
-    });
-    const opened: string[] = [];
-    let projects: readonly SiteRecord[] = [site()];
-    const setProjects = (update: (current: readonly SiteRecord[]) => readonly SiteRecord[]) => { projects = update(projects); };
-    const render = () => harness.render(() => useAdd({ setProjects }, { onAlreadyTracked: (id: string) => opened.push(id) }));
-    await render().addSite();
-    assert.equal(render().addError, added ? 'My website is already in your list.' : null);
-    assert.deepEqual(opened, added ? ['/site'] : []);
-    assert.equal(projects.length, 1);
-  }
-});
-
-test('D-12/D-01: Escape dismisses confirmation, and a rejected Delete keeps its panel with a human error', async () => {
-  const harness = hookHarness();
-  const keys = keyboard();
-  const useDelete = sourceFunction(hooks, 'useDeleteConfirmation', { ...harness.bindings, ...keys, dismissOnEscape, humanSiteError });
-  const render = () => harness.render(() => useDelete(async () => {
-    throw new Error("Error invoking remote method 'runner:sites:delete': Error: Could not delete this website. Permission was denied. Its card has been kept so you can try again.");
-  }));
-  render().requestDelete('/site');
-  render();
-  keys.press('Escape');
-  assert.equal(render().pendingId, null);
-  render().requestDelete('/site');
-  await render().confirmDelete('/site');
-  assert.equal(render().pendingId, '/site');
-  assert.equal(render().deleteError, 'Could not delete this website. Permission was denied. Its card has been kept so you can try again.');
-  harness.cleanup();
-  assert.equal(keys.listeners.size, 0);
-});
-
-test('D-12: Escape closes the menu and Rename even when focus is on a panel button', () => {
+// The menu and Rename hooks run this rule (rendered in `use-dropdown-menu.hooks.render.test.ts`
+// and `use-site-rename.hooks.render.test.ts`); its own guards are asserted here.
+test('D-12: Escape dismisses, but not while busy or mid IME composition, and no other key does', () => {
   let dismissed = 0;
   dismissOnEscape({ event: { key: 'Enter' }, dismiss: () => { dismissed++; } });
   dismissOnEscape({ event: { key: 'Escape' }, dismiss: () => { dismissed++; }, busy: true });
@@ -112,25 +22,6 @@ test('D-12: Escape closes the menu and Rename even when focus is on a panel butt
   assert.equal(dismissed, 0);
   dismissOnEscape({ event: { key: 'Escape' }, dismiss: () => { dismissed++; } });
   assert.equal(dismissed, 1);
-  const harness = hookHarness();
-  const keys = keyboard();
-  const useMenu = sourceFunction(hooks, 'useDismissibleDropdown', {
-    ...harness.bindings, document: keys.document, dismissOnEscape, useRef: () => ({ current: null }),
-  });
-  const render = () => harness.render(() => useMenu());
-  render().setOpen(true);
-  render(); keys.press('Escape');
-  assert.equal(render().open, false);
-  harness.cleanup();
-  const renameHarness = hookHarness();
-  const renameKeys = keyboard();
-  const useRename = sourceFunction(readFileSync(new URL('./use-site-rename.hooks.ts', import.meta.url), 'utf8'), 'useSiteRename', {
-    ...renameHarness.bindings, document: renameKeys.document, dismissOnEscape, canSubmitRename, runnerInventoryBridge: () => undefined,
-  });
-  const rename = () => renameHarness.render(() => useRename());
-  rename().startRename(site()); rename(); renameKeys.press('Escape');
-  assert.equal(rename().renamingId, null);
-  renameHarness.cleanup();
 });
 
 test('D-14: closing the active tab picks right, else left, and preserves an unrelated selection', () => {
@@ -207,30 +98,6 @@ test('D-26: the active tab scrolls into view and overflow buttons expose the hid
   assert.deepEqual(tabOverflow({ strip: { scrollWidth: 700, clientWidth: 500, scrollLeft: 200 } }), { left: true, right: false });
 });
 
-test('D-28: truncated tab names expose the full name as a title', () => {
-  const name = 'Café ☕ 日本語 — a very long website name';
-  const TabStrip = sourceFunction(appShellSource(), 'TabStrip', {
-    useTabStrip: () => ({ stripRef: null, overflow: { left: false, right: false }, scrollLeft() {}, scrollRight() {}, tabIndex: () => 0, onKeyDown() {} }),
-  });
-  const tree = elements(TabStrip({ projects: [site({ displayName: name })], activeTab: '/site' }));
-  assert.equal(tree.find((element) => element.props.className === 'tab__label' && element.props.children === name)?.props.title, name);
-});
-
-test('D-26: scroll arrows render only while the strip overflows, each disabled on its own exhausted side', () => {
-  const source = appShellSource();
-  const arrows = (overflow: { left: boolean; right: boolean }) => {
-    const TabStrip = sourceFunction(source, 'TabStrip', {
-      useTabStrip: () => ({ stripRef: null, overflow, showArrows: overflow.left || overflow.right, scrollLeft() {}, scrollRight() {}, tabIndex: () => 0, onKeyDown() {} }),
-    });
-    return elements(TabStrip({ projects: [site({})], activeTab: null }))
-      .filter((element) => element.props?.className === 'tabstrip-arrow')
-      .map((element) => [element.props['aria-label'], element.props.disabled]);
-  };
-  assert.deepEqual(arrows({ left: false, right: false }), [], 'no dead arrows when every tab fits');
-  assert.deepEqual(arrows({ left: false, right: true }), [['Scroll tabs left', true], ['Scroll tabs right', false]]);
-});
-
-
 test('D-02/D-17: oversized paste preserves the full draft for validation instead of silently saving 200 characters', () => {
   let draft = '';
   let prevented = false;
@@ -243,37 +110,6 @@ test('D-02/D-17: oversized paste preserves the full draft for validation instead
   assert.equal(draft, name);
   assert.equal(siteNameError({ name: draft }), 'A name must be 1 to 200 characters, not counting spaces at either end.');
   assert.equal(canSubmitRename(draft, false), false);
-});
-
-test('D-14: the tab hook applies the neighbour decision when closing the active middle tab', () => {
-  const harness = hookHarness();
-  const useTabs = sourceFunction(hooks, 'useProjectTabs', { ...harness.bindings, tabAfterClose });
-  const render = () => harness.render(() => useTabs());
-  for (const id of ['a', 'b', 'c']) { render().openProjectTab(id); render(); }
-  render().setActiveTab('b');
-  render().closeProjectTab('b');
-  assert.equal(render().activeTab, 'c');
-  assert.deepEqual(render().openTabs, ['a', 'c']);
-  render().closeProjectTab('c');
-  assert.equal(render().activeTab, 'a');
-});
-
-test('D-19: the mutation hook permanently dismisses the ready notice once its site starts', async () => {
-  const harness = hookHarness();
-  const useMutations = sourceFunction(hooks, 'useProjectMutations', {
-    ...harness.bindings, readyNoticeStillTrue, runnerInventoryBridge: () => ({ createSite: async () => site() }),
-  });
-  let projects: readonly SiteRecord[] = [];
-  const render = () => harness.render(() => useMutations({ projects,
-    setProjects: (update: (current: readonly SiteRecord[]) => readonly SiteRecord[]) => { projects = update(projects); },
-    closeProjectTab() {}, startCreating() {}, stopCreating() {},
-  }));
-  await render().handleCreate({ displayName: 'My website', database: { kind: 'sqlite' } });
-  assert.equal(render().lastCreated?.displayName, 'My website');
-  projects = [site({ status: 'starting' })];
-  assert.equal(render().lastCreated, null);
-  projects = [site({ status: 'stopped' })];
-  assert.equal(render().lastCreated, null, 'stopping again must not resurrect the notice');
 });
 
 test('tabAfterClose: closing the active tab that is not in the strip leaves no active tab', () => {
@@ -290,19 +126,3 @@ test('siteOperationError falls back to English copy in a host with no navigator'
   assert.equal(siteOperationError({ error: new Error('Port 4300 is busy.'), operation: 'start' }), 'Port 4300 is busy.');
 });
 
-// UI test 2026-10-30: after Rename -> Save the card kept the old name for ~1.4 s, until the next
-// poll, because ProjectsBody never handed SiteGrid an `onRenamed`.
-test('a rename updates the Websites grid at once through the same setter as Start/Stop', () => {
-  const source = appShellSource();
-  let gridProps: { onRenamed?: (record: SiteRecord) => void } | undefined;
-  const SiteGrid = (props: typeof gridProps) => { gridProps = props; return null; };
-  const ProjectsBody = sourceFunction(source, 'ProjectsBody', { SiteGrid, NoWebsitesYet: () => null });
-  const updated: SiteRecord[] = [];
-  const tree = ProjectsBody({ projectsLoading: false, loadError: null, rescanError: null, addError: null,
-    projects: [site()], onOpen: () => {}, onDelete: async () => {}, onSiteUpdated: (record: SiteRecord) => updated.push(record) });
-  for (const element of elements(tree)) if (typeof element.type === 'function') element.type(element.props);
-  const renamed = site({ displayName: 'Harbor Florist' });
-  assert.equal(typeof gridProps?.onRenamed, 'function');
-  gridProps!.onRenamed!(renamed);
-  assert.deepEqual(updated, [renamed]);
-});

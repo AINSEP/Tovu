@@ -1,13 +1,10 @@
 /**
  * @file Coverage for `expanded-mode.ts` — immersive mode's decision rules.
  *
- * `useExpandedMode` itself calls `useState`, so it cannot be invoked here: this package has no
- * React renderer at all (no jsdom, no testing-library, no react-test-renderer) and calling a hook
- * outside a component render throws "Invalid hook call". `use-site-rename.hooks.test.ts`'s header
- * records the empirical verification of that against this exact React 19 install. So every rule
- * the hook and `App`'s JSX apply is a plain function in `expanded-mode.ts`, and every test below
- * calls one of those with real inputs and asserts an exact output. Nothing here asserts against
- * source text.
+ * Every rule the hook and `App`'s JSX apply is a plain function in `expanded-mode.ts`, and every
+ * test below calls one of those with real inputs and asserts an exact output. The hook itself —
+ * Escape handling attached only while expanded and released on collapse — is rendered from its real
+ * module in `use-expanded-mode.hooks.render.test.ts`. Nothing here asserts against source text.
  *
  * The failure mode these tests exist for is not a wrong pixel. Expanded mode hides the top nav and
  * the tab strip — every piece of navigation Tovu has — so a rule that lets the mode stay on while
@@ -16,9 +13,6 @@
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFileSync } from 'node:fs';
-import { hookHarness, sourceFunction } from './source-test-harness.js';
-
 import { deriveSitesHomeView } from './App.hooks.js';
 import {
   COLLAPSE_KEY,
@@ -36,41 +30,6 @@ function site(id: string): SiteRecord {
 }
 
 const BOTH = [false, true] as const;
-
-test('the expanded-mode effect attaches Escape handling only while expanded and detaches on collapse', () => {
-  const harness = hookHarness();
-  const target = new EventTarget();
-  const listeners = new Set<EventListener>();
-  const window = {
-    addEventListener(type: string, listener: EventListener) { listeners.add(listener); target.addEventListener(type, listener); },
-    removeEventListener(type: string, listener: EventListener) { listeners.delete(listener); target.removeEventListener(type, listener); },
-  };
-  const hook = sourceFunction(readFileSync(new URL('./use-expanded-mode.hooks.ts', import.meta.url), 'utf8'), 'useExpandedMode', {
-    ...harness.bindings, window, expandedAfterWorkspaceChange, expandedAfterKeyDown, nextExpanded,
-  });
-  let showSiteTab = true;
-  const render = () => harness.render(() => hook(showSiteTab));
-  const key = (value: string) => target.dispatchEvent(Object.assign(new Event('keydown'), { key: value }));
-  try {
-    assert.equal(render().expanded, false);
-    assert.equal(listeners.size, 0);
-    render().toggleExpanded();
-    assert.equal(render().expanded, true);
-    assert.equal(listeners.size, 1);
-    key('Enter');
-    assert.equal(render().expanded, true);
-    key('Escape');
-    assert.equal(render().expanded, false);
-    assert.equal(listeners.size, 0);
-    // A listener left behind would apply the supplied rule to the next event.
-    render().toggleExpanded();
-    assert.equal(render().expanded, true);
-    showSiteTab = false;
-    assert.equal(render().expanded, false);
-    assert.equal(listeners.size, 0);
-  } finally { harness.cleanup(); }
-  assert.equal(listeners.size, 0);
-});
 
 // ---------------------------------------------------------------------------------------------
 // nextExpanded — the workspace bar's toggle

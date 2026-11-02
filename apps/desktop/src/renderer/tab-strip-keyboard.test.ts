@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { elements, sourceFunction } from './source-test-harness.js';
 import * as tabStrip from './use-tab-strip.hooks.js';
-import { appShellSource } from './app-shell-source.js';
 
 function fixture() {
   const calls: string[] = [];
@@ -35,25 +33,6 @@ test('D-13 ignores other controls, vertical keys, and modified shortcuts', () =>
     const f = fixture();
     navigate({ strip: f.strip, event: { target: f.tabs[0], preventDefault: () => assert.fail('must preserve native key'), ...extra } }, {});
     assert.deepEqual(f.calls, []);
-  }
-});
-
-test('D-13 rendered tabs have one tab stop and wire keyboard navigation', () => {
-  const getTabIndex = (tabStrip as any).tabStripTabIndex;
-  assert.equal(typeof getTabIndex, 'function');
-  const onKeyDown = () => {};
-  const TabStrip = sourceFunction(appShellSource(), 'TabStrip', {
-    useTabStrip: ({ activeTab, projects }: any) => ({
-      stripRef: null, overflow: {}, showArrows: false, onKeyDown,
-      tabIndex: ({ tabId }: { tabId: string | null }) => getTabIndex({ activeTab, projects, tabId }, {}),
-    }),
-  });
-  const projects = [{ id: 'a', displayName: 'Alpha' }, { id: 'b', displayName: 'Beta' }];
-  for (const activeTab of [null, 'a', 'b', 'closed']) {
-    const tree = elements(TabStrip({ projects, activeTab }));
-    const tabs = tree.filter((e) => e.props.role === 'tab');
-    assert.deepEqual(tabs.map((e) => e.props.tabIndex), activeTab === 'a' ? [-1, 0, -1] : activeTab === 'b' ? [-1, -1, 0] : [0, -1, -1]);
-    assert.equal(tree.find((e) => e.props.role === 'tablist').props.onKeyDown, onKeyDown);
   }
 });
 

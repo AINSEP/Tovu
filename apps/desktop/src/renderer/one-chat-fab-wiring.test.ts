@@ -9,10 +9,10 @@
  * `z-index` as the guest's, so it composited above the guest and swallowed every click meant for
  * the working assistant. An unbuilt placeholder was blocking the built feature.
  *
- * Source text, because `apps/desktop` has no DOM test environment: its test script runs this file
- * itself under `node --import tsx --test`, which transpiles TypeScript/JSX but supplies no DOM, and
- * there is no jsdom or testing-library in `devDependencies`, so a `.tsx` component cannot be
- * rendered and queried here.
+ * Source text on purpose, even though the shell now renders under jsdom (`App.render.test.ts`):
+ * every assertion here is a NEGATIVE invariant — no FAB markup or `ChatFab` import in ANY branch of
+ * the shell's components, no rule left in `app.css`, no fleet-chat handler in the main process
+ * (`src/main/index.ts`, which the renderer cannot load). A render only proves the states it renders.
  * The behavioural counterpart is a live `_electron` run against the packaged app; this file is what
  * keeps the decision from being undone silently by an edit.
  */
