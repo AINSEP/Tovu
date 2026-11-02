@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 
 import {
   evaluateArea,
+  foreignImageFunctions,
   formatArea,
   pct,
   isMeasurableSource,
@@ -253,4 +254,54 @@ test("a command the guard cannot read throws instead of comparing as zero globs"
   assert.throws(() => parseNodeTestScript("node src/main.js"), {
     message: 'not a "node [args] --test <globs>" command: node src/main.js',
   });
+});
+
+// Shaped on the real shared-sites.ts record from cloud/desktop-coverage-1102: node's own image
+// first, then a Playwright-babel image of the same file appended at shifted lines, never called.
+const SHARED_SITES_SOURCE = [
+  'import path from "node:path";',
+  "",
+  "export function createSitesWorkspace(dir: string) {",
+  "  return { dir, roots: () => [dir] };",
+  "}",
+  "// a comment the babel image's offsets land on",
+  "export function desktopSourceRoots() {",
+  "  return [];",
+  "}",
+];
+const DOUBLE_IMAGE_RECORD = [
+  "SF:src/shared-sites.ts",
+  "FN:3,createSitesWorkspace",
+  "FN:7,desktopSourceRoots",
+  "FN:1,anonymous_13",
+  "FN:2,createSitesWorkspace",
+  "FN:6,desktopSourceRoots",
+  "FN:4,roots",
+  "FNDA:194,createSitesWorkspace",
+  "FNDA:198,desktopSourceRoots",
+  "FNDA:1,anonymous_13",
+  "FNDA:0,createSitesWorkspace",
+  "FNDA:0,desktopSourceRoots",
+  "FNDA:49,roots",
+  "FNF:6",
+  "FNH:4",
+].join("\n");
+
+test("a second image of the same file is named by every function it re-lists at a line that does not declare it", () => {
+  assert.deepEqual(foreignImageFunctions(DOUBLE_IMAGE_RECORD, SHARED_SITES_SOURCE), ["createSitesWorkspace", "desktopSourceRoots"]);
+});
+
+test("a single image is clean, even with a function whose start line does not spell its name", () => {
+  const single = "SF:src/shared-sites.ts\nFN:3,createSitesWorkspace\nFN:7,desktopSourceRoots\nFN:5,roots\nFNF:3\nFNH:3";
+  assert.deepEqual(foreignImageFunctions(single, SHARED_SITES_SOURCE), []);
+});
+
+test("two real closures that share a name, each on its own declaring line, are not a second image", () => {
+  const source = ["const a = { cut: () => 1 };", "const b = { cut: () => 2 };"];
+  assert.deepEqual(foreignImageFunctions("SF:src/menu.ts\nFN:1,cut\nFN:2,cut\nFNDA:1,cut\nFNDA:0,cut", source), []);
+});
+
+test("a duplicated name pointing past the end of the file is foreign; anonymous wrappers never are", () => {
+  const record = "SF:src/x.ts\nFN:1,anonymous_1\nFN:9,anonymous_1\nFN:3,createSitesWorkspace\nFN:40,createSitesWorkspace";
+  assert.deepEqual(foreignImageFunctions(record, SHARED_SITES_SOURCE), ["createSitesWorkspace"]);
 });

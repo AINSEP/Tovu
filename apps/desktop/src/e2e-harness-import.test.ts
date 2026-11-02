@@ -36,9 +36,15 @@ test('the desktop journey harness loads through Playwright on the supported Node
       if (typeof m.launchDesktop !== 'function') throw Error('harness exports missing');
       process.exit(0);
     }).catch(e => { console.error(e); process.exit(1); });`;
+  // NODE_V8_COVERAGE stays out: this child loads the harness's desktop imports (site-dir-store,
+  // tracked-sites, tovu-server, ...) through Playwright's babel transform. Inheriting the coverage
+  // directory wrote that second, differently-offset image into the gate's lcov, where node's merge
+  // painted its unrun copy over the real hits: "src main-process" read 94.55% instead of 99.86%
+  // (cloud/desktop-coverage-1102). This child proves the harness loads; it is not coverage evidence.
+  const childEnv: NodeJS.ProcessEnv = { ...launch.env, NODE_OPTIONS: '', TOVU_DESKTOP_E2E_APP: '' };
+  delete childEnv.NODE_V8_COVERAGE;
   const child = spawnSync(process.execPath, ['-e', script], {
-    cwd: root, encoding: 'utf8', timeout: 30_000,
-    env: { ...launch.env, NODE_OPTIONS: '', TOVU_DESKTOP_E2E_APP: '' },
+    cwd: root, encoding: 'utf8', timeout: 30_000, env: childEnv,
   });
   assert.ifError(child.error);
   assert.equal(child.status, 0, child.stdout + child.stderr);
