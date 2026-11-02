@@ -14,7 +14,13 @@ export function filterChatDeleteCatalog(required: { catalog: ToolCatalogQuery; p
   const allowed = (toolId: string) => isChatToolAllowed({ toolId, policy: required.policy() });
   return {
     search: ({ query }, { limit = 10 } = {}) => required.catalog.search({ query }, { limit: limit + PERMANENT_DELETE_TOOLS.length + 2 }).filter(hit => allowed(hit.id)).slice(0, limit),
-    describe: ({ id }, optional = {}) => allowed(id) ? required.catalog.describe({ id }, optional) : null,
+    describe: ({ id }, optional = {}) => {
+      if (!allowed(id)) return null;
+      const entry = required.catalog.describe({ id }, optional);
+      // Guidance (a retired alias, an overview) is judged by the tools it points at, not its own id,
+      // so an alias to an unchecked permanent delete cannot reveal it under another name.
+      return entry?.targetToolIds?.every(allowed) === false ? null : entry;
+    },
   };
 }
 /** Each site root owns one scope, with native async context keeping concurrent requests isolated.

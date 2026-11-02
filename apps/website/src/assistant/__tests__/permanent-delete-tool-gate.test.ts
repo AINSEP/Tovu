@@ -31,3 +31,11 @@ test("per-request fresh reads isolate concurrent runs and a revoked grant on the
   release(); await on;
   assert.equal(reads, 2);
 });
+test("guidance is judged by the tools it points at, so an alias to an unchecked delete is hidden", () => {
+  const alias = { id: "trash_purge_all", description: "trash_purge_all was renamed to trash_empty.", source: "site", targetToolIds: ["trash_empty"] };
+  const aliasCatalog = { search: catalog.search, describe: ({ id }: { id: string }) => id === alias.id ? alias : catalog.describe({ id }) };
+  const off = filterChatDeleteCatalog({ catalog: aliasCatalog, policy: () => ({ enabled: false, allowedToolIds: [] }) });
+  assert.equal(off.describe({ id: alias.id }), null);
+  const on = filterChatDeleteCatalog({ catalog: aliasCatalog, policy: () => ({ enabled: true, allowedToolIds: ["trash_empty"] }) });
+  assert.deepEqual(on.describe({ id: alias.id }), alias);
+});
