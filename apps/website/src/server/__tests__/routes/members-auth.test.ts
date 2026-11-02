@@ -1,5 +1,6 @@
 import "../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import test from "node:test";
 
 import { bootAuthenticated } from "../helpers/http-test-server.js";
@@ -294,7 +295,8 @@ test("POST request-magic-link returns 500 on unexpected internal error", async (
   );
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string };
-  assert.equal(body.error, "internal error");
+  // 88f429c25 conceals internal causes behind the shared correlated incident envelope.
+  assertAdminResponse({ actual: body, expected: { code: "INTERNAL_ERROR", error: "internal error" } });
 });
 
 /**

@@ -30,7 +30,7 @@ function isIncidentSnapshot(row: Record<string, unknown>): boolean {
   if (row.errorId !== undefined) return false;
   const publicText = row.error ?? row.message;
   if (typeof publicText !== "string") return false;
-  return publicText === "internal error" || ["INTERNAL_ERROR", "BACKUP_FAILED", "IMPORT_FAILED"].includes(String(row.code));
+  return publicText === "internal error" || ["INTERNAL_ERROR", "BACKUP_FAILED", "IMPORT_FAILED", "SHARE_FAILED"].includes(String(row.code));
 }
 
 /** Assert the exact diagnostic envelope, retaining the cause while excluding raw Error objects. */

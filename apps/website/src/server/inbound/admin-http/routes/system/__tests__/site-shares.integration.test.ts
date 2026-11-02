@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import test from "node:test";
 import { portFake } from "#src/server/__tests__/helpers/port-fake";
 import express from "express";
@@ -60,8 +61,9 @@ test("share routes validate sources and authorize before effects, preserve downl
   for (const fault of [new Error("SECRET disk details"), new SiteShareRefusal({ code: "NOT_FOUND", message: "Share not found." }), new SiteShareRefusal({ code: "BUSY", message: "Export busy" })]) {
     failure = fault;
     for (const response of [await fetch(root), await post({}), await fetch(root + "/" + record.shareId, { method: "DELETE" })]) {
-      assert.equal(response.status, fault instanceof SiteShareRefusal && fault.code === "NOT_FOUND" ? 404 : 400);
-      assert.deepEqual(await response.json(), fault instanceof SiteShareRefusal ? { code: fault.code, message: fault.message } : { code: "SHARE_FAILED", message: "Share operation failed. Check storage configuration and retry." });
+      // 88f429c25: expected refusals retain their status; unexpected failures carry an incident ID.
+      assert.equal(response.status, fault instanceof SiteShareRefusal ? (fault.code === "NOT_FOUND" ? 404 : 400) : 500);
+      assertAdminResponse({ actual: await response.json(), expected: fault instanceof SiteShareRefusal ? { code: fault.code, message: fault.message } : { code: "SHARE_FAILED", message: "Share operation failed. Check storage configuration and retry." } });
     }
   }
   failure = undefined;
@@ -143,12 +145,12 @@ test("share artifact routes admit a connected-computer grant, and every route re
 
   authorizeFault = new Error("SECRET authorizer detail");
   const put = await fetch(artifact, { method: "PUT", headers: { "content-type": "application/zip" }, body: Buffer.from([80, 75, 3, 4]) });
-  assert.equal(put.status, 400); assert.deepEqual(await put.json(), sanitized);
+  assert.equal(put.status, 500); assertAdminResponse({ actual: await put.json(), expected: sanitized });
   authorizeFault = undefined;
 
   registryFault = new Error("SECRET disk detail");
   for (const response of [await fetch(root + "/share-1/download"), await fetch(artifact, { method: "DELETE" })]) {
-    assert.equal(response.status, 400); assert.deepEqual(await response.json(), sanitized);
+    assert.equal(response.status, 500); assertAdminResponse({ actual: await response.json(), expected: sanitized });
   }
   assert.deepEqual(effects, ["get", "list"]);
 });
