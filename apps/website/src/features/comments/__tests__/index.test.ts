@@ -79,7 +79,7 @@ test("createCommentsModule uses the injected spamCheck, not a hardcoded Heuristi
     entryLookup: async () => makeEntry("published", null),
     outbox: new InMemoryOutbox(),
     clock,
-    ...createCommentsHostPorts({ clock }, {}),
+    ...createCommentsHostPorts({ clock, workspaceId: WORKSPACE_ID }, {}),
     idGen: { newId: () => "comment-1" },
     spamCheck: spyingSpamCheck,
     ...commentTrashDoubles(),
@@ -101,7 +101,7 @@ test("BUG REGRESSION: a draft entry (never published) rejects a public comment a
     entryLookup: async () => makeEntry("draft", null),
     outbox: new InMemoryOutbox(),
     clock,
-    ...createCommentsHostPorts({ clock }, {}),
+    ...createCommentsHostPorts({ clock, workspaceId: WORKSPACE_ID }, {}),
     idGen: { newId: () => "comment-1" },
     spamCheck: new HeuristicSpamCheck(),
     ...commentTrashDoubles(),
@@ -122,7 +122,7 @@ test("BUG REGRESSION: an unpublished (retracted) entry rejects a public comment 
     entryLookup: async () => makeEntry("unpublished", "2020-01-01T00:00:00.000Z"),
     outbox: new InMemoryOutbox(),
     clock,
-    ...createCommentsHostPorts({ clock }, {}),
+    ...createCommentsHostPorts({ clock, workspaceId: WORKSPACE_ID }, {}),
     idGen: { newId: () => "comment-1" },
     spamCheck: new HeuristicSpamCheck(),
     ...commentTrashDoubles(),
@@ -140,7 +140,7 @@ test("a published entry with no closeAfterDays cap still accepts a public commen
     entryLookup: async () => makeEntry("published", "2026-01-01T00:00:00.000Z"),
     outbox: new InMemoryOutbox(),
     clock,
-    ...createCommentsHostPorts({ clock }, {}),
+    ...createCommentsHostPorts({ clock, workspaceId: WORKSPACE_ID }, {}),
     idGen: { newId: () => "comment-1" },
     spamCheck: new HeuristicSpamCheck(),
     ...commentTrashDoubles(),
@@ -161,7 +161,7 @@ for (const ageDays of [6, 7, 7 + 1 / 86400, 8]) {
       entryLookup: async () => makeEntry("published", publishedAt),
       outbox: new InMemoryOutbox(),
       clock,
-      ...createCommentsHostPorts({ clock }, { settings: { ...DEFAULT_COMMENTS_SETTINGS, closeAfterDays: 7 } }),
+      ...createCommentsHostPorts({ clock, workspaceId: WORKSPACE_ID }, { settings: { ...DEFAULT_COMMENTS_SETTINGS, closeAfterDays: 7 } }),
       idGen: { newId: () => "comment-1" },
       spamCheck: new HeuristicSpamCheck(),
       ...commentTrashDoubles(),
@@ -185,7 +185,7 @@ test("one composed module reads ledger changes live for both ingress and the ent
     entryLookup: async () => makeEntry("published", "2026-08-21T00:00:00.000Z"),
     outbox: new InMemoryOutbox(), clock, idGen: ids, spamCheck: new HeuristicSpamCheck(),
     // The ledger takes precedence over this deliberately conflicting fixed fallback.
-    ...createCommentsHostPorts({ clock, settingsRepo }, { settings: { ...DEFAULT_COMMENTS_SETTINGS, enabled: false } }),
+    ...createCommentsHostPorts({ clock, settingsRepo, workspaceId: WORKSPACE_ID }, { settings: { ...DEFAULT_COMMENTS_SETTINGS, enabled: false } }),
     ...commentTrashDoubles(),
   }, {});
   const patch = (values: Parameters<typeof setCommentsSettings>[1]["patch"]) => setCommentsSettings(settingsDeps, {
@@ -213,7 +213,7 @@ test("the composed writeService forwards removal, restore, and transaction depen
     entryLookup: async () => makeEntry("published", null),
     outbox: new InMemoryOutbox(),
     clock,
-    ...createCommentsHostPorts({ clock }, {}),
+    ...createCommentsHostPorts({ clock, workspaceId: WORKSPACE_ID }, {}),
     idGen: { newId: () => `composed-comment-${++sequence}` },
     spamCheck: new HeuristicSpamCheck(),
     ...trash,
@@ -236,4 +236,32 @@ test("the composed writeService forwards removal, restore, and transaction depen
   assert.deepEqual(trash.forgotten, [{ workspaceId: WORKSPACE_ID, id }]);
   assert.equal((await commentRepo.findById({ workspaceId: WORKSPACE_ID, id }))?.status, "approved");
   assert.equal(transactions, 2);
+});
+
+test("comment submissions immediately honor a changed per-IP budget without resetting the hour", async () => {
+  const clock = createFakeClock({ startIso: "2026-08-29T00:00:00.000Z" });
+  let sequence = 0;
+  const idGen = { newId: () => `live-budget-${++sequence}` };
+  const settingsRepo = new InMemorySettingsRepo();
+  const settingsDeps = { settingsRepo, clock, idGen, outbox: new InMemoryOutbox(), authorize: async () => ({ allowed: true, reason: "matched" }), principals: new InMemoryPrincipalRepo({}, { initialRows: [] }) };
+  await ensureCommentsSettingDefinitions(settingsDeps, { workspaceId: WORKSPACE_ID, systemPrincipalId: "system-comments" });
+  const patch = (maxPerIpPerHour: number) => setCommentsSettings(settingsDeps, {
+    workspaceId: WORKSPACE_ID, callerPrincipalId: "operator", patch: { maxPerIpPerHour },
+  });
+  const commentsModule = createCommentsModule({
+    commentRepo: new InMemoryCommentRepo(), entryLookup: async () => makeEntry("published", null),
+    outbox: new InMemoryOutbox(), clock, idGen, spamCheck: new HeuristicSpamCheck(),
+    ...createCommentsHostPorts({ clock, settingsRepo, workspaceId: WORKSPACE_ID }, {}),
+    ...commentTrashDoubles(),
+  }, {});
+  const submit = () => commentsModule.ingressPolicy.submit(makeSubmission());
+  await patch(2);
+  assert.equal((await submit()).ok, true);
+  assert.equal((await submit()).ok, true);
+  assert.deepEqual(await submit(), { ok: false, reason: "rate-limited" });
+  await patch(1);
+  assert.deepEqual(await submit(), { ok: false, reason: "rate-limited" });
+  await patch(3);
+  assert.equal((await submit()).ok, true);
+  assert.deepEqual(await submit(), { ok: false, reason: "rate-limited" });
 });

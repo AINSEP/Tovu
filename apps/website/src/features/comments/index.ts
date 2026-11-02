@@ -36,25 +36,12 @@ export const COMMENTS_SUBMIT_PROFILE: RateLimitProfile = { windowSeconds: 3600, 
  * Ledger settings take precedence over the optional fixed fallback; lookup errors propagate.
  * @returns Required Jini getSettings and rateLimiter ports.
  * @complexity O(1) setup; each settings read inherits the ledger's work.
- * @example createCommentsHostPorts({ clock, settingsRepo }, {})
+ * @example createCommentsHostPorts({ clock, settingsRepo, workspaceId }, {})
  */
 export function createCommentsHostPorts(
-  required: { clock: ClockPort; settingsRepo?: SettingsRepoPort },
+  required: { clock: ClockPort; settingsRepo?: SettingsRepoPort; workspaceId: UUID },
   optional: { settings?: CommentsSettings } = {},
 ): Pick<CommentsModuleDeps, "getSettings" | "rateLimiter"> {
-  // Disclosed gap (SPEC-035): `maxPerIpPerHour` is readable/writable through the ledger like every
-  // other `CommentsSettings` field, but the actual rate-LIMITER below is still constructed ONCE,
-  // fixed at `COMMENTS_SUBMIT_PROFILE.max` (= the same value as `DEFAULT_COMMENTS_SETTINGS.
-  // maxPerIpPerHour`) — an operator changing it via the admin settings route updates the STORED
-  // value but does not yet reconfigure the live limiter. Making the limiter itself dynamically
-  // reconfigurable per-workspace is a larger change to `core/rate-limit/rate-limit.ts`'s
-  // fixed-window counter store, out of this slice's scope (mirrors the task's own "don't build a
-  // large amount of new plumbing beyond what already exists for SEO's pattern" guidance).
-  const rateLimiter = createRateLimiter(
-    { profile: COMMENTS_SUBMIT_PROFILE, clock: required.clock },
-    { store: createMemoryCounterStore({}) },
-  );
-
   // SPEC-035 — the live settings resolver: reads the ADR-028 ledger per call when `settingsRepo`
   // is supplied, else falls back to the fixed `optional.settings ?? DEFAULT_COMMENTS_SETTINGS`
   // snapshot (hermetic tests / a composition root that hasn't wired the ledger).
@@ -63,6 +50,12 @@ export function createCommentsHostPorts(
       ? getCommentsSettings({ settingsRepo: required.settingsRepo }, { workspaceId })
       : optional.settings ?? DEFAULT_COMMENTS_SETTINGS;
 
+  // Keep the limiter/store for the workspace's lifetime. Rebuilding after a setting edit would
+  // silently replenish every IP's spent budget (and split concurrent checks between queues).
+  const rateLimiter = createRateLimiter(
+    { profile: COMMENTS_SUBMIT_PROFILE, clock: required.clock },
+    { store: createMemoryCounterStore({}), getMax: async () => (await getSettings(required.workspaceId)).maxPerIpPerHour },
+  );
   return { getSettings, rateLimiter };
 }
 

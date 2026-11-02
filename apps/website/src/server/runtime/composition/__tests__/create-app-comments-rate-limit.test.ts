@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { COMMENTS_SUBMIT_PROFILE } from "#src/features/comments/index";
-import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { loginAsOwner, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
 import { createApp, createRouteDeps } from "../app.js";
 
@@ -47,6 +47,50 @@ async function submitComment(
 }
 
 for (const builder of ["createApp", "createSiteApp"] as const) {
+  test(`${builder}: public comment form accepts request 21 after a live budget increase without restarting`, async t => {
+    const deps = createRouteDeps();
+    await Promise.all([deps.identityReady, deps.commentsSettingsReady]);
+    const now = deps.clock.nowIso();
+    const entryId = "live-budget-entry";
+    await deps.entryRepo.save({ id: entryId, workspaceId: deps.workspaceId, type: "post", slug: entryId,
+      status: "published", title: "Live budget", bodyJson: null, fieldsJson: {}, publishedAt: now,
+      createdAt: now, updatedAt: now, version: 1 });
+    const bootWork: Promise<void>[] = [];
+    const app = builder === "createApp" ? createApp(deps, { onBootWork: work => bootWork.push(work) }) : deps.createSiteApp();
+    t.after(async () => { await Promise.allSettled(bootWork); });
+    app.set("trust proxy", false);
+    const baseUrl = await startTestServer(app, t);
+    const cookie = await loginAsOwner(baseUrl);
+    const changeBudget = async (maxPerIpPerHour: number) => {
+      const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/comments/settings`, {
+        method: "PUT", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ maxPerIpPerHour }),
+      });
+      assert.equal(response.status, 200, await response.text());
+    };
+    const submitForm = async () => {
+      const response = await fetch(`${baseUrl}/api/site/comments`, {
+        method: "POST", redirect: "manual", headers: { origin: baseUrl, "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ entryId, authorName: "Visitor", body: "Thanks for sharing this post.", returnTo: "/live-budget" }),
+      });
+      await response.text();
+      assert.equal(response.status, 303, "the no-JS form must keep its redirect contract");
+      return response.headers.get("location");
+    };
+    for (let attempt = 1; attempt <= 20; attempt++) {
+      assert.equal(await submitForm(), "/live-budget#comment-pending", `form submission ${attempt}`);
+    }
+    await changeBudget(21);
+    assert.equal(await submitForm(), "/live-budget#comment-pending", "request 21 must use the new budget in the already-mounted HTTP limiter");
+    assert.equal(await deps.commentRepo.countByStatus({ workspaceId: deps.workspaceId, status: "pending" }), 21, "request 21 must reach the real ingress and persist");
+    assert.equal(await submitForm(), "/live-budget#comment-error", "raising the limit must preserve the 21 spent requests");
+    await changeBudget(1);
+    assert.equal(await submitForm(), "/live-budget#comment-error", "a live decrease must apply to the existing window too");
+    await changeBudget(22);
+    assert.equal(await submitForm(), "/live-budget#comment-pending", "a further increase grants only the newly available slot");
+    assert.equal(await submitForm(), "/live-budget#comment-error");
+    assert.equal(await deps.commentRepo.countByStatus({ workspaceId: deps.workspaceId, status: "pending" }), 22);
+  });
+
   test(`${builder}: real comment HTTP budget, trusted IP policy, expiry and app isolation`, async (t) => {
     const deps = createRouteDeps();
     let nowMs = Date.parse("2026-10-08T00:00:00.000Z");

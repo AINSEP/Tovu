@@ -187,9 +187,12 @@ export const ADMIN_BROWSER_TELEMETRY_PER_PRINCIPAL: RateLimitProfile = {
  */
 export function createRateLimiter(
   { profile, clock }: { profile: RateLimitProfile; clock: ClockPort },
-  { store = createMemoryCounterStore({}) }: { store?: CounterStore } = {},
+  { store = createMemoryCounterStore({}), getMax }: {
+    store?: CounterStore;
+    getMax?: (required: { key: string }, optional: Record<string, never>) => number | Promise<number>;
+  } = {},
 ): HttpRateLimiter {
-  return createHttpRateLimiter({ profile, clock, store });
+  return createHttpRateLimiter({ profile, clock, store }, getMax ? { getMax } : {});
 }
 
 // Keep this policy outside the server composition root: assistant, comments and forms once

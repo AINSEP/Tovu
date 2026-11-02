@@ -242,7 +242,7 @@ import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments";
-import { COMMENTS_SUBMIT_PROFILE, createCommentsHostPorts, ensureCommentsSettingDefinitions, resolveCommentsIpHashSalt } from "#src/features/comments/index";
+import { createCommentsHostPorts, ensureCommentsSettingDefinitions, resolveCommentsIpHashSalt } from "#src/features/comments/index";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
 import {
   ensureSiteTitleSettingDefinition,
@@ -941,7 +941,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     clock,
     idGen,
     spamCheck: new HeuristicSpamCheck(),
-    ...createCommentsHostPorts({ clock, settingsRepo }, {}),
+    ...createCommentsHostPorts({ clock, settingsRepo, workspaceId }, {}),
     remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
       trash: trash,
       entityType: COMMENT_ENTITY_TYPE
@@ -2387,7 +2387,8 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // screenshots are reachable (see theme-static-assets.ts's own header for why declarative/handlebars
   // are not listed here yet, and why templates/*.liquid source being servable is deliberate).
   registerThemeStaticAssets(app, {
-    themes: routeDeps.themes,
+    // Theme refresh replaces the roster; inherited sources must follow that replacement.
+    get themes() { return routeDeps.themes; },
     isAuthenticatedPreviewRevision,
     // Site-relative for the same reason as `themesStaticDir` just above — this is the mount that
     // serves the live site's own theme css/js, so a package-relative root here is precisely the bug
@@ -2423,7 +2424,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
     providers: routeDeps.commentsProviders,
     workspaceId: routeDeps.workspaceId,
     // HTTP requests and accepted submissions consume separate budgets, never the same counter twice.
-    rateLimiter: createRateLimiter({ profile: COMMENTS_SUBMIT_PROFILE, clock: routeDeps.clock }),
+    rateLimiter: createCommentsHostPorts({ clock: routeDeps.clock, settingsRepo: routeDeps.settingsRepo, workspaceId: routeDeps.workspaceId }, {}).rateLimiter,
     // Resolved here, once, from the root's env and its site-key keyring — the route never reads env.
     // No public-constant fallback in production: see `features/comments/ip-hash-salt.ts`.
     ipHashSalt: resolveCommentsIpHashSalt({

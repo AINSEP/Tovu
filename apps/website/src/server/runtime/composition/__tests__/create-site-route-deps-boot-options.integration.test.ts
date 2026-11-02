@@ -29,6 +29,25 @@ const BOOT_ENV = [
   "TOVU_S3_KEY_PREFIX",
 ] as const;
 
+test("a reset secret left set to the stored credential creates no backup or credential write on repeated boots", async t => {
+  // This is a disposable test database, with the same configured and seeded credential.
+  withBootEnv(t, { TOVU_ADMIN_RESET_PASSWORD: "tovu-dev" });
+  const dbPath = path.join(siteDir(t), "content.db");
+  let hash: string | undefined;
+  for (let boot = 0; boot < 2; boot++) {
+    const deps = await createSiteRouteDeps(dbPath);
+    try {
+      await settleBoot(deps);
+      const user = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+      assert.ok(user, "fixture owner must exist");
+      if (hash !== undefined) assert.equal(user.passwordHash, hash, "repeated boot must not re-salt the same credential");
+      hash = user.passwordHash;
+      const copies = fs.readdirSync(path.dirname(dbPath)).filter(name => name.startsWith("restore-point-boot-admin-password-reset-"));
+      assert.deepEqual(copies, [], "an already satisfied reset must not allocate a database copy");
+    } finally { await deps.contentKernel?.close(); }
+  }
+});
+
 /** Clears every boot option this file sets, applies `env`, and restores the originals afterwards. */
 function withBootEnv(t: TestContext, env: Partial<Record<(typeof BOOT_ENV)[number], string>>): void {
   const saved = Object.fromEntries(BOOT_ENV.map((name) => [name, process.env[name]]));

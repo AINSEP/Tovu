@@ -913,13 +913,17 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
   };
   // eslint-disable-next-line no-console
   console.error(
-    `TOVU_ADMIN_RESET_PASSWORD is set — resetting password for username='${username}' at boot. ` +
+    `TOVU_ADMIN_RESET_PASSWORD is set — checking password recovery for username='${username}' at boot. ` +
       "Unset this env var/secret again immediately after a successful reset."
   );
 
   return identity.identityReady
-    .then(() =>
-      resetAdminPasswordSelfVerified(
+    .then(async () => {
+      // A secret left set after recovery must not re-salt the same credential, revoke sessions,
+      // or copy the whole database on every boot. The actual reset keeps its pre-write backup.
+      const target = await identity.userRepo.findByUsername({ workspaceId, username });
+      if (target && await identity.passwordHasher.verify({ hash: target.passwordHash, password })) return;
+      return resetAdminPasswordSelfVerified(
         // eslint-disable-next-line no-console
         {
           auth: { repos, hasher: identity.passwordHasher, clock, idGen, tokens: identity.tokens },
@@ -928,11 +932,11 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
           log: (m) => console.error(`[admin-password-reset] ${m}`),
         },
         { workspaceId, username, password, restorePointScopeId: "boot-admin-password-reset" }
-      )
-    )
+      );
+    })
     .then(() => {
       // eslint-disable-next-line no-console
-      console.error(`[admin-password-reset] SUCCESS — username='${username}' password reset and self-verified at boot.`);
+      console.error(`[admin-password-reset] SUCCESS — username='${username}' configured password self-verified at boot.`);
     })
     .catch((err) => {
       const detail =
@@ -1743,7 +1747,7 @@ async function composeSiteRouteDeps(
     clock,
     idGen,
     spamCheck: new HeuristicSpamCheck(),
-    ...createCommentsHostPorts({ clock, settingsRepo }, {}),
+    ...createCommentsHostPorts({ clock, settingsRepo, workspaceId }, {}),
     // Local admin Trash. A comment's "deleted" marker is one value of its moderation status, so the
     // index has to follow both directions of that transition — see `syncRemovalIndex`.
     remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({

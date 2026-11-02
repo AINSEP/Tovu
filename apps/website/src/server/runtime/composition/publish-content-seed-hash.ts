@@ -1,8 +1,7 @@
-import { copyFileSync, existsSync, mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
+import { inMemoryReadableBytes } from "@jini-ai/db/transfer";
 
 import { SqliteMenuRepo } from "#src/features/navigation/repo.sqlite";
 import { SqlitePresentationSettingsRepo } from "#src/features/presentation/repo.sqlite";
@@ -18,6 +17,7 @@ import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
 import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
 import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
 
 /**
@@ -29,8 +29,8 @@ import { SqliteMediaRepo } from "#src/platform/db/sqlite/media-repo.sqlite";
  * Why a migrated COPY, not the shipped file read-only: the live `content.db` is "seed + every
  * migration since", and the repos below query the CURRENT schema. Opening the seed read-only would
  * hand a newer repo an older schema; migrating the shipped file in place would mutate a stock build
- * artifact. Copying it to a private temp file and running the ordinary `openContentDb()` migration
- * on the copy reproduces exactly what an untouched live row looks like today — so its hash is
+ * artifact. Deserializing it into memory and running the ordinary `openContentDb()` migration
+ * on that private copy reproduces exactly what an untouched live row looks like today — so its hash is
  * comparable with the live row's hash by construction. The copy happens once per process, on the
  * first import plan, never at boot.
  */
@@ -68,16 +68,20 @@ function unusedBySeedInspect<T extends object>(label: string): T {
 }
 
 /**
- * The seed-backed deps one lookup hashes against: a private, migrated copy of the shipped seed DB,
+ * The seed-backed deps one lookup hashes against: a private, migrated in-memory copy of the seed DB,
  * or `null` when no seed ships. Extracted from {@link createSqlitePublishContentSeedHash} so the
  * ports bag (including its throwing stand-ins) is unit-testable directly.
  * @complexity O(seed bytes) — copies the seed file once per call.
  */
 export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInput): PublishContentDeps | null {
   if (!existsSync(input.seedDbPath)) return null;
-  const copyPath = join(mkdtempSync(join(tmpdir(), "tovu-publish-seed-")), "content.seed.db");
-  copyFileSync(input.seedDbPath, copyPath);
-  const seedDb = openContentDb(copyPath);
+  // The native driver accepts a serialized DB. No temp file can survive either a failed open or
+  // the cached lookup's lifetime; openContentDb still owns migration and failure-time close.
+  // SQLite deserialization cannot open WAL-mode bytes (SQLITE_CANTOPEN). The shipped seed is a
+  // complete, checkpointed file; Jini forces rollback mode at header bytes 18/19 on a private
+  // buffer copy, as sqlite3_deserialize documents. Never rewrite the stock artifact on disk.
+  const seedBytes = inMemoryReadableBytes({ bytes: readFileSync(input.seedDbPath) }, {});
+  const seedDb = openContentDb(":memory:", { open: (_file, options) => openNativeSqlite(seedBytes, options) });
   const redirectRepo = SqliteRedirectRepo({ store: seedDb }, {});
   const seedPostRepo = new SqlitePostRepo(seedDb);
   const { workspaceId } = input;
