@@ -204,8 +204,10 @@ const STATIC_EXPORT_PICKER_DICT: Record<string, readonly string[]> = {
   ]
 };
 const STATIC_EXPORT_PICKER_KEYS = ["Choose sites to export", "Sites to export", "Select all", "Loading sites…", "Couldn't load sites to export.", "No sites available to export."];
+// No `!` on the merge target: the dictionary-lookup-sinks guard accepts `Object.assign(DICT[locale], …)`
+// only as written, and the index type is already non-optional here.
 for (const [locale, values] of Object.entries(STATIC_EXPORT_PICKER_DICT)) {
-  Object.assign(SITE_TRANSFER_DICT[locale]!, Object.fromEntries(STATIC_EXPORT_PICKER_KEYS.map((key, index) => [key, values[index]!])));
+  Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(STATIC_EXPORT_PICKER_KEYS.map((key, index) => [key, values[index]!])));
 }
 
 // Saved-keys export/import copy, merged the same way as the static export picker copy above.
@@ -236,7 +238,7 @@ const SAVED_KEYS_COPY: Record<string, readonly string[]> = {
 };
 
 for (const [locale, values] of Object.entries(SAVED_KEYS_COPY)) {
-  Object.assign(SITE_TRANSFER_DICT[locale]!, Object.fromEntries(SAVED_KEYS_LABELS.map((key, index) => [key, values[index]!])));
+  Object.assign(SITE_TRANSFER_DICT[locale], Object.fromEntries(SAVED_KEYS_LABELS.map((key, index) => [key, values[index]!])));
 }
 
 export const t = createDictionaryTranslator({ featureDictionary: SITE_TRANSFER_DICT }, { commonDictionary: COMMON_I18N });
