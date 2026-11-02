@@ -10,6 +10,7 @@ import { SKILL_FILE_ACCEPT, useSkills, type SkillsController } from "./use-skill
 import { PackageFilesModal } from "../plugins/PackageFilesModal";
 import { InstallTabCard, InstallTabFieldRow, InstallTabOption } from "../../components/InstallTabCard/InstallTabCard";
 import { useSkillFilesModal } from "./use-skill-files.hooks";
+import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import "./skills.css";
 
 /** Installed rows and their loading/empty states share the default Skills tab. */
@@ -66,6 +67,7 @@ function AddSkillPanel({ controller }: { controller: SkillsController }) {
 export function Skills() {
   const themeBoundary = useAdminThemeBoundary({}, {});
   const controller = useSkills();
+  const locale = useAdminLocale();
   const filesModal = useSkillFilesModal(controller.inspecting, controller.onCloseFiles);
   const tabs: SettingsDialogTab[] = [
     { id: "skills", label: "Skills", icon: <SkillDocumentIcon />, title: "Skills", subtitle: "Instructions for your assistant. Type /sk in chat to use one.", panel: <InstalledSkillsPanel controller={controller} /> },
@@ -84,7 +86,7 @@ export function Skills() {
         dialogAriaLabelledBy="skills-page-title"
         labels={{ kicker: "Add-Ons", sidebarAriaLabel: "Skills sections" }}
       />
-      <SkillInstallConfirmation install={controller.install} />
+      <SkillInstallConfirmation install={controller.install} locale={locale} />
       {controller.error ? <div className="notice error" role="alert">{controller.error}</div> : null}
       {controller.removing ? <SkillRemoveConfirmDialog controller={controller} /> : null}
       {filesModal ? <PackageFilesModal {...filesModal} /> : null}

@@ -461,7 +461,7 @@ export function AssistantDock({
   return (
     <JiniChatProvider transport={failureSurface.transport} i18n={chatI18n} extEventRendererRegistry={renderers.registry}>
       <FailureSurfaceContext.Provider value={failureSurface.actions}>
-      <SkillInstallConfirmation install={skillInstall} />
+      <SkillInstallConfirmation install={skillInstall} locale={locale} />
       {/* ChatPane takes `transport` directly as well as via the provider — the package's
           components read their dependencies from props, not implicitly from context. */}
       <div className="admin-chat-dock-drop" data-testid="admin-chat-driver-root" data-tovu-local-cli={executionPolicy.visibility} data-conversation-id={chats.activeId ?? ""} ref={discoveryDraft.rootRef} style={{ display: "contents" }} onClickCapture={captureComposerClick} onChangeCapture={discoveryDraft.captureDraft} onDropCapture={folderDrop.handleDropCapture}>
