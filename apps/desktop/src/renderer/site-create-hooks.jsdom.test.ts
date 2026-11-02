@@ -2,11 +2,10 @@
  * @file `useAddSite` and `useCreateSitePluginTokens` rendered from their REAL modules under jsdom,
  * with the preload bridge injected through each hook's `getBridge` option — no module mocks.
  *
- * Their sibling tests (`use-add-site.hooks.test.ts`, `use-create-site-plugin-tokens.hooks.test.ts`)
- * execute the hook SOURCE through `sourceFunction`, which the coverage report cannot attribute to
- * the file. These tests assert the same observable contract through a real React root: what the
- * header button shows while pending, after a refusal and after a duplicate; and which pasted
- * tokens ride along with a create.
+ * These are the hooks' behavior tests (their siblings `use-add-site.hooks.test.ts` and
+ * `use-create-site-plugin-tokens.hooks.test.ts` keep only the pure helpers): what the header button
+ * shows while pending, after a refusal and after a duplicate; and which pasted tokens ride along
+ * with a create.
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -121,17 +120,39 @@ test('useAddSite: cancelling the picker changes nothing and says nothing, either
 test('useAddSite: a refusal is shown as recovery text, and the next attempt clears it first', async (t) => {
   const list = projectList([]);
   let refuse = true;
+  let finish!: (record: SiteRecord) => void;
   const bridge = { addSite: async () => {
     if (refuse) throw new Error("Error invoking remote method 'runner:sites:add-site': Error: /tmp/x has no Tovu site in it yet.");
-    return siteRecord('/sites/x');
+    return new Promise<SiteRecord>((resolve) => { finish = resolve; });
   } };
   const hook = renderHook(t, () => useAddSite({ setProjects: list.setProjects }, { getBridge: reader(bridge) }));
   await act(() => hook.current().addSite());
   assert.equal(hook.current().addError, 'No Tovu website was found in this folder. Choose an existing website or use Create website.');
+  assert.equal(hook.current().adding, false);
   refuse = false;
-  await act(() => hook.current().addSite());
+  let pending!: Promise<void>;
+  act(() => { pending = hook.current().addSite(); });
+  assert.equal(hook.current().adding, true);
+  assert.equal(hook.current().addError, null, 'the old refusal is gone while the new picker is still open');
+  await act(async () => { finish(siteRecord('/sites/x')); await pending; });
   assert.equal(hook.current().addError, null);
   assert.deepEqual(list.current().map((site) => site.id), ['/sites/x']);
+});
+
+test('useAddSite: a refused add after a duplicate drops that site\'s notice and shows only the refusal', async (t) => {
+  const list = projectList([siteRecord('/sites/a')]);
+  let refuse = false;
+  const bridge = { addSite: async () => {
+    if (refuse) throw new Error('choose a site folder');
+    return siteRecord('/sites/a', { alreadyTracked: true });
+  } };
+  const hook = renderHook(t, () => useAddSite({ setProjects: list.setProjects }, { getBridge: reader(bridge) }));
+  await act(() => hook.current().addSite());
+  assert.deepEqual(hook.current().addNotice, { siteId: '/sites/a', message: 'a is already in your list.' });
+  refuse = true;
+  await act(() => hook.current().addSite());
+  assert.equal(hook.current().addNotice, null, 'a refusal never carries a site notice');
+  assert.equal(hook.current().addError, 'choose a site folder');
 });
 
 test('useAddSite: outside the desktop app the button explains itself instead of doing nothing', async (t) => {
@@ -212,4 +233,37 @@ test('useCreateSitePluginTokens: no bridge method, a rejecting bridge, or a late
   await act(async () => { reply([supabase]); });
   await settle();
   for (const hook of [none, offline, failing, late]) assert.deepEqual(hook.current().plugins, []);
+});
+
+test('useCreateSitePluginTokens: services shown later are requested then, and hiding them again asks nothing more', async (t) => {
+  const requests: number[] = [];
+  const bridge = { listTokenSignInPlugins: async () => { requests.push(1); return [supabase]; } };
+  let enabled = false;
+  const hook = renderHook(t, () => useCreateSitePluginTokens({}, { enabled, getBridge: reader(bridge) }));
+  await settle();
+  assert.deepEqual(requests, []);
+  enabled = true;
+  hook.rerender();
+  await settle();
+  assert.equal(requests.length, 1);
+  assert.deepEqual(hook.current().plugins, [supabase]);
+  enabled = false;
+  hook.rerender();
+  await settle();
+  assert.equal(requests.length, 1);
+});
+
+test('useCreateSitePluginTokens: a token typed while shown is not sent once the services are hidden, and is cleared', async (t) => {
+  const empty = {};
+  let enabled = true;
+  const hook = renderHook(t, () => useCreateSitePluginTokens({}, { enabled, getBridge: reader(empty) }));
+  const field = tokenField('  sbp_typed  ');
+  hook.current().inputRef('supabase')(field);
+  enabled = false;
+  hook.rerender();
+  let received: CreateSiteInput | undefined;
+  await hook.current().withTokens(async (value) => { received = value; })(input);
+  // Hidden means no token is sent, including a ref left over from an earlier render.
+  assert.equal(received, input);
+  assert.equal(field.value, '');
 });

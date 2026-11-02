@@ -1,17 +1,16 @@
-import { humanSiteError, addedSiteMessage } from './site-shell-policy.js';
 /**
- * @file Coverage for `use-add-site.hooks.ts` and the "Add Tovu Website" button's wiring.
+ * @file The pure helpers of `use-add-site.hooks.ts`, asserted directly.
  *
- * Two halves, for two different kinds of mistake:
+ * `describeAddFailure` is where this feature could go quietly wrong: main writes one refusal per
+ * folder problem, each naming the fix, and every surface — CLI, assistant, this button — needs the
+ * same recovery instruction. A helper that flattened them into "Couldn't add that website." would
+ * pass any test that only checked "an error is shown", so the tests here use the REAL refusals and
+ * assert exact recovery text.
  *
- * 1. **The pure helpers**, asserted directly. `describeAddFailure` is where this feature could go
- *    quietly wrong: main writes one refusal per folder problem, each naming the fix, and every
- *    surface — CLI, assistant, this button — needs the same recovery instruction. A helper that
- *    flattened them into "Couldn't add that website." would pass any test that only checked "an
- *    error is shown", so the tests here use the REAL refusals and assert exact recovery text.
- * 2. **The wiring**, asserted against the source text, the way `rescan-wiring.test.ts` does for
- *    the sibling button. These catch what a unit test structurally cannot: logic creeping into
- *    `.tsx`, the button never being rendered, or the deleted dashed tile coming back.
+ * The hook itself is rendered from its real module in `site-create-hooks.jsdom.test.ts`; the header
+ * button in `app/MainHeader.render.test.ts`; the refusal beside the grid and the empty state in
+ * `app/MainContent.render.test.ts`; the grid without its old dashed tile in
+ * `SiteGrid.no-add-tile.render.test.ts`.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,32 +18,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { CANCELLED_MESSAGE, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite } from './use-add-site.hooks.js';
-import { elements, hookHarness, sourceFunction } from './source-test-harness.js';
+import { CANCELLED_MESSAGE, describeAddFailure, mergeAddedSite } from './use-add-site.hooks.js';
 import type { SiteRecord } from '../contracts/project.js';
-import { appShellSource } from './app-shell-source.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const appTsx = appShellSource();
-const gridTsx = fs.readFileSync(path.join(here, 'SiteGrid.tsx'), 'utf8');
-const hookSource = fs.readFileSync(path.join(here, 'use-add-site.hooks.ts'), 'utf8');
+// Main-process source, read as text: the renderer test cannot produce the refusal without driving
+// `addSitePointer` against a real folder, and this only pins that the sentence still exists there.
 const pointerSource = fs.readFileSync(path.join(here, '..', 'add-site-pointer.ts'), 'utf8');
-
-/**
- * Source with every comment removed.
- *
- * Required, not tidiness: both files here EXPLAIN the deleted dashed tile and the header order in
- * prose, so "Add project" and "Create website" both appear in comments. A source scan that did not
- * strip them asserted against its own documentation — which is exactly how the first draft of this
- * file reported the button in the wrong position and the deleted tile as still present, while the
- * rendered markup was correct in both cases.
- *
- * Deliberately crude (it would also cut a `//` inside a string literal). That direction is safe for
- * what these tests ask — they look for JSX label text and class names, never for a URL.
- */
-function withoutComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
-}
 
 function siteRecord(id: string, createdAt = '2026-01-01T00:00:00.000Z'): SiteRecord {
   return {
@@ -129,163 +109,4 @@ test("a newly added website appears first", () => {
     merged.map((project) => project.id),
     ['/sites/new', '/sites/a'],
   );
-});
-
-test('duplicate confirmation is scoped to that site; failed Add never supplies a site notice', async () => {
-  const harness = hookHarness();
-  let fail = false;
-  const added = { ...siteRecord('/sites/a'), alreadyTracked: true };
-  const useAdd = sourceFunction(hookSource, 'useAddSite', {
-    ...harness.bindings, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite, addedSiteMessage,
-    runnerInventoryBridge: () => ({ addSite: async () => {
-      if (fail) throw new Error('choose a site folder');
-      return added;
-    } }),
-  });
-  const render = () => harness.render(() => useAdd({ setProjects: () => {} }));
-  await render().addSite();
-  assert.deepEqual(render().addNotice, { siteId: added.id, message: 'a is already in your list.' });
-  fail = true;
-  await render().addSite();
-  assert.equal(render().addNotice, null);
-  assert.equal(render().addError, 'choose a site folder');
-});
-
-test("the add logic lives in a hook, not in App.tsx — this repo keeps logic out of .tsx", () => {
-  assert.match(hookSource, /export function useAddSite\(/);
-  assert.match(hookSource, /bridge\.addSite\(\)/);
-  // The component must not reach the bridge itself.
-  assert.doesNotMatch(appTsx, /addSite\(\)\s*;/);
-  assert.match(appTsx, /import \{ useAddSite \} from '\.\/use-add-site\.hooks\.js'/);
-});
-
-test('the add hook holds pending state, applies the returned row, and clears a prior refusal', async () => {
-  const harness = hookHarness();
-  const other = siteRecord('/sites/b');
-  let projects: readonly SiteRecord[] = [siteRecord('/sites/a'), other];
-  let resolve!: (record: SiteRecord) => void;
-  let calls = 0;
-  const useAdd = sourceFunction(hookSource, 'useAddSite', {
-    ...harness.bindings, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite, addedSiteMessage,
-    runnerInventoryBridge: () => ({ addSite: () => {
-      calls++;
-      if (calls === 1) return Promise.reject(new Error('choose a site folder'));
-      return new Promise<SiteRecord>((done) => { resolve = done; });
-    } }),
-  });
-  const setProjects = (update: (current: readonly SiteRecord[]) => readonly SiteRecord[]) => { projects = update(projects); };
-  const render = () => harness.render(() => useAdd({ setProjects }));
-  await render().addSite();
-  assert.equal(render().addError, 'choose a site folder');
-  assert.equal(render().adding, false);
-  const adding = render().addSite();
-  assert.equal(render().adding, true);
-  assert.equal(render().addError, null);
-  const added = siteRecord('/sites/a', '2026-05-05T00:00:00.000Z');
-  resolve(added);
-  await adding;
-  assert.equal(calls, 2);
-  assert.deepEqual(projects, [added, other]);
-  assert.equal(render().adding, false);
-});
-
-test('the add hook suppresses picker cancellation and reports an absent bridge', async () => {
-  for (const bridge of [undefined, { addSite: async () => { throw new Error(CANCELLED_MESSAGE); } }]) {
-    const harness = hookHarness();
-    const useAdd = sourceFunction(hookSource, 'useAddSite', {
-      ...harness.bindings, NO_BRIDGE_MESSAGE, describeAddFailure, mergeAddedSite, addedSiteMessage,
-      runnerInventoryBridge: () => bridge,
-    });
-    const render = () => harness.render(() => useAdd({ setProjects: () => assert.fail('no row should be added') }));
-    await render().addSite();
-    assert.equal(render().addError, bridge === undefined ? NO_BRIDGE_MESSAGE : null);
-    assert.equal(render().adding, false);
-  }
-});
-
-test("the Projects header renders the Add Tovu Website button, wired and disableable", () => {
-  assert.match(appTsx, /Add Tovu Website/);
-  // The handler may report shell telemetry first; it must still call onAddSite in the same click.
-  assert.match(appTsx, /onClick=\{\(\) => \{[^\n]*?void onAddSite\(\); \}\}/);
-  // Disabled while in flight, so a second folder picker cannot be opened over the first.
-  assert.match(appTsx, /onClick=\{\(\) => \{[^\n]*?void onAddSite\(\); \}\} disabled=\{adding\}/);
-});
-
-test("the button sits between Rescan and Create website", () => {
-  // The owner's chosen order for the header row. Positional, so it is asserted positionally.
-  const markup = withoutComments(appTsx);
-  const tools = markup.slice(markup.indexOf('main__tools'));
-  const row = tools.slice(0, tools.indexOf('</header>'));
-  assert.ok(row.indexOf('Rescan') < row.indexOf('Add Tovu Website'), 'Rescan must come first');
-  assert.ok(row.indexOf('Add Tovu Website') < row.indexOf('Create website'), 'Create website must come last');
-  // 2026-10-30 owner: two groups. Manage (Rescan, Sites settings, Shared keys), a gap, then the
-  // three ways to get a site in (Import, Add, Create) — no icon wedged between text buttons.
-  assert.ok(row.indexOf('<SharedKeysLauncher') < row.indexOf('main__tools-gap'), 'the manage group comes first');
-  assert.ok(row.indexOf('main__tools-gap') < row.indexOf('kind="import"'), 'a gap separates the groups');
-  assert.ok(row.indexOf('kind="import"') < row.indexOf('Add Tovu Website'), 'Import leads the get-a-site-in group');
-});
-
-test("Add Tovu Website is solid black (contrast), distinct from the rust Create website", () => {
-  // 2026-10-30 owner: outlined read too quiet; back to the black contrast fill.
-  const markup = withoutComments(appTsx);
-  const add = markup.slice(0, markup.indexOf("'Add Tovu Website'"));
-  const addButton = add.slice(add.lastIndexOf('<button'));
-  assert.ok(addButton.includes('button--contrast'), 'Add Tovu Website is black');
-  assert.ok(!addButton.includes('button--quiet'), 'Add Tovu Website is not outlined');
-});
-
-test("a refused add is reported ALONGSIDE the grid, never in place of it", () => {
-  const body = appTsx.slice(appTsx.indexOf('function ProjectsBody('));
-  const ownBody = body.slice(0, body.indexOf('\nfunction '));
-  // Same property `rescanError` has, for the same reason: the websites already on screen stay real
-  // and openable whatever happened to ONE folder the operator pointed at.
-  assert.ok(ownBody.includes('if (loadError)'), 'loadError still owns the replace-the-grid path');
-  const addRender = ownBody.indexOf('{addError &&');
-  assert.ok(addRender !== -1, 'addError is not rendered at all');
-  assert.doesNotMatch(ownBody.slice(addRender, ownBody.indexOf('<SiteGrid')), /\breturn\b/);
-  const projects = [siteRecord('/sites/a'), siteRecord('/sites/b')];
-  let gridProps: any;
-  const renderBody = sourceFunction(appTsx, 'ProjectsBody', {
-    SiteGrid: (props: any) => { gridProps = props; return null; },
-    NoWebsitesYet: () => assert.fail('existing websites must remain visible'),
-  });
-  const onOpen = () => {};
-  const rendered = elements(renderBody({ projectsLoading: false, loadError: null,
-    rescanError: null, addError: 'choose a site folder', projects, onOpen }));
-  assert.ok(rendered.some((element) => element.props.children === 'choose a site folder'));
-  assert.deepEqual(gridProps?.projects, projects);
-  assert.equal(gridProps.onOpen, onOpen, 'existing cards must remain openable');
-});
-
-test("the redundant dashed add tile is GONE from the grid", () => {
-  // It called the identical zero-argument handler the header's "Create website" button calls, and
-  // its subtitle described the create path — one action wearing two controls. Asserted on the class
-  // and the label both, so restoring either half fails.
-  const markup = withoutComments(gridTsx);
-  assert.doesNotMatch(markup, /card--add/);
-  assert.doesNotMatch(markup, /Add project/);
-  assert.doesNotMatch(markup, /New site on its own port/);
-  // And the prop it needed is gone rather than left dangling.
-  assert.doesNotMatch(markup, /onCreate/);
-});
-
-test("removing the tile did not leave an operator with no websites staring at nothing", () => {
-  // The tile WAS the empty state. Deleting it without replacing it would make a first launch render
-  // a blank page — a regression hidden behind a passing "the tile is gone" assertion.
-  assert.match(appTsx, /function NoWebsitesYet\(/);
-  assert.match(appTsx, /projects\.length === 0 \? <NoWebsitesYet \/>/);
-  const markup = withoutComments(appTsx);
-  const empty = markup.slice(markup.indexOf('function NoWebsitesYet('));
-  const ownBody = empty.slice(0, empty.indexOf('\nfunction '));
-  // It points at the header buttons rather than duplicating them — a fourth control here would be
-  // the same mistake the dashed tile was.
-  for (const label of ['Create website', 'Add Tovu Website', 'Rescan']) {
-    assert.ok(ownBody.includes(label), `the empty state does not mention ${label}`);
-  }
-  assert.doesNotMatch(ownBody, /onClick/);
-});
-
-test("runner-api declares addSite, or the renderer cannot see the bridge method", () => {
-  const runnerApi = fs.readFileSync(path.join(here, 'runner-api.ts'), 'utf8');
-  assert.match(runnerApi, /addSite: \(\) => Promise<\(SiteRecord & \{ alreadyTracked\?: boolean \}\) \| null>/);
 });
