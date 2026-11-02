@@ -136,8 +136,13 @@ for (const dialect of SITE_DIALECTS) {
     );
 
     const files = listFiles(outputDir);
-    for (const expected of ["index.html", "404.html", "robots.txt", "sitemap.xml", "llms.txt", "feed.xml", "unrun-export-about/index.html", "unrun-export-post/index.html", "unrun-export-old/index.html"]) {
+    for (const expected of ["index.html", "404.html", "robots.txt", "llms.txt", "unrun-export-about/index.html", "unrun-export-post/index.html", "unrun-export-old/index.html"]) {
       assert.ok(files.includes(expected), `the bundle has ${expected}: ${JSON.stringify(files)}`);
+    }
+    // fc2a8d10a: this admin trigger carries no public URL, and a sitemap needs absolute <loc>s and
+    // RSS an absolute channel link, so both are omitted (with-origin output: site-exporter.test.ts).
+    for (const omitted of ["sitemap.xml", "feed.xml"]) {
+      assert.equal(files.includes(omitted), false, `with no public origin the bundle omits ${omitted}: ${JSON.stringify(files)}`);
     }
     assert.equal(fs.existsSync(path.join(outputDir, "unrun-export-draft")), false, "a draft is never exported");
 
@@ -148,17 +153,12 @@ for (const dialect of SITE_DIALECTS) {
       "the redirect rule becomes a meta-refresh stub to the live 301's Location"
     );
 
-    const sitemap = read(outputDir, "sitemap.xml");
-    assert.ok(sitemap.includes("/unrun-export-about</loc>") && sitemap.includes("/unrun-export-post</loc>"), sitemap);
-    assert.equal(sitemap.includes("unrun-export-draft"), false);
-    const feed = read(outputDir, "feed.xml");
-    assert.ok(feed.includes("Unrun Export Post"), feed);
-    assert.equal(feed.includes("Unrun Export Draft"), false);
     const llms = read(outputDir, "llms.txt");
     assert.ok(llms.startsWith("# Tovu\n"), llms);
     assert.ok(llms.includes("Unrun Export About"), llms);
     assert.equal(llms.includes("Unrun Export Draft"), false);
-    assert.ok(read(outputDir, "robots.txt").includes("sitemap.xml"), "robots.txt advertises the sitemap");
+    const robots = read(outputDir, "robots.txt");
+    assert.equal(/^\s*Sitemap:/im.test(robots), false, `robots.txt never advertises the omitted sitemap: ${robots}`);
 
     assert.deepEqual(listFiles(cwd).filter((file) => file.endsWith(".html") || file.endsWith(".xml")), [], "nothing was exported under the process cwd");
   });
