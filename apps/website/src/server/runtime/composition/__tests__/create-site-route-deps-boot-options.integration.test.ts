@@ -1,3 +1,5 @@
+// The S3 provider ships in @jini-ai/agent-plugins/s3-compatible: boot over the composed bundle, as the build does.
+import "../../../../features/agent-plugins/__tests__/fixtures/composed-bundle-env.js";
 import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
