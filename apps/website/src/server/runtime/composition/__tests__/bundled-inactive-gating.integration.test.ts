@@ -30,7 +30,7 @@ import { composedBundledSourceRoot, type DisposableSourceRoot } from "#src/featu
  * comment.
  *
  * Seeds the REAL bundle, composed the way the build composes it (Tovu's `content/agent-plugins/`
- * plus each selected package, so `site-compliance` comes from `@jini-ai/plugin-site-compliance`
+ * plus each selected package, so `site-compliance` comes from `@jini-ai/agent-plugins/site-compliance`
  * since D-W1), into a temp workspace, then asserts the `site-compliance` package is simultaneously:
  *
  * - **installed** — present on disk, indexable, so an operator can inspect and enable it; and

@@ -20,7 +20,7 @@ import { nativeToolMetadata } from "../../../../contracts/core/tool-metadata/ind
  * - site-import delegates instead of carrying its own duplicate-and-tweak recipe;
  * - no ownership / right-to-copy gate anywhere (owner order: copy anything).
  *
- * site-import ships as `@jini-ai/plugin-site-import` (D-W1) and names capabilities, not Tovu
+ * site-import ships as `@jini-ai/agent-plugins/site-import` (D-W1) and names capabilities, not Tovu
  * plugins or tools; Tovu's names for its hand-offs live in its overlay, so those pins read the
  * overlay and the portable pins read the selected package.
  */

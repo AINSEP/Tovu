@@ -27,7 +27,7 @@ import { parseAgentPluginMcpConfig } from "../../mcp-metadata.js";
  *    liability", above the packaging question it was nominally about — so it gets a test.
  */
 
-// The plugin ships as `@jini-ai/plugin-site-compliance` (D-W1); this host still checks the bytes it seeds.
+// The plugin ships as `@jini-ai/agent-plugins/site-compliance` (D-W1); this host still checks the bytes it seeds.
 const PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "site-compliance" });
 const SKILL_DIR = path.join(PACKAGE_ROOT, "skills", "site-compliance");
 

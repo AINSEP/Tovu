@@ -10,8 +10,9 @@ owning contribution contract first; extend that owner instead of creating a para
 implementation. The working example is `resend/`.
 
 Where a plugin lives:
-- A plugin any host can use ships from Jini as `@jini-ai/plugin-<id>` (source:
-  `packages/agent-plugins/<id>/` in the Jini repo) and is written host-neutral. Tovu selects
+- A plugin any host can use ships from Jini inside `@jini-ai/agent-plugins`, as the
+  subpath `@jini-ai/agent-plugins/<id>` (source: `packages/agent-plugins/<id>/` in the Jini
+  repo), and is written host-neutral. Tovu selects
   it in `apps/website/src/features/agent-plugins/bundled-catalog.ts`
   (`SELECTED_AGENT_PLUGIN_PACKAGES`); the build composes it into the bundle.
 - Its Tovu-only text (tool names, routes, product routing) lives in

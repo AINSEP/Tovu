@@ -17,7 +17,7 @@ import { forceRemove } from "../fixtures/force-remove.js";
 
 /**
  * @file Tovu's side of the `site-import` Agent Plugin, which now ships as
- * `@jini-ai/plugin-site-import` and is read here from that selected package.
+ * `@jini-ai/agent-plugins/site-import` and is read here from that selected package.
  *
  * 1. **Host acceptance** — both manifests parse under this host's validators, and `mcp.json`
  *    declares ZERO servers (`capability-projection.ts` marks every plugin-declared MCP server

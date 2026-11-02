@@ -20,7 +20,7 @@ import { selectedPluginSourceRoot, type DisposableSourceRoot } from "../fixtures
 
 /**
  * @file The upgrade path `seed-bundled.ts` claims to support, driven end to end against the REAL
- * bundled `site-compliance` bytes (its selected package, `@jini-ai/plugin-site-compliance`, since D-W1).
+ * bundled `site-compliance` bytes (its selected package, `@jini-ai/agent-plugins/site-compliance`, since D-W1).
  *
  * Seeding was content-addressed without retiring a digest, so shipping a NEW VERSION of an
  * already-installed bundled plugin used to land it ALONGSIDE the old one — and both consumption
