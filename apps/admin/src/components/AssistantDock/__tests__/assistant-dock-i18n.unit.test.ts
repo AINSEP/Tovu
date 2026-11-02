@@ -93,3 +93,15 @@ it.each(CHAT_LOCALES)("%s translates folder chips and preserves exact path/count
     expect(text).toContain(key.includes('{path}') ? path : '3');
   }
 });
+
+// Bug 341 follow-up (11-02): the multi-folder drop notice shipped as two English fragments with no
+// dictionary entry, so every other locale read "Folders added to the message: … Active file root: …"
+// in English. One sentence key, so each locale can order the two paths its own way.
+it.each(CHAT_LOCALES)("%s translates the multi-folder drop notice as one sentence and keeps every path", locale => {
+  const key = "Folders added to the message: {paths}. Active file root: {path}.";
+  const vars = { paths: String.raw`/Users/x/one, C:\A B`, path: String.raw`C:\A B` };
+  const text = createChatI18nAdapter(locale).t(key, vars);
+  expect(text).not.toBe(`Folders added to the message: ${vars.paths}. Active file root: ${vars.path}.`);
+  expect(text).toContain(vars.paths);
+  expect(text).not.toContain("{");
+});

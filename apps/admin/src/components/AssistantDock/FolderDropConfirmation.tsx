@@ -34,7 +34,8 @@ export function FolderDropConfirmation({ path, paths, replacedPreviousPath, onDi
       </span>
       <span className="tovu-folder-drop-notice__label">
         {paths && paths.length > 1 ? (
-          <>{t("Folders added to the message")}: {paths.join(", ")}. {t("Active file root")}: {path}.</>
+          // One sentence key, not two fragments: locales order the folder list and the root differently.
+          t("Folders added to the message: {paths}. Active file root: {path}.", { paths: paths.join(", "), path })
         ) : replacedPreviousPath
           ? t("The assistant can now read {path}, replacing the previous folder.", { path })
           : t("The assistant can now read {path}.", { path })}
