@@ -7,6 +7,7 @@ import * as contentTypes from "#src/features/content-types/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import type { ContentTypesRouteDeps } from "../deps.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 test("update-fields HTTP characterization", async (t) => {
   // Replace only the write port: keep the real parser and error constructors so instanceof
@@ -65,9 +66,10 @@ test("update-fields HTTP characterization", async (t) => {
   for (const { error, status, code } of mappings) {
     await t.test(`maps ${error.constructor.name} to ${code}`, async () => {
       write = async () => ({ ok: false, error });
-      assert.deepEqual(await send({ body: { expectedVersion: 3, fields } }), {
-        status, body: { error: error.message, code },
-      });
+      // Mapped 4xx keep their exact message; an unmapped 500 is the shared, concealed incident envelope.
+      assertAdminResponse({ actual: await send({ body: { expectedVersion: 3, fields } }), expected: {
+        status, body: { error: status === 500 ? "internal error" : error.message, code },
+      } });
     });
   }
 
@@ -116,11 +118,11 @@ test("update-fields HTTP characterization", async (t) => {
     });
   });
   for (const fault of [new Error("backend detail"), "non-error failure"]) {
-    await t.test(`thrown ${typeof fault} returns the current internal-error response (reported, not fixed)`, async () => {
+    await t.test(`thrown ${typeof fault} returns the concealed incident envelope (the reported echo was fixed by 88f429c25)`, async () => {
       write = async () => { throw fault; };
-      assert.deepEqual(await send({ body: { expectedVersion: 3, fields } }), {
-        status: 500, body: { error: fault instanceof Error ? "backend detail" : "internal error", code: "INTERNAL_ERROR" },
-      });
+      assertAdminResponse({ actual: await send({ body: { expectedVersion: 3, fields } }), expected: {
+        status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" },
+      } });
     });
   }
 });
