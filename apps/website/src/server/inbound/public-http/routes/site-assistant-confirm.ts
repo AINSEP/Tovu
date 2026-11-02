@@ -24,9 +24,14 @@ function confirmationBody({ value }: { value: unknown }, _options = {}): { chall
   return { challengeId: body.challengeId, allow: body.allow };
 }
 
-/** Fetch metadata alone is spoofable; every confirmation must match the trusted public Origin. */
+/** Fetch metadata alone is spoofable; every confirmation must match the trusted public Origin.
+ * It can still only narrow: when a browser itself reports the click as not same-origin
+ * (cross-site, same-site, none, empty), refuse even if Origin matches. Metadata never grants.
+ */
 async function allowsRequestOrigin({ req, ports }: { req: Request; ports: ConfirmRoutePorts }, _options = {}): Promise<boolean> {
   const origin = req.get("origin");
+  const site = req.get("sec-fetch-site");
+  if (site !== undefined && site !== "same-origin") return false;
   if (origin === "null") return false;
   if (!origin) return false;
   return ports.allowsOrigin({ origin });
