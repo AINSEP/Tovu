@@ -78,14 +78,21 @@ function installFixtureSitePlugins(required: { installDir: string; files: Readon
 
 export async function importFixture(t: TestContext, placement: "inSite" | "appData" = "inSite") {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-import-b-"));
+  let openedDb: ReturnType<typeof openContentDb> | undefined;
   // An agent-plugin import seeds frozen (read-only) package trees, which a plain rmSync cannot remove.
-  t.after(async () => { await removeFrozenPackageTree({ root }); fs.rmSync(root, { recursive: true, force: true }); });
+  // One hook owns all resources: throwing from an earlier hook would skip a later DB close.
+  t.after(async () => {
+    try { if (openedDb) closeSqliteConnection(openedDb); }
+    finally {
+      try { await removeFrozenPackageTree({ root }); }
+      finally { fs.rmSync(root, { recursive: true, force: true }); }
+    }
+  });
   fs.mkdirSync(path.join(root, "sites"));
   const options = { homeDir: root, cwd: root, appDataDir: path.join(root, "profile"), env: { TOVU_SITES_HOME: path.join(root, "sites") } };
   const workspace = createSitesWorkspace({}, options);
   workspace.updateConfig({ patch: { databases: placement } });
-  const db = openContentDb({ filePath: ":memory:" });
-  t.after(() => closeSqliteConnection(db));
+  const db = openedDb = openContentDb({ filePath: ":memory:" });
   db.$client.prepare("INSERT INTO workspaces (id,slug,name,created_at) VALUES ('ws','portable','Portable',?)").run(stamp);
   for (const [index, status] of ["draft", "published", "published", "draft"].entries()) {
     db.$client.prepare("INSERT INTO posts (id,workspace_id,title,slug,body_json,status,kind,updated_at,autosave_json,publish_at,version) VALUES (?,'ws',?,?,?, ?,?,?,?, ?,1)")

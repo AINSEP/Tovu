@@ -45,7 +45,17 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
   assertTestHomeIsolation({ homeDir: home });
   const workspace = createSitesWorkspace({}, { homeDir: home, cwd: home, env: {}, sourceRoots: [], appDataDir: path.join(home, 'app') });
   const close: Array<() => void | Promise<void>> = [];
-  t.after(async () => { for (const dispose of close.reverse()) await dispose(); fs.rmSync(home, { recursive: true, force: true }); });
+  t.after(async () => {
+    const failures: unknown[] = [];
+    // Dispose in dependency order, but let one failed close neither leak sibling handles nor
+    // bypass folder removal. Report the original errors only after all cleanup has been tried.
+    for (const dispose of close.reverse()) {
+      try { await dispose(); } catch (error) { failures.push(error); }
+    }
+    try { fs.rmSync(home, { recursive: true, force: true }); } catch (error) { failures.push(error); }
+    if (failures.length === 1) throw failures[0];
+    if (failures.length > 1) throw new AggregateError(failures, 'fixture teardown failed', { cause: failures[0] });
+  });
   /** Seed a fixture using the existing open/migration and repository owners, then keep its writer for assertions. */
   const addSite = async (name: string) => {
     const dir = path.join(home, name);

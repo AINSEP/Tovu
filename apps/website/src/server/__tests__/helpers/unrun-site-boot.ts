@@ -120,11 +120,14 @@ export async function bootSite(t: TestContext, dialect: SiteDialect, optional: {
         if (failed?.status === "rejected") throw failed.reason;
       } finally {
         // A rejected boot pass must still close the store and restore process-global fixtures.
-        if (boot) await closeSiteDirBoot(boot, composed).catch(() => undefined);
-        if (savedSocketEnv === undefined) delete process.env[PG_SOCKET_ENV];
-        else process.env[PG_SOCKET_ENV] = savedSocketEnv;
-        try { fs.rmSync(parent, { recursive: true, force: true }); }
-        finally { fs.rmSync(socketDir, { recursive: true, force: true }); }
+        try { if (boot) await closeSiteDirBoot(boot, composed); }
+        finally {
+          // A close failure must fail the test, while still restoring globals and removing files.
+          if (savedSocketEnv === undefined) delete process.env[PG_SOCKET_ENV];
+          else process.env[PG_SOCKET_ENV] = savedSocketEnv;
+          try { fs.rmSync(parent, { recursive: true, force: true }); }
+          finally { fs.rmSync(socketDir, { recursive: true, force: true }); }
+        }
       }
     });
   }

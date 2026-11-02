@@ -8,7 +8,7 @@ import { Server } from "node:http";
 import ts from "typescript";
 import { startStubProviderServer } from "./helpers/stub-provider-server.js";
 
-for (const fault of ["work", "remove", "login", "init", "boot", "compose", "configure", "readiness", "none"]) {
+for (const fault of ["work", "remove", "close", "login", "init", "boot", "compose", "configure", "readiness", "none"]) {
   test(`site helper closes server and DB and restores fixtures after ${fault === "none" ? "successful boot" : `${fault} failure`}`, async () => {
     // The child is expected to fail on the injected error; its cleanup must still complete.
     const env: NodeJS.ProcessEnv = { ...process.env, TEARDOWN_FAULT: fault };
@@ -33,6 +33,7 @@ for (const fault of ["work", "remove", "login", "init", "boot", "compose", "conf
     }
     if (early) assert.match(result.stdout, new RegExp(`${fault} failed`));
     if (fault === "remove") assert.match(result.stdout, /fixture removal failed/);
+    if (fault === "close") assert.match(result.stdout, /database close failed/);
     if (fault === "login") assert.match(result.stdout, /login failed after listening/);
   });
 }

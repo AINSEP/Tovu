@@ -62,7 +62,7 @@ const bindings = {
       const providerUrl = await startStubProviderServer(t, () => ({ status: 200, body: "provider ready" }));
       listen.mock.restore();
       const address = provider!.address();
-      assert.ok(address && typeof address === "object");
+      assert.ok(address && typeof address === "object", "the provider must have a bound loopback address");
       assert.equal(address.address, "127.0.0.1");
       assert.equal(await (await fetch(providerUrl)).text(), "provider ready");
       const site = await bootAuthenticated(_app as express.Express, t);
@@ -81,6 +81,7 @@ const bindings = {
   closeSiteDirBoot: async (_boot: unknown, composed: { marker: string }) => {
     if (composed?.marker !== "composed") throw new Error("composed store was not retained");
     console.log("database closed");
+    if (fault === "close") throw new Error("database close failed");
   },
 };
 const bootSite = new Function(...Object.keys(bindings), code)(...Object.values(bindings));

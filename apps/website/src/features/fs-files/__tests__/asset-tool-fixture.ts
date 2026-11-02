@@ -22,7 +22,12 @@ export async function assetToolHarness(t: TestContext, { build, toolId, custom =
   custom?: string; allowed?: (permission: string) => boolean;
 }) {
   const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-asset-tool-")));
-  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const controller = new AbortController();
+  // An rm failure must not skip aborting pending tool work in a later after hook.
+  t.after(() => {
+    try { controller.abort(); }
+    finally { fs.rmSync(base, { recursive: true, force: true }); }
+  });
   const site = path.join(base, "site"); const picked = path.join(base, "picked");
   const themesDir = path.join(site, "themes"); const theme = path.join(themesDir, "match");
   fs.mkdirSync(path.join(theme, "templates"), { recursive: true }); fs.mkdirSync(picked);
@@ -36,7 +41,6 @@ export async function assetToolHarness(t: TestContext, { build, toolId, custom =
   fs.writeFileSync(path.join(base, "outside.png"), png);
   const clock = createSystemClock(); let ids = 0;
   const store = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock, idGenerator: { newId: () => "card-1" }, defaultChannel: "mcp-ui" });
-  const controller = new AbortController(); t.after(() => controller.abort());
   const permissions: string[] = []; const requests: HttpRequest[] = [];
   const deps: AssetToolDeps = {
     workspaceId: "ws", siteBinding: { dir: site }, themesDir, resolveActiveThemeId: async () => "match",
