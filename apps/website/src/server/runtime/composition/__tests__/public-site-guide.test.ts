@@ -5,9 +5,15 @@ import test from "node:test";
 import { InMemoryPostRepo, listPublishedPosts } from "#src/features/post/index";
 import { createSiteCapabilityRegistry } from "#src/assistant/site/capability-registry";
 import { publicCapabilityCard } from "#src/assistant/site/capability-card";
+import { VISITOR_TOOL_PRESENTATION } from "#src/assistant/site/visitor-tool-presentation";
 import { SITE_GUIDE_SCHEMA } from "../site-guide-tools.js";
 import { SYSTEM_PREAMBLE as VISITOR_SYSTEM_PREAMBLE } from "../modules/site-assistant.js";
 import { runPublicSiteGuide } from "../public-site-guide.js";
+
+// The reviewed visitor catalog, not a hand-copied id list: dfea76018 renamed the page-action tools
+// (navigate_to_entry/scroll_to_entry/highlight_entry -> page.*), which left literal lists here stale.
+const REVIEWED_VISITOR_TOOLS = Object.keys(VISITOR_TOOL_PRESENTATION);
+const REVIEWED_CMS_TOOLS = REVIEWED_VISITOR_TOOLS.filter(id => id !== "site_guide");
 
 test("anonymous guide exposes public content only, using the real Jini filtering shell", async () => {
   const result = await runPublicSiteGuide({ input: { operation: "overview" } }) as { topics: { id: string }[]; facts: unknown };
@@ -38,13 +44,13 @@ test("default grants preserve the original guide card through the injected engin
     return { run: async () => "engine-result" };
   } };
   const result = await runPublicSiteGuide({ input: { operation: "overview" } }, { engine: engine as never,
-    availableTools: ["search_published_entries", "get_published_entry", "list_categories", "navigate_to_entry", "scroll_to_entry", "highlight_entry"] });
+    availableTools: REVIEWED_CMS_TOOLS });
   assert.equal(result, "engine-result");
   assert.equal(topics[0], publicCapabilityCard);
 });
 
 test("all default tools leave both model-facing guide operations unchanged", async () => {
-  const availableTools = ["site_guide", "search_published_entries", "get_published_entry", "list_categories", "navigate_to_entry", "scroll_to_entry", "highlight_entry"];
+  const availableTools = REVIEWED_VISITOR_TOOLS;
   for (const operation of ["overview", "explain"] as const) {
     const input = operation === "overview" ? { operation } : { operation, topic: "content" };
     assert.deepEqual(await runPublicSiteGuide({ input }, { availableTools }), await runPublicSiteGuide({ input }));
@@ -53,9 +59,11 @@ test("all default tools leave both model-facing guide operations unchanged", asy
 
 test("reduced guide cards include every allowed CMS action and preserve the operator guidance", async () => {
   const result = await runPublicSiteGuide({ input: { operation: "explain", topic: "content" } }, {
-    availableTools: ["search_published_entries", "list_categories", "navigate_to_entry", "scroll_to_entry", "highlight_entry"],
+    availableTools: REVIEWED_CMS_TOOLS.filter(id => id !== "get_published_entry"),
   });
-  for (const label of ["Search published entries", "List public categories", "Propose navigation", "Scroll to a public entry", "Highlight a public entry", "Ask the site operator"]) {
+  for (const label of ["Search published entries", "List public categories", "Open a public page", "Read the published screen",
+    "Scroll to public content", "Point to public content", "Operate reviewed page controls", "Fill a reviewed field after confirmation",
+    "Change a reviewed selection after confirmation", "Ask the site operator"]) {
     assert.ok(JSON.stringify(result).includes(label));
   }
   assert.doesNotMatch(JSON.stringify(result), /Read a published entry/);
