@@ -80,3 +80,15 @@ test('untyped html-looking strings are injected while plain text, errors, buffer
   assert.equal(await (await fetch(`${base}/buffer`)).text(), doc);
   assert.equal(await (await fetch(`${base}/untyped`, { method: 'POST' })).text(), doc);
 });
+
+test('raw theme files stay byte-exact under both theme asset mounts, live and preview', async (t) => {
+  const app = express();
+  applyPublishedWebMcp({ app, readEnabled: async () => true });
+  const html = '<html><body><form toolname="contact" tooldescription="Contact"></form></body></html>';
+  for (const route of ['/theme-assets/live/pages/blank.html', '/theme-preview-assets/rev/live/pages/blank.html']) {
+    app.get(route, (_req, res) => res.type('html').send(html));
+  }
+  const base = await startTestServer(app, t);
+  assert.equal(await (await fetch(`${base}/theme-assets/live/pages/blank.html`)).text(), html);
+  assert.equal(await (await fetch(`${base}/theme-preview-assets/rev/live/pages/blank.html`)).text(), html);
+});
