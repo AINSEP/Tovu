@@ -1,5 +1,5 @@
 /**
- * Mounts the exact Recharts bundle Tovu ships: the reviewed payload of `@jini-ai/plugin-charts-recharts`
+ * Mounts the exact Recharts bundle Tovu ships: the reviewed payload in `@jini-ai/provider-plugins`
  * at the version pinned in `charts-recharts-source.ts` (whose pin test ties those bytes to the approval).
  * The source and its own tests live in Jini (`packages/provider-plugins/src/charts-recharts`); these cases
  * stay here so the PACKAGED build is checked for the owner-reported bugs, not a re-creation of it.
@@ -14,7 +14,8 @@ import { act } from "@testing-library/react";
 
 /** Keep in step with RECHARTS_BROWSER_APPROVAL.version (the admin cannot import server composition). */
 const PINNED_VERSION = "0.6.19";
-const packageRoot = path.dirname(createRequire(import.meta.url).resolve("@jini-ai/plugin-charts-recharts/package.json"));
+// The package exports `./catalog` (catalog.json at its root), not `package.json`.
+const packageRoot = path.dirname(createRequire(import.meta.url).resolve("@jini-ai/provider-plugins/catalog"));
 const bundleUrl = pathToFileURL(path.join(packageRoot, "plugins/charts-recharts", PINNED_VERSION, "client/provider.js")).href;
 // Plain ESM bundle with no type declarations; the shape used is asserted by the cases below.
 const { mount } = (await import(/* @vite-ignore */ bundleUrl)) as { mount: (input: unknown) => unknown };

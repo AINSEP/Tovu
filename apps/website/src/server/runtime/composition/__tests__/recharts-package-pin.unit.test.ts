@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import test from "node:test";
 import {
@@ -18,7 +19,8 @@ function packagedManifest(): PackagedManifest {
 
 test("the source directory is the pinned version inside the installed package, not content/plugins", () => {
   assert.ok(existsSync(RECHARTS_RUNTIME_SOURCE.sourceDir), `${RECHARTS_PACKAGE_NAME} must ship plugins/charts-recharts/${RECHARTS_BROWSER_APPROVAL.version}`);
-  assert.match(RECHARTS_RUNTIME_SOURCE.sourceDir.replaceAll("\\", "/"), /\/@jini-ai\/plugin-charts-recharts\/plugins\/charts-recharts\/[^/]+$/);
+  assert.match(RECHARTS_RUNTIME_SOURCE.sourceDir.replaceAll("\\", "/"), /\/provider-plugins\/plugins\/charts-recharts\/[^/]+$/);
+  assert.equal(RECHARTS_PACKAGE_NAME, "@jini-ai/provider-plugins");
   assert.equal(path.basename(RECHARTS_RUNTIME_SOURCE.sourceDir), RECHARTS_BROWSER_APPROVAL.version);
   assert.equal(RECHARTS_RUNTIME_SOURCE.entryPath, path.join(RECHARTS_RUNTIME_SOURCE.sourceDir, "server/index.mjs"));
 });
@@ -55,11 +57,11 @@ test("resolution uses the desktop payload roots and the pinned version, whatever
   const calls: { id: string; paths: string[] }[] = [];
   const dir = rechartsSourceDir({}, { resolvePackage: (id, options) => {
     calls.push({ id, paths: options.paths });
-    return "/install/node_modules/@jini-ai/plugin-charts-recharts/package.json";
+    return "/install/node_modules/@jini-ai/provider-plugins/catalog.json";
   } });
-  assert.equal(dir, path.join("/install/node_modules/@jini-ai/plugin-charts-recharts/plugins/charts-recharts", RECHARTS_BROWSER_APPROVAL.version));
+  assert.equal(dir, path.join("/install/node_modules/@jini-ai/provider-plugins/plugins/charts-recharts", RECHARTS_BROWSER_APPROVAL.version));
   assert.equal(calls.length, 1);
-  assert.equal(calls[0]?.id, "@jini-ai/plugin-charts-recharts/package.json");
+  assert.equal(calls[0]?.id, "@jini-ai/provider-plugins/catalog");
   assert.ok(calls[0]?.paths.some((root) => root.endsWith(`${path.sep}tovu`)));
   assert.ok(calls[0]?.paths.some((root) => root.endsWith(`${path.sep}app.asar`)));
 });
@@ -69,8 +71,8 @@ test("a missing package is a loud packaging error, never a silent content/plugin
     /Cannot find module/);
 });
 
-test("the package's agent face drives this runtime source", () => {
-  const facePath = path.join(path.dirname(path.dirname(path.dirname(RECHARTS_RUNTIME_SOURCE.sourceDir))), "charts-recharts", "plugin.json");
+test("the agent face (@jini-ai/agent-plugins/charts-recharts) drives this runtime source", () => {
+  const facePath = createRequire(import.meta.url).resolve("@jini-ai/agent-plugins/charts-recharts");
   const face = JSON.parse(readFileSync(facePath, "utf8")) as { name: string; extensions?: { tovu?: { id?: string; providerPlugin?: string } } };
   assert.equal(face.name, "charts-recharts");
   assert.equal(face.extensions?.tovu?.providerPlugin, RECHARTS_BROWSER_APPROVAL.pluginId);
