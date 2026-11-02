@@ -219,7 +219,7 @@ function closureArchiveFixture(scratch: string) {
     mkdirSync(path.dirname(target), { recursive: true });
     writeFileSync(target, typeof value === 'string' ? value : JSON.stringify(value));
   }
-  for (const file of ['scripts/verify-package.ts', 'scripts/verify-staged-closure.ts', 'src/asar-verify.ts', 'src/pty-helpers.ts', 'src/verify-package-cli.ts']) {
+  for (const file of ['scripts/verify-package.ts', 'scripts/verify-staged-closure.ts', 'src/asar-verify.ts', 'src/pty-helpers.ts', 'src/staged-closure-scan.ts', 'src/verify-package-cli.ts']) {
     mkdirSync(path.dirname(path.join(desktop, file)), { recursive: true });
     copyFileSync(path.join(DESKTOP_ROOT, file), path.join(desktop, file));
   }
