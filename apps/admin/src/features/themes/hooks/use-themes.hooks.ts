@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { type PresentationSettings, type ThemeTier } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { interpolate, useSerialWrites, useSettlementGeneration, type Translate } from "@jini-ai/ui/panel-kit";
-import { themeCopyName, themeNamesById } from "../rules";
+import { THEMES_RESOURCE, themeCopyName, themeNamesById } from "../rules";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemesPort } from "./themes-dependencies.hooks";
 import type { ThemesPort } from "./themes-port.hooks";
@@ -125,6 +126,10 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   // The server rescans before publishing this existing SSE event. Share the normal query reload
   // so externally added/removed themes reach the grid without invoking the manual Rescan mutation.
   useEffect(() => subscribeThemePreviewRefresh({ listener: () => invalidate({ key }) }), [invalidate, key]);
+  // A chat run's theme_set_active changes the active theme without touching theme files, so the
+  // file feed above never fires for it; the finished run's content refresh does (owner 11-02).
+  const reload = useCallback(() => invalidate({ key }), [invalidate, key]);
+  useContentRefreshSubscription(THEMES_RESOURCE, reload);
   const [busyTheme, setBusyTheme] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
   const [rescanNotice, setRescanNotice] = useState<string | null>(null);

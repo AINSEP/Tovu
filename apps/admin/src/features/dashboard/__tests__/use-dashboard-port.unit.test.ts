@@ -7,6 +7,7 @@ import type { DashboardPort } from "../hooks/dashboard-port.hooks";
 import { ApiError, type AdminPost } from "@/lib/api";
 import { AdminBootScopeContext } from "@/lib/admin-boot-scope";
 import { createElement, type ReactNode } from "react";
+import { publishContentRefresh } from "@/lib/content-refresh-bus";
 
 const DISMISSED_KEY = "tovu.admin.default-password-banner.dismissed";
 
@@ -32,6 +33,20 @@ function postFixture(overrides: Partial<AdminPost> = {}): AdminPost {
     ...overrides,
   };
 }
+
+describe("useDashboard — active theme after an out-of-band activation", () => {
+  // Owner 11-02: the Appearance card kept "Tovu Starter" after the chat activated a new theme.
+  it("re-reads the active theme when an assistant run announces a content refresh", async () => {
+    const port = createFakeDashboardPort({ activeThemeId: "tovu-starter", activeThemeName: "Tovu Starter" });
+    const { result } = renderHook(() => useDashboard({ port, locale: "en", t: (key) => key }));
+    await waitFor(() => expect(result.current.themeName).toBe("Tovu Starter"));
+
+    vi.spyOn(port, "getPresentation").mockResolvedValue({ settings: { activeThemeId: "ground" }, availableThemes: [{ id: "ground", name: "Ground" }] });
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.themeName).toBe("Ground"));
+  });
+});
 
 describe("useDashboard — injected port", () => {
   it.each([

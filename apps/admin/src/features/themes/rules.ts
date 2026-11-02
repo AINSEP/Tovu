@@ -63,6 +63,10 @@ export function isStrandedActiveTheme(settings: PresentationSettings, themes: re
  *  staleness the bus exists for. */
 export const THEME_FILES_RESOURCE = "theme-files";
 
+/** The Themes screen's name on `lib/content-refresh-bus.ts`: the roster and the active theme, which
+ *  an assistant run changes with `theme_set_active` or `theme_duplicate`. */
+export const THEMES_RESOURCE = "themes";
+
 /**
  * `themeId`'s tier, or `"declarative"` when `themeTiers` has no entry for it — the same
  * absent-tier fallback `theme.ts`'s `loadTheme` applies for a `theme.json` with no `tier` field.

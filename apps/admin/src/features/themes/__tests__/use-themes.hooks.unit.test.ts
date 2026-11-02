@@ -7,6 +7,7 @@ import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemes, useWiredThemes } from "../hooks/use-themes.hooks";
 import { t as translateThemes } from "../themes-i18n";
 import { publishThemePreviewRefresh } from "../theme-preview-refresh";
+import { publishContentRefresh } from "@/lib/content-refresh-bus";
 
 /**
  * @file `useThemes` driven against the injected `ThemesPort`, no `fetch` stub and no `api` spy.
@@ -40,6 +41,21 @@ describe("useThemes — injected port (no fetch stub, no api spy)", () => {
     const calls = getPresentation.mock.calls.length;
     act(() => publishThemePreviewRefresh({ revision: "external-roster-after-unmount" }));
     expect(getPresentation).toHaveBeenCalledTimes(calls);
+  });
+
+  it("re-reads the active theme when an assistant run announces a content refresh", async () => {
+    // Owner 11-02: a chat theme_set_active left the Themes screen (and Dashboard) on the old theme.
+    const port = createFakeThemesPort({ availableThemeIds: ["basic", "ground"] });
+    let presentation = await port.getPresentation();
+    port.getPresentation = vi.fn(async () => presentation);
+    const { result } = renderHook(() => useThemes({ port, t: (key) => key }));
+    await waitFor(() => expect(result.current.themes).toEqual(["basic", "ground"]));
+    const before = result.current.settings?.activeThemeId;
+
+    presentation = { ...presentation, settings: { ...presentation.settings, activeThemeId: "ground" } };
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(result.current.settings?.activeThemeId).toBe("ground"));
+    expect(before).not.toBe("ground");
   });
 
   it("loads settings/themes/tiers from the injected port and never touches the real api client", async () => {

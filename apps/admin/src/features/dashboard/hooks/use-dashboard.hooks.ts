@@ -1,8 +1,9 @@
 import { useCallback, useState } from "react";
-import { useFetchQuery, type QueryResult } from "@jini-ai/ui/fetch-query";
+import { useFetchQuery, useInvalidate, type QueryResult } from "@jini-ai/ui/fetch-query";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 
 import { describeApiError, type AdminPost } from "@/lib/api";
-import { activeThemeName, mergeRecent, shouldShowDefaultPasswordBanner, shouldShowSiteKeyBanner, siteKeyBannerCopy } from "../rules";
+import { ACTIVE_THEME_RESOURCE, activeThemeName, mergeRecent, shouldShowDefaultPasswordBanner, shouldShowSiteKeyBanner, siteKeyBannerCopy } from "../rules";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../dashboard-i18n";
 import type { Translate } from "@jini-ai/ui/panel-kit";
@@ -164,8 +165,22 @@ function useStatQueries({ port, locale }: { port: DashboardPort; locale: string 
   const themeQueryFetch = useCallback(() => readOrDescribe({
     read: () => port.getPresentation(), locale, key: "failed to load the active theme",
   }), [port, locale]);
-  const themeQuery = useFetchQuery({ key: ["themes", "presentation"], fetch: themeQueryFetch }, { staleTime: 0 });
+  const themeQuery = useFetchQuery({ key: THEME_KEY, fetch: themeQueryFetch }, { staleTime: 0 });
+  useActiveThemeRefresh();
   return { postsQuery, pagesQuery, mediaQuery, commentsQuery, themeQuery };
+}
+
+/** Shared with the Themes screen's presentation read, so either screen's reload serves both. */
+const THEME_KEY = ["themes", "presentation"] as const;
+
+/** Re-reads the active theme when content changes out of band — a chat run's `theme_set_active`
+ *  while the Dashboard stays mounted beside the dock (owner 11-02: the Appearance card kept
+ *  "Tovu Starter"). Mount reads already cover activations made on the Themes screen.
+ *  @complexity O(1) per notification; one presentation re-read. */
+function useActiveThemeRefresh(): void {
+  const invalidate = useInvalidate();
+  const refresh = useCallback(() => invalidate({ key: THEME_KEY }), [invalidate]);
+  useContentRefreshSubscription(ACTIVE_THEME_RESOURCE, refresh);
 }
 
 /** One stat card's state: `count(data)` once the read settles, `null` while pending or failed.

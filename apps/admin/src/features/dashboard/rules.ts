@@ -45,6 +45,10 @@ export function activityRowHref(row: Pick<AdminPost, "id" | "kind" | "slug">): s
   return row.kind === "page" ? "/admin/pages" : `/admin/posts/${row.slug}`;
 }
 
+/** The active theme's name on `lib/content-refresh-bus.ts` (see `taxonomy/rules.ts`'s
+ *  `TAXONOMY_RESOURCE`). A finished assistant run announces every resource, theme activations included. */
+export const ACTIVE_THEME_RESOURCE = "themes";
+
 /** The Appearance card's theme label — the active theme's `theme.json` display name, or its id when
  *  the presentation read carries no name for it. */
 export function activeThemeName(presentation: {
