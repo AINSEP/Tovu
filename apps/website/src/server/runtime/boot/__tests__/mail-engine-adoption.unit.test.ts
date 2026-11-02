@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 import * as engine from "@jini-ai/platform/mail";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
@@ -15,6 +14,7 @@ import { createMailPolicyWrapper } from "../mail-delivery-policy.js";
 import { readMailDomain, isDomainReadPermissionRefused } from "@jini-ai/platform/mail";
 import { createTtlCache, MAIL_STATUS_TTL_MS } from "@jini-ai/platform/mail";
 import { createResolvedMailer } from "../resolve-mailer.js";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 
 /** Mail-engine extraction shard 8, binding OPUS review changes 3–8.
  * Exercise the real bundled plugin through Jini's engine and Tovu's guarded HTTP seam.
@@ -51,7 +51,7 @@ async function fixture(required: { setting: engine.MailProviderSetting | null },
   const sealer = new AesGcmSecretSealer(keyring);
   const clock = createFakeClock({ startIso: "2026-10-24T12:00:00.000Z" });
   const adapters = await loadMailAdapterRegistryFromSource({ pluginId: "resend",
-    packageRoot: fileURLToPath(new URL("../../../../../../../content/agent-plugins/resend/", import.meta.url)) });
+    packageRoot: agentPluginSourceDir({ pluginId: "resend" }) });
   assert.deepEqual(adapters.refusals, []);
   assert.equal(adapters.list().length, 1);
   await createCustomCredential({ repo, sealer, keyring, clock, idGen: { newId: () => "credential-1" } }, {

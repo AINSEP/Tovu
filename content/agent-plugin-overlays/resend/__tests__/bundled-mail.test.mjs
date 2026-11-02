@@ -9,10 +9,12 @@ import assert from "node:assert/strict";
 import { cp, mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
 
 
 import { forceRemove } from "../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/force-remove.ts";
+import { selectedPluginSourceRoot } from "../../../../apps/website/src/features/agent-plugins/__tests__/fixtures/bundled-source-root.ts";
+import { agentPluginSourceDir } from "../../../../development/test-support/agent-plugin-source.mjs";
 
 import { packAgentPluginDirectory } from "../../../../apps/website/src/features/agent-plugins/lifecycle.ts";
 import { resolveAgentPluginLayout } from "../../../../apps/website/src/features/agent-plugins/layout.ts";
@@ -28,8 +30,11 @@ import { buildMailProviderRegistrations } from "../../../../apps/website/src/fea
  * send goes to a fake `HttpClientPort`, never the network.
  */
 
-const CONTENT_ROOT = path.resolve(import.meta.dirname, "../..");
-const PACKAGE_ROOT = path.join(CONTENT_ROOT, "resend");
+// Moved from content/agent-plugins/resend (D-W5): the plugin ships as @jini-ai/agent-plugins/resend; this
+// Tovu-bound test reads it from there and seeds a bundled root holding just resend.
+const PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "resend" });
+const BUNDLED_SOURCE = await selectedPluginSourceRoot({ pluginIds: ["resend"] });
+after(() => BUNDLED_SOURCE.dispose());
 const WORKSPACE_ID = "workspace-local";
 
 async function readPackageJson(relativePath) {
@@ -81,7 +86,7 @@ async function withAgentPluginsDir(fn) {
 
 test("seeded by the real seeder, resend stays disabled until explicit enable loads its installed adapter", async () => {
   await withAgentPluginsDir(async (layout) => {
-    const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+    const seeded = await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: BUNDLED_SOURCE.root });
     assert.equal(seeded.outcomes.find((outcome) => outcome.pluginId === "resend")?.status, "seeded");
 
     const activations = await readAgentPluginActivations({ workspaceRoot: layout.forWorkspace(WORKSPACE_ID).root });
@@ -100,11 +105,11 @@ test("seeded by the real seeder, resend stays disabled until explicit enable loa
 
 test("an operator who switched resend off stays switched off across boots, and the registry then has no adapter", async () => {
   await withAgentPluginsDir(async (layout) => {
-    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: BUNDLED_SOURCE.root });
     const workspaceRoot = layout.forWorkspace(WORKSPACE_ID).root;
     await setAgentPluginActivation({ workspaceRoot, pluginId: "resend", enabled: false, actor: "test:operator" });
 
-    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: CONTENT_ROOT });
+    await seedBundledAgentPlugins({ layout, workspaceId: WORKSPACE_ID, sourceRoot: BUNDLED_SOURCE.root });
     assert.equal((await readAgentPluginActivations({ workspaceRoot: workspaceRoot })).plugins.resend?.enabled, false);
     assert.deepEqual((await loadMailAdapterRegistry({ workspaceId: WORKSPACE_ID }, { loadContributions: createTovuAgentPluginLifecycle({ layout: resolveAgentPluginLayout() }).loadPluginContributions })).list(), []);
   });

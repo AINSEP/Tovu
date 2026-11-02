@@ -7,7 +7,7 @@ import { mailWebhookSecretLabels } from '../../../../apps/website/src/features/m
 import { MAIL_FEEDBACK_PATH } from '../../../../apps/website/src/server/inbound/public-http/routes/mail-feedback.ts';
 
 /**
- * @file Tovu's overlay for the portable `resend` plugin (now `@jini-ai/plugin-resend`). The plugin
+ * @file Tovu's overlay for the portable `resend` plugin (now `@jini-ai/agent-plugins/resend`). The plugin
  * says only that bounces arrive by a signed webhook; this overlay carries Tovu's route, events,
  * vault labels and rotation steps (plan v2 §5.1). They are prose, so these pins catch a renamed
  * route or label that would otherwise leave every agent giving the operator a dead endpoint.

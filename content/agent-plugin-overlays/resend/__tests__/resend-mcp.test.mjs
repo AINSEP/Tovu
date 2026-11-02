@@ -24,6 +24,10 @@ import { resolveSiteRoot } from "../../../../apps/website/src/platform/site-dir/
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/core/primitives";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { agentPluginSourceDir } from "../../../../development/test-support/agent-plugin-source.mjs";
+
+// Moved from content/agent-plugins/resend (D-W): the plugin ships as @jini-ai/agent-plugins/resend; this Tovu-bound test reads it from there.
+const PLUGIN_ROOT = agentPluginSourceDir({ pluginId: "resend" });
 
 /**
  * @file The Resend plugin's connection to Resend's official hosted MCP server: one remote server
@@ -32,7 +36,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * site's own mail on Tovu's tools. Parses the real package files; no network.
  */
 
-const PACKAGE_ROOT = path.resolve(import.meta.dirname, "..");
+const PACKAGE_ROOT = PLUGIN_ROOT;
 const MCP_URL = "https://mcp.resend.com/mcp";
 
 async function readJson(relativePath) {

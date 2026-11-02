@@ -2,14 +2,18 @@ import type { PluginCredentialCard } from "../../../../contracts/core/plugin-cre
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
 
 import { loadSearchProviderContributionsFromSource } from "../../search-provider-registry.js";
 import { parsePluginCredentialCards } from "../../credential-cards.js";
 import { bundledContributionSources } from "../../bundled-contribution-sources.js";
 import { parseMailAdaptersFile } from "../../mail-adapter-registry.js";
+import { composedBundledSourceRoot } from "../fixtures/bundled-source-root.js";
 
-const sourceRoot = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins");
+// The shipped bundle: Tovu's content plugins plus every selected @jini-ai/agent-plugins/<id> (resend since D-W5).
+const bundle = await composedBundledSourceRoot();
+after(() => bundle.dispose());
+const sourceRoot = bundle.root;
 const filename = "tovu-mail-adapters.json";
 const sources = bundledContributionSources({ sourceRoot, filename });
 
