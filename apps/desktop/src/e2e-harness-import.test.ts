@@ -1,6 +1,8 @@
 /** Import the journey harness without launching Electron, a server, or a build. */
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
@@ -41,11 +43,15 @@ test('the desktop journey harness loads through Playwright on the supported Node
   // directory wrote that second, differently-offset image into the gate's lcov, where node's merge
   // painted its unrun copy over the real hits: "src main-process" read 94.55% instead of 99.86%
   // (cloud/desktop-coverage-1102). This child proves the harness loads; it is not coverage evidence.
-  const childEnv: NodeJS.ProcessEnv = { ...launch.env, NODE_OPTIONS: '', TOVU_DESKTOP_E2E_APP: '' };
-  delete childEnv.NODE_V8_COVERAGE;
+  // Deleting the key is not enough: node's child_process copies the parent's NODE_V8_COVERAGE into
+  // any child env that lacks it (so c8 sees subprocesses) — release run 41394694395 still read 94.37%.
+  // An own, throwaway directory is the only way to keep this child's image out of the gate's.
+  const discardedCoverage = mkdtempSync(path.join(os.tmpdir(), 'e2e-harness-coverage-'));
+  const childEnv: NodeJS.ProcessEnv = { ...launch.env, NODE_OPTIONS: '', TOVU_DESKTOP_E2E_APP: '', NODE_V8_COVERAGE: discardedCoverage };
   const child = spawnSync(process.execPath, ['-e', script], {
     cwd: root, encoding: 'utf8', timeout: 30_000, env: childEnv,
   });
+  rmSync(discardedCoverage, { recursive: true, force: true });
   assert.ifError(child.error);
   assert.equal(child.status, 0, child.stdout + child.stderr);
 });
