@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs/promises";
 import { describe, test } from "node:test";
 
 import { sql } from "kysely";
@@ -98,8 +99,9 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
       assert.deepEqual(row, { count: now, score: 0.25 });
     });
 
-    test("a Postgres kernel takes no snapshot and opens no journal entry, whatever dbPath says", async () => {
+    test("a Postgres kernel takes no snapshot and opens no journal entry, whatever dbPath says", async (t) => {
       const kernel = makeKernel();
+      const spaceProbe = dialect === "postgres" ? t.mock.method(fs, "statfs") : null;
       const declared = declareDataModule({ db: kernel, dbPath: "/nonexistent/content.db", decl: V1 });
       if (dialect === "sqlite") {
         // SQLite with a file dbPath DOES snapshot (the in-memory case is the first test above).
@@ -109,6 +111,7 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
       const result = await declared;
       assert.equal(result.ok, true);
       assert.equal(result.snapshotPath, null, "no snapshot on Postgres, whatever dbPath says");
+      assert.equal(spaceProbe?.mock.callCount(), 0, "Postgres never probes SQLite copy space");
       assert.equal((await listTables(kernel)).includes("_plugin_migration_journal"), false);
     });
   });
