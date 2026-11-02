@@ -19,6 +19,7 @@ import {
   registerAdminTaxonomyUnassignTermsRoute,
 } from "../../inbound/admin-http/routes/taxonomy/assign-terms.js";
 import type { RouteDeps } from "../../routes/types.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file design-spec.md §2.8 backend-gap closure — route-level tests for the Categories & Tags
@@ -735,9 +736,8 @@ test("taxonomy routes: create-taxonomy validates 'name'/'hierarchical', reports 
     body: JSON.stringify({ name: "category", hierarchical: true }),
   });
   assert.equal(errorRes.status, 500);
-  const errorBody = (await errorRes.json()) as { code: string; error: string };
-  assert.equal(errorBody.code, "INTERNAL_ERROR");
-  assert.equal(errorBody.error, "db connection broken");
+  // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
+  assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 
   deps.taxonomyRepo.insert = async () => {
     throw "non-error thrown value";
@@ -748,9 +748,7 @@ test("taxonomy routes: create-taxonomy validates 'name'/'hierarchical', reports 
     body: JSON.stringify({ name: "category", hierarchical: true }),
   });
   assert.equal(nonErrorRes.status, 500);
-  const nonErrorBody = (await nonErrorRes.json()) as { code: string; error: string };
-  assert.equal(nonErrorBody.code, "INTERNAL_ERROR");
-  assert.equal(nonErrorBody.error, "internal error");
+  assertAdminResponse({ actual: await nonErrorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 test("taxonomy routes: rename-term validates 'newName', reports FORBIDDEN and TERM_NOT_FOUND, and maps unexpected repo failures (Error and non-Error) to 500", async (t) => {
@@ -805,9 +803,8 @@ test("taxonomy routes: rename-term validates 'newName', reports FORBIDDEN and TE
     body: JSON.stringify({ newName: "Brunch" }),
   });
   assert.equal(errorRes.status, 500);
-  const errorBody = (await errorRes.json()) as { code: string; error: string };
-  assert.equal(errorBody.code, "INTERNAL_ERROR");
-  assert.equal(errorBody.error, "db connection broken");
+  // 88f429c25: the shared envelope conceals the cause behind an incident id (whole-body equality).
+  assertAdminResponse({ actual: await errorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 
   deps.termRepo.update = async () => {
     throw "non-error thrown value";
@@ -818,9 +815,7 @@ test("taxonomy routes: rename-term validates 'newName', reports FORBIDDEN and TE
     body: JSON.stringify({ newName: "Brunch" }),
   });
   assert.equal(nonErrorRes.status, 500);
-  const nonErrorBody = (await nonErrorRes.json()) as { code: string; error: string };
-  assert.equal(nonErrorBody.code, "INTERNAL_ERROR");
-  assert.equal(nonErrorBody.error, "internal error");
+  assertAdminResponse({ actual: await nonErrorRes.json(), expected: { error: "internal error", code: "INTERNAL_ERROR" } });
 });
 
 /**
