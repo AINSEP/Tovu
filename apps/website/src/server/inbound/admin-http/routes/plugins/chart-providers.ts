@@ -1,6 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 /** Admin-only chart metadata and immutable bytes; installed/custom browser providers never enter this port. */
 import type { Express } from "express";
+import { CHART_TABLE_PROVIDER } from "@jini-ai/ui/charts";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -33,7 +34,8 @@ export function registerChartProviderRoutes(
   });
   app.get(base, async (_req, res) => {
     try {
-      const data = await deps.chartProviderSnapshot?.({}) ?? { generation: "core", siteProvider: "plugin.recharts", providers: [] };
+      // A host without a chart snapshot has no provider to prefer: the admin draws the core table.
+      const data = await deps.chartProviderSnapshot?.({}) ?? { generation: "core", siteProvider: CHART_TABLE_PROVIDER, providers: [] };
       res.set("Cache-Control", "no-store").json({ data });
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/plugins/chart-providers", code: "INTERNAL_ERROR" });

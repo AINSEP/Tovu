@@ -80,13 +80,14 @@ test("chart providers: a runtime that failed to become ready is the fixed 500 en
   }
 });
 
-test("chart providers: with no chart snapshot port composed, metadata is the core default (Recharts, no providers)", async (t) => {
+test("chart providers: with no chart snapshot port composed, metadata is the core table (no vendor default, no providers)", async (t) => {
   const { deps } = chartDeps();
   const { get } = await boot(t, deps);
   const response = await get(BASE);
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("cache-control"), "no-store");
-  assert.deepEqual(await response.json(), { data: { generation: "core", siteProvider: "plugin.recharts", providers: [] } });
+  // Literal, not the imported constant: the wire value the admin receives is what is pinned.
+  assert.deepEqual(await response.json(), { data: { generation: "core", siteProvider: "core.table", providers: [] } });
 });
 
 test("chart providers: a snapshot port that throws is the fixed 500 envelope, not its message", async (t) => {

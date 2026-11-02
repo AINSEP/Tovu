@@ -221,7 +221,7 @@ import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { readAdminChartProviderSnapshot } from "./chart-providers.js";
-import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";
+import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL, RECHARTS_DEFAULT_PROVIDER } from "./charts-recharts-source.js";
 import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
 import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
 import { createSiteConsentReadiness } from "#src/features/consent/settings";
@@ -231,6 +231,7 @@ import { createDeclaredContentTypePorts } from "./declared-content-types.js";
 import { deferDeclaredContentTypePorts } from "@jini-ai/plugins/host";
 import { forgetPluginActivations, type RemovePluginFn } from "@jini-ai/plugins/host";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
+import { bindProviderFacePorts, followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
 import { createAgentPluginsModule } from "./modules/agent-plugins.js";
 import { createPluginsModule } from "./modules/plugins.js";
 import { createSkillsModule } from "./modules/skills.js";
@@ -453,7 +454,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // Canonical Jini clocks use milliseconds; existing CMS/DB host ports still read ISO timestamps.
   const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
-  const pluginActivationRepo = new InMemoryPluginActivationRepo();
+  // Same one-switch rule as the SQLite composition (deps.ts): a provider plugin's linked agent plugin
+  // face follows every write of its activation row. `agentPluginLayout` is declared further down;
+  // the thunk only runs on a write, after composition finishes.
+  const pluginActivationRepo = followProviderActivations({ repo: new InMemoryPluginActivationRepo(), workspaceId: seededWorkspace.id,
+    ports: bindProviderFacePorts({ workspaceRoot: () => agentPluginLayout.forWorkspace(seededWorkspace.id).root }) });
   const pluginRuntime = composePluginRuntime({
     getPluginHost: () => routeDeps.pluginHost,
     workspaceId: seededWorkspace.id,
@@ -1510,7 +1515,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     pluginSourcePolicy: pluginRuntime.pluginSourcePolicy,
     pluginLoadedVersion: pluginRuntime.pluginLoadedVersion,
     browserProviders: pluginRuntime.browserProviders,
-    chartProviderSnapshot: () => readAdminChartProviderSnapshot({ workspaceId: seededWorkspace.id, settingsRepo, browserProviders: pluginRuntime.browserProviders }),
+    chartProviderSnapshot: () => readAdminChartProviderSnapshot({ workspaceId: seededWorkspace.id, settingsRepo, browserProviders: pluginRuntime.browserProviders, defaultProvider: RECHARTS_DEFAULT_PROVIDER }),
     pluginContributions: pluginRuntime.pluginContributions,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     // Assigned after pluginHost exists: first-boot chart defaults use the same activation loader.

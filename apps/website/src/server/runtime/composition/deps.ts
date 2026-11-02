@@ -295,7 +295,7 @@ import { adoptLegacyTrashedWidgets, restoreWidgetPriorStatus } from "@jini-ai/cm
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 import { sqlitePluginActivationRepoFor } from "#src/features/plugin-runtime/repo.sqlite";
 import { readAdminChartProviderSnapshot } from "./chart-providers.js";
-import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";
+import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL, RECHARTS_DEFAULT_PROVIDER } from "./charts-recharts-source.js";
 import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
 import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
 import { createSiteConsentReadiness } from "#src/features/consent/settings";
@@ -2618,7 +2618,7 @@ async function composeSiteRouteDeps(
     pluginSourcePolicy: pluginRuntime.pluginSourcePolicy,
     pluginLoadedVersion: pluginRuntime.pluginLoadedVersion,
     browserProviders: pluginRuntime.browserProviders,
-    chartProviderSnapshot: () => readAdminChartProviderSnapshot({ workspaceId: workspaceId, settingsRepo, browserProviders: pluginRuntime.browserProviders }),
+    chartProviderSnapshot: () => readAdminChartProviderSnapshot({ workspaceId: workspaceId, settingsRepo, browserProviders: pluginRuntime.browserProviders, defaultProvider: RECHARTS_DEFAULT_PROVIDER }),
     pluginContributions: pluginRuntime.pluginContributions,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
     // Replaced after the host exists, before these dependencies leave composition.
