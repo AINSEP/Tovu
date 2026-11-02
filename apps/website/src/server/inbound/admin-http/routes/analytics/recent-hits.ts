@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { adminFailureResponse } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import { respondToApiError } from "#src/server/error-mapping/respond";
 // Jini owns LocalBufferSink via the host adapter.
 import type { Express } from "express";
@@ -97,7 +97,9 @@ export function registerAdminAnalyticsRecentHitsRoute(app: Express, deps: AdminA
       const hits = (await deps.analyticsSink.list({ limit })).map(toAdminAnalyticsHitResponse);
       res.json({ hits });
     } catch (err) {
-      sendAdminFailure({ res, error: err });
+      // Keep shared redacted diagnostics without replacing the canonical analytics wire contract.
+      adminFailureResponse({ error: err, tracker: res.locals.adminFailureTracker }, { operation: "analytics/recent-hits" });
+      respondToApiError({ res, code: "INTERNAL_ERROR", message: "internal error" });
     }
   });
 }
