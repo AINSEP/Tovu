@@ -5,7 +5,7 @@ import type { Request } from 'express';
 import { InMemorySettingsRepo, set } from '@jini-ai/core/settings';
 import { createSiteConsentConfig, createSiteConsentReadiness, ensureSiteConsentDefinitions, resolveSiteConsentActivation, SITE_CONSENT_DEFAULTS, SITE_CONSENT_NAMESPACE, SITE_CONSENT_OFF } from '../settings.js';
 import { createSiteConsentRequestPorts } from '../host.js';
-import { renderSiteConsentPreview } from '../cookie-consent.js';
+import { renderSiteConsentPreview, siteBannerMode } from '../cookie-consent.js';
 import { ensureSettingsUiTabDefinitions } from '../../webmcp/settings.js';
 
 const clock = { nowMs: () => Date.parse('2026-10-09T12:00:00.000Z'), nowIso: () => '2026-10-09T12:00:00.000Z' };
@@ -74,7 +74,7 @@ test('a policy version beyond 128 characters is refused even within the general 
   await assert.rejects(createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get(), { message: 'Cookie consent policy version must contain 1–128 characters.' });
 });
 
-test('all sites default ON through the existing ledger and isolate explicit site choices', async () => {
+test('all sites default OFF through the existing ledger and isolate explicit site choices', async () => {
   const { deps, settingsRepo, write } = await ledger();
   const before = await settingsRepo.maxRevisionSeq();
   await ensureSiteConsentDefinitions(deps, { systemPrincipalId: 'system-test' });
@@ -173,15 +173,23 @@ test('consent has independent readiness after the shared ledger boot and cannot 
   await webmcp;
 });
 
-test('all no-choice sites default ON, including missing definitions', async () => {
+test('all no-choice sites default OFF, including missing definitions', async () => {
   for (const register of [false, true]) {
     const { settingsRepo } = await ledger({ register });
     const config = await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get();
-    assert.deepEqual(config, { ...SITE_CONSENT_DEFAULTS, reopen: 'link' });
+    assert.deepEqual(config, { ...SITE_CONSENT_OFF, reopen: 'link' });
     assert.equal(config.privacyPolicyUrl, '/privacy');
     assert.match(renderSiteConsentPreview({ config, policy: config.policyVersion }).body, /<a href="\/privacy">Privacy policy<\/a>/);
-    assert.deepEqual(await resolveSiteConsentActivation({ settingsRepo, workspaceId: 'site-a' }), { enabled: true, source: 'default' });
+    assert.deepEqual(await resolveSiteConsentActivation({ settingsRepo, workspaceId: 'site-a' }), { enabled: false, source: 'default' });
   }
+});
+
+test('a fresh site shows no banner by default; a saved enabled:true still gets the Jini banner (owner 2026-11-02)', async () => {
+  const { settingsRepo, write } = await ledger();
+  const config = createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' });
+  assert.equal(siteBannerMode({ config: await config.get() }), 'off');
+  await write('enabled', true);
+  assert.equal(siteBannerMode({ config: await config.get() }), 'jini');
 });
 
 test('the ledger default stays distinguishable from an explicit owner choice', async () => {
@@ -194,6 +202,7 @@ test('the ledger default stays distinguishable from an explicit owner choice', a
 
 test('an explicit empty owner privacy URL is not replaced by the host default', async () => {
   const { settingsRepo, write } = await ledger();
+  await write('enabled', true);
   await write('privacyPolicyUrl', '');
   assert.equal((await createSiteConsentConfig({ settingsRepo, workspaceId: 'site-a' }).get()).privacyPolicyUrl, '');
 });

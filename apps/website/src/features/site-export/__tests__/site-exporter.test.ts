@@ -18,7 +18,7 @@ import type { RedirectRecord } from "@jini-ai/cms/redirects";
 import { registerTransform, uploadMedia } from "#src/features/media/index";
 import { setPublicAssistantSettings, setSiteAssistantCredential } from "#src/assistant/index";
 import { startTestServer } from "../../../server/__tests__/helpers/http-test-server.js";
-import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
+import { assertConsentBannerPage } from "#src/server/__tests__/helpers/default-consent-page";
 import { createCommerceSiteTestApp } from "#src/server/inbound/public-http/routes/site/__tests__/commerce-site-app";
 import { useSiteChatBuild } from "#src/server/inbound/public-http/http/site/__tests__/site-chat.fixture";
 import { exportSite, firstExportFailure, redirectOutcomeFor } from "../site-exporter.js";
@@ -227,9 +227,10 @@ test("live site: a request carrying the static-export marker gets no widget AND 
     const deps = createRouteDeps();
     await enablePublicAssistant(deps);
     await deps.siteConsentReady;
-    if (!consentEnabled) await deps.set({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen,
+    // An explicit owner choice either way; a site that never chose is off (owner, 2026-11-02).
+    await deps.set({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen,
       principals: deps.principalRepo, authorize: deps.authorize }, input: { namespace: "core.consent", key: "enabled",
-      value: false, scope: "workspace", workspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
+      value: consentEnabled, scope: "workspace", workspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
     withOneSampleProduct(deps);
     const baseUrl = await startTestServer(deps.createSiteApp(), t);
 
@@ -252,7 +253,7 @@ test("live site: a request carrying the static-export marker gets no widget AND 
         `${route}: visitor-specific consent and live comments stay private; owner-OFF public pages stay cacheable`);
       if (consentEnabled) {
         assert.equal(live.headers.get("vary"), "Cookie, Sec-GPC");
-        assertDefaultConsentPage({ html: liveHtml });
+        assertConsentBannerPage({ html: liveHtml });
       } else assert.doesNotMatch(liveHtml, /id="jini-consent"/);
 
       const marked = await fetch(`${baseUrl}${route}`, { headers: { "x-tovu-static-export": "1" } });

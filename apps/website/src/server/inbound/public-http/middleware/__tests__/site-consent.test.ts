@@ -327,7 +327,7 @@ test('the publishing privacy check still rejects missing local Pages', async () 
   assert.equal(await privacyPageExists({ url: '/no-such-privacy-page/' }), false);
 });
 
-test('live defaults show consent; exports omit defaults, preserve OFF and gate owner or published ON', async t => {
+test('defaults show no banner live or exported (owner 2026-11-02); owner or published ON shows and gates it', async t => {
   const settingsRepo = new InMemorySettingsRepo(); let id = 0;
   const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };
   const ids = { newId: () => `setting-${++id}` };
@@ -346,22 +346,22 @@ test('live defaults show consent; exports omit defaults, preserve OFF and gate o
   const config = ports.config.get({}).then(value => { settled = true; return value; });
   await new Promise(resolve => setImmediate(resolve)); assert.equal(settled, false);
   await write('privacyPolicyUrl', '/privacy'); release();
-  assert.equal((await config).enabled, true);
+  assert.equal((await config).enabled, false);
   const app = express(); applySiteConsent({ app, deps });
   const original = '<html><head></head><body><script data-consent-category="analytics">window.optional=1</script></body></html>';
   app.get('/', (_req, res) => res.type('html').send(original));
   const base = await startTestServer(app, t);
+  assert.equal(await (await fetch(base)).text(), original);
+  const exported = await fetch(base, { headers: { 'x-tovu-static-export': '1' } });
+  assert.equal(exported.status, 200);
+  assert.equal(await exported.text(), original);
+  await write('enabled', true);
   const dom = new JSDOM(await (await fetch(base)).text());
   try {
     assert.ok(dom.window.document.querySelector('#jini-consent'));
     assert.ok(dom.window.document.querySelector('#jini-consent a[href="/privacy"]'));
     assert.ok(dom.window.document.querySelector('template[data-jini-consent-script]'));
   } finally { dom.window.close(); }
-  const exported = await fetch(base, { headers: { 'x-tovu-static-export': '1' } });
-  assert.equal(exported.status, 200);
-  assert.equal(await exported.text(), original);
-  assert.match(await (await fetch(base)).text(), /id="jini-consent"/);
-  await write('enabled', true);
   const enabledExport = await fetch(base, { headers: { 'x-tovu-static-export': '1' } });
   await assertGatedStaticExport({ response: enabledExport });
   await write('enabled', false);

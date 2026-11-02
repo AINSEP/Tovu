@@ -5,7 +5,8 @@ import test from 'node:test';
 import { SITE_CONSENT_DEFAULT_CSS, SITE_CONSENT_DEFAULTS } from '../../config.js';
 import { renderSiteConsentPreview, siteBannerMode, toSiteCookieConsent, type SiteConsentSource } from '../../cookie-consent.js';
 
-const saved: SiteConsentSource = { ...SITE_CONSENT_DEFAULTS, privacyPolicyUrl: '/privacy', customCss: SITE_CONSENT_DEFAULT_CSS };
+// A saved config from an owner who turned the banner on; the product default is off (2026-11-02).
+const saved: SiteConsentSource = { ...SITE_CONSENT_DEFAULTS, enabled: true, privacyPolicyUrl: '/privacy', customCss: SITE_CONSENT_DEFAULT_CSS };
 
 test('an old saved config (no bannerMode) keeps every copy field and shows the Jini banner', () => {
   const { banner, options } = toSiteCookieConsent({ config: saved, policy: '1:rev1' });

@@ -474,7 +474,7 @@ test("GET / 500s with a generic 'Site error' when an unexpected exception is thr
   const res = await fetch(baseUrl);
   assert.equal(res.status, 500);
   const { contentHtml } = assertDefaultConsentPage({ html: await res.text() });
-  assert.equal(contentHtml, "<h1>Site error</h1>", "the exact fallback body plus the default consent block, not merely a 500 status");
+  assert.equal(contentHtml, "<h1>Site error</h1>", "the exact fallback body, with no consent markup while consent is off by default, not merely a 500 status");
 });
 
 /**

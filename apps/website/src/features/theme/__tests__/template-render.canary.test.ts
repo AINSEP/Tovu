@@ -321,7 +321,7 @@ test('every rendered bundled theme page retains a host withdrawal link with and 
     for (const pageId of Object.keys(theme.pages)) {
       const rendered = renderStaticPage({ theme: { ...theme, partials }, pageId });
       assert.ok(rendered, pageId);
-      const gated = gateConsentHtml({ html: rendered, config: { ...SITE_CONSENT_DEFAULTS, reopen: 'link' }, record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
+      const gated = gateConsentHtml({ html: rendered, config: { ...SITE_CONSENT_DEFAULTS, enabled: true, reopen: 'link' }, record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
       const dom = new JSDOM(withSiteConsentSettingsLink({ html: gated }));
       try {
         const doc = dom.window.document;

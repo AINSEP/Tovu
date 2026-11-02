@@ -76,6 +76,8 @@ test('permanent deletes and actions that leave this site refuse without a human 
   const calls:[string,unknown][]=[
     ['page.click',{handle:'trash-purge-confirm'}], ['change_sets_revert',{}], ['theme_reset_file',{}],
     ['publish_content_publish',{}], ['deployment_execute_static_publish',{}], ['deployment_ops_deploy',{}], ['source_control_execute_commit',{}],
+    // Demo 2026-11-02: the chat switched the live site to a rebuilt theme without asking.
+    ['theme_set_active',{themeId:'ground'}],
   ];
   for (const [id,input] of calls) {
     const f=fixture(id); const result=await f.executor.execute({toolId:id,principal:{id:'owner'},run:{id:'run'},input});

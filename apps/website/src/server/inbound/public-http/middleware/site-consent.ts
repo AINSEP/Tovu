@@ -117,7 +117,7 @@ export function createSiteConsentPorts({ deps }: { deps: RouteDeps }, { trustedR
   };
 }
 
-/** True when consent is on only by the product default: no owner choice and nothing published.
+/** True when consent follows only the product default (off since 2026-11-02): no owner choice, nothing published.
  * Exports omit that consent until a browser-side banner supports static sites; live serving keeps it.
  * @complexity O(1), one store read and one settings read. */
 async function isDefaultOnlyConsent({ deps }: { deps: RouteDeps }, _options = {}): Promise<boolean> {

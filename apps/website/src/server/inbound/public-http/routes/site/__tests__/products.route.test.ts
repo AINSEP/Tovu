@@ -336,14 +336,15 @@ test("the product adapter preserves store-plugin sale prices and the handler ren
 
 test("GET /products and /products/:id cache only with consent off; the static-export marker always prevents storage", async (t) => {
   const product: Product = { id: "prod-1", slug: "classic-boxy-tee", title: "Classic Boxy Tee", price: 3500, stock: 5, version: 1 };
-  // c5e98fea6 enabled visitor-specific consent by default; ad8a49c74 gates this opt-in adapter too.
+  // Owner-ON consent is visitor-specific; ad8a49c74 gates this opt-in adapter too. Consent is off by
+  // default (owner, 2026-11-02), so both arms save an explicit owner choice.
   // Owner-OFF still proves the export marker itself prevents caching, independently of consent.
   for (const consentEnabled of [true, false]) {
     const deps = createRouteDeps();
     await deps.siteConsentReady;
-    if (!consentEnabled) await deps.set({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen,
+    await deps.set({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen,
       principals: deps.principalRepo, authorize: deps.authorize }, input: { namespace: "core.consent", key: "enabled",
-      value: false, scope: "workspace", workspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
+      value: consentEnabled, scope: "workspace", workspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
     const { server, baseUrl } = await startServer({ ...deps, store: fakeStore({ products: [product] }) });
     t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 

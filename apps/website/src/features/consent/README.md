@@ -68,7 +68,8 @@ capacity/eviction behavior. A database receipt adapter and Worker/D1 lifecycle a
 parallel forms submission store. No Jini sources were changed. Tests are supplied for the HTTP,
 tool, storage and public delivery boundaries; this dispatch prohibits running them locally.
 
-Consent defaults ON for every site; explicit owner ON/OFF and published snapshots take precedence.
+Consent defaults OFF for every site (owner, 2026-11-02) until the owner turns it on; explicit owner ON/OFF
+and published snapshots take precedence, so a site that already chose ON keeps its banner.
 `siteConsentReady` follows title preservation and owner seeding; definition registration gates readiness.
 It reuses an existing Privacy Policy Page or creates a published, editable HTML Page transactionally.
 Only an empty legacy privacy URL (including saved whitespace) is filled through Jini settings; a saved URL ends this bootstrap.

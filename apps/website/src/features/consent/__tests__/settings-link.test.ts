@@ -12,7 +12,7 @@ for (const footer of ['', '<footer><a href="/privacy">Privacy</a></footer>', '<t
       choices: { necessary: true as const, functional: false, analytics: false, marketing: false } };
     for (const choice of [null, record]) {
       const gated = gateConsentHtml({ html: `<html><head><link rel="canonical" href="https://site.example/about"></head><body><main>About</main>${footer}</body></html>`,
-        config: { ...SITE_CONSENT_DEFAULTS, reopen: 'link' }, record: choice, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
+        config: { ...SITE_CONSENT_DEFAULTS, enabled: true, reopen: 'link' }, record: choice, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
       const html = withSiteConsentSettingsLink({ html: gated });
       const dom = new JSDOM(html);
       try {
@@ -42,7 +42,7 @@ test('missing closing body markup still receives the control', () => {
 
 test('the page footer hosts the control, not an earlier article footer; a theme control is never duplicated', () => {
   const gate = (body: string) => gateConsentHtml({ html: `<html><body>${body}</body></html>`,
-    config: { ...SITE_CONSENT_DEFAULTS, reopen: 'link' }, record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
+    config: { ...SITE_CONSENT_DEFAULTS, enabled: true, reopen: 'link' }, record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
   const post = new JSDOM(withSiteConsentSettingsLink({ html: gate('<main><article>Post<footer id="byline">By Ana</footer></article></main><footer id="site">Site</footer>') }));
   const themed = new JSDOM(withSiteConsentSettingsLink({ html: gate('<footer><a href="#jini-consent" data-jini-consent-open>Privacy choices</a></footer>') }));
   try {
@@ -53,7 +53,7 @@ test('the page footer hosts the control, not an earlier article footer; a theme 
 
 test('a footer link joins the theme\'s last row (the © line), never a hidden row; a footerless page gets its own row', () => {
   const gate = (body: string) => gateConsentHtml({ html: `<html><body>${body}</body></html>`,
-    config: { ...SITE_CONSENT_DEFAULTS, reopen: 'link' }, record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
+    config: { ...SITE_CONSENT_DEFAULTS, enabled: true, reopen: 'link' }, record: null, regionMode: 'opt-in', gpc: false, endpoint: '/api/site-consent' });
   const starter = new JSDOM(withSiteConsentSettingsLink({ html: gate('<footer><div class="wrap"><div class="grid"><a href="/">Home</a></div><div class="footer-bottom"><span>© Site</span></div></div></footer>') }));
   const hidden = new JSDOM(withSiteConsentSettingsLink({ html: gate('<footer><div id="row"><span>© Site</span></div><div hidden>Later</div></footer>') }));
   const bare = new JSDOM(withSiteConsentSettingsLink({ html: gate('<main>Page</main>') }));

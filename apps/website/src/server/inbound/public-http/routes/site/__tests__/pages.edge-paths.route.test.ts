@@ -354,10 +354,9 @@ test("GET /_more/1/12?…: a see-more URL with a form-result query answers the b
   const plain = await fetch(`${baseUrl}/_more/1/12`);
   const withFormResult = await fetch(`${baseUrl}/_more/1/12?form=contact&form_status=success`);
 
-  // c5e98fea6 enables visitor-specific consent even without a form result.
+  // Consent is off by default (owner, 2026-11-02), so only the form result makes a batch private.
   assert.equal(plain.status, 200);
-  assert.equal(plain.headers.get("cache-control"), "private, no-store");
-  assert.equal(plain.headers.get("vary"), "Cookie, Sec-GPC");
+  assert.notEqual(plain.headers.get("cache-control"), "private, no-store", "control: a plain batch is not private");
   assert.match(assertDefaultConsentPage({ html: await plain.text() }).contentHtml, />Home Post 12</);
   assert.equal(withFormResult.status, 200);
   assert.equal(withFormResult.headers.get("cache-control"), "private, no-store");

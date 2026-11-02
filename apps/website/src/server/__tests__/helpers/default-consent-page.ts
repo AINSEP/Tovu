@@ -10,11 +10,27 @@ function one({ document, selector }: { document: Document; selector: string }, _
   return nodes[0]!;
 }
 
-/** Assert the default first-visit contract introduced by c5e98fea6 before comparing page bytes.
+/** Consent markup a page carries only when the banner is on. */
+const CONSENT_SELECTORS = ["#jini-consent", "#jini-consent-config", "style[data-jini-consent-style]", "script[data-jini-consent-runtime]",
+  "[data-tovu-consent-settings]", "template[data-jini-consent-script]", "template[data-jini-consent-resource]"];
+
+/** Assert what a site that never chose serves: no consent markup at all, because the banner is off
+ * by default (owner, 2026-11-02). Returns the same shape as {@link assertConsentBannerPage} so page
+ * tests compare bytes the same way; both fields are the untouched page. No scripts execute. */
+export function assertDefaultConsentPage({ html }: { html: string }, _options = {}): { contentHtml: string; stableHtml: string } {
+  const dom = new JSDOM(html);
+  try {
+    for (const selector of CONSENT_SELECTORS) assert.equal(dom.window.document.querySelector(selector), null, selector);
+    return { contentHtml: html, stableHtml: html };
+  } finally { dom.window.close(); }
+}
+
+/** Assert the first-visit banner contract introduced by c5e98fea6 for a site whose owner turned
+ * consent on with the default copy, before comparing page bytes.
  * contentHtml retains the original source outside the checked consent nodes. stableHtml retains
  * consent too, normalizing only Jini's per-response runtime UUID for exact denial comparisons.
  * No scripts execute. Source offsets avoid reserializing or weakening the page's markup checks. */
-export function assertDefaultConsentPage({ html }: { html: string }, _options = {}): { contentHtml: string; stableHtml: string } {
+export function assertConsentBannerPage({ html }: { html: string }, _options = {}): { contentHtml: string; stableHtml: string } {
   const dom = new JSDOM(html, { includeNodeLocations: true });
   try {
     const document = dom.window.document;

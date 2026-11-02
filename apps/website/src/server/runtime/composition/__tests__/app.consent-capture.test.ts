@@ -11,15 +11,26 @@ import { startTestServer } from '#src/server/__tests__/helpers/http-test-server'
  * visitor reaches, is built without that option and must still deliver the banner.
  */
 
-async function homeHtml(t: test.TestContext, optional: { consentAudit?: true }): Promise<string> {
+async function homeHtml(t: test.TestContext, optional: { consentAudit?: true }, { publishConsent = true }: { publishConsent?: boolean } = {}): Promise<string> {
   const deps = createRouteDeps();
+  if (publishConsent) {
+    // The product default is off (owner, 2026-11-02), so the owner's published policy turns it on.
+    const consent = consentFixture({ t });
+    const saved = await consent.service.saveDraft({ principalId: "owner", config: consent.config, expectedDraftId: null });
+    await consent.service.publish({ principalId: "owner", draftId: saved.revision.id, expectedPublishedId: null });
+    deps.consentStore = consent.store;
+  }
   const baseUrl = await startTestServer(deps.createSiteApp(optional), t);
   const response = await fetch(`${baseUrl}/`);
   return response.text();
 }
 
-test('a visitor-facing site app delivers the cookie banner by default', async t => {
+test('a visitor-facing site app delivers the cookie banner once the owner turns it on', async t => {
   assert.match(await homeHtml(t, {}), /id="jini-consent"/);
+});
+
+test('a site that never chose shows visitors no cookie banner (off by default, owner 2026-11-02)', async t => {
+  assert.doesNotMatch(await homeHtml(t, {}, { publishConsent: false }), /id="jini-consent"/);
 });
 
 test('a screenshot site app (consentAudit) renders the same page without the cookie banner', async t => {

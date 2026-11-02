@@ -15,8 +15,10 @@ export const SITE_CONSENT_REGION_MODES = ['auto', 'opt-in', 'opt-out'] as const;
 export type SiteConsentRegionMode = typeof SITE_CONSENT_REGION_MODES[number];
 
 export const SITE_CONSENT_DEFAULTS = {
-  // All sites show the banner by default; settings.ts preserves explicit owner on/off choices.
-  enabled: true,
+  // Off by default (owner, 2026-11-02: the banner kept causing problems) until the owner turns it
+  // on. Explicit owner on/off choices and published policies still win (settings.ts), so a site
+  // that already chose enabled:true keeps its banner.
+  enabled: false,
   // A configured trusted header resolves US opt-out; unknown stays strict (Reject shown).
   regionMode: 'auto' as SiteConsentRegionMode,
   policyVersion: '1',

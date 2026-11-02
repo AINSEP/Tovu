@@ -9,7 +9,7 @@ const ENUM_VALUES: Partial<Record<keyof SiteConsentSettings, readonly string[]>>
 export const SITE_CONSENT_OFF: SiteConsentSettings = { ...SITE_CONSENT_DEFAULTS, enabled: false };
 
 /** The ledger's `enabled` default stays OFF: its default layer only means "no owner choice yet",
- * which {@link resolveSiteConsentActivation} turns into the product default (on) for all sites.
+ * which {@link resolveSiteConsentActivation} turns into the product default (off since 2026-11-02).
  * Keeping it unchanged also means no boot-time rewrite of existing sites' enabled ledgers.
  * The blank privacy ledger lets bootstrap choose an existing site page before saving its URL. */
 const LEDGER_DEFAULTS: SiteConsentSettings = { ...SITE_CONSENT_OFF, privacyPolicyUrl: '' };
