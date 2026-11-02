@@ -99,28 +99,31 @@ export const registerAdminPostCreateRoute: ContentRouteRegistrar = (app, deps) =
             entityId: postId,
             operation: "create",
             captureInverse: async () => null,
-            execute: () =>
-              createPost({
+            execute: () => {
+              // A body-less request reads every field as absent, exactly as `req.body?.x` did.
+              const body = req.body ?? {};
+              return createPost({
                 deps: { repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook, outbox: deps.outbox, authorAccounts: deps.userRepo },
                 input: {
                   workspaceId: deps.workspaceId,
                   id: postId,
-                  title: String(req.body?.title ?? ""),
-                  slug: req.body?.slug !== undefined ? String(req.body.slug) : undefined,
-                  bodyJson: req.body?.bodyJson,
-                  status: req.body?.status,
-                  author: req.body?.author,
-                  showAuthor: req.body?.showAuthor,
+                  title: String(body.title ?? ""),
+                  slug: body.slug !== undefined ? String(body.slug) : undefined,
+                  bodyJson: body.bodyJson,
+                  status: body.status,
+                  author: body.author,
+                  showAuthor: body.showAuthor,
                   // First Save sends the full editor snapshot; keep it in this atomic create.
-                  templateChoice: req.body?.templateChoice,
-                  overridesThemePage: req.body?.overridesThemePage,
-                  hideCoverImageInBody: req.body?.hideCoverImageInBody,
-                  publishAt: req.body?.publishAt,
-                  featuredMediaId: req.body?.featuredMediaId,
+                  templateChoice: body.templateChoice,
+                  overridesThemePage: body.overridesThemePage,
+                  hideCoverImageInBody: body.hideCoverImageInBody,
+                  publishAt: body.publishAt,
+                  featuredMediaId: body.featuredMediaId,
                   actorId: principal.id,
                   analyticsSource: "admin",
                 },
-              }),
+              });
+            },
             captureEntityVersion: ({ result }) => result.post.version,
           },
         });
