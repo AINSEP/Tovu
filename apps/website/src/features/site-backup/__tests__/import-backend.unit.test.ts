@@ -149,11 +149,10 @@ test("site_imported fires exactly once after owner commit, including a repeated 
   const input = { principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD };
   const ready = await backend.completeOwner(input);
   assert.equal(ready.state, "ready");
-  // Warnings are read from the import stage, which the commit removes (they never enter import
-  // history), so only the first ready response carries them; everything else repeats exactly.
-  const { warnings, ...committed } = ready;
-  assert.deepEqual(warnings, ["Plugin 'custom' isn't code this Tovu recognises. It was imported and kept switched off.", "Skill 'custom' isn't code this Tovu recognises. It was imported and kept switched off.", "Theme 'executable' isn't code this Tovu recognises. It was imported and kept switched off."]);
-  assert.deepEqual(await backend.completeOwner(input), committed);
+  // Warnings are read from the import stage after restore and stored on the import row (2933fbb3f),
+  // so they survive the stage's removal and a repeated completion returns the same view exactly.
+  assert.deepEqual(ready.warnings, ["Plugin 'custom' isn't code this Tovu recognises. It was imported and kept switched off.", "Skill 'custom' isn't code this Tovu recognises. It was imported and kept switched off.", "Theme 'executable' isn't code this Tovu recognises. It was imported and kept switched off."]);
+  assert.deepEqual(await backend.completeOwner(input), ready);
   assert.deepEqual(events, [{ name: "site_imported", userId: "owner", properties: {
     targetSiteId: ready.newSiteId!, operationId: pending.importId, eventId: `import:${pending.importId}`, source: "admin",
   } }]);
@@ -226,7 +225,8 @@ test("progress reports every stored status in order", async t => {
   const backend = createSiteImportBackend(h.backendPorts, { report: ({ status }) => reports.push(status) });
   const pending = await backend.importBackup({ principalId: "owner", source: await backend.upload({ principalId: "owner", archive: h.archive }) });
   await backend.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD });
-  assert.deepEqual(reports, ["verifying", "needs-owner", "creating", "creating", "ready", "ready"]);
+  // creating: marked, site allocated, restore warnings stored (the third store since 2933fbb3f).
+  assert.deepEqual(reports, ["verifying", "needs-owner", "creating", "creating", "creating", "ready", "ready"]);
 });
 test("a replayed request id returns the original import without starting another", async t => {
   const h = await importFixture(t), upload = await h.backend.upload({ principalId: "owner", archive: h.archive });
