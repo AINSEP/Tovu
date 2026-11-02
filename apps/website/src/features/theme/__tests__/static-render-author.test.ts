@@ -21,12 +21,13 @@ test("static author marker escapes the credit, keeps theme attributes, and remov
 test("stock static post templates render one byline when enabled, including catalog reset originals", () => {
   const root = path.resolve(import.meta.dirname, "../../../../../../content/themes");
   for (const directory of ["static", "__original-themes__/static"]) {
-    let templates = 0;
+    let templates = 0, declared = 0;
     for (const id of fs.readdirSync(path.join(root, directory))) {
       const themeDir = path.join(root, directory, id);
       const pages = path.join(themeDir, "render/pages");
       if (!fs.existsSync(pages)) continue;
       const theme = loadTheme({ themeDir, id, source: "built-in" });
+      declared += Object.values(theme.manifest.templateFor ?? {}).filter(kinds => kinds.includes("post")).length;
       for (const file of fs.readdirSync(pages).filter(name => /post.*\.html$/.test(name))) {
         templates++;
         const source = fs.readFileSync(path.join(pages, file), "utf8");
@@ -39,7 +40,10 @@ test("stock static post templates render one byline when enabled, including cata
         assert.ok(hidden !== null && !hidden.includes("Secret Writer") && !hidden.includes('class="post-author"'), `${id}/${file}`);
       }
     }
-    assert.ok(templates >= 8, "stock post templates must be discovered");
+    // Derived from the manifests, not a hand-typed floor: e2fc970d4 deleted four stock themes and
+    // the old `>= 8` went stale. Every declared post template must be swept, and some must exist.
+    assert.ok(declared > 0, `${directory}: stock themes must declare post templates`);
+    assert.equal(templates, declared, `${directory}: every manifest-declared post template must be discovered`);
   }
 });
 
