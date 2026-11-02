@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { normalizeRepositoryFolder, prefixRepositoryPath, repositoryPathContained } from "@jini-ai/devops/source-control";
+
 import { createSiteCommitter } from "../commit-site.mjs";
 
 // Edge cases of the site committer driven through a hand-built kit (the port core passes in), so the
@@ -15,6 +17,9 @@ function kitFrom(script, { redirectRefusal = () => false } = {}) {
   const calls = [];
   const queue = [...script];
   const kit = {
+    // The real path policy core's kit carries (required since 1485b4e49's target folder); a
+    // permissive fake here would hide the committer's own containment refusals.
+    repositoryPaths: { normalizeFolder: normalizeRepositoryFolder, prefixPath: prefixRepositoryPath, contains: repositoryPathContained },
     async fetch(url, init) {
       calls.push({ url, method: init.method ?? "GET", body: init.body });
       const next = queue.shift();
