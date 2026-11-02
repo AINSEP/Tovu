@@ -196,6 +196,14 @@ describe("panel 'posts'", () => {
     expect((panel("posts").render(ctx()) as ReactElement).type).toBe(Posts);
   });
 
+  it("create mode opens the local editor without reserving the real slug new", () => {
+    const local = panel("posts").render(ctx({ query: new URLSearchParams("create=1") })) as ReactElement<{ postId: string }>;
+    expect(local.type).toBe(PostEditor);
+    expect(local.props.postId).toBe("");
+    const existing = panel("posts").render(ctx({ view: "post-editor", params: { postId: "new" }, query: new URLSearchParams("create=1") })) as ReactElement<{ postId: string }>;
+    expect(existing.props.postId).toBe("new");
+  });
+
   it("post-editor view renders PostEditor with postId from params, keyed by postId (staleness-fix keying)", () => {
     const el = panel("posts").render(ctx({ view: "post-editor", params: { postId: "p1" } })) as ReactElement;
     expect(el.type).toBe(PostEditor);

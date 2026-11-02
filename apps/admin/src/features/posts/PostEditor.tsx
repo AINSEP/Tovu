@@ -653,7 +653,7 @@ function PostEditorHeader({
   setTitle,
   slug,
   setSlug,
-  liveSlug,
+  post,
   t,
 }: {
   kindLabel: "post" | "page";
@@ -662,8 +662,8 @@ function PostEditorHeader({
   setTitle: (value: string) => void;
   slug: string;
   setSlug: (value: string) => void;
-  /** The SAVED slug — "view ↗" opens what is live, not what is being typed. */
-  liveSlug: string;
+  /** The saved identity — a local working copy has no live URL before first Save. */
+  post: Pick<AdminPost, "id" | "slug">;
   t: Translate;
 }) {
   return (
@@ -745,14 +745,14 @@ function PostEditorHeader({
             {...agentHandle({ handle: "post-slug" }, { role: "field", label: "URL slug this post is published at" })}
           />
         </label>
-        <a
-          href={siteUrl(`/${liveSlug}`)}
+        {post.id && post.slug ? <a
+          href={siteUrl(`/${post.slug}`)}
           target="_blank"
           rel="noreferrer"
           {...agentHandle({ handle: "post-view-live" }, { role: "link", label: "Open this post on the public site in a new tab" })}
         >
           {t("view ↗")}
-        </a>
+        </a> : null}
         {/* The internal id used to be surfaced here as a read-only field (2026-08-10). Removed
             2026-08-11: the slug immediately to the left is now the record's routing key
             (`getAdminPostByIdOrSlug` resolves slug FIRST, id second) and is the only identity an
@@ -1373,33 +1373,53 @@ function PostEditorTemplateModalGate({
 }
 
 /**
- * The delete-confirmation dialog's body copy — pulled out of `PostEditor` (complexity-ceiling pass,
- * 2026-08-20) so its two `kindLabel` ternaries (post vs. page phrasing) score in their own scope,
- * same "top-level function scores its own branches independently" reasoning the other extractions in
- * this file already state.
+ * Delete-confirmation presentation, including local discard before first Save. This owner keeps
+ * the title, consequence and action label together; a local working copy has no server row to trash.
+ * Jini's ConfirmDialog continues to own the dialog lifecycle and confirmation behavior.
  */
-function PostDeleteConfirmBody({
+function PostDeleteConfirmDialog({
   kindLabel,
-  postTitle,
+  post,
+  open,
+  pending,
+  onConfirm,
+  onCancel,
   t,
 }: {
   kindLabel: "post" | "page";
-  postTitle: string;
+  post: Pick<AdminPost, "id" | "title">;
+  open: boolean;
+  pending: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
   t: Translate;
 }) {
   return (
-    <p>
-      {t(kindLabel === "page" ? "Move this page" : "Move this post")} (&quot;{postTitle}&quot;){" "}
-      {t(
-        kindLabel === "page"
-          ? "to trash? It will disappear from the site and from the pages list."
-          : "to trash? It will disappear from the site and from the posts list.",
-      )}
-    </p>
+    <ConfirmDialog
+      open={open}
+      agentHandle="post-delete-confirm"
+      title={t(post.id ? "Move to trash?" : "Discard post?")}
+      body={post.id ? (
+        <p>
+          {t(kindLabel === "page" ? "Move this page" : "Move this post")} (&quot;{post.title}&quot;){" "}
+          {t(
+            kindLabel === "page"
+              ? "to trash? It will disappear from the site and from the pages list."
+              : "to trash? It will disappear from the site and from the posts list.",
+          )}
+        </p>
+      ) : <p>{t("Discard this unsaved post?")}</p>}
+      confirmLabel={t(post.id ? "Move to trash" : "Discard")}
+      destructive
+      pending={pending}
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
   );
 }
 
 export interface PostEditorProps {
+  /** Persisted id/slug, or an empty string for the local working copy before first Save. */
   postId: string;
   /**
    * Dependency injection seam for tests — same convention as `Posts.tsx`'s `usePostsHook` and
@@ -1580,7 +1600,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         setTitle={setTitle}
         slug={slug}
         setSlug={setSlug}
-        liveSlug={post.slug}
+        post={post}
         t={t}
       />
 
@@ -1694,6 +1714,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         // raw editor-buffer fallback that used to read `editor.getHTML()` was removed, see
         // `PostPreview`'s own doc).
         <PostPreview
+          postId={post.id}
           bodyJson={bodyJson}
           slug={slug}
           status={status}
@@ -1730,10 +1751,12 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
       {/* Content analysis (AW-7 Tier 2) — renders nothing unless the `content-analyzer` plugin is
           enabled. Gets the live `title`/`bodyJson` so "Analyze now" covers unsaved edits, and `post`
           so a save's freshly stored analysis replaces it. */}
-      <ContentAnalysisCard post={post} title={title} bodyJson={bodyJson} />
       {/* Categories & Tags — the same box the collection-entry editor mounts; it saves on its own
-          button, separately from the post's Save/Publish. */}
-      <TermPicker contentType={post.kind} contentId={post.id} />
+          button, separately from the post's Save/Publish. Both panels need a saved identity. */}
+      {post.id ? <>
+        <ContentAnalysisCard post={post} title={title} bodyJson={bodyJson} />
+        <TermPicker contentType={post.kind} contentId={post.id} />
+      </> : null}
       {/* Save with nothing changed (owner, 2026-10-10): a warning, not a disabled button. "Save anyway"
           still sends the content; the server writes nothing if it really is identical. */}
       <ConfirmDialog
@@ -1746,13 +1769,11 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         onConfirm={onUnchangedSaveConfirm}
         onCancel={onUnchangedSaveCancel}
       />
-      <ConfirmDialog
+      <PostDeleteConfirmDialog
         open={confirmingDelete}
-        agentHandle="post-delete-confirm"
-        title={t("Move to trash?")}
-        body={<PostDeleteConfirmBody kindLabel={kindLabel} postTitle={post.title} t={t} />}
-        confirmLabel={t("Move to trash")}
-        destructive
+        post={post}
+        kindLabel={kindLabel}
+        t={t}
         pending={deleting}
         onConfirm={remove}
         onCancel={onDeleteCancel}
@@ -1847,6 +1868,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
  * same mechanism as `PagePreview`.
  */
 function PostPreview({
+  postId,
   bodyJson,
   slug,
   status,
@@ -1861,6 +1883,8 @@ function PostPreview({
   expanded,
   onToggleExpanded,
 }: {
+  /** Empty until first Save; server previews require a persisted post. */
+  postId: string;
   /** Loosely typed like `PostFormState.bodyJson` (`use-post-editor.hooks.ts`) for the same stated
    *  reason: this only ever gets `JSON.stringify`'d into a hidden form field below, never read for
    *  its shape. `null` means the editor hasn't mounted yet — see the call site's own comment; a
@@ -1900,6 +1924,9 @@ function PostPreview({
   const { canShowLiveSite, canShowTemplatePreview } = resolvePostPreviewBranches({ status, scheduled, dirty, contentDirty });
   // Component-scoped like `ThemeExplorePreview`'s: the frame mounts/unmounts with this tab.
   const { frameRef, paneWidth } = usePreviewPaneWidth();
+
+  // Keep the guard in the preview owner, after hooks so first Save can reveal the server frame.
+  if (!postId) return <p className="notice" role="status">{t("Save this post to preview it.")}</p>;
 
   const pane = (
     <>

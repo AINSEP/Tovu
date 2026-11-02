@@ -653,10 +653,13 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // `entryId`, `loadedId`, `scheduled` and `previewFormTarget` all come from the loaded row — see
   // `loadedPostHandles` (`post-editor-state.rules.ts`) for why writes target the row's id.
   const { entryId, loadedId, scheduled, previewFormTarget } = loadedPostHandles({ post, postId, nowMs: Date.now() });
-  const autosave = useStandingDraftAutosave({ port, entryId: loadedId, enabled: post !== null, serverUpdatedAt: post?.updatedAt });
+  const autosave = useStandingDraftAutosave({ port, entryId: loadedId, enabled: Boolean(post?.id), serverUpdatedAt: post?.updatedAt });
   // The slug this editor's own save just moved the URL to — the load effect skips that `postId` change:
   // it is the record already on screen, not a new one to fetch (see `runSave`).
   const savedRouteSlug = useRef<string | null>(null);
+  // First Save has no row id for compare-and-set yet. Lock synchronously so same-tick
+  // Save/Publish clicks cannot create two records; a failed request releases the lock.
+  const firstSavePending = useRef(false);
 
   const editor = useEditor({
     // Link and Underline ship as part of StarterKit already (verified against its own bundle) —
@@ -856,6 +859,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
 
   useEffect(() => {
     if (postId === savedRouteSlug.current) return;
+    firstSavePending.current = false;
     setPost(null);
     setError(null);
     // Loaded together (not two independent effects) so the template default below never races: the
@@ -864,7 +868,13 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     // read, or a fast post-load racing a slow presentation-settings load could default to "" before
     // the real list arrives. Costs one extra GET per post switch (presentation settings re-fetched
     // even though it rarely changes) — an acceptable trade for a local admin panel.
-    Promise.all([port.getPost(postId), port.getPresentation()])
+    // An empty route identity is a local working copy. Its empty id keeps autosave,
+    // external refresh and persisted-only panels off until the first explicit Save.
+    const row: Promise<{ post: AdminPost }> = postId ? port.getPost(postId) : Promise.resolve({ post: {
+      id: "", workspaceId: "", kind: "post", title: "Untitled", slug: "untitled", bodyJson: { type: "doc", content: [{ type: "paragraph" }] },
+      bodyFormat: "doc", status: "draft", updatedAt: "", version: 0,
+    } satisfies AdminPost });
+    Promise.all([row, port.getPresentation()])
       .then(([{ post }, presentation]) => {
         const { activeThemeTemplates } = presentation;
         setAvailableTemplates(editorTemplateOptions({ templates: activeThemeTemplates, savedTemplate: post.templateChoice }));
@@ -881,7 +891,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         // `slugRedirectPath` (`lib/slug-redirect-path.ts`) rule `use-widget-instance-editor.hooks.ts`
         // and `use-page-editor.hooks.ts` already apply. No root-slug exception here — unlike Pages,
         // every post's slug is always a real path segment.
-        const redirectPath = slugRedirectPath("/posts", postId, post);
+        const redirectPath = post.id ? slugRedirectPath("/posts", postId, post) : null;
         if (redirectPath) navigate(redirectPath, { replace: true });
       })
       .catch((e) => setError(e instanceof Error ? e.message : t("failed to load post")));
@@ -943,7 +953,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
 
   // Tells the assistant which entry "this post" is (`lib/agent-screen-context.ts`) — the saved row,
   // same as `usePageEditor`.
-  useAgentScreenEntry(post === null ? null : { kind: post.kind, id: post.id, title: post.title, slug: post.slug, status: post.status });
+  useAgentScreenEntry(!post?.id ? null : { kind: post.kind, id: post.id, title: post.title, slug: post.slug, status: post.status });
 
   const publishAt = localDateTimeInputToIso(publishAtInput);
   const { isDirty, confirmLeave } = useDirtyGuard<PostFormState>(
@@ -965,7 +975,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // the address bar. Same clean/dirty/saving rule the Pages editor applies
   // (`use-external-entry-refresh.hooks.ts`): a clean editor takes the new row; a dirty one is left alone.
   const externalRefresh = useExternalEntryRefresh<AdminPost>({
-    loaded: post,
+    loaded: post?.id ? post : null,
     fetchLatest: (id) => port.getPost(id).then((loaded) => loaded.post),
     isDirty: () => isDirty,
     isSaving: () => saving,
@@ -1000,7 +1010,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // Save/Publish (`save`'s own `clearStandingDraft` call below) or an explicit Discard
   // (`discardRecoveredDraft`) ever clears a parked draft.
   useEffect(() => {
-    if (!post || !contentDirty) return;
+    if (!post?.id || !contentDirty) return;
     autosave.scheduleAutosave(
       buildPostAutosaveDraft(post, { title, slug, bodyJson: bodyJson as Record<string, unknown>, author, showAuthor })
     );
@@ -1012,7 +1022,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // loaded, unlike the original's "stable per mount" ref, which existed only because `PostPreview`
   // itself remounts on every tab switch). Both `""` before `post` loads — `PostPreview` never renders
   // that early. `previewFormTarget` itself is built by `loadedPostHandles` above.
-  const templatePreviewUrl = post ? port.templatePreviewUrl(post.id, templateChoice) : "";
+  const templatePreviewUrl = post?.id ? port.templatePreviewUrl(post.id, templateChoice) : "";
 
   // Pending-content preview (2026-08-12, moved from `PostPreview`; widened 2026-09-09 to a DIRTY
   // draft and 2026-09-11 to a CLEAN draft — see `PostPreview`'s own doc in `PostEditor.tsx`,
@@ -1024,7 +1034,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   useEffect(
     () =>
       schedulePendingContentPreviewSubmit({
-        active: view === "preview" && post !== null && canShowPendingContentPreview,
+        active: view === "preview" && Boolean(post?.id) && canShowPendingContentPreview,
         form: previewForm,
       }),
     // `loadedId` (`post?.id`), not `post` — the original (`PostPreview`'s own effect, before this moved) keyed on
@@ -1046,6 +1056,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
    * ordinary save.
    */
   async function runSave(statusOverride: SaveStatusOverride, expectedVersion: number | undefined) {
+    if (!entryId && firstSavePending.current) return;
+    firstSavePending.current = !entryId;
     // Claim this call's generation BEFORE the first `await` — see `useSettlementGeneration`'s own
     // doc for why a synchronous ref bump, not `useState`, is what makes two same-tick calls (a
     // double-click, or Save then Publish before either disables) each see the other's claim.
@@ -1057,17 +1069,20 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     const nextStatus = statusOverride ?? status;
     try {
       const bodyJson = editor.getJSON() as Record<string, unknown>;
-      const { post: saved } = await port.updatePost(
-        { id: entryId },
-        // `expectedVersion` is the optimistic-concurrency basis, not content — see
-        // `post-editor-port.hooks.ts`. `undefined` (only reachable before `post` has loaded, when
-        // there is no basis to claim) sends an unguarded save, exactly the pre-2026-09-06 behavior.
-        buildPostUpdatePatch({
-          working: { title, slug, followsTitle, status: nextStatus, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId, author, showAuthor, hideCoverImageInBody },
-          original,
-          expectedVersion,
-        }),
-      );
+      const patch = buildPostUpdatePatch({
+        working: { title, slug, followsTitle, status: nextStatus, bodyJson, templateChoice, overridesThemePage, publishAt, featuredMediaId, author, showAuthor, hideCoverImageInBody },
+        original,
+        expectedVersion,
+      });
+      let response: { post: AdminPost };
+      if (entryId) response = await port.updatePost({ id: entryId }, patch);
+      else {
+        // Create derives an automatic slug itself. Do not send a version basis for a row
+        // that does not exist, and do not create a blank row followed by a fallible PUT.
+        const { expectedVersion: _basis, slugFromTitle: _automatic, ...fields } = patch;
+        response = await port.createPost({ ...fields, title });
+      }
+      const { post: saved } = response;
       // A newer save/publish was issued after this one — that later call owns the outcome now, so
       // this stale response must not paint over it (root cause 1, 2026-09-05 stale-settlement sweep:
       // "last-to-settle wins" rather than "last-clicked wins").
@@ -1075,6 +1090,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       applySavedPost({ saved, statusOverride, expectedVersion, nextStatus, bodyJson });
     } catch (e) {
       if (!settlement.isCurrent({ generation })) return;
+      firstSavePending.current = false;
       applySaveFailure(e, statusOverride);
     } finally {
       // Same generation check as the two branches above: only the call that is still current should
@@ -1123,7 +1139,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
 
   /** {@link runSave}'s failure half, for the call that is still current. */
   function applySaveFailure(e: unknown, statusOverride: SaveStatusOverride): void {
-    if (post) autosave.preserveFailedSave({ error: e, draft: buildPostAutosaveDraft(post, { title, slug, bodyJson: editor.getJSON() as Record<string, unknown>, author, showAuthor }) });
+    if (post?.id) autosave.preserveFailedSave({ error: e, draft: buildPostAutosaveDraft(post, { title, slug, bodyJson: editor.getJSON() as Record<string, unknown>, author, showAuthor }) });
     // The version conflict is NOT folded into the generic error line. The two need opposite
     // reactions from the operator (a slug collision or a network blip: fix it and press Save
     // again; this: pressing Save again erases somebody's document), and the whole point of the
@@ -1139,12 +1155,11 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   /**
    * Persists the working copy against the version this editor loaded — see {@link runSave}.
    *
-   * `post?.version` is the basis. `undefined` before the load effect resolves is deliberate and is
-   * the only unguarded path left: with no loaded row there is no version to claim, and claiming a
-   * wrong one would be worse than claiming none.
+   * Persisted rows use their loaded version as the basis. A local working copy has no basis;
+   * its first Save creates the complete snapshot rather than updating an Untitled placeholder.
    */
   async function save(statusOverride?: "draft" | "published") {
-    await runSave(statusOverride, post?.version);
+    await runSave(statusOverride, post?.id ? post.version : undefined);
   }
 
   /**
@@ -1199,6 +1214,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
    */
   async function remove() {
     if (!post) return;
+    if (!post.id) { navigate("/posts"); return; }
     setMessage(null);
     setError(null);
     setDeleting(true);
@@ -1255,7 +1271,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // UI-subhook pass (2026-08-20) — the interaction layer, composed here so `PostEditor.tsx` reads
   // one controller instead of calling a second hook itself. See `use-post-editor-ui.hooks.ts`'s file
   // header for which handlers deliberately stayed OUT of this hook (and why).
-  const ui = usePostEditorUi({ save, setConfirmingDelete, setShowTemplateModal, dirty: isDirty, setConfirmingUnchangedSave });
+  const ui = usePostEditorUi({ save, setConfirmingDelete, setShowTemplateModal, dirty: isDirty || !post?.id, setConfirmingUnchangedSave });
 
   return {
     ...ui,

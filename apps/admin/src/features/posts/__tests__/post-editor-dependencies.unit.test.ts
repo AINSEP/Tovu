@@ -1,10 +1,24 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createFakePostEditorPort, defaultFeaturedImageRenditionUrl, defaultPostEditorPort } from "../hooks/post-editor-dependencies.hooks";
+import { api } from "@/lib/api";
 
 // The hook suite is being edited by another worker. These are the port's own contracts,
 // including its id guards, which the hook cannot reach with its loaded post's id.
 describe("post editor dependencies", () => {
+  it("accepts the create operation's options object and forwards it through the live binding", async () => {
+    const port = createFakePostEditorPort();
+    const input = { title: "First save" };
+    const options: Record<string, never> = {};
+    const created = await port.createPost(input, options);
+    expect(created.post.title).toBe("First save");
+    const create = vi.spyOn(api, "createPost").mockResolvedValue(created);
+    try {
+      await expect(defaultPostEditorPort.createPost(input, options)).resolves.toEqual(created);
+      expect(create).toHaveBeenCalledWith(input, options);
+    } finally { create.mockRestore(); }
+  });
+
   it("builds real template preview URLs with encoded ids and the three template choices", () => {
     const base = "/api/admin/v1/workspaces/workspace-local/posts/post%2Fone/template-preview";
     for (const [choice, suffix] of [[null, ""], ["", "?templateChoice="], ["long form.html", "?templateChoice=long%20form.html"]] as const) {

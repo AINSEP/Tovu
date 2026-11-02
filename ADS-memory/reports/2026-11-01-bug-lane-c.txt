@@ -1,0 +1,138 @@
+Programmer + TDD (Direct): personas loaded; selected for root-cause admin fixes and user-facing regression tests.
+BUG LANE C — 2026-11-01 — prov2-tovu / merge-1029
+
+Status: four fixes implemented with tests, four items already fixed and skipped, one design proposal. UNVERIFIED: no tests, type checks, lint, builds, servers, installs, or commits were run. No processes were started or left running. Jini was read for reuse discovery but not edited.
+
+Inputs: owner dispatch; canonical /Users/la/Programming/Tovu/development/open-bugs.md lines 65, 181, 189–191, 207, 326, 340–341; local AI-Dev-Shop/AGENTS.md; canonical Programmer/TDD personas; architecture chapters 13/14 and project memory from /Users/la/Programming/Tovu/ADS-memory. The two architecture chapters are absent in this clone, so the canonical source was consulted. Graph MCP tools are unavailable in this session; targeted rg/source/history reads were used.
+
+Patch baseline: 2648602c5e3047e9cf4f4b42b56aeec77954dac0. Other agents changed HEAD during this task. Only the file list below belongs to this lane; other working-tree changes were left alone.
+
+RED -> GREEN HANDOFF (not execution evidence)
+Tests were authored before the first implementation for each fixed bug. Later assertions extend the class guards. Capture files:
+  ADS-memory/.local-artifacts/bug-lane-c-1101/tests.patch
+  ADS-memory/.local-artifacts/bug-lane-c-1101/implementation.patch
+  ADS-memory/.local-artifacts/bug-lane-c-1101/BASE.txt
+  ADS-memory/.local-artifacts/bug-lane-c-1101/FILES.txt
+In a SEPARATE checkout at BASE.txt, apply tests.patch, run each primary red command below, then apply implementation.patch and run its green command. Do not reverse patches in the shared live tree. Some added editor tests need the new create-capable test port, so use the primary user-interaction red command rather than the entire new hook suite before implementation. No red or green result is claimed here.
+
+189 — New Post creates a persisted Untitled row before Save — implemented
+Cause on baseline: apps/admin/src/features/posts/hooks/use-posts.hooks.ts:137–142 immediately calls port.createPost("Untitled"); the editor only supported loading/updating an existing row. The POST boundary additionally discarded several fields needed by a complete first-save snapshot.
+Fix: New Post opens /posts?create=1. This avoids stealing a real slug named new. The existing editor loads an in-memory Untitled working copy; first Save/Publish creates its complete document and metadata in one POST / one version. The create domain reuses its existing transaction, revision ledger, slug allocator, schedule normalizers, byline resolution, and withCoverPresentation. Subsequent saves update the returned id/version. A synchronous first-create lock prevents double-click duplicates, and a failure releases it while retaining the working text. The existing route-rename key mechanism keeps the editor mounted after creation.
+Class guard: list-button interaction proves no write on opening; hook cases cover editing beyond the debounce interval without autosave, first Save and Publish, simultaneous clicks, retry, non-Error failure, subsequent update by real id, and discarding locally. A real editor DOM test changes Post title and clicks Save. Unsaved identities cannot reach external refresh, autosave, taxonomy, content analysis, live links or server preview. The API integration round-trip checks body, template, collision choice, schedule, cover and byline in version 1; malformed cover flags fail before a row is created.
+Existing immediate-create tests were retargeted to the explicitly requested deferred behavior. Their persistence-error and non-Error rejection coverage now lives at first Save in use-post-editor.hooks.unit.test.tsx; no tests were skipped.
+Primary RED command (repository root):
+  npm --prefix apps/admin test -- src/features/posts/__tests__/Posts.unit.test.tsx -t 'New Post opens'
+GREEN/regression commands (repository root):
+  npm --prefix apps/admin test -- src/features/posts/__tests__/Posts.unit.test.tsx src/features/posts/__tests__/PostEditor.unit.test.tsx src/features/posts/__tests__/use-posts.unit.test.ts src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx src/lib/__tests__/api-connectors-policies-forms-seo-redirects-posts.unit.test.ts src/__tests__/unit/panels-render.unit.test.tsx src/lib/__tests__/admin-screens-manifest.unit.test.ts
+  TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --experimental-test-module-mocks apps/website/src/server/inbound/admin-http/routes/posts/__tests__/create.test.ts apps/website/src/features/site-inspection/__tests__/site-capabilities.unit.test.ts
+The generated screen manifest's one posts query row was synchronized directly because its normal regeneration command runs a test, which this dispatch forbids me to execute. The manifest drift test is included above.
+Reuse: deferred post creation; searched Posts, PostEditor, post-editor-save/state rules, Pages, widget creation, API client and create route/domain; extended the existing CMS editor/save/transaction owners. No new editor or generic draft framework. The API client now takes a required object plus optional options object; both existing adapters and its direct contract tests were updated.
+
+207 — narrow chart has an orphan middle dot — implemented
+Cause: content/plugins/charts-recharts/0.1.0/client/provider.js, fJ tick renderer (minified line 66 after this patch), passes a space-separated category directly to Recharts Text. Its word wrapper treats the separator as an independent word, which can consume its own line at narrow widths.
+Fix: bind each middle-dot separator to its following word using a nonbreaking space at the existing tick-rendering owner. Keep the original full SVG title. Both integrity pins match the new bundle bytes. No bundle rebuild was run; the source package was previously removed, so this follows the existing reviewed bundle-patch path.
+Class guard: mount the actual shipped provider at 180, 240 and 375 pixels in dark mode; assert no rendered tspan is only a middle dot and rendered full tick titles still name original categories. Existing integer/fractional-y-axis cases stay intact.
+Primary RED command / GREEN command:
+  npm --prefix apps/admin test -- src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts
+Reuse: label wrapping; inspected the bundled fJ/Text splitter and existing shipped-bundle render harness, plus Jini chart ownership/history. Extended fJ; no parallel chart provider or text-layout engine.
+
+340 — skill-drop failure consumes half the dock and cannot dismiss — implemented
+Cause on baseline: apps/admin/src/features/skills/SkillInstallConfirmation.tsx:8 returns a bare notice as a direct dock child; apps/admin/src/styles/assistant.css:116 applies flex:1 to every direct child. There was no dismissal control.
+Fix: compact flex:0 error row, wrapping error text, existing notice/theme paint, and a labelled 44x44-minimum Dismiss button calling the existing install.cancel owner. Pending install dialogs retain their current lifecycle.
+Class guard: the test fires a real directory drop through captureSkillDrop; directory reading rejects, useSkillInstall receives that failure, and the rendered alert must have flex-grow 0. The test checks its touch target, focuses Dismiss and activates it with Enter, then asserts the alert disappears.
+Primary RED command / GREEN command:
+  npm --prefix apps/admin test -- src/features/skills/__tests__/skill-dialogs-and-row.unit.test.tsx
+Reuse: error lifecycle; searched admin notices and Jini UI/admin dismissible banners, inspected the feature-owned useSkillInstall.cancel and SkillInstallConfirmation. Reused cancel and existing notice/button theme classes; no shared notification abstraction.
+
+341 — two-folder notice names only the last folder — implemented
+Cause on baseline: apps/admin/src/features/fs-files/hooks/use-folder-drop.hooks.ts:257 passes only the last path into applyCustomRoot; the confirmation state only retains that root, and FolderDropConfirmation describes it as the entire read capability.
+Fix: retain all paths for a multi-folder drop and retry. The notice names every folder added to the message and separately identifies the single active file root. The existing single-folder replacement wording and last-root-wins ordering remain. Long paths wrap, and dismiss controls have a 44x44 minimum.
+Class guard: real drop-hook fixture checks all staged paths and only one root write; a failed-root retry must retain the full set without staging duplicate chips. Render test checks both names, the root explanation, wrapping and touch size. Existing single-folder confirmation/keyboard tests remain.
+Primary RED command:
+  npm --prefix apps/admin test -- src/components/AssistantDock/__tests__/FolderDropNotice.unit.test.tsx -t 'names every staged folder'
+GREEN command:
+  npm --prefix apps/admin test -- src/features/fs-files/hooks/__tests__/use-folder-drop.hooks.unit.test.ts src/components/AssistantDock/__tests__/FolderDropNotice.unit.test.tsx src/components/AssistantDock/__tests__/FolderDropConfirmation.unit.test.tsx
+Reuse: multi-folder notification; inspected folder-drop port/hook, existing serial-write/generation guards, FolderDropNotice and FolderDropConfirmation. Extended those owners; no second root registry, permissions owner or folder lifecycle.
+
+ALREADY FIXED — skipped, no new implementation
+181 Theme Explore Copy: c1f1d2f1415d1cca51edb7a0127913b5e3596306 calls writeThemeExploreSelectionToUrl for the copied selection. Current source still contains it.
+  npm --prefix apps/admin test -- src/features/themes/__tests__/use-theme-explore.hooks.unit.test.ts
+190 preview cookie note padding: 5c7d5c4b5 added .post-editor-pane > .editor-preview-note padding and border; it still matches the current markup. Existing preview-note-css test guards it.
+  npm --prefix apps/admin test -- src/styles/__tests__/preview-note-css.unit.test.ts
+191 Export/Import SOON: 329d1e157 removed the Soon tags; current ImportExport tests explicitly guard the absence of coming-soon handles.
+  npm --prefix apps/admin test -- src/features/import-export/__tests__/ImportExport.unit.test.tsx
+326 Stop test: DRIFT, already corrected by 348f8313095098929c31dadc802fcb04f6fd7881 following 3e4c02499. The old test pre-aborted without a reason and expected the unrelated wake error text. The current test stops mid-wake with its own DOMException and asserts that exact reason, one wake attempt and zero dispatches. Current pageBindToken preserves the caller's signal.reason. No test weakening or transport edit was needed.
+  npm --prefix apps/admin test -- src/components/__tests__/AssistantDock.hooks.unit.test.tsx -t 'Stop during the wake'
+These are source/history conclusions, not newly executed verification.
+
+65 — Edit header at 375px — proposal only, NOT BUILT
+At 375px the content area is about 351px; the current tabs plus three 44px device controls demand about 378px and split into six rows.
+Propose three purposeful rows below the page title: (1) editable slug plus Save and a labelled More menu for secondary actions; (2) one native View select containing HTML/Interactive/Preview, with the three device choices shown only in Preview; (3) the preview-specific reload, visibility, template and expand controls. A roughly 150px View select + 132px device group + token gaps fits 351px without shrinking targets. Keep the preview caption below the toolbar, and keep the preview toolbar/expand control in the same sticky positioning context so neither overlays caption text. Long slug editing may use the existing URL dialog on phones. Preserve desktop composition. Use theme tokens, native/select keyboard behavior, explicit labels for icon controls, 44px targets and visible focus in light/dark themes. Coordinator/owner should confirm the action grouping before a separate implementation task.
+
+VISUAL CHANGES FOR LATER CHROME CHECK
+- New Post stays on /admin/posts?create=1 and shows the existing editor with a local Untitled working copy; it does not add an Untitled row to Posts. First Save/Publish changes to the final slug URL.
+- Before first Save: server preview shows a Save-first note; taxonomy/content analysis/live-view link stay absent. After Save they become available. Local discard confirmation says Discard post?/Discard this unsaved post? rather than Move to trash.
+- Skill-drop failure is a compact wrapping notice with a Dismiss button rather than a half-dock pink block.
+- Multi-folder success names all added paths and the active file root. Long paths wrap. Folder notice dismiss controls are at least 44px and may make the row taller.
+- Chart separators wrap with the following label word, never as a standalone dot; full SVG titles remain available.
+Check all of these at 375px, dock width and desktop in light/dark, with Tab/Enter and screen-reader names. No new hard-coded colors were introduced. The 375px header proposal itself has no visual implementation in this lane.
+
+BUGS FOUND
+- The four implemented issues above; the four already-fixed items above.
+- Existing folder-notice timer bug, not changed: a previous success's auto-dismiss timer can erase a newer error. apps/admin/src/features/fs-files/hooks/__tests__/use-folder-drop.hooks.unit.test.ts:349 explicitly characterizes this bad behavior. The error branch in use-folder-drop.hooks.ts leaves the old timer armed. This remains a separate fix because altering that existing characterization test was outside this lane's assigned notice-content bug.
+- Possible existing unsaved-buffer loss in Theme Explore Copy (static finding, not reproduced): copyFile at use-theme-explore.hooks.ts:1458 changes selection after copying, whereas select checks confirmLeave. Copy does not check confirmLeave before replacing a dirty buffer. The URL fix is already landed, so this lane did not change Copy again. Coordinator should reproduce with unsaved source before classifying/fixing.
+
+NOT DONE / LIMITATIONS
+- No red/green execution evidence: the owner assigned test execution to the coordinator/cloud and explicitly prohibited it here.
+- No Chrome/live layout verification; jsdom/render tests cannot establish pixel geometry.
+- No Edit-header redesign implementation, as requested.
+- Unsaved posts remain in memory until first Save; no new local draft-recovery mechanism or record-free theme-preview endpoint was built. Reload before first Save loses that local copy (the dirty-navigation guard still applies after edits).
+- No fix for the separate folder-notice timer issue or the possible dirty-copy issue above.
+- No generic platform module, dependency, schema migration, desktop change, plugin packaging/lifecycle change, lockfile change or package rebuild.
+
+JINI / LOCKFILE / COMMIT HANDOFF
+prov2-jini files changed: NONE. Jini packages to rebuild: NONE. No Jini type check was applicable because no Jini package was touched.
+Lockfile changes needed: NONE. Dependencies added: NONE.
+prov2-tovu: no commits/pushes, per read-only .git instruction. Suggested next assignee: Coordinator/TestRunner for the commands above, then Chrome verification/review. Do not include unrelated agents' files.
+
+COMMIT FILE LIST — prov2-tovu (33 task source/test/assets)
+apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+apps/admin/src/components/AssistantDock/FolderDropConfirmation.tsx
+apps/admin/src/components/AssistantDock/FolderDropNotice.tsx
+apps/admin/src/components/AssistantDock/__tests__/FolderDropNotice.unit.test.tsx
+apps/admin/src/features/fs-files/hooks/__tests__/use-folder-drop.hooks.unit.test.ts
+apps/admin/src/features/fs-files/hooks/use-folder-drop.hooks.ts
+apps/admin/src/features/posts/PostEditor.tsx
+apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx
+apps/admin/src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx
+apps/admin/src/features/posts/__tests__/use-posts.unit.test.ts
+apps/admin/src/features/posts/hooks/post-editor-dependencies.hooks.ts
+apps/admin/src/features/posts/hooks/posts-list-dependencies.hooks.ts
+apps/admin/src/features/posts/hooks/post-editor-port.hooks.ts
+apps/admin/src/features/posts/hooks/post-editor-state.rules.ts
+apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts
+apps/admin/src/features/posts/hooks/use-posts.hooks.ts
+apps/admin/src/features/skills/SkillInstallConfirmation.tsx
+apps/admin/src/features/skills/__tests__/skill-dialogs-and-row.unit.test.tsx
+apps/admin/src/features/skills/skills.css
+apps/admin/src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts
+apps/admin/src/lib/__tests__/api-connectors-policies-forms-seo-redirects-posts.unit.test.ts
+apps/admin/src/lib/api.ts
+apps/admin/src/panels.tsx
+apps/admin/src/styles/assistant.css
+apps/website/src/features/post/post.ts
+apps/website/src/features/site-inspection/__tests__/site-capabilities.unit.test.ts
+apps/website/src/features/site-inspection/admin-screens.generated.ts
+apps/website/src/server/inbound/admin-http/routes/posts/__tests__/create.test.ts
+apps/website/src/server/inbound/admin-http/routes/posts/create.ts
+apps/website/src/server/runtime/composition/charts-recharts-source.ts
+content/plugins/charts-recharts/0.1.0/client/provider.js
+content/plugins/charts-recharts/0.1.0/tovu.plugin.json
+
+Handoff artifacts (report plus local patches, not source implementation):
+  ADS-memory/reports/2026-11-01-bug-lane-c.txt
+  ADS-memory/.local-artifacts/bug-lane-c-1101/BASE.txt
+  ADS-memory/.local-artifacts/bug-lane-c-1101/FILES.txt
+  ADS-memory/.local-artifacts/bug-lane-c-1101/tests.patch
+  ADS-memory/.local-artifacts/bug-lane-c-1101/implementation.patch

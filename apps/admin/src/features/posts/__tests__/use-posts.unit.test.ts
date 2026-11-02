@@ -84,35 +84,26 @@ describe("initial load", () => {
 });
 
 describe("createPost", () => {
-  it("POSTs { title: 'Untitled' } to the posts collection and navigates via the real router", async () => {
+  it("opens a local editor via the real router without POSTing an Untitled row", async () => {
     window.history.replaceState(null, "", "/admin/posts");
     const { result } = await renderLoaded();
-    fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...POST, id: "p2", title: "Untitled", slug: "untitled" } }));
-
-    await act(async () => {
-      await result.current.createPost();
-    });
-
-    const call = [...fetchMock.mock.calls].reverse().find(([, init]) => init?.method && init.method !== "GET")!;
-    expect(String(call[0])).toContain("/workspaces/workspace-local/posts");
-    expect((call[1] as RequestInit).method).toBe("POST");
-    expect(JSON.parse(String((call[1] as RequestInit).body))).toEqual({ title: "Untitled" });
-    expect(window.location.pathname).toBe("/admin/posts/untitled");
+    const callsBefore = fetchMock.mock.calls.length;
+    await act(() => result.current.createPost());
+    expect(fetchMock.mock.calls).toHaveLength(callsBefore);
+    expect(window.location.pathname).toBe("/admin/posts");
+    expect(window.location.search).toBe("?create=1");
   });
 
-  it("sets error and clears creating, without navigating, on failure", async () => {
+  it("opening a new editor cannot surface a persistence failure before Save", async () => {
     window.history.replaceState(null, "", "/admin/posts");
     const { result } = await renderLoaded();
-    const locationBefore = window.location.href;
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "quota exceeded" }, 403));
-
-    await act(async () => {
-      await result.current.createPost();
-    });
-
+    const callsBefore = fetchMock.mock.calls.length;
+    await act(() => result.current.createPost());
+    expect(fetchMock.mock.calls).toHaveLength(callsBefore);
     expect(result.current.creating).toBe(false);
-    expect(result.current.error).toBe("quota exceeded");
-    expect(window.location.href).toBe(locationBefore);
+    expect(result.current.error).toBeNull();
+    expect(window.location.search).toBe("?create=1");
   });
 });
 
@@ -351,17 +342,17 @@ describe("rowSavingId — shared between the publish toggle and Delete", () => {
 });
 
 describe("injected port (useWiredX conversion coverage)", () => {
-  it("uses the create fallback for a non-Error rejection and preserves the list and route", async () => {
+  it("opening a new post never calls a refusing create port and preserves the list", async () => {
     const fake = createFakePostsListPort({ posts: [POST] });
     const port = { ...fake, createPost: async () => { throw "offline"; } };
     const navigate = vi.fn();
     const { result } = renderHook(() => usePosts({ port, navigate }));
     await waitFor(() => expect(result.current.posts).toEqual([POST]));
     await act(() => result.current.createPost());
-    expect(result.current.error).toBe("failed to create post");
+    expect(result.current.error).toBeNull();
     expect(result.current.creating).toBe(false);
     expect(result.current.posts).toEqual([POST]);
-    expect(navigate).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith("/posts?create=1");
   });
 
   it.each([
@@ -425,9 +416,8 @@ describe("injected port (useWiredX conversion coverage)", () => {
       await result.current.createPost();
     });
 
-    expect(port.posts).toHaveLength(2);
-    // readable-slugs S6a: navigates to the new post's slug, not its id.
-    expect(navigate).toHaveBeenCalledWith(`/posts/${port.posts[1]!.slug}`);
+    expect(port.posts).toEqual([POST]);
+    expect(navigate).toHaveBeenCalledWith("/posts?create=1");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -479,7 +469,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     expect(result.current.posts).toEqual([]);
   });
 
-  it("sets the fallback error when the injected port's create call rejects", async () => {
+  it("opens the editor without touching a create port that would reject", async () => {
     const port = createFakePostsListPort({ posts: [], createError: new Error("quota exceeded") });
     const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
     await waitFor(() => expect(result.current.posts).not.toBeNull());
@@ -488,7 +478,8 @@ describe("injected port (useWiredX conversion coverage)", () => {
       await result.current.createPost();
     });
 
-    expect(result.current.error).toBe("quota exceeded");
+    expect(result.current.error).toBeNull();
+    expect(port.posts).toEqual([]);
     expect(result.current.creating).toBe(false);
   });
 });

@@ -91,6 +91,90 @@ afterEach(() => {
   localStorage.clear();
 });
 
+describe("new posts stay local until their first Save", () => {
+  it("opens a local editor and typing never creates or autosaves a row", async () => {
+    const port = createFakePostEditorPort();
+    const get = vi.spyOn(port, "getPost");
+    const create = vi.spyOn(port, "createPost");
+    const { result } = renderHook(() => usePostEditor("", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    expect(result.current.title).toBe("Untitled");
+    expect(result.current.dirty).toBe(false);
+    expect(get).not.toHaveBeenCalled();
+    vi.useFakeTimers();
+    try {
+      act(() => result.current.setTitle("My first post"));
+      await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+      expect(result.current.slug).toBe("my-first-post");
+      expect(result.current.dirty).toBe(true);
+      expect(create).not.toHaveBeenCalled();
+      expect(port.putAutosaveCalls).toEqual([]);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it.each(["draft", "published"] as const)("the first %s save creates once with the working content, then later saves update its real id", async status => {
+    const port = createFakePostEditorPort();
+    const create = vi.spyOn(port, "createPost");
+    const update = vi.spyOn(port, "updatePost");
+    const navigate = fakeNavigate();
+    const { result, rerender } = renderHook(({ segment }) => usePostEditor(segment, { port, navigate, t: fakeT }), { initialProps: { segment: "" } });
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    act(() => { result.current.setTitle("My first post"); result.current.setAuthor("Ada"); result.current.setShowAuthor(true); });
+    await act(async () => { await Promise.all([result.current.save(status), result.current.save(status)]); });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ title: "My first post", status, author: "Ada", showAuthor: true, bodyJson: expect.any(Object) }));
+    expect(update).not.toHaveBeenCalled();
+    expect(result.current.post?.id).toBeTruthy();
+    expect(navigate).toHaveBeenCalledWith("/posts/my-first-post", { replace: true });
+    rerender({ segment: "my-first-post" });
+    act(() => result.current.setTitle("Another title"));
+    await act(() => result.current.save());
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith({ id: port.post.id }, expect.objectContaining({ expectedVersion: 1 }));
+  });
+
+  it("a refused first Save keeps the text and route, and can be retried without a partial row", async () => {
+    const port = createFakePostEditorPort();
+    const create = vi.spyOn(port, "createPost").mockRejectedValueOnce(new Error("quota exceeded"));
+    const navigate = fakeNavigate();
+    const { result } = renderHook(() => usePostEditor("", { port, navigate, t: fakeT }));
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    act(() => result.current.setTitle("Keep this text"));
+    await act(() => result.current.save());
+    expect(result.current.error).toBe("quota exceeded");
+    expect(result.current.title).toBe("Keep this text");
+    expect(result.current.dirty).toBe(true);
+    expect(result.current.saving).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
+    await act(() => result.current.save());
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(result.current.post?.id).toBeTruthy();
+  });
+
+  it("a non-Error first-save failure uses the save fallback and keeps the working text", async () => {
+    const port = createFakePostEditorPort();
+    vi.spyOn(port, "createPost").mockRejectedValue("offline");
+    const { result } = renderHook(() => usePostEditor("", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    act(() => result.current.setTitle("Keep this text"));
+    await act(() => result.current.save());
+    expect(result.current.error).toBe("save failed");
+    expect(result.current.title).toBe("Keep this text");
+    expect(result.current.saving).toBe(false);
+  });
+
+  it("deleting an unsaved post leaves without sending a delete to the server", async () => {
+    const port = createFakePostEditorPort();
+    const remove = vi.spyOn(port, "deletePost");
+    const navigate = fakeNavigate();
+    const { result } = renderHook(() => usePostEditor("", { port, navigate, t: fakeT }));
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    await act(() => result.current.remove());
+    expect(remove).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith("/posts");
+  });
+});
+
 describe("usePostEditor — load", () => {
   it("populates post/title/slug/status and the theme fields from the injected port", async () => {
     const port = createFakePostEditorPort({
@@ -683,6 +767,7 @@ describe("usePostEditor — save", () => {
     let state: AdminPost = { ...POST, status: "draft" };
     const resolvers: Array<() => void> = [];
     const port: PostEditorPort = {
+      ...createFakePostEditorPort({ post: state }),
       async getPost() {
         return { post: state };
       },
@@ -782,6 +867,7 @@ describe("usePostEditor — save", () => {
     let state = initial;
     const resolvers: Array<() => void> = [];
     const port: PostEditorPort = {
+      ...createFakePostEditorPort({ post: state }),
       async getPost() {
         return { post: state };
       },

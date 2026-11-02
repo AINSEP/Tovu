@@ -536,6 +536,10 @@ export interface CreatePostInput {
   /** Omitted on create defaults to the actor account username; null clears the credit. */
   author?: string | null;
   showAuthor?: boolean;
+  /** First-save presentation choices; same contracts as the update input. */
+  templateChoice?: string | null;
+  overridesThemePage?: boolean | null;
+  hideCoverImageInBody?: boolean;
   /** Attribution for the revision this write appends to `post_revisions` (2026-09-18). Optional —
    *  an omitted value defaults to {@link SYSTEM_ACTOR_ID} rather than being required, so this
    *  repo's own ~9 direct-unit-test call sites (documented on {@link CreatePostDeps}) keep
@@ -1453,6 +1457,7 @@ export async function createPost(
   _optional: CreatePostOptional = {}
 ): Promise<{ post: PublicPostRecord; revisionId: string; previousRevisionId: string | null }> {
   const { deps, input } = required;
+  assertOptionalBoolean({ value: input.hideCoverImageInBody, name: "hideCoverImageInBody" });
   const { title, explicitSlug, bodyJson, status, bodyFormat, bodyHtml } = resolveCreateFields(input);
   const scheduleFields = presentScheduleFields({
     publishAt: normalizePublishAt(input.publishAt),
@@ -1475,7 +1480,7 @@ export async function createPost(
     bodyJson,
     ext: {},
   });
-  const ext = mergeExt(undefined, extPatch);
+  const ext = withCoverPresentation({ ext: mergeExt(undefined, extPatch), hideCoverImageInBody: input.hideCoverImageInBody });
 
   // One clock read, reused for both `updatedAt` and `createdAt` below — a second `nowIso()` call
   // would risk the pair disagreeing by a tick and misrepresenting "created" as happening after
@@ -1501,6 +1506,8 @@ export async function createPost(
     createdAt: now,
     ...byline,
     ...scheduleFields,
+    ...(input.templateChoice !== undefined ? { templateChoice: input.templateChoice } : {}),
+    ...(input.overridesThemePage !== undefined ? { overridesThemePage: input.overridesThemePage } : {}),
     ...(ext !== undefined ? { ext } : {}),
   };
 

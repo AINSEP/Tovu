@@ -76,8 +76,16 @@ describe("posts", () => {
 
   test("createPost POSTs { title } and resolves the created post", async () => {
     const { body, method } = stubFetchCapturing(() => jsonResponse({ post: { id: "p1", title: "Hello" } }));
-    await expect(api.createPost("Hello")).resolves.toEqual({ post: { id: "p1", title: "Hello" } });
+    await expect(api.createPost({ title: "Hello" })).resolves.toEqual({ post: { id: "p1", title: "Hello" } });
     expect(body()).toEqual({ title: "Hello" });
+    expect(method()).toBe("POST");
+  });
+
+  test("createPost forwards the first-save document and metadata in the same POST", async () => {
+    const { body, method } = stubFetchCapturing(() => jsonResponse({ post: { id: "p1" } }));
+    const fields = { bodyJson: { type: "doc" }, templateChoice: "post.html", publishAt: "2030-01-01T00:00:00.000Z", hideCoverImageInBody: false };
+    await api.createPost({ title: "Hello", ...fields });
+    expect(body()).toEqual({ title: "Hello", ...fields });
     expect(method()).toBe("POST");
   });
 

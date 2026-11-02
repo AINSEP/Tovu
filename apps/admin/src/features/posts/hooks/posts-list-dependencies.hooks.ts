@@ -10,7 +10,7 @@ import type { PostsListPort } from "./posts-list-port.hooks";
 /** The live implementation, as a module-level singleton. */
 export const defaultPostsListPort: PostsListPort = {
   listPosts: () => api.listPosts(),
-  createPost: (title) => api.createPost(title),
+  createPost: (title) => api.createPost({ title }),
   updatePost: (target, patch) => api.updatePost(target, patch),
   deletePost: (id) => api.deletePost(id),
 };

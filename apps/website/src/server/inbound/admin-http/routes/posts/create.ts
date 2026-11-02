@@ -111,6 +111,12 @@ export const registerAdminPostCreateRoute: ContentRouteRegistrar = (app, deps) =
                   status: req.body?.status,
                   author: req.body?.author,
                   showAuthor: req.body?.showAuthor,
+                  // First Save sends the full editor snapshot; keep it in this atomic create.
+                  templateChoice: req.body?.templateChoice,
+                  overridesThemePage: req.body?.overridesThemePage,
+                  hideCoverImageInBody: req.body?.hideCoverImageInBody,
+                  publishAt: req.body?.publishAt,
+                  featuredMediaId: req.body?.featuredMediaId,
                   actorId: principal.id,
                   analyticsSource: "admin",
                 },

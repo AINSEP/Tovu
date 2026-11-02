@@ -2,6 +2,8 @@ import { render, screen, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import { usePosts } from "../hooks/use-posts.hooks";
+import { createFakePostsListPort } from "../hooks/posts-list-dependencies.hooks";
 import { Posts, postsListNotice } from "../Posts";
 import type { PostsController } from "../hooks/use-posts.hooks";
 import { buildPostRowMenuHandleMap } from "../rules";
@@ -340,4 +342,14 @@ describe("postsListNotice", () => {
   it("returns null once the list has loaded, even with an error set (the inline-banner case)", () => {
     expect(postsListNotice([], "a later error", (key) => key)).toBeNull();
   });
+});
+
+it("New Post opens the unsaved editor without persisting an Untitled post", async () => {
+  const port = createFakePostsListPort({ posts: [] });
+  const create = vi.spyOn(port, "createPost");
+  render(<Posts usePostsHook={() => usePosts({ port, navigate })} />);
+  await userEvent.click(await screen.findByRole("button", { name: "New Post" }));
+  expect(navigate).toHaveBeenCalledWith("/posts?create=1");
+  expect(create).not.toHaveBeenCalled();
+  expect(port.posts).toEqual([]);
 });

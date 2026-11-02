@@ -212,10 +212,13 @@ export const ADMIN_PANELS: readonly TovuAdminPanel[] = [
   },
   {
     id: "posts",
+    allowedQueryParams: {"create": ["1"]},
     description: "Write, edit and organize posts.",
     agentEntities: [{"type": "post", "pattern": "/:postId"}],
     anyOfPermissions: ["content.read"],
     render: (ctx) => {
+      // Query mode avoids reserving a real post slug such as "new".
+      if (ctx.query.get("create") === "1" && !ctx.params.postId) return <PostEditor key={postEditorRouteKey("")} postId="" />;
       if (ctx.view === "post-editor") {
         // Guaranteed present: this view only fires when `/:postId` matched.
         // `key` (2026-08-12 audit, blocker TM-TOVU-2026-08-12-A/F1): without it React reuses one

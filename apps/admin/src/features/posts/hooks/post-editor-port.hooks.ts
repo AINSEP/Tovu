@@ -1,4 +1,4 @@
-import type { AdminMedia, AdminPost, AdminThemeSummary, PresentationSettings } from "@/lib/api";
+import type { AdminPostCreateInput, AdminMedia, AdminPost, AdminThemeSummary, PresentationSettings } from "@/lib/api";
 import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autosave.hooks";
 
 /**
@@ -27,6 +27,8 @@ import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autos
  * both features either way.
  */
 export interface PostEditorPort extends StandingDraftAutosavePort {
+  /** Creates only on first Save, with every edited field in one request. */
+  createPost(input: AdminPostCreateInput, options?: Record<string, never>): Promise<{ post: AdminPost }>;
   getPost(id: string): Promise<{ post: AdminPost }>;
   getPresentation(): Promise<{
     settings: PresentationSettings;

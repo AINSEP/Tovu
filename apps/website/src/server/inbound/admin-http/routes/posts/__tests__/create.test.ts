@@ -134,3 +134,29 @@ test("create post (direct invoke): a missing :workspaceId 404s; a body-less requ
   assert.equal(created.post.title, "Untitled");
   assert.equal(created.post.status, "draft");
 });
+
+// First-save creation must persist the whole editor snapshot atomically, not create then PUT.
+test("first Save creates the working content and presentation in one version", async t => {
+  const { create, deps } = await startServer(t);
+  const bodyJson = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "First body" }] }] };
+  const res = await create({ title: "First save", slug: "first-save", bodyJson, status: "draft", templateChoice: "post.html", overridesThemePage: true, publishAt: "2030-01-01T12:00:00.000Z", featuredMediaId: "cover-1", hideCoverImageInBody: false, author: "Ada", showAuthor: true });
+  assert.equal(res.status, 201);
+  const { post } = await res.json() as { post: Record<string, unknown> };
+  assert.equal(post.version, 1);
+  assert.equal(post.templateChoice, "post.html");
+  assert.equal(post.overridesThemePage, true);
+  assert.equal(post.publishAt, "2030-01-01T12:00:00.000Z");
+  assert.equal(post.featuredMediaId, "cover-1");
+  assert.equal(post.author, "Ada");
+  assert.equal(post.showAuthor, true);
+  assert.deepEqual(post.bodyJson, bodyJson);
+  const stored = (await deps.postRepo.list({ workspaceId: WS })).find(p => p.slug === "first-save");
+  assert.equal((stored?.ext?.["post-presentation"] as Record<string, unknown>)?.hideCoverImageInBody, false);
+});
+
+test("first Save rejects a malformed cover flag without creating a row", async t => {
+  const { create, deps } = await startServer(t);
+  const res = await create({ title: "Invalid first save", hideCoverImageInBody: "false" });
+  assert.equal(res.status, 400);
+  assert.equal((await deps.postRepo.list({ workspaceId: WS })).some(p => p.title === "Invalid first save"), false);
+});

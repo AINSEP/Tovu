@@ -132,6 +132,7 @@ export function resolveEditorSlug(required: {
   slugEdited: boolean;
 }): { followsTitle: boolean; slug: string } {
   const { post, title, storedSlug, slugEdited } = required;
+  if (post && !post.id && !slugEdited) return { followsTitle: true, slug: title.trim() ? postSlugForTitle({ title }) : "" };
   if (post === null || !postSlugFollowsTitle({ post, manuallyEdited: slugEdited })) return { followsTitle: false, slug: storedSlug };
   return { followsTitle: true, slug: title !== post.title ? postSlugForTitle({ title }) : storedSlug };
 }
@@ -140,7 +141,7 @@ export function resolveEditorSlug(required: {
 export interface LoadedPostHandles {
   /** What every write after load targets. */
   entryId: string;
-  /** The loaded row's id, or `null` before it loads — the standing-draft key and the preview effect's dependency. */
+  /** The persisted row id, or `null` before load/first Save — the standing-draft key and preview dependency. */
   loadedId: string | null;
   /** The SAVED row is published but its go-live time is still ahead. */
   scheduled: boolean;
@@ -162,7 +163,7 @@ export interface LoadedPostHandles {
  */
 export function loadedPostHandles(required: { post: AdminPost | null; postId: string; nowMs: number }): LoadedPostHandles {
   const { post, postId, nowMs } = required;
-  if (post === null) return { entryId: postId, loadedId: null, scheduled: false, previewFormTarget: "" };
+  if (!post?.id) return { entryId: postId, loadedId: null, scheduled: false, previewFormTarget: "" };
   return {
     entryId: post.id,
     loadedId: post.id,

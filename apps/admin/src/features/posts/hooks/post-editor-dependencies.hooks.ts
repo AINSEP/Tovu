@@ -12,6 +12,7 @@ import type { PostEditorPort } from "./post-editor-port.hooks";
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultPostEditorPort: PostEditorPort = {
   getPost: (id) => api.getPost(id),
+  createPost: (input, options = {}) => api.createPost(input, options),
   getPresentation: () => api.getPresentation({ kind: "post" }),
   updatePost: (target, patch) => api.updatePost(target, patch),
   deletePost: (id) => api.deletePost(id),
@@ -149,6 +150,11 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
 
     simulateConcurrentSave(title = "Saved by someone else") {
       state.post = { ...state.post, title, version: state.post.version + 1 };
+    },
+
+    async createPost(input, _options = {}) {
+      state.post = { ...DEFAULT_POST, ...input, id: "created-post-1", slug: input.slug ?? postSlugForTitle({ title: input.title }), version: 1 };
+      return { post: state.post };
     },
 
     async getPost() {

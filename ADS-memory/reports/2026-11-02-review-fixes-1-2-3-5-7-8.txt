@@ -1,0 +1,106 @@
+Programmer(Execution), with TDD: personas loaded; selected for minimal runtime/presentation fixes and regression tests through real user paths.
+
+FIX ROUND — review findings 1, 2, 3, 5, 7, 8
+Status: implemented; cloud verification pending. No tests, lint, builds, installs, servers, commits, or helper agents were run. No processes were started or left running. Only targeted git diff --check was executed; exit 0.
+
+Read: full r1-bug-lanes.md review, all four background lane reports, mandatory AI-Dev-Shop/AGENTS.md, canonical Programmer/TDD personas, architecture chapters 13/14, project memory and governance ADR index. Canonical architecture/memory sources under /Users/la/Programming/Tovu/ADS-memory were used where absent in this clone. Graph MCP tools were unavailable; discovery used targeted rg and source reads. The dispatch supplies the approved implementation direction; no new architecture or ownership boundary was introduced.
+
+PER FINDING
+
+1 — invalid getByRole option
+Change: apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx:1871 removes exact:true; string name matching remains exact. Searched the other lane-C admin test files, including all posts tests, panel rendering, folder notice/drop, skill dialogs, chart rendering and API tests. No other exact:true occurrence was found.
+Evidence: read installed apps/admin/node_modules/@testing-library/dom/types/queries.d.ts:69; ByRoleOptions has name:string|RegExp|predicate and no exact property.
+Test/command: A below preserves the real typing -> Save -> single create interaction. This is a compile-contract correction; no runtime RED is claimed for an excess-property error. Class guard: the existing typed getByRole call plus the lane-C scan, without weakening its accessible-name expectation.
+
+2 — WAL-mode seed cannot deserialize
+Change: apps/website/src/server/runtime/composition/publish-content-seed-hash.ts:4,83 uses the EXISTING @jini-ai/db/transfer inMemoryReadableBytes owner before native deserialization. It copies WAL bytes and sets header bytes 18/19 to rollback mode; the seed file is never rewritten. Retained the SQLITE_CANTOPEN/complete-checkpointed-image rationale beside the call. No new normalizer or DB lifecycle.
+Test: apps/website/src/server/runtime/composition/__tests__/publish-content-seed-hash.load-deps.unit.test.ts:45 strengthens the existing success/failure test with a real persisted post/body. It closes the WAL fixture, checks header [2,2] and absence of WAL sidecars, reads actual content through the returned repo, checks byte-for-byte unchanged source, and checks no new files beside the seed or temporary seed-copy directories after success/failure. Existing missing-row and invalid-seed assertions remain.
+Expected RED -> GREEN (unexecuted): with the test-only patch, the closed WAL seed fails loading with SQLITE_CANTOPEN; after the implementation patch, content reads succeed with unchanged source and no disk copies. Command B.
+Class guard: a complete closed WAL image containing real content, rather than only a missing-record query; both success and invalid-image cleanup remain covered.
+
+3 — public HTTP comments still capped at 20
+Change: apps/website/src/server/runtime/composition/app.ts:2427 calls existing createCommentsHostPorts(...).rateLimiter for the HTTP gate. This creates a fresh counter for each app while reusing the live ledger budget resolver/profile. The ingress counter remains separate, and neither is recreated on setting edits. Removed the now-unused COMMENTS_SUBMIT_PROFILE import.
+Test: apps/website/src/server/runtime/composition/__tests__/create-app-comments-rate-limit.test.ts:50 covers BOTH createApp and createSiteApp. It submits 20 actual same-origin URL-encoded forms to /api/site/comments, changes maxPerIpPerHour to 21 through the authenticated admin PUT endpoint, submits request 21 on the same app, and verifies 21 real pending records. It checks the next request is refused, a live decrease remains refused, and a further increase grants exactly one more slot. Existing rejection counting, trusted proxy, expiry and app-isolation tests remain untouched.
+Expected RED -> GREEN (unexecuted): request 21 redirects to comment-error before this fix; afterward it redirects to comment-pending and persists. Command C, after the prerequisite below.
+Class guard: the mounted HTTP form path, both app builders, live increases/decreases, persisted outcomes and preservation of spent counters; catches a fixed front-door cap, a rebuilt/reset counter, and accidentally sharing the ingress counter.
+
+5 — PostEditor complexity
+Change: apps/admin/src/features/posts/PostEditor.tsx:649 lets PostEditorHeader decide live-link availability from saved identity; :1380 extends/renames the existing delete presentation owner to PostDeleteConfirmDialog so title/body/action stay together; :1870 lets PostPreview own the Save-first note, with its guard after hooks; :1755 gates content analysis and taxonomy together.
+PostEditor itself starts at :1511. Manual cyclomatic count is 9 including its existing defaulted hook parameter; no mechanical lint/metric result is claimed. Header, delete-dialog presentation and preview also remain below 10 by direct inspection. No new lifecycle, shared abstraction or platform module.
+Tests: kept every pre-existing behavioral assertion. At PostEditor.unit.test.tsx:1860, the real first-save interaction additionally checks saved taxonomy, content analysis and the saved live URL. At :1881, a controller-driven local -> persisted preview rerender checks the Save-first note disappears and the server frame/saved panels appear without changing hook order. Existing local discard and persisted-delete tests remain.
+Command A plus D. This is a behavior-preserving refactor: its UI characterization tests should stay green; the pre-fix RED is the complexity gate, not an invented functional failure. Class guard: saved/local UI eligibility and the first-save transition, together with the strict per-function complexity command.
+
+7 — message-less assertions
+Change: apps/website/src/features/site-inspection/__tests__/site-capabilities.unit.test.ts:347,349 adds explicit, descriptive messages to both assigned assert.ok calls. Existing query/route assertions are unchanged.
+Command E. No runtime RED/GREEN was run or claimed: this corrects the failure-path source-message synthesis hazard. Class guard: failures at these assertions now carry explicit messages and do not ask Node to reparse their source.
+
+8 — optional options object omitted
+Change: apps/admin/src/features/posts/hooks/post-editor-port.hooks.ts:31 declares options?:Record<string,never>; post-editor-dependencies.hooks.ts:15 accepts/defaults/forwards it in the live binding, and :155 accepts it in the fake. api.createPost already has this optional-object contract at apps/admin/src/lib/api.ts:2842 and needed no edit.
+Test: apps/admin/src/features/posts/__tests__/post-editor-dependencies.unit.test.ts:9 calls the fake and live implementations with two objects and asserts the live binding forwards both to api.createPost.
+Expected RED -> GREEN (unexecuted): the old interface rejects two arguments statically, and the old live binding fails the two-argument forwarding assertion at runtime; the patched contract/bindings satisfy both. Command A.
+Class guard: both implementations consume the same typed operation; the forwarding assertion detects a binding silently dropping the second argument.
+
+EXACT COORDINATOR COMMANDS — run from prov2-tovu root in the cloud only
+
+A — admin regression suites, findings 1/5/8:
+  npm --prefix apps/admin test -- src/features/posts/__tests__/PostEditor.unit.test.tsx src/features/posts/__tests__/post-editor-dependencies.unit.test.ts src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx
+
+B — seed regression, finding 2:
+  TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --experimental-test-module-mocks apps/website/src/server/runtime/composition/__tests__/publish-content-seed-hash.load-deps.unit.test.ts
+
+C — real public HTTP form path and existing budget/isolation tests, finding 3:
+  TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --experimental-test-module-mocks apps/website/src/server/runtime/composition/__tests__/create-app-comments-rate-limit.test.ts
+
+D — strict complexity gate, finding 5:
+  npx --no-install eslint --no-inline-config --rule '{"complexity":["error",10],"sonarjs/cognitive-complexity":["error",10]}' apps/admin/src/features/posts/PostEditor.tsx
+
+E — capabilities regression, finding 7:
+  TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --experimental-test-module-mocks apps/website/src/features/site-inspection/__tests__/site-capabilities.unit.test.ts
+
+Tests B/C and the port-options test were written before their corresponding runtime fixes. For isolated RED -> GREEN reproduction, /private/tmp/tovu-review-fixes-1-2-3-5-7-8 contains baseline/ (the ten files as received, including prior lanes' uncommitted work), tests-first/, tests.patch, implementation.patch, round.patch and FILES.txt. Apply tests.patch to the received baseline in a SEPARATE checkout, run B/C or the focused options test, then apply implementation.patch and rerun. Do not reverse patches or overwrite files in these shared working trees. The supplied snapshots are a working-tree baseline, not a claim that git HEAD contains the previous lane patches. Later additive UI characterization assertions are in implementation.patch.
+
+DEPENDENCY / TYPE REVIEW / REBUILD HANDOFF
+
+Additional confirmed issue: installed Tovu node_modules/@jini-ai/http-kit/dist/rate-limit.d.ts:61 and rate-limit.js:28 still have the old empty optional object and captured fixed effectiveMax; they lack getMax. The sibling Jini source packages/http-kit/src/rate-limit.ts:77,85 has lane D's new getter. The Tovu rate-limit wrapper already depends on that newer contract. Command C cannot go green using the currently installed old artifact, even with this round's HTTP wiring.
+Jini packages to rebuild/supply to Tovu for this round's dependent behavior: @jini-ai/http-kit, from lane D's existing changes. Rebuilding the sibling alone does not replace Tovu's registry-installed copy; the coordinator must explicitly supply the updated artifact through the existing dependency workflow. @jini-ai/db/transfer already exports inMemoryReadableBytes in the installed declaration AND JavaScript; finding 2 adds no new rebuild requirement.
+No dependency, manifest or lockfile was edited here. Source changes add no dependency. A registry-version bump used to deliver updated http-kit will need coordinated manifest/lockfile updates; no install or lock refresh was attempted here.
+prov2-jini files touched: NONE, so the per-touched-package no-emit typecheck requirement is not applicable and no Jini typecheck was run.
+Tovu admin full tsc was NOT run, as prohibited. Read installed ByRoleOptions and Jini ConfirmDialogProps declarations (open/title/body/confirmLabel/destructive/pending/onConfirm/onCancel), plus the local controller's mutable post type and existing api.createPost two-object signature. New dialog callback signatures preserve the installed () => void contract; async remove is a valid void callback. Also read installed db helper declarations/implementation and both source/installed http-kit contracts as above. This is static type review, not a passing compiler result.
+
+REUSE / ARCHITECTURE / QUALITY
+
+Reuse: seed-byte readability; searched Tovu driver/seed composition and Jini db transfer code for deserialize/WAL/header normalization; used exported inMemoryReadableBytes from @jini-ai/db/transfer. Its complete-image/no-input-mutation contract fits this closed stock seed. The writable migrated content-DB lifecycle remains openContentDb's; the read-only transfer-source lifecycle is unsuitable for this caller. No owner change.
+Reuse: live request budget; traced app route -> Tovu comments-submit -> installed Jini HTTP handler -> active stored provider -> real ingress, and searched comments settings/host ports plus Jini http-kit. Used createCommentsHostPorts for its existing live settings rule and dedicated counter creation. No counting implementation or security sequence duplicated.
+Reuse: post local/saved presentation; inspected PostEditor header/preview/delete owners, controller/ports, API boundary and installed Jini ConfirmDialog. Extended those presentation owners; shared native dialog lifecycle remains Jini's. No new generic editor abstraction.
+Architecture audit: stays within the dispatch's approved files and existing ports/adapters; no generic behavior added to Tovu, no dependency inversion bypass, no DB schema or plugin lifecycle change. Only the specified site-inspection assertions were changed in the feature scope; no mutation chokepoint changed.
+Function assessment: seed loader remains O(seed bytes) time/space and indexed repository reads; presentation decisions are O(1) excluding existing child rendering; live HTTP budget uses the existing serialized limiter and ledger lookups, preserving its bounded per-key state and hourly eviction. No new caller-controlled loop or network fan-out in production. Quality disposition: no remaining finding in the changed production decisions by static inspection; runtime results remain unverified, and the stale dependency artifact is an explicit release prerequisite. Skepticism check: tests cover actual WAL bytes/content and actual URL-encoded form/persistence paths, not only helper outputs; counter exhaustion after edits detects reset/double-count bugs.
+Documentation: retained and clarified why-comments for SQLite deserialization, saved identity, dialog ownership and hook order; no new public module/API documentation surface beyond the options member.
+
+BUGS FOUND
+
+- The six assigned review findings, corrected as described above (verification pending).
+- Stale installed http-kit artifact ignores getMax and blocks delivery of the live-budget fix; documented above, not rebuilt/installed here.
+- The existing earlier assert.ok(screen) at site-capabilities.unit.test.ts:336 still has the same failure-message synthesis hazard. It is outside the two assigned calls and was not changed. Historical message-less assertions also mean the full-file test-safety lint config is not claimed green.
+- No additional confirmed production bug found in this bounded fix pass. Findings 4, 6 and 9 and the unrelated historical bugs in lane reports remain outside this dispatch.
+
+NOT DONE
+
+- No measured RED/GREEN, lint, complexity, coverage, browser or server verification: explicitly prohibited on this Mac. Manual complexity count is not tool evidence.
+- No rebuild/install of existing Jini package changes or registry/lockfile refresh; coordinator must supply updated http-kit before C.
+- No commits/pushes: .git is read-only and the dispatch forbids commits.
+- No fixes outside findings 1/2/3/5/7/8; no edits to other agents' work, desktop, plugin catalog, plugin packages or agent-plugin lifecycle.
+
+FINAL COMMIT FILE LIST — prov2-tovu, this round only (preserve earlier lane edits already in these files)
+apps/admin/src/features/posts/PostEditor.tsx
+apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx
+apps/admin/src/features/posts/__tests__/post-editor-dependencies.unit.test.ts
+apps/admin/src/features/posts/hooks/post-editor-port.hooks.ts
+apps/admin/src/features/posts/hooks/post-editor-dependencies.hooks.ts
+apps/website/src/features/site-inspection/__tests__/site-capabilities.unit.test.ts
+apps/website/src/server/runtime/composition/publish-content-seed-hash.ts
+apps/website/src/server/runtime/composition/app.ts
+apps/website/src/server/runtime/composition/__tests__/publish-content-seed-hash.load-deps.unit.test.ts
+apps/website/src/server/runtime/composition/__tests__/create-app-comments-rate-limit.test.ts
+ADS-memory/reports/2026-11-02-review-fixes-1-2-3-5-7-8.txt
+
+FINAL COMMIT FILE LIST — prov2-jini: NONE.

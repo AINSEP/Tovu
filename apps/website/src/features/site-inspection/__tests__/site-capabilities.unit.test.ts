@@ -339,3 +339,12 @@ test("admin screens expose each panel purpose and its entity/query contract to t
   assert.deepEqual(screen.entityTargets, [{ type: "agent-plugin", routeTemplate: "/addons/agent-plugins" }]);
   assert.deepEqual(screen.allowedQueryParams?.tab, ["installed", "downloaded", "add", "marketplace"]);
 });
+
+test("admin screens expose the unsaved-post route without reserving a post slug", async () => {
+  const { ADMIN_SCREENS: published } = await import("../admin-screens.generated.js");
+  const result = await buildSiteCapabilities({ ...makeDeps(), listAdminScreens: () => published }, { principalId: PRINCIPAL_ID });
+  const screen = result.sections.adminScreens?.data?.screens.find(row => row.id === "posts");
+  assert.ok(screen, "the posts screen must be exposed to the assistant");
+  assert.deepEqual(screen.allowedQueryParams?.create, ["1"]);
+  assert.ok(screen.routeTemplates?.includes("/posts/:postId"), "the create query must preserve the ordinary post-id/slug route");
+});

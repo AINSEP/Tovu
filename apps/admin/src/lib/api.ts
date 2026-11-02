@@ -1377,6 +1377,11 @@ export interface AdminPagePluginEmbed {
   availability: string;
 }
 
+/** First Save's complete snapshot; creation owns one atomic row/revision write. */
+export type AdminPostCreateInput = Pick<AdminPost, "title"> & Partial<Pick<AdminPost,
+  "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage" | "publishAt" | "featuredMediaId" | "author" | "showAuthor"
+>> & { hideCoverImageInBody?: boolean };
+
 export interface AdminPost {
   /** Derived from the revision ledger for editor URL stability after unpublishing. */
   everPublished?: boolean;
@@ -2834,10 +2839,10 @@ export const api = {
     request<{ usesDefaultPassword: boolean }>("/auth/me/password-status"),
   listPosts: () =>
     request<{ posts: Array<{ post: AdminPost }> }>(`/workspaces/${WORKSPACE_ID}/posts`),
-  createPost: (title: string) =>
+  createPost: (input: AdminPostCreateInput, _options: Record<string, never> = {}) =>
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts`, {
       method: "POST",
-      body: JSON.stringify({ title }),
+      body: JSON.stringify(input),
     }),
   getPost: (id: string) =>
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}`),

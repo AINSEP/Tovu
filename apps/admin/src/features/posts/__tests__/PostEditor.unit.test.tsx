@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { publishThemePreviewRefresh } from "../../themes/theme-preview-refresh";
 import { PostEditor } from "../PostEditor";
-import { useWiredPostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
+import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
+import { usePostEditor, useWiredPostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";
 import { api, type AdminPost } from "@/lib/api";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../../pages/rules";
 
@@ -1804,6 +1805,8 @@ describe("Categories & Tags", () => {
   it("is not mounted before the post loads", () => {
     renderPostEditor({ post: null });
     expect(screen.queryByTestId("term-picker")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("content-analysis")).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "view ↗" })).not.toBeInTheDocument();
   });
 });
 
@@ -1842,4 +1845,60 @@ describe("external-change notice", () => {
     await user.click(screen.getByRole("button", { name: /keep my edits/i }));
     expect(ctrl.dismissExternalChange).toHaveBeenCalledTimes(1);
   });
+});
+
+// A local draft has no server id: never mount an empty-id taxonomy or preview request.
+it("an unsaved post asks for Save before preview and hides persisted-only taxonomy", () => {
+  renderPostEditor({ post: { ...DRAFT_POST, id: "", version: 0 }, view: "preview" });
+  expect(screen.getByRole("status")).toHaveTextContent("Save this post to preview it.");
+  expect(screen.queryByTitle("Post preview")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("term-picker")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("content-analysis")).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "view ↗" })).not.toBeInTheDocument();
+});
+
+it("typing in a new post then clicking Save creates the edited document once", async () => {
+  const port = createFakePostEditorPort();
+  const create = vi.spyOn(port, "createPost");
+  const update = vi.spyOn(port, "updatePost");
+  const navigate = vi.fn();
+  function useLocalEditor(segment: string) { return usePostEditor(segment, { port, navigate, t: key => key }); }
+  render(<PostEditor postId="" usePostEditorHook={useLocalEditor} />);
+  const title = await screen.findByLabelText("Post title");
+  expect(create).not.toHaveBeenCalled();
+  fireEvent.change(title, { target: { value: "My first post" } });
+  expect(create).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+  expect(create).toHaveBeenCalledWith(expect.objectContaining({ title: "My first post", bodyJson: expect.objectContaining({ type: "doc" }) }));
+  expect(update).not.toHaveBeenCalled();
+  expect(navigate).toHaveBeenCalledWith("/posts/my-first-post", { replace: true });
+  expect(screen.getByTestId("term-picker")).toHaveTextContent("post/created-post-1");
+  expect(screen.getByTestId("content-analysis")).toHaveTextContent("created-post-1@1:My first post");
+  expect(screen.getByRole("link", { name: "view ↗" })).toHaveAttribute("href", "/my-first-post");
+});
+
+it("a local preview reveals the server frame and saved panels when the first Save supplies an id", () => {
+  const ctrl = postController({ post: { ...DRAFT_POST, id: "", version: 0 }, view: "preview" });
+  const usePostEditorHook = () => ctrl;
+  const { rerender } = render(<PostEditor postId="" usePostEditorHook={usePostEditorHook} />);
+  expect(screen.getByRole("status")).toHaveTextContent("Save this post to preview it.");
+  expect(screen.queryByTitle("Post preview")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("term-picker")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("content-analysis")).not.toBeInTheDocument();
+  ctrl.post = DRAFT_POST;
+  rerender(<PostEditor postId="" usePostEditorHook={usePostEditorHook} />);
+  expect(screen.queryByText("Save this post to preview it.")).not.toBeInTheDocument();
+  expect(screen.getByTitle("Post preview")).toBeInTheDocument();
+  expect(screen.getByTestId("term-picker")).toHaveTextContent("post/p1");
+  expect(screen.getByTestId("content-analysis")).toHaveTextContent("p1@1");
+  expect(screen.getByRole("link", { name: "view ↗" })).toHaveAttribute("href", "/hello-world");
+});
+
+it("discarding an unsaved post describes local loss rather than moving a server row to trash", () => {
+  renderPostEditor({ post: { ...DRAFT_POST, id: "", version: 0 }, confirmingDelete: true });
+  const dialog = screen.getByRole("dialog", { name: "Discard post?" });
+  expect(within(dialog).getByText("Discard this unsaved post?")).toBeInTheDocument();
+  expect(within(dialog).getByRole("button", { name: "Discard" })).toBeInTheDocument();
+  expect(within(dialog).queryByText(/trash/i)).not.toBeInTheDocument();
 });

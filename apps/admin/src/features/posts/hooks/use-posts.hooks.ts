@@ -118,7 +118,7 @@ export function usePosts(deps: PostsListDependencies, { locale = "en" }: { local
   const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() }, { invalidates: [["posts"]] });
   const [actionError, setError] = useState<string | null>(null);
   const error = actionError ?? query.error?.message ?? null;
-  const [creating, setCreating] = useState(false);
+  const creating = false;
   // In-flight row action (Publish/Unpublish or the confirmed Delete) — one at a time, same `rowSavingId`
   // convention `Roles.tsx`'s `onDeleteRole` already uses, per `ConfirmButton`'s own doc comment.
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
@@ -134,16 +134,9 @@ export function usePosts(deps: PostsListDependencies, { locale = "en" }: { local
 
   const rowMenuHandleById = usePostRowMenuHandleMap(posts);
 
+  /** Opens a local working copy. The editor owns creation on the first Save/Publish. */
   async function createPost() {
-    setCreating(true);
-    setError(null);
-    try {
-      const { post } = await write.mutate({ input: () => port.createPost("Untitled") }) as Awaited<ReturnType<typeof port.createPost>>;
-      navigate(`/posts/${post.slug}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("failed to create post"));
-      setCreating(false);
-    }
+    navigate("/posts?create=1");
   }
 
   /** Flips a row's publish status — Unpublish (-> draft) for a published row, Publish (-> published)
