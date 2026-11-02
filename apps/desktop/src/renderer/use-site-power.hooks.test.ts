@@ -2,20 +2,16 @@
  * @file Coverage for `use-site-power.hooks.ts`'s decision logic — what the card's Start/Stop button
  * says for each of the seven lifecycle statuses, and what one press actually does.
  *
- * `useSitePower` itself calls `useState`, so it cannot be invoked here: this package has no React
- * renderer at all (see `use-site-rename.hooks.test.ts`'s own header). Both decisions it makes are
- * therefore plain exported functions — `powerControl` and `performPowerAction` — and every test
- * below calls one of them directly. The hook's remaining job (hold two maps, clear them) is asserted
- * against source text in `site-card-actions-wiring.test.ts`, which is the only reachable seam.
+ * The decisions the hook makes are plain exported functions — `powerControl`,
+ * `performPowerAction`, `powerToggleIntent`, `runPowerToggle` — and every test below calls one of
+ * them directly. The hook itself (pending/error maps, the synchronous lock, the confirm, restart)
+ * is rendered from its real module in `use-site-power.hooks.render.test.ts`.
  */
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import fs from 'node:fs';
-
 import { IN_FLIGHT_STATUS, codeSpans, externalStopConfirm, performPowerAction, powerControl, powerToggleIntent, runPowerToggle } from './use-site-power.hooks.js';
 import { cardOverlay } from './SiteGrid.hooks.js';
-import { hookHarness, sourceFunction } from './source-test-harness.js';
 import type { SiteRecord } from '../contracts/project.js';
 
 const RECORD = { id: '/sites/a', status: 'running', port: 4321 } as unknown as SiteRecord;
@@ -36,33 +32,6 @@ test('toggle intent preserves no-op, synchronous lock and external-stop confirma
     assert.equal(powerToggleIntent({ action, project, inFlight, confirmed }), null);
   }
   assert.deepEqual([...inFlight], [project.id], 'deciding never releases the existing lock');
-});
-
-test('rapid Start clicks use the synchronous lock and settle updates before opening the site', async () => {
-  const source = fs.readFileSync(new URL('./use-site-power.hooks.ts', import.meta.url), 'utf8');
-  const harness = hookHarness();
-  let resolve!: (record: SiteRecord) => void;
-  const calls: string[] = [];
-  const usePower = sourceFunction(source, 'useSitePower', { ...harness.bindings,
-    powerControl, powerToggleIntent, runPowerToggle, IN_FLIGHT_STATUS, withoutKey: sourceFunction(source, 'withoutKey'),
-    runnerInventoryBridge: () => ({ startSite: () => {
-      calls.push('start'); return new Promise<SiteRecord>((done) => { resolve = done; });
-    } }),
-  });
-  const project = { ...RECORD, status: 'stopped' as const };
-  const render = () => harness.render(() => usePower(
-    (record: SiteRecord) => calls.push(`updated:${record.status}`), { onStarted: () => calls.push('open') },
-  ));
-  const firstRender = render();
-  const starting = firstRender.toggle(project);
-  await firstRender.toggle(project);
-  assert.deepEqual(calls, ['start'], 'an old render closure cannot queue a second Start');
-  assert.equal(render().statusOf(project), 'starting');
-  resolve(RECORD);
-  await starting;
-  assert.deepEqual(calls, ['start', 'updated:running', 'open']);
-  assert.equal(render().statusOf(project), 'stopped', 'settling drops the local override; main owns the record');
-  assert.equal(render().errorOf(project.id), null);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -278,32 +247,4 @@ test('the Stop confirm is its own card overlay; delete still wins a tie', () => 
   assert.equal(cardOverlay('/a', null, '/a', '/a'), 'stop');
   assert.equal(cardOverlay('/a', null, null, '/b'), null);
   assert.equal(cardOverlay('/a', null, '/a'), 'rename');
-});
-
-test('Stop on an external site asks first: only Confirm reaches the bridge, Cancel never does', async () => {
-  const source = fs.readFileSync(new URL('./use-site-power.hooks.ts', import.meta.url), 'utf8');
-  const harness = hookHarness();
-  const stops: string[] = [];
-  const usePower = sourceFunction(source, 'useSitePower', { ...harness.bindings,
-    powerControl, powerToggleIntent, performPowerAction, runPowerToggle, IN_FLIGHT_STATUS, withoutKey: sourceFunction(source, 'withoutKey'),
-    runnerInventoryBridge: () => ({ stopSite: async (id: string) => { stops.push(id); return { ...DEV_SITE, status: 'stopped' }; } }),
-  });
-  const render = () => harness.render(() => usePower());
-  assert.equal(powerControl('running', { external: false })?.action, 'stop', 'a stoppable external site shows the ordinary Stop');
-  await render().toggle(DEV_SITE);
-  assert.equal(render().confirmingStopId, DEV_SITE.id);
-  assert.deepEqual(stops, [], 'the click only opened the confirm');
-  render().cancelStop();
-  assert.equal(render().confirmingStopId, null);
-  assert.deepEqual(stops, []);
-  await render().toggle(DEV_SITE);
-  await render().confirmStop(DEV_SITE);
-  assert.equal(render().confirmingStopId, null);
-  assert.deepEqual(stops, [DEV_SITE.id]);
-  // An unstoppable external site (no launcher) has no control at all, so a click cannot even ask.
-  await render().toggle({ ...DEV_SITE, externalLauncher: undefined });
-  assert.equal(render().confirmingStopId, null);
-  // Our own site's Stop does not ask.
-  await render().toggle({ ...DEV_SITE, id: '/sites/own', externalUrl: undefined, externalLauncher: undefined });
-  assert.deepEqual(stops, [DEV_SITE.id, '/sites/own']);
 });

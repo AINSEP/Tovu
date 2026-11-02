@@ -49,6 +49,21 @@ test('a Start reads as starting until main answers, then applies main\'s record 
   assert.equal(hook.current().errorOf(SITE.id), null);
 });
 
+test('two presses from one render — a double click before React re-renders — start the site once', async (t) => {
+  const fake = deferredBridge();
+  const hook = renderHook(t, () => useSitePower(undefined, { getBridge: () => fake.bridge }));
+  // Both presses use the SAME render's closure, so no re-render has marked the card starting yet:
+  // only the synchronous in-flight lock stands between a double click and a second start.
+  const firstRender = hook.current();
+  const press = firstRender.toggle(SITE);
+  await firstRender.toggle(SITE);
+  assert.deepEqual(fake.calls, ['start:/sites/a'], 'an old render closure cannot queue a second Start');
+  fake.next().resolve(at('running'));
+  await press;
+  await settle();
+  assert.equal(hook.current().statusOf(SITE), 'stopped', 'settling drops the local override; main owns the record');
+});
+
 test('a failed Stop shows main\'s sentence, clears the pending mark, and the next press clears the error', async (t) => {
   const fake = deferredBridge();
   const hook = renderHook(t, () => useSitePower(undefined, { getBridge: () => fake.bridge }));
