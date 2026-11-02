@@ -140,7 +140,7 @@
     "@jini-ai/devops": "^0.6.17",
     "@jini-ai/diagnostics": "^0.6.17",
     "@jini-ai/http-kit": "^0.6.17",
-    "@jini-ai/infra": "^0.5.4",
+    "@jini-ai/infra": "^0.6.17",
     "@jini-ai/integrations": "^0.6.17",
     "@jini-ai/mcp": "^0.6.17",
     "@jini-ai/oauth": "^0.6.17",
