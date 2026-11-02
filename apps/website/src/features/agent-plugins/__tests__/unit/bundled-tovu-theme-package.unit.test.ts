@@ -120,6 +120,27 @@ test("matching a reference site uses theme_duplicate only as a scaffold and rebu
   assert.match(skill, /web_fetch_page[^\n]*format: "raw"/);
 });
 
+test("a picture or URL match rebuilds the design system: no layered override stylesheet, starter fonts replaced, Media photos before placeholders", async () => {
+  // Owner 11-02 practice ("Ground" from a picture): the first pass duplicated the starter, layered
+  // ground.css over its theme.css, kept its Geist headings and left grey photo blocks while Media
+  // held suitable coffee photos. The owner's rule: extract and rebuild the design system.
+  const skill = await themeSkill();
+  assert.match(skill, /\*\*Job C — match a reference site\*\* \(Part C below\): the owner gives a URL, a screenshot or a picture/);
+  const partC = skill.slice(skill.indexOf("# Part C"), skill.indexOf("## C1")).replace(/\s+/g, " ");
+  assert.match(partC, /\*\*Rebuild, don't layer\.\*\*/);
+  assert.match(partC, /never keep the scaffold's `css\/theme\.css` and add a second override stylesheet/i);
+  assert.match(partC, /Replace the scaffold's fonts/);
+  assert.match(partC, /\*\*Photos from Media first\.\*\*[^]*`content_read\.media_asset`[^]*placeholder only when Media has nothing suitable/);
+  const extract = skill.slice(skill.indexOf("## C2"), skill.indexOf("## C3")).replace(/\s+/g, " ");
+  assert.match(extract, /\*\*A picture or screenshot as the source\.\*\*[^]*`theme_import_file_from_url`/);
+  const topics = JSON.parse(await readFile(path.join(PLUGINS_ROOT, "how-tovu-works", "tovu-site-guide.json"), "utf8"));
+  const themes: string = topics.topics.find((topic: { id: string }) => topic.id === "how-tovu-works-themes")?.explanation ?? "";
+  for (const rule of ["a URL, screenshot or picture", "agent_plugin_tovu_theme", "Part C", "rebuild the design system",
+    "instead of layering an override stylesheet", "replace the starter's fonts", "images already in Media"]) {
+    assert.ok(themes.includes(rule), `the site guide's themes topic must say: ${rule}`);
+  }
+});
+
 test("the compare loop is mandatory: source and own page, desktop and mobile, capped rounds, never done without a capture", async () => {
   const skill = await themeSkill();
   assert.match(skill, /`web_screenshot_page \{ url[^`]*viewport: "desktop"/);

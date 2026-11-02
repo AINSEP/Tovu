@@ -29,9 +29,9 @@ This plugin covers three jobs that share one theme format:
 - **Job B — convert an existing static site** (Part B below): someone has a plain HTML/CSS/JS
   site and wants it running as a Tovu theme. If they pointed you at a folder that looks like a
   website, this is the job.
-- **Job C — match a reference site** (Part C below): the owner gives a URL (or `site-import`
-  hands one over) and wants this site to LOOK like it. Rebuild its design system in a theme,
-  then compare screenshots of the source and this site until they match.
+- **Job C — match a reference site** (Part C below): the owner gives a URL, a screenshot or a picture
+  (or `site-import` hands a URL over) and wants this site to LOOK like it. Rebuild its design system
+  in a theme, then compare screenshots of the source and this site until they match.
 
 Read the shared rules first either way — both jobs fail in the same places.
 
@@ -684,6 +684,19 @@ Luvira import (2026-10-08) duplicated the starter, changed tokens, never looked 
 and shipped the starter's header, 720px column and fonts. Copy anything that helps: the source's
 CSS rules, fonts, SVGs, markup patterns.
 
+**Rebuild, don't layer.** Never keep the scaffold's `css/theme.css` and add a second override
+stylesheet on top of it (the "Ground" practice, 2026-11-02, kept the starter's 1,469-line
+theme.css under a `ground.css` and its headings stayed Geist). Rewrite the tokens and
+`css/theme.css` themselves with the source's design system, and delete scaffold rules the source
+has no use for. Replace the scaffold's fonts: `--font-display`, `--font-body`, the `@font-face`
+rules and any font link in each page's `<head>` name the source's fonts, not the starter's.
+
+**Photos from Media first.** Before writing any image slot (hero, split blocks, cards), list the
+site's images with `content_read.media_asset` and fill each slot with a suitable existing photo as a
+media embed by slug (Assets section), cropped to fill. Match the source's image style: photos for a
+photo source, never a flat illustration among them. Use a placeholder only when Media has nothing
+suitable, and say which slots still need a picture.
+
 **Modular, not a flat copy.** Break the source into the theme's parts. The header and footer are
 partials (`render/partials/nav.html`, `render/partials/footer.html`), and page sections reuse the
 theme's page templates and partials instead of repeating markup per page. Every link list (the
@@ -736,6 +749,12 @@ missing.
    - **Layout**: container max-width, gutters, section padding, grid columns, radius, shadows.
    - **Components**: header (logo or wordmark, nav style, CTA button, sticky, divider), buttons,
      pills/tags, cards, section labels ("01 •"), feature strips, footer columns.
+
+**A picture or screenshot as the source.** There is no HTML or stylesheet to fetch: view it
+(the attachment, or `media_view_image` for a Media item) and write down the same values from what
+you see. Choose fonts that match it (a tall, tightly set condensed display face means a condensed
+font such as Anton, Oswald or Bebas Neue, not the starter's sans), import the font files with
+`theme_import_file_from_url` as C3 describes, and use the picture as the target in C4.
 
 Role → token (names the themes and the page-HTML contract use; do not invent others):
 
