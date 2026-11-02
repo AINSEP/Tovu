@@ -33,8 +33,9 @@ export interface DesktopUpdaterPorts {
   loadNativeUpdater: () => Promise<NativeUpdater>;
   /** `quitPhase === "idle"`: no quit drain has begun. */
   quitIdle: () => boolean;
-  /** Controller inputs the host supplies (platform, pid, presence dir, clock, quit, log, explainOthersOpen). */
-  controllerDeps: Omit<AutoUpdateControllerDeps, "updater" | "promptUpdateReady">;
+  /** Controller inputs the host supplies (platform, pid, presence dir, clock, quit, log, explainOthersOpen).
+   *  Read when a controller is created, not when this updater is: `userData` may still move before then. */
+  controllerDeps: () => Omit<AutoUpdateControllerDeps, "updater" | "promptUpdateReady">;
   promptUpdateReady: (args: { version: string }) => Promise<boolean>;
   log: (message: string) => void;
   logError: (message: string) => void;
@@ -93,7 +94,7 @@ export function createDesktopUpdater({ ports }: { ports: DesktopUpdaterPorts }, 
     state.native = updater;
     state.readyVersion = null;
     state.controller = createController({
-      ...ports.controllerDeps,
+      ...ports.controllerDeps(),
       updater,
       promptUpdateReady: (version) => {
         state.readyVersion = version;

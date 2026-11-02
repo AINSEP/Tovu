@@ -67,8 +67,8 @@ function harness({
     skipReason: () => skip,
     loadNativeUpdater: load ?? (async () => { calls.push("load"); return native; }),
     quitIdle: () => idle,
-    controllerDeps: { platform: "darwin", pid: 7, presenceDir: "/ud/presence", now: () => 0,
-      explainOthersOpen() {}, quit() {}, log() {} },
+    controllerDeps: () => ({ platform: "darwin", pid: 7, presenceDir: "/ud/presence", now: () => 0,
+      explainOthersOpen() {}, quit() {}, log() {} }),
     promptUpdateReady: async ({ version }) => { calls.push(`prompt:${version}`); return prompt; },
     log: message => logs.push(message),
     logError: message => errors.push(message),
@@ -205,7 +205,7 @@ test("a restart starts the controller fresh: an old ready version is forgotten",
   const updater = createDesktopUpdater({ ports: {
     automaticUpdates: () => true, saveAutomaticUpdates() {}, skipReason: () => null,
     loadNativeUpdater: async () => fakeNative(), quitIdle: () => true,
-    controllerDeps: { platform: "win32", pid: 1, presenceDir: "/p", now: () => 0, explainOthersOpen() {}, quit() {}, log() {} },
+    controllerDeps: () => ({ platform: "win32", pid: 1, presenceDir: "/p", now: () => 0, explainOthersOpen() {}, quit() {}, log() {} }),
     promptUpdateReady: async () => true, log() {}, logError() {},
   } }, { state, createController: () => fakeController(calls) });
   await updater.start();
@@ -347,12 +347,27 @@ test("by default the real auto-update controller binds to the native updater's e
   const updater = createDesktopUpdater({ ports: {
     automaticUpdates: () => true, saveAutomaticUpdates() {}, skipReason: () => null,
     loadNativeUpdater: async () => native, quitIdle: () => true,
-    controllerDeps: { platform: "darwin", pid: process.pid, presenceDir, now: () => 0,
-      explainOthersOpen() {}, quit() {}, log() {} },
+    controllerDeps: () => ({ platform: "darwin", pid: process.pid, presenceDir, now: () => 0,
+      explainOthersOpen() {}, quit() {}, log() {} }),
     promptUpdateReady: async () => true, log() {}, logError() {},
   } });
   await updater.start();
   assert.notEqual(updater.state.controller, null);
   assert.ok(events.includes("update-downloaded"), "the controller listens for a finished download");
   updater.willQuit();
+});
+
+test("controller inputs are read when a controller is created, not when the updater is", async () => {
+  const dirs = ["/first/presence"];
+  const seen: string[] = [];
+  const updater = createDesktopUpdater({ ports: {
+    automaticUpdates: () => true, saveAutomaticUpdates() {}, skipReason: () => null,
+    loadNativeUpdater: async () => fakeNative(), quitIdle: () => true,
+    controllerDeps: () => ({ platform: "darwin", pid: 1, presenceDir: dirs[0]!, now: () => 0,
+      explainOthersOpen() {}, quit() {}, log() {} }),
+    promptUpdateReady: async () => true, log() {}, logError() {},
+  } }, { createController: deps => { seen.push(deps.presenceDir); return fakeController([]); } });
+  dirs[0] = "/moved/presence";
+  await updater.start();
+  assert.deepEqual(seen, ["/moved/presence"]);
 });
