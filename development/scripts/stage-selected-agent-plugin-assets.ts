@@ -38,7 +38,41 @@ function assertNpmPath({ filename }: { filename: string }): void {
   }
 }
 
+/** `@scope/name/sub/path` -> `@scope/name`, `name/sub` -> `name`: the npm package a specifier lives in.
+ * @complexity O(s) for specifier length. */
+function barePackageName({ specifier }: { specifier: string }): string {
+  return specifier.split('/').slice(0, specifier.startsWith('@') ? 2 : 1).join('/');
+}
+
+/** The real folder of the nearest `package.json` above `manifestPath` that is named `packageName`.
+ * Walks up instead of resolving `<package>/package.json`: `@jini-ai/agent-plugins` ships every plugin as
+ * a subpath (`@jini-ai/agent-plugins/<id>`) and does not export its `package.json`.
+ * @throws When no such ancestor exists. @complexity O(d) for d ancestor folders.
+ */
+function packageRootOf({ manifestPath, packageName, fs }: { manifestPath: string; packageName: string; fs: StagingFilesystem }): string {
+  for (let dir = path.dirname(manifestPath); ; dir = path.dirname(dir)) {
+    const candidate = path.join(dir, 'package.json');
+    if (fs.existsSync(candidate) && (JSON.parse(fs.readFileSync(candidate, 'utf8')) as { name?: unknown }).name === packageName) return fs.realpathSync(dir);
+    if (path.dirname(dir) === dir) throw new Error(`No package.json named ${packageName} above ${manifestPath}`);
+  }
+}
+
+/** One npm listing per package root: every selected subpath of `@jini-ai/agent-plugins` shares one.
+ * @complexity O(1) per repeated root after the first listing. */
+function listOncePerRoot({ listPackageFiles }: { listPackageFiles: PackageFilesPort }): PackageFilesPort {
+  const listings = new Map<string, readonly string[]>();
+  return ({ packageRoot }) => {
+    const cached = listings.get(packageRoot);
+    if (cached) return cached;
+    const files = listPackageFiles({ packageRoot });
+    listings.set(packageRoot, files);
+    return files;
+  };
+}
+
 /** Stage one installed package's exported payload; npm, rather than host exclusion rules, selects files.
+ * `packageName` is a package (`./plugin.json` export) or a subpath (`@jini-ai/agent-plugins/<id>`, whose
+ * `<id>/plugin.json` the package's `./<id>/*` export serves).
  * @throws On missing/unpublished manifests, duplicate IDs, links, or native filesystem failures.
  * @complexity O(f log f + b) for f listed files and b copied bytes, O(f) selection memory.
  */
@@ -48,8 +82,8 @@ function copySelectedPackage(
     fs: StagingFilesystem; listPackageFiles: PackageFilesPort;
   },
 ): void {
-  const packageRoot = fs.realpathSync(path.dirname(resolve(`${packageName}/package.json`)));
   const manifestPath = resolve(`${packageName}/plugin.json`);
+  const packageRoot = packageRootOf({ manifestPath, packageName: barePackageName({ specifier: packageName }), fs });
   const manifestRelative = path.relative(packageRoot, manifestPath).split(path.sep).join('/');
   assertNpmPath({ filename: manifestRelative });
   const payloadPrefix = path.posix.dirname(manifestRelative) + '/';
@@ -91,12 +125,12 @@ function snapshot({ root, fs }: { root: string; fs: StagingFilesystem }): [strin
  * Existing differing output is preserved and rejected, so callers cannot select uploaded/edited copies
  * as the chosen npm payload. Use a fresh outputRoot for a changed selection or package version.
  * This never installs or activates plugins, or reconciles content/agent-plugins/ui-ux-design wording.
- * @param required Host resolution root, explicit package names (empty selects none), dedicated output root.
+ * @param required Host resolution root, explicit package or subpath names (empty selects none), dedicated output root.
  * @param optional Filesystem, npm listing and subprocess ports; no package-manager lifecycle scripts run.
  * @returns A source root for the existing seeder and sorted plugin IDs, only after the complete tree is ready.
  * @throws Resolution, npm, unsafe source, copy failures, or a conflicting existing output. No old tree is removed.
  * @complexity O(e log e + b) time and O(e + b) memory for selected/existing entries and bytes; one npm query per package.
- * @example stageSelectedAgentPluginAssets({ repoRoot, packageNames: ['@jini-ai/plugin-ui-ux-design'], outputRoot });
+ * @example stageSelectedAgentPluginAssets({ repoRoot, packageNames: ['@jini-ai/agent-plugins/ui-ux-design'], outputRoot });
  */
 export function stageSelectedAgentPluginAssets(
   { repoRoot, packageNames, outputRoot }: { repoRoot: string; packageNames: readonly string[]; outputRoot: string },
@@ -108,8 +142,9 @@ export function stageSelectedAgentPluginAssets(
   fs.mkdirSync(path.dirname(outputRoot), { recursive: true });
   const staging = fs.mkdtempSync(path.join(path.dirname(outputRoot), '.agent-assets-'));
   const ids = new Set<string>();
+  const listOnce = listOncePerRoot({ listPackageFiles });
   try {
-    for (const packageName of [...new Set(packageNames)].sort()) copySelectedPackage({ packageName, resolve, staging, ids, fs, listPackageFiles });
+    for (const packageName of [...new Set(packageNames)].sort()) copySelectedPackage({ packageName, resolve, staging, ids, fs, listPackageFiles: listOnce });
     if (fs.existsSync(outputRoot)) {
       if (!isDeepStrictEqual(snapshot({ root: staging, fs }), snapshot({ root: outputRoot, fs }))) {
         throw new Error(`Preserved agent asset output differs from selected npm payload: ${outputRoot}`);

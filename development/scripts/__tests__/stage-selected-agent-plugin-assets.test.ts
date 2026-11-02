@@ -10,22 +10,24 @@ import { listAgentPluginPackageFiles, stageSelectedAgentPluginAssets } from '../
 function fixture(t: TestContext) {
   const repoRoot = fs.realpathSync(fs.mkdtempSync(path.join(tmpdir(), 'tovu-agent-assets-')));
   t.after(() => fs.rmSync(repoRoot, { recursive: true, force: true }));
-  const packageName = '@jini-ai/plugin-ui-ux-design';
-  const packageRoot = path.join(repoRoot, 'node_modules', packageName);
+  // Every agent plugin ships as a subpath of one package (`@jini-ai/agent-plugins/<id>`).
+  const packageName = '@jini-ai/agent-plugins/ui-ux-design';
+  const packageRoot = path.join(repoRoot, 'node_modules/@jini-ai/agent-plugins');
   const files = ['package.json', 'README.md', 'ui-ux-design/plugin.json', 'ui-ux-design/skills/design/SKILL.md'];
   const write = (relative: string, bytes: string) => {
     const target = path.join(repoRoot, relative);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, bytes);
   };
-  write(`node_modules/${packageName}/package.json`, JSON.stringify({ name: packageName, exports: {
-    './package.json': './package.json', './plugin.json': './ui-ux-design/plugin.json',
+  write('node_modules/@jini-ai/agent-plugins/package.json', JSON.stringify({ name: '@jini-ai/agent-plugins', exports: {
+    '.': './dist/index.js', './ui-ux-design': './ui-ux-design/plugin.json', './ui-ux-design/*': './ui-ux-design/*',
+    './jev': './jev/plugin.json', './jev/*': './jev/*',
   } }));
-  write(`node_modules/${packageName}/ui-ux-design/plugin.json`, JSON.stringify({ name: 'ui-ux-design' }));
-  write(`node_modules/${packageName}/ui-ux-design/skills/design/SKILL.md`, '# Portable design');
-  write(`node_modules/${packageName}/ui-ux-design/ignored.txt`, 'excluded by npm');
-  write(`node_modules/${packageName}/README.md`, 'package documentation');
-  write('node_modules/@jini-ai/plugin-unused/other/plugin.json', '{}');
+  write('node_modules/@jini-ai/agent-plugins/ui-ux-design/plugin.json', JSON.stringify({ name: 'ui-ux-design' }));
+  write('node_modules/@jini-ai/agent-plugins/ui-ux-design/skills/design/SKILL.md', '# Portable design');
+  write('node_modules/@jini-ai/agent-plugins/ui-ux-design/ignored.txt', 'excluded by npm');
+  write('node_modules/@jini-ai/agent-plugins/README.md', 'package documentation');
+  write('node_modules/@example/unused/other/plugin.json', '{}');
   write('content/agent-plugins/ui-ux-design/skills/design/SKILL.md', '# Tovu restrictions');
   const input = { repoRoot, packageNames: [packageName], outputRoot: path.join(repoRoot, 'staged-agent-assets') };
   const options = { listPackageFiles: ({ packageRoot: resolved }: { packageRoot: string }) => {
@@ -73,7 +75,7 @@ for (const [relative, bytes] of [
 test('T4 a missing later package leaves the previous output unchanged and removes scratch files', t => {
   const f = fixture(t);
   stageSelectedAgentPluginAssets(f.input, f.options);
-  assert.throws(() => stageSelectedAgentPluginAssets({ ...f.input, packageNames: [...f.input.packageNames, '@jini-ai/plugin-zz-missing'] }, f.options));
+  assert.throws(() => stageSelectedAgentPluginAssets({ ...f.input, packageNames: [...f.input.packageNames, '@jini-ai/agent-plugins/zz-missing'] }, f.options));
   assert.equal(fs.readFileSync(path.join(f.input.outputRoot, 'ui-ux-design/skills/design/SKILL.md'), 'utf8'), '# Portable design');
   assert.equal(fs.readdirSync(f.input.repoRoot).some(name => name.startsWith('.agent-assets-')), false);
 });
@@ -89,11 +91,11 @@ for (const badFile of ['../escape', '/absolute', 'ui-ux-design/../../escape', 'u
 test('T4 refuses missing npm manifests, duplicate identities and symlinked payload files', t => {
   const f = fixture(t);
   assert.throws(() => stageSelectedAgentPluginAssets(f.input, { listPackageFiles: () => f.files.slice(0, 2) }), /manifest/i);
-  f.write('node_modules/@jini-ai/plugin-other/package.json', JSON.stringify({ name: '@jini-ai/plugin-other', exports: {
+  f.write('node_modules/@example/other/package.json', JSON.stringify({ name: '@example/other', exports: {
     './package.json': './package.json', './plugin.json': './ui-ux-design/plugin.json',
   } }));
-  f.write('node_modules/@jini-ai/plugin-other/ui-ux-design/plugin.json', '{"name":"ui-ux-design"}');
-  assert.throws(() => stageSelectedAgentPluginAssets({ ...f.input, packageNames: [...f.input.packageNames, '@jini-ai/plugin-other'] }, { listPackageFiles: () => ['ui-ux-design/plugin.json'] }), /duplicate/i);
+  f.write('node_modules/@example/other/ui-ux-design/plugin.json', '{"name":"ui-ux-design"}');
+  assert.throws(() => stageSelectedAgentPluginAssets({ ...f.input, packageNames: [...f.input.packageNames, '@example/other'] }, { listPackageFiles: () => ['ui-ux-design/plugin.json'] }), /duplicate/i);
   const skill = path.join(f.packageRoot, 'ui-ux-design/skills/design/SKILL.md');
   fs.unlinkSync(skill);
   fs.symlinkSync(path.join(f.input.repoRoot, 'content/agent-plugins/ui-ux-design/skills/design/SKILL.md'), skill);
@@ -135,7 +137,7 @@ test('T4 partial copy failures never publish a partial selection or remove exist
 
 test('T4 multiple selected packages produce sorted identities independent of input and npm order', t => {
   const f = fixture(t);
-  const second = '@jini-ai/plugin-zebra';
+  const second = '@example/zebra';
   f.write(`node_modules/${second}/package.json`, JSON.stringify({ name: second, exports: {
     './package.json': './package.json', './plugin.json': './payload/plugin.json',
   } }));
@@ -159,4 +161,29 @@ test('T4 resolves locally linked Jini packages without copying their unshipped f
   } });
   assert.equal(fs.readFileSync(path.join(staged.sourceRoot, 'ui-ux-design/skills/design/SKILL.md'), 'utf8'), '# Portable design');
   assert.equal(fs.existsSync(path.join(staged.sourceRoot, 'ui-ux-design/ignored.txt')), false);
+});
+
+test('T4 subpaths of one package share one npm listing and stage only their own folders', t => {
+  const f = fixture(t);
+  f.write('node_modules/@jini-ai/agent-plugins/jev/plugin.json', '{"name":"jev"}');
+  f.write('node_modules/@jini-ai/agent-plugins/jev/skills/jev/SKILL.md', '# Jev');
+  const roots: string[] = [];
+  const staged = stageSelectedAgentPluginAssets({ ...f.input, packageNames: ['@jini-ai/agent-plugins/jev', ...f.input.packageNames] }, {
+    listPackageFiles: ({ packageRoot }) => {
+      roots.push(packageRoot);
+      return [...f.files, 'jev/plugin.json', 'jev/skills/jev/SKILL.md'];
+    },
+  });
+  assert.deepEqual(roots, [f.packageRoot]);
+  assert.deepEqual(staged.pluginIds, ['jev', 'ui-ux-design']);
+  assert.equal(fs.readFileSync(path.join(staged.sourceRoot, 'jev/skills/jev/SKILL.md'), 'utf8'), '# Jev');
+  assert.equal(fs.existsSync(path.join(staged.sourceRoot, 'jev/design')), false);
+  assert.equal(fs.existsSync(path.join(staged.sourceRoot, 'ui-ux-design/skills/jev')), false);
+});
+
+test('T4 a subpath whose package.json is not above its manifest is refused', t => {
+  const f = fixture(t);
+  f.write('node_modules/@jini-ai/agent-plugins/package.json', JSON.stringify({ name: '@jini-ai/renamed', exports: { './ui-ux-design/*': './ui-ux-design/*' } }));
+  assert.throws(() => stageSelectedAgentPluginAssets(f.input, f.options), /No package\.json named @jini-ai\/agent-plugins/);
+  assert.equal(fs.existsSync(f.input.outputRoot), false);
 });
