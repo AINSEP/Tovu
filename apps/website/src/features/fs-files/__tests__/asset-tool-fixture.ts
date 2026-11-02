@@ -12,6 +12,7 @@ import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaRepo, InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo } from "../../media/index.js";
 import type { HttpRequest } from "#src/platform/http/index";
 import type { AssetToolDeps } from "../../asset-transfer/asset-destinations.js";
+import { onTeardown } from "#src/__tests__/fixtures/teardown";
 
 /** Bounded async wait for the real approval surface in tool tests. */
 export const until = async (check: () => boolean) => { for (let i = 0; i < 200 && !check(); i++) await new Promise((r) => setTimeout(r, 5)); };
@@ -24,10 +25,10 @@ export async function assetToolHarness(t: TestContext, { build, toolId, custom =
   const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tovu-asset-tool-")));
   const controller = new AbortController();
   // An rm failure must not skip aborting pending tool work in a later after hook.
-  t.after(() => {
+  onTeardown({ t, step: () => {
     try { controller.abort(); }
     finally { fs.rmSync(base, { recursive: true, force: true }); }
-  });
+  } });
   const site = path.join(base, "site"); const picked = path.join(base, "picked");
   const themesDir = path.join(site, "themes"); const theme = path.join(themesDir, "match");
   fs.mkdirSync(path.join(theme, "templates"), { recursive: true }); fs.mkdirSync(picked);

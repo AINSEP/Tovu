@@ -6,10 +6,11 @@ import { closeSqliteConnection } from '#src/platform/db/kernel/drivers/sqlite';
 import { createSiteConsentStore } from '../revisions.repo.js';
 import { createSiteConsentService, type ConsentServicePorts } from '../service.js';
 import { SITE_CONSENT_DEFAULTS } from '../config.js';
+import { onTeardown } from '#src/__tests__/fixtures/teardown';
 
 export function consentFixture({ t }: { t: TestContext }, _options = {}) {
   const db = openContentDb(':memory:');
-  t.after(() => closeSqliteConnection(db));
+  onTeardown({ t, step: () => closeSqliteConnection(db) });
   const store = createSiteConsentStore({ kernel: contentKernel(db), workspaceId: 'ws' });
   let allowed = true;
   let count = 0;

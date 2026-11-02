@@ -63,6 +63,7 @@ export const React = await import('react');
 export const { act } = React;
 export const { createRoot } = await import('react-dom/client');
 after(() => {
-  hooks.deregister();
-  bootstrap.restore();
+  // node:test skips later after hooks once one throws, so a failed deregister must not skip the DOM restore.
+  try { hooks.deregister(); }
+  finally { bootstrap.restore(); }
 });

@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { TestContext } from 'node:test';
+import { onTeardown } from '#src/__tests__/fixtures/teardown';
 
 /** Real filesystem readiness fixtures; no module mocks and no dependency on a prior local build. */
 export function useSiteChatBuild({ test, ready }: {
@@ -13,11 +14,11 @@ export function useSiteChatBuild({ test, ready }: {
   process.env.TOVU_SITE_CHAT_DIST = directory;
   delete process.env.TOVU_SITE_CHAT_DEV_PROXY_URL;
   if (ready) for (const name of ['site-assistant-loader.js', 'site-assistant.js', 'site-assistant.css', 'site-assistant-vanilla.js', 'site-assistant-vanilla.css']) writeFileSync(path.join(directory, name), 'fixture');
-  test.after(() => {
+  onTeardown({ t: test, step: () => {
     keys.forEach((key, index) => {
       const value = previous[index];
       if (value === undefined) delete process.env[key]; else process.env[key] = value;
     });
     rmSync(directory, { recursive: true, force: true });
-  });
+  } });
 }

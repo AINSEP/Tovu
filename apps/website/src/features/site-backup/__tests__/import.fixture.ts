@@ -40,6 +40,7 @@ import { ensureDefaultList } from "../../newsletter/lists.js";
 import { SqliteNewsletterListRepo } from "../../newsletter/repo.sqlite.js";
 import type { SiteSharePlanContent } from "../plan-store.js";
 import { jiniSitePlugins, sitePluginManifest } from "./fixtures/site-plugin.fixture.js";
+import { onTeardown } from "#src/__tests__/fixtures/teardown";
 
 export const OWNER_PASSWORD = "recipient-only-password";
 export const MEDIA = Buffer.from("import-media-fixture");
@@ -81,13 +82,13 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
   let openedDb: ReturnType<typeof openContentDb> | undefined;
   // An agent-plugin import seeds frozen (read-only) package trees, which a plain rmSync cannot remove.
   // One hook owns all resources: throwing from an earlier hook would skip a later DB close.
-  t.after(async () => {
+  onTeardown({ t, step: async () => {
     try { if (openedDb) closeSqliteConnection(openedDb); }
     finally {
       try { await removeFrozenPackageTree({ root }); }
       finally { fs.rmSync(root, { recursive: true, force: true }); }
     }
-  });
+  } });
   fs.mkdirSync(path.join(root, "sites"));
   const options = { homeDir: root, cwd: root, appDataDir: path.join(root, "profile"), env: { TOVU_SITES_HOME: path.join(root, "sites") } };
   const workspace = createSitesWorkspace({}, options);

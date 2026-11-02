@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import type test from "node:test";
 
 import type express from "express";
+import { onTeardown } from "#src/__tests__/fixtures/teardown";
 
 /** The narrow slice `loginAsBarePrincipal` below needs — satisfied structurally by `RouteDeps`
  *  (and by any `Pick<RouteDeps, ...>` narrowing, since every field listed here is also on
@@ -32,7 +33,8 @@ interface BarePrincipalDeps {
 /**
  * ADR-042 item 5: the single boot-a-real-http-server-on-a-random-port routine that
  * every `src/server/__tests__/**` route test previously hand-rolled (byte-identical
- * in 10+ files). Registers `t.after` teardown so callers never leak listeners.
+ * in 10+ files). Queues its close on the shared teardown hook (#src/__tests__/fixtures/teardown) so
+ * callers never leak listeners, even when another helper's teardown throws.
  */
 export async function startTestServer(
   app: express.Express,
@@ -44,7 +46,7 @@ export async function startTestServer(
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
   // A still-open SSE or keep-alive socket would make close() wait forever and keep the file alive.
-  t.after(() => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }));
+  onTeardown({ t, step: () => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }) });
 
   const address = server.address() as AddressInfo;
   return `http://127.0.0.1:${address.port}`;

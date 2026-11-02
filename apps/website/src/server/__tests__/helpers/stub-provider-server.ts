@@ -1,6 +1,7 @@
 import { once } from "node:events";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
+import { onTeardown } from "#src/__tests__/fixtures/teardown";
 
 /** One scripted reply for {@link startStubProviderServer}: an HTTP status plus the raw response
  *  body bytes — already-framed SSE text for a success reply, or a plain error-JSON string for a
@@ -85,7 +86,7 @@ export async function startStubProviderServer(
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
-  t.after(() => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }));
+  onTeardown({ t, step: () => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }) });
 
   const address = server.address() as AddressInfo;
   return `http://127.0.0.1:${address.port}`;

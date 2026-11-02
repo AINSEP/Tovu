@@ -27,6 +27,7 @@ import { createApiConnectionHost, type ApiConnectionHost, type ApiConnectionRunt
 import type { PluginHttp } from "../../hook-http.js";
 import { registerApiConnectionOAuthCallbackRoute } from "../../../../server/inbound/public-http/routes/api-connections/oauth-callback.js";
 import { trackStartingBrowser, type StartingBrowser } from "./starting-browser.js";
+import { onTeardown } from "#src/__tests__/fixtures/teardown";
 
 export const ACME_FIXTURE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "fixtures", "acme-office");
 export const ACME_PLUGIN = "acme-office";
@@ -97,7 +98,7 @@ function listen(server: Server): Promise<string> {
 /** A copy of the fixture plugin whose first connection declaration `edit` changes; removed after the test. */
 export function acmeFixtureCopy(t: { after(fn: () => void): void }, edit: (declaration: Record<string, unknown>) => void, files: Readonly<Record<string, string>> = {}): string {
   const root = mkdtempSync(path.join(tmpdir(), "acme-c3-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  onTeardown({ t, step: () => rmSync(root, { recursive: true, force: true }) });
   cpSync(ACME_FIXTURE_ROOT, root, { recursive: true });
   const file = path.join(root, "tovu-connections.json");
   const parsed = JSON.parse(readFileSync(file, "utf8")) as { connections: Record<string, unknown>[] };

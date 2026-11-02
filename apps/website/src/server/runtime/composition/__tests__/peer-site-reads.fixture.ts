@@ -18,6 +18,7 @@ import { createChatStoreFactory } from '#src/assistant/persistence/store-factory
 import { openContentDb } from '#src/platform/db/sqlite/content-db';
 import { openChatDb } from '#src/platform/db/sqlite/chat-db';
 import { contentKernel } from '#src/platform/db/content-kernel';
+import { onTeardown, runTeardownSteps } from '#src/__tests__/fixtures/teardown';
 import { openDatabaseJournalDb } from '#src/platform/db/sqlite/database-journal-db';
 import { openNativeSqlite, openSqliteFileKernel } from '#src/platform/db/kernel/drivers/sqlite';
 import { createSitesWorkspace, assertTestHomeIsolation } from '#src/platform/site-dir/sites-home';
@@ -45,17 +46,10 @@ export async function peerFixture(t: TestContext, placement: 'inSite' | 'appData
   assertTestHomeIsolation({ homeDir: home });
   const workspace = createSitesWorkspace({}, { homeDir: home, cwd: home, env: {}, sourceRoots: [], appDataDir: path.join(home, 'app') });
   const close: Array<() => void | Promise<void>> = [];
-  t.after(async () => {
-    const failures: unknown[] = [];
-    // Dispose in dependency order, but let one failed close neither leak sibling handles nor
-    // bypass folder removal. Report the original errors only after all cleanup has been tried.
-    for (const dispose of close.reverse()) {
-      try { await dispose(); } catch (error) { failures.push(error); }
-    }
-    try { fs.rmSync(home, { recursive: true, force: true }); } catch (error) { failures.push(error); }
-    if (failures.length === 1) throw failures[0];
-    if (failures.length > 1) throw new AggregateError(failures, 'fixture teardown failed', { cause: failures[0] });
-  });
+  // Dispose in dependency order (last opened first, the folder last), but let one failed close
+  // neither leak sibling handles nor bypass folder removal. runTeardownSteps reports the original
+  // errors only after all cleanup has been tried. `close` is read at teardown: tests push onto it.
+  onTeardown({ t, step: () => runTeardownSteps({ steps: [() => fs.rmSync(home, { recursive: true, force: true }), ...close] }) });
   /** Seed a fixture using the existing open/migration and repository owners, then keep its writer for assertions. */
   const addSite = async (name: string) => {
     const dir = path.join(home, name);
