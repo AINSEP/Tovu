@@ -13,6 +13,8 @@ import {
 import { VisitorToolsPanel, visitorToolDefaultLimitsText } from "../VisitorToolsPanel";
 import { useVisitorTools } from "../hooks/use-visitor-tools.hooks";
 import { t as translate } from "../ai-assistant-i18n";
+import { VISITOR_TOOLS_DICT } from "../visitor-tools-i18n";
+import { createVanillaToolConfirmation } from "../../../../../site-chat/src/vanilla-tool-confirmation";
 
 const t = (key: string) => key;
 const DEFAULTS = { perIpPerHour: 30, perSitePerDay: 1000 };
@@ -90,6 +92,29 @@ describe("VisitorToolsPanel", () => {
     await userEvent.click(tip);
     const descriptionId = tip.getAttribute("aria-describedby")!;
     expect(document.getElementById(descriptionId)?.textContent).toBe("Auto runs it. Ask first waits for the visitor to click Allow in chat before running. Off hides it.");
+  });
+
+  it.each(Object.keys(VISITOR_TOOLS_DICT))("names the visitor's rendered Allow button in the mode help (%s)", async (locale) => {
+    const visitor = document.createElement("div");
+    visitor.innerHTML = '<div class="jini-chat-vanilla__tool-confirmation" hidden><span></span><button>Continue</button></div>';
+    document.body.append(visitor);
+    const project = createVanillaToolConfirmation({ element: visitor, document }, { confirm: async () => true });
+    project({ directive: { kind: "tool_confirmation", challengeId: "a".repeat(22), title: "Confirm search", summary: "Search posts." } });
+    try {
+      const allow = within(visitor).getByRole("button", { name: "Allow" });
+      const fake = fakePort();
+      render(<VisitorToolsPanel t={(key) => translate({ locale, key })}
+        useVisitorToolsHook={(input) => useVisitorTools({ ...input, port: fake.port })} />);
+      await screen.findByText("Tool list_posts");
+      const tip = screen.getByRole("button", { name: translate({ locale, key: "About visitor tools" }) });
+      await userEvent.click(tip);
+      const descriptionId = tip.getAttribute("aria-describedby")!;
+      // Public confirmation owns the visible label; the admin dictionary does not render that button.
+      expect(document.getElementById(descriptionId)?.textContent).toContain(allow.textContent);
+    } finally {
+      project({ directive: null });
+      visitor.remove();
+    }
   });
 
   it("formats the budget hint with present or unavailable defaults", () => {
