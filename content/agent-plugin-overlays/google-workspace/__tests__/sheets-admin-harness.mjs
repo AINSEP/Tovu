@@ -9,7 +9,7 @@
  */
 import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 
 import { createToolRegistry } from '@jini-ai/core';
