@@ -10,6 +10,7 @@ import { SITE_PROFILE_SECTION_NAMES } from "#src/features/site-inspection/index"
 import { externalMcpVaultEnvelope } from "../../../features/external-mcp/external-mcp-vault.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { RouteDeps } from "../../routes/types.js";
+import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file `GET /api/admin/v1/workspaces/:workspaceId/site/profile` — the admin frontend's half of the
@@ -308,6 +309,10 @@ test("site profile route: an unexpected failure while building the profile is a 
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" };
   await profileHandler(deps)({ params: { workspaceId: deps.workspaceId }, query: {} }, res);
-  assert.deepEqual(capture, { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } });
-  assert.deepEqual(logged.mock.calls.map((c) => c.arguments), [["[site/profile] unexpected error", cause]]);
+  // Shared admin failure envelope: the reply carries only an incident id; the redacted log keeps the cause.
+  assertAdminResponse({ actual: capture, expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } });
+  assert.doesNotMatch(JSON.stringify(capture), /clock exploded|\/private\/var\/site\.db/);
+  const calls = logged.mock.calls.map((c) => c.arguments);
+  assertAdminDiagnostics({ calls, operation: "[routes/site/profile]", diagnostics: [/clock exploded at \/private\/var\/site\.db/] });
+  assert.equal((calls[0]?.[1] as { errorId: string }).errorId, (capture.jsonBody as { errorId: string }).errorId);
 });
