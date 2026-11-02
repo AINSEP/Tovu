@@ -8,7 +8,7 @@ import { createElement } from 'react';
 import { fakeSiteSettings, installBridge, mount, settle, type TestContext } from './component-harness.js';
 import { closeHost } from '../app-render-harness.js';
 import { TopNav } from './TopNav.js';
-import type { RunnerSectionId } from '../../contracts/sections.js';
+import { visibleSections, type RunnerSectionId } from '../../contracts/sections.js';
 import type { RunnerInventoryBridge } from '../runner-api.js';
 
 after(closeHost);
@@ -80,4 +80,13 @@ test('TopNav: Websites selects its section; unbuilt sections are inert but keep 
 test('TopNav: the tools hold the Settings gear', async (t) => {
   const view = await renderNav(t);
   assert.ok(view.container.querySelector('.topnav__tools [aria-label="Settings"]'));
+});
+
+test('TopNav: every section but Websites is disabled, Marketplace included', async (t) => {
+  // The generic `section.id !== 'projects'` rule is what grays Marketplace out. If someone rewrites
+  // it as an allowlist or adds an `id === 'marketplace' ? false :` carve-out, this must fail.
+  const view = await renderNav(t);
+  const disabled = view.all('.topnav__link--disabled').map((link) => link.getAttribute('aria-label'));
+  assert.deepEqual(disabled, visibleSections().filter(({ id }) => id !== 'projects').map(({ label }) => label));
+  assert.ok(disabled.includes('Marketplace'));
 });

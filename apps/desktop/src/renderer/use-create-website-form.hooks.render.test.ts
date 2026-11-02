@@ -10,7 +10,9 @@ import { act, createElement } from 'react';
 import type { CreateSiteInput } from '../contracts/project.js';
 import { SITE_NAME_ERROR } from '../contracts/site-name.js';
 import { deferred, renderHookWithView as renderHook, settle, type TestContext } from './app-hooks.test-support.js';
+import type { RunnerInventoryBridge } from './runner-api.js';
 import { useCreateWebsiteForm } from './use-create-website-form.hooks.js';
+import { canSubmitRename, renameSubmission } from './use-site-rename.hooks.js';
 
 function formHarness(t: TestContext, onCreate: (input: CreateSiteInput) => Promise<void>, { withInputs = true } = {}) {
   const hook = renderHook(t, () => useCreateWebsiteForm(onCreate), (form) => (withInputs ? createElement('div', null,
@@ -122,4 +124,26 @@ test('useCreateWebsiteForm: a Supabase key without a URL is not ready', (t) => {
   const { hook } = formHarness(t, async () => {});
   act(() => { hook.current().setName('Shop'); hook.current().setDatabase('supabase'); hook.current().setHasSupabaseKey(true); hook.current().setSupabaseUrl('   '); });
   assert.equal(hook.current().canCreate, false);
+});
+
+// D-02/D-17: Create and Rename are two ways of naming the same site, so they refuse the same drafts
+// locally with the same exact inline sentence, and accept the same ones.
+test('useCreateWebsiteForm: Create refuses the drafts Rename refuses, with the same message, and accepts the ones it accepts', async (t) => {
+  const created: CreateSiteInput[] = [];
+  const { hook, submit } = formHarness(t, async (input) => { created.push(input); });
+  for (const name of ['   ', 'x'.repeat(201)]) {
+    act(() => hook.current().setName(name));
+    assert.deepEqual([hook.current().canCreate, hook.current().nameError], [false, SITE_NAME_ERROR], `${name.length} characters`);
+    submit();
+    await settle();
+    assert.equal(hook.current().formError, SITE_NAME_ERROR);
+    assert.deepEqual(renameSubmission({} as RunnerInventoryBridge, '/site', name), { kind: 'refused', message: SITE_NAME_ERROR });
+    assert.equal(canSubmitRename(name, false), false);
+  }
+  assert.deepEqual(created, [], 'no picker call for an invalid name');
+  for (const name of ['a', 'x'.repeat(200), '  Café ☕ 日本語  ']) {
+    act(() => hook.current().setName(name));
+    assert.deepEqual([hook.current().canCreate, hook.current().nameError], [true, null], name);
+    assert.equal(canSubmitRename(name, false), true, name);
+  }
 });

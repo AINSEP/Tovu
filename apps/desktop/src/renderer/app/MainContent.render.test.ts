@@ -12,6 +12,7 @@ import { closeHost } from '../app-render-harness.js';
 import { MainContent } from './MainContent.js';
 import type { CreatedSiteRecord, SiteRecord } from '../../contracts/project.js';
 import type { RunnerSectionId } from '../../contracts/sections.js';
+import type { RunnerInventoryBridge } from '../runner-api.js';
 
 after(closeHost);
 
@@ -24,10 +25,11 @@ interface Props {
   rescanError?: string | null;
   addError?: string | null;
   projects?: readonly SiteRecord[];
+  onSiteUpdated?: (record: SiteRecord, previousId?: string) => void;
 }
 
-async function renderContent(t: TestContext, props: Props = {}) {
-  installBridge({ t, bridge: { getSitePreview: async () => null } });
+async function renderContent(t: TestContext, props: Props = {}, bridge: Partial<RunnerInventoryBridge> = {}) {
+  installBridge({ t, bridge: { getSitePreview: async () => null, ...bridge } });
   const opened: string[] = [];
   const view = mount({ t, element: createElement(MainContent, {
     activeId: 'projects', isCreating: false, lastCreated: null, projectsLoading: false, loadError: null,
@@ -97,4 +99,20 @@ test('NoWebsitesYet: no websites names the three header actions instead of dupli
   assert.deepEqual([...empty!.querySelectorAll('strong')].map((strong) => strong.textContent), ['Create website', 'Add Tovu Website', 'Rescan']);
   assert.equal(view.container.querySelector('button'), null, 'no second control for an action the header owns');
   assert.equal(view.grid(), null);
+});
+
+// UI test 2026-10-30: after Rename -> Save the card kept the old name for ~1.4 s, until the next
+// poll, because ProjectsBody never handed SiteGrid an `onRenamed`.
+test('ProjectsBody: a rename updates the Websites grid at once through the same setter as Start/Stop', async (t) => {
+  const renamed = site('a', { displayName: 'Harbor Florist' });
+  const sent: unknown[] = [];
+  const updated: SiteRecord[] = [];
+  const view = await renderContent(t, { projects: [site('a')], onSiteUpdated: (record) => { updated.push(record); } },
+    { renameSite: async (input) => { sent.push(input); return renamed; } });
+  await view.click(view.byLabel('More actions for Site a'));
+  await view.click(view.byText('Rename…'));
+  await view.type(view.container.querySelector<HTMLInputElement>('#rename-a')!, 'Harbor Florist');
+  await view.click(view.byText('Save'));
+  assert.deepEqual(sent, [{ id: 'a', name: 'Harbor Florist' }]);
+  assert.deepEqual(updated, [renamed], 'main\'s record reaches the grid\'s setter without waiting for a poll');
 });

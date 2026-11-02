@@ -86,7 +86,8 @@ test('useProjectMutations: a cancelled picker keeps the form, and a missing brid
   const { hook, calls } = mutationsHarness(t, { createSite: async () => null, deleteSite: async () => {} });
   const key = hook.current().createFormKey;
   await act(() => hook.current().handleCreate(INPUT));
-  assert.deepEqual({ calls, key: hook.current().createFormKey, count: hook.current().projects.length }, { calls: [], key, count: 2 });
+  assert.deepEqual({ calls, key: hook.current().createFormKey, count: hook.current().projects.length, notice: hook.current().lastCreated },
+    { calls: [], key, count: 2, notice: null }, 'a cancelled Create inserts no row and announces nothing');
 
   const missing = mutationsHarness(t, undefined);
   await assert.rejects(missing.hook.current().handleCreate(INPUT), /Runner desktop connection required to create a website\./);
@@ -144,4 +145,19 @@ test('useProjectMutations: a caller that passes no project list never has the no
   await act(() => hook.current().handleCreate(INPUT));
   await act(() => hook.current().handleDelete('new'));
   assert.equal(hook.current().lastCreated, CREATED, 'without `projects` there is nothing to check the notice against');
+});
+
+test('useProjectMutations: the ready notice goes for good once its site starts; stopping again does not bring it back', async (t) => {
+  const getBridge = () => ({ createSite: async () => CREATED, deleteSite: async () => {} });
+  let setProjects!: Dispatch<SetStateAction<readonly SiteRecord[]>>;
+  const hook = renderHook(t, () => useProjectsWith([], (set, projects) => {
+    setProjects = set;
+    return useProjectMutations({ setProjects: set, projects, closeProjectTab: () => {}, stopCreating: () => {}, startCreating: () => {} }, { getBridge });
+  }));
+  await act(() => hook.current().handleCreate(INPUT));
+  assert.equal(hook.current().lastCreated, CREATED);
+  act(() => setProjects([site('new', { status: 'starting' })]));
+  assert.equal(hook.current().lastCreated, null, 'a starting site is no longer "ready to start"');
+  act(() => setProjects([site('new', { status: 'stopped' })]));
+  assert.equal(hook.current().lastCreated, null, 'stopping again must not resurrect the notice');
 });

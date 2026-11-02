@@ -75,3 +75,21 @@ test('TabStrip: no arrows until the strip overflows, then each is disabled on it
   await view.click(view.byLabel('Scroll tabs left'));
   assert.deepEqual(scrolled, [200, -200]);
 });
+
+test('TabStrip: a selected tab that is no longer open leaves All as the one tab stop', (t) => {
+  const view = renderStrip(t, { projects: [site('a'), site('b')], activeTab: 'closed' });
+  assert.deepEqual(view.tabs().map((tab) => tab.getAttribute('tabindex')), ['0', '-1', '-1']);
+});
+
+test('TabStrip: arrow keys on a tab move focus and selection to the next tab, wrapping at the ends', async (t) => {
+  const view = renderStrip(t, { projects: [site('a'), site('b')], activeTab: null });
+  const [all, a, b] = view.tabs();
+  const press = (tab: HTMLElement | undefined, key: string) => act(async () => {
+    tab!.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key, bubbles: true }));
+  });
+  await press(all, 'ArrowRight');
+  assert.equal(dom.window.document.activeElement, a);
+  await press(all, 'ArrowLeft');
+  assert.equal(dom.window.document.activeElement, b, 'left from the first tab wraps to the last');
+  assert.deepEqual(view.calls, ['select:a', 'select:b']);
+});
