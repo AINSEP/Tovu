@@ -24,6 +24,7 @@ import {
   declaredDependencies,
   stagePayloadFiles,
   diskBytes,
+  ensurePtyHelpersExecutable,
   findPackageDir,
   hasNativeBinaryMagic,
   newestMtime,
@@ -1025,4 +1026,33 @@ test('assertClosureComplete checks nested scoped packages and intermediate ances
   assert.throws(() => assertClosureComplete({ outDir }), /parent\/node_modules\/@scope\/nested -> missing/);
   writePackage(path.join(modules, 'missing'));
   assert.doesNotThrow(() => assertClosureComplete({ outDir }));
+});
+
+// node-pty 1.1.0's npm tarball ships prebuilds/darwin-arm64/spawn-helper as 0644 (darwin-x64's is
+// 0755) and no install script fixes it, so every packaged terminal on Apple silicon failed with
+// "posix_spawnp failed" (open-bugs 10-31, desktop packaging). Staging must set the bits.
+test("staging makes every node-pty spawn-helper executable, whatever mode the install left", t => {
+  const ptyDir = path.join(tempDir(), "node-pty");
+  t.after(() => fs.rmSync(path.dirname(ptyDir), { recursive: true, force: true }));
+  const helper = (rel: string, mode: number) => {
+    fs.mkdirSync(path.join(ptyDir, path.dirname(rel)), { recursive: true });
+    fs.writeFileSync(path.join(ptyDir, rel), "helper");
+    fs.chmodSync(path.join(ptyDir, rel), mode);
+    return path.join(ptyDir, rel);
+  };
+  const arm = helper("prebuilds/darwin-arm64/spawn-helper", 0o644);
+  const x64 = helper("prebuilds/darwin-x64/spawn-helper", 0o755);
+  const built = helper("build/Release/spawn-helper", 0o600);
+  helper("prebuilds/win32-x64/pty.node", 0o644);
+
+  const changed = ensurePtyHelpersExecutable({ ptyDir });
+  // Windows has no execute bit to read back; the packaged Windows app uses conpty, not spawn-helper.
+  if (process.platform === "win32") return;
+  assert.deepEqual(changed, [built, arm]);
+  for (const file of [arm, x64, built]) assert.equal(fs.statSync(file).mode & 0o755, 0o755, file);
+  assert.deepEqual(ensurePtyHelpersExecutable({ ptyDir }), [], "a second run changes nothing");
+});
+
+test("a shell with no node-pty installed has no helper to fix", () => {
+  assert.deepEqual(ensurePtyHelpersExecutable({ ptyDir: path.join(os.tmpdir(), "no-such-node-pty-dir") }), []);
 });

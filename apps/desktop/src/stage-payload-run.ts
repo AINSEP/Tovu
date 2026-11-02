@@ -47,6 +47,7 @@ interface StageSteps {
   assertClosureComplete: typeof lib.assertClosureComplete;
   assertDistImportsDeclared: typeof assertDistImportsDeclared;
   stageBundledNpm: typeof lib.stageBundledNpm;
+  ensurePtyHelpersExecutable: typeof lib.ensurePtyHelpersExecutable;
   diskBytes: typeof lib.diskBytes;
   newestMtime: typeof lib.newestMtime;
 }
@@ -299,8 +300,8 @@ function asRefusal<T>(step: () => T): T {
   try {
     return step();
   } catch (err) {
-    // `as`: assertClosureComplete, assertDistImportsDeclared, pruneNativePrebuilds and
-    // stageBundledNpm only ever throw a plain Error.
+    // `as`: assertClosureComplete, assertDistImportsDeclared, pruneNativePrebuilds,
+    // stageBundledNpm and ensurePtyHelpersExecutable only ever throw a plain Error.
     return fail((err as Error).message);
   }
 }
@@ -358,6 +359,14 @@ function stageNpm(layout: StageLayout, ports: StagePorts): void {
   ports.stdout.write(`stage-payload: staged bundled npm -> ${npmStagingDir} (${npmStaged.fileCount} files, ${megabytes(npmStaged.bytes)} MB)\n`);
 }
 
+/** Sets the execute bits on the shell's own node-pty `spawn-helper`s, the copy electron-builder
+ *  unpacks into `app.asar.unpacked` with whatever mode it finds there. See
+ *  `ensurePtyHelpersExecutable` for why the install leaves them unexecutable. */
+function stagePtyHelpers(layout: StageLayout, ports: StagePorts): void {
+  const changed = asRefusal(() => ports.steps.ensurePtyHelpersExecutable({ ptyDir: path.join(layout.desktopDir, "node_modules", "node-pty") }));
+  if (changed.length > 0) ports.stdout.write(`stage-payload: set the execute bits on ${changed.length} node-pty spawn-helper(s): ${changed.join(", ")}\n`);
+}
+
 /**
  * Assemble the whole shippable payload.
  *
@@ -376,6 +385,7 @@ export function runStagePayload({ repoRoot, desktopDir }: { repoRoot: string; de
   const { materialized, stripped, targets, pruned } = trimAndVerify(layout, ports, manifest);
   assertStagedTree(layout, ports, manifest);
   stageNpm(layout, ports);
+  stagePtyHelpers(layout, ports);
 
   // `diskBytes`, not `du -sh`: `du` does not exist on Windows, and diskBytes already walks the same
   // on-disk block accounting the strip/prune tallies below use, so all three sizes stay comparable.

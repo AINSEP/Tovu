@@ -91,6 +91,7 @@ function harness(fx: Fixture, overrides: { steps?: Partial<StageSteps>; ports?: 
     assertClosureComplete: ({ outDir }) => { record("closure", outDir); },
     assertDistImportsDeclared: (input) => { record("imports", input); },
     stageBundledNpm: (input) => { record("npm", input); return { fileCount: 1962, bytes: 5 * MB }; },
+    ensurePtyHelpersExecutable: (input) => { record("pty", input); return [path.join(input.ptyDir, "prebuilds/darwin-arm64/spawn-helper")]; },
     diskBytes: () => 10 * MB,
     newestMtime: (abs) => (abs.endsWith(".html") || abs.endsWith(".js") ? 200 : 100),
     ...overrides.steps,
@@ -153,8 +154,11 @@ test("stages the payload, the dependency closure and the Jini packages, and repo
     declared: new Set(["dep-a", "better-sqlite3", "playwright", "@playwright/test", "@jini-ai/core", "@tovu/sdk"]),
   }]);
   assert.deepEqual(calls.npm, [{ npmSrc: path.join(fx.desktop, "node_modules/npm"), outDir: path.join(fx.desktop, "staging/npm") }]);
+  // The shell's own node-pty, the copy electron-builder unpacks: its spawn-helper must be executable.
+  assert.deepEqual(calls.pty, [{ ptyDir: path.join(fx.desktop, "node_modules/node-pty") }]);
   assert.deepEqual(out, [
     `stage-payload: staged bundled npm -> ${path.join(fx.desktop, "staging/npm")} (1962 files, 5.0 MB)\n`,
+    `stage-payload: set the execute bits on 1 node-pty spawn-helper(s): ${path.join(fx.desktop, "node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper")}\n`,
     // sdk + dep-a + nested + better-sqlite3 + playwright + core + required platform + 2 fake transitive.
     `stage-payload: staged 9 packages, materialized 1 symlinks -> ${fx.outDir} (10.0 MB)\n`,
     "stage-payload: stripped 4 declarations, 3 third-party source maps, 1 coverage reports (2.0 MB on disk)\n",
