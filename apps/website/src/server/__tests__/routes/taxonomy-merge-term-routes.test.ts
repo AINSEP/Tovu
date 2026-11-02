@@ -11,6 +11,7 @@ import { registerAdminTaxonomyCreateRoute } from "../../inbound/admin-http/route
 import { registerAdminTaxonomyCreateTermRoute } from "../../inbound/admin-http/routes/taxonomy/create-term.js";
 import { registerAdminTaxonomyMergeTermRoutes } from "../../inbound/admin-http/routes/taxonomy/merge-term.js";
 import type { RouteDeps } from "../../routes/types.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * @file SPEC-018 C-207 — real-HTTP integration tests for the taxonomy `mergeTerm` gated-mutation
@@ -260,9 +261,15 @@ test("taxonomy mergeTerm: a non-Error failure in any step returns a generic 500 
   const broken = mergeApp({ ...deps, termRepo: throwingNonErrorPort<RouteDeps["termRepo"]>(), entryTermRepo: throwingNonErrorPort<RouteDeps["entryTermRepo"]>(),
     gatedMutations: { gatewayDeps: { ...deps.gatedMutations.gatewayDeps, tokens: throwingNonErrorPort<RouteDeps["gatedMutations"]["gatewayDeps"]["tokens"]>(), authorize: async () => { throw "authz offline"; } } } });
   const expected = { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } };
-  assert.deepEqual(await invokeMerge(broken, "plan", { params: { id: "term-1" }, body: { intoTermId: "term-2" } }, owner), expected);
-  assert.deepEqual(await invokeMerge(broken, "confirm", { params: { id: "term-1" }, body: { planId: "plan-1", planHash: "hash-1" } }, owner), expected);
-  assert.deepEqual(await invokeMerge(broken, "execute", { params: { id: "term-1" }, body: { intoTermId: "term-2", confirmationToken: "token-1" } }, owner), expected);
+  // Each step answers the shared admin failure envelope: a fresh incident id, never the thrown value.
+  for (const actual of [
+    await invokeMerge(broken, "plan", { params: { id: "term-1" }, body: { intoTermId: "term-2" } }, owner),
+    await invokeMerge(broken, "confirm", { params: { id: "term-1" }, body: { planId: "plan-1", planHash: "hash-1" } }, owner),
+    await invokeMerge(broken, "execute", { params: { id: "term-1" }, body: { intoTermId: "term-2", confirmationToken: "token-1" } }, owner),
+  ]) {
+    assertAdminResponse({ actual, expected });
+    assert.doesNotMatch(JSON.stringify(actual), /storage offline|authz offline/);
+  }
 });
 
 test("taxonomy mergeTerm: an Error thrown by a step keeps its message on the 500 (no authenticated principal)", async () => {
