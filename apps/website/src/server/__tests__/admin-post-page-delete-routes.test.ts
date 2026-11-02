@@ -8,6 +8,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import type { RouteDeps } from "../routes/types.js";
 import { extractRouteHandler, createCapturingResponse, loginAsBarePrincipal } from "./helpers/http-test-server.js";
+import { assertAdminResponse } from "../inbound/admin-http/http/__tests__/assert-admin-response.js";
 
 /**
  * @file The human-facing half of the delete feature: `DELETE /posts/:postId` and
@@ -327,7 +328,10 @@ test("DELETE page: a change-set record failure AFTER the mutation applied is rol
   try {
     const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/pages/${id}`, { method: "DELETE", headers: { cookie } });
     assert.equal(response.status, 500);
-    assert.deepEqual(await response.json(), { error: "internal error" });
+    // Shared admin failure envelope: a correlatable id, never the change-set store's cause.
+    const failureBody = await response.json();
+    assertAdminResponse({ actual: failureBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+    assert.doesNotMatch(JSON.stringify(failureBody), /simulated change-set persistence failure/);
   } finally {
     deps.changeSets.insert = originalInsert;
     deps.outbox.enqueue = originalEnqueue;
@@ -469,7 +473,10 @@ test("DELETE post: when the row was invisible to captureInverse but present for 
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts/racing-row`, { method: "DELETE", headers: { cookie } });
   assert.equal(res.status, 500);
-  assert.deepEqual(await res.json(), { error: "internal error" });
+  // Shared admin failure envelope: a correlatable id, never the change-set store's cause.
+  const failureBody = await res.json();
+  assertAdminResponse({ actual: failureBody, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
+  assert.doesNotMatch(JSON.stringify(failureBody), /change-set store unavailable/);
   assert.equal(restoreAttempted, false, "with no captured prior row, rollback must not fabricate a restore");
   const stored = await realFindById({ workspaceId: WS, id: post.id });
   assert.ok(stored?.deletedAt, "the uncompensated trash marker is left in place, not silently undone");
