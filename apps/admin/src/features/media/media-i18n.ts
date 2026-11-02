@@ -1864,7 +1864,7 @@ const MEDIA_TOOLBAR_STRINGS: Record<string, Record<string, string>> = {
   uk: { "Extra large": "Дуже великий", "Size": "Розмір", "Small": "Малий", "Medium": "Середній", "Large": "Великий", "Upload video": "Завантажити відео", "Upload image or video": "Завантажити зображення або відео" },
   tr: { "Extra large": "Çok büyük", "Size": "Boyut", "Small": "Küçük", "Medium": "Orta", "Large": "Büyük", "Upload video": "Video yükle", "Upload image or video": "Görsel veya video yükle" },
   th: { "Extra large": "ใหญ่พิเศษ", "Size": "ขนาด", "Small": "เล็ก", "Medium": "กลาง", "Large": "ใหญ่", "Upload video": "อัปโหลดวิดีโอ", "Upload image or video": "อัปโหลดรูปภาพหรือวิดีโอ" },
-  it: { "Extra large": "Extra large", "Size": "Dimensione", "Small": "Piccola", "Medium": "Media", "Large": "Grande", "Upload video": "Carica video", "Upload image or video": "Carica immagine o video" },
+  it: { "Extra large": "Molto grande", "Size": "Dimensione", "Small": "Piccola", "Medium": "Media", "Large": "Grande", "Upload video": "Carica video", "Upload image or video": "Carica immagine o video" },
   hi: { "Extra large": "बहुत बड़ा", "Size": "आकार", "Small": "छोटा", "Medium": "मध्यम", "Large": "बड़ा", "Upload video": "वीडियो अपलोड करें", "Upload image or video": "छवि या वीडियो अपलोड करें" },
   ur: { "Extra large": "بہت بڑا", "Size": "سائز", "Small": "چھوٹا", "Medium": "درمیانہ", "Large": "بڑا", "Upload video": "ویڈیو اپ لوڈ کریں", "Upload image or video": "تصویر یا ویڈیو اپ لوڈ کریں" },
   bn: { "Extra large": "অতি বড়", "Size": "আকার", "Small": "ছোট", "Medium": "মাঝারি", "Large": "বড়", "Upload video": "ভিডিও আপলোড করুন", "Upload image or video": "ছবি বা ভিডিও আপলোড করুন" },
