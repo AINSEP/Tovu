@@ -9,6 +9,7 @@ import { createFakeHttpClient, type FakeHttpClient } from "@jini-ai/search/testk
 
 import { createMeilisearchEmulator } from "../fixtures/meilisearch-emulator.js";
 import { loadSearchProviderContributionsFromSource } from "../../search-provider-registry.js";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 
 /**
  * @file The bundled `meilisearch` provider's request mapping and every error branch, one scripted
@@ -18,7 +19,7 @@ import { loadSearchProviderContributionsFromSource } from "../../search-provider
  * that nothing restricted is ever sent, and that no result message ever carries the API key.
  */
 
-const PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/meilisearch");
+const PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "meilisearch" });
 const HOST = "https://ms.example.test";
 const API_KEY = "sk-meili-SECRET-123";
 const INDEX = "js_install_site_meilisearch_g1";

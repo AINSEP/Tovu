@@ -8,6 +8,7 @@ import { createFakeHttpClient, createUnavailableHttpClient, runSearchProviderCon
 
 import { createMeilisearchEmulator } from "../fixtures/meilisearch-emulator.js";
 import { loadSearchProviderContributionsFromSource } from "../../search-provider-registry.js";
+import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
 
 /**
  * @file The bundled `meilisearch` provider clears the generic search-provider conformance kit
@@ -20,7 +21,7 @@ import { loadSearchProviderContributionsFromSource } from "../../search-provider
  * separate local run.
  */
 
-const PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../../../content/agent-plugins/meilisearch");
+const PACKAGE_ROOT = agentPluginSourceDir({ pluginId: "meilisearch" });
 const HOST = "https://meili.conformance.test";
 const API_KEY = "conformance-master-key";
 /** The workspace the conformance kit writes its documents under (its `WORKSPACE`, not exported). */

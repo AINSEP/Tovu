@@ -177,13 +177,16 @@ test('only API forms may declare public input fields', () => {
 
 test('every bundled plugin credential declaration passes the real parser', async () => {
   const { readdir, readFile } = await import('node:fs/promises');
+  const { agentPluginSourceDir } = await import('../../../../../../../development/test-support/agent-plugin-source.mjs');
+  const { SELECTED_AGENT_PLUGIN_PACKAGES } = await import('../../bundled-catalog.js');
   const root = new URL('../../../../../../../content/agent-plugins/', import.meta.url);
-  for (const entry of await readdir(root, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
+  // Tovu's own content plugins plus every selected @jini-ai/agent-plugins/<id> (the D-W* moves).
+  const contentIds = (await readdir(root, { withFileTypes: true })).filter(entry => entry.isDirectory()).map(entry => entry.name);
+  for (const pluginId of new Set([...contentIds, ...SELECTED_AGENT_PLUGIN_PACKAGES.keys()])) {
     let raw: string;
-    try { raw = await readFile(new URL(`${entry.name}/plugin.json`, root), 'utf8'); }
+    try { raw = await readFile(`${agentPluginSourceDir({ pluginId })}/plugin.json`, 'utf8'); }
     catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue; throw error; }
     const parsed = parsePluginCredentialCards({ raw });
-    assert.ok(parsed.ok, `${entry.name}: ${parsed.ok ? '' : parsed.reason}`);
+    assert.ok(parsed.ok, `${pluginId}: ${parsed.ok ? '' : parsed.reason}`);
   }
 });
