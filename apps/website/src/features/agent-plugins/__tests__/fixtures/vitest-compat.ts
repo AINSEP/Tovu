@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { isDeepStrictEqual } from "node:util";
-import { after, mock } from "node:test";
+import { afterEach, mock } from "node:test";
 
 /**
  * @file The small slice of vitest's `expect` / `vi` API the `@jini-ai/devops` deploy-target suites
@@ -15,7 +15,7 @@ import { after, mock } from "node:test";
  * An unsupported matcher is a TypeError at the call, never a silent pass.
  *
  * Also owns the network guard: {@link installNetworkGuard} makes the unstubbed global `fetch` throw
- * and fails the file if anything reached it, so a ported case that forgot its stub can never call
+ * and fails the test that reached it, so a ported case that forgot its stub can never call
  * a real host.
  */
 
@@ -252,9 +252,15 @@ export const vi = {
 };
 
 /**
- * Replaces the global `fetch` with one that throws for the rest of this test file, and fails the file
- * in an `after` hook if anything called it. `vi.unstubAllGlobals` restores to this guard, not to the
- * real `fetch`, because the guard is what was installed when the first stub was taken.
+ * Replaces the global `fetch` with one that throws for the rest of this test file, and fails the test
+ * that called it in an `afterEach` hook (even if the test caught the rejection). `vi.unstubAllGlobals`
+ * restores to this guard, not to the real `fetch`, because the guard is what was installed when the
+ * first stub was taken.
+ *
+ * Why `afterEach`, not a file-level `after`: a throwing `after` hook stops node:test from running the
+ * file's later `after` hooks, so a guard failure would skip cleanup such as dialect-matrix's shared
+ * PGlite close. A throwing `afterEach` fails only that test; file-level `after` hooks still run. A
+ * fetch from a file-level hook is not attributed here, but the guard still throws at the call.
  */
 export function installNetworkGuard(): void {
   const reached: string[] = [];
@@ -263,5 +269,5 @@ export function installNetworkGuard(): void {
     reached.push(url);
     throw new Error(`network guard: unstubbed fetch to ${url}`);
   }) as typeof fetch;
-  after(() => assert.deepEqual(reached, [], "no test may reach the real network"));
+  afterEach(() => assert.deepEqual(reached.splice(0), [], "no test may reach the real network"));
 }

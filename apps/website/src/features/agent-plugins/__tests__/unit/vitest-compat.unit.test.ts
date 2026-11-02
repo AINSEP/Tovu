@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -64,7 +64,7 @@ test("compat timers fire at the deadline and globals restore to their original v
   }
 });
 
-test("the network guard fails teardown even when the forbidden fetch rejection is caught", () => {
+test("the network guard fails the test even when the forbidden fetch rejection is caught, and file cleanup still runs", () => {
   const compatUrl = new URL("../fixtures/vitest-compat.ts", import.meta.url).href;
   const env = { ...process.env };
   delete env.NODE_TEST_CONTEXT;
@@ -72,9 +72,11 @@ test("the network guard fails teardown even when the forbidden fetch rejection i
   const childPath = path.join(root, "guard.test.mjs");
   try {
     writeFileSync(childPath, `
-      import { test } from 'node:test';
+      import { after, test } from 'node:test';
+      import { writeFileSync } from 'node:fs';
       import { installNetworkGuard } from ${JSON.stringify(compatUrl)};
       installNetworkGuard();
+      after(() => writeFileSync(${JSON.stringify(path.join(root, "cleaned"))}, "yes"));
       test('caught forbidden fetch', async () => {
         await globalThis.fetch('https://guard.example.test/forbidden').catch(() => {});
       });
@@ -84,6 +86,8 @@ test("the network guard fails teardown even when the forbidden fetch rejection i
     assert.equal(run.status, 1);
     assert.match(run.stdout + run.stderr, /no test may reach the real network/);
     assert.match(run.stdout + run.stderr, /https:\/\/guard.example.test\/forbidden/);
+    // A guard failure must not skip the file's own cleanup (e.g. dialect-matrix's shared PGlite close).
+    assert.equal(existsSync(path.join(root, "cleaned")), true, "file-level after hook must still run");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
