@@ -9,6 +9,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import { registerAdminContentTypeRegisterRoute } from "../register.js";
 import { registerAdminContentTypeUpdateFieldsRoute } from "../update-fields.js";
 import type { ContentTypesRouteDeps } from "../deps.js";
+import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**
  * S9 (web-high fix plan, 2026-09-24): registering an existing or tombstoned key, and updating a
@@ -123,7 +124,8 @@ for (const fault of [new Error("index unavailable"), "private failure"]) {
     const provision = t.mock.method(deps.contentTypeIndexProvisioner, "provisionIndexesForNewContentType", async () => { throw fault; });
     const response = await send(`${baseUrl}/api/admin/v1/content-types`, "POST", { key: "recipe", label: "Recipe", fields: FIELDS });
     assert.equal(response.status, 500);
-    assert.deepEqual(response.json, { error: fault instanceof Error ? fault.message : "internal error", code: "INTERNAL_ERROR" });
+    // 88f429c25: Error and non-Error faults alike answer the concealed incident envelope.
+    assertAdminResponse({ actual: response.json, expected: { error: "internal error", code: "INTERNAL_ERROR" } });
     assert.equal(provision.mock.callCount(), 1);
     assert.equal((await repo.findByKey({ workspaceId: "ws-1", key: "recipe" }))?.label, "Recipe");
   });
