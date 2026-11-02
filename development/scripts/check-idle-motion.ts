@@ -34,6 +34,9 @@ export interface IdleMotionViolation {
 
 /** `file::selector` → why it only animates while something is in progress. */
 export const INFINITE_ANIMATION_ALLOWLIST: Record<string, string> = {
+  // c6d2807dd / 68cfd9b38: only marked busy during toolbar work or a site transition.
+  'apps/desktop/src/renderer/app.css::.button--icon[aria-busy="true"] .icon': "only while a toolbar action is busy; CSS disables animation for reduced motion",
+  'apps/desktop/src/renderer/app.css::.card__power[aria-busy="true"] .icon': "only while a site starts, stops or restarts; CSS disables animation for reduced motion",
   "apps/desktop/src/renderer/app.css::.spinner": "rendered only while a site server boots or its admin loads",
   "apps/desktop/src/renderer/app.css::.card.is-starting .state__dot,\n.card.is-stopping .state__dot":
     "only while a site is starting or stopping",

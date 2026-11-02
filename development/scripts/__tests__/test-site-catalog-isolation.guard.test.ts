@@ -82,7 +82,7 @@ test("every test that resolves a site layout without an explicit root isolates t
 test("with the home catalog isolated, a temp-cwd layout stays inside its temp dir", (t) => {
   const cwd = realpathSync(mkdtempSync(path.join(tmpdir(), "tovu-catalog-guard-")));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
-  for (const root of [resolveAgentPluginLayout({ cwd, env: {} }).root, resolveSkillLayout({ cwd, env: {} }).root]) {
+  for (const root of [resolveAgentPluginLayout({ siteDir: cwd }, { env: {} }).root, resolveSkillLayout({ cwd, env: {} }).root]) {
     assert.ok(root.startsWith(cwd + path.sep), `${root} escaped ${cwd}`);
   }
 });
