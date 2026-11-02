@@ -56,7 +56,11 @@ async function seedAsset(toolExecutor: ReturnType<typeof buildRealMediaToolExecu
     dataBase64: ONE_PIXEL_PNG_BASE64,
   } });
   assert.equal(uploaded.status, "completed", `seed upload must succeed: ${JSON.stringify(uploaded)}`);
-  return (uploaded.output as { media: { id: string } }).media.id;
+  // 96fa7bd39: with an image codec wired, an uploaded raster replies as content blocks (the media JSON
+  // as text, then a chat preview image) instead of the bare `{ media }` object.
+  const [text, preview] = (uploaded.output as { content: [{ type: string; text: string }, { type: string }] }).content;
+  assert.deepEqual([text.type, preview.type], ["text", "image"]);
+  return (JSON.parse(text.text) as { media: { id: string } }).media.id;
 }
 
 test("media_trash_asset trashes the asset in one call and emits no dialog", async () => {
