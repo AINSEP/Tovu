@@ -283,7 +283,8 @@ test("the dialog waits for a window that is actually visible", async () => {
   const window = h.openWindow({ visible: false });
   window.webContents.emit("did-finish-load");
   await settle();
-  assert.deepEqual(h.shown, []);
+  // A length check, not deepEqual(h.shown, []): that asserts `h.shown` is `never[]` for the rest of the test.
+  assert.equal(h.shown.length, 0);
   window.visible = true;
   window.emit("show");
   await settle();
