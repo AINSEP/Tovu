@@ -72,8 +72,9 @@ test("site_publish_started when an owner starts a publish run", async (t) => {
   const publishOutputRootDir = path.join(tmpdir(), `tovu-owner-events-publish-${process.pid}`);
   t.after(() => rmSync(publishOutputRootDir, { recursive: true, force: true }));
   const base = createRouteDeps();
-  // The hermetic site has consent on by default without a ready privacy page, which refuses every
-  // publish (409); this test is about the event, so readiness is stubbed as passing.
+  // Consent readiness can refuse a publish (409) when an owner turned the banner on without a ready
+  // privacy page (it is off by default since 2026-11-02); this test is about the event, so readiness
+  // is stubbed as passing.
   const deps = { ...base, tracker: createTracker({ productAnalytics: port }), publishOutputRootDir, siteConsent: { ...base.siteConsent!, deploymentCheck: async () => null } };
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
   const trigger = await adminFetch(baseUrl, cookie, `/api/admin/v1/workspaces/${deps.workspaceId}/system/publish`, { method: "POST", body: { target: "github-pages", owner: "octo", repo: "demo-repo", projectName: "demo" } });

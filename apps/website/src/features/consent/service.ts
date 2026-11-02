@@ -170,7 +170,7 @@ export function createSiteConsentService({ ports }: { ports: ConsentServicePorts
       if (!ports.store) throw new Error('Consent store unavailable');
       const state = await ports.store.read({});
       // Default-only consent (no owner choice, nothing published) exports without the banner, as the
-      // export crawl skips it (site-consent.ts isDefaultOnlyConsent); live serving keeps it on.
+      // export crawl skips it (site-consent.ts isDefaultOnlyConsent); the default is off live too (2026-11-02).
       if (!state.published && await ports.defaultOnly({})) return null;
       const effective = state.published?.config ?? await ports.readLegacy({});
       // Explicit OFF remains a rollback even when saved legacy copy exceeds today's editor limits.

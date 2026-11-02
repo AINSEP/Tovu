@@ -1099,9 +1099,9 @@ test("publish-site: enabled consent returns 409 with explicit choices before sta
   assert.deepEqual(body.choices.map((choice: { id: string }) => choice.id), ['fix-now', 'publish-without-banner']);
 });
 
-test("publish-site: a fresh site's default-on banner does not block a static publish; an owner's explicit ON still refuses", async t => {
-  // Real consent preflight (no stub): consent is on by default for live serving (0e2090872), but only an
-  // owner's choice or a published policy refuses a static export (028a0b9b4).
+test("publish-site: a fresh site's default-off banner does not block a static publish; an owner's explicit ON still refuses", async t => {
+  // Real consent preflight (no stub): consent is off by default (owner, 2026-11-02; it was on for live
+  // serving since 0e2090872), and only an owner's choice or a published policy refuses a static export (028a0b9b4).
   const deps = testRouteDeps();
   assert.ok(deps.siteConsent);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);

@@ -283,10 +283,11 @@ test("fetch_published_page: renders a real route of this site through the real c
   assert.ok(result.status >= 200 && result.status < 500, `unexpected status ${result.status}`);
   assert.equal(result.status, 200);
   assert.match(result.body, /<!doctype html>/i);
-  // 8801888ef intentionally caps raw HTML at 20 KB; the consent bootstrap precedes page content.
+  // 8801888ef intentionally caps raw HTML at 20 KB. A fresh site carries no consent bootstrap: the
+  // banner is off by default (owner, 2026-11-02), so the cap falls on the page itself.
   assert.equal(result.bodyBytes, 20_000);
   assert.equal(result.truncated, true);
-  assert.ok(result.body.includes('id="jini-consent-config"'));
+  assert.ok(!result.body.includes('id="jini-consent-config"'));
   const text = await handler(ctxFor(await deps.ownerPrincipalId, { path: "/", textOnly: true, maxBytes: 20_000 })) as typeof result;
   assert.equal(text.status, 200);
   assert.equal(text.truncated, false);
