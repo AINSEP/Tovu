@@ -53,11 +53,11 @@ test("quit waits for owned runtime disposal even without sites and disposes once
   const quitCompleted = new Promise<void>((resolve) => { finishedQuit = resolve; });
   const event = { preventDefault: () => { prevented++; } };
   const context = vm.createContext({
-    siteDiscoveryAbort: null, siteValidationAbort: null,
+    siteDiscovery: { abortAll: () => {} },
     quitPhase: "idle", openSites: new Map(),
     pendingTeardowns: createShutdownTracker({}), decideBeforeQuit,
-    productDisposers: [() => { shutdownOrder.push("product-listeners"); }, () => { shutdownOrder.push("product-memory"); }],
-    desktopProduct: { dispose: () => { shutdownOrder.push("product"); return productDisposal; } },
+    productState: { disposers: [() => { shutdownOrder.push("product-listeners"); }, () => { shutdownOrder.push("product-memory"); }],
+      product: { dispose: () => { shutdownOrder.push("product"); return productDisposal; } } },
     desktopAgentRuntime: { dispose: () => { shutdownOrder.push("runtime"); disposals++; return disposal; } },
     siteThemePreviews: { dispose: () => { shutdownOrder.push("previews"); } },
     finalQuitHeldForUpdate: () => false,
