@@ -23,16 +23,10 @@ import { redactLocalText } from "../../website/src/platform/server-logs/redact-l
 import { createRedactedOutputSink } from "../../website/src/platform/server-logs/console-tee.ts";
 import { spawn as nodeSpawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { createRequire } from "node:module";
 import { omitEnvironmentKeys } from "@jini-ai/platform/child-environment";
 import type { SpawnOptions } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
-
-// {@link buildCliSpawnPlan} needs `require.resolve("tsx")`'s CommonJS resolution, which walks up
-// from THIS file to `apps/desktop/node_modules/tsx`. `import.meta.resolve` would pick the package's
-// `import` condition instead of the `require` one and so could name a different entry file.
-const require = createRequire(import.meta.url);
 
 /** `apps/website/src/cli/commands/serve.ts`'s documented startup line (api.spec.md §5). */
 const BOOT_LINE = /^tovu serve: dir=(.+) port=(\d+) schemaVersion=(\d+) workspaceId=(\S+)$/m;
@@ -226,7 +220,12 @@ interface CliSpawnPlan {
  * whatever Node is first on `PATH`, reintroducing exactly the system-Node dependency
  * `buildServeEnv`'s own comment already explains was removed on purpose.
  *
- * `--import` names `require.resolve("tsx")`'s own ABSOLUTE path as a `file:` URL (a bare `C:\` path is
+ * tsx registers through the checkout's `development/scripts/dev-tsx-loader.mjs` (`import "tsx"`, the
+ * same preload the daemon supervisor uses), not a `require.resolve("tsx")` here: tsx is a
+ * devDependency, and the asar ships this file, so that literal failed the staged-closure audit on
+ * every 0.1.26 build. The loader's own `import "tsx"` resolves from the loader's location in the repo.
+ *
+ * `--import` names the loader's ABSOLUTE path as a `file:` URL (a bare `C:\` path is
  * read as a URL scheme on Windows: `ERR_UNSUPPORTED_ESM_URL_SCHEME`), not the bare specifier `"tsx"`:
  * Node resolves a bare `--import` specifier relative to the CHILD's own `cwd`, walking up through
  * ITS ancestor `node_modules` directories — which happens to still find this repo's own
@@ -248,9 +247,9 @@ interface CliSpawnPlan {
 function buildCliSpawnPlan(input: CliSpawnPlanInput): CliSpawnPlan {
   const cliMode = input.cliMode ?? "compiled";
   if (cliMode === "source") {
-    const mapsOff = path.join(input.repoRoot, "development", "scripts", "dev-source-maps-off.mjs");
-    return { command: process.execPath, args: ["--import", pathToFileURL(require.resolve("tsx")).href,
-      "--import", pathToFileURL(mapsOff).href, resolveDevCliEntry(input.repoRoot), ...input.cliArgs] };
+    const scripts = path.join(input.repoRoot, "development", "scripts");
+    return { command: process.execPath, args: ["--import", pathToFileURL(path.join(scripts, "dev-tsx-loader.mjs")).href,
+      "--import", pathToFileURL(path.join(scripts, "dev-source-maps-off.mjs")).href, resolveDevCliEntry(input.repoRoot), ...input.cliArgs] };
   }
   return { command: process.execPath, args: [resolveCliEntry(input.repoRoot), ...input.cliArgs] };
 }

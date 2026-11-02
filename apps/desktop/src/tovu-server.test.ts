@@ -203,7 +203,7 @@ test("buildCliSpawnPlan in source mode runs the TS entry under --import tsx, nev
   assert.equal(plan.command, process.execPath);
   assert.deepEqual(plan.args, [
     "--import",
-    pathToFileURL(require.resolve("tsx")).href,
+    pathToFileURL(path.join(root, "development", "scripts", "dev-tsx-loader.mjs")).href,
     "--import",
     pathToFileURL(path.join(root, "development", "scripts", "dev-source-maps-off.mjs")).href,
     path.join(root, "apps", "website", "src", "cli", "main.ts"),
@@ -627,7 +627,7 @@ test("startTovuServer in source mode runs the TS entry under --import tsx instea
   assert.equal(recorded!.command, process.execPath);
   assert.deepEqual(recorded!.args, [
     "--import",
-    pathToFileURL(require.resolve("tsx")).href,
+    pathToFileURL(path.join(root, "development", "scripts", "dev-tsx-loader.mjs")).href,
     "--import",
     pathToFileURL(path.join(root, "development", "scripts", "dev-source-maps-off.mjs")).href,
     path.join(root, "apps", "website", "src", "cli", "main.ts"),
@@ -1274,4 +1274,18 @@ test("with every seam defaulted, a real child is spawned on an allocated port an
     await handle.stop();
   }
   await assertPidGone(handle.pid);
+});
+
+test("tovu-server.ts imports no package outside apps/desktop dependencies (0.1.26 asar closure: source-mode tsx)", async () => {
+  // The asar ships this file as-is; a devDependency literal here fails the staged-closure audit.
+  const { default: ts } = await import("typescript");
+  const { createTypeScriptImportReader } = await import("@jini-ai/devops/packaging/electron/typescript");
+  const file = new URL("./tovu-server.ts", import.meta.url);
+  const manifest = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  const declared = new Set(Object.keys({ ...manifest.dependencies, ...manifest.optionalDependencies }));
+  const packages = createTypeScriptImportReader({ compiler: ts }).imports({ file: file.pathname, source: fs.readFileSync(file, "utf8") })
+    .filter(specifier => !specifier.startsWith(".") && !specifier.startsWith("node:"))
+    .map(specifier => specifier.split("/").slice(0, specifier.startsWith("@") ? 2 : 1).join("/"))
+    .filter(name => !declared.has(name));
+  assert.deepEqual(packages, []);
 });
