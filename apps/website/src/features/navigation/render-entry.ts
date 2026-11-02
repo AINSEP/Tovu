@@ -46,9 +46,16 @@ function renderLabel({ label, attrs }: { label: string; attrs: MenuAttrs }): str
   return `${icon}${escapeHtml(label)}${description}`;
 }
 
-function renderRel({ attrs }: { attrs: MenuAttrs }): string {
-  const relTokens = new Set((attrs.rel ?? "").split(/\s+/).filter(Boolean));
-  if (attrs.openInNewTab) { relTokens.add("noopener"); relTokens.add("noreferrer"); }
+/**
+ * The escaped ` rel="…"` attribute for a menu `<a>`, or `""`. A new-tab link always gets
+ * `noopener noreferrer`, even when the item never went through Jini's resolver (which also drops
+ * non-standard tokens — `@jini-ai/cms` `navigation/link-rel.ts`). Shared by every Tovu menu
+ * renderer (this file, `static-render.ts`, the widget menu in `site/render.ts`) so none of them
+ * can ship `target="_blank"` without it again (bug 11-02 o4). O(length of rel).
+ */
+export function menuLinkRelAttr({ rel, openInNewTab }: { rel?: string | undefined; openInNewTab?: boolean | undefined }, _optional = {}): string {
+  const relTokens = new Set((rel ?? "").split(/\s+/).filter(Boolean));
+  if (openInNewTab) { relTokens.add("noopener"); relTokens.add("noreferrer"); }
   return relTokens.size ? ` rel="${escapeHtml([...relTokens].join(" "))}"` : "";
 }
 
@@ -58,7 +65,7 @@ function renderAnchor({ item, attrs, href, toolName, label }: {
   const current = item.isCurrent ? ' aria-current="page"' : "";
   const target = attrs.openInNewTab ? ' target="_blank"' : "";
   const tool = renderToolAttrs({ href, toolName, label: item.label });
-  return `<a href="${escapeHtml(href)}"${current}${target}${renderRel({ attrs })}${tool}>${label}</a>`;
+  return `<a href="${escapeHtml(href)}"${current}${target}${menuLinkRelAttr({ rel: attrs.rel, openInNewTab: attrs.openInNewTab })}${tool}>${label}</a>`;
 }
 
 function renderItem({ item, index, depth, sanitizeHref, toolPrefix }: {

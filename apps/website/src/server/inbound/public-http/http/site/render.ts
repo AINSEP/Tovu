@@ -55,6 +55,7 @@ import {
   type FormFlashPayload,
 } from "./form-render.js";
 import { escapeHtml } from "#src/platform/html/escape";
+import { menuLinkRelAttr } from "#src/features/navigation/render-entry";
 import { postAuthorForDisplay } from "#src/contracts/core/post-author";
 import { postAuthorForContentHeader } from "#src/features/theme/static-render";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
@@ -2300,8 +2301,9 @@ function widgetMenuItemClassAttr(attrs: JsonObject | undefined): string {
 /** `rel="…"`/`target="_blank"` from a resolved item's `attrs.rel`/`attrs.openInNewTab`. */
 function widgetMenuItemLinkAttrs(attrs: JsonObject | undefined): string {
   const rel = attrs?.rel;
-  const relAttr = typeof rel === "string" && rel ? ` rel="${escapeHtml(rel)}"` : "";
-  const targetAttr = attrs?.openInNewTab === true ? ' target="_blank"' : "";
+  const openInNewTab = attrs?.openInNewTab === true;
+  const relAttr = menuLinkRelAttr({ rel: typeof rel === "string" ? rel : undefined, openInNewTab });
+  const targetAttr = openInNewTab ? ' target="_blank"' : "";
   return `${relAttr}${targetAttr}`;
 }
 

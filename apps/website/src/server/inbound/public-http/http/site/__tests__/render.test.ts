@@ -674,7 +674,8 @@ test("renderSite (Liquid tier): a menu widget's authored cssClass/rel/openInNewT
     }),
   });
   assert.match(html, /<li class="is-featured">/);
-  assert.match(html, /<a href="\/docs" rel="nofollow" target="_blank">/);
+  // Corrected 11-02 (owner rel policy): a new-tab link always carries noopener noreferrer.
+  assert.match(html, /<a href="\/docs" rel="nofollow noopener noreferrer" target="_blank">/);
 });
 
 // ---------------------------------------------------------------------------
@@ -1506,10 +1507,20 @@ test("menu widget: authored cssClass/rel/openInNewTab/icon/description reach the
     },
   });
   assert.match(html, /<li class="is-featured">/);
-  assert.match(html, /<a href="\/docs" rel="nofollow" target="_blank">/);
+  // Corrected 11-02 (owner rel policy): a new-tab link always carries noopener noreferrer.
+  assert.match(html, /<a href="\/docs" rel="nofollow noopener noreferrer" target="_blank">/);
   assert.match(html, /data-icon="book"/);
   assert.match(html, /widget-menu-item-desc">Guides</);
   assert.match(html, /Docs/);
+});
+
+// Bug class (11-02 o4): widget menus added target=_blank with no noopener.
+test("menu widget: a new-tab link with no authored rel still gets rel=\"noopener noreferrer\"", () => {
+  const html = renderWidgetIr({
+    componentId: "menu",
+    props: { items: [{ label: "Out", href: "https://example.com/", available: true, attrs: { openInNewTab: true }, children: [] }] },
+  });
+  assert.match(html, /<a href="https:\/\/example\.com\/" rel="noopener noreferrer" target="_blank">/);
 });
 
 test("menu widget: an item with no attrs at all renders exactly as before this feature existed (no stray class/rel/target attributes)", () => {

@@ -199,8 +199,23 @@ test("authored rel and openInNewTab reach the <a> tag — previously read nowher
       }),
     },
   });
-  assert.ok(html?.includes('<a href="https://example.com" rel="nofollow" target="_blank">External</a>'));
+  // Corrected 11-02 (owner rel policy): a new-tab link always carries noopener noreferrer; the old
+  // expectation pinned `target="_blank"` without them.
+  assert.ok(html?.includes('<a href="https://example.com" rel="nofollow noopener noreferrer" target="_blank">External</a>'), html ?? "null");
 });
+
+// Bug class (11-02 o4): the static menu renderers added target=_blank with no noopener, so a menu
+// link opened in a new tab could reach back through window.opener. Every variant must add it.
+for (const [variant, theme] of [["tree", treeTheme], ["flat", flatTheme]] as const) {
+  test(`${variant} variant: a new-tab link with no authored rel still gets rel="noopener noreferrer"`, () => {
+    const html = renderMarkup({
+      theme: theme(),
+      pageId: "index",
+      menus: { [HEADER_ID]: items({ label: "External", href: "https://example.com", attrs: { openInNewTab: true } }) },
+    });
+    assert.match(html ?? "", /<a href="https:\/\/example\.com" rel="noopener noreferrer" target="_blank"/);
+  });
+}
 
 test("the FLAT variant honors authored rel and openInNewTab too — the admin menu editor's 'Open in new tab' must not silently do nothing on a flat nav/footer", () => {
   const html = renderMarkup({
@@ -215,7 +230,7 @@ test("the FLAT variant honors authored rel and openInNewTab too — the admin me
     },
   });
   assert.ok(
-    html?.includes('<a href="https://example.com" rel="nofollow&quot;&gt;&lt;script&gt;x&lt;/script&gt;" target="_blank">External</a>'),
+    html?.includes('<a href="https://example.com" rel="nofollow&quot;&gt;&lt;script&gt;x&lt;/script&gt; noopener noreferrer" target="_blank">External</a>'),
     html ?? "null"
   );
 });

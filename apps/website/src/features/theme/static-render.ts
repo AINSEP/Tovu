@@ -6,7 +6,7 @@ import { COLLECTION_MARKER_TYPE, FEATURED_IMAGE_MARKER_TYPE, markersOfType, MENU
 import { extractListingCardTemplate, injectListingScript, listingKeyOfAttributes, parseListingBatchSize, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
 import { injectMenuDropdownScript, renderMenuToggle } from "@jini-ai/cms/navigation/dropdown";
 import { postAuthorForDisplay } from "../../contracts/core/post-author.js";
-import { renderHtmlMenu } from "#src/features/navigation/render-entry";
+import { menuLinkRelAttr, renderHtmlMenu } from "#src/features/navigation/render-entry";
 import { escapeHtml } from "#src/platform/html/escape";
 import { withEntryListStyleOnce } from "./entry-list-render.js";
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
@@ -157,7 +157,8 @@ export interface StaticMenuItem {
   /** True when this item OR a descendant is current — what a sidebar uses to expand a section. */
   readonly isActive?: boolean;
   /** `NavItemAttrs` passthrough — all five presentational fields (`cssClass`/`description`/`icon`
-   *  render as before; `rel`/`openInNewTab` added alongside them, same escaped/no-allowlist posture). */
+   *  render as before; `rel`/`openInNewTab` added alongside them, escaped; `rel` arrives allowlisted
+   *  from Jini's resolver and a new tab always adds `noopener noreferrer` — see `menuItemLinkAttrs`). */
   readonly attrs?:
     | {
         readonly cssClass?: string;
@@ -216,11 +217,10 @@ function renderMenuLinks(items: readonly StaticMenuItem[]): string {
  * a `depth-N` class, and the item's own authored `attrs.cssClass`. `description`/`icon` render as
  * child spans so a theme can style or ignore them without the renderer knowing an icon set.
  * `attrs.rel`/`attrs.openInNewTab` render onto the `<a>` itself (`rel="…"`/`target="_blank"`) —
- * escaped, not allowlist-validated, same posture as `cssClass`/`icon` despite this file's own
- * `NavItemAttrs` doc comment describing `rel` as "validated against an allowlist": no such
- * allowlist exists anywhere in the write chokepoint (`validateAndCloneTree` clones `attrs`
- * untouched) — flagged, not fixed, here; fixing it is a Jini `menu-service.ts` change, out of this
- * pass's scope.
+ * escaped here; the rel allowlist lives in Jini (`navigation/link-rel.ts`, applied by
+ * `validateAndCloneTree` on write and `resolveMenuDoc` on read — 11-02 owner policy; before that
+ * no allowlist existed anywhere despite `NavItemAttrs`' doc comment). A new-tab link always gets
+ * `noopener noreferrer` via `menuLinkRelAttr`.
  *
  * Availability rule, which differs from the flat renderer's on purpose: an unavailable **leaf** is
  * omitted entirely (the flat contract — never emit a dead link), but an unavailable **branch** is
@@ -257,7 +257,7 @@ function menuItemInnerHtml(item: StaticMenuItem): string {
 /** The `<a>` tag's own attribute suffix (`aria-current`/`rel`/`target`) for a linkable item. */
 function menuItemLinkAttrs(item: StaticMenuItem): string {
   const current = item.isCurrent ? ' aria-current="page"' : "";
-  const rel = item.attrs?.rel ? ` rel="${escapeHtml(item.attrs.rel)}"` : "";
+  const rel = menuLinkRelAttr({ rel: item.attrs?.rel, openInNewTab: item.attrs?.openInNewTab });
   const target = item.attrs?.openInNewTab ? ' target="_blank"' : "";
   const identity = `${item.href}:${item.label}`;
   const name = `menu_${agentHandleSegment({ value: identity })}`;
