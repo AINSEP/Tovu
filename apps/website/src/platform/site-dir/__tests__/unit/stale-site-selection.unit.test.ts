@@ -29,12 +29,14 @@ for (const reverse of [false, true]) {
       assert.deepEqual(registry.list({}), before, "offline records remain available for explicit ID selection");
       assert.equal(resolveSiteRoot({ ...options, env: { ...env, TOVU_SITE: "site-1" } }), stale);
 
-      // Two complete sites sharing a name still require an explicit registry identity.
+      // Two complete sites sharing a name (a live scratch copy) warn and pick deterministically,
+      // never refusing the boot; the registry ID still selects the other one.
       fs.mkdirSync(stale, { recursive: true });
       fs.writeFileSync(path.join(stale, "config.json"), "{}");
       fs.writeFileSync(path.join(stale, ".site-meta.json"), "{}");
-      assert.throws(() => devSitesHome({ repoRoot: cwd }, options), /Select its registry ID/);
-      assert.throws(() => resolveSiteRoot(options), /Select its registry ID/);
+      assert.equal(devSitesHome({ repoRoot: cwd }, options).dir, live);
+      assert.equal(resolveSiteRoot(options), live);
+      assert.equal(resolveSiteRoot({ ...options, env: { ...env, TOVU_SITE: "site-1" } }), stale);
     } finally { fs.rmSync(root, { recursive: true, force: true }); }
   });
 }
