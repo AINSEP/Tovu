@@ -2,7 +2,7 @@
   "output": ".github/workflows/fly-deploy.yml",
   "placeholders": {
     "<<PLACEHOLDER: default branch, e.g. main>>": "main",
-    "<<PLACEHOLDER: exact @jini-ai/plugin-fly version>>": "0.6.20"
+    "<<PLACEHOLDER: exact @jini-ai/agent-plugins version>>": "0.6.19"
   },
   "blocks": {
     "header": "workflow/header.yml",

@@ -3,15 +3,15 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 
-import { renderFromValues } from '@jini-ai/plugin-fly/fly/scripts/render-deploy-workflow.mjs';
+import { renderFromValues } from '@jini-ai/agent-plugins/fly/scripts/render-deploy-workflow.mjs';
 
 /**
- * @file Tovu's overlay for the portable Fly plugin (`@jini-ai/plugin-fly`). Tovu's production
+ * @file Tovu's overlay for the portable Fly plugin (`@jini-ai/agent-plugins/fly`). Tovu's production
  * `.github/workflows/fly-deploy.yml` is OUTPUT of the plugin's template plus this overlay's values
  * file and `workflow/*.yml` blocks; this drift test (moved from the plugin's own
  * `scripts/__tests__/render-deploy-workflow.test.mjs`) fails while the committed file differs.
  * Re-render with:
- *   node node_modules/@jini-ai/plugin-fly/fly/scripts/render-deploy-workflow.mjs \
+ *   node node_modules/@jini-ai/agent-plugins/fly/scripts/render-deploy-workflow.mjs \
  *     --values content/agent-plugin-overlays/fly/tovu-production.values.json --repo-root .
  */
 
@@ -43,10 +43,10 @@ test('the render keeps the production deploy contract', () => {
 
 test('the deploy job fetches exactly the pinned plugin version and imports the generator from it, not from Tovu', () => {
   const { contents } = rendered();
-  const version = values.placeholders['<<PLACEHOLDER: exact @jini-ai/plugin-fly version>>'];
+  const version = values.placeholders['<<PLACEHOLDER: exact @jini-ai/agent-plugins version>>'];
   assert.match(version, /^\d+\.\d+\.\d+$/, 'an exact version, never a range or tag');
-  assert.ok(contents.includes(`          PLUGIN_FLY_VERSION: "${version}"\n`));
-  assert.ok(contents.includes('          npm pack "@jini-ai/plugin-fly@${PLUGIN_FLY_VERSION}" --pack-destination "$RUNNER_TEMP"\n'));
+  assert.ok(contents.includes(`          AGENT_PLUGINS_VERSION: "${version}"\n`));
+  assert.ok(contents.includes('          npm pack "@jini-ai/agent-plugins@${AGENT_PLUGINS_VERSION}" --pack-destination "$RUNNER_TEMP"\n'));
   const fetchAt = contents.indexOf('- name: Fetch the pinned Fly plugin');
   const nodeAt = contents.indexOf('- uses: actions/setup-node@v4');
   const generateAt = contents.indexOf('- name: Generate Fly config from the plugin');

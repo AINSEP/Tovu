@@ -6,13 +6,14 @@
         with:
           node-version: "24"
 
-      # Only this one package is downloaded; npm pack checks the registry integrity.
+      # Only this one package is downloaded (the Fly plugin ships in it as fly/); npm pack checks the
+      # registry integrity.
       - name: Fetch the pinned Fly plugin
         env:
-          PLUGIN_FLY_VERSION: "<<PLACEHOLDER: exact @jini-ai/plugin-fly version>>"
+          AGENT_PLUGINS_VERSION: "<<PLACEHOLDER: exact @jini-ai/agent-plugins version>>"
         run: |
-          npm pack "@jini-ai/plugin-fly@${PLUGIN_FLY_VERSION}" --pack-destination "$RUNNER_TEMP"
-          mkdir -p "$RUNNER_TEMP/plugin-fly" && tar -xzf "$RUNNER_TEMP"/jini-ai-plugin-fly-*.tgz -C "$RUNNER_TEMP/plugin-fly"
+          npm pack "@jini-ai/agent-plugins@${AGENT_PLUGINS_VERSION}" --pack-destination "$RUNNER_TEMP"
+          mkdir -p "$RUNNER_TEMP/plugin-fly" && tar -xzf "$RUNNER_TEMP"/jini-ai-agent-plugins-*.tgz -C "$RUNNER_TEMP/plugin-fly"
 
       - name: Generate Fly config from the plugin
         run: |

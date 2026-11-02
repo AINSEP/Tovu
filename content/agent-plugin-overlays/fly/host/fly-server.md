@@ -1,6 +1,6 @@
 # Deploying the Tovu server to fly.io
 
-Tovu's host guidance for the Fly plugin (`@jini-ai/plugin-fly`). This is a different job from
+Tovu's host guidance for the Fly plugin (`@jini-ai/agent-plugins/fly`). This is a different job from
 publishing the site's static export. It deploys the Tovu server itself: the app, admin, and database
 on one fly.io machine.
 

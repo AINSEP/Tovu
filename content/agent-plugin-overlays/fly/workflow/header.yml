@@ -1,8 +1,8 @@
 # ============================================================================
 # GENERATED FILE - do not edit by hand. Rendered by the Fly agent plugin:
-#   node node_modules/@jini-ai/plugin-fly/fly/scripts/render-deploy-workflow.mjs \
+#   node node_modules/@jini-ai/agent-plugins/fly/scripts/render-deploy-workflow.mjs \
 #     --values content/agent-plugin-overlays/fly/tovu-production.values.json --repo-root .
-# from @jini-ai/plugin-fly's fly/skills/fly/references/fly-deploy.template.yml and Tovu's overlay
+# from @jini-ai/agent-plugins' fly/skills/fly/references/fly-deploy.template.yml and Tovu's overlay
 # content/agent-plugin-overlays/fly/ (the values file and its workflow/*.yml blocks). Edit the
 # overlay, re-render, and commit both; content/agent-plugin-overlays/fly/__tests__ fails while they
 # disagree.
@@ -10,7 +10,7 @@
 # Generated config ownership and production invariants (moved from the former root fly.toml)
 # ============================================================================
 # The Fly plugin's deploy-configs/fly.mjs owns generation. This job has no installed/built Tovu
-# CLI, so it fetches the pinned @jini-ai/plugin-fly package (exact version from the overlay values
+# CLI, so it fetches the pinned @jini-ai/agent-plugins package (exact version from the overlay values
 # file, independent of Tovu's own dependencies) and imports that dependency-free module directly
 # immediately before flyctl deploy.
 # Do not commit the generated root fly.toml. For a local deploy, generate it first with
