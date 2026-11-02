@@ -1,3 +1,7 @@
+import userEvent from "@testing-library/user-event";
+import { captureSkillDrop } from "../skill-drop";
+import { readFileSync } from "node:fs";
+import { useSkillInstall as useRealSkillInstall } from "../use-skill-install.hooks";
 import { cleanup, fireEvent, render, screen, within } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SkillRow } from "../SkillRow";
@@ -94,6 +98,37 @@ describe("SkillInstallConfirmation", () => {
     render(<SkillInstallConfirmation install={install({ error: "SKILL.md is missing." })} />);
     expect(screen.getByRole("alert")).toHaveTextContent("SKILL.md is missing.");
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("a failed skill drop is a compact alert that keyboard users can dismiss", async () => {
+    function FailedDrop() {
+      const state = useRealSkillInstall();
+      return <><div data-testid="skill-drop-target" onDrop={event => captureSkillDrop({ event, proposeFiles: state.proposeFiles, fallback: vi.fn() }, { onError: state.fail })} /><SkillInstallConfirmation install={state} /></>;
+    }
+    const user = userEvent.setup();
+    const style = document.createElement("style");
+    style.textContent = ".admin-chat-dock > * { flex: 1; }" + readFileSync("src/features/skills/skills.css", "utf8");
+    document.head.append(style);
+    try {
+      render(<aside className="admin-chat-dock"><FailedDrop /></aside>);
+      const folder = { name: "skill", fullPath: "/skill", isDirectory: true, isFile: false,
+        createReader: () => ({ readEntries: (_resolve: unknown, reject: (error: Error) => void) => reject(new Error("Could not read skill folder.")) }),
+      };
+      fireEvent.drop(screen.getByTestId("skill-drop-target"), { dataTransfer: {
+        items: [{ kind: "file", getAsFile: () => null, webkitGetAsEntry: () => folder }], files: [], types: ["Files"],
+      } });
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent("Could not read skill folder.");
+      expect(alert).toHaveClass("skills-install-error");
+      expect(getComputedStyle(alert).flexGrow).toBe("0");
+      const dismiss = within(alert).getByRole("button", { name: "Dismiss" });
+      expect(getComputedStyle(dismiss).minHeight).toBe("44px");
+      expect(getComputedStyle(dismiss).minWidth).toBe("44px");
+      dismiss.focus();
+      expect(dismiss).toHaveFocus();
+      await user.keyboard("{Enter}");
+      expect(screen.queryByRole("alert")).toBeNull();
+    } finally { style.remove(); }
   });
 
   it("asks to confirm a GitHub install, naming its source, and confirms or cancels", () => {

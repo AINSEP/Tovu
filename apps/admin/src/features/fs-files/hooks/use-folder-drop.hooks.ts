@@ -55,7 +55,7 @@ export type FolderDropErrorReason = "not-a-directory" | "does-not-exist" | "endp
  *  dropped but its OS path could not be read (a plain browser tab never exposes one), so the drop
  *  was swallowed and the operator is asked to paste the path instead. */
 export type FolderDropNotice =
-  | { readonly kind: "confirmation"; readonly path: string; readonly replacedPreviousPath: string | null }
+  | { readonly kind: "confirmation"; readonly path: string; readonly paths?: readonly string[]; readonly replacedPreviousPath: string | null }
   | { readonly kind: "error"; readonly path: string; readonly reason: FolderDropErrorReason }
   | { readonly kind: "path-unavailable" };
 
@@ -168,6 +168,7 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
 
   const [notice, setNotice] = useState<FolderDropNotice | null>(null);
   const lastAttemptedPath = useRef<string | null>(null);
+  const lastAttemptedPaths = useRef<readonly string[] | undefined>(undefined);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Guards every `setState` below against firing after unmount.
   const mountedRef = useRef(true);
@@ -195,8 +196,9 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
   const writes = useSerialWrites();
 
   const applyCustomRoot = useCallback(
-    (path: string): Promise<void> => {
+    (path: string, paths?: readonly string[]): Promise<void> => {
       lastAttemptedPath.current = path;
+      lastAttemptedPaths.current = paths;
       // Minted HERE, synchronously, before this drop even joins the write chain — not inside the
       // queued task below. Two drops handled in the same tick must each see the other's claim before
       // either one's chained task starts running, so the later drop's mint always outranks the
@@ -220,6 +222,7 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
           setNotice({
             kind: "confirmation",
             path,
+            ...(paths && paths.length > 1 ? { paths } : {}),
             replacedPreviousPath: previousPath !== path ? previousPath : null,
           });
           scheduleAutoDismiss();
@@ -254,7 +257,7 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
     if (paths.length === 0) { showPathHint(); return; }
     input.composerHandle.current?.addFolders({ folders: paths });
     // See this module's own doc ("Multiple folders in one drop event") for why the LAST path wins.
-    void applyCustomRoot(paths[paths.length - 1]!);
+    void applyCustomRoot(paths[paths.length - 1]!, paths);
   }, [input.composerHandle, applyCustomRoot, showPathHint]);
 
   const { composerHandle } = input;
@@ -269,7 +272,7 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
   }, []);
 
   const retry = useCallback(() => {
-    if (lastAttemptedPath.current !== null) void applyCustomRoot(lastAttemptedPath.current);
+    if (lastAttemptedPath.current !== null) void applyCustomRoot(lastAttemptedPath.current, lastAttemptedPaths.current);
   }, [applyCustomRoot]);
 
   return { notice, dismiss, retry, handleDropCapture, insertFolderPath, showPathHint };

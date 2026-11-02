@@ -17,13 +17,15 @@ import { Icon } from "@jini-ai/ui";
 export interface FolderDropConfirmationProps {
   /** The absolute path just set as the `custom` root. */
   readonly path: string;
+  /** All folders staged by this drop; the custom file root still names only `path`. */
+  readonly paths?: readonly string[] | undefined;
   /** Set when this drop replaced an already-active `custom` root — wording differs accordingly. */
   readonly replacedPreviousPath?: string | null;
   /** Auto-timeout or explicit dismiss — no state change beyond removing this notice from view. */
   readonly onDismiss: () => void;
 }
 
-export function FolderDropConfirmation({ path, replacedPreviousPath, onDismiss }: FolderDropConfirmationProps) {
+export function FolderDropConfirmation({ path, paths, replacedPreviousPath, onDismiss }: FolderDropConfirmationProps) {
   const t = useT();
   return (
     <div className="tovu-folder-drop-notice tovu-folder-drop-notice--confirmation" role="status">
@@ -31,7 +33,9 @@ export function FolderDropConfirmation({ path, replacedPreviousPath, onDismiss }
         <Icon name="folder" size={14} />
       </span>
       <span className="tovu-folder-drop-notice__label">
-        {replacedPreviousPath
+        {paths && paths.length > 1 ? (
+          <>{t("Folders added to the message")}: {paths.join(", ")}. {t("Active file root")}: {path}.</>
+        ) : replacedPreviousPath
           ? t("The assistant can now read {path}, replacing the previous folder.", { path })
           : t("The assistant can now read {path}.", { path })}
       </span>

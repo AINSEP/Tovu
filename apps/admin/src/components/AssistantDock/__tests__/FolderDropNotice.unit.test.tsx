@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import userEvent from "@testing-library/user-event";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -50,6 +51,25 @@ describe("FolderDropNotice", () => {
     await user.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(onDismiss).toHaveBeenCalledTimes(1);
     expect(onRetry).not.toHaveBeenCalled();
+  });
+
+  it("names every staged folder separately from the single active file root", () => {
+    render(<FolderDropNotice notice={{ kind: "confirmation", path: "/Users/x/two", paths: ["/Users/x/one", "/Users/x/two"], replacedPreviousPath: null }} onDismiss={vi.fn()} onRetry={vi.fn()} />);
+    const notice = screen.getByRole("status");
+    expect(notice).toHaveTextContent("/Users/x/one");
+    expect(notice).toHaveTextContent("/Users/x/two");
+    expect(notice).toHaveTextContent("Folders added to the message");
+    expect(notice).toHaveTextContent("Active file root: /Users/x/two");
+    expect(notice).not.toHaveTextContent("The assistant can now read");
+    const style = document.createElement("style");
+    style.textContent = readFileSync("src/styles/assistant.css", "utf8");
+    document.head.append(style);
+    try {
+      const dismiss = screen.getByRole("button", { name: "Dismiss" });
+      expect(getComputedStyle(dismiss).minWidth).toBe("44px");
+      expect(getComputedStyle(dismiss).minHeight).toBe("44px");
+      expect(getComputedStyle(notice.querySelector(".tovu-folder-drop-notice__label")!).overflowWrap).toBe("anywhere");
+    } finally { style.remove(); }
   });
 
   it("renders FolderDropError for an error notice — at most one notice visible at a time (ui.spec.md §4)", async () => {

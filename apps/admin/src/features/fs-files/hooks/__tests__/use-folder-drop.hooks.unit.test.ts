@@ -482,6 +482,20 @@ describe("useFolderDrop", () => {
     expect(composerHandle.current?.addFolders).toHaveBeenCalledWith({ folders: ["/Users/x/one", "/Users/x/two"] });
     expect(composerHandle.current?.insertText).not.toHaveBeenCalled();
     expect(setCustomRoot).toHaveBeenCalledWith("/Users/x/two");
+    expect(result.current.notice).toMatchObject({ kind: "confirmation", paths: ["/Users/x/one", "/Users/x/two"] });
+  });
+
+  it("retry preserves every staged folder when the active-root request initially fails", async () => {
+    const composerHandle = fakeComposerHandle();
+    const paths = ["/Users/x/one", "/Users/x/two"];
+    const { dataTransfer, port } = folderDataTransfer(paths);
+    const setCustomRoot = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue({ path: paths[1] });
+    const { result } = renderHook(() => useFolderDrop({ composerHandle }, { getPort: () => port, setCustomRoot, getCustomRoot: vi.fn().mockResolvedValue({ path: null }) }));
+    await act(async () => result.current.handleDropCapture(fakeDropEvent(dataTransfer)));
+    expect(result.current.notice?.kind).toBe("error");
+    await act(async () => result.current.retry());
+    expect(result.current.notice).toMatchObject({ kind: "confirmation", paths });
+    expect(composerHandle.current?.addFolders).toHaveBeenCalledTimes(1);
   });
 
   it("dismiss() clears the notice immediately and cancels the pending auto-dismiss", async () => {

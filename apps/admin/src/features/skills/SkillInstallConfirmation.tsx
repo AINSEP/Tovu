@@ -5,7 +5,14 @@ import "./skills.css";
 
 export function SkillInstallConfirmation({ install }: { install: ReturnType<typeof useSkillInstall> }) {
   const confirmation = useSkillInstallConfirmation(install);
-  if (!install.pending) return install.error ? <p className="notice error" role="alert">{install.error}</p> : null;
+  // A read failure has no confirmation dialog. Keep it in a compact, dismissible row;
+  // a bare notice inherits the dock's flex: 1 rule and consumes half the transcript.
+  if (!install.pending) return install.error ? (
+    <div className="notice error skills-install-error" role="alert">
+      <span>{install.error}</span>
+      <button type="button" className="btn-secondary" onClick={install.cancel} aria-label="Dismiss">Dismiss</button>
+    </div>
+  ) : null;
   return (
     <div className="settings-dialog-backdrop" onClick={install.cancel}>
       <div ref={confirmation.dialogRef} className="settings-dialog skills-confirm-dialog" role="dialog" aria-modal="true" aria-label="Install skill" aria-busy={install.busy} onClick={confirmation.onDialogClick}>

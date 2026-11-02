@@ -28,6 +28,7 @@ export function FolderDropNotice({ notice, onDismiss, onRetry, canPickFolder = f
     return (
       <FolderDropConfirmation
         path={notice.path}
+        paths={notice.paths}
         replacedPreviousPath={notice.replacedPreviousPath}
         onDismiss={onDismiss}
       />

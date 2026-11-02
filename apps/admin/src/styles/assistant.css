@@ -1197,6 +1197,7 @@ button.jini-composer-leading,
 .tovu-folder-drop-notice__label {
   flex: 1;
   min-width: 140px;
+  overflow-wrap: anywhere;
 }
 
 .tovu-folder-drop-notice__action {
@@ -1213,6 +1214,12 @@ button.jini-composer-leading,
 }
 
 .tovu-folder-drop-notice__dismiss {
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: transparent;
   color: var(--faint);

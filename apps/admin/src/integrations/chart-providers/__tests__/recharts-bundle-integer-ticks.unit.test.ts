@@ -77,3 +77,26 @@ it.each(["bar", "line"] as const)("a %s chart of large whole counts keeps at mos
   expect(ticks.length).toBeLessThanOrEqual(5);
   expect(ticks.every((tick) => /^\d+$/.test(tick)), ticks.join(", ")).toBe(true);
 });
+
+// Orphan punctuation is a wrapping defect: assert on the actual shipped SVG at dock widths.
+it.each([180, 240, 375])("keeps middle-dot label separators with a word at %spx", async (width) => {
+  vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockImplementation(function (this: HTMLElement) {
+    const measuring = this.id === "recharts_measurement_span";
+    const w = measuring ? (this.textContent ?? "").length * 7 : width;
+    const h = measuring ? 14 : 300;
+    return { width: w, height: h, top: 0, left: 0, bottom: h, right: w, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+  });
+  const element = document.createElement("div");
+  document.body.append(element);
+  const labels = ["Pages · Published", "Posts · Drafts", "Media · Active"];
+  const instance = mount({ element, spec: { kind: "bar", data: labels.map(status => ({ status, count: 1 })), categoryKey: "status", series: [{ key: "count" }] }, theme: { mode: "dark" } }) as Instance;
+  try {
+    await instance.ready;
+    await vi.waitFor(() => expect(element.querySelector(".recharts-xAxis-tick-labels tspan")).not.toBeNull());
+    const lines = Array.from(element.querySelectorAll(".recharts-xAxis-tick-labels tspan"), el => el.textContent?.trim() ?? "");
+    expect(lines).not.toContain("·");
+    const titles = Array.from(element.querySelectorAll(".recharts-xAxis-tick-labels title"), el => el.textContent ?? "");
+    expect(titles.length).toBeGreaterThan(0);
+    expect(titles.every(title => labels.includes(title))).toBe(true);
+  } finally { act(() => instance.destroy()); element.remove(); }
+});
